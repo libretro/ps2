@@ -91,7 +91,7 @@ static void recMFHILO(bool hi, bool upper)
 			if (gprhilo >= 0)
 				xe_pinsrq(xmmd, gprhilo, 0);
 			else
-				xe_pinsrq_xm(xmmd, hi ? &cpuRegs.HI.UD[static_cast<u8>(upper)] : &cpuRegs.LO.UD[static_cast<u8>(upper)], 0);
+				xe_pinsrq_xm(xmmd, hi ? &cpuRegs.HI.UD[(u8)(upper)] : &cpuRegs.LO.UD[(u8)(upper)], 0);
 		}
 	}
 	else
@@ -121,7 +121,7 @@ static void recMFHILO(bool hi, bool upper)
 			if (gprreg >= 0)
 				xe_mov64_rr(gprd, gprreg);
 			else
-				xe_mov64_rm(gprd, hi ? &cpuRegs.HI.UD[static_cast<u8>(upper)] : &cpuRegs.LO.UD[static_cast<u8>(upper)]);
+				xe_mov64_rm(gprd, hi ? &cpuRegs.HI.UD[(u8)(upper)] : &cpuRegs.LO.UD[(u8)(upper)]);
 		}
 		else if (gprreg >= 0)
 		{
@@ -129,7 +129,7 @@ static void recMFHILO(bool hi, bool upper)
 		}
 		else
 		{
-			xe_mov64_rm(XE_AX, hi ? &cpuRegs.HI.UD[static_cast<u8>(upper)] : &cpuRegs.LO.UD[static_cast<u8>(upper)]);
+			xe_mov64_rm(XE_AX, hi ? &cpuRegs.HI.UD[(u8)(upper)] : &cpuRegs.LO.UD[(u8)(upper)]);
 			xe_mov64_mr(&cpuRegs.GPR.r[_Rd_].UD[0], XE_AX);
 		}
 	}
@@ -157,7 +157,7 @@ static void recMTHILO(bool hi, bool upper)
 			if (gprhilo >= 0)
 				xe_movq_rx(gprhilo, xmms); // movq: 66 REX.W 0f 7e
 			else
-				xe_movq_mx(hi ? &cpuRegs.HI.UD[static_cast<u8>(upper)] : &cpuRegs.LO.UD[static_cast<u8>(upper)], xmms);
+				xe_movq_mx(hi ? &cpuRegs.HI.UD[(u8)(upper)] : &cpuRegs.LO.UD[(u8)(upper)], xmms);
 		}
 	}
 	else
@@ -168,17 +168,17 @@ static void recMTHILO(bool hi, bool upper)
 		{
 			if (gprs >= 0)
 			{
-				xe_pinsrq(xmmhilo, gprs, static_cast<u8>(upper));
+				xe_pinsrq(xmmhilo, gprs, (u8)(upper));
 			}
 			else if (GPR_IS_CONST1(_Rs_))
 			{
 				// force it into a register, since we need to load the constant anyway
 				gprs = _allocX86reg(X86TYPE_GPR, _Rs_, MODE_READ);
-				xe_pinsrq(xmmhilo, gprs, static_cast<u8>(upper));
+				xe_pinsrq(xmmhilo, gprs, (u8)(upper));
 			}
 			else
 			{
-				xe_pinsrq_xm(xmmhilo, &cpuRegs.GPR.r[_Rs_].UD[0], static_cast<u8>(upper));
+				xe_pinsrq_xm(xmmhilo, &cpuRegs.GPR.r[_Rs_].UD[0], (u8)(upper));
 			}
 		}
 		else
@@ -196,7 +196,7 @@ static void recMTHILO(bool hi, bool upper)
 			{
 				// force into a register, since we need to load it to write anyway
 				gprs = _allocX86reg(X86TYPE_GPR, _Rs_, MODE_READ);
-				xe_mov64_mr(hi ? &cpuRegs.HI.UD[static_cast<u8>(upper)] : &cpuRegs.LO.UD[static_cast<u8>(upper)], gprs);
+				xe_mov64_mr(hi ? &cpuRegs.HI.UD[(u8)(upper)] : &cpuRegs.LO.UD[(u8)(upper)], gprs);
 			}
 		}
 	}

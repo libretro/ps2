@@ -64,7 +64,7 @@ static void recWritebackHILO(int info, bool writed, bool upper)
 		{
 			// we use CDQE over MOVSX because it's shorter.
 			xe_cdqe();
-			xe_pinsrq(xmmlo, XE_AX, static_cast<u8>(upper));
+			xe_pinsrq(xmmlo, XE_AX, (u8)(upper));
 		}
 		else
 		{
@@ -88,7 +88,7 @@ static void recWritebackHILO(int info, bool writed, bool upper)
 		if (xmmhi >= 0)
 		{
 			xe_movsxd_rr(XE_DX, XE_DX);
-			xe_pinsrq(xmmhi, XE_DX, static_cast<u8>(upper));
+			xe_pinsrq(xmmhi, XE_DX, (u8)(upper));
 		}
 		else
 		{
@@ -133,8 +133,8 @@ static void recWritebackConstHILO(u64 res, bool writed, int upper)
 	// It's not often that MULT/DIV are entirely constant. So while the MOV64s here are not optimal
 	// by any means, it's not something that's going to be hit often enough to worry about a cache.
 	// Except for apparently when it's getting set to all-zeros, but that'll be fine with immediates.
-	const s64 loval = static_cast<s64>(static_cast<s32>(static_cast<u32>(res)));
-	const s64 hival = static_cast<s64>(static_cast<s32>(static_cast<u32>(res >> 32)));
+	const s64 loval = (s64)((s32)((u32)(res)));
+	const s64 hival = (s64)((s32)((u32)(res >> 32)));
 
 	{
 		const bool lolive = EEINST_USEDTEST(XMMGPR_LO);
@@ -143,7 +143,7 @@ static void recWritebackConstHILO(u64 res, bool writed, int upper)
 		if (xmmlo >= 0)
 		{
 			xe_mov64_ri(XE_AX, loval);
-			xe_pinsrq(xmmlo, XE_AX, static_cast<u8>(upper));
+			xe_pinsrq(xmmlo, XE_AX, (u8)(upper));
 		}
 		else
 		{
@@ -162,7 +162,7 @@ static void recWritebackConstHILO(u64 res, bool writed, int upper)
 		if (xmmhi >= 0)
 		{
 			xe_mov64_ri(XE_AX, hival);
-			xe_pinsrq(xmmhi, XE_AX, static_cast<u8>(upper));
+			xe_pinsrq(xmmhi, XE_AX, (u8)(upper));
 		}
 		else
 		{

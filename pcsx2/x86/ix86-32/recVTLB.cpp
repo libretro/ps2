@@ -386,14 +386,14 @@ int vtlb_DynGenReadNonQuad(u32 bits, bool sign, bool xmm, int addr_reg, vtlb_Rea
 		{ struct e_mem xm; E_MEM(xm, 5, x86addr, 1, 0); xe_movss_xmemg(xmmreg, xm); }
 	}
 
-	const u32 padding = LOADSTORE_PADDING - MIN_U32(static_cast<u32>(x86Ptr - codeStart), 5);
+	const u32 padding = LOADSTORE_PADDING - MIN_U32((u32)(x86Ptr - codeStart), 5);
 	for (u32 i = 0; i < padding; i++)
 		xe_nop();
 
-	vtlb_AddLoadStoreInfo((uptr)codeStart, static_cast<u32>(x86Ptr - codeStart),
+	vtlb_AddLoadStoreInfo((uptr)codeStart, (u32)(x86Ptr - codeStart),
 		pc, GetAllocatedGPRBitmask(), GetAllocatedXMMBitmask(),
-		static_cast<u8>(addr_reg), static_cast<u8>(x86_dest_reg),
-		static_cast<u8>(bits), sign, true, xmm);
+		(u8)(addr_reg), (u8)(x86_dest_reg),
+		(u8)(bits), sign, true, xmm);
 
 	return x86_dest_reg;
 }
@@ -534,14 +534,14 @@ int vtlb_DynGenReadQuad(u32 bits, int addr_reg, vtlb_ReadRegAllocCallback dest_r
 
 		{ struct e_mem xm; E_MEM(xm, 5, XE_ARG1, 1, 0); xe_movaps_xmemg(reg, xm); }
 
-		const u32 padding = LOADSTORE_PADDING - MIN_U32(static_cast<u32>(x86Ptr - codeStart), 5);
+		const u32 padding = LOADSTORE_PADDING - MIN_U32((u32)(x86Ptr - codeStart), 5);
 		for (u32 i = 0; i < padding; i++)
 			xe_nop();
 
-		vtlb_AddLoadStoreInfo((uptr)codeStart, static_cast<u32>(x86Ptr - codeStart),
+		vtlb_AddLoadStoreInfo((uptr)codeStart, (u32)(x86Ptr - codeStart),
 				pc, GetAllocatedGPRBitmask(), GetAllocatedXMMBitmask(),
-				static_cast<u8>(XE_ARG1), static_cast<u8>(reg),
-				static_cast<u8>(bits), false, true, true);
+				(u8)(XE_ARG1), (u8)(reg),
+				(u8)(bits), false, true, true);
 	}
 	return reg;
 }
@@ -556,7 +556,7 @@ int vtlb_DynGenReadQuad_Const(u32 bits, u32 addr_const, vtlb_ReadRegAllocCallbac
 	const VTLBVirtual vmv = vtlbdata.vmap[addr_const >> VTLB_PAGE_BITS];
 	if (!vmv.isHandler(addr_const))
 	{
-		void* ppf = reinterpret_cast<void*>(vmv.assumePtr(addr_const));
+		void* ppf = (void*)(vmv.assumePtr(addr_const));
 		if (reg >= 0)
 			xe_movaps_xm(reg, ppf);
 	}
@@ -627,14 +627,14 @@ void vtlb_DynGenWrite(u32 sz, bool xmm, int addr_reg, int value_reg)
 			}
 		}
 
-		const u32 padding = LOADSTORE_PADDING - MIN_U32(static_cast<u32>(x86Ptr - codeStart), 5);
+		const u32 padding = LOADSTORE_PADDING - MIN_U32((u32)(x86Ptr - codeStart), 5);
 		for (u32 i = 0; i < padding; i++)
 			xe_nop();
 
-		vtlb_AddLoadStoreInfo((uptr)codeStart, static_cast<u32>(x86Ptr - codeStart),
+		vtlb_AddLoadStoreInfo((uptr)codeStart, (u32)(x86Ptr - codeStart),
 				pc, GetAllocatedGPRBitmask(), GetAllocatedXMMBitmask(),
-				static_cast<u8>(addr_reg), static_cast<u8>(value_reg),
-				static_cast<u8>(sz), false, false, xmm);
+				(u8)(addr_reg), (u8)(value_reg),
+				(u8)(sz), false, false, xmm);
 	}
 }
 
@@ -781,10 +781,10 @@ void vtlb_DynBackpatchLoadStore(uptr code_address, u32 code_size, u32 guest_pc, 
 	u32 num_gprs = 0;
 	u32 num_fprs = 0;
 
-	const u32 rbxid = static_cast<u32>(3 /* rbx */);
-	const u32 arg1id = static_cast<u32>(XE_ARG1);
-	const u32 arg2id = static_cast<u32>(XE_ARG2);
-	const u32 arg3id = static_cast<u32>(XE_ARG3);
+	const u32 rbxid = (u32)(3 /* rbx */);
+	const u32 arg1id = (u32)(XE_ARG1);
+	const u32 arg2id = (u32)(XE_ARG2);
+	const u32 arg3id = (u32)(XE_ARG3);
 
 	for (u32 i = 0; i < iREGCNT_GPR; i++)
 	{
@@ -910,6 +910,6 @@ void vtlb_DynBackpatchLoadStore(uptr code_address, u32 code_size, u32 guest_pc, 
 	xe_jmp_to(thunk);
 
 	// fill the rest of it with nops, if any
-	for (u32 i = static_cast<u32>((uptr)x86Ptr - code_address); i < code_size; i++)
+	for (u32 i = (u32)((uptr)x86Ptr - code_address); i < code_size; i++)
 		xe_nop();
 }

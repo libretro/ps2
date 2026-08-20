@@ -97,8 +97,8 @@ mVUop(mVUopU);
 mVUop(mVUopL);
 
 // Private Functions
-extern void mVUcacheProg(microVU* mVU, microProgram& prog);
-extern void mVUdeleteProg(microVU* mVU, microProgram*& prog);
+extern void mVUcacheProg(microVU* mVU, microProgram* prog);
+extern void mVUdeleteProg(microVU* mVU, microProgram** prog);
 _mVUt extern void* mVUsearchProg(u32 startPC, uptr pState);
 extern void* mVUexecuteVU0(u32 startPC, u32 cycles);
 extern void* mVUexecuteVU1(u32 startPC, u32 cycles);

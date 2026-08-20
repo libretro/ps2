@@ -246,7 +246,7 @@ extern void _recClearInst(EEINST* pinst);
 /* returns the number of insts + 1 until written (0 if not written) */
 extern u32 _recIsRegReadOrWritten(EEINST* pinst, int size, u8 xmmtype, u8 reg);
 
-extern void _recFillRegister(EEINST& pinst, int type, int reg, int write);
+extern void _recFillRegister(EEINST* pinst, int type, int reg, int write);
 
 /*  Returns true if the register is used later in the block, 
  *  and this isn't the last instruction to use it.

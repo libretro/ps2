@@ -870,28 +870,28 @@ u32 _recIsRegReadOrWritten(EEINST* pinst, int size, u8 xmmtype, u8 reg)
 	return 0;
 }
 
-void _recFillRegister(EEINST& pinst, int type, int reg, int write)
+void _recFillRegister(EEINST* pinst, int type, int reg, int write)
 {
 	if (write)
 	{
-		for (size_t i = 0; i < std::size(pinst.writeType); ++i)
+		for (size_t i = 0; i < std::size(pinst->writeType); ++i)
 		{
-			if (pinst.writeType[i] == XMMTYPE_TEMP)
+			if (pinst->writeType[i] == XMMTYPE_TEMP)
 			{
-				pinst.writeType[i] = type;
-				pinst.writeReg[i]  = reg;
+				pinst->writeType[i] = type;
+				pinst->writeReg[i]  = reg;
 				return;
 			}
 		}
 	}
 	else
 	{
-		for (size_t i = 0; i < std::size(pinst.readType); ++i)
+		for (size_t i = 0; i < std::size(pinst->readType); ++i)
 		{
-			if (pinst.readType[i] == XMMTYPE_TEMP)
+			if (pinst->readType[i] == XMMTYPE_TEMP)
 			{
-				pinst.readType[i] = type;
-				pinst.readReg[i]  = reg;
+				pinst->readType[i] = type;
+				pinst->readReg[i]  = reg;
 				return;
 			}
 		}

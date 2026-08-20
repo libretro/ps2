@@ -131,8 +131,8 @@ void mVUra_clearGPR(struct microRegAlloc* r, int regId);
 void mVUra_clearGPRCOP2(struct microRegAlloc* r, int regId);
 void mVUra_writeBackRegGPR(struct microRegAlloc* r, int reg, bool clearDirty);
 void mVUra_clearNeededGPR(struct microRegAlloc* r, int reg);
-void mVUra_unbindAnyVIAllocations(struct microRegAlloc* r, int reg, bool& backup);
-int mVUra_allocGPR(struct microRegAlloc* r, int viLoadReg, int viWriteReg, bool backup, bool zext_if_dirty);
+void mVUra_unbindAnyVIAllocations(struct microRegAlloc* r, int reg, int* backup);
+int mVUra_allocGPR(struct microRegAlloc* r, int viLoadReg, int viWriteReg, int backup, bool zext_if_dirty);
 void mVUra_moveVIToGPR(struct microRegAlloc* r, int reg, int vi, bool signext);
 void mVUra_writeVIBackup(struct microRegAlloc* r, int reg);
 
@@ -749,17 +749,17 @@ void mVUra_clearNeededGPR(struct microRegAlloc* r, int reg)
 			x86regs[reg].needed = false;
 	}
 
-void mVUra_unbindAnyVIAllocations(struct microRegAlloc* r, int reg, bool& backup)
+void mVUra_unbindAnyVIAllocations(struct microRegAlloc* r, int reg, int* backup)
 {
 		for (int i = 0; i < gprTotal; i++)
 		{
 			microMapGPR& mapI = r->gprMap[i];
 			if (mapI.VIreg == reg)
 			{
-				if (backup)
+				if ((*backup))
 				{
 					mVUra_writeVIBackup(r, i);
-					backup = false;
+					(*backup) = false;
 				}
 
 				// if it's needed, we just unbind the allocation and preserve it, otherwise clear
@@ -784,7 +784,7 @@ void mVUra_unbindAnyVIAllocations(struct microRegAlloc* r, int reg, bool& backup
 		}
 	}
 
-int mVUra_allocGPR(struct microRegAlloc* r, int viLoadReg, int viWriteReg, bool backup, bool zext_if_dirty)
+int mVUra_allocGPR(struct microRegAlloc* r, int viLoadReg, int viWriteReg, int backup, bool zext_if_dirty)
 {
 		// TODO: When load != write, we should check whether load is used later, and if so, copy it.
 
@@ -822,7 +822,7 @@ int mVUra_allocGPR(struct microRegAlloc* r, int viLoadReg, int viWriteReg, bool 
 						if (viLoadReg != viWriteReg)
 						{
 							// kill any allocations of viWriteReg
-							mVUra_unbindAnyVIAllocations(r, viWriteReg, backup);
+							mVUra_unbindAnyVIAllocations(r, viWriteReg, &backup);
 
 							// allocate a new register for writing to
 							int x = mVUra_findFreeGPR(r, viWriteReg);
@@ -877,7 +877,7 @@ int mVUra_allocGPR(struct microRegAlloc* r, int viLoadReg, int viWriteReg, bool 
 		}
 
 		if (viWriteReg >= 0) // Writing a new value, make sure this register isn't cached already
-			mVUra_unbindAnyVIAllocations(r, viWriteReg, backup);
+			mVUra_unbindAnyVIAllocations(r, viWriteReg, &backup);
 
 		int x = mVUra_findFreeGPR(r, viLoadReg);
 		const int gprX = x;

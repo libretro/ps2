@@ -311,7 +311,7 @@ static void rpsxADDU_const()
 
 static void rpsxADDU_consts(int info)
 {
-	const s32 cval = static_cast<s32>(g_psxConstRegs[_Rs_]);
+	const s32 cval = (s32)(g_psxConstRegs[_Rs_]);
 	rpsxMoveTtoD(info);
 	if (cval != 0)
 		xe_add32_ri(EEREC_D, cval);
@@ -319,7 +319,7 @@ static void rpsxADDU_consts(int info)
 
 static void rpsxADDU_constt(int info)
 {
-	const s32 cval = static_cast<s32>(g_psxConstRegs[_Rt_]);
+	const s32 cval = (s32)(g_psxConstRegs[_Rt_]);
 	rpsxMoveStoD(info);
 	if (cval != 0)
 		xe_add32_ri(EEREC_D, cval);
@@ -491,7 +491,7 @@ static void rpsxLogicalOp_constv(LogicalOp op, int info, int creg, u32 vreg, int
 			break;
 	}
 
-	const s32 cval = static_cast<s32>(g_psxConstRegs[creg]);
+	const s32 cval = (s32)(g_psxConstRegs[creg]);
 
 	if (hasFixed && cval == fixedInput)
 	{
@@ -2274,7 +2274,7 @@ void (*rpsxCP2BSC[32])() = {
 			pinst->regs[reg] |= EEINST_LASTUSE; \
 		prev->regs[reg] |= EEINST_LIVE | EEINST_USED; \
 		pinst->regs[reg] |= EEINST_USED; \
-		_recFillRegister(*pinst, XMMTYPE_GPRREG, reg, 0); \
+		_recFillRegister(*&pinst, XMMTYPE_GPRREG, reg, 0); \
 	}
 
 #define rpsxpropSetWrite(reg) \
@@ -2283,7 +2283,7 @@ void (*rpsxCP2BSC[32])() = {
 		if (!(pinst->regs[reg] & EEINST_USED)) \
 			pinst->regs[reg] |= EEINST_LASTUSE; \
 		pinst->regs[reg] |= EEINST_USED; \
-		_recFillRegister(*pinst, XMMTYPE_GPRREG, reg, 1); \
+		_recFillRegister(*&pinst, XMMTYPE_GPRREG, reg, 1); \
 	}
 
 void rpsxpropBSC(EEINST* prev, EEINST* pinst);

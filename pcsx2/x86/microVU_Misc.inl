@@ -147,7 +147,7 @@ __fi void mVUbackupRegs(microVU* mVU, bool toMemory = false, bool onlyNeeded = f
 	{
 		int num_xmms = 0, num_gprs = 0;
 
-		for (int i = 0; i < static_cast<int>(iREGCNT_GPR); i++)
+		for (int i = 0; i < (int)(iREGCNT_GPR); i++)
 		{
 			if (!XE_GPR_CALLER_SAVED(i) || i == XE_SP)
 				continue;
@@ -160,7 +160,7 @@ __fi void mVUbackupRegs(microVU* mVU, bool toMemory = false, bool onlyNeeded = f
 		}
 
 		u32 save_xmms = 0; /* bit per xmm */
-		for (int i = 0; i < static_cast<int>(iREGCNT_XMM); i++)
+		for (int i = 0; i < (int)(iREGCNT_XMM); i++)
 		{
 			if (!XE_XMM_CALLER_SAVED(i))
 				continue;
@@ -183,7 +183,7 @@ __fi void mVUbackupRegs(microVU* mVU, bool toMemory = false, bool onlyNeeded = f
 		if (stack_size > 0)
 		{
 			xe_sub64_ri(XE_SP, stack_size);
-			for (int i = 0; i < static_cast<int>(iREGCNT_XMM); i++)
+			for (int i = 0; i < (int)(iREGCNT_XMM); i++)
 			{
 				if ((save_xmms & (1u << i)))
 				{
@@ -209,7 +209,7 @@ __fi void mVUrestoreRegs(microVU* mVU, bool fromMemory = false, bool onlyNeeded 
 		int num_xmms = 0, num_gprs = 0;
 
 		u32 save_gprs = 0; /* bit per gpr */
-		for (int i = 0; i < static_cast<int>(iREGCNT_GPR); i++)
+		for (int i = 0; i < (int)(iREGCNT_GPR); i++)
 		{
 			if (!XE_GPR_CALLER_SAVED(i) || i == XE_SP)
 				continue;
@@ -222,7 +222,7 @@ __fi void mVUrestoreRegs(microVU* mVU, bool fromMemory = false, bool onlyNeeded 
 		}
 
 		u32 save_xmms = 0; /* bit per xmm */
-		for (int i = 0; i < static_cast<int>(iREGCNT_XMM); i++)
+		for (int i = 0; i < (int)(iREGCNT_XMM); i++)
 		{
 			if (!XE_XMM_CALLER_SAVED(i))
 				continue;
@@ -243,7 +243,7 @@ __fi void mVUrestoreRegs(microVU* mVU, bool fromMemory = false, bool onlyNeeded 
 		if (num_xmms > 0)
 		{
 			int stack_offset = (num_xmms - 1) * sizeof(u128) + stack_extra;
-			for (int i = static_cast<int>(iREGCNT_XMM - 1); i >= 0; i--)
+			for (int i = (int)(iREGCNT_XMM - 1); i >= 0; i--)
 			{
 				if (!(save_xmms & (1u << i)))
 					continue;
@@ -255,7 +255,7 @@ __fi void mVUrestoreRegs(microVU* mVU, bool fromMemory = false, bool onlyNeeded 
 		if (stack_size > 0)
 			xe_add64_ri(XE_SP, stack_size);
 
-		for (int i = static_cast<int>(iREGCNT_GPR - 1); i >= 0; i--)
+		for (int i = (int)(iREGCNT_GPR - 1); i >= 0; i--)
 		{
 			if ((save_gprs & (1u << i)))
 				xe_pop64_r(i);

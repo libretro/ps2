@@ -159,14 +159,14 @@ __ri void branchWarning(mV)
 	incPC(-2)
 
 // Test cycles to see if we need to exit-early...
-void mVUtestCycles(microVU* mVU, microFlagCycles& mFC)
+void mVUtestCycles(microVU* mVU, microFlagCycles* mFC)
 {
 	iPC = mVUstartPC;
 
 	// If the VUSyncHack is on, we want the VU to run behind, to avoid conditions where the VU is sped up.
 	if (isVU0 && EmuConfig.Speedhacks.EECycleRate != 0 && (!EmuConfig.Gamefixes.VUSyncHack || EmuConfig.Speedhacks.EECycleRate < 0))
 	{
-		switch (C89_MIN(static_cast<int>(EmuConfig.Speedhacks.EECycleRate), static_cast<int>(mVUcycles)))
+		switch (C89_MIN((int)(EmuConfig.Speedhacks.EECycleRate), (int)(mVUcycles)))
 		{
 			case -3: // 50%
 				mVUcycles *= 2.0f;
@@ -203,7 +203,7 @@ void mVUtestCycles(microVU* mVU, microFlagCycles& mFC)
 
 	if (EmuConfig.Gamefixes.VUSyncHack || EmuConfig.Gamefixes.FullVU0SyncHack)
 		xe_mov64_mi_s32(&vuRegs[mVU->index].nextBlockCycles, mVUcycles);
-	mVUendProgram(mVU, &mFC, 0);
+	mVUendProgram(mVU, mFC, 0);
 
 	xe_fwd_set32(skip);
 
@@ -514,9 +514,9 @@ void* mVUcompile(microVU* mVU, u32 startPC, uptr pState)
 	// Fix up vi15 const info for propagation through blocks
 	mVUregs.vi15 = (doConstProp && mVUconstReg[15].isValid) ? (u16)mVUconstReg[15].regValue : 0;
 	mVUregs.vi15v = (doConstProp && mVUconstReg[15].isValid) ? 1 : 0;
-	mVUsetFlags(mVU, mFC);           // Sets Up Flag instances
+	mVUsetFlags(mVU, &mFC);           // Sets Up Flag instances
 	mVUoptimizePipeState(mVU);       // Optimize the End Pipeline State for nicer Block Linking
-	mVUtestCycles(mVU, mFC);         // Update VU Cycles and Exit Early if Necessary
+	mVUtestCycles(mVU, &mFC);         // Update VU Cycles and Exit Early if Necessary
 
 	// Second Pass
 	iPC = mVUstartPC;
@@ -556,7 +556,7 @@ void* mVUcompile(microVU* mVU, u32 startPC, uptr pState)
 				// Need to make sure the flags are exact, Gungrave does FCAND with Mbit, then directly after FMAND with M-bit
 				// Also call setupBranch to sort flag instances
 
-				mVUsetupBranch(mVU, mFC);
+				mVUsetupBranch(mVU, &mFC);
 				// Make sure we save the current state so it can come back to it
 				u32* cpS = (u32*)&mVUregs;
 				u32* lpS = (u32*)&mVU->prog.lpState;
@@ -583,7 +583,7 @@ void* mVUcompile(microVU* mVU, u32 startPC, uptr pState)
 		if (isEvilBlock)
 		{
 			mVUsetupRange(mVU, xPC + 8, false);
-			normJumpCompile(mVU, mFC, true);
+			normJumpCompile(mVU, &mFC, true);
 			return thisPtr;
 		}
 		else if (!mVUinfo.isBdelay)
@@ -606,29 +606,29 @@ void* mVUcompile(microVU* mVU, u32 startPC, uptr pState)
 			{
 				case 1: // B/BAL
 				case 2:
-					normBranch(mVU, mFC);
+					normBranch(mVU, &mFC);
 					return thisPtr;
 				case 9: // JR/JALR
 				case 10:
-					normJump(mVU, mFC);
+					normJump(mVU, &mFC);
 					return thisPtr;
 				case 3: // IBEQ
-					condBranch(mVU, mFC, Jcc_Equal);
+					condBranch(mVU, &mFC, Jcc_Equal);
 					return thisPtr;
 				case 4: // IBGEZ
-					condBranch(mVU, mFC, Jcc_GreaterOrEqual);
+					condBranch(mVU, &mFC, Jcc_GreaterOrEqual);
 					return thisPtr;
 				case 5: // IBGTZ
-					condBranch(mVU, mFC, Jcc_Greater);
+					condBranch(mVU, &mFC, Jcc_Greater);
 					return thisPtr;
 				case 6: // IBLEQ
-					condBranch(mVU, mFC, Jcc_LessOrEqual);
+					condBranch(mVU, &mFC, Jcc_LessOrEqual);
 					return thisPtr;
 				case 7: // IBLTZ
-					condBranch(mVU, mFC, Jcc_Less);
+					condBranch(mVU, &mFC, Jcc_Less);
 					return thisPtr;
 				case 8: // IBNEQ
-					condBranch(mVU, mFC, Jcc_NotEqual);
+					condBranch(mVU, &mFC, Jcc_NotEqual);
 					return thisPtr;
 			}
 		}

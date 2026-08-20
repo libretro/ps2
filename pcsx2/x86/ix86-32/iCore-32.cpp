@@ -86,7 +86,7 @@ static int _getFreeX86reg(int mode)
 
 			if (x86regs[i].counter < bestcount)
 			{
-				tempi = static_cast<int>(i);
+				tempi = (int)(i);
 				bestcount = x86regs[i].counter;
 			}
 			continue;
@@ -183,7 +183,7 @@ int _allocX86reg(int type, int reg, int mode)
 	int hostXMMreg = (type == X86TYPE_GPR) ? _checkXMMreg(XMMTYPE_GPRREG, reg, 0) : -1;
 	if (type != X86TYPE_TEMP)
 	{
-		for (int i = 0; i < static_cast<int>(iREGCNT_GPR); i++)
+		for (int i = 0; i < (int)(iREGCNT_GPR); i++)
 		{
 			if (!x86regs[i].inuse || x86regs[i].type != type || x86regs[i].reg != reg)
 				continue;

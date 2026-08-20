@@ -122,7 +122,7 @@ void mVUreset(microVU* mVU, bool resetReserve)
 		}
 		for (u32 j = 0; j < mVU->prog.prog[i]->count; j++)
 		{
-			mVUdeleteProg(mVU, mVU->prog.prog[i]->data[j]);
+			mVUdeleteProg(mVU, &mVU->prog.prog[i]->data[j]);
 		}
 		mvu_proglist_clear(mVU->prog.prog[i]);
 		mVU->prog.quick[i].block = NULL;
@@ -147,7 +147,7 @@ void mVUclose(microVU* mVU)
 		if (!mVU->prog.prog[i])
 			continue;
 		for (u32 j = 0; j < mVU->prog.prog[i]->count; j++)
-			mVUdeleteProg(mVU, mVU->prog.prog[i]->data[j]);
+			mVUdeleteProg(mVU, &mVU->prog.prog[i]->data[j]);
 		mvu_proglist_delete(mVU->prog.prog[i]);
 		mVU->prog.prog[i] = NULL;
 	}
@@ -173,16 +173,16 @@ __fi void mVUclear(mV, u32 addr, u32 size)
 //------------------------------------------------------------------
 
 // Deletes a program
-__ri void mVUdeleteProg(microVU* mVU, microProgram*& prog)
+__ri void mVUdeleteProg(microVU* mVU, microProgram** prog)
 {
 	for (u32 i = 0; i < (mVU->progSize / 2); i++)
 	{
-		delete prog->block[i];
-		prog->block[i] = NULL;
+		delete (*prog)->block[i];
+		(*prog)->block[i] = NULL;
 	}
-	mvu_rangelist_delete(prog->ranges);
-	prog->ranges = NULL;
-	safe_aligned_free(prog);
+	mvu_rangelist_delete((*prog)->ranges);
+	(*prog)->ranges = NULL;
+	safe_aligned_free(*prog);
 }
 
 // Creates a new Micro Program
@@ -194,30 +194,30 @@ __ri microProgram* mVUcreateProg(microVU* mVU, int startPC)
 	prog->ranges = mvu_rangelist_new();
 	prog->startPC = startPC;
 	if(doWholeProgCompare)
-		mVUcacheProg(mVU, *prog); // Cache Micro Program
+		mVUcacheProg(mVU, prog); // Cache Micro Program
 	return prog;
 }
 
 // Caches Micro Program
-__ri void mVUcacheProg(microVU* mVU, microProgram& prog)
+__ri void mVUcacheProg(microVU* mVU, microProgram* prog)
 {
 	if (!doWholeProgCompare)
 	{
-		memcpy((u8*)prog.data + mVUrange.start,
+		memcpy((u8*)prog->data + mVUrange.start,
 		       (u8*)vuRegs[mVU->index].Micro + mVUrange.start,
 		       (mVUrange.end - mVUrange.start));
 	}
 	else
 	{
 		if (!mVU->index)
-			memcpy(prog.data, vuRegs[mVU->index].Micro, 0x1000);
+			memcpy(prog->data, vuRegs[mVU->index].Micro, 0x1000);
 		else
-			memcpy(prog.data, vuRegs[mVU->index].Micro, 0x4000);
+			memcpy(prog->data, vuRegs[mVU->index].Micro, 0x4000);
 	}
 }
 
 // Generate Hash for partial program based on compiled ranges...
-u64 mVUrangesHash(microVU* mVU, microProgram& prog)
+u64 mVUrangesHash(microVU* mVU, microProgram* prog)
 {
 	union
 	{
@@ -225,39 +225,39 @@ u64 mVUrangesHash(microVU* mVU, microProgram& prog)
 		u32 v32[2];
 	} hash = {0};
 
-	for (u32 r = 0; r < prog.ranges->count; r++)
+	for (u32 r = 0; r < prog->ranges->count; r++)
 	{
-		const microRange& range = prog.ranges->data[r];
+		const microRange& range = prog->ranges->data[r];
 		for (int i = range.start / 4; i < range.end / 4; i++)
 		{
-			hash.v32[0] -= prog.data[i];
-			hash.v32[1] ^= prog.data[i];
+			hash.v32[0] -= prog->data[i];
+			hash.v32[1] ^= prog->data[i];
 		}
 	}
 	return hash.v64;
 }
 
 // Compare Cached microProgram to vuRegs[mVU->index].Micro
-__fi bool mVUcmpProg(microVU* mVU, microProgram& prog)
+__fi bool mVUcmpProg(microVU* mVU, microProgram* prog)
 {
 	if (doWholeProgCompare)
 	{
-		if (memcmp((u8*)prog.data, vuRegs[mVU->index].Micro, mVU->microMemSize))
+		if (memcmp((u8*)prog->data, vuRegs[mVU->index].Micro, mVU->microMemSize))
 			return false;
 	}
 	else
 	{
-		for (u32 r = 0; r < prog.ranges->count; r++)
+		for (u32 r = 0; r < prog->ranges->count; r++)
 		{
-			const microRange& range = prog.ranges->data[r];
-			if (memcmp((u8*)prog.data + range.start,
+			const microRange& range = prog->ranges->data[r];
+			if (memcmp((u8*)prog->data + range.start,
 			           (u8*)vuRegs[mVU->index].Micro + range.start,
 			           (range.end - range.start)))
 				return false;
 		}
 	}
 	mVU->prog.cleared = 0;
-	mVU->prog.cur = &prog;
+	mVU->prog.cur = prog;
 	mVU->prog.isSame = doWholeProgCompare ? 1 : -1;
 	return true;
 }
@@ -274,7 +274,7 @@ _mVUt __fi void* mVUsearchProg(u32 startPC, uptr pState)
 		for (u32 i = 0; i < list->count; i++)
 		{
 			microProgram* p = list->data[i];
-			bool b = mVUcmpProg(mVU, *p);
+			bool b = mVUcmpProg(mVU, p);
 
 			if (b)
 			{

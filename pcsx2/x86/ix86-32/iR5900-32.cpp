@@ -1928,7 +1928,7 @@ static void recRecompile(const u32 startpc)
 			else if ((cpuRegs.code >> 26) == 5)
 			{
 				// bne
-				if (timeout_reg != static_cast<s32>(_Rs_) || _Rt_ != 0 || memRead32(i + 4) != 0)
+				if (timeout_reg != (s32)(_Rs_) || _Rt_ != 0 || memRead32(i + 4) != 0)
 					is_timeout_loop = false;
 			}
 			else if (cpuRegs.code != 0)
@@ -2244,7 +2244,7 @@ StartRecomp:
 		}
 	}
 
-	s_pCurBlockEx->x86size = static_cast<u32>(xGetPtr() - recPtr);
+	s_pCurBlockEx->x86size = (u32)(xGetPtr() - recPtr);
 
 	recPtr = xGetPtr();
 

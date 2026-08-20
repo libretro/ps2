@@ -26,7 +26,7 @@ __fi void mVUcheckIsSame(mV)
 		mVU->prog.isSame = !memcmp((u8*)mVUcurProg.data, vuRegs[mVU->index].Micro, mVU->microMemSize);
 	if (mVU->prog.isSame == 0)
 	{
-		mVUcacheProg(mVU, *mVU->prog.cur);
+		mVUcacheProg(mVU, mVU->prog.cur);
 		mVU->prog.isSame = 1;
 	}
 }
@@ -100,7 +100,7 @@ void mVUsetupRange(microVU* mVU, s32 pc, bool isStartPC)
 		}
 
 		if(!doWholeProgCompare)
-			mVUcacheProg(mVU, *mVU->prog.cur);
+			mVUcacheProg(mVU, mVU->prog.cur);
 	}
 }
 

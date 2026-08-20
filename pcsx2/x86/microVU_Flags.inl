@@ -106,7 +106,7 @@ int sortFlag(int* fFlag, int* bFlag, int cycles)
 
 /* Note: Flag handling is 'very' complex, it requires full knowledge 
  * of how microVU recs work, so don't touch! */
-__fi void mVUsetFlags(mV, microFlagCycles& mFC)
+__fi void mVUsetFlags(mV, microFlagCycles* mFC)
 {
 	int xS = 0, xM = 0, xC = 0;
 	int endPC = iPC;
@@ -131,40 +131,40 @@ __fi void mVUsetFlags(mV, microFlagCycles& mFC)
 
 	for (int i = 0; i < 4; i++)
 	{
-		mFC.xStatus[i] = i;
-		mFC.xMac   [i] = i;
-		mFC.xClip  [i] = i;
+		mFC->xStatus[i] = i;
+		mFC->xMac   [i] = i;
+		mFC->xClip  [i] = i;
 	}
 
 	if (!(mVUpBlock->pState.needExactMatch & 1))
 	{
 		xS = (mVUpBlock->pState.flagInfo >> 2) & 3;
-		mFC.xStatus[0] = -1;
-		mFC.xStatus[1] = -1;
-		mFC.xStatus[2] = -1;
-		mFC.xStatus[3] = -1;
-		mFC.xStatus[(xS - 1) & 3] = 0;
+		mFC->xStatus[0] = -1;
+		mFC->xStatus[1] = -1;
+		mFC->xStatus[2] = -1;
+		mFC->xStatus[3] = -1;
+		mFC->xStatus[(xS - 1) & 3] = 0;
 	}
 
 	if (!(mVUpBlock->pState.needExactMatch & 2))
 	{
-		mFC.xMac[0] = -1;
-		mFC.xMac[1] = -1;
-		mFC.xMac[2] = -1;
-		mFC.xMac[3] = -1;
+		mFC->xMac[0] = -1;
+		mFC->xMac[1] = -1;
+		mFC->xMac[2] = -1;
+		mFC->xMac[3] = -1;
 	}
 
 	if (!(mVUpBlock->pState.needExactMatch & 4))
 	{
 		xC = (mVUpBlock->pState.flagInfo >> 6) & 3;
-		mFC.xClip[0] = -1;
-		mFC.xClip[1] = -1;
-		mFC.xClip[2] = -1;
-		mFC.xClip[3] = -1;
-		mFC.xClip[(xC - 1) & 3] = 0;
+		mFC->xClip[0] = -1;
+		mFC->xClip[1] = -1;
+		mFC->xClip[2] = -1;
+		mFC->xClip[3] = -1;
+		mFC->xClip[(xC - 1) & 3] = 0;
 	}
 
-	mFC.cycles = 0;
+	mFC->cycles = 0;
 	u32 xCount = mVUcount; /* Backup count */
 	iPC = mVUstartPC;
 	for (mVUcount = 0; mVUcount < xCount; mVUcount++)
@@ -179,11 +179,11 @@ __fi void mVUsetFlags(mV, microFlagCycles& mFC)
 			else
 				mVUstatusFlagOp(mVU);
 		}
-		mFC.cycles += mVUstall;
+		mFC->cycles += mVUstall;
 
-		sFLAG.read = doSFlagInsts ? findFlagInst(mFC.xStatus, mFC.cycles) : 0;
-		mFLAG.read = doMFlagInsts ? findFlagInst(mFC.xMac,    mFC.cycles) : 0;
-		cFLAG.read = doCFlagInsts ? findFlagInst(mFC.xClip,   mFC.cycles) : 0;
+		sFLAG.read = doSFlagInsts ? findFlagInst(mFC->xStatus, mFC->cycles) : 0;
+		mFLAG.read = doMFlagInsts ? findFlagInst(mFC->xMac,    mFC->cycles) : 0;
+		cFLAG.read = doCFlagInsts ? findFlagInst(mFC->xClip,   mFC->cycles) : 0;
 
 		sFLAG.write = doSFlagInsts ? xS : 0;
 		mFLAG.write = doMFlagInsts ? xM : 0;
@@ -209,23 +209,23 @@ __fi void mVUsetFlags(mV, microFlagCycles& mFC)
 
 		if (sFlagCond)
 		{
-			mFC.xStatus[xS] = mFC.cycles + 4;
+			mFC->xStatus[xS] = mFC->cycles + 4;
 			xS = (xS + 1) & 3;
 		}
 
 		if (mFLAG.doFlag)
 		{
-			mFC.xMac[xM] = mFC.cycles + 4;
+			mFC->xMac[xM] = mFC->cycles + 4;
 			xM = (xM + 1) & 3;
 		}
 
 		if (cFLAG.doFlag)
 		{
-			mFC.xClip[xC] = mFC.cycles + 4;
+			mFC->xClip[xC] = mFC->cycles + 4;
 			xC = (xC + 1) & 3;
 		}
 
-		mFC.cycles++;
+		mFC->cycles++;
 		incPC2(2);
 	}
 
@@ -242,12 +242,12 @@ __fi void mVUsetFlags(mV, microFlagCycles& mFC)
 #define shuffleClip    ((bClip[3] << 6) | (bClip[2] << 4) | (bClip[1] << 2) | bClip[0])
 
 /* Recompiles Code for Proper Flags on Block Linkings */
-__fi void mVUsetupFlags(mV, microFlagCycles& mFC)
+__fi void mVUsetupFlags(mV, microFlagCycles* mFC)
 {
 	if (doSFlagInsts && __Status)
 	{
 		int bStatus[4];
-		int sortRegs = sortFlag(mFC.xStatus, bStatus, mFC.cycles);
+		int sortRegs = sortFlag(mFC->xStatus, bStatus, mFC->cycles);
 		/* NOTE: Emitter will optimize out mov(reg1, reg1) cases... */
 		if (sortRegs == 1)
 		{
@@ -291,7 +291,7 @@ __fi void mVUsetupFlags(mV, microFlagCycles& mFC)
 	if (doMFlagInsts && __Mac)
 	{
 		int bMac[4];
-		sortFlag(mFC.xMac, bMac, mFC.cycles);
+		sortFlag(mFC->xMac, bMac, mFC->cycles);
 		xe_movaps_xm(xmmT1, mVU->macFlag);
 		xe_shufps_xxi(xmmT1, xmmT1, shuffleMac);
 		xe_movaps_mx(mVU->macFlag, xmmT1);
@@ -300,7 +300,7 @@ __fi void mVUsetupFlags(mV, microFlagCycles& mFC)
 	if (doCFlagInsts && __Clip)
 	{
 		int bClip[4];
-		sortFlag(mFC.xClip, bClip, mFC.cycles);
+		sortFlag(mFC->xClip, bClip, mFC->cycles);
 		xe_movaps_xm(xmmT2, mVU->clipFlag);
 		xe_shufps_xxi(xmmT2, xmmT2, shuffleClip);
 		xe_movaps_mx(mVU->clipFlag, xmmT2);
@@ -317,14 +317,14 @@ struct mVUflagVisited
 };
 
 /* Scan through instructions and check if flags are read (FSxxx, FMxxx, FCxxx opcodes) */
-static void _mVUflagPass(mV, u32 startPC, u32 sCount, u32 found, mVUflagVisited& v)
+static void _mVUflagPass(mV, u32 startPC, u32 sCount, u32 found, mVUflagVisited* v)
 {
-	for (u32 i = 0; i < v.count; i++)
+	for (u32 i = 0; i < v->count; i++)
 	{
-		if (v.pc[i] == startPC)
+		if (v->pc[i] == startPC)
 			return; /* Prevent infinite recursion */
 	}
-	v.pc[v.count++] = startPC;
+	v->pc[v->count++] = startPC;
 
 	int oldPC = iPC;
 	int oldBranch = mVUbranch;
@@ -395,7 +395,7 @@ static void mVUflagPass(mV, u32 startPC, u32 sCount = 0, u32 found = 0)
 	mVUflagVisited v;
 	v.pc    = visitedPC;
 	v.count = 0;
-	_mVUflagPass(mVU, startPC, sCount, found, v);
+	_mVUflagPass(mVU, startPC, sCount, found, &v);
 }
 
 /* Checks if the first ~4 instructions of a block will read flags */

@@ -312,7 +312,7 @@ static u16 dVifComputeLength(uint cl, uint wl, u8 num, int isFill)
 	return C89_MIN(length, 0xFFFFu);
 }
 
-_vifT __fi nVifBlock* dVifCompile(nVifBlock& block, bool isFill)
+_vifT __fi nVifBlock* dVifCompile(nVifBlock* block, bool isFill)
 {
 	nVifStruct& v = nVif[idx];
 
@@ -320,18 +320,18 @@ _vifT __fi nVifBlock* dVifCompile(nVifBlock& block, bool isFill)
 	xSetPtr(v.recWritePtr);
 
 	// +1 bias keeps 0 as the empty-cell sentinel; reserve is 8MB so u32 always fits
-	block.startOffset = (u32)((u8*)xGetAlignedCallTarget() - v.recReserve->GetPtr()) + 1;
-	block.length = dVifComputeLength(block.cl, block.wl, block.num, isFill);
-	v.vifBlocks.add(block);
+	block->startOffset = (u32)((u8*)xGetAlignedCallTarget() - v.recReserve->GetPtr()) + 1;
+	block->length = dVifComputeLength(block->cl, block->wl, block->num, isFill);
+	v.vifBlocks.add(*block);
 
 	{
 		struct VifUnpackSSE vpu;
-		VifUnpackSSE_InitDynarec(&vpu, &v, &block);
+		VifUnpackSSE_InitDynarec(&vpu, &v, block);
 		VifUnpackSSE_CompileRoutine(&vpu);
 	}
 	v.recWritePtr = xGetPtr();
 
-	return &block;
+	return block;
 }
 
 _vifT __fi void dVifUnpack(const u8* data, bool isFill)
@@ -368,7 +368,7 @@ _vifT __fi void dVifUnpack(const u8* data, bool isFill)
 	// Seach in cache before trying to compile the block
 	nVifBlock* b = v.vifBlocks.find(block);
 	if (unlikely(b == nullptr))
-		b = dVifCompile<idx>(block, isFill);
+		b = dVifCompile<idx>(&block, isFill);
 
 	/* Execute the block */
 	{ 

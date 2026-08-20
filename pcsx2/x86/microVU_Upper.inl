@@ -189,42 +189,42 @@ static bool doSafeSub(microVU* mVU, int opCase, int opType, bool isACC)
 }
 
 // Sets Up Ft Reg for Normal, BC, I, and Q Cases
-static void setupFtReg(microVU* mVU, int& Ft, int& tempFt, int opCase, int clampType)
+static void setupFtReg(microVU* mVU, int* Ft, int* tempFt, int opCase, int clampType)
 {
 	opCase1
 	{
 		// Based on mVUclamp2 -> mVUclamp1 below.
 		const bool willClamp = (clampE || ((clampType & cFt) && !clampE && (CHECK_VU_OVERFLOW(mVU->index) || CHECK_VU_SIGN_OVERFLOW(mVU->index))));
 
-		if (_XYZW_SS2)      { Ft = mVUra_allocReg(mVU->regAlloc, _Ft_, 0, _X_Y_Z_W, true); tempFt = Ft; }
-		else if (willClamp) { Ft = mVUra_allocReg(mVU->regAlloc, _Ft_, 0, 0xf, true);      tempFt = Ft; }
-		else                { Ft = mVUra_allocReg(mVU->regAlloc, _Ft_, -1, 0, true);              tempFt = -1;  }
+		if (_XYZW_SS2)      { (*Ft) = mVUra_allocReg(mVU->regAlloc, _Ft_, 0, _X_Y_Z_W, true); (*tempFt) = (*Ft); }
+		else if (willClamp) { (*Ft) = mVUra_allocReg(mVU->regAlloc, _Ft_, 0, 0xf, true);      (*tempFt) = (*Ft); }
+		else                { (*Ft) = mVUra_allocReg(mVU->regAlloc, _Ft_, -1, 0, true);              (*tempFt) = -1;  }
 	}
 	opCase2
 	{
-		tempFt = mVUra_allocReg(mVU->regAlloc, _Ft_, -1, 0, true);
-		Ft     = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, true);
-		mVUunpack_xyzw(Ft, tempFt, _bc_);
-		mVUra_clearNeededXMM(mVU->regAlloc, tempFt);
-		tempFt = Ft;
+		(*tempFt) = mVUra_allocReg(mVU->regAlloc, _Ft_, -1, 0, true);
+		(*Ft)     = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, true);
+		mVUunpack_xyzw((*Ft), (*tempFt), _bc_);
+		mVUra_clearNeededXMM(mVU->regAlloc, (*tempFt));
+		(*tempFt) = (*Ft);
 	}
 	opCase3
 	{
-		Ft = mVUra_allocReg(mVU->regAlloc, 33, 0, _X_Y_Z_W, true);
-		tempFt = Ft;
+		(*Ft) = mVUra_allocReg(mVU->regAlloc, 33, 0, _X_Y_Z_W, true);
+		(*tempFt) = (*Ft);
 	}
 	opCase4
 	{
 		if (!clampE && _XYZW_SS && !mVUinfo.readQ)
 		{
-			Ft = xmmPQ;
-			tempFt = -1;
+			(*Ft) = xmmPQ;
+			(*tempFt) = -1;
 		}
 		else
 		{
-			Ft = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, true);
-			tempFt = Ft;
-			mVUunpack_xyzw(Ft, xmmPQ, mVUinfo.readQ);
+			(*Ft) = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, true);
+			(*tempFt) = (*Ft);
+			mVUunpack_xyzw((*Ft), xmmPQ, mVUinfo.readQ);
 		}
 	}
 }
@@ -239,7 +239,7 @@ static void mVU_FMACa(microVU* mVU, int recPass, int opCase, int opType, bool is
 			return;
 
 		int Fs, Ft, ACC, tempFt;
-		setupFtReg(mVU, Ft, tempFt, opCase, clampType);
+		setupFtReg(mVU, &Ft, &tempFt, opCase, clampType);
 
 		if (isACC)
 		{
@@ -290,7 +290,7 @@ static void mVU_FMACb(microVU* mVU, int recPass, int opCase, int opType, int cla
 	pass2
 	{
 		int Fs, Ft, ACC, tempFt;
-		setupFtReg(mVU, Ft, tempFt, opCase, clampType);
+		setupFtReg(mVU, &Ft, &tempFt, opCase, clampType);
 
 		Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, 0, _X_Y_Z_W, true);
 		ACC = mVUra_allocReg(mVU->regAlloc, 32, 32, 0xf, false);
@@ -336,7 +336,7 @@ static void mVU_FMACc(microVU* mVU, int recPass, int opCase, int clampType)
 	pass2
 	{
 		int Fs, Ft, ACC, tempFt;
-		setupFtReg(mVU, Ft, tempFt, opCase, clampType);
+		setupFtReg(mVU, &Ft, &tempFt, opCase, clampType);
 
 		ACC = mVUra_allocReg(mVU->regAlloc, 32, -1, 0, true);
 		Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, _Fd_, _X_Y_Z_W, true);
@@ -371,7 +371,7 @@ static void mVU_FMACd(microVU* mVU, int recPass, int opCase, int clampType)
 	pass2
 	{
 		int Fs, Ft, Fd, tempFt;
-		setupFtReg(mVU, Ft, tempFt, opCase, clampType);
+		setupFtReg(mVU, &Ft, &tempFt, opCase, clampType);
 
 		Fs = mVUra_allocReg(mVU->regAlloc, _Fs_,  0, _X_Y_Z_W, true);
 		Fd = mVUra_allocReg(mVU->regAlloc, 32, _Fd_, _X_Y_Z_W, true);

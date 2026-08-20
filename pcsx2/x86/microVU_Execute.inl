@@ -144,7 +144,7 @@ static void mVUGenerateWaitMTVU(mV)
 
 	int num_xmms = 0, num_gprs = 0;
 
-	for (int i = 0; i < static_cast<int>(iREGCNT_GPR); i++)
+	for (int i = 0; i < (int)(iREGCNT_GPR); i++)
 	{
 		if (!XE_GPR_CALLER_SAVED(i) || i == XE_SP)
 			continue;
@@ -158,7 +158,7 @@ static void mVUGenerateWaitMTVU(mV)
 		num_gprs++;
 	}
 
-	for (int i = 0; i < static_cast<int>(iREGCNT_XMM); i++)
+	for (int i = 0; i < (int)(iREGCNT_XMM); i++)
 	{
 		if (!XE_XMM_CALLER_SAVED(i))
 			continue;
@@ -174,7 +174,7 @@ static void mVUGenerateWaitMTVU(mV)
 	if (stack_size > 0)
 	{
 		xe_sub64_ri(XE_SP, stack_size);
-		for (int i = 0; i < static_cast<int>(iREGCNT_XMM); i++)
+		for (int i = 0; i < (int)(iREGCNT_XMM); i++)
 		{
 			if (!XE_XMM_CALLER_SAVED(i))
 				continue;
@@ -187,7 +187,7 @@ static void mVUGenerateWaitMTVU(mV)
 	xe_fastcall0(mVUwaitMTVU);
 
 	stack_offset = (num_xmms - 1) * sizeof(u128) + SHADOW_STACK_SIZE;
-	for (int i = static_cast<int>(iREGCNT_XMM - 1); i >= 0; i--)
+	for (int i = (int)(iREGCNT_XMM - 1); i >= 0; i--)
 	{
 		if (!XE_XMM_CALLER_SAVED(i))
 			continue;
@@ -197,7 +197,7 @@ static void mVUGenerateWaitMTVU(mV)
 	}
 	xe_add64_ri(XE_SP, stack_size);
 
-	for (int i = static_cast<int>(iREGCNT_GPR - 1); i >= 0; i--)
+	for (int i = (int)(iREGCNT_GPR - 1); i >= 0; i--)
 	{
 		if (!XE_GPR_CALLER_SAVED(i) || i == XE_SP)
 			continue;
