@@ -80,7 +80,7 @@ static BASEBLOCK* recROM = NULL; // and here
 static BASEBLOCK* recROM1 = NULL; // also here
 static BASEBLOCK* recROM2 = NULL; // also here
 
-static BaseBlocks recBlocks;
+static struct BaseBlocks recBlocks;
 static u8* recPtr = NULL;
 static EEINST* s_pInstCache = NULL;
 static u32 s_nInstCacheSize = 0;
@@ -353,20 +353,20 @@ static void recClear(u32 addr, u32 size)
 		return;
 	addr = HWADDR(addr);
 
-	int blockidx = recBlocks.LastIndex(addr + size * 4 - 4);
+	int blockidx = BaseBlocks_LastIndex(&recBlocks, addr + size * 4 - 4);
 
 	if (blockidx == -1)
 		return;
 
 	u32 lowerextent = (u32)-1, upperextent = 0, ceiling = (u32)-1;
 
-	BASEBLOCKEX* pexblock = recBlocks[blockidx + 1];
+	BASEBLOCKEX* pexblock = BaseBlocks_At(&recBlocks, blockidx + 1);
 	if (pexblock)
 		ceiling = pexblock->startpc;
 
 	int toRemoveLast = blockidx;
 
-	while ((pexblock = recBlocks[blockidx]))
+	while ((pexblock = BaseBlocks_At(&recBlocks, blockidx)))
 	{
 		u32 blockstart = pexblock->startpc;
 		u32 blockend = pexblock->startpc + pexblock->size * 4;
@@ -376,7 +376,7 @@ static void recClear(u32 addr, u32 size)
 		{
 			if (toRemoveLast != blockidx)
 			{
-				recBlocks.Remove((blockidx + 1), toRemoveLast);
+				BaseBlocks_Remove(&recBlocks, (blockidx + 1), toRemoveLast);
 			}
 			toRemoveLast = --blockidx;
 			continue;
@@ -396,7 +396,7 @@ static void recClear(u32 addr, u32 size)
 	}
 
 	if (toRemoveLast != blockidx)
-		recBlocks.Remove((blockidx + 1), toRemoveLast);
+		BaseBlocks_Remove(&recBlocks, (blockidx + 1), toRemoveLast);
 
 	upperextent = C89_MIN(upperextent, ceiling);
 
@@ -530,7 +530,10 @@ static void _DynGen_Dispatchers(void)
 	mode.m_exec  = true;
 	HostSys::MemProtect(eeRecDispatchers, __pagesize, mode);
 
-	recBlocks.SetJITCompile(JITCompile);
+	/* Was the BaseBlocks constructor; the struct is POD now, so the
+	 * one-time allocation is explicit and happens here, before any use. */
+	BaseBlocks_init(&recBlocks);
+	BaseBlocks_SetJITCompile(&recBlocks, JITCompile);
 
 	for (size_t i = 0; i < std::size(s_invalidBlockLUT); i++)
 		s_invalidBlockLUT[i].m_pFnptr = (uptr)InvalidPCDispatch;
@@ -640,7 +643,7 @@ static void recResetRaw(void)
 	if (s_pInstCache)
 		memset(s_pInstCache, 0, sizeof(EEINST) * s_nInstCacheSize);
 
-	recBlocks.Reset();
+	BaseBlocks_Reset(&recBlocks);
 	mmap_ResetBlockTracking();
 	vtlb_ClearLoadStoreInfo();
 
@@ -661,7 +664,7 @@ static void recShutdown(void)
 	safe_aligned_free(recRAMCopy);
 	safe_aligned_free(recLutReserve_RAM);
 
-	recBlocks.Reset();
+	BaseBlocks_Reset(&recBlocks);
 
 	recRAM = recROM = recROM1 = recROM2 = NULL;
 
@@ -1216,7 +1219,7 @@ static void iBranchTest(u32 newpc)
 		if (newpc == 0xffffffff)
 			xe_jcc_to(Jcc_Signed, DispatcherReg);
 		else
-			{ s32* xslot; xe_jcc32_slot(Jcc_Signed, 0, xslot); recBlocks.Link(HWADDR(newpc), xslot); }
+			{ s32* xslot; xe_jcc32_slot(Jcc_Signed, 0, xslot); BaseBlocks_Link(&recBlocks, HWADDR(newpc), xslot); }
 	}
 	xe_jmp_to(DispatcherEvent);
 }
@@ -1723,7 +1726,7 @@ static bool recSkipTimeoutLoop(s32 reg, bool is_timeout_loop)
 	xe_mov32_mr(&cpuRegs.GPR.r[reg].UL[0], XE_DX); // write back new value of v0
 	xe_jcc_to(Jcc_NotZero, DispatcherEvent); // jump to dispatcher if new v0 is not zero (i.e. an event)
 	xe_mov32_mi(&cpuRegs.pc, s_nEndBlock); // otherwise end of loop
-	{ s32* xslot; xe_jcc32_slot(Jcc_Unconditional, 0, xslot); recBlocks.Link(HWADDR(s_nEndBlock), xslot); }
+	{ s32* xslot; xe_jcc32_slot(Jcc_Unconditional, 0, xslot); BaseBlocks_Link(&recBlocks, HWADDR(s_nEndBlock), xslot); }
 
 	g_branch = 1;
 	pc = s_nEndBlock;
@@ -1792,9 +1795,9 @@ static void recRecompile(const u32 startpc)
 
 	s_pCurBlock = PC_GETBLOCK(startpc);
 
-	s_pCurBlockEx = recBlocks.Get(HWADDR(startpc));
+	s_pCurBlockEx = BaseBlocks_Get(&recBlocks, HWADDR(startpc));
 
-	s_pCurBlockEx = recBlocks.New(HWADDR(startpc), (uptr)recPtr);
+	s_pCurBlockEx = BaseBlocks_New(&recBlocks, HWADDR(startpc), (uptr)recPtr);
 
 	if (HWADDR(startpc) == EELOAD_START)
 	{
@@ -2174,8 +2177,8 @@ StartRecomp:
 	{
 		BASEBLOCKEX* oldBlock;
 		int i;
-		i = recBlocks.LastIndex(HWADDR(pc) - 4);
-		while ((oldBlock = recBlocks[i--]))
+		i = BaseBlocks_LastIndex(&recBlocks, HWADDR(pc) - 4);
+		while ((oldBlock = BaseBlocks_At(&recBlocks, i--)))
 		{
 			if (oldBlock == s_pCurBlockEx)
 				continue;
@@ -2193,7 +2196,7 @@ StartRecomp:
 					cmpsize))
 			{
 				recClear(startpc, (pc - startpc) / 4);
-				s_pCurBlockEx = recBlocks.Get(HWADDR(startpc));
+				s_pCurBlockEx = BaseBlocks_Get(&recBlocks, HWADDR(startpc));
 				break;
 			}
 		}
@@ -2236,7 +2239,7 @@ StartRecomp:
 			{
 				xe_mov32_mi(&cpuRegs.pc, pc);
 				xe_add64_mi(&cpuRegs.cycle, scaleblockcycles());
-				{ s32* xslot; xe_jcc32_slot(Jcc_Unconditional, 0, xslot); recBlocks.Link(HWADDR(pc), xslot); }
+				{ s32* xslot; xe_jcc32_slot(Jcc_Unconditional, 0, xslot); BaseBlocks_Link(&recBlocks, HWADDR(pc), xslot); }
 			}
 		}
 	}

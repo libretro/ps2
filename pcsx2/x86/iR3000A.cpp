@@ -56,7 +56,7 @@ static BASEBLOCK* recRAM = NULL; // and the ptr to the blocks here
 static BASEBLOCK* recROM = NULL; // and here
 static BASEBLOCK* recROM1 = NULL; // also here
 static BASEBLOCK* recROM2 = NULL; // also here
-static BaseBlocks recBlocks;
+static struct BaseBlocks recBlocks;
 static u8* recPtr = NULL;
 u32 psxpc; // recompiler psxpc
 static int psxbranch; // set for branch
@@ -200,7 +200,10 @@ static void _DynGen_Dispatchers(void)
 	mode.m_exec  = true;
 	HostSys::MemProtect(iopRecDispatchers, __pagesize, mode);
 
-	recBlocks.SetJITCompile(iopJITCompile);
+	/* Was the BaseBlocks constructor; the struct is POD now, so the
+	 * one-time allocation is explicit and happens here, before any use. */
+	BaseBlocks_init(&recBlocks);
+	BaseBlocks_SetJITCompile(&recBlocks, iopJITCompile);
 }
 
 ////////////////////////////////////////////////////
@@ -865,7 +868,7 @@ void recResetIOP(void)
 	if (s_pInstCache)
 		memset(s_pInstCache, 0, sizeof(EEINST) * s_nInstCacheSize);
 
-	recBlocks.Reset();
+	BaseBlocks_Reset(&recBlocks);
 	g_psxMaxRecMem = 0;
 
 	recPtr = *recMem;
@@ -927,9 +930,9 @@ static __fi u32 psxRecClearMem(u32 pc)
 	pc = HWADDR(pc);
 
 	u32 lowerextent = pc, upperextent = pc + 4;
-	int blockidx = recBlocks.Index(pc);
+	int blockidx = BaseBlocks_Index(&recBlocks, pc);
 
-	while (BASEBLOCKEX* pexblock = recBlocks[blockidx - 1])
+	while (BASEBLOCKEX* pexblock = BaseBlocks_At(&recBlocks, blockidx - 1))
 	{
 		if (pexblock->startpc + pexblock->size * 4 <= lowerextent)
 			break;
@@ -940,7 +943,7 @@ static __fi u32 psxRecClearMem(u32 pc)
 
 	int toRemoveFirst = blockidx;
 
-	while (BASEBLOCKEX* pexblock = recBlocks[blockidx])
+	while (BASEBLOCKEX* pexblock = BaseBlocks_At(&recBlocks, blockidx))
 	{
 		if (pexblock->startpc >= upperextent)
 			break;
@@ -953,7 +956,7 @@ static __fi u32 psxRecClearMem(u32 pc)
 
 	if (toRemoveFirst != blockidx)
 	{
-		recBlocks.Remove(toRemoveFirst, (blockidx - 1));
+		BaseBlocks_Remove(&recBlocks, toRemoveFirst, (blockidx - 1));
 	}
 
 	iopClearRecLUT(PSX_GETBLOCK(lowerextent), (upperextent - lowerextent) / 4);
@@ -1023,7 +1026,7 @@ void psxSetBranchImm(u32 imm)
 	_psxFlushCall(FLUSH_EVERYTHING);
 	iPsxBranchTest(imm, imm <= psxpc);
 
-	{ s32* xslot; xe_jcc32_slot(Jcc_Unconditional, 0, xslot); recBlocks.Link(HWADDR(imm), xslot); }
+	{ s32* xslot; xe_jcc32_slot(Jcc_Unconditional, 0, xslot); BaseBlocks_Link(&recBlocks, HWADDR(imm), xslot); }
 }
 
 static __fi u32 psxScaleBlockCycles()
@@ -1181,10 +1184,10 @@ static void iopRecRecompile(const u32 startpc)
 
 	s_pCurBlock = PSX_GETBLOCK(startpc);
 
-	s_pCurBlockEx = recBlocks.Get(HWADDR(startpc));
+	s_pCurBlockEx = BaseBlocks_Get(&recBlocks, HWADDR(startpc));
 
 	if (!s_pCurBlockEx || s_pCurBlockEx->startpc != HWADDR(startpc))
-		s_pCurBlockEx = recBlocks.New(HWADDR(startpc), (uptr)recPtr);
+		s_pCurBlockEx = BaseBlocks_New(&recBlocks, HWADDR(startpc), (uptr)recPtr);
 
 	psxbranch = 0;
 
@@ -1345,7 +1348,7 @@ StartRecomp:
 		{
 			_psxFlushCall(FLUSH_EVERYTHING);
 			xe_mov32_mi(&psxRegs.pc, psxpc);
-			{ s32* xslot; xe_jcc32_slot(Jcc_Unconditional, 0, xslot); recBlocks.Link(HWADDR(s_nEndBlock), xslot); }
+			{ s32* xslot; xe_jcc32_slot(Jcc_Unconditional, 0, xslot); BaseBlocks_Link(&recBlocks, HWADDR(s_nEndBlock), xslot); }
 			psxbranch = 3;
 		}
 	}

@@ -16,25 +16,49 @@
 
 #include "BaseblockEx.h"
 
-BASEBLOCKEX* BaseBlocks::New(u32 startpc, uptr fnptr)
+/* The old class ran its constructor once, at static-init time. The call
+ * sites that replace it (_DynGen_Dispatchers) run on every recompiler
+ * reset, so this is idempotent: allocate on the first call, and on later
+ * calls just reset the contents the way the destructor-then-constructor
+ * pair never did. Re-allocating here would leak a 256KB bucket table per
+ * reset. */
+void BaseBlocks_init(struct BaseBlocks* b)
 {
-	links.patch_links(startpc, fnptr);
+	if (!b->links.m_buckets)
+		BlockLinkMap_init(&b->links);
+	else
+		BlockLinkMap_clear(&b->links);
 
-	return blocks.insert(startpc, fnptr);
+	b->recompiler = 0;
+
+	if (!b->blocks.blocks)
+		BaseBlockArray_init(&b->blocks, 0x4000);
+	else
+		BaseBlockArray_clear(&b->blocks);
 }
 
-int BaseBlocks::LastIndex(u32 startpc) const
+BASEBLOCKEX* BaseBlocks_New(struct BaseBlocks* b, u32 startpc, uptr fnptr)
 {
-	if (0 == blocks.size())
+	BlockLinkMap_patch_links(&b->links, startpc, fnptr);
+
+	return BaseBlockArray_insert(&b->blocks, startpc, fnptr);
+}
+
+int BaseBlocks_LastIndex(const struct BaseBlocks* b, u32 startpc)
+{
+	int imin, imax;
+
+	if (0 == BaseBlockArray_size(&b->blocks))
 		return -1;
 
-	int imin = 0, imax = blocks.size() - 1;
+	imin = 0;
+	imax = BaseBlockArray_size(&b->blocks) - 1;
 
 	while (imin != imax)
 	{
 		const int imid = (imin + imax + 1) >> 1;
 
-		if (blocks[imid].startpc > startpc)
+		if (b->blocks.blocks[imid].startpc > startpc)
 			imax = imid - 1;
 		else
 			imin = imid;
@@ -43,13 +67,13 @@ int BaseBlocks::LastIndex(u32 startpc) const
 	return imin;
 }
 
-void BaseBlocks::Link(u32 pc, s32* jumpptr)
+void BaseBlocks_Link(struct BaseBlocks* b, u32 pc, s32* jumpptr)
 {
-	BASEBLOCKEX* targetblock = Get(pc);
+	BASEBLOCKEX* targetblock = BaseBlocks_Get(b, pc);
 	/* jumpptr aims into the code buffer at arbitrary alignment. */
 	const s32 rel32_ = (targetblock && targetblock->startpc == pc)
 		? (s32)(targetblock->fnptr - (sptr)(jumpptr + 1))
-		: (s32)(recompiler - (sptr)(jumpptr + 1));
+		: (s32)(b->recompiler - (sptr)(jumpptr + 1));
 	memcpy(jumpptr, &rel32_, sizeof(s32));
-	links.insert(pc, (uptr)jumpptr);
+	BlockLinkMap_insert(&b->links, pc, (uptr)jumpptr);
 }

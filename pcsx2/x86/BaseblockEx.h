@@ -38,272 +38,234 @@ struct BASEBLOCKEX
 	u32 x86size; // The size in byte of the translated x86 instructions
 };
 
-class BaseBlockArray
+/* Growable, startpc-ordered array of BASEBLOCKEX. C89 shape: plain struct,
+ * malloc/realloc-backed (the old new[]/delete[] copied only the live prefix
+ * anyway, which is exactly what realloc does). */
+struct BaseBlockArray
 {
 	s32 _Reserved;
 	s32 _Size;
 	BASEBLOCKEX* blocks;
-
-	__fi void resize(s32 size)
-	{
-		BASEBLOCKEX* newMem = new BASEBLOCKEX[size];
-		if (blocks)
-		{
-			// Only _Size entries are live; the slots between _Size and
-			// _Reserved are uninitialized scratch and don't need copying.
-			// insert() zeroes new slots per-entry as it uses them.
-			memcpy(newMem, blocks, _Size * sizeof(BASEBLOCKEX));
-			delete[] blocks;
-		}
-		blocks = newMem;
-	}
-
-	void reserve(u32 size)
-	{
-		resize(size);
-		_Reserved = size;
-	}
-
-public:
-	~BaseBlockArray()
-	{
-		if (blocks)
-			delete[] blocks;
-	}
-
-	BaseBlockArray(s32 size)
-		: _Reserved(0)
-		, _Size(0)
-		, blocks(NULL)
-	{
-		reserve(size);
-	}
-
-	BASEBLOCKEX* insert(u32 startpc, uptr fnptr)
-	{
-		if (_Size + 1 >= _Reserved)
-		{
-			reserve(_Reserved + 0x2000); // some games requires even more!
-		}
-
-		// Insert the the new BASEBLOCKEX by startpc order
-		int imin = 0, imax = _Size, imid;
-
-		while (imin < imax)
-		{
-			imid = (imin + imax) >> 1;
-
-			if (blocks[imid].startpc > startpc)
-				imax = imid;
-			else
-				imin = imid + 1;
-		}
-
-		if (imin < _Size)
-		{
-			// make a hole for a new block.
-			memmove(blocks + imin + 1, blocks + imin, (_Size - imin) * sizeof(BASEBLOCKEX));
-		}
-
-		memset((blocks + imin), 0, sizeof(BASEBLOCKEX));
-		blocks[imin].startpc = startpc;
-		blocks[imin].fnptr = fnptr;
-
-		_Size++;
-		return &blocks[imin];
-	}
-
-	__fi BASEBLOCKEX& operator[](int idx) const
-	{
-		return *(blocks + idx);
-	}
-
-	void clear()
-	{
-		_Size = 0;
-	}
-
-	__fi u32 size() const
-	{
-		return _Size;
-	}
-
-	__fi void erase(s32 first, s32 last)
-	{
-		int range = last - first;
-
-		if (last < _Size)
-		{
-			memmove(blocks + first, blocks + last, (_Size - last) * sizeof(BASEBLOCKEX));
-		}
-
-		_Size -= range;
-	}
 };
 
-// Maps a guest start PC to the set of host jump sites (u32* patch locations,
-// stored as uptr) that target it. Replaces std::multimap<u32, uptr>: the only
-// operations needed are insert-with-duplicates, "walk all jump sites for a
-// given PC", and clear. No ordering is required, and inserts arrive in
-// arbitrary PC order on a hot compile path, so a chained hash gives O(1)
-// amortized insert (a sorted array would be O(n) memmove per insert) while a
-// bucket walk serves the range query.
-//
-// Entries live in a single growable POD pool and are chained by index (not
-// pointer) so a realloc of the pool never invalidates the chains.
-class BlockLinkMap
+static __fi void BaseBlockArray_reserve(struct BaseBlockArray* a, u32 size)
 {
-	struct Entry
-	{
-		u32  pc;
-		uptr jumpptr;
-		s32  next; // pool index of next entry in this bucket, or -1
-	};
+	a->blocks    = (BASEBLOCKEX*)realloc(a->blocks, size * sizeof(BASEBLOCKEX));
+	a->_Reserved = size;
+}
 
-	Entry* m_entries;
+static __fi void BaseBlockArray_init(struct BaseBlockArray* a, s32 size)
+{
+	a->_Reserved = 0;
+	a->_Size     = 0;
+	a->blocks    = NULL;
+	BaseBlockArray_reserve(a, size);
+}
+
+static __fi void BaseBlockArray_destroy(struct BaseBlockArray* a)
+{
+	free(a->blocks);
+	a->blocks = NULL;
+}
+
+static BASEBLOCKEX* BaseBlockArray_insert(struct BaseBlockArray* a, u32 startpc, uptr fnptr)
+{
+	int imin = 0, imax, imid;
+
+	if (a->_Size + 1 >= a->_Reserved)
+		BaseBlockArray_reserve(a, a->_Reserved + 0x2000); /* some games requires even more! */
+
+	/* Insert the the new BASEBLOCKEX by startpc order */
+	imax = a->_Size;
+	while (imin < imax)
+	{
+		imid = (imin + imax) >> 1;
+
+		if (a->blocks[imid].startpc > startpc)
+			imax = imid;
+		else
+			imin = imid + 1;
+	}
+
+	if (imin < a->_Size)
+	{
+		/* make a hole for a new block. */
+		memmove(a->blocks + imin + 1, a->blocks + imin, (a->_Size - imin) * sizeof(BASEBLOCKEX));
+	}
+
+	memset((a->blocks + imin), 0, sizeof(BASEBLOCKEX));
+	a->blocks[imin].startpc = startpc;
+	a->blocks[imin].fnptr   = fnptr;
+
+	a->_Size++;
+	return &a->blocks[imin];
+}
+
+#define BaseBlockArray_at(a, idx) ((a)->blocks[(idx)])
+
+static __fi void BaseBlockArray_clear(struct BaseBlockArray* a)
+{
+	a->_Size = 0;
+}
+
+static __fi u32 BaseBlockArray_size(const struct BaseBlockArray* a)
+{
+	return a->_Size;
+}
+
+static __fi void BaseBlockArray_erase(struct BaseBlockArray* a, s32 first, s32 last)
+{
+	const int range = last - first;
+
+	if (last < a->_Size)
+		memmove(a->blocks + first, a->blocks + last, (a->_Size - last) * sizeof(BASEBLOCKEX));
+
+	a->_Size -= range;
+}
+
+/* Maps a guest start PC to the set of host jump sites (u32* patch locations,
+ * stored as uptr) that target it. Chained hash: insert-with-duplicates,
+ * "walk all jump sites for a given PC", and clear, all the callers need.
+ * Entries live in a single growable POD pool and are chained by index (not
+ * pointer) so a realloc of the pool never invalidates the chains. */
+struct BlockLinkEntry
+{
+	u32  pc;
+	uptr jumpptr;
+	s32  next; /* pool index of next entry in this bucket, or -1 */
+};
+
+struct BlockLinkMap
+{
+	struct BlockLinkEntry* m_entries;
 	s32    m_count;
 	s32    m_capacity;
 	s32*   m_buckets;
-	u32    m_bucket_count; // power of two
+	u32    m_bucket_count; /* power of two */
 	u32    m_bucket_mask;
-
-	__fi u32 bucket_of(u32 pc) const
-	{
-		// startpc is 4-byte aligned; drop the low 2 bits before masking so
-		// adjacent block PCs spread across buckets.
-		return (pc >> 2) & m_bucket_mask;
-	}
-
-	void grow_entries(void)
-	{
-		s32 newcap = m_capacity ? m_capacity * 2 : 4096;
-		m_entries  = (Entry*)realloc(m_entries, newcap * sizeof(Entry));
-		m_capacity = newcap;
-	}
-
-public:
-	BlockLinkMap()
-		: m_entries(NULL)
-		, m_count(0)
-		, m_capacity(0)
-		, m_buckets(NULL)
-		, m_bucket_count(0)
-		, m_bucket_mask(0)
-	{
-		m_bucket_count = 0x10000; // 64k buckets, covers typical live-link counts
-		m_bucket_mask  = m_bucket_count - 1;
-		m_buckets      = (s32*)malloc(m_bucket_count * sizeof(s32));
-		memset(m_buckets, 0xFF, m_bucket_count * sizeof(s32)); // all -1
-	}
-
-	~BlockLinkMap()
-	{
-		free(m_entries);
-		free(m_buckets);
-	}
-
-	__fi void insert(u32 pc, uptr jumpptr)
-	{
-		if (m_count == m_capacity)
-			grow_entries();
-		const u32 b = bucket_of(pc);
-		Entry& e    = m_entries[m_count];
-		e.pc        = pc;
-		e.jumpptr   = jumpptr;
-		e.next      = m_buckets[b];
-		m_buckets[b] = m_count;
-		m_count++;
-	}
-
-	// Walks every jump site registered for pc and rewrites each one to a 32-bit
-	// rel32 displacement pointing at target_addr (target_addr - (site + 4)).
-	__fi void patch_links(u32 pc, uptr target_addr) const
-	{
-		s32 i = m_buckets[bucket_of(pc)];
-		while (i != -1)
-		{
-			const Entry& e = m_entries[i];
-			if (e.pc == pc)
-			{
-				const u32 rel32_ = (u32)(target_addr - (e.jumpptr + 4));
-				memcpy((void*)e.jumpptr, &rel32_, sizeof(u32));
-			}
-			i = e.next;
-		}
-	}
-
-	__fi void clear(void)
-	{
-		m_count = 0;
-		memset(m_buckets, 0xFF, m_bucket_count * sizeof(s32));
-	}
 };
 
-class BaseBlocks
+/* startpc is 4-byte aligned; drop the low 2 bits before masking so
+ * adjacent block PCs spread across buckets. */
+#define BlockLinkMap_bucket_of(m, pc) (((pc) >> 2) & (m)->m_bucket_mask)
+
+static __fi void BlockLinkMap_init(struct BlockLinkMap* m)
 {
-protected:
-	BlockLinkMap links;
-	uptr recompiler;
-	BaseBlockArray blocks;
+	m->m_entries      = NULL;
+	m->m_count        = 0;
+	m->m_capacity     = 0;
+	m->m_bucket_count = 0x10000; /* 64k buckets, covers typical live-link counts */
+	m->m_bucket_mask  = m->m_bucket_count - 1;
+	m->m_buckets      = (s32*)malloc(m->m_bucket_count * sizeof(s32));
+	memset(m->m_buckets, 0xFF, m->m_bucket_count * sizeof(s32)); /* all -1 */
+}
 
-public:
-	BaseBlocks()
-		: recompiler(0)
-		, blocks(0x4000)
+static __fi void BlockLinkMap_destroy(struct BlockLinkMap* m)
+{
+	free(m->m_entries);
+	free(m->m_buckets);
+	m->m_entries = NULL;
+	m->m_buckets = NULL;
+}
+
+static __fi void BlockLinkMap_insert(struct BlockLinkMap* m, u32 pc, uptr jumpptr)
+{
+	u32 b;
+	struct BlockLinkEntry* e;
+
+	if (m->m_count == m->m_capacity)
 	{
+		const s32 newcap = m->m_capacity ? m->m_capacity * 2 : 4096;
+		m->m_entries  = (struct BlockLinkEntry*)realloc(m->m_entries, newcap * sizeof(struct BlockLinkEntry));
+		m->m_capacity = newcap;
 	}
 
-	void SetJITCompile(const void *recompiler_)
+	b            = BlockLinkMap_bucket_of(m, pc);
+	e            = &m->m_entries[m->m_count];
+	e->pc        = pc;
+	e->jumpptr   = jumpptr;
+	e->next      = m->m_buckets[b];
+	m->m_buckets[b] = m->m_count;
+	m->m_count++;
+}
+
+/* Walks every jump site registered for pc and rewrites each one to a 32-bit
+ * rel32 displacement pointing at target_addr (target_addr - (site + 4)). */
+static __fi void BlockLinkMap_patch_links(const struct BlockLinkMap* m, u32 pc, uptr target_addr)
+{
+	s32 i = m->m_buckets[BlockLinkMap_bucket_of(m, pc)];
+	while (i != -1)
 	{
-		recompiler = reinterpret_cast<uptr>(recompiler_);
-	}
-
-	BASEBLOCKEX* New(u32 startpc, uptr fnptr);
-	int LastIndex(u32 startpc) const;
-
-	__fi int Index(u32 startpc) const
-	{
-		int idx = LastIndex(startpc);
-
-		if ((idx == -1) || (startpc < blocks[idx].startpc) ||
-			((blocks[idx].size) && (startpc >= blocks[idx].startpc + blocks[idx].size * 4)))
-			return -1;
-		return idx;
-	}
-
-	__fi BASEBLOCKEX* operator[](int idx)
-	{
-		if (idx < 0 || idx >= (int)blocks.size())
-			return 0;
-
-		return &blocks[idx];
-	}
-
-	__fi BASEBLOCKEX* Get(u32 startpc)
-	{
-		return (*this)[Index(startpc)];
-	}
-
-	__fi void Remove(int first, int last)
-	{
-		int idx = first;
-		do
+		const struct BlockLinkEntry* e = &m->m_entries[i];
+		if (e->pc == pc)
 		{
-			links.patch_links(blocks[idx].startpc, recompiler);
-		} while (idx++ < last);
-
-		// TODO: remove links from this block?
-		blocks.erase(first, last + 1);
+			const u32 rel32_ = (u32)(target_addr - (e->jumpptr + 4));
+			memcpy((void*)e->jumpptr, &rel32_, sizeof(u32));
+		}
+		i = e->next;
 	}
+}
 
-	void Link(u32 pc, s32* jumpptr);
+static __fi void BlockLinkMap_clear(struct BlockLinkMap* m)
+{
+	m->m_count = 0;
+	memset(m->m_buckets, 0xFF, m->m_bucket_count * sizeof(s32));
+}
 
-	__fi void Reset()
-	{
-		blocks.clear();
-		links.clear();
-	}
+struct BaseBlocks
+{
+	struct BlockLinkMap links;
+	uptr recompiler;
+	struct BaseBlockArray blocks;
 };
+
+void BaseBlocks_init(struct BaseBlocks* b);
+BASEBLOCKEX* BaseBlocks_New(struct BaseBlocks* b, u32 startpc, uptr fnptr);
+int BaseBlocks_LastIndex(const struct BaseBlocks* b, u32 startpc);
+void BaseBlocks_Link(struct BaseBlocks* b, u32 pc, s32* jumpptr);
+
+#define BaseBlocks_SetJITCompile(b, recompiler_) ((b)->recompiler = (uptr)(recompiler_))
+
+static __fi int BaseBlocks_Index(const struct BaseBlocks* b, u32 startpc)
+{
+	const int idx = BaseBlocks_LastIndex(b, startpc);
+
+	if ((idx == -1) || (startpc < b->blocks.blocks[idx].startpc) ||
+		((b->blocks.blocks[idx].size) && (startpc >= b->blocks.blocks[idx].startpc + b->blocks.blocks[idx].size * 4)))
+		return -1;
+	return idx;
+}
+
+static __fi BASEBLOCKEX* BaseBlocks_At(struct BaseBlocks* b, int idx)
+{
+	if (idx < 0 || idx >= (int)BaseBlockArray_size(&b->blocks))
+		return 0;
+
+	return &b->blocks.blocks[idx];
+}
+
+static __fi BASEBLOCKEX* BaseBlocks_Get(struct BaseBlocks* b, u32 startpc)
+{
+	return BaseBlocks_At(b, BaseBlocks_Index(b, startpc));
+}
+
+static __fi void BaseBlocks_Remove(struct BaseBlocks* b, int first, int last)
+{
+	int idx = first;
+	do
+	{
+		BlockLinkMap_patch_links(&b->links, b->blocks.blocks[idx].startpc, b->recompiler);
+	} while (idx++ < last);
+
+	/* TODO: remove links from this block? */
+	BaseBlockArray_erase(&b->blocks, first, last + 1);
+}
+
+static __fi void BaseBlocks_Reset(struct BaseBlocks* b)
+{
+	BaseBlockArray_clear(&b->blocks);
+	BlockLinkMap_clear(&b->links);
+}
 
 #define PC_GETBLOCK_(x, reclut) ((BASEBLOCK*)(reclut[((u32)(x)) >> 16] + (x) * (sizeof(BASEBLOCK) / 4)))
 
