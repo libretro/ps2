@@ -515,7 +515,10 @@ _vifT __fi nVifBlock* dVifCompile(nVifBlock& block, bool isFill)
 	armSetAsmPtr(v.recWritePtr, v.recEndPtr - v.recWritePtr, nullptr);
 
 	// +1 bias keeps 0 as the empty-cell sentinel; reserve is 8MB so u32 always fits
-	block.startOffset = (u32)((u8*)armStartBlock() - v.recReserve->GetPtr()) + 1;
+	/* Offsets are relative to this port's own VIF code region: arm64 mmaps
+	 * s_vifCode[idx] in dVifReserve and never populates nVifStruct::
+	 * recReserve, which is x86's RecompiledCodeReserve and is NULL here. */
+	block.startOffset = (u32)((u8*)armStartBlock() - s_vifCode[idx]) + 1;
 	block.length = dVifComputeLength(block.cl, block.wl, block.num, isFill);
 	v.vifBlocks.add(block);
 
@@ -580,7 +583,7 @@ _vifT __fi void dVifUnpack(const u8* data, int isFill)
 		if (likely((startmem + b->length) <= endmem))
 		{
 			// No wrapping, you can run the fast dynarec
-			((nVifrecCall)(v.recReserve->GetPtr() + (b->startOffset - 1)))((uptr)startmem, (uptr)data);
+			((nVifrecCall)(s_vifCode[idx] + (b->startOffset - 1)))((uptr)startmem, (uptr)data);
 		}
 		else
 		{
