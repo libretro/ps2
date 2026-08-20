@@ -2148,10 +2148,10 @@ StartRecomp:
 	// eventually we'll want to have a vector of passes or something.
 	if (has_cop2_instructions)
 	{
-		COP2MicroFinishPass().Run(startpc, s_nEndBlock, s_pInstCache + 1);
+		COP2MicroFinishPass_Run(startpc, s_nEndBlock, s_pInstCache + 1);
 
 		if (EmuConfig.Speedhacks.vuFlagHack)
-			COP2FlagHackPass().Run(startpc, s_nEndBlock, s_pInstCache + 1);
+			COP2FlagHackPass_Run(startpc, s_nEndBlock, s_pInstCache + 1);
 	}
 
 	// Detect and handle self-modified code
