@@ -34,7 +34,7 @@ __fi void mVUstatusFlagOp(mV)
 {
 	int curPC = iPC;
 	int i = mVUcount;
-	bool runLoop = true;
+	int runLoop = true;
 
 	if (sFLAG.doFlag)
 		sFLAG.doNonSticky = true;

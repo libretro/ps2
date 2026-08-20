@@ -45,10 +45,10 @@ REC_FUNC_DEL(MADDU1, _Rd_);
 
 #else
 
-static void recWritebackHILO(int info, bool writed, bool upper)
+static void recWritebackHILO(int info, int writed, int upper)
 {
 	// writeback low 32 bits, sign extended to 64 bits
-	bool eax_sign_extended = false;
+	int eax_sign_extended = false;
 
 	// case 1: LO is already in an XMM - use the xmm
 	// case 2: LO is used as an XMM later in the block - use or allocate the XMM
@@ -57,8 +57,8 @@ static void recWritebackHILO(int info, bool writed, bool upper)
 	// case 4: LO is not used - writeback to memory
 
 	{
-		const bool loused = EEINST_USEDTEST(XMMGPR_LO);
-		const bool lousedxmm = loused && (upper || EEINST_XMMUSEDTEST(XMMGPR_LO));
+		const int loused = !!(EEINST_USEDTEST(XMMGPR_LO));
+		const int lousedxmm = loused && (upper || EEINST_XMMUSEDTEST(XMMGPR_LO));
 		const int xmmlo = lousedxmm ? _allocGPRtoXMMreg(XMMGPR_LO, MODE_READ | MODE_WRITE) : _checkXMMreg(XMMTYPE_GPRREG, XMMGPR_LO, MODE_WRITE);
 		if (xmmlo >= 0)
 		{
@@ -82,8 +82,8 @@ static void recWritebackHILO(int info, bool writed, bool upper)
 		}
 	}
 	{
-		const bool hiused = EEINST_USEDTEST(XMMGPR_HI);
-		const bool hiusedxmm = hiused && (upper || EEINST_XMMUSEDTEST(XMMGPR_HI));
+		const int hiused = !!(EEINST_USEDTEST(XMMGPR_HI));
+		const int hiusedxmm = hiused && (upper || EEINST_XMMUSEDTEST(XMMGPR_HI));
 		const int xmmhi = hiusedxmm ? _allocGPRtoXMMreg(XMMGPR_HI, MODE_READ | MODE_WRITE) : _checkXMMreg(XMMTYPE_GPRREG, XMMGPR_HI, MODE_WRITE);
 		if (xmmhi >= 0)
 		{
@@ -128,7 +128,7 @@ static void recWritebackHILO(int info, bool writed, bool upper)
 }
 
 
-static void recWritebackConstHILO(u64 res, bool writed, int upper)
+static void recWritebackConstHILO(u64 res, int writed, int upper)
 {
 	// It's not often that MULT/DIV are entirely constant. So while the MOV64s here are not optimal
 	// by any means, it's not something that's going to be hit often enough to worry about a cache.
@@ -137,8 +137,8 @@ static void recWritebackConstHILO(u64 res, bool writed, int upper)
 	const s64 hival = (s64)((s32)((u32)(res >> 32)));
 
 	{
-		const bool lolive = EEINST_USEDTEST(XMMGPR_LO);
-		const bool lolivexmm = lolive && (upper || EEINST_XMMUSEDTEST(XMMGPR_LO));
+		const int lolive = !!(EEINST_USEDTEST(XMMGPR_LO));
+		const int lolivexmm = lolive && (upper || EEINST_XMMUSEDTEST(XMMGPR_LO));
 		const int xmmlo = lolivexmm ? _allocGPRtoXMMreg(XMMGPR_LO, MODE_READ | MODE_WRITE) : _checkXMMreg(XMMTYPE_GPRREG, XMMGPR_LO, MODE_WRITE);
 		if (xmmlo >= 0)
 		{
@@ -156,8 +156,8 @@ static void recWritebackConstHILO(u64 res, bool writed, int upper)
 	}
 
 	{
-		const bool hilive = EEINST_USEDTEST(XMMGPR_HI);
-		const bool hilivexmm = hilive && (upper || EEINST_XMMUSEDTEST(XMMGPR_HI));
+		const int hilive = !!(EEINST_USEDTEST(XMMGPR_HI));
+		const int hilivexmm = hilive && (upper || EEINST_XMMUSEDTEST(XMMGPR_HI));
 		const int xmmhi = hilivexmm ? _allocGPRtoXMMreg(XMMGPR_HI, MODE_READ | MODE_WRITE) : _checkXMMreg(XMMTYPE_GPRREG, XMMGPR_HI, MODE_WRITE);
 		if (xmmhi >= 0)
 		{
@@ -195,7 +195,7 @@ static void recMULT_const(void)
 	recWritebackConstHILO(res, 1, 0);
 }
 
-static void recMULTsuper(int info, bool sign, bool upper, int process)
+static void recMULTsuper(int info, int sign, int upper, int process)
 {
 	// TODO(Stenzek): Use MULX where available.
 	if (process & PROCESS_CONSTS)
@@ -350,7 +350,7 @@ static void recDIV_const(void)
 	recDIVconst(0);
 }
 
-static void recDIVsuper(int info, bool sign, bool upper, int process)
+static void recDIVsuper(int info, int sign, int upper, int process)
 {
 	const int divisor = (info & PROCESS_EE_T) ? EEREC_T : XE_CX;
 	if (!(info & PROCESS_EE_T))

@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include <cstring> /* memset */
+#include <string.h> /* memset */
 
 extern void mVUincCycles(microVU* mVU, int x);
 extern void* mVUcompile(microVU* mVU, u32 startPC, uptr pState);
@@ -300,7 +300,7 @@ void normBranchCompile(microVU* mVU, u32 branchPC)
 		mVUcompile(mVU, branchPC, (uptr)&mVUregs);
 }
 
-void normJumpCompile(mV, microFlagCycles* mFC, bool isEvilJump)
+void normJumpCompile(mV, microFlagCycles* mFC, int isEvilJump)
 {
 	memcpy(&mVUpBlock->pStateEnd, &mVUregs, sizeof(microRegInfo));
 	mVUsetupBranch(mVU, mFC);

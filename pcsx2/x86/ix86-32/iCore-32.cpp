@@ -13,7 +13,7 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <cstring> /* memset */
+#include <string.h> /* memset */
 
 #include "../../R3000A.h"
 #include "../../Memory.h"
@@ -130,7 +130,7 @@ void _flushConstRegs(void)
 	}
 
 	// if we have more than one of zero/minus-one, precompute
-	bool rax_is_zero = false;
+	int rax_is_zero = false;
 	if (zero_reg_count > 1)
 	{
 		xe_xor32_rr(XE_AX, XE_AX);

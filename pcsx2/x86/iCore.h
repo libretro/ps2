@@ -105,11 +105,11 @@ struct _x86regs
 
 extern _x86regs x86regs[iREGCNT_GPR], s_saveX86regs[iREGCNT_GPR];
 
-bool _isAllocatableX86reg(int x86reg);
+int _isAllocatableX86reg(int x86reg);
 void _initX86regs(void);
 int _allocX86reg(int type, int reg, int mode);
 int _checkX86reg(int type, int reg, int mode);
-bool _hasX86reg(int type, int reg, int required_mode);
+int _hasX86reg(int type, int reg, int required_mode);
 void _addNeededX86reg(int type, int reg);
 void _clearNeededX86regs();
 void _freeX86reg(int x86reg);
@@ -121,7 +121,7 @@ void _flushConstReg(int reg);
 void _writebackX86Reg(int x86reg);
 
 void mVUFreeCOP2GPR(int hostreg);
-bool mVUIsReservedCOP2(int hostreg);
+int mVUIsReservedCOP2(int hostreg);
 
 ////////////////////////////////////////////////////////////////////////////////
 //   XMM (128-bit) Register Allocation Tools
@@ -175,9 +175,9 @@ int _allocTempXMMreg(XMMSSEType type);
 int _allocFPtoXMMreg(int fpreg, int mode);
 int _allocGPRtoXMMreg(int gprreg, int mode);
 int _allocFPACCtoXMMreg(int mode);
-void _reallocateXMMreg(int xmmreg, int newtype, int newreg, int newmode, bool writeback);
+void _reallocateXMMreg(int xmmreg, int newtype, int newreg, int newmode, int writeback);
 int _checkXMMreg(int type, int reg, int mode);
-bool _hasXMMreg(int type, int reg, int required_mode);
+int _hasXMMreg(int type, int reg, int required_mode);
 void _addNeededFPtoXMMreg(int fpreg);
 void _addNeededFPACCtoXMMreg();
 void _addNeededGPRtoX86reg(int gprreg);
@@ -227,6 +227,9 @@ void _flushXMMregs();
 #define EEINST_COP2_FINISH_VU0 0x4000
 #define EEINST_COP2_FLUSH_VU0_REGISTERS 0x8000
 
+/* C89 array length; replaces std::size at the recompiler's use sites. */
+#define C89_ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
+
 struct EEINST
 {
 	u16 info; /* extra info, if 1 inst is COP1, 2 inst is COP2. Also uses EEINST_XMM */
@@ -253,41 +256,41 @@ extern void _recFillRegister(EEINST* pinst, int type, int reg, int write);
  *  In other words, the register is worth keeping in a 
  *  host register/caching it.
  */
-static __fi bool EEINST_USEDTEST(u32 reg)
+static __fi int EEINST_USEDTEST(u32 reg)
 {
 	return (g_pCurInstInfo->regs[reg] & (EEINST_USED | EEINST_LASTUSE)) == EEINST_USED;
 }
 
 /* Returns true if the register is used later in the block as an XMM/128-bit value. */
-static __fi bool EEINST_XMMUSEDTEST(u32 reg)
+static __fi int EEINST_XMMUSEDTEST(u32 reg)
 {
 	return (g_pCurInstInfo->regs[reg] & (EEINST_USED | EEINST_XMM | EEINST_LASTUSE)) == (EEINST_USED | EEINST_XMM);
 }
 
 /* Returns true if the specified VF register is used later in the block. */
-static __fi bool EEINST_VFUSEDTEST(u32 reg)
+static __fi int EEINST_VFUSEDTEST(u32 reg)
 {
 	return (g_pCurInstInfo->vfregs[reg] & (EEINST_USED | EEINST_LASTUSE)) == EEINST_USED;
 }
 
 /// Returns true if the specified VI register is used later in the block.
-static __fi bool EEINST_VIUSEDTEST(u32 reg)
+static __fi int EEINST_VIUSEDTEST(u32 reg)
 {
 	return (g_pCurInstInfo->viregs[reg] & (EEINST_USED | EEINST_LASTUSE)) == EEINST_USED;
 }
 
 /// Returns true if the register can be renamed into another.
-static __fi bool EEINST_RENAMETEST(u32 reg)
+static __fi int EEINST_RENAMETEST(u32 reg)
 {
 	return (reg == 0 || !EEINST_USEDTEST(reg));
 }
 
-static __fi bool FPUINST_ISLIVE(u32 reg)   { return !!(g_pCurInstInfo->fpuregs[reg] & EEINST_LIVE); }
-static __fi bool FPUINST_LASTUSE(u32 reg)  { return !!(g_pCurInstInfo->fpuregs[reg] & EEINST_LASTUSE); }
+static __fi int FPUINST_ISLIVE(u32 reg)   { return !!(g_pCurInstInfo->fpuregs[reg] & EEINST_LIVE); }
+static __fi int FPUINST_LASTUSE(u32 reg)  { return !!(g_pCurInstInfo->fpuregs[reg] & EEINST_LASTUSE); }
 
 /// Returns true if the register is used later in the block, and this isn't the last instruction to use it.
 /// In other words, the register is worth keeping in a host register/caching it.
-static __fi bool FPUINST_USEDTEST(u32 reg)
+static __fi int FPUINST_USEDTEST(u32 reg)
 {
 	return (g_pCurInstInfo->fpuregs[reg] & (EEINST_USED | EEINST_LASTUSE)) == EEINST_USED;
 }

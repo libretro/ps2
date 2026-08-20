@@ -26,7 +26,7 @@
 extern u32 pc;             // recompiler pc
 extern int g_branch;       // set for branch
 extern u32 target;         // branch target
-extern bool s_nBlockInterlocked; // Current block has VU0 interlocking
+extern int s_nBlockInterlocked; // Current block has VU0 interlocking
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -59,18 +59,18 @@ extern bool s_nBlockInterlocked; // Current block has VU0 interlocking
 		recBranchCall(Interp::f); \
 	}
 
-extern bool g_recompilingDelaySlot;
+extern int g_recompilingDelaySlot;
 
 // Used for generating backpatch thunks for fastmem.
 u8* recBeginThunk(void);
 u8* recEndThunk(void);
 
 // used when processing branches
-bool TrySwapDelaySlot(u32 rs, u32 rt, u32 rd, bool allow_loadstore);
+int TrySwapDelaySlot(u32 rs, u32 rt, u32 rd, int allow_loadstore);
 void SaveBranchState();
 void LoadBranchState();
 
-void recompileNextInstruction(bool delayslot, bool swapped_delay_slot);
+void recompileNextInstruction(int delayslot, int swapped_delay_slot);
 void SetBranchReg(u32 reg);
 void SetBranchImm(u32 imm);
 
@@ -79,7 +79,7 @@ void recBranchCall(void (*func)(void));
 void recCall(void (*func)(void));
 u32 scaleblockcycles_clear(void);
 
-		extern void recDoBranchImm(u32 branchTo, u32* jmpSkip, bool isLikely, bool swappedDelaySlot);
+		extern void recDoBranchImm(u32 branchTo, u32* jmpSkip, int isLikely, int swappedDelaySlot);
 
 ////////////////////////////////////////////////////////////////////
 // Constant Propagation - From here to the end of the header!
@@ -106,8 +106,8 @@ alignas(16) extern GPR_reg64 g_cpuConstRegs[32];
 extern u32 g_cpuHasConstReg, g_cpuFlushedConstReg;
 
 // finds where the GPR is stored and moves lower 32 bits to EAX
-void _eeMoveGPRtoR32(int to, int fromgpr, bool allow_preload);
-void _eeMoveGPRtoR64(int to, int fromgpr, bool allow_preload);
+void _eeMoveGPRtoR32(int to, int fromgpr, int allow_preload);
+void _eeMoveGPRtoR64(int to, int fromgpr, int allow_preload);
 void _eeMoveGPRtoM(uptr to, int fromgpr); // 32-bit only
 
 void _eeFlushAllDirty(void);
@@ -119,7 +119,7 @@ void _eeOnWriteReg(int reg, int signext);
 void _deleteEEreg(int reg, int flush);
 void _deleteEEreg128(int reg);
 
-void _flushEEreg(int reg, bool clear);
+void _flushEEreg(int reg, int clear);
 
 int _eeTryRenameReg(int to, int from, int fromx86, int other, int xmminfo);
 

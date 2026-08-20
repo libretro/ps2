@@ -18,8 +18,8 @@
 #include "../../common/Pcsx2Defs.h"
 #include "../../common/Pcsx2Types.h"
 
-#include <cstring>
-#include <cstdlib>
+#include <string.h>
+#include <stdlib.h>
 
 // Every potential jump point in the PS2's addressable memory has a BASEBLOCK
 // associated with it. So that means a BASEBLOCK for every 4 bytes of PS2

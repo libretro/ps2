@@ -40,7 +40,7 @@ void _initXMMregs(void)
 	g_xmmAllocCounter = 0;
 }
 
-bool _isAllocatableX86reg(int x86reg)
+int _isAllocatableX86reg(int x86reg)
 {
 	// we use rax, rcx and rdx as scratch (they have special purposes...)
 	if (x86reg <= 2)
@@ -73,7 +73,7 @@ bool _isAllocatableX86reg(int x86reg)
 	return true;
 }
 
-bool _hasX86reg(int type, int reg, int required_mode /*= 0*/)
+int _hasX86reg(int type, int reg, int required_mode /*= 0*/)
 {
 	for (uint i = 0; i < iREGCNT_GPR; i++)
 	{
@@ -204,7 +204,7 @@ int _checkXMMreg(int type, int reg, int mode)
 	return -1;
 }
 
-bool _hasXMMreg(int type, int reg, int required_mode /*= 0*/)
+int _hasXMMreg(int type, int reg, int required_mode /*= 0*/)
 {
 	for (uint i = 0; i < iREGCNT_XMM; i++)
 	{
@@ -401,7 +401,7 @@ int _allocFPACCtoXMMreg(int mode)
 	return xmmreg;
 }
 
-void _reallocateXMMreg(int xmmreg, int newtype, int newreg, int newmode, bool writeback /*= true*/)
+void _reallocateXMMreg(int xmmreg, int newtype, int newreg, int newmode, int writeback /*= true*/)
 {
 	_xmmregs& xr = xmmregs[xmmreg];
 	if (writeback)
@@ -851,13 +851,13 @@ u32 _recIsRegReadOrWritten(EEINST* pinst, int size, u8 xmmtype, u8 reg)
 
 	while (size-- > 0)
 	{
-		for (u32 i = 0; i < std::size(pinst->writeType); ++i)
+		for (u32 i = 0; i < C89_ARRAY_SIZE(pinst->writeType); ++i)
 		{
 			if ((pinst->writeType[i] == xmmtype) && (pinst->writeReg[i] == reg))
 				return inst;
 		}
 
-		for (u32 i = 0; i < std::size(pinst->readType); ++i)
+		for (u32 i = 0; i < C89_ARRAY_SIZE(pinst->readType); ++i)
 		{
 			if ((pinst->readType[i] == xmmtype) && (pinst->readReg[i] == reg))
 				return inst;
@@ -874,7 +874,7 @@ void _recFillRegister(EEINST* pinst, int type, int reg, int write)
 {
 	if (write)
 	{
-		for (size_t i = 0; i < std::size(pinst->writeType); ++i)
+		for (size_t i = 0; i < C89_ARRAY_SIZE(pinst->writeType); ++i)
 		{
 			if (pinst->writeType[i] == XMMTYPE_TEMP)
 			{
@@ -886,7 +886,7 @@ void _recFillRegister(EEINST* pinst, int type, int reg, int write)
 	}
 	else
 	{
-		for (size_t i = 0; i < std::size(pinst->readType); ++i)
+		for (size_t i = 0; i < C89_ARRAY_SIZE(pinst->readType); ++i)
 		{
 			if (pinst->readType[i] == XMMTYPE_TEMP)
 			{

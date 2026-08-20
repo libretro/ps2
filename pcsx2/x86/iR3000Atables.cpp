@@ -448,41 +448,41 @@ void rpsxSUB() { rpsxSUBU(); }
 
 namespace
 {
-	enum class LogicalOp
+	enum LogicalOp
 	{
-		AND,
-		OR,
-		XOR,
-		NOR
+		LOGICALOP_AND,
+		LOGICALOP_OR,
+		LOGICALOP_XOR,
+		LOGICALOP_NOR
 	};
 } // namespace
 
-static void rpsxLogicalOp_constv(LogicalOp op, int info, int creg, u32 vreg, int regv)
+static void rpsxLogicalOp_constv(enum LogicalOp op, int info, int creg, u32 vreg, int regv)
 {
 	// `auto` rather than the concrete type: the object's type is a
 	// detail of the emitter, and naming it here pins this code to one
 	// implementation of it for no benefit.
-	const int xopg1 = op == LogicalOp::AND ? 4 : op == LogicalOp::OR ? 1 :
-		op == LogicalOp::XOR ? 6 : /* NOR */ 1;
+	const int xopg1 = op == LOGICALOP_AND ? 4 : op == LOGICALOP_OR ? 1 :
+		op == LOGICALOP_XOR ? 6 : /* NOR */ 1;
 	s32 fixedInput, fixedOutput, identityInput;
-	bool hasFixed = true;
+	int hasFixed = true;
 	switch (op)
 	{
-		case LogicalOp::AND:
+		case LOGICALOP_AND:
 			fixedInput = 0;
 			fixedOutput = 0;
 			identityInput = -1;
 			break;
-		case LogicalOp::OR:
+		case LOGICALOP_OR:
 			fixedInput = -1;
 			fixedOutput = -1;
 			identityInput = 0;
 			break;
-		case LogicalOp::XOR:
+		case LOGICALOP_XOR:
 			hasFixed = false;
 			identityInput = 0;
 			break;
-		case LogicalOp::NOR:
+		case LOGICALOP_NOR:
 			fixedInput = -1;
 			fixedOutput = 0;
 			identityInput = 0;
@@ -505,18 +505,18 @@ static void rpsxLogicalOp_constv(LogicalOp op, int info, int creg, u32 vreg, int
 			xe_mov32_rm(EEREC_D, &psxRegs.GPR.r[vreg]);
 		if (cval != identityInput)
 			xe_g1op32_ri(xopg1, EEREC_D, cval);
-		if (op == LogicalOp::NOR)
+		if (op == LOGICALOP_NOR)
 			xe_not32_r(EEREC_D);
 	}
 }
 
-static void rpsxLogicalOp(LogicalOp op, int info)
+static void rpsxLogicalOp(enum LogicalOp op, int info)
 {
 	// `auto` rather than the concrete type: the object's type is a
 	// detail of the emitter, and naming it here pins this code to one
 	// implementation of it for no benefit.
-	const int xopg1 = op == LogicalOp::AND ? 4 : op == LogicalOp::OR ? 1 :
-		op == LogicalOp::XOR ? 6 : /* NOR */ 1;
+	const int xopg1 = op == LOGICALOP_AND ? 4 : op == LOGICALOP_OR ? 1 :
+		op == LOGICALOP_XOR ? 6 : /* NOR */ 1;
 	// swap because it's commutative and Rd might be Rt
 	u32 rs = _Rs_, rt = _Rt_;
 	int regs = (info & PROCESS_EE_S) ? EEREC_S : -1, regt = (info & PROCESS_EE_T) ? EEREC_T : -1;
@@ -526,7 +526,7 @@ static void rpsxLogicalOp(LogicalOp op, int info)
 		{ const int swap_tmp_ = regs; regs = regt; regt = swap_tmp_; }
 	}
 
-	if (op == LogicalOp::XOR && rs == rt)
+	if (op == LOGICALOP_XOR && rs == rt)
 	{
 		xe_xor32_rr(EEREC_D, EEREC_D);
 	}
@@ -542,7 +542,7 @@ static void rpsxLogicalOp(LogicalOp op, int info)
 		else
 			xe_g1op32_rm(xopg1, EEREC_D, &psxRegs.GPR.r[rt]);
 
-		if (op == LogicalOp::NOR)
+		if (op == LOGICALOP_NOR)
 			xe_not32_r(EEREC_D);
 	}
 }
@@ -554,17 +554,17 @@ static void rpsxAND_const()
 
 static void rpsxAND_consts(int info)
 {
-	rpsxLogicalOp_constv(LogicalOp::AND, info, _Rs_, _Rt_, (info & PROCESS_EE_T) ? EEREC_T : -1);
+	rpsxLogicalOp_constv(LOGICALOP_AND, info, _Rs_, _Rt_, (info & PROCESS_EE_T) ? EEREC_T : -1);
 }
 
 static void rpsxAND_constt(int info)
 {
-	rpsxLogicalOp_constv(LogicalOp::AND, info, _Rt_, _Rs_, (info & PROCESS_EE_S) ? EEREC_S : -1);
+	rpsxLogicalOp_constv(LOGICALOP_AND, info, _Rt_, _Rs_, (info & PROCESS_EE_S) ? EEREC_S : -1);
 }
 
 static void rpsxAND_(int info)
 {
-	rpsxLogicalOp(LogicalOp::AND, info);
+	rpsxLogicalOp(LOGICALOP_AND, info);
 }
 
 PSXRECOMPILE_CONSTCODE0(AND, XMMINFO_WRITED | XMMINFO_READS | XMMINFO_READT);
@@ -576,17 +576,17 @@ static void rpsxOR_const()
 
 static void rpsxOR_consts(int info)
 {
-	rpsxLogicalOp_constv(LogicalOp::OR, info, _Rs_, _Rt_, (info & PROCESS_EE_T) ? EEREC_T : -1);
+	rpsxLogicalOp_constv(LOGICALOP_OR, info, _Rs_, _Rt_, (info & PROCESS_EE_T) ? EEREC_T : -1);
 }
 
 static void rpsxOR_constt(int info)
 {
-	rpsxLogicalOp_constv(LogicalOp::OR, info, _Rt_, _Rs_, (info & PROCESS_EE_S) ? EEREC_S : -1);
+	rpsxLogicalOp_constv(LOGICALOP_OR, info, _Rt_, _Rs_, (info & PROCESS_EE_S) ? EEREC_S : -1);
 }
 
 static void rpsxOR_(int info)
 {
-	rpsxLogicalOp(LogicalOp::OR, info);
+	rpsxLogicalOp(LOGICALOP_OR, info);
 }
 
 PSXRECOMPILE_CONSTCODE0(OR, XMMINFO_WRITED | XMMINFO_READS | XMMINFO_READT);
@@ -599,17 +599,17 @@ static void rpsxXOR_const()
 
 static void rpsxXOR_consts(int info)
 {
-	rpsxLogicalOp_constv(LogicalOp::XOR, info, _Rs_, _Rt_, (info & PROCESS_EE_T) ? EEREC_T : -1);
+	rpsxLogicalOp_constv(LOGICALOP_XOR, info, _Rs_, _Rt_, (info & PROCESS_EE_T) ? EEREC_T : -1);
 }
 
 static void rpsxXOR_constt(int info)
 {
-	rpsxLogicalOp_constv(LogicalOp::XOR, info, _Rt_, _Rs_, (info & PROCESS_EE_S) ? EEREC_S : -1);
+	rpsxLogicalOp_constv(LOGICALOP_XOR, info, _Rt_, _Rs_, (info & PROCESS_EE_S) ? EEREC_S : -1);
 }
 
 static void rpsxXOR_(int info)
 {
-	rpsxLogicalOp(LogicalOp::XOR, info);
+	rpsxLogicalOp(LOGICALOP_XOR, info);
 }
 
 PSXRECOMPILE_CONSTCODE0(XOR, XMMINFO_WRITED | XMMINFO_READS | XMMINFO_READT);
@@ -622,17 +622,17 @@ static void rpsxNOR_const()
 
 static void rpsxNOR_consts(int info)
 {
-	rpsxLogicalOp_constv(LogicalOp::NOR, info, _Rs_, _Rt_, (info & PROCESS_EE_T) ? EEREC_T : -1);
+	rpsxLogicalOp_constv(LOGICALOP_NOR, info, _Rs_, _Rt_, (info & PROCESS_EE_T) ? EEREC_T : -1);
 }
 
 static void rpsxNOR_constt(int info)
 {
-	rpsxLogicalOp_constv(LogicalOp::NOR, info, _Rt_, _Rs_, (info & PROCESS_EE_S) ? EEREC_S : -1);
+	rpsxLogicalOp_constv(LOGICALOP_NOR, info, _Rt_, _Rs_, (info & PROCESS_EE_S) ? EEREC_S : -1);
 }
 
 static void rpsxNOR_(int info)
 {
-	rpsxLogicalOp(LogicalOp::NOR, info);
+	rpsxLogicalOp(LOGICALOP_NOR, info);
 }
 
 PSXRECOMPILE_CONSTCODE0(NOR, XMMINFO_WRITED | XMMINFO_READS | XMMINFO_READT);
@@ -1018,7 +1018,7 @@ PSXRECOMPILE_CONSTCODE3_PENALTY(DIVU, 1, psxInstCycles_Div);
 
 // TLB loadstore functions
 
-static u8* rpsxGetConstantAddressOperand(bool store)
+static u8* rpsxGetConstantAddressOperand(int store)
 {
 	return nullptr;
 }
@@ -1060,7 +1060,7 @@ static void rpsxCalcStoreOperand()
 		xe_mov32_rm(XE_ARG2, &psxRegs.GPR.r[_Rt_]);
 }
 
-static void rpsxLoad(int size, bool sign)
+static void rpsxLoad(int size, int sign)
 {
 	rpsxCalcAddressOperand();
 
@@ -1174,7 +1174,7 @@ alignas(16) static u32 s_psx_unaligned_rt;
 // isLeft selects LWL's merge over LWR's:
 //   LWL   rt = (rt & (0x00ffffff >> shift)) | (mem << (24 - shift))
 //   LWR   rt = (rt & (0xffffff00 << (24 - shift))) | (mem >> shift)
-static void rpsxLoadUnaligned(bool isLeft)
+static void rpsxLoadUnaligned(int isLeft)
 {
 	int rtcache = -1;
 
@@ -1272,7 +1272,7 @@ static void rpsxLWR() { rpsxLoadUnaligned(false); }
 // FLUSH_EVERYTHING and the psxRegs.code store are kept because the fallback
 // arm needs them, and they also put Rt in memory for the inline merge, which
 // is why no temp is needed for it.
-static void rpsxStoreUnaligned(bool isLeft)
+static void rpsxStoreUnaligned(int isLeft)
 {
 	rpsxCalcAddressOperand();
 
@@ -1597,7 +1597,7 @@ static void rpsxJR()
 static void rpsxJALR()
 {
 	const u32 newpc = psxpc + 4;
-	const bool swap = (_Rd_ == _Rs_) ? false : psxTrySwapDelaySlot(_Rs_, 0, _Rd_);
+	const int swap = (_Rd_ == _Rs_) ? false : psxTrySwapDelaySlot(_Rs_, 0, _Rd_);
 
 	// jalr Rs
 	int wbreg = -1;
@@ -1705,7 +1705,7 @@ static void rpsxBEQ_process(int process)
 	}
 	else
 	{
-		const bool swap = psxTrySwapDelaySlot(_Rs_, _Rt_, 0);
+		const int swap = !!(psxTrySwapDelaySlot(_Rs_, _Rt_, 0));
 		_psxFlushAllDirty();
 		rpsxSetBranchEQ(process);
 
@@ -1769,7 +1769,7 @@ static void rpsxBNE_process(int process)
 		return;
 	}
 
-	const bool swap = psxTrySwapDelaySlot(_Rs_, _Rt_, 0);
+	const int swap = !!(psxTrySwapDelaySlot(_Rs_, _Rt_, 0));
 	_psxFlushAllDirty();
 	rpsxSetBranchEQ(process);
 
@@ -1822,7 +1822,7 @@ static void rpsxBLTZ()
 		return;
 	}
 
-	const bool swap = psxTrySwapDelaySlot(_Rs_, 0, 0);
+	const int swap = !!(psxTrySwapDelaySlot(_Rs_, 0, 0));
 	_psxFlushAllDirty();
 
 	const int regs = _checkX86reg(X86TYPE_PSX, _Rs_, MODE_READ);
@@ -1869,7 +1869,7 @@ static void rpsxBGEZ()
 		return;
 	}
 
-	const bool swap = psxTrySwapDelaySlot(_Rs_, 0, 0);
+	const int swap = !!(psxTrySwapDelaySlot(_Rs_, 0, 0));
 	_psxFlushAllDirty();
 
 	const int regs = _checkX86reg(X86TYPE_PSX, _Rs_, MODE_READ);
@@ -1922,7 +1922,7 @@ static void rpsxBLTZAL()
 		return;
 	}
 
-	const bool swap = psxTrySwapDelaySlot(_Rs_, 0, 0);
+	const int swap = !!(psxTrySwapDelaySlot(_Rs_, 0, 0));
 	_psxFlushAllDirty();
 
 	const int regs = _checkX86reg(X86TYPE_PSX, _Rs_, MODE_READ);
@@ -1974,7 +1974,7 @@ static void rpsxBGEZAL()
 		return;
 	}
 
-	const bool swap = psxTrySwapDelaySlot(_Rs_, 0, 0);
+	const int swap = !!(psxTrySwapDelaySlot(_Rs_, 0, 0));
 	_psxFlushAllDirty();
 
 	const int regs = _checkX86reg(X86TYPE_PSX, _Rs_, MODE_READ);
@@ -2022,7 +2022,7 @@ static void rpsxBLEZ()
 		return;
 	}
 
-	const bool swap = psxTrySwapDelaySlot(_Rs_, 0, 0);
+	const int swap = !!(psxTrySwapDelaySlot(_Rs_, 0, 0));
 	_psxFlushAllDirty();
 
 	const int regs = _checkX86reg(X86TYPE_PSX, _Rs_, MODE_READ);
@@ -2071,7 +2071,7 @@ static void rpsxBGTZ()
 		return;
 	}
 
-	const bool swap = psxTrySwapDelaySlot(_Rs_, 0, 0);
+	const int swap = !!(psxTrySwapDelaySlot(_Rs_, 0, 0));
 	_psxFlushAllDirty();
 
 	const int regs = _checkX86reg(X86TYPE_PSX, _Rs_, MODE_READ);

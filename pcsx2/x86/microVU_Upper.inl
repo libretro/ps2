@@ -32,11 +32,11 @@
 
 
 // Note: If modXYZW is true, then it adjusts XYZW for Single Scalar operations
-static void mVUupdateFlags(mV, int reg, int regT1in = -1, int regT2in = -1, bool modXYZW = 1)
+static void mVUupdateFlags(mV, int reg, int regT1in = -1, int regT2in = -1, int modXYZW = 1)
 {
 	const int mReg = gprT1;
 	const int sReg = getFlagReg(sFLAG.write);
-	bool regT1b = regT1in < 0, regT2b = false;
+	int regT1b = regT1in < 0, regT2b = false;
 	static const u16 flipMask[16] = {0, 8, 4, 12, 2, 10, 6, 14, 1, 9, 5, 13, 3, 11, 7, 15};
 
 	if (!sFLAG.doFlag && !mFLAG.doFlag)
@@ -160,7 +160,7 @@ enum clampModes
 };
 
 // Sets Up Pass1 Info for Normal, BC, I, and Q Cases
-static void setupPass1(microVU* mVU, int opCase, bool isACC, bool noFlagUpdate)
+static void setupPass1(microVU* mVU, int opCase, int isACC, int noFlagUpdate)
 {
 	opCase1 { mVUanalyzeFMAC1(mVU, ((isACC) ? 0 : _Fd_), _Fs_, _Ft_); }
 	opCase2 { mVUanalyzeFMAC3(mVU, ((isACC) ? 0 : _Fd_), _Fs_, _Ft_); }
@@ -172,7 +172,7 @@ static void setupPass1(microVU* mVU, int opCase, bool isACC, bool noFlagUpdate)
 }
 
 // Safer to force 0 as the result for X minus X than to do actual subtraction
-static bool doSafeSub(microVU* mVU, int opCase, int opType, bool isACC)
+static int doSafeSub(microVU* mVU, int opCase, int opType, int isACC)
 {
 	opCase1
 	{
@@ -194,7 +194,7 @@ static void setupFtReg(microVU* mVU, int* Ft, int* tempFt, int opCase, int clamp
 	opCase1
 	{
 		// Based on mVUclamp2 -> mVUclamp1 below.
-		const bool willClamp = (clampE || ((clampType & cFt) && !clampE && (CHECK_VU_OVERFLOW(mVU->index) || CHECK_VU_SIGN_OVERFLOW(mVU->index))));
+		const int willClamp = (clampE || ((clampType & cFt) && !clampE && (CHECK_VU_OVERFLOW(mVU->index) || CHECK_VU_SIGN_OVERFLOW(mVU->index))));
 
 		if (_XYZW_SS2)      { (*Ft) = mVUra_allocReg(mVU->regAlloc, _Ft_, 0, _X_Y_Z_W, true); (*tempFt) = (*Ft); }
 		else if (willClamp) { (*Ft) = mVUra_allocReg(mVU->regAlloc, _Ft_, 0, 0xf, true);      (*tempFt) = (*Ft); }
@@ -230,7 +230,7 @@ static void setupFtReg(microVU* mVU, int* Ft, int* tempFt, int opCase, int clamp
 }
 
 // Normal FMAC Opcodes
-static void mVU_FMACa(microVU* mVU, int recPass, int opCase, int opType, bool isACC, int clampType)
+static void mVU_FMACa(microVU* mVU, int recPass, int opCase, int opType, int isACC, int clampType)
 {
 	pass1 { setupPass1(mVU, opCase, isACC, ((opType == 3) || (opType == 4))); }
 	pass2

@@ -511,7 +511,7 @@ static void FPU_SUB(int regd, int regt)
 // The PS2's result mantissa is either equal to x86's rounding to zero result mantissa
 // or SMALLER (by 0x1). (this means that x86's other rounding modes are only less similar to PS2's mul)
 //------------------------------------------------------------------
-static void FPU_MUL(int regd, int regt, bool reverseOperands)
+static void FPU_MUL(int regd, int regt, int reverseOperands)
 {
 	u8 *endMul = nullptr;
 
@@ -684,7 +684,7 @@ FPURECOMPILE_CONSTCODE(ADDA_S, XMMINFO_WRITEACC | XMMINFO_READS | XMMINFO_READT)
 void recBC1F(void)
 {
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
-	const bool swap = TrySwapDelaySlot(0, 0, 0, true);
+	const int swap = !!(TrySwapDelaySlot(0, 0, 0, true));
 	_setupBranchTest();
 	recDoBranchImm(branchTo, JNZ32(0), false, swap);
 }
@@ -692,7 +692,7 @@ void recBC1F(void)
 void recBC1T(void)
 {
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
-	const bool swap = TrySwapDelaySlot(0, 0, 0, true);
+	const int swap = !!(TrySwapDelaySlot(0, 0, 0, true));
 	_setupBranchTest();
 	recDoBranchImm(branchTo, JZ32(0), false, swap);
 }
@@ -1663,7 +1663,7 @@ FPURECOMPILE_CONSTCODE(SUBA_S, XMMINFO_WRITEACC | XMMINFO_READS | XMMINFO_READT)
 //------------------------------------------------------------------
 void recSQRT_S_xmm(int info)
 {
-	bool roundmodeFlag = false;
+	int roundmodeFlag = false;
 	alignas(16) static FPControlRegister roundmode_nearest;
 
 	if (EmuConfig.Cpu.FPUFPCR.GetRoundMode() != FPRoundMode::Nearest)

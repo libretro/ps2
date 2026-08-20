@@ -41,6 +41,6 @@ using namespace x86Emitter;
 #define gprF2  13 // Status Flag 2
 #define gprF3  14 // Status Flag 3
 
-extern void mVUmergeRegs(int dest, int src, int xyzw, bool modXYZW);
-extern void mVUsaveReg(int reg, struct e_mem ptr, int xyzw, bool modXYZW);
+extern void mVUmergeRegs(int dest, int src, int xyzw, int modXYZW);
+extern void mVUsaveReg(int reg, struct e_mem ptr, int xyzw, int modXYZW);
 extern void mVUloadReg(int reg, struct e_mem ptr, int xyzw);

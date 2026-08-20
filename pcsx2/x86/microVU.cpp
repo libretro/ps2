@@ -15,7 +15,7 @@
 
 // Micro VU recompiler! - author: cottonvibes(@gmail.com)
 
-#include <cstring> /* memset */
+#include <string.h> /* memset */
 
 #include <cpuinfo.h>
 
@@ -69,7 +69,7 @@ void mVUinit(microVU* mVU, uint vuIndex)
 }
 
 // Resets Rec Data
-void mVUreset(microVU* mVU, bool resetReserve)
+void mVUreset(microVU* mVU, int resetReserve)
 {
 	PageProtectionMode mode;
 	if (THREAD_VU1)
@@ -238,7 +238,7 @@ u64 mVUrangesHash(microVU* mVU, microProgram* prog)
 }
 
 // Compare Cached microProgram to vuRegs[mVU->index].Micro
-__fi bool mVUcmpProg(microVU* mVU, microProgram* prog)
+__fi int mVUcmpProg(microVU* mVU, microProgram* prog)
 {
 	if (doWholeProgCompare)
 	{
@@ -274,7 +274,7 @@ _mVUt __fi void* mVUsearchProg(u32 startPC, uptr pState)
 		for (u32 i = 0; i < list->count; i++)
 		{
 			microProgram* p = list->data[i];
-			bool b = mVUcmpProg(mVU, p);
+			int b = !!(mVUcmpProg(mVU, p));
 
 			if (b)
 			{

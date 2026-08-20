@@ -53,7 +53,7 @@ namespace vtlb_private
 	 * Prepares eax, ecx, and, ebx for Direct or Indirect operations.
 	 * Returns the writeback pointer for ebx (return address from indirect handling)
 	 */
-	static void DynGen_PrepRegs(int addr_reg, int value_reg, u32 sz, bool xmm)
+	static void DynGen_PrepRegs(int addr_reg, int value_reg, u32 sz, int xmm)
 	{
 		_freeX86reg(XE_ARG1);
 		xe_mov32_rr(XE_ARG1, addr_reg);
@@ -97,7 +97,7 @@ namespace vtlb_private
 	}
 
 	// ------------------------------------------------------------------------
-	static void DynGen_DirectRead(u32 bits, bool sign)
+	static void DynGen_DirectRead(u32 bits, int sign)
 	{
 		switch (bits)
 		{
@@ -199,7 +199,7 @@ static u8* GetIndirectDispatcherPtr(int mode, int operandsize, int sign)
 //
 
 template <typename GenDirectFn>
-static void DynGen_HandlerTest(const GenDirectFn& gen_direct, int mode, int bits, bool sign)
+static void DynGen_HandlerTest(const GenDirectFn& gen_direct, int mode, int bits, int sign)
 {
 	int szidx = 0;
 	switch (bits)
@@ -224,7 +224,7 @@ static void DynGen_HandlerTest(const GenDirectFn& gen_direct, int mode, int bits
 // Generates the various instances of the indirect dispatchers
 // In: arg1reg: vtlb entry, arg2reg: data ptr (if mode >= 64), rbx: function return ptr
 // Out: eax: result (if mode < 64)
-static void DynGen_IndirectTlbDispatcher(int mode, int bits, bool sign)
+static void DynGen_IndirectTlbDispatcher(int mode, int bits, int sign)
 {
 	// fixup stack
 #ifdef _WIN32
@@ -289,7 +289,7 @@ static void DynGen_IndirectTlbDispatcher(int mode, int bits, bool sign)
 void vtlb_DynGenDispatchers(void)
 {
 	PageProtectionMode mode;
-	static bool hasBeenCalled = false;
+	static int hasBeenCalled = false;
 	if (hasBeenCalled)
 		return;
 	hasBeenCalled = true;
@@ -762,9 +762,7 @@ void vtlb_DynV2P(void)
 	xe_or32_rr(XE_AX, XE_CX);
 }
 
-void vtlb_DynBackpatchLoadStore(uptr code_address, u32 code_size, u32 guest_pc, u32 guest_addr,
-	u32 gpr_bitmask, u32 fpr_bitmask, u8 address_register, u8 data_register,
-	u8 size_in_bits, bool is_signed, bool is_load, bool is_xmm)
+void vtlb_DynBackpatchLoadStore(uptr code_address, u32 code_size, u32 guest_pc, u32 guest_addr, u32 gpr_bitmask, u32 fpr_bitmask, u8 address_register, u8 data_register, u8 size_in_bits, bool is_signed, bool is_load, bool is_xmm)
 {
 	static const u32 GPR_SIZE = 8;
 	static const u32 XMM_SIZE = 16;

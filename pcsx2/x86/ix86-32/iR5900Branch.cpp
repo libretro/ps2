@@ -144,7 +144,7 @@ static void recBEQ_process(int process)
 	}
 	else
 	{
-		const bool swap = TrySwapDelaySlot(_Rs_, _Rt_, 0, true);
+		const int swap = !!(TrySwapDelaySlot(_Rs_, _Rt_, 0, true));
 		u32 *j32Ptr = recSetBranchEQ(0, process);
 
 		if (!swap)
@@ -207,7 +207,7 @@ static void recBNE_process(int process)
 		return;
 	}
 
-	const bool swap = TrySwapDelaySlot(_Rs_, _Rt_, 0, true);
+	const int swap = !!(TrySwapDelaySlot(_Rs_, _Rt_, 0, true));
 
 	u32 *j32Ptr = recSetBranchEQ(1, process);
 
@@ -352,7 +352,7 @@ void recBLTZAL(void)
 		return;
 	}
 
-	const bool swap = TrySwapDelaySlot(_Rs_, 0, 0, true);
+	const int swap = !!(TrySwapDelaySlot(_Rs_, 0, 0, true));
 
 	u32 *j32Ptr = recSetBranchL(1);
 
@@ -399,7 +399,7 @@ void recBGEZAL(void)
 		return;
 	}
 
-	const bool swap = TrySwapDelaySlot(_Rs_, 0, 0, true);
+	const int swap = !!(TrySwapDelaySlot(_Rs_, 0, 0, true));
 
 	u32 *j32Ptr = recSetBranchL(0);
 
@@ -512,7 +512,7 @@ void recBLEZ(void)
 		return;
 	}
 
-	const bool swap = TrySwapDelaySlot(_Rs_, 0, 0, true);
+	const int swap = !!(TrySwapDelaySlot(_Rs_, 0, 0, true));
 	const int regs = _checkX86reg(X86TYPE_GPR, _Rs_, MODE_READ);
 	_eeFlushAllDirty();
 
@@ -559,7 +559,7 @@ void recBGTZ(void)
 		return;
 	}
 
-	const bool swap = TrySwapDelaySlot(_Rs_, 0, 0, true);
+	const int swap = !!(TrySwapDelaySlot(_Rs_, 0, 0, true));
 	const int regs = _checkX86reg(X86TYPE_GPR, _Rs_, MODE_READ);
 	_eeFlushAllDirty();
 
@@ -606,7 +606,7 @@ void recBLTZ(void)
 		return;
 	}
 
-	const bool swap = TrySwapDelaySlot(_Rs_, 0, 0, true);
+	const int swap = !!(TrySwapDelaySlot(_Rs_, 0, 0, true));
 	_eeFlushAllDirty();
 	u32 *j32Ptr = recSetBranchL(1);
 
@@ -646,7 +646,7 @@ void recBGEZ(void)
 		return;
 	}
 
-	const bool swap = TrySwapDelaySlot(_Rs_, 0, 0, true);
+	const int swap = !!(TrySwapDelaySlot(_Rs_, 0, 0, true));
 	_eeFlushAllDirty();
 
 	u32 *j32Ptr = recSetBranchL(0);

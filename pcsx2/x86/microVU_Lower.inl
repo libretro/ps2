@@ -1624,7 +1624,7 @@ void mVU_XGKICK_(u32 addr)
 	}
 }
 
-void _vuXGKICKTransfermVU(bool flush)
+void _vuXGKICKTransfermVU(int flush)
 {
 	while (vuRegs[1].xgkickenable && (flush || vuRegs[1].xgkickcyclecount >= 2))
 	{
@@ -1671,7 +1671,7 @@ void _vuXGKICKTransfermVU(bool flush)
 	}
 }
 
-static __fi void mVU_XGKICK_SYNC(mV, bool flush)
+static __fi void mVU_XGKICK_SYNC(mV, int flush)
 {
 	mVUra_flushCallerSavedRegisters(mVU->regAlloc, false);
 
@@ -1760,7 +1760,7 @@ mVUop(mVU_XGKICK)
 
 void setBranchA(mP, int x, int _x_)
 {
-	bool isBranchDelaySlot = false;
+	int isBranchDelaySlot = false;
 
 	incPC(-2);
 	if (mVUlow.branch)

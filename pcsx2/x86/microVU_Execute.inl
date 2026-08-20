@@ -22,7 +22,7 @@
 //------------------------------------------------------------------
 // Dispatcher Functions
 //------------------------------------------------------------------
-static bool mvuNeedsFPCRUpdate(mV)
+static int mvuNeedsFPCRUpdate(mV)
 {
 	// always update on the vu1 thread
 	if (isVU1 && THREAD_VU1)

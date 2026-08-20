@@ -13,7 +13,6 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <type_traits>
 #include "Common.h"
 #include "R5900OpcodeTables.h"
 #include "x86/iR5900.h"
@@ -163,17 +162,17 @@ static void recANDI_const()
 
 namespace
 {
-enum class LogicalOp
+enum LogicalOp
 {
-	AND,
-	OR,
-	XOR
+	LOGICALOP_AND,
+	LOGICALOP_OR,
+	LOGICALOP_XOR
 };
 } // namespace
 
-static void recLogicalOpI(int info, LogicalOp op)
+static void recLogicalOpI(int info, enum LogicalOp op)
 {
-	const int g1op = op == LogicalOp::AND ? 4 : op == LogicalOp::OR ? 1 : 6;
+	const int g1op = op == LOGICALOP_AND ? 4 : op == LOGICALOP_OR ? 1 : 6;
 	if (_ImmU_ != 0)
 	{
 		recMoveStoT64(info);
@@ -181,7 +180,7 @@ static void recLogicalOpI(int info, LogicalOp op)
 	}
 	else
 	{
-		if (op == LogicalOp::AND)
+		if (op == LOGICALOP_AND)
 		{
 			xe_xor32_rr(EEREC_T, EEREC_T);
 		}
@@ -194,7 +193,7 @@ static void recLogicalOpI(int info, LogicalOp op)
 
 static void recANDI_(int info)
 {
-	recLogicalOpI(info, LogicalOp::AND);
+	recLogicalOpI(info, LOGICALOP_AND);
 }
 
 EERECOMPILE_CODEX(eeRecompileCodeRC1, ANDI, XMMINFO_WRITET | XMMINFO_READS | XMMINFO_64BITOP);
@@ -207,7 +206,7 @@ static void recORI_const()
 
 static void recORI_(int info)
 {
-	recLogicalOpI(info, LogicalOp::OR);
+	recLogicalOpI(info, LOGICALOP_OR);
 }
 
 EERECOMPILE_CODEX(eeRecompileCodeRC1, ORI, XMMINFO_WRITET | XMMINFO_READS | XMMINFO_64BITOP);
@@ -220,7 +219,7 @@ static void recXORI_const()
 
 static void recXORI_(int info)
 {
-	recLogicalOpI(info, LogicalOp::XOR);
+	recLogicalOpI(info, LOGICALOP_XOR);
 }
 
 EERECOMPILE_CODEX(eeRecompileCodeRC1, XORI, XMMINFO_WRITET | XMMINFO_READS | XMMINFO_64BITOP);

@@ -28,7 +28,7 @@ using namespace x86Emitter;
 // Parameters:
 //   jmpSkip - This parameter is the result of the appropriate J32 instruction
 //   (usually JZ32 or JNZ32).
-void recDoBranchImm(u32 branchTo, u32* jmpSkip, bool isLikely, bool swappedDelaySlot)
+void recDoBranchImm(u32 branchTo, u32* jmpSkip, int isLikely, int swappedDelaySlot)
 {
 	// First up is the Branch Taken Path : Save the recompiler's state, compile the
 	// DelaySlot, and issue a BranchTest insertion.  The state is reloaded below for
@@ -207,7 +207,7 @@ void recCACHE() //Interpreter only!
 // behind the condition. Traps are assertions: essentially never taken, so
 // the common path goes from an unconditional call into the interpreter to a
 // compare and a not-taken branch.
-static void recTrap(JccComparisonType skip_cond, bool use_imm, bool is_unsigned)
+static void recTrap(JccComparisonType skip_cond, int use_imm, int is_unsigned)
 {
 	xe_mov64_rm(XE_AX, &cpuRegs.cycle);
 	xe_mov64_mr(&cpuRegs.nextEventCycle, XE_AX);

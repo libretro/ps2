@@ -53,7 +53,7 @@ void psxLoadBranchState();
 
 extern void psxSetBranchReg(u32 reg);
 extern void psxSetBranchImm(u32 imm);
-extern void psxRecompileNextInstruction(bool delayslot, bool swapped_delayslot);
+extern void psxRecompileNextInstruction(int delayslot, int swapped_delayslot);
 
 ////////////////////////////////////////////////////////////////////
 // IOP Constant Propagation Defines, Vars, and API - From here down!
@@ -82,7 +82,7 @@ extern u32 g_psxHasConstReg, g_psxFlushedConstReg;
 typedef void (*R3000AFNPTR)();
 typedef void (*R3000AFNPTR_INFO)(int info);
 
-bool psxTrySwapDelaySlot(u32 rs, u32 rt, u32 rd);
+int psxTrySwapDelaySlot(u32 rs, u32 rt, u32 rd);
 int psxTryRenameReg(int to, int from, int fromx86, int other, int xmminfo);
 
 //

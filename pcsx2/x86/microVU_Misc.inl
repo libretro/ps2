@@ -15,8 +15,6 @@
  */
 
 #pragma once
-#include <bitset>
-#include <optional>
 
 //------------------------------------------------------------------
 // Micro VU - Reg Loading/Saving/Shuffling/Unpacking/Merging...
@@ -46,7 +44,7 @@ void mVUloadReg(int reg, struct e_mem ptr, int xyzw)
 }
 
 // Modifies the Source Reg!
-void mVUsaveReg(int reg, struct e_mem ptr, int xyzw, bool modXYZW)
+void mVUsaveReg(int reg, struct e_mem ptr, int xyzw, int modXYZW)
 {
 	switch (xyzw)
 	{
@@ -113,7 +111,7 @@ void mVUsaveReg(int reg, struct e_mem ptr, int xyzw, bool modXYZW)
 }
 
 // Modifies the Source Reg! (ToDo: Optimize modXYZW = 1 cases)
-void mVUmergeRegs(int dest, int src, int xyzw, bool modXYZW)
+void mVUmergeRegs(int dest, int src, int xyzw, int modXYZW)
 {
 	xyzw &= 0xf;
 	if ((dest != src) && (xyzw != 0))
@@ -141,7 +139,7 @@ void mVUmergeRegs(int dest, int src, int xyzw, bool modXYZW)
 //------------------------------------------------------------------
 
 // Backup Volatile Regs (EAX, ECX, EDX, MM0~7, XMM0~7, are all volatile according to 32bit Win/Linux ABI)
-__fi void mVUbackupRegs(microVU* mVU, bool toMemory, bool onlyNeeded)
+__fi void mVUbackupRegs(microVU* mVU, int toMemory, int onlyNeeded)
 {
 	if (toMemory)
 	{
@@ -202,7 +200,7 @@ __fi void mVUbackupRegs(microVU* mVU, bool toMemory, bool onlyNeeded)
 }
 
 /* Restore Volatile Regs */
-__fi void mVUrestoreRegs(microVU* mVU, bool fromMemory, bool onlyNeeded)
+__fi void mVUrestoreRegs(microVU* mVU, int fromMemory, int onlyNeeded)
 {
 	if (fromMemory)
 	{
@@ -341,7 +339,7 @@ alignas(16) static const SSEMasks sseMasks =
 
 
 // Warning: Modifies t1 and t2
-void MIN_MAX_PS(microVU* mVU, int to, int from, int t1in, int t2in, bool min)
+void MIN_MAX_PS(microVU* mVU, int to, int from, int t1in, int t2in, int min)
 {
 	int t1 = (t1in < 0) ? mVUra_allocReg(mVU->regAlloc, -1, -1, 0, true) : t1in;
 	int t2 = (t2in < 0) ? mVUra_allocReg(mVU->regAlloc, -1, -1, 0, true) : t2in;
@@ -372,7 +370,7 @@ void MIN_MAX_PS(microVU* mVU, int to, int from, int t1in, int t2in, bool min)
 }
 
 // Warning: Modifies to's upper 3 vectors, and t1
-void MIN_MAX_SS(mV, int to, int from, int t1in, bool min)
+void MIN_MAX_SS(mV, int to, int from, int t1in, int min)
 {
 	int t1 = (t1in < 0) ? mVUra_allocReg(mVU->regAlloc, -1, -1, 0, true) : t1in;
 	xe_shufps_xxi(to, from, 0);

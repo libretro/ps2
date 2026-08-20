@@ -13,7 +13,6 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <type_traits>
 #include "Common.h"
 #include "R5900OpcodeTables.h"
 #include "x86/iR5900.h"
@@ -387,39 +386,39 @@ void recDSUBU(void)
 
 namespace
 {
-enum class LogicalOp
+enum LogicalOp
 {
-	AND,
-	OR,
-	XOR,
-	NOR
+	LOGICALOP_AND,
+	LOGICALOP_OR,
+	LOGICALOP_XOR,
+	LOGICALOP_NOR
 };
 } // namespace
 
-static void recLogicalOp_constv(LogicalOp op, int info, int creg, u32 vreg, int regv)
+static void recLogicalOp_constv(enum LogicalOp op, int info, int creg, u32 vreg, int regv)
 {
-	const int xopg1 = op == LogicalOp::AND ? 4 : op == LogicalOp::OR ? 1 :
-		op == LogicalOp::XOR    ? 6 :
-		/* LogicalOp::NOR */      1;
+	const int xopg1 = op == LOGICALOP_AND ? 4 : op == LOGICALOP_OR ? 1 :
+		op == LOGICALOP_XOR    ? 6 :
+		/* LOGICALOP_NOR */      1;
 	s64 fixedInput, fixedOutput, identityInput;
-	bool hasFixed = true;
+	int hasFixed = true;
 	switch (op)
 	{
-		case LogicalOp::AND:
+		case LOGICALOP_AND:
 			fixedInput = 0;
 			fixedOutput = 0;
 			identityInput = -1;
 			break;
-		case LogicalOp::OR:
+		case LOGICALOP_OR:
 			fixedInput = -1;
 			fixedOutput = -1;
 			identityInput = 0;
 			break;
-		case LogicalOp::XOR:
+		case LOGICALOP_XOR:
 			hasFixed = false;
 			identityInput = 0;
 			break;
-		case LogicalOp::NOR:
+		case LOGICALOP_NOR:
 			fixedInput = -1;
 			fixedOutput = 0;
 			identityInput = 0;
@@ -442,16 +441,16 @@ static void recLogicalOp_constv(LogicalOp op, int info, int creg, u32 vreg, int 
 			xe_mov64_rm(EEREC_D, &cpuRegs.GPR.r[vreg].UD[0]);
 		if (cval.SD[0] != identityInput)
 			xe_imm64op_g1op64_ri(xopg1, EEREC_D, XE_AX, cval.UD[0]);
-		if (op == LogicalOp::NOR)
+		if (op == LOGICALOP_NOR)
 			xe_not64_r(EEREC_D);
 	}
 }
 
-static void recLogicalOp(LogicalOp op, int info)
+static void recLogicalOp(enum LogicalOp op, int info)
 {
-	const int xopg1 = op == LogicalOp::AND ? 4 : op == LogicalOp::OR ? 1 :
-		op == LogicalOp::XOR    ? 6 :
-		/* LogicalOp::NOR */      1;
+	const int xopg1 = op == LOGICALOP_AND ? 4 : op == LOGICALOP_OR ? 1 :
+		op == LOGICALOP_XOR    ? 6 :
+		/* LOGICALOP_NOR */      1;
 	/* Swap because it's commutative and Rd might be Rt */
 	u32 rs = _Rs_, rt = _Rt_;
 	int regs = (info & PROCESS_EE_S) ? EEREC_S : -1, regt = (info & PROCESS_EE_T) ? EEREC_T : -1;
@@ -461,7 +460,7 @@ static void recLogicalOp(LogicalOp op, int info)
 		{ const int swap_tmp_ = regs; regs = regt; regt = swap_tmp_; }
 	}
 
-	if (op == LogicalOp::XOR && rs == rt)
+	if (op == LOGICALOP_XOR && rs == rt)
 	{
 		xe_xor32_rr(EEREC_D, EEREC_D);
 	}
@@ -477,7 +476,7 @@ static void recLogicalOp(LogicalOp op, int info)
 		else
 			xe_g1op64_rm(xopg1, EEREC_D, &cpuRegs.GPR.r[rt].UD[0]);
 
-		if (op == LogicalOp::NOR)
+		if (op == LOGICALOP_NOR)
 			xe_not64_r(EEREC_D);
 	}
 }
@@ -490,17 +489,17 @@ static void recAND_const()
 
 static void recAND_consts(int info)
 {
-	recLogicalOp_constv(LogicalOp::AND, info, _Rs_, _Rt_, (info & PROCESS_EE_T) ? EEREC_T : -1);
+	recLogicalOp_constv(LOGICALOP_AND, info, _Rs_, _Rt_, (info & PROCESS_EE_T) ? EEREC_T : -1);
 }
 
 static void recAND_constt(int info)
 {
-	recLogicalOp_constv(LogicalOp::AND, info, _Rt_, _Rs_, (info & PROCESS_EE_S) ? EEREC_S : -1);
+	recLogicalOp_constv(LOGICALOP_AND, info, _Rt_, _Rs_, (info & PROCESS_EE_S) ? EEREC_S : -1);
 }
 
 static void recAND_(int info)
 {
-	recLogicalOp(LogicalOp::AND, info);
+	recLogicalOp(LOGICALOP_AND, info);
 }
 
 EERECOMPILE_CODERC0(AND, XMMINFO_READS | XMMINFO_READT | XMMINFO_WRITED | XMMINFO_64BITOP);
@@ -513,17 +512,17 @@ static void recOR_const()
 
 static void recOR_consts(int info)
 {
-	recLogicalOp_constv(LogicalOp::OR, info, _Rs_, _Rt_, (info & PROCESS_EE_T) ? EEREC_T : -1);
+	recLogicalOp_constv(LOGICALOP_OR, info, _Rs_, _Rt_, (info & PROCESS_EE_T) ? EEREC_T : -1);
 }
 
 static void recOR_constt(int info)
 {
-	recLogicalOp_constv(LogicalOp::OR, info, _Rt_, _Rs_, (info & PROCESS_EE_S) ? EEREC_S : -1);
+	recLogicalOp_constv(LOGICALOP_OR, info, _Rt_, _Rs_, (info & PROCESS_EE_S) ? EEREC_S : -1);
 }
 
 static void recOR_(int info)
 {
-	recLogicalOp(LogicalOp::OR, info);
+	recLogicalOp(LOGICALOP_OR, info);
 }
 
 EERECOMPILE_CODERC0(OR, XMMINFO_READS | XMMINFO_READT | XMMINFO_WRITED | XMMINFO_64BITOP);
@@ -536,17 +535,17 @@ static void recXOR_const()
 
 static void recXOR_consts(int info)
 {
-	recLogicalOp_constv(LogicalOp::XOR, info, _Rs_, _Rt_, (info & PROCESS_EE_T) ? EEREC_T : -1);
+	recLogicalOp_constv(LOGICALOP_XOR, info, _Rs_, _Rt_, (info & PROCESS_EE_T) ? EEREC_T : -1);
 }
 
 static void recXOR_constt(int info)
 {
-	recLogicalOp_constv(LogicalOp::XOR, info, _Rt_, _Rs_, (info & PROCESS_EE_S) ? EEREC_S : -1);
+	recLogicalOp_constv(LOGICALOP_XOR, info, _Rt_, _Rs_, (info & PROCESS_EE_S) ? EEREC_S : -1);
 }
 
 static void recXOR_(int info)
 {
-	recLogicalOp(LogicalOp::XOR, info);
+	recLogicalOp(LOGICALOP_XOR, info);
 }
 
 EERECOMPILE_CODERC0(XOR, XMMINFO_READS | XMMINFO_READT | XMMINFO_WRITED | XMMINFO_64BITOP);
@@ -559,17 +558,17 @@ static void recNOR_const()
 
 static void recNOR_consts(int info)
 {
-	recLogicalOp_constv(LogicalOp::NOR, info, _Rs_, _Rt_, (info & PROCESS_EE_T) ? EEREC_T : -1);
+	recLogicalOp_constv(LOGICALOP_NOR, info, _Rs_, _Rt_, (info & PROCESS_EE_T) ? EEREC_T : -1);
 }
 
 static void recNOR_constt(int info)
 {
-	recLogicalOp_constv(LogicalOp::NOR, info, _Rt_, _Rs_, (info & PROCESS_EE_S) ? EEREC_S : -1);
+	recLogicalOp_constv(LOGICALOP_NOR, info, _Rt_, _Rs_, (info & PROCESS_EE_S) ? EEREC_S : -1);
 }
 
 static void recNOR_(int info)
 {
-	recLogicalOp(LogicalOp::NOR, info);
+	recLogicalOp(LOGICALOP_NOR, info);
 }
 
 EERECOMPILE_CODERC0(NOR, XMMINFO_READS | XMMINFO_READT | XMMINFO_WRITED | XMMINFO_64BITOP);

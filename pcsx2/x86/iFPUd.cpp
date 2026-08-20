@@ -158,7 +158,7 @@ static void ToDouble(int reg)
 // converts really large normal numbers to PS2 signed max
 // converts really small normal numbers to zero (flush)
 // doesn't handle inf/nan/denormal
-static void ToPS2FPU_Full(int reg, bool flags, int absreg, bool acc, bool addsub)
+static void ToPS2FPU_Full(int reg, int flags, int absreg, int acc, int addsub)
 {
 	if (flags)
 	{
@@ -373,7 +373,7 @@ static void FPU_ADD_SUB(int tempd, int tempt) //tempd and tempt are overwritten,
 	_freeXMMreg(xmmtemp);
 }
 
-static void FPU_MUL(int info, int regd, int sreg, int treg, bool acc)
+static void FPU_MUL(int info, int regd, int sreg, int treg, int acc)
 {
 	u32* endMul = nullptr;
 
@@ -416,7 +416,7 @@ static void FPU_MUL(int info, int regd, int sreg, int treg, bool acc)
 static void (*recFPUOpXMM_to_XMM[])(int, int) = {
 	SSE2_ADDSD_XMM_to_XMM, SSE2_SUBSD_XMM_to_XMM};
 
-static void recFPUOp(int info, int regd, int op, bool acc)
+static void recFPUOp(int info, int regd, int op, int acc)
 {
 	int sreg, treg;
 	ALLOC_S(sreg);
@@ -614,7 +614,7 @@ FPURECOMPILE_CONSTCODE(DIV_S, XMMINFO_WRITED | XMMINFO_READS | XMMINFO_READT);
 // For example,   { adda.s -MAX, 0.0 ; madd.s fd, MAX, 1.0 } -> fd = 0
 // while          { adda.s -MAX, -MAX ; madd.s fd, MAX, 1.0 } -> fd = -MAX
 // (where MAX is 0x7fffffff and -MAX is 0xffffffff)
-static void recMaddsub(int info, int regd, int op, bool acc)
+static void recMaddsub(int info, int regd, int op, int acc)
 {
 	int sreg, treg;
 	ALLOC_S(sreg);
@@ -688,7 +688,7 @@ FPURECOMPILE_CONSTCODE(MADDA_S, XMMINFO_WRITEACC | XMMINFO_READACC | XMMINFO_REA
 //------------------------------------------------------------------
 
 // FPU's MAX/MIN work with all numbers (including "denormals"). Check VU's logical min max for more info.
-static void recMINMAX(int info, bool ismin)
+static void recMINMAX(int info, int ismin)
 {
 	alignas(16) static const u32 minmax_mask[8] =
 	{
@@ -944,7 +944,7 @@ void recRSQRT_S_xmm(int info)
 	// Should this do the same?  or is changing the roundmode to nearest the better
 	// behavior for both recs? --air
 
-	bool roundmodeFlag = false;
+	int roundmodeFlag = false;
 	if (EmuConfig.Cpu.FPUFPCR.GetRoundMode() != FPRoundMode::Nearest)
 	{
 		// Set roundmode to nearest if it isn't already

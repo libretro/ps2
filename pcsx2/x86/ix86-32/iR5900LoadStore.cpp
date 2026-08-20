@@ -69,7 +69,7 @@ using namespace ::R5900::Interpreter::OpcodeImpl;
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //
-static void recLoadQuad(u32 bits, bool sign)
+static void recLoadQuad(u32 bits, int sign)
 {
 	// This mess is so we allocate *after* the vtlb flush, not before.
 	vtlb_ReadRegAllocCallback alloc_cb = nullptr;
@@ -103,7 +103,7 @@ static void recLoadQuad(u32 bits, bool sign)
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //
-static void recLoad(u32 bits, bool sign)
+static void recLoad(u32 bits, int sign)
 {
 	// This mess is so we allocate *after* the vtlb flush, not before.
 	// TODO(Stenzek): If not live, save directly to state, and delete constant.
@@ -143,7 +143,7 @@ static void recStore(u32 bits)
 	// allocation -- simpler code and just as fast)
 
 	int regt;
-	bool xmm = false;
+	int xmm = false;
 	if (bits < 128)
 		regt = _allocX86reg(X86TYPE_GPR, _Rt_, MODE_READ);
 	else

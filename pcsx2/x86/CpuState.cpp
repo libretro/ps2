@@ -11,4 +11,4 @@
 alignas(16) cpuRegisters cpuRegs;
 alignas(16) fpuRegisters fpuRegs;
 alignas(16) psxRegisters psxRegs;
-bool iopIsDelaySlot;
+bool iopIsDelaySlot; /* declared bool in R3000A.h (outside pcsx2/x86) */

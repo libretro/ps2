@@ -15,9 +15,7 @@
 
 #pragma once
 
-#include <algorithm>
-#include <cstring> /* memset/memcpy */
-#include <memory>
+#include <string.h> /* memset/memcpy */
 
 #include "Common.h"
 #include "VU.h"
@@ -86,7 +84,7 @@ alignas(16) microVU microVU1;
 
 // Main Functions
 extern void mVUclear(mV, u32, u32);
-extern void mVUreset(microVU* mVU, bool resetReserve);
+extern void mVUreset(microVU* mVU, int resetReserve);
 extern void* mVUblockFetch(microVU* mVU, u32 startPC, uptr pState);
 _mVUt extern void* mVUcompileJIT(u32 startPC, uptr ptr);
 

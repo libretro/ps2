@@ -14,8 +14,8 @@
 
 #include "common/Pcsx2Defs.h"
 
-#include <cstdio>
-#include <cstdlib>
+#include <stdio.h>
+#include <stdlib.h>
 
 // The exported entry point and the A/B mode flags exist on every
 // architecture and compiler: libretro/main.cpp calls the dump from
@@ -31,7 +31,7 @@
 
 #include "Memory.h"
 #include "VirtualMemory.h"
-#include <cstdlib>
+#include <stdlib.h>
 
 namespace
 {

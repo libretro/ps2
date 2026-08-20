@@ -43,10 +43,10 @@
 using namespace x86Emitter;
 using namespace R5900;
 
-static bool eeRecNeedsReset = false;
-static bool eeCpuExecuting = false;
-static bool eeRecExitRequested = false;
-static bool g_resetEeScalingStats = false;
+static int eeRecNeedsReset = false;
+static int eeCpuExecuting = false;
+static int eeRecExitRequested = false;
+static int g_resetEeScalingStats = false;
 
 #define PC_GETBLOCK(x) PC_GETBLOCK_(x, recLUT)
 
@@ -57,13 +57,13 @@ alignas(16) static u32 hwLUT[_64kb];
 static __fi u32 HWADDR(u32 mem) { return hwLUT[mem >> 16] + mem; }
 
 static u32 s_nBlockCycles = 0; // cycles of current block recompiling
-bool s_nBlockInterlocked = false; // Block is VU0 interlocked
+int s_nBlockInterlocked = false;// Block is VU0 interlocked
 u32 pc; // recompiler pc
 int g_branch; // set for branch
 
 alignas(16) GPR_reg64 g_cpuConstRegs[32] = {};
 u32 g_cpuHasConstReg = 0, g_cpuFlushedConstReg = 0;
-bool g_cpuFlushedPC, g_cpuFlushedCode, g_recompilingDelaySlot, g_maySignalException;
+int g_cpuFlushedPC, g_cpuFlushedCode, g_recompilingDelaySlot, g_maySignalException;
 
 ////////////////////////////////////////////////////////////////
 // Static Private Variables - R5900 Dynarec
@@ -89,7 +89,7 @@ static BASEBLOCK* s_pCurBlock = NULL;
 static BASEBLOCKEX* s_pCurBlockEx = NULL;
 static u32 s_nEndBlock = 0; // what pc the current block ends
 static u32 s_branchTo;
-static bool s_nBlockFF;
+static int s_nBlockFF;
 
 // save states for branches
 static GPR_reg64 s_saveConstRegs[32];
@@ -111,7 +111,7 @@ void _eeFlushAllDirty(void)
 	_flushConstRegs();
 }
 
-void _eeMoveGPRtoR32(int to, int fromgpr, bool allow_preload)
+void _eeMoveGPRtoR32(int to, int fromgpr, int allow_preload)
 {
 	if (fromgpr == 0)
 		xe_xor32_rr(to, to);
@@ -139,7 +139,7 @@ void _eeMoveGPRtoR32(int to, int fromgpr, bool allow_preload)
 	}
 }
 
-void _eeMoveGPRtoR64(int to, int fromgpr, bool allow_preload)
+void _eeMoveGPRtoR64(int to, int fromgpr, int allow_preload)
 {
 	if (fromgpr == 0)
 		xe_xor32_rr(to, to);
@@ -239,7 +239,7 @@ static void recRecompile(const u32 startpc);
 //  manual_page fixes is visible as a clear rate rather than inferred.
 // ---------------------------------------------------------------------------
 #ifdef PCSX2_REC_PROFILE
-#include <cstdlib>
+#include <stdlib.h>
 #include <time.h>
 static u64  s_prof_emit_ns   = 0;   // time inside recRecompile
 static u64  s_prof_emit_n    = 0;   // calls to recRecompile
@@ -535,7 +535,7 @@ static void _DynGen_Dispatchers(void)
 	BaseBlocks_init(&recBlocks);
 	BaseBlocks_SetJITCompile(&recBlocks, JITCompile);
 
-	for (size_t i = 0; i < std::size(s_invalidBlockLUT); i++)
+	for (size_t i = 0; i < C89_ARRAY_SIZE(s_invalidBlockLUT); i++)
 		s_invalidBlockLUT[i].m_pFnptr = (uptr)InvalidPCDispatch;
 }
 
@@ -770,7 +770,7 @@ void SetBranchReg(u32 reg)
 
 	if (reg != 0xffffffff)
 	{
-		const bool swap = EmuConfig.Gamefixes.GoemonTlbHack ? false : TrySwapDelaySlot(reg, 0, 0, true);
+		const int swap = !!(EmuConfig.Gamefixes.GoemonTlbHack ? false : TrySwapDelaySlot(reg, 0, 0, true));
 		if (!swap)
 		{
 			const int wbreg = _allocX86reg(X86TYPE_PCWRITEBACK, 0, MODE_WRITE | MODE_CALLEESAVED);
@@ -846,7 +846,7 @@ u8* recEndThunk(void)
 	return block_end;
 }
 
-bool TrySwapDelaySlot(u32 rs, u32 rt, u32 rd, bool allow_loadstore)
+int TrySwapDelaySlot(u32 rs, u32 rt, u32 rd, int allow_loadstore)
 {
 	if (g_recompilingDelaySlot)
 		return false;
@@ -1141,7 +1141,7 @@ void iFlushCall(int flushtype)
 
 static u32 scaleblockcycles_calculation(void)
 {
-	const bool lowcycles = (s_nBlockCycles <= 40);
+	const int lowcycles = (s_nBlockCycles <= 40);
 	const s8 cyclerate   = EmuConfig.Speedhacks.EECycleRate;
 	u32 scale_cycles     = 0;
 
@@ -1174,7 +1174,7 @@ u32 scaleblockcycles_clear(void)
 {
 	const u32 scaled   = scaleblockcycles_calculation();
 	const s8 cyclerate = EmuConfig.Speedhacks.EECycleRate;
-	const bool lowcycles = (s_nBlockCycles <= 40);
+	const int lowcycles = (s_nBlockCycles <= 40);
 
 	if (!lowcycles && cyclerate > 1)
 		s_nBlockCycles &= (0x1 << (cyclerate + 2)) - 1;
@@ -1305,7 +1305,7 @@ static int COP2DivUnitTimings(u32 code)
 	return 0; // Used mainly for WAITQ
 }
 
-static bool COP2IsQOP(u32 code)
+static int COP2IsQOP(u32 code)
 {
 	if (_Opcode_ == 022) // Not COP2 operation
 	{
@@ -1334,7 +1334,7 @@ static bool COP2IsQOP(u32 code)
 	return false;
 }
 
-void recompileNextInstruction(bool delayslot, bool swapped_delay_slot)
+void recompileNextInstruction(int delayslot, int swapped_delay_slot)
 {
 	static int* s_pCode;
 
@@ -1400,7 +1400,7 @@ void recompileNextInstruction(bool delayslot, bool swapped_delay_slot)
 	// if this instruction is a jump or a branch, exit right away
 	if (delayslot)
 	{
-		bool check_branch_delay = false;
+		int check_branch_delay = false;
 		switch (_Opcode_)
 		{
 			case 0:
@@ -1581,7 +1581,7 @@ static void memory_protect_recompiled_code(u32 startpc, u32 size)
 
 	// The kernel context register is stored @ 0x800010C0-0x80001300
 	// The EENULL thread context register is stored @ 0x81000-....
-	bool contains_thread_stack = ((startpc >> 12) == 0x81) || ((startpc >> 12) == 0x80001);
+	int contains_thread_stack = ((startpc >> 12) == 0x81) || ((startpc >> 12) == 0x80001);
 
 	// note: blocks are guaranteed to reside within the confines of a single page.
 	const vtlb_ProtectionMode PageType = contains_thread_stack ? ProtMode_Manual : mmap_GetRamPageInfo(inpage_ptr);
@@ -1659,7 +1659,7 @@ static void memory_protect_recompiled_code(u32 startpc, u32 size)
 }
 
 // Skip MPEG Game-Fix
-static bool skipMPEG_By_Pattern(u32 sPC)
+static int skipMPEG_By_Pattern(u32 sPC)
 {
 	if (!CHECK_SKIPMPEGHACK)
 		return 0;
@@ -1686,7 +1686,7 @@ static bool skipMPEG_By_Pattern(u32 sPC)
 	return 0;
 }
 
-static bool recSkipTimeoutLoop(s32 reg, bool is_timeout_loop)
+static int recSkipTimeoutLoop(s32 reg, int is_timeout_loop)
 {
 	if (!EmuConfig.Speedhacks.WaitLoop || !is_timeout_loop)
 		return false;
@@ -1889,7 +1889,7 @@ static void recRecompile(const u32 startpc)
 	// of decrementing, so we'll limit the test to that to be safe.
 	//
 	s32 timeout_reg = -1;
-	bool is_timeout_loop = true;
+	int is_timeout_loop = true;
 
 	for (;;)
 	{
@@ -2122,7 +2122,7 @@ StartRecomp:
 		is_timeout_loop = false;
 
 	// rec info //
-	bool has_cop2_instructions = false;
+	int has_cop2_instructions = false;
 	{
 		EEINST* pcur;
 
@@ -2161,7 +2161,7 @@ StartRecomp:
 	memory_protect_recompiled_code(startpc, (s_nEndBlock - startpc) >> 2);
 
 	// Skip Recompilation if sceMpegIsEnd Pattern detected
-	const bool doRecompilation = !skipMPEG_By_Pattern(startpc) && !recSkipTimeoutLoop(timeout_reg, is_timeout_loop);
+	const int doRecompilation = !skipMPEG_By_Pattern(startpc) && !recSkipTimeoutLoop(timeout_reg, is_timeout_loop);
 
 	if (doRecompilation)
 	{

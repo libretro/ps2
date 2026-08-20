@@ -121,7 +121,7 @@ void mVUFreeCOP2GPR(int hostreg)
 	mVUra_clearGPRCOP2(microVU0.regAlloc, hostreg);
 }
 
-bool mVUIsReservedCOP2(int hostreg)
+int mVUIsReservedCOP2(int hostreg)
 {
 	// gprF1 through 3 is not correctly used in COP2 mode.
 	return (hostreg == gprT1 || hostreg == gprT2 || hostreg == gprF0);
@@ -307,10 +307,10 @@ INTERPRETATE_COP2_FUNC(CALLMSR);
 // Macro VU - Branches
 //------------------------------------------------------------------
 
-static void _setupBranchTest(u32*(jmpType)(u32), bool isLikely)
+static void _setupBranchTest(u32*(jmpType)(u32), int isLikely)
 {
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
-	const bool swap = isLikely ? false : TrySwapDelaySlot(0, 0, 0, false);
+	const int swap = !!(isLikely ? false : TrySwapDelaySlot(0, 0, 0, false));
 	_eeFlushAllDirty();
 	xe_test32_mi(&vuRegs[0].VI[REG_VPU_STAT].UL, 0x100);
 	recDoBranchImm(branchTo, jmpType(0), isLikely, swap);
@@ -325,7 +325,7 @@ void recBC2TL(void) { _setupBranchTest(JZ32,  true);  }
 // Macro VU - COP2 Transfer Instructions
 //------------------------------------------------------------------
 
-static void COP2_Interlock(bool mBitSync)
+static void COP2_Interlock(int mBitSync)
 {
 	if (cpuRegs.code & 1)
 	{
@@ -655,7 +655,7 @@ static void recQMFC2(void)
 			mVUFinishVU0();
 	}
 
-	const bool vf_used = EEINST_VFUSEDTEST(_Rd_);
+	const int vf_used = !!(EEINST_VFUSEDTEST(_Rd_));
 	const int ftreg = _allocVFtoXMMreg(_Rd_, MODE_READ);
 	_deleteEEreg128(_Rt_);
 
@@ -696,8 +696,8 @@ static void recQMTC2(void)
 	if (_Rt_)
 	{
 		// if we have to flush to memory anyway (has a constant or is x86), force load.
-		[[maybe_unused]] const bool vf_used = EEINST_VFUSEDTEST(_Rd_);
-		const bool can_rename = EEINST_RENAMETEST(_Rt_);
+		[[maybe_unused]] const int vf_used = EEINST_VFUSEDTEST(_Rd_);
+		const int can_rename = !!(EEINST_RENAMETEST(_Rt_));
 		const int rtreg = (GPR_IS_DIRTY_CONST(_Rt_) || _hasX86reg(X86TYPE_GPR, _Rt_, MODE_WRITE)) ?
 							  _allocGPRtoXMMreg(_Rt_, MODE_READ) :
                               _checkXMMreg(XMMTYPE_GPRREG, _Rt_, MODE_READ);

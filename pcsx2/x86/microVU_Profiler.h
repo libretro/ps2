@@ -84,9 +84,6 @@ static const char microOpcodeName[][16] = {
 };
 
 #ifdef mVUprofileProg
-#include <utility>
-#include <string>
-#include <algorithm>
 
 struct microProfiler
 {

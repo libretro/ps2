@@ -59,7 +59,7 @@ void _deleteEEreg128(int reg)
 	_deleteGPRtoX86reg(reg, DELETE_REG_FREE_NO_WRITEBACK);
 }
 
-void _flushEEreg(int reg, bool clear)
+void _flushEEreg(int reg, int clear)
 {
 	if (!reg)
 		return;
@@ -94,7 +94,7 @@ int _eeTryRenameReg(int to, int from, int fromx86, int other, int xmminfo)
 	return fromx86;
 }
 
-static bool FitsInImmediate(int reg, int fprinfo)
+static int FitsInImmediate(int reg, int fprinfo)
 {
 	if (fprinfo & XMMINFO_64BITOP)
 		return (s32)g_cpuConstRegs[reg].SD[0] == g_cpuConstRegs[reg].SD[0];
@@ -120,13 +120,13 @@ void eeRecompileCodeRC0(R5900FNPTR constcode, R5900FNPTR_INFO constscode, R5900F
 
 	// we have to put these up here, because the register allocator below will wipe out const flags
 	// for the destination register when/if it switches it to write mode.
-	const bool s_is_const = GPR_IS_CONST1(_Rs_);
-	const bool t_is_const = GPR_IS_CONST1(_Rt_);
-	const bool d_is_const = GPR_IS_CONST1(_Rd_);
-	const bool s_is_used = EEINST_USEDTEST(_Rs_);
-	const bool t_is_used = EEINST_USEDTEST(_Rt_);
-	const bool s_in_xmm = _hasXMMreg(XMMTYPE_GPRREG, _Rs_, 0);
-	const bool t_in_xmm = _hasXMMreg(XMMTYPE_GPRREG, _Rt_, 0);
+	const int s_is_const = !!(GPR_IS_CONST1(_Rs_));
+	const int t_is_const = !!(GPR_IS_CONST1(_Rt_));
+	const int d_is_const = !!(GPR_IS_CONST1(_Rd_));
+	const int s_is_used = !!(EEINST_USEDTEST(_Rs_));
+	const int t_is_used = !!(EEINST_USEDTEST(_Rt_));
+	const int s_in_xmm = !!(_hasXMMreg(XMMTYPE_GPRREG, _Rs_, 0));
+	const int t_in_xmm = !!(_hasXMMreg(XMMTYPE_GPRREG, _Rt_, 0));
 
 	// regular x86
 	if ((xmminfo & XMMINFO_READS) && !s_is_const)
@@ -202,8 +202,8 @@ void eeRecompileCodeRC1(R5900FNPTR constcode, R5900FNPTR_INFO noconstcode, int x
 		return;
 	}
 
-	const bool s_is_used = EEINST_USEDTEST(_Rs_);
-	const bool s_in_xmm = _hasXMMreg(XMMTYPE_GPRREG, _Rs_, 0);
+	const int s_is_used = !!(EEINST_USEDTEST(_Rs_));
+	const int s_in_xmm = !!(_hasXMMreg(XMMTYPE_GPRREG, _Rs_, 0));
 
 	u32 info = 0;
 	int regs = _checkX86reg(X86TYPE_GPR, _Rs_, MODE_READ);
@@ -238,8 +238,8 @@ void eeRecompileCodeRC2(R5900FNPTR constcode, R5900FNPTR_INFO noconstcode, int x
 		return;
 	}
 
-	const bool t_is_used = EEINST_USEDTEST(_Rt_);
-	const bool t_in_xmm = _hasXMMreg(XMMTYPE_GPRREG, _Rt_, 0);
+	const int t_is_used = !!(EEINST_USEDTEST(_Rt_));
+	const int t_in_xmm = !!(_hasXMMreg(XMMTYPE_GPRREG, _Rt_, 0));
 
 	u32 info = 0;
 	int regt = _checkX86reg(X86TYPE_GPR, _Rt_, MODE_READ);

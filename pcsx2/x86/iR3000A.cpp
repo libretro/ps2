@@ -70,7 +70,7 @@ static BASEBLOCKEX* s_pCurBlockEx = NULL;
 
 static u32 s_nEndBlock = 0; // what psxpc the current block ends
 static u32 s_branchTo;
-static bool s_nBlockFF;
+static int s_nBlockFF;
 
 static u32 s_saveConstRegs[32];
 static u32 s_saveHasConstReg = 0, s_saveFlushedConstReg = 0;
@@ -78,7 +78,7 @@ static EEINST* s_psaveInstInfo = NULL;
 
 u32 s_psxBlockCycles = 0; // cycles of current block recompiling
 static u32 s_savenBlockCycles = 0;
-static bool s_recompilingDelaySlot = false;
+static int s_recompilingDelaySlot = false;
 
 static void iPsxBranchTest(u32 newpc, u32 cpuBranch);
 void psxRecompileNextInstruction(int delayslot);
@@ -367,7 +367,7 @@ void _psxOnWriteReg(int reg)
 	PSX_DEL_CONST(reg);
 }
 
-bool psxTrySwapDelaySlot(u32 rs, u32 rt, u32 rd)
+int psxTrySwapDelaySlot(u32 rs, u32 rt, u32 rd)
 {
 #if 1
 	if (s_recompilingDelaySlot)
@@ -535,11 +535,11 @@ void psxRecompileCodeConst0(R3000AFNPTR constcode, R3000AFNPTR_INFO constscode, 
 
 	// we have to put these up here, because the register allocator below will wipe out const flags
 	// for the destination register when/if it switches it to write mode.
-	const bool s_is_const = PSX_IS_CONST1(_Rs_);
-	const bool t_is_const = PSX_IS_CONST1(_Rt_);
-	const bool d_is_const = PSX_IS_CONST1(_Rd_);
-	const bool s_is_used = EEINST_USEDTEST(_Rs_);
-	const bool t_is_used = EEINST_USEDTEST(_Rt_);
+	const int s_is_const = !!(PSX_IS_CONST1(_Rs_));
+	const int t_is_const = !!(PSX_IS_CONST1(_Rt_));
+	const int d_is_const = !!(PSX_IS_CONST1(_Rd_));
+	const int s_is_used = !!(EEINST_USEDTEST(_Rs_));
+	const int t_is_used = !!(EEINST_USEDTEST(_Rt_));
 
 	if (!s_is_const)
 		_addNeededGPRtoX86reg(_Rs_);
@@ -641,7 +641,7 @@ void psxRecompileCodeConst1(R3000AFNPTR constcode, R3000AFNPTR_INFO noconstcode,
 
 	u32 info = 0;
 
-	const bool s_is_used = EEINST_USEDTEST(_Rs_);
+	const int s_is_used = !!(EEINST_USEDTEST(_Rs_));
 	const int regs = s_is_used ? _allocX86reg(X86TYPE_PSX, _Rs_, MODE_READ) : _checkX86reg(X86TYPE_PSX, _Rs_, MODE_READ);
 	if (regs >= 0)
 		info |= PROCESS_EE_SET_S(regs);
@@ -676,7 +676,7 @@ void psxRecompileCodeConst2(R3000AFNPTR constcode, R3000AFNPTR_INFO noconstcode,
 	_addNeededPSXtoX86reg(_Rd_);
 
 	u32 info = 0;
-	const bool s_is_used = EEINST_USEDTEST(_Rt_);
+	const int s_is_used = !!(EEINST_USEDTEST(_Rt_));
 	const int regt = s_is_used ? _allocX86reg(X86TYPE_PSX, _Rt_, MODE_READ) : _checkX86reg(X86TYPE_PSX, _Rt_, MODE_READ);
 	if (regt >= 0)
 		info |= PROCESS_EE_SET_T(regt);
@@ -710,10 +710,10 @@ void psxRecompileCodeConst3(R3000AFNPTR constcode, R3000AFNPTR_INFO constscode, 
 
 	// we have to put these up here, because the register allocator below will wipe out const flags
 	// for the destination register when/if it switches it to write mode.
-	const bool s_is_const = PSX_IS_CONST1(_Rs_);
-	const bool t_is_const = PSX_IS_CONST1(_Rt_);
-	const bool s_is_used = EEINST_USEDTEST(_Rs_);
-	const bool t_is_used = EEINST_USEDTEST(_Rt_);
+	const int s_is_const = !!(PSX_IS_CONST1(_Rs_));
+	const int t_is_const = !!(PSX_IS_CONST1(_Rt_));
+	const int s_is_used = !!(EEINST_USEDTEST(_Rs_));
+	const int t_is_used = !!(EEINST_USEDTEST(_Rt_));
 
 	if (!s_is_const)
 		_addNeededGPRtoX86reg(_Rs_);
@@ -742,14 +742,14 @@ void psxRecompileCodeConst3(R3000AFNPTR constcode, R3000AFNPTR_INFO constscode, 
 	if (LOHI)
 	{
 		// going to destroy lo/hi, so invalidate if we're writing it back to state
-		const bool lo_is_used = EEINST_USEDTEST(PSX_LO);
+		const int lo_is_used = !!(EEINST_USEDTEST(PSX_LO));
 		const int reglo = lo_is_used ? _allocX86reg(X86TYPE_PSX, PSX_LO, MODE_WRITE) : -1;
 		if (reglo >= 0)
 			info |= PROCESS_EE_SET_LO(reglo) | PROCESS_EE_LO;
 		else
 			_deletePSXtoX86reg(PSX_LO, DELETE_REG_FREE_NO_WRITEBACK);
 
-		const bool hi_is_live = EEINST_USEDTEST(PSX_HI);
+		const int hi_is_live = !!(EEINST_USEDTEST(PSX_HI));
 		const int reghi = hi_is_live ? _allocX86reg(X86TYPE_PSX, PSX_HI, MODE_WRITE) : -1;
 		if (reghi >= 0)
 			info |= PROCESS_EE_SET_HI(reghi) | PROCESS_EE_HI;
@@ -977,7 +977,7 @@ void psxSetBranchReg(u32 reg)
 
 	if (reg != 0xffffffff)
 	{
-		const bool swap = psxTrySwapDelaySlot(reg, 0, 0);
+		const int swap = !!(psxTrySwapDelaySlot(reg, 0, 0));
 
 		if (!swap)
 		{
@@ -1132,7 +1132,7 @@ void rpsxBREAK(void)
 }
 
 
-void psxRecompileNextInstruction(bool delayslot, bool swapped_delayslot)
+void psxRecompileNextInstruction(int delayslot, int swapped_delayslot)
 {
 	const int old_code = psxRegs.code;
 	EEINST* old_inst_info = g_pCurInstInfo;

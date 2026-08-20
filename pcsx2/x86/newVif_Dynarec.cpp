@@ -312,7 +312,7 @@ static u16 dVifComputeLength(uint cl, uint wl, u8 num, int isFill)
 	return C89_MIN(length, 0xFFFFu);
 }
 
-_vifT __fi nVifBlock* dVifCompile(nVifBlock* block, bool isFill)
+_vifT __fi nVifBlock* dVifCompile(nVifBlock* block, int isFill)
 {
 	nVifStruct& v = nVif[idx];
 

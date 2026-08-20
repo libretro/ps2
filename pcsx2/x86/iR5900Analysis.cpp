@@ -35,7 +35,7 @@ extern int cop2flags(u32 code);
 
 void COP2FlagHackPass_Run(u32 start, u32 end, EEINST* inst_cache)
 {
-	bool status_denormalized  = false;
+	int status_denormalized = false;
 	EEINST* last_status_write = nullptr;
 	EEINST* last_mac_write    = nullptr;
 	EEINST* last_clip_write   = nullptr;
@@ -193,9 +193,9 @@ void COP2FlagHackPass_Run(u32 start, u32 end, EEINST* inst_cache)
 
 void COP2MicroFinishPass_Run(u32 start, u32 end, EEINST* inst_cache)
 {
-	bool needs_vu0_sync    = true;
-	bool needs_vu0_finish  = true;
-	bool block_interlocked = CHECK_FULLVU0SYNCHACK;
+	int needs_vu0_sync = true;
+	int needs_vu0_finish = true;
+	int block_interlocked = !!(CHECK_FULLVU0SYNCHACK);
 
 	// First pass through the block to find out if it's interlocked or not. If it is, we need to use tighter
 	// synchronization on all COP2 instructions, otherwise Crash Twinsanity breaks.
@@ -235,13 +235,13 @@ void COP2MicroFinishPass_Run(u32 start, u32 end, EEINST* inst_cache)
 		// In essence, what we're doing is moving the finish from the COP2 instruction to the LQC2 in a LQC2..COP2
 		// chain, so that we can preserve the cached registers and not need to reload them.
 		//
-		const bool is_lqc_sqc = (_Opcode_ == 066 || _Opcode_ == 076);
-		const bool is_non_interlocked_move = (_Opcode_ == 022 && _Rs_ < 020 && ((cpuRegs.code & 1) == 0));
+		const int is_lqc_sqc = (_Opcode_ == 066 || _Opcode_ == 076);
+		const int is_non_interlocked_move = (_Opcode_ == 022 && _Rs_ < 020 && ((cpuRegs.code & 1) == 0));
 		// Moving zero to the VU registers, so likely removing a loop/lock.
-		const bool likely_clear = _Opcode_ == 022 && _Rs_ < 020 && _Rs_ > 004 && _Rt_ == 000;
+		const int likely_clear = _Opcode_ == 022 && _Rs_ < 020 && _Rs_ > 004 && _Rt_ == 000;
 		if ((needs_vu0_sync && (is_lqc_sqc || is_non_interlocked_move)) || likely_clear)
 		{
-			bool following_needs_finish = false;
+			int following_needs_finish = false;
 			for (u32 apc2 = apc + 4; apc2 < end; apc2 += 4)
 			{
 				cpuRegs.code = memRead32(apc2);

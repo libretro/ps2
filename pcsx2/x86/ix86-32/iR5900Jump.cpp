@@ -78,7 +78,7 @@ void recJR(void)
 void recJALR(void)
 {
 	const u32 newpc = pc + 4;
-	const bool swap = (EmuConfig.Gamefixes.GoemonTlbHack || _Rd_ == _Rs_) ? false : TrySwapDelaySlot(_Rs_, 0, _Rd_, true);
+	const int swap = (EmuConfig.Gamefixes.GoemonTlbHack || _Rd_ == _Rs_) ? false : TrySwapDelaySlot(_Rs_, 0, _Rd_, true);
 
 	// uncomment when there are NO instructions that need to call interpreter
 	//	int mmreg;

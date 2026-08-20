@@ -65,7 +65,7 @@ void recLUI(void)
 }
 
 ////////////////////////////////////////////////////
-static void recMFHILO(bool hi, bool upper)
+static void recMFHILO(int hi, int upper)
 {
 	if (!_Rd_)
 		return;
@@ -135,7 +135,7 @@ static void recMFHILO(bool hi, bool upper)
 	}
 }
 
-static void recMTHILO(bool hi, bool upper)
+static void recMTHILO(int hi, int upper)
 {
 	const int reg = hi ? XMMGPR_HI : XMMGPR_LO;
 	_eeOnWriteReg(reg, 0);
