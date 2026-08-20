@@ -26,12 +26,7 @@ extern int cop2flags(u32 code);
  * old classes carried lives on the stack. Iteration is the explicit loop the
  * old ForEachInstruction template unrolled to: fetch the opcode into
  * cpuRegs.code (the _Opcode_/_Rs_/... macros read it), then visit.
- *
- * Faithfulness note: the flag-hack pass's CFC2 read-ahead loop overwrites
- * cpuRegs.code and the original did NOT restore it before the outer
- * iteration's remaining tests -- those tests ran against the read-ahead's
- * last fetched instruction. That behavior is preserved exactly; do not
- * "fix" it without a byte gate. */
+ */
 
 void COP2FlagHackPass_Run(u32 start, u32 end, EEINST* inst_cache)
 {
@@ -66,7 +61,10 @@ void COP2FlagHackPass_Run(u32 start, u32 end, EEINST* inst_cache)
 			 * Test case: Tekken Tag Tournament. */
 			if (_Rs_ == 6 && _Rd_ == REG_STATUS_FLAG)
 			{
-				/* Read ahead, looking for CFC2. */
+				/* Read ahead, looking for CFC2. The scan loads each
+				 * candidate into cpuRegs.code, which the _Opcode_/_Rs_/_Rd_
+				 * macros below read, so restore this instruction's word
+				 * before the tests that follow. */
 				cfc2_pc = apc;
 				for (u32 capc = apc; capc < end; capc += 4)
 				{
@@ -77,6 +75,7 @@ void COP2FlagHackPass_Run(u32 start, u32 end, EEINST* inst_cache)
 						break;
 					}
 				}
+				cpuRegs.code = memRead32(apc);
 			}
 
 			/* CFC2/CTC2 */
