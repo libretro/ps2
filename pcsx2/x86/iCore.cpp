@@ -169,7 +169,7 @@ int _getFreeXMMreg(u32 maxreg)
 // Reserve a XMM register for temporary operation.
 int _allocTempXMMreg(XMMSSEType type)
 {
-	const int xmmreg        = _getFreeXMMreg();
+	const int xmmreg        = _getFreeXMMreg(iREGCNT_XMM);
 	xmmregs[xmmreg].inuse   = 1;
 	xmmregs[xmmreg].type    = XMMTYPE_TEMP;
 	xmmregs[xmmreg].needed  = 1;
@@ -246,7 +246,7 @@ int _allocFPtoXMMreg(int fpreg, int mode)
 		return i;
 	}
 
-	const int xmmreg        = _getFreeXMMreg();
+	const int xmmreg        = _getFreeXMMreg(iREGCNT_XMM);
 
 	g_xmmtypes[xmmreg]      = XMMT_FPS;
 	xmmregs[xmmreg].inuse   = 1;
@@ -295,7 +295,7 @@ int _allocGPRtoXMMreg(int gprreg, int mode)
 		return i;
 	}
 
-	const int xmmreg        = _getFreeXMMreg();
+	const int xmmreg        = _getFreeXMMreg(iREGCNT_XMM);
 
 	xmmregs[xmmreg].inuse   = 1;
 	xmmregs[xmmreg].type    = XMMTYPE_GPRREG;
@@ -383,7 +383,7 @@ int _allocFPACCtoXMMreg(int mode)
 		return i;
 	}
 
-	const int xmmreg        = _getFreeXMMreg();
+	const int xmmreg        = _getFreeXMMreg(iREGCNT_XMM);
 
 	g_xmmtypes[xmmreg]      = XMMT_FPS;
 	xmmregs[xmmreg].inuse   = 1;

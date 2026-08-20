@@ -104,11 +104,11 @@ void VifUnpackSSE_doMaskWrite_Dynarec(const struct VifUnpackSSE* p, int regX)
 
 	if (p->doMask && m2) // Merge MaskRow
 	{
-		mVUmergeRegs(regX, xmmRow, m2);
+		mVUmergeRegs(regX, xmmRow, m2, 0);
 	}
 	if (p->doMask && m3) // Merge MaskCol
 	{
-		mVUmergeRegs(regX, xmmCol0 + cc, m3);
+		mVUmergeRegs(regX, xmmCol0 + cc, m3, 0);
 	}
 
 	if (p->doMode)
@@ -123,14 +123,14 @@ void VifUnpackSSE_doMaskWrite_Dynarec(const struct VifUnpackSSE* p, int regX)
 			xe_pxor_xx(xmmTemp, xmmTemp);
 			if (p->doMode == 3)
 			{
-				mVUmergeRegs(xmmRow, regX, m5);
+				mVUmergeRegs(xmmRow, regX, m5, 0);
 			}
 			else
 			{
-				mVUmergeRegs(xmmTemp, xmmRow, m5);
+				mVUmergeRegs(xmmTemp, xmmRow, m5, 0);
 				xe_paddd_xx(regX, xmmTemp);
 				if (p->doMode == 2)
-					mVUmergeRegs(xmmRow, regX, m5);
+					mVUmergeRegs(xmmRow, regX, m5, 0);
 			}
 		}
 		else

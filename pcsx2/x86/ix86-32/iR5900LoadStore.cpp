@@ -86,7 +86,7 @@ static void recLoadQuad(u32 bits, bool sign)
 	{
 		// Load ECX with the source memory address that we're reading from.
 		_freeX86reg(XE_ARG1);
-		_eeMoveGPRtoR64(XE_ARG1, _Rs_);
+		_eeMoveGPRtoR64(XE_ARG1, _Rs_, true);
 		if (_Imm_ != 0)
 			xe_add32_ri(XE_ARG1, _Imm_);
 
@@ -121,7 +121,7 @@ static void recLoad(u32 bits, bool sign)
 	{
 		// Load arg1 with the source memory address that we're reading from.
 		_freeX86reg(XE_ARG1);
-		_eeMoveGPRtoR32(XE_ARG1, _Rs_);
+		_eeMoveGPRtoR32(XE_ARG1, _Rs_, true);
 		if (_Imm_ != 0)
 			xe_add32_ri(XE_ARG1, _Imm_);
 
@@ -168,7 +168,7 @@ static void recStore(u32 bits)
 		if (_Rs_ != 0)
 		{
 			// TODO(Stenzek): Preload Rs when it's live. Turn into LEA.
-			_eeMoveGPRtoR32(XE_ARG1, _Rs_);
+			_eeMoveGPRtoR32(XE_ARG1, _Rs_, true);
 			if (_Imm_ != 0)
 				xe_add32_ri(XE_ARG1, _Imm_);
 		}
@@ -260,7 +260,7 @@ void recLWL(void)
 
 	const int temp = _allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED);
 
-	_eeMoveGPRtoR32(XE_ARG1, _Rs_);
+	_eeMoveGPRtoR32(XE_ARG1, _Rs_, true);
 	if (_Imm_ != 0)
 		xe_add32_ri(XE_ARG1, _Imm_);
 
@@ -319,7 +319,7 @@ void recLWR()
 
 	const int temp = _allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED);
 
-	_eeMoveGPRtoR32(XE_ARG1, _Rs_);
+	_eeMoveGPRtoR32(XE_ARG1, _Rs_, true);
 	if (_Imm_ != 0)
 		xe_add32_ri(XE_ARG1, _Imm_);
 
@@ -387,7 +387,7 @@ void recSWL()
 	_freeX86reg(XE_ARG1);
 	_freeX86reg(XE_ARG2);
 
-	_eeMoveGPRtoR32(XE_ARG1, _Rs_);
+	_eeMoveGPRtoR32(XE_ARG1, _Rs_, true);
 	if (_Imm_ != 0)
 		xe_add32_ri(XE_ARG1, _Imm_);
 
@@ -461,7 +461,7 @@ void recSWR()
 	_freeX86reg(XE_ARG1);
 	_freeX86reg(XE_ARG2);
 
-	_eeMoveGPRtoR32(XE_ARG1, _Rs_);
+	_eeMoveGPRtoR32(XE_ARG1, _Rs_, true);
 	if (_Imm_ != 0)
 		xe_add32_ri(XE_ARG1, _Imm_);
 
@@ -580,7 +580,7 @@ void recLDL()
 	{
 		// Load ECX with the source memory address that we're reading from.
 		_freeX86reg(XE_ARG1);
-		_eeMoveGPRtoR32(XE_ARG1, _Rs_);
+		_eeMoveGPRtoR32(XE_ARG1, _Rs_, true);
 		if (_Imm_ != 0)
 			xe_add32_ri(XE_ARG1, _Imm_);
 
@@ -665,7 +665,7 @@ void recLDR()
 	{
 		// Load ECX with the source memory address that we're reading from.
 		_freeX86reg(XE_ARG1);
-		_eeMoveGPRtoR32(XE_ARG1, _Rs_);
+		_eeMoveGPRtoR32(XE_ARG1, _Rs_, true);
 		if (_Imm_ != 0)
 			xe_add32_ri(XE_ARG1, _Imm_);
 
@@ -759,12 +759,12 @@ void recSDL(void)
 		u32 shift = ((adr & 0x7) + 1) * 8;
 		if (shift == 64)
 		{
-			_eeMoveGPRtoR64(XE_ARG2, _Rt_);
+			_eeMoveGPRtoR64(XE_ARG2, _Rt_, true);
 		}
 		else
 		{
 			vtlb_DynGenReadNonQuad_Const(64, false, false, aligned, RETURN_READ_IN_RAX);
-			_eeMoveGPRtoR64(XE_ARG2, _Rt_);
+			_eeMoveGPRtoR64(XE_ARG2, _Rt_, true);
 			sdlrhelper_const(shift, 4, 64 - shift, 5, XE_AX, XE_ARG2);
 		}
 		vtlb_DynGenWrite_Const(64, false, aligned, XE_ARG2);
@@ -776,7 +776,7 @@ void recSDL(void)
 
 		// Load ECX with the source memory address that we're reading from.
 		_freeX86reg(XE_ARG1);
-		_eeMoveGPRtoR32(XE_ARG1, _Rs_);
+		_eeMoveGPRtoR32(XE_ARG1, _Rs_, true);
 		if (_Imm_ != 0)
 			xe_add32_ri(XE_ARG1, _Imm_);
 
@@ -785,7 +785,7 @@ void recSDL(void)
 		_freeX86reg(XE_ARG2);
 		const int temp1 = _allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED);
 		const int temp2 = _allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED);
-		_eeMoveGPRtoR64(XE_ARG2, _Rt_);
+		_eeMoveGPRtoR64(XE_ARG2, _Rt_, true);
 
 		xe_mov32_rr(temp1, XE_ARG1);
 		xe_mov64_rr(temp2, XE_ARG2);
@@ -845,12 +845,12 @@ void recSDR(void)
 		u32 shift = (adr & 0x7) * 8;
 		if (shift == 0)
 		{
-			_eeMoveGPRtoR64(XE_ARG2, _Rt_);
+			_eeMoveGPRtoR64(XE_ARG2, _Rt_, true);
 		}
 		else
 		{
 			vtlb_DynGenReadNonQuad_Const(64, false, false, aligned, RETURN_READ_IN_RAX);
-			_eeMoveGPRtoR64(XE_ARG2, _Rt_);
+			_eeMoveGPRtoR64(XE_ARG2, _Rt_, true);
 			sdlrhelper_const(64 - shift, 5, shift, 4, XE_AX, XE_ARG2);
 		}
 
@@ -862,7 +862,7 @@ void recSDR(void)
 			_addNeededX86reg(X86TYPE_GPR, _Rs_);
 
 		// Load ECX with the source memory address that we're reading from.
-		_eeMoveGPRtoR32(XE_ARG1, _Rs_);
+		_eeMoveGPRtoR32(XE_ARG1, _Rs_, true);
 		if (_Imm_ != 0)
 			xe_add32_ri(XE_ARG1, _Imm_);
 
@@ -871,7 +871,7 @@ void recSDR(void)
 		_freeX86reg(XE_ARG2);
 		const int temp1 = _allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED);
 		const int temp2 = _allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED);
-		_eeMoveGPRtoR64(XE_ARG2, _Rt_);
+		_eeMoveGPRtoR64(XE_ARG2, _Rt_, true);
 
 		xe_mov32_rr(temp1, XE_ARG1);
 		xe_mov64_rr(temp2, XE_ARG2);
@@ -934,7 +934,7 @@ void recLWC1(void)
 	else
 	{
 		_freeX86reg(XE_ARG1);
-		_eeMoveGPRtoR32(XE_ARG1, _Rs_);
+		_eeMoveGPRtoR32(XE_ARG1, _Rs_, true);
 		if (_Imm_ != 0)
 			xe_add32_ri(XE_ARG1, _Imm_);
 
@@ -959,7 +959,7 @@ void recSWC1(void)
 	else
 	{
 		_freeX86reg(XE_ARG1);
-		_eeMoveGPRtoR32(XE_ARG1, _Rs_);
+		_eeMoveGPRtoR32(XE_ARG1, _Rs_, true);
 		if (_Imm_ != 0)
 			xe_add32_ri(XE_ARG1, _Imm_);
 

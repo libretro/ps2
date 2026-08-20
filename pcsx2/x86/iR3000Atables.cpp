@@ -893,7 +893,7 @@ static void rpsxDIV_const()
 	}
 }
 
-static void rpsxDIVsuper(int info, int sign, int process = 0)
+static void rpsxDIVsuper(int info, int sign, int process)
 {
 	// Lo/Hi = Rs / Rt (signed)
 	if (process & PROCESS_CONSTT)
@@ -972,7 +972,7 @@ static void rpsxDIV_constt(int info)
 
 static void rpsxDIV_(int info)
 {
-	rpsxDIVsuper(info, 1);
+	rpsxDIVsuper(info, 1, 0);
 }
 
 PSXRECOMPILE_CONSTCODE3_PENALTY(DIV, 1, psxInstCycles_Div);
@@ -1011,7 +1011,7 @@ void rpsxDIVU_constt(int info)
 
 void rpsxDIVU_(int info)
 {
-	rpsxDIVsuper(info, 0);
+	rpsxDIVsuper(info, 0, 0);
 }
 
 PSXRECOMPILE_CONSTCODE3_PENALTY(DIVU, 1, psxInstCycles_Div);

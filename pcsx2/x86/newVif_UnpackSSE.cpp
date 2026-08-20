@@ -274,13 +274,13 @@ void VifUnpackSSE_xUPK_V4_5(const struct VifUnpackSSE* p)
 	xe_movaps_xx(p->destReg, p->workReg);     // x|x|x|R
 	xe_psrld_xi(p->workReg, 8);           // ABG
 	xe_pslld_xi(p->workReg, 3);           // AB|G5.000
-	mVUmergeRegs(p->destReg, p->workReg, 0x4);// x|x|G|R
+	mVUmergeRegs(p->destReg, p->workReg, 0x4, 0);// x|x|G|R
 	xe_psrld_xi(p->workReg, 8);           // AB
 	xe_pslld_xi(p->workReg, 3);           // A|B5.000
-	mVUmergeRegs(p->destReg, p->workReg, 0x2);// x|B|G|R
+	mVUmergeRegs(p->destReg, p->workReg, 0x2, 0);// x|B|G|R
 	xe_psrld_xi(p->workReg, 8);           // A
 	xe_pslld_xi(p->workReg, 7);           // A.0000000
-	mVUmergeRegs(p->destReg, p->workReg, 0x1);// A|B|G|R
+	mVUmergeRegs(p->destReg, p->workReg, 0x1, 0);// A|B|G|R
 	xe_pslld_xi(p->destReg, 24); // can optimize to
 	xe_psrld_xi(p->destReg, 24); // single AND...
 }

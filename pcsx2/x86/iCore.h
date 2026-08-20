@@ -109,7 +109,7 @@ bool _isAllocatableX86reg(int x86reg);
 void _initX86regs(void);
 int _allocX86reg(int type, int reg, int mode);
 int _checkX86reg(int type, int reg, int mode);
-bool _hasX86reg(int type, int reg, int required_mode = 0);
+bool _hasX86reg(int type, int reg, int required_mode);
 void _addNeededX86reg(int type, int reg);
 void _clearNeededX86regs();
 void _freeX86reg(int x86reg);
@@ -170,14 +170,14 @@ struct _xmmregs
 };
 
 void _initXMMregs();
-int _getFreeXMMreg(u32 maxreg = iREGCNT_XMM);
+int _getFreeXMMreg(u32 maxreg);
 int _allocTempXMMreg(XMMSSEType type);
 int _allocFPtoXMMreg(int fpreg, int mode);
 int _allocGPRtoXMMreg(int gprreg, int mode);
 int _allocFPACCtoXMMreg(int mode);
-void _reallocateXMMreg(int xmmreg, int newtype, int newreg, int newmode, bool writeback = true);
+void _reallocateXMMreg(int xmmreg, int newtype, int newreg, int newmode, bool writeback);
 int _checkXMMreg(int type, int reg, int mode);
-bool _hasXMMreg(int type, int reg, int required_mode = 0);
+bool _hasXMMreg(int type, int reg, int required_mode);
 void _addNeededFPtoXMMreg(int fpreg);
 void _addNeededFPACCtoXMMreg();
 void _addNeededGPRtoX86reg(int gprreg);

@@ -244,7 +244,7 @@ void recMTC1(void)
 			{
 				// transfer the reg directly
 				_deleteFPtoXMMreg(_Fs_, DELETE_REG_FREE_NO_WRITEBACK);
-				_reallocateXMMreg(xmmgpr, XMMTYPE_FPREG, _Fs_, MODE_WRITE);
+				_reallocateXMMreg(xmmgpr, XMMTYPE_FPREG, _Fs_, MODE_WRITE, true);
 			}
 			else
 			{

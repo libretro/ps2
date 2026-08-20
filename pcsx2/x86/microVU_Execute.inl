@@ -112,7 +112,7 @@ void mVUdispatcherCD(mV)
 		if (mvuNeedsFPCRUpdate(mVU))
 			xe_ldmxcsr_m(isVU0 ? &EmuConfig.Cpu.VU0FPCR.bitmask : &EmuConfig.Cpu.VU1FPCR.bitmask);
 
-		mVUrestoreRegs(mVU);
+		mVUrestoreRegs(mVU, false, false);
 		xe_mov32_rm(gprF0, &vuRegs[mVU->index].micro_statusflags[0]);
 		xe_mov32_rm(gprF1, &vuRegs[mVU->index].micro_statusflags[1]);
 		xe_mov32_rm(gprF2, &vuRegs[mVU->index].micro_statusflags[2]);

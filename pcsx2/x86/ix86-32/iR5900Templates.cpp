@@ -125,8 +125,8 @@ void eeRecompileCodeRC0(R5900FNPTR constcode, R5900FNPTR_INFO constscode, R5900F
 	const bool d_is_const = GPR_IS_CONST1(_Rd_);
 	const bool s_is_used = EEINST_USEDTEST(_Rs_);
 	const bool t_is_used = EEINST_USEDTEST(_Rt_);
-	const bool s_in_xmm = _hasXMMreg(XMMTYPE_GPRREG, _Rs_);
-	const bool t_in_xmm = _hasXMMreg(XMMTYPE_GPRREG, _Rt_);
+	const bool s_in_xmm = _hasXMMreg(XMMTYPE_GPRREG, _Rs_, 0);
+	const bool t_in_xmm = _hasXMMreg(XMMTYPE_GPRREG, _Rt_, 0);
 
 	// regular x86
 	if ((xmminfo & XMMINFO_READS) && !s_is_const)
@@ -203,7 +203,7 @@ void eeRecompileCodeRC1(R5900FNPTR constcode, R5900FNPTR_INFO noconstcode, int x
 	}
 
 	const bool s_is_used = EEINST_USEDTEST(_Rs_);
-	const bool s_in_xmm = _hasXMMreg(XMMTYPE_GPRREG, _Rs_);
+	const bool s_in_xmm = _hasXMMreg(XMMTYPE_GPRREG, _Rs_, 0);
 
 	u32 info = 0;
 	int regs = _checkX86reg(X86TYPE_GPR, _Rs_, MODE_READ);
@@ -239,7 +239,7 @@ void eeRecompileCodeRC2(R5900FNPTR constcode, R5900FNPTR_INFO noconstcode, int x
 	}
 
 	const bool t_is_used = EEINST_USEDTEST(_Rt_);
-	const bool t_in_xmm = _hasXMMreg(XMMTYPE_GPRREG, _Rt_);
+	const bool t_in_xmm = _hasXMMreg(XMMTYPE_GPRREG, _Rt_, 0);
 
 	u32 info = 0;
 	int regt = _checkX86reg(X86TYPE_GPR, _Rt_, MODE_READ);

@@ -35,7 +35,7 @@ alignas(16) const u32 sse4_maxvals[2][4] = {
 // gotten a NaN value, then something went wrong; and the NaN's sign
 // is not to be trusted. Games like positive values better usually,
 // and its faster... so just always make NaNs into positive infinity.
-void mVUclamp1(microVU* mVU, int reg, int regT1, int xyzw, bool bClampE = 0)
+void mVUclamp1(microVU* mVU, int reg, int regT1, int xyzw, bool bClampE)
 {
 	if (((!clampE && CHECK_VU_OVERFLOW(mVU->index)) || (clampE && bClampE)) && mVUra_checkVFClamp(mVU->regAlloc, reg))
 	{
@@ -58,7 +58,7 @@ void mVUclamp1(microVU* mVU, int reg, int regT1, int xyzw, bool bClampE = 0)
 // Note 2: Using regalloc here seems to contaminate some regs in certain games.
 // Must be some specific case I've overlooked (or I used regalloc improperly on an opcode)
 // so we just use a temporary mem location for our backup for now... (non-sse4 version only)
-void mVUclamp2(microVU* mVU, int reg, int regT1in, int xyzw, bool bClampE = 0)
+void mVUclamp2(microVU* mVU, int reg, int regT1in, int xyzw, bool bClampE)
 {
 	if (((!clampE && CHECK_VU_SIGN_OVERFLOW(mVU->index)) || (clampE && bClampE && CHECK_VU_SIGN_OVERFLOW(mVU->index))) && mVUra_checkVFClamp(mVU->regAlloc, reg))
 	{

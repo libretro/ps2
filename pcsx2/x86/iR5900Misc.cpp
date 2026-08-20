@@ -132,7 +132,7 @@ void recMTSAB()
 	}
 	else
 	{
-		_eeMoveGPRtoR32(0 /* eax */, _Rs_);
+		_eeMoveGPRtoR32(0 /* eax */, _Rs_, true);
 		xe_and32_ri(XE_AX, 0xF);
 		xe_xor32_ri(XE_AX, _Imm_ & 0xf);
 		xe_mov32_mr(&cpuRegs.sa, XE_AX);
@@ -147,7 +147,7 @@ void recMTSAH()
 	}
 	else
 	{
-		_eeMoveGPRtoR32(0 /* eax */, _Rs_);
+		_eeMoveGPRtoR32(0 /* eax */, _Rs_, true);
 		xe_and32_ri(XE_AX, 0x7);
 		xe_xor32_ri(XE_AX, _Imm_ & 0x7);
 		xe_shl32_ri(XE_AX, 1);

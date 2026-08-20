@@ -304,7 +304,7 @@ void normJumpCompile(mV, microFlagCycles* mFC, bool isEvilJump)
 {
 	memcpy(&mVUpBlock->pStateEnd, &mVUregs, sizeof(microRegInfo));
 	mVUsetupBranch(mVU, mFC);
-	mVUbackupRegs(mVU);
+	mVUbackupRegs(mVU, false, false);
 
 	if (!mVUpBlock->jumpCache) // Create the jump cache for this block
 	{
@@ -340,7 +340,7 @@ void normJumpCompile(mV, microFlagCycles* mFC, bool isEvilJump)
 	else
 		xe_fastcall2_rr((void*)(void (*)())mVUcompileJIT<1>, XE_ARG1, XE_ARG2);
 
-	mVUrestoreRegs(mVU);
+	mVUrestoreRegs(mVU, false, false);
 	xe_jmp_r(gprT1q); // Jump to rec-code address
 }
 

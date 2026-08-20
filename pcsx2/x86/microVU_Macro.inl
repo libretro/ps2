@@ -482,7 +482,7 @@ static void recCTC2(void)
 		case REG_VPU_STAT:
 			break; // Read Only Regs
 		case REG_R:
-			_eeMoveGPRtoR32(0 /* eax */, _Rt_);
+			_eeMoveGPRtoR32(0 /* eax */, _Rt_, true);
 			xe_and32_ri(XE_AX, 0x7FFFFF);
 			xe_or32_ri(XE_AX, 0x3f800000);
 			xe_mov32_mr(&vu0Regs.VI[REG_R].UL, XE_AX);
@@ -491,7 +491,7 @@ static void recCTC2(void)
 		{
 			if (_Rt_)
 			{
-				_eeMoveGPRtoR32(0 /* eax */, _Rt_);
+				_eeMoveGPRtoR32(0 /* eax */, _Rt_, true);
 				xe_and32_ri(XE_AX, 0xFC0);
 				xe_and32_mi(&vu0Regs.VI[REG_STATUS_FLAG].UL, 0x3F);
 				xe_or32_mr(&vu0Regs.VI[REG_STATUS_FLAG].UL, XE_AX);
@@ -502,7 +502,7 @@ static void recCTC2(void)
 			const int xmmtemp = _allocTempXMMreg(XMMT_INT);
 
 			//Need to update the sticky flags for microVU
-			mVUallocSFLAGd(&vu0Regs.VI[REG_STATUS_FLAG].UL);
+			mVUallocSFLAGd(&vu0Regs.VI[REG_STATUS_FLAG].UL, XE_AX, XE_CX, XE_DX);
 			xe_movdzx_xr(xmmtemp, XE_AX); // TODO(Stenzek): This can be a broadcast.
 			xe_shufps_xxi(xmmtemp, xmmtemp, 0);
 			// Make sure the values are everywhere the need to be
@@ -514,7 +514,7 @@ static void recCTC2(void)
 			iFlushCall(FLUSH_NONE);
 			xe_mov32_ri(XE_ARG1, 1);
 			xe_fastcall0(vu1Finish);
-			_eeMoveGPRtoR32(XE_ARG1, _Rt_);
+			_eeMoveGPRtoR32(XE_ARG1, _Rt_, true);
 			iFlushCall(FLUSH_NONE);
 			xe_fastcall0(vu1ExecMicro);
 			break;
@@ -527,7 +527,7 @@ static void recCTC2(void)
 				}
 
 				const int flagreg = _allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED);
-				_eeMoveGPRtoR32(flagreg, _Rt_);
+				_eeMoveGPRtoR32(flagreg, _Rt_, true);
 
 				iFlushCall(FLUSH_FREE_VU0);
 				TEST_FBRST_RESET(flagreg, vu0ResetRegs, 0);
@@ -597,7 +597,7 @@ static void recCTC2(void)
 						}
 						else
 						{
-							_eeMoveGPRtoR32(0 /* eax */, _Rt_);
+							_eeMoveGPRtoR32(0 /* eax */, _Rt_, true);
 							xe_mov16_mr(&vu0Regs.VI[_Rd_].US[0], XE_AX);
 						}
 					}
@@ -815,7 +815,7 @@ void recLQC2(void)
 	}
 	else
 	{
-		_eeMoveGPRtoR32(XE_ARG1, _Rs_);
+		_eeMoveGPRtoR32(XE_ARG1, _Rs_, true);
 		if (_Imm_ != 0)
 			xe_add32_ri(XE_ARG1, _Imm_);
 		xe_and32_ri(XE_ARG1, ~0xF);
@@ -849,7 +849,7 @@ void recSQC2(void)
 	}
 	else
 	{
-		_eeMoveGPRtoR32(XE_ARG1, _Rs_);
+		_eeMoveGPRtoR32(XE_ARG1, _Rs_, true);
 		if (_Imm_ != 0)
 			xe_add32_ri(XE_ARG1, _Imm_);
 		xe_and32_ri(XE_ARG1, ~0xF);

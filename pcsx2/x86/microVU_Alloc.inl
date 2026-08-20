@@ -71,7 +71,7 @@ __ri void mVUallocSFLAGc(int reg, int regT, int fInstance)
 }
 
 // Denormalizes Status Flag; destroys tmp1/tmp2
-__ri void mVUallocSFLAGd(u32* memAddr, int reg = XE_AX, int tmp1 = XE_CX, int tmp2 = XE_DX)
+__ri void mVUallocSFLAGd(u32* memAddr, int reg, int tmp1, int tmp2)
 {
 	xe_mov32_rm(tmp2, memAddr);
 	xe_mov32_rr(reg, tmp2);

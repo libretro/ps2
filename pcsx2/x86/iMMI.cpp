@@ -1511,8 +1511,8 @@ void recQFSRV(void)
 
 	if (_Rs_ == _Rt_ + 1)
 	{
-		_flushEEreg(_Rs_);
-		_flushEEreg(_Rt_);
+		_flushEEreg(_Rs_, false);
+		_flushEEreg(_Rt_, false);
 		int info = eeRecompileCodeXMM(XMMINFO_WRITED);
 
 		xe_mov32_rm(XE_AX, &cpuRegs.sa);

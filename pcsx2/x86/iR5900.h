@@ -79,7 +79,7 @@ void recBranchCall(void (*func)(void));
 void recCall(void (*func)(void));
 u32 scaleblockcycles_clear(void);
 
-		extern void recDoBranchImm(u32 branchTo, u32* jmpSkip, bool isLikely = false, bool swappedDelaySlot = false);
+		extern void recDoBranchImm(u32 branchTo, u32* jmpSkip, bool isLikely, bool swappedDelaySlot);
 
 ////////////////////////////////////////////////////////////////////
 // Constant Propagation - From here to the end of the header!
@@ -106,8 +106,8 @@ alignas(16) extern GPR_reg64 g_cpuConstRegs[32];
 extern u32 g_cpuHasConstReg, g_cpuFlushedConstReg;
 
 // finds where the GPR is stored and moves lower 32 bits to EAX
-void _eeMoveGPRtoR32(int to, int fromgpr, bool allow_preload = true);
-void _eeMoveGPRtoR64(int to, int fromgpr, bool allow_preload = true);
+void _eeMoveGPRtoR32(int to, int fromgpr, bool allow_preload);
+void _eeMoveGPRtoR64(int to, int fromgpr, bool allow_preload);
 void _eeMoveGPRtoM(uptr to, int fromgpr); // 32-bit only
 
 void _eeFlushAllDirty(void);
@@ -119,7 +119,7 @@ void _eeOnWriteReg(int reg, int signext);
 void _deleteEEreg(int reg, int flush);
 void _deleteEEreg128(int reg);
 
-void _flushEEreg(int reg, bool clear = false);
+void _flushEEreg(int reg, bool clear);
 
 int _eeTryRenameReg(int to, int from, int fromx86, int other, int xmminfo);
 

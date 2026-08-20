@@ -141,7 +141,7 @@ void mVUmergeRegs(int dest, int src, int xyzw, bool modXYZW)
 //------------------------------------------------------------------
 
 // Backup Volatile Regs (EAX, ECX, EDX, MM0~7, XMM0~7, are all volatile according to 32bit Win/Linux ABI)
-__fi void mVUbackupRegs(microVU* mVU, bool toMemory = false, bool onlyNeeded = false)
+__fi void mVUbackupRegs(microVU* mVU, bool toMemory, bool onlyNeeded)
 {
 	if (toMemory)
 	{
@@ -202,7 +202,7 @@ __fi void mVUbackupRegs(microVU* mVU, bool toMemory = false, bool onlyNeeded = f
 }
 
 /* Restore Volatile Regs */
-__fi void mVUrestoreRegs(microVU* mVU, bool fromMemory = false, bool onlyNeeded = false)
+__fi void mVUrestoreRegs(microVU* mVU, bool fromMemory, bool onlyNeeded)
 {
 	if (fromMemory)
 	{

@@ -774,7 +774,7 @@ void SetBranchReg(u32 reg)
 		if (!swap)
 		{
 			const int wbreg = _allocX86reg(X86TYPE_PCWRITEBACK, 0, MODE_WRITE | MODE_CALLEESAVED);
-			_eeMoveGPRtoR32(wbreg, reg);
+			_eeMoveGPRtoR32(wbreg, reg, true);
 
 			if (EmuConfig.Gamefixes.GoemonTlbHack)
 			{

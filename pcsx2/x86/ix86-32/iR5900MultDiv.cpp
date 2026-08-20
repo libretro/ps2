@@ -364,7 +364,7 @@ static void recDIVsuper(int info, bool sign, bool upper, int process)
 	if (process & PROCESS_CONSTS)
 		xe_mov32_ri(XE_AX, g_cpuConstRegs[_Rs_].UL[0]);
 	else
-		_eeMoveGPRtoR64(XE_AX, _Rs_);
+		_eeMoveGPRtoR64(XE_AX, _Rs_, true);
 
 	u8* end1;
 	if (sign) //test for overflow (x86 will just throw an exception)

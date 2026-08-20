@@ -180,7 +180,7 @@ alignas(__pagesize) static u8 m_IndirectDispatchers[__pagesize];
 // mode        - 0 for read, 1 for write!
 // operandsize - 0 thru 4 represents 8, 16, 32, 64, and 128 bits.
 //
-static u8* GetIndirectDispatcherPtr(int mode, int operandsize, int sign = 0)
+static u8* GetIndirectDispatcherPtr(int mode, int operandsize, int sign)
 {
 	// Each dispatcher is aligned to 64 bytes.  The actual dispatchers are only like
 	// 20-some bytes each, but 64 byte alignment on functions that are called
@@ -199,7 +199,7 @@ static u8* GetIndirectDispatcherPtr(int mode, int operandsize, int sign = 0)
 //
 
 template <typename GenDirectFn>
-static void DynGen_HandlerTest(const GenDirectFn& gen_direct, int mode, int bits, bool sign = false)
+static void DynGen_HandlerTest(const GenDirectFn& gen_direct, int mode, int bits, bool sign)
 {
 	int szidx = 0;
 	switch (bits)
@@ -518,7 +518,7 @@ int vtlb_DynGenReadQuad(u32 bits, int addr_reg, vtlb_ReadRegAllocCallback dest_r
 		iFlushCall(FLUSH_FULLVTLB);
 
 		DynGen_PrepRegs(XE_ARG1, -1, bits, true);
-		DynGen_HandlerTest([bits]() {DynGen_DirectRead(bits, false); },  0, bits);
+		DynGen_HandlerTest([bits]() {DynGen_DirectRead(bits, false); }, 0, bits, false);
 
 		/* The call here needs to be after the above function calls. */
 		reg = dest_reg_alloc ? dest_reg_alloc() : (_freeXMMreg(0), 0); /* Handler returns in xmm0 */
@@ -585,7 +585,7 @@ void vtlb_DynGenWrite(u32 sz, bool xmm, int addr_reg, int value_reg)
 		iFlushCall(FLUSH_FULLVTLB);
 
 		DynGen_PrepRegs(addr_reg, value_reg, sz, xmm);
-		DynGen_HandlerTest([sz]() { DynGen_DirectWrite(sz); }, 1, sz);
+		DynGen_HandlerTest([sz]() { DynGen_DirectWrite(sz); }, 1, sz, false);
 	}
 	else
 	{
@@ -873,7 +873,7 @@ void vtlb_DynBackpatchLoadStore(uptr code_address, u32 code_size, u32 guest_pc, 
 		}
 
 		DynGen_PrepRegs(address_register, data_register, size_in_bits, is_xmm);
-		DynGen_HandlerTest([size_in_bits]() { DynGen_DirectWrite(size_in_bits); }, 1, size_in_bits);
+		DynGen_HandlerTest([size_in_bits]() { DynGen_DirectWrite(size_in_bits); }, 1, size_in_bits, false);
 	}
 
 	// restore regs

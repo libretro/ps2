@@ -22,7 +22,7 @@
 
 using namespace x86Emitter;
 
-extern void  mVUmergeRegs(int dest, int src,  int xyzw, bool modXYZW = 0);
+extern void  mVUmergeRegs(int dest, int src,  int xyzw, bool modXYZW);
 extern void  mVUsaveReg(int reg, struct e_mem ptr, int xyzw, bool modXYZW);
 
 #define VUFT VIFUnpackFuncTable
