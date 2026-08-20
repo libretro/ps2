@@ -538,6 +538,14 @@ ifneq (,$(findstring unix,$(platform)))
    endif
 endif
 
+# IS_X86 is set from the HOST (uname -p) in the unix branch above, so a cross
+# build -- make arch=aarch64 CXX=aarch64-linux-gnu-g++ -- would otherwise keep
+# the x86 SIMD baseline and hand -msse to an aarch64 compiler. The target
+# architecture wins.
+ifeq ($(IS_ARM64), 1)
+   IS_X86 =
+endif
+
 # The C89 macro core is the default emitter; pass C89_EMITTER=0 to build the
 # original C++ reference implementation. Set BEFORE the include: the source
 # exclusion in Makefile.common reads it.
