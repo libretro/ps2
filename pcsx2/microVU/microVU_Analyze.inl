@@ -26,10 +26,10 @@
 // Read a VF reg
 __ri void analyzeReg1(mV, int xReg, microVFreg& vfRead) {
 	if (xReg) {
-		if (_X) { mVUstall = std::max(mVUstall, mVUregs.VF[xReg].x); vfRead.reg = xReg; vfRead.x = 1; }
-		if (_Y) { mVUstall = std::max(mVUstall, mVUregs.VF[xReg].y); vfRead.reg = xReg; vfRead.y = 1; }
-		if (_Z) { mVUstall = std::max(mVUstall, mVUregs.VF[xReg].z); vfRead.reg = xReg; vfRead.z = 1; }
-		if (_W) { mVUstall = std::max(mVUstall, mVUregs.VF[xReg].w); vfRead.reg = xReg; vfRead.w = 1; }
+		if (_X) { mVUstall = pcsx2_max_i(mVUstall, mVUregs.VF[xReg].x); vfRead.reg = xReg; vfRead.x = 1; }
+		if (_Y) { mVUstall = pcsx2_max_i(mVUstall, mVUregs.VF[xReg].y); vfRead.reg = xReg; vfRead.y = 1; }
+		if (_Z) { mVUstall = pcsx2_max_i(mVUstall, mVUregs.VF[xReg].z); vfRead.reg = xReg; vfRead.z = 1; }
+		if (_W) { mVUstall = pcsx2_max_i(mVUstall, mVUregs.VF[xReg].w); vfRead.reg = xReg; vfRead.w = 1; }
 	}
 }
 
@@ -53,25 +53,25 @@ __ri void analyzeReg3(mV, int xReg, microVFreg& vfRead)
 	{
 		if (_bc_x)
 		{
-			mVUstall = std::max(mVUstall, mVUregs.VF[xReg].x);
+			mVUstall = pcsx2_max_i(mVUstall, mVUregs.VF[xReg].x);
 			vfRead.reg = xReg;
 			vfRead.x = 1;
 		}
 		else if (_bc_y)
 		{
-			mVUstall = std::max(mVUstall, mVUregs.VF[xReg].y);
+			mVUstall = pcsx2_max_i(mVUstall, mVUregs.VF[xReg].y);
 			vfRead.reg = xReg;
 			vfRead.y = 1;
 		}
 		else if (_bc_z)
 		{
-			mVUstall = std::max(mVUstall, mVUregs.VF[xReg].z);
+			mVUstall = pcsx2_max_i(mVUstall, mVUregs.VF[xReg].z);
 			vfRead.reg = xReg;
 			vfRead.z = 1;
 		}
 		else
 		{
-			mVUstall = std::max(mVUstall, mVUregs.VF[xReg].w);
+			mVUstall = pcsx2_max_i(mVUstall, mVUregs.VF[xReg].w);
 			vfRead.reg = xReg;
 			vfRead.w = 1;
 		}
@@ -83,7 +83,7 @@ __ri void analyzeReg4(mV, int xReg, microVFreg& vfRead)
 {
 	if (xReg)
 	{
-		mVUstall   = std::max(mVUstall, mVUregs.VF[xReg].w);
+		mVUstall   = pcsx2_max_i(mVUstall, mVUregs.VF[xReg].w);
 		vfRead.reg = xReg;
 		vfRead.w   = 1;
 	}
@@ -96,10 +96,10 @@ __ri void analyzeReg5(mV, int xReg, int fxf, microVFreg& vfRead)
 	{
 		switch (fxf)
 		{
-			case 0: mVUstall = std::max(mVUstall, mVUregs.VF[xReg].x); vfRead.reg = xReg; vfRead.x = 1; break;
-			case 1: mVUstall = std::max(mVUstall, mVUregs.VF[xReg].y); vfRead.reg = xReg; vfRead.y = 1; break;
-			case 2: mVUstall = std::max(mVUstall, mVUregs.VF[xReg].z); vfRead.reg = xReg; vfRead.z = 1; break;
-			case 3: mVUstall = std::max(mVUstall, mVUregs.VF[xReg].w); vfRead.reg = xReg; vfRead.w = 1; break;
+			case 0: mVUstall = pcsx2_max_i(mVUstall, mVUregs.VF[xReg].x); vfRead.reg = xReg; vfRead.x = 1; break;
+			case 1: mVUstall = pcsx2_max_i(mVUstall, mVUregs.VF[xReg].y); vfRead.reg = xReg; vfRead.y = 1; break;
+			case 2: mVUstall = pcsx2_max_i(mVUstall, mVUregs.VF[xReg].z); vfRead.reg = xReg; vfRead.z = 1; break;
+			case 3: mVUstall = pcsx2_max_i(mVUstall, mVUregs.VF[xReg].w); vfRead.reg = xReg; vfRead.w = 1; break;
 		}
 	}
 }
@@ -109,10 +109,10 @@ __ri void analyzeReg6(mV, int xReg, microVFreg& vfRead)
 {
 	if (xReg)
 	{
-		if (_X) { mVUstall = std::max(mVUstall, mVUregs.VF[xReg].y); vfRead.reg = xReg; vfRead.y = 1; }
-		if (_Y) { mVUstall = std::max(mVUstall, mVUregs.VF[xReg].z); vfRead.reg = xReg; vfRead.z = 1; }
-		if (_Z) { mVUstall = std::max(mVUstall, mVUregs.VF[xReg].w); vfRead.reg = xReg; vfRead.w = 1; }
-		if (_W) { mVUstall = std::max(mVUstall, mVUregs.VF[xReg].x); vfRead.reg = xReg; vfRead.x = 1; }
+		if (_X) { mVUstall = pcsx2_max_i(mVUstall, mVUregs.VF[xReg].y); vfRead.reg = xReg; vfRead.y = 1; }
+		if (_Y) { mVUstall = pcsx2_max_i(mVUstall, mVUregs.VF[xReg].z); vfRead.reg = xReg; vfRead.z = 1; }
+		if (_Z) { mVUstall = pcsx2_max_i(mVUstall, mVUregs.VF[xReg].w); vfRead.reg = xReg; vfRead.w = 1; }
+		if (_W) { mVUstall = pcsx2_max_i(mVUstall, mVUregs.VF[xReg].x); vfRead.reg = xReg; vfRead.x = 1; }
 	}
 }
 
@@ -121,7 +121,7 @@ __ri void analyzeVIreg1(mV, int xReg, microVIreg& viRead)
 {
 	if (xReg)
 	{
-		mVUstall    = std::max(mVUstall, mVUregs.VI[xReg]);
+		mVUstall    = pcsx2_max_i(mVUstall, mVUregs.VI[xReg]);
 		viRead.reg  = xReg;
 		viRead.used = 1;
 	}
@@ -143,12 +143,12 @@ __ri void analyzeVIreg2(mV, int xReg, microVIreg& viWrite, int aCycles)
 #define analyzeQreg(x) \
 	{ \
 		mVUregsTemp.q = x; \
-		mVUstall = std::max(mVUstall, mVUregs.q); \
+		mVUstall = pcsx2_max_i(mVUstall, mVUregs.q); \
 	}
 #define analyzePreg(x) \
 	{ \
 		mVUregsTemp.p = x; \
-		mVUstall = std::max(mVUstall, (u8)((mVUregs.p) ? (mVUregs.p - 1) : 0)); \
+		mVUstall = pcsx2_max_i(mVUstall, (u8)((mVUregs.p) ? (mVUregs.p - 1) : 0)); \
 	}
 #define analyzeRreg() \
 	{ \
@@ -156,7 +156,7 @@ __ri void analyzeVIreg2(mV, int xReg, microVIreg& viWrite, int aCycles)
 	}
 #define analyzeXGkick1() \
 	{ \
-		mVUstall = std::max(mVUstall, mVUregs.xgkick); \
+		mVUstall = pcsx2_max_i(mVUstall, mVUregs.xgkick); \
 	}
 #define analyzeXGkick2(x) \
 	{ \

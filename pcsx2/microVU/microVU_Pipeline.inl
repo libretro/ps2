@@ -84,8 +84,8 @@ void mVUsetupRange(microVU* mVU, s32 pc, bool isStartPC)
 				if (((ranges->data[i].start >= rStart) && (ranges->data[i].start <= rEnd))
 				||  ((ranges->data[i].end   >= rStart) && (ranges->data[i].end <= rEnd)))
 				{
-					mVUrange.start = rStart = std::min(ranges->data[i].start, rStart); /* Choose the earlier start */
-					mVUrange.end   = rEnd   = std::max(ranges->data[i].end, rEnd);
+					mVUrange.start = rStart = pcsx2_min_i(ranges->data[i].start, rStart); /* Choose the earlier start */
+					mVUrange.end   = rEnd   = pcsx2_max_i(ranges->data[i].end, rEnd);
 					mvu_rangelist_erase(ranges, i);
 				}
 				else
@@ -213,21 +213,21 @@ void mVUsetCycles(mV)
 		cmpVFregs(mVUlow.VF_write, mVUup.VF_read[1], mVUinfo.backupVF);
 	}
 
-	mVUregs.VF[mVUregsTemp.VFreg[0]].x = std::max(mVUregs.VF[mVUregsTemp.VFreg[0]].x, mVUregsTemp.VF[0].x);
-	mVUregs.VF[mVUregsTemp.VFreg[0]].y = std::max(mVUregs.VF[mVUregsTemp.VFreg[0]].y, mVUregsTemp.VF[0].y);
-	mVUregs.VF[mVUregsTemp.VFreg[0]].z = std::max(mVUregs.VF[mVUregsTemp.VFreg[0]].z, mVUregsTemp.VF[0].z);
-	mVUregs.VF[mVUregsTemp.VFreg[0]].w = std::max(mVUregs.VF[mVUregsTemp.VFreg[0]].w, mVUregsTemp.VF[0].w);
+	mVUregs.VF[mVUregsTemp.VFreg[0]].x = pcsx2_max_i(mVUregs.VF[mVUregsTemp.VFreg[0]].x, mVUregsTemp.VF[0].x);
+	mVUregs.VF[mVUregsTemp.VFreg[0]].y = pcsx2_max_i(mVUregs.VF[mVUregsTemp.VFreg[0]].y, mVUregsTemp.VF[0].y);
+	mVUregs.VF[mVUregsTemp.VFreg[0]].z = pcsx2_max_i(mVUregs.VF[mVUregsTemp.VFreg[0]].z, mVUregsTemp.VF[0].z);
+	mVUregs.VF[mVUregsTemp.VFreg[0]].w = pcsx2_max_i(mVUregs.VF[mVUregsTemp.VFreg[0]].w, mVUregsTemp.VF[0].w);
 
-	mVUregs.VF[mVUregsTemp.VFreg[1]].x = std::max(mVUregs.VF[mVUregsTemp.VFreg[1]].x, mVUregsTemp.VF[1].x);
-	mVUregs.VF[mVUregsTemp.VFreg[1]].y = std::max(mVUregs.VF[mVUregsTemp.VFreg[1]].y, mVUregsTemp.VF[1].y);
-	mVUregs.VF[mVUregsTemp.VFreg[1]].z = std::max(mVUregs.VF[mVUregsTemp.VFreg[1]].z, mVUregsTemp.VF[1].z);
-	mVUregs.VF[mVUregsTemp.VFreg[1]].w = std::max(mVUregs.VF[mVUregsTemp.VFreg[1]].w, mVUregsTemp.VF[1].w);
+	mVUregs.VF[mVUregsTemp.VFreg[1]].x = pcsx2_max_i(mVUregs.VF[mVUregsTemp.VFreg[1]].x, mVUregsTemp.VF[1].x);
+	mVUregs.VF[mVUregsTemp.VFreg[1]].y = pcsx2_max_i(mVUregs.VF[mVUregsTemp.VFreg[1]].y, mVUregsTemp.VF[1].y);
+	mVUregs.VF[mVUregsTemp.VFreg[1]].z = pcsx2_max_i(mVUregs.VF[mVUregsTemp.VFreg[1]].z, mVUregsTemp.VF[1].z);
+	mVUregs.VF[mVUregsTemp.VFreg[1]].w = pcsx2_max_i(mVUregs.VF[mVUregsTemp.VFreg[1]].w, mVUregsTemp.VF[1].w);
 
-	mVUregs.VI[mVUregsTemp.VIreg]  = std::max(mVUregs.VI[mVUregsTemp.VIreg], mVUregsTemp.VI);
-	mVUregs.q                      = std::max(mVUregs.q,                     mVUregsTemp.q);
-	mVUregs.p                      = std::max(mVUregs.p,                     mVUregsTemp.p);
-	mVUregs.r                      = std::max(mVUregs.r,                     mVUregsTemp.r);
-	mVUregs.xgkick                 = std::max(mVUregs.xgkick,                mVUregsTemp.xgkick);
+	mVUregs.VI[mVUregsTemp.VIreg]  = pcsx2_max_i(mVUregs.VI[mVUregsTemp.VIreg], mVUregsTemp.VI);
+	mVUregs.q                      = pcsx2_max_i(mVUregs.q, mVUregsTemp.q);
+	mVUregs.p                      = pcsx2_max_i(mVUregs.p, mVUregsTemp.p);
+	mVUregs.r                      = pcsx2_max_i(mVUregs.r, mVUregsTemp.r);
+	mVUregs.xgkick                 = pcsx2_max_i(mVUregs.xgkick, mVUregsTemp.xgkick);
 }
 
 //------------------------------------------------------------------
