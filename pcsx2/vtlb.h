@@ -92,12 +92,16 @@ extern bool vtlb_IsFaultingPC(u32 guest_pc);
 
 //Memory functions
 
-template< typename DataType >
-extern DataType vtlb_memRead(u32 mem);
+extern mem8_t  vtlb_memRead8 (u32 mem);
+extern mem16_t vtlb_memRead16(u32 mem);
+extern mem32_t vtlb_memRead32(u32 mem);
+extern mem64_t vtlb_memRead64(u32 mem);
 extern RETURNS_R128 vtlb_memRead128(u32 mem);
 
-template< typename DataType >
-extern void vtlb_memWrite(u32 mem, DataType value);
+extern void vtlb_memWrite8 (u32 mem, mem8_t  value);
+extern void vtlb_memWrite16(u32 mem, mem16_t value);
+extern void vtlb_memWrite32(u32 mem, mem32_t value);
+extern void vtlb_memWrite64(u32 mem, mem64_t value);
 #if PCSX2_MINGW_R128_BY_PTR
 extern void vtlb_memWrite128(u32 mem, const r128* value);
 #else

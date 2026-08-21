@@ -312,56 +312,38 @@ __inline int CheckCache(u32 addr)
 // --------------------------------------------------------------------------------------
 // See recVTLB.cpp for the dynarec versions.
 
-template <typename DataType>
-DataType vtlb_memRead(u32 addr)
-{
-	static const uint DataSize = sizeof(DataType) * 8;
-	auto vmv = vtlbdata.vmap[addr >> VTLB_PAGE_BITS];
-
-	if (!vmv.isHandler(addr))
-	{
-		if (!CHECK_EEREC)
-		{
-			if (CHECK_CACHE && CheckCache(addr))
-			{
-				switch (DataSize)
-				{
-					case 8:
-						return readCache8(addr);
-					case 16:
-						return readCache16(addr);
-					case 32:
-						return readCache32(addr);
-					case 64:
-						return readCache64(addr);
-					default:
-						break;
-				}
-			}
-		}
-
-		return *reinterpret_cast<DataType*>(vmv.assumePtr(addr));
-	}
-
-	//has to: translate, find function, call function
-	u32 paddr = vmv.assumeHandlerGetPAddr(addr);
-
-	switch (DataSize)
-	{
-		case 8:
-			return vmv.assumeHandler<8, false>()(paddr);
-		case 16:
-			return vmv.assumeHandler<16, false>()(paddr);
-		case 32:
-			return vmv.assumeHandler<32, false>()(paddr);
-		case 64:
-			return vmv.assumeHandler<64, false>()(paddr);
-		default:
-			break;
-	}
-
-	return 0; // technically unreachable, but suppresses warnings.
+/* One concrete function per width. These were a single
+ * template<typename DataType> whose body switched on sizeof(DataType) * 8 --
+ * every arm of those switches was dead in each instantiation, and
+ * assumeHandler<Width, Write> was a compile-time index into RWFT. Both fold
+ * away here: the width, the cache accessor and the RWFT row are literals in
+ * the macro expansion, so each function is the straight-line path its
+ * instantiation always compiled to. */
+#define VTLB_DEFINE_MEMREAD(bits, type, rwft_row, cache_read, fp_type)         \
+type vtlb_memRead##bits(u32 addr)                                              \
+{                                                                              \
+	VTLBVirtual vmv = vtlbdata.vmap[addr >> VTLB_PAGE_BITS];                   \
+	u32 paddr;                                                                 \
+                                                                               \
+	if (!vmv.isHandler(addr))                                                  \
+	{                                                                          \
+		if (!CHECK_EEREC)                                                      \
+		{                                                                      \
+			if (CHECK_CACHE && CheckCache(addr))                               \
+				return cache_read(addr);                                       \
+		}                                                                      \
+		return *(type*)vmv.assumePtr(addr);                                    \
+	}                                                                          \
+                                                                               \
+	/* has to: translate, find function, call function */                      \
+	paddr = vmv.assumeHandlerGetPAddr(addr);                                   \
+	return ((fp_type*)vtlbdata.RWFT[rwft_row][0][vmv.assumeHandlerGetID()])(paddr); \
 }
+
+VTLB_DEFINE_MEMREAD( 8, mem8_t,  0, readCache8,  vtlbMemR8FP)
+VTLB_DEFINE_MEMREAD(16, mem16_t, 1, readCache16, vtlbMemR16FP)
+VTLB_DEFINE_MEMREAD(32, mem32_t, 2, readCache32, vtlbMemR32FP)
+VTLB_DEFINE_MEMREAD(64, mem64_t, 3, readCache64, vtlbMemR64FP)
 
 RETURNS_R128 vtlb_memRead128(u32 mem)
 {
@@ -385,46 +367,35 @@ RETURNS_R128 vtlb_memRead128(u32 mem)
 	}
 }
 
-template <typename DataType>
-void vtlb_memWrite(u32 addr, DataType data)
-{
-	static const uint DataSize = sizeof(DataType) * 8;
-
-	auto vmv = vtlbdata.vmap[addr >> VTLB_PAGE_BITS];
-
-	if (!vmv.isHandler(addr))
-	{
-		if (!CHECK_EEREC)
-		{
-			if (CHECK_CACHE && CheckCache(addr))
-			{
-				switch (DataSize)
-				{
-					case 8:
-						writeCache8(addr, data);
-						return;
-					case 16:
-						writeCache16(addr, data);
-						return;
-					case 32:
-						writeCache32(addr, data);
-						return;
-					case 64:
-						writeCache64(addr, data);
-						return;
-				}
-			}
-		}
-
-		*reinterpret_cast<DataType*>(vmv.assumePtr(addr)) = data;
-	}
-	else
-	{
-		//has to: translate, find function, call function
-		u32 paddr = vmv.assumeHandlerGetPAddr(addr);
-		return vmv.assumeHandler<sizeof(DataType) * 8, true>()(paddr, data);
-	}
+#define VTLB_DEFINE_MEMWRITE(bits, type, rwft_row, cache_write, fp_type)       \
+void vtlb_memWrite##bits(u32 addr, type data)                                  \
+{                                                                              \
+	VTLBVirtual vmv = vtlbdata.vmap[addr >> VTLB_PAGE_BITS];                   \
+	u32 paddr;                                                                 \
+                                                                               \
+	if (!vmv.isHandler(addr))                                                  \
+	{                                                                          \
+		if (!CHECK_EEREC)                                                      \
+		{                                                                      \
+			if (CHECK_CACHE && CheckCache(addr))                               \
+			{                                                                  \
+				cache_write(addr, data);                                       \
+				return;                                                        \
+			}                                                                  \
+		}                                                                      \
+		*(type*)vmv.assumePtr(addr) = data;                                    \
+		return;                                                                \
+	}                                                                          \
+                                                                               \
+	/* has to: translate, find function, call function */                      \
+	paddr = vmv.assumeHandlerGetPAddr(addr);                                   \
+	((fp_type*)vtlbdata.RWFT[rwft_row][1][vmv.assumeHandlerGetID()])(paddr, data); \
 }
+
+VTLB_DEFINE_MEMWRITE( 8, mem8_t,  0, writeCache8,  vtlbMemW8FP)
+VTLB_DEFINE_MEMWRITE(16, mem16_t, 1, writeCache16, vtlbMemW16FP)
+VTLB_DEFINE_MEMWRITE(32, mem32_t, 2, writeCache32, vtlbMemW32FP)
+VTLB_DEFINE_MEMWRITE(64, mem64_t, 3, writeCache64, vtlbMemW64FP)
 
 #if PCSX2_MINGW_R128_BY_PTR
 void vtlb_memWrite128(u32 mem, const r128* value_ptr)
@@ -462,14 +433,6 @@ void TAKES_R128 vtlb_memWrite128(u32 mem, r128 value)
 	}
 }
 
-template mem8_t vtlb_memRead<mem8_t>(u32 mem);
-template mem16_t vtlb_memRead<mem16_t>(u32 mem);
-template mem32_t vtlb_memRead<mem32_t>(u32 mem);
-template mem64_t vtlb_memRead<mem64_t>(u32 mem);
-template void vtlb_memWrite<mem8_t>(u32 mem, mem8_t data);
-template void vtlb_memWrite<mem16_t>(u32 mem, mem16_t data);
-template void vtlb_memWrite<mem32_t>(u32 mem, mem32_t data);
-template void vtlb_memWrite<mem64_t>(u32 mem, mem64_t data);
 
 template <typename DataType>
 bool vtlb_ramRead(u32 addr, DataType* value)
