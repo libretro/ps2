@@ -170,8 +170,45 @@ static void video_cb(const void* d, unsigned w, unsigned h, size_t p)
         }
     fprintf(stderr, "[FBHASH] %ld %ux%u %016llx\n", fbn, w, h, hsh);
 }
-static void audio_cb(int16_t l, int16_t r) { (void)l;(void)r; }
-static size_t audio_batch_cb(const int16_t* d, size_t f) { (void)d; return f; }
+/* Audio oracle.
+ *
+ * The pixel hash cannot see SPU2 at all -- a wrong reverb coefficient or a
+ * broken mixer leaves every frame hash identical. PCSX2_AUDHASH=1 folds every
+ * sample delivered through either audio path into one running FNV hash and
+ * prints it at teardown, so two builds can be compared on sound the way they
+ * already are on pixels. One number for the whole run: sample delivery is not
+ * frame-aligned, so per-frame buckets would not line up between runs. */
+static unsigned long long g_audhash = 1469598103934665603ULL;
+static long long g_audsamples = 0;
+static int g_audon = -1;
+
+static void aud_fold(const int16_t* d, size_t frames)
+{
+    size_t i;
+    if (g_audon < 0)
+    {
+        const char* e = getenv("PCSX2_AUDHASH");
+        g_audon = (e && e[0] != '0') ? 1 : 0;
+    }
+    if (!g_audon)
+        return;
+    for (i = 0; i < frames * 2; i++)
+    {
+        g_audhash ^= (unsigned char)(d[i] & 0xff);
+        g_audhash *= 1099511628211ULL;
+        g_audhash ^= (unsigned char)((d[i] >> 8) & 0xff);
+        g_audhash *= 1099511628211ULL;
+    }
+    g_audsamples += (long long)frames;
+}
+
+static void audio_cb(int16_t l, int16_t r)
+{
+    int16_t pair[2];
+    pair[0] = l; pair[1] = r;
+    aud_fold(pair, 1);
+}
+static size_t audio_batch_cb(const int16_t* d, size_t f) { aud_fold(d, f); return f; }
 static void input_poll_cb(void) {}
 static int16_t input_state_cb(unsigned a, unsigned b, unsigned c, unsigned d)
 { (void)a;(void)b;(void)c;(void)d; return 0; }
@@ -320,6 +357,8 @@ int main(int argc, char** argv)
         double a_ = now();
         if (p_unload) p_unload();
         fprintf(stderr, "[phase] retro_unload_game %.3f s\n", now() - a_);
+        if (g_audon > 0)
+            fprintf(stderr, "[AUDHASH] %lld frames %016llx\n", g_audsamples, g_audhash);
         a_ = now();
         p_deinit();
         fprintf(stderr, "[phase] retro_deinit %.3f s\n", now() - a_);
