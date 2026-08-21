@@ -5,7 +5,7 @@ MULTI_ISA_UNSHARED_START
 
 static constexpr u32 NUM_TAPS = 39;
 // 39 tap filter, the 0's could be optimized out
-static constexpr std::array<s16, 48> filter_down_coefs alignas(32) = {
+static const s16 filter_down_coefs[48] alignas(32) = {
 	-1,
 	0,
 	2,
@@ -47,17 +47,26 @@ static constexpr std::array<s16, 48> filter_down_coefs alignas(32) = {
 	-1,
 };
 
-static constexpr std::array<s16, 48> make_up_coefs()
+/* The up coefficients are the down coefficients doubled and clamped. This
+ * was a constexpr std::array returned by value from make_up_coefs(); it is
+ * filled once at startup instead, since a C array cannot be returned. */
+static s16 filter_up_coefs[48] alignas(32);
+
+static void make_up_coefs(void)
 {
-	std::array<s16, 48> ret = {};
+	static int done = 0;
+	u32 i;
 
-	for (u32 i = 0; i < NUM_TAPS; i++)
-		ret[i] = static_cast<s16>(std::clamp<s32>(filter_down_coefs[i] * 2, INT16_MIN, INT16_MAX));
+	if (done)
+		return;
+	done = 1;
 
-	return ret;
+	for (i = 0; i < NUM_TAPS; i++)
+	{
+		const s32 v = (s32)filter_down_coefs[i] * 2;
+		filter_up_coefs[i] = (s16)pcsx2_clamp_i(v, INT16_MIN, INT16_MAX);
+	}
 }
-
-static constexpr std::array<s16, 48> filter_up_coefs alignas(32) = make_up_coefs();
 
 /*
  * Reverb resampling is a 39-tap symmetric FIR (filter_down_coefs /
@@ -239,6 +248,7 @@ StereoOut32 __forceinline ReverbUpsample_sse(V_Core& core)
 
 StereoOut32 ReverbUpsample(V_Core& core)
 {
+	make_up_coefs();
 #if _M_SSE >= 0x501
 	return ReverbUpsample_avx(core);
 #else
