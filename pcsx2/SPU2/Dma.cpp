@@ -32,9 +32,9 @@ void V_Core::AutoDMAReadBuffer(int mode) //mode: 0= split stereo; 1 = do not spl
 
 	AutoDMACtrl &= 0x3;
 
-	int size = std::min(InputDataLeft, (u32)0x200);
+	int size = pcsx2_min_u(InputDataLeft, (u32)0x200);
 	if (!leftbuffer)
-		size = std::min(size, 0x100);
+		size = pcsx2_min_i(size, 0x100);
 	// HACKFIX!! DMAPtr can be invalid after a savestate load, so the savestate just forces it
 	// to nullptr and we ignore it here.  (used to work in old VM editions of PCSX2 with fixed
 	// addressing, but new PCSX2s have dynamic memory addressing).
@@ -126,7 +126,7 @@ void V_Core::FinishDMAwrite()
 
 	DMAICounter = ReadSize;
 
-	u32 buff1end = ActiveTSA + std::min(ReadSize, (u32)0x100 + abs(DMAICounter / 4));
+	u32 buff1end = ActiveTSA + pcsx2_min_u(ReadSize, (u32)0x100 + abs(DMAICounter / 4));
 	u32 buff2end = 0;
 
 	if (buff1end > 0x100000)
@@ -230,7 +230,7 @@ void V_Core::FinishDMAwrite()
 
 void V_Core::FinishDMAread()
 {
-	u32 buff1end = ActiveTSA + std::min(ReadSize, (u32)0x100 + abs(DMAICounter / 4));
+	u32 buff1end = ActiveTSA + pcsx2_min_u(ReadSize, (u32)0x100 + abs(DMAICounter / 4));
 	u32 buff2end = 0;
 
 	if (buff1end > 0x100000)
@@ -296,7 +296,7 @@ void V_Core::FinishDMAread()
 
 	// DMA Reads are done AFTER the delay, so to get the timing right we need to scheule one last DMA to catch IRQ's
 	if (ReadSize)
-		DMAICounter = std::min(ReadSize, (u32)0x100) * 4;
+		DMAICounter = pcsx2_min_u(ReadSize, (u32)0x100) * 4;
 	else
 		DMAICounter = 4;
 
@@ -325,7 +325,7 @@ void V_Core::DoDMAread(u16* pMem, u32 size)
 	ReadSize = size;
 	IsDMARead = true;
 	LastClock = psxRegs.cycle;
-	DMAICounter = std::min(ReadSize, (u32)0x100) * 4;
+	DMAICounter = pcsx2_min_u(ReadSize, (u32)0x100) * 4;
 
 	Regs.STATX &= ~0x80;
 	Regs.STATX |= 0x400;

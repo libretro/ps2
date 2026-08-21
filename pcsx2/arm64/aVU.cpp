@@ -5,10 +5,10 @@
 // ARM64 microVU recompiler — recompiler shell (Phase 7, task 7.2c).
 //
 // This is the ARM64 counterpart to pcsx2/x86/microVU.cpp. It holds the
-// arch-neutral recompiler housekeeping: the microVU0/1 + CpuMicroVU0/1 globals,
+// arch-neutral recompiler housekeeping: the microVU0/1 globals and providers,
 // program/block-cache management (mVUinit/mVUreset/mVUclose/mVUclear + the
 // mVUcreateProg/mVUcacheProg/mVUcmpProg/mVUsearchProg cache search) and the
-// recMicroVU0/1 provider methods.
+// the VU0/1 recompiler providers.
 //
 // The dispatcher + helper-thunk codegen (mVUdispatcherAB/CD, mVUGenerateWaitMTVU/
 // CopyPipelineState/CompareState — task 7.2d) lives further down, and the full
@@ -818,54 +818,47 @@ template void* mVUsearchProg<0>(u32 startPC, uptr pState);
 template void* mVUsearchProg<1>(u32 startPC, uptr pState);
 
 //------------------------------------------------------------------
-// recMicroVU0 / recMicroVU1
+// VU0 / VU1 recompiler providers
 //------------------------------------------------------------------
+// The x86 side replaced the BaseVUmicroCPU class hierarchy with a
+// VUmicroCpu struct of function pointers; this is the ARM64 half of the
+// same thing. Names and behaviour are unchanged, only the dispatch.
 
-recMicroVU0 CpuMicroVU0;
-recMicroVU1 CpuMicroVU1;
-
-recMicroVU0::recMicroVU0() { m_Idx = 0; IsInterpreter = false; }
-recMicroVU1::recMicroVU1() { m_Idx = 1; IsInterpreter = false; }
-
-void recMicroVU0::Reserve()
-{
-	mVUinit(microVU0, 0);
-}
-void recMicroVU1::Reserve()
-{
-	mVUinit(microVU1, 1);
-	vu1Thread.Open();
-}
-
-void recMicroVU0::Shutdown()
+static void rec_vu0_shutdown(void)
 {
 	mVUclose(microVU0);
 }
-void recMicroVU1::Shutdown()
+
+static void rec_vu1_shutdown(void)
 {
 	if (vu1Thread.IsOpen())
 		vu1Thread.WaitVU();
 	mVUclose(microVU1);
 }
 
-void recMicroVU0::Reset()
+static void rec_vu0_reset(void)
 {
 	mVUreset(microVU0, true);
 }
 
-void recMicroVU1::Reset()
+static void rec_vu1_reset(void)
 {
 	vu1Thread.WaitVU();
 	vu1Thread.Get_MTVUChanges();
 	mVUreset(microVU1, true);
 }
 
-void recMicroVU0::SetStartPC(u32 startPC)
+static void rec_vu0_set_start_pc(u32 startPC)
 {
 	VU0.start_pc = startPC;
 }
 
-void recMicroVU0::Execute(u32 cycles)
+static void rec_vu1_set_start_pc(u32 startPC)
+{
+	VU1.start_pc = startPC;
+}
+
+static void rec_vu0_execute(u32 cycles)
 {
 	VU0.flags &= ~VUFLAG_MFLAGSET;
 
@@ -882,13 +875,7 @@ void recMicroVU0::Execute(u32 cycles)
 	}
 }
 
-void recMicroVU1::SetStartPC(u32 startPC)
-{
-	VU1.start_pc = startPC;
-}
-
-
-void recMicroVU1::Execute(u32 cycles)
+static void rec_vu1_execute(u32 cycles)
 {
 	if (!THREAD_VU1)
 	{
@@ -906,21 +893,47 @@ void recMicroVU1::Execute(u32 cycles)
 	}
 }
 
-void recMicroVU0::Clear(u32 addr, u32 size)
+static void rec_vu0_clear(u32 addr, u32 size)
 {
 	mVUclear(microVU0, addr, size);
 }
-void recMicroVU1::Clear(u32 addr, u32 size)
+
+static void rec_vu1_clear(u32 addr, u32 size)
 {
 	mVUclear(microVU1, addr, size);
 }
 
-void recMicroVU1::ResumeXGkick()
+static void rec_vu1_resume_xgkick(void)
 {
 	if (!(VU0.VI[REG_VPU_STAT].UL & 0x100))
 		return;
 	((mVUrecCallXG)microVU1.startFunctXG)();
 }
+
+void vucpu_rec_vu0_reserve(void)
+{
+	mVUinit(microVU0, 0);
+}
+
+void vucpu_rec_vu1_reserve(void)
+{
+	mVUinit(microVU1, 1);
+	vu1Thread.Open();
+}
+
+const struct VUmicroCpu vucpu_rec_vu0 =
+{
+	0, 0,
+	rec_vu0_shutdown, rec_vu0_reset, rec_vu0_set_start_pc,
+	rec_vu0_execute,  rec_vu0_clear, NULL
+};
+
+const struct VUmicroCpu vucpu_rec_vu1 =
+{
+	1, 0,
+	rec_vu1_shutdown, rec_vu1_reset, rec_vu1_set_start_pc,
+	rec_vu1_execute,  rec_vu1_clear, rec_vu1_resume_xgkick
+};
 
 bool SaveStateBase::vuJITFreeze()
 {

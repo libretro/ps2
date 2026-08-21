@@ -46,7 +46,7 @@ StereoOut32 V_Core::ReadInput_HiFi()
 	// Simulate MADR increase, GTA VC tracks the MADR address for calculating a certain point in the buffer
 	if (InputDataTransferred)
 	{
-		u32 amount = std::min(InputDataTransferred, (u32)0x180);
+		u32 amount = pcsx2_min_u(InputDataTransferred, (u32)0x180);
 
 		InputDataTransferred -= amount;
 		MADR += amount;
@@ -121,7 +121,7 @@ StereoOut32 V_Core::ReadInput()
 	// Simulate MADR increase, GTA VC tracks the MADR address for calculating a certain point in the buffer
 	if (InputDataTransferred)
 	{
-		u32 amount = std::min(InputDataTransferred, (u32)0x180);
+		u32 amount = pcsx2_min_u(InputDataTransferred, (u32)0x180);
 
 		InputDataTransferred -= amount;
 		MADR += amount;
