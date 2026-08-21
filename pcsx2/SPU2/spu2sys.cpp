@@ -188,7 +188,7 @@ void V_Core::Init(int index)
 /* TICKINTERVAL * SANITYINTERVAL = 3686400 */
 #define SAMPLECOUNT 3686400 
 
-__fi void TimeUpdate(u32 cClocks)
+__fi void TimeUpdate(u64 cClocks)
 {
 	u32 dClocks = cClocks - lClocks;
 

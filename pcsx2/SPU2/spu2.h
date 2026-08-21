@@ -46,5 +46,5 @@ extern u32 lClocks;
 typedef void RegWriteHandler(u16 value);
 extern RegWriteHandler* const tbl_reg_writes[0x401];
 
-extern void TimeUpdate(u32 cClocks);
+extern void TimeUpdate(u64 cClocks);
 
