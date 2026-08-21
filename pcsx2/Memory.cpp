@@ -177,10 +177,6 @@ static vtlbHandler
 	iopHw_by_page_08;
 
 
-/* Still used by the vuMicro/vuData handler families, which remain templates. */
-#define vtlb_RegisterHandlerTempl1(nam,t) vtlb_RegisterHandler(nam##Read8<t>,nam##Read16<t>,nam##Read32<t>,nam##Read64<t>,nam##Read128<t>, \
-																	   nam##Write8<t>,nam##Write16<t>,nam##Write32<t>,nam##Write64<t>,nam##Write128<t>)
-
 static void memMapVUmicro(void)
 {
 	// VU0/VU1 micro mem (instructions)
@@ -278,10 +274,7 @@ static void TAKES_R128 nullWrite128(u32 mem, r128 value) { }
 #endif
 
 /* Unmapped-page fallbacks, shared by every page kind for the widths that
- * kind does not handle. The template<int p> family below still covers the
- * kinds with MMIO arms; they are being converted one kind at a time, with
- * the JIT hashes checked after each, because a mis-wired handler table
- * produces a core that builds, links, runs and boots nothing. */
+ * kind does not handle. */
 static mem8_t  ext_miss_read8  (u32 mem) { cpuTlbMiss(mem, cpuRegs.branch, EXC_CODE_TLBL); return 0; }
 static mem16_t ext_miss_read16 (u32 mem) { cpuTlbMiss(mem, cpuRegs.branch, EXC_CODE_TLBL); return 0; }
 static mem32_t ext_miss_read32 (u32 mem) { cpuTlbMiss(mem, cpuRegs.branch, EXC_CODE_TLBL); return 0; }
@@ -327,288 +320,236 @@ static RETURNS_R128 _ext_memRead128_6(u32 mem) { return r128_load(PS2GS_BASE(mem
 
 typedef void ClearFunc_t( u32 addr, u32 qwc );
 
-template<int vunum> static __fi void ClearVuFunc(u32 addr, u32 size)
-{
-	if (vunum)
-		CpuVU1->Clear(addr, size);
-	else
-		CpuVU0->Clear(addr, size);
-}
+/* VU micro/data memory handlers. These were template<int vunum> families:
+ * every body opened with `vunum ? &vuRegs[1] : &vuRegs[0]`, an address mask
+ * of 0x3fff or 0xfff, and a `vunum && THREAD_VU1` branch -- all three fold
+ * per instantiation, so the macro below emits the same straight-line code
+ * with the unit's register block, mask and MTVU behaviour as literals.
+ * Only the instantiations that are registered exist: micro for VU0 and VU1,
+ * data for VU1. */
+static __fi void ClearVuFunc0(u32 addr, u32 size) { CpuVU0->Clear(addr, size); }
+static __fi void ClearVuFunc1(u32 addr, u32 size) { CpuVU1->Clear(addr, size); }
 
-// VU Micro Memory Reads...
-template<int vunum>
-static mem8_t vuMicroRead8(u32 addr)
-{
-	VURegs* vu = vunum ?  &vuRegs[1] :  &vuRegs[0];
-	addr      &= vunum ? 0x3fff: 0xfff;
-
-	if (vunum && THREAD_VU1) vu1Thread.WaitVU();
-	return vu->Micro[addr];
-}
-
-template<int vunum>
-static mem16_t vuMicroRead16(u32 addr)
-{
-	VURegs* vu = vunum ?  &vuRegs[1] :  &vuRegs[0];
-	addr      &= vunum ? 0x3fff: 0xfff;
-
-	if (vunum && THREAD_VU1) vu1Thread.WaitVU();
-	return *(u16*)&vu->Micro[addr];
-}
-
-template<int vunum>
-static mem32_t vuMicroRead32(u32 addr)
-{
-	VURegs* vu = vunum ?  &vuRegs[1] :  &vuRegs[0];
-	addr      &= vunum ? 0x3fff: 0xfff;
-
-	if (vunum && THREAD_VU1) vu1Thread.WaitVU();
-	return *(u32*)&vu->Micro[addr];
-}
-
-template<int vunum>
-static mem64_t vuMicroRead64(u32 addr)
-{
-	VURegs* vu = vunum ?  &vuRegs[1] :  &vuRegs[0];
-	addr      &= vunum ? 0x3fff: 0xfff;
-
-	if (vunum && THREAD_VU1) vu1Thread.WaitVU();
-	return *(u64*)&vu->Micro[addr];
-}
-
-template<int vunum>
-static RETURNS_R128 vuMicroRead128(u32 addr)
-{
-	VURegs* vu = vunum ?  &vuRegs[1] :  &vuRegs[0];
-	addr      &= vunum ? 0x3fff: 0xfff;
-	if (vunum && THREAD_VU1) vu1Thread.WaitVU();
-
-	return r128_load(&vu->Micro[addr]);
-}
-
-// Profiled VU writes: Happen very infrequently, with exception of BIOS initialization (at most twice per
-//   frame in-game, and usually none at all after BIOS), so cpu clears aren't much of a big deal.
-template<int vunum>
-static void vuMicroWrite8(u32 addr,mem8_t data)
-{
-	VURegs* vu = vunum ?  &vuRegs[1] :  &vuRegs[0];
-	addr      &= vunum ? 0x3fff: 0xfff;
-
-	if (vunum && THREAD_VU1)
-	{
-		vu1Thread.WriteMicroMem(addr, &data, sizeof(u8));
-		return;
-	}
-
-	if (vu->Micro[addr] != data) // Clear before writing new data
-	{
-		ClearVuFunc<vunum>(addr, 8); //(clearing 8 bytes because an instruction is 8 bytes) (cottonvibes)
-		vu->Micro[addr] =data;
-	}
-}
-
-template<int vunum>
-static void vuMicroWrite16(u32 addr, mem16_t data)
-{
-	VURegs* vu = vunum ?  &vuRegs[1] :  &vuRegs[0];
-	addr      &= vunum ? 0x3fff: 0xfff;
-
-	if (vunum && THREAD_VU1)
-	{
-		vu1Thread.WriteMicroMem(addr, &data, sizeof(u16));
-		return;
-	}
-
-	if (*(u16*)&vu->Micro[addr] != data)
-	{
-		ClearVuFunc<vunum>(addr, 8);
-		*(u16*)&vu->Micro[addr] =data;
-	}
-}
-
-template<int vunum>
-static void vuMicroWrite32(u32 addr, mem32_t data)
-{
-	VURegs* vu = vunum ?  &vuRegs[1] :  &vuRegs[0];
-	addr      &= vunum ? 0x3fff: 0xfff;
-
-	if (vunum && THREAD_VU1)
-	{
-		vu1Thread.WriteMicroMem(addr, &data, sizeof(u32));
-		return;
-	}
-
-	if (*(u32*)&vu->Micro[addr] != data)
-	{
-		ClearVuFunc<vunum>(addr, 8);
-		*(u32*)&vu->Micro[addr] =data;
-	}
-}
-
-template<int vunum>
-static void vuMicroWrite64(u32 addr, mem64_t data)
-{
-	VURegs* vu = vunum ?  &vuRegs[1] :  &vuRegs[0];
-	addr      &= vunum ? 0x3fff: 0xfff;
-
-	if (vunum && THREAD_VU1)
-	{
-		vu1Thread.WriteMicroMem(addr, &data, sizeof(u64));
-		return;
-	}
-
-	if (*(u64*)&vu->Micro[addr] != data)
-	{
-		ClearVuFunc<vunum>(addr, 8);
-		*(u64*)&vu->Micro[addr] =data;
-	}
-}
-
-template<int vunum>
 #if PCSX2_MINGW_R128_BY_PTR
-static void vuMicroWrite128(u32 addr, const r128* data_ptr)
-{
-	const r128 data = r128_load(data_ptr);
+#define VU_WRITE128_HEAD(name) static void name(u32 addr, const r128* data_ptr) { const r128 data = r128_load(data_ptr);
 #else
-static void TAKES_R128 vuMicroWrite128(u32 addr, r128 data)
-{
+#define VU_WRITE128_HEAD(name) static void TAKES_R128 name(u32 addr, r128 data) {
 #endif
-	VURegs* vu = vunum ?  &vuRegs[1] :  &vuRegs[0];
-	addr      &= vunum ? 0x3fff: 0xfff;
 
-	const u128 udata = r128_to_u128(data);
-
-	if (vunum && THREAD_VU1)
-	{
-		vu1Thread.WriteMicroMem(addr, &udata, sizeof(u128));
-		return;
-	}
-	u128 comp = (u128&)vu->Micro[addr];
-	if ((comp.lo != udata.lo) || (comp.hi != udata.hi))
-	{
-		ClearVuFunc<vunum>(addr, 16);
-		r128_store_unaligned(&vu->Micro[addr],data);
-	}
+/* vunum: 0 or 1.  mask: address mask.  mtvu: 1 when writes may be deferred to
+ * the MTVU thread (VU1 only).  clear: the unit's ClearVuFunc. */
+#define VU_DEFINE_MICRO(vunum, mask, mtvu, clear)                              \
+static mem8_t vuMicroRead8_##vunum(u32 addr)                                   \
+{                                                                              \
+	VURegs* vu = &vuRegs[vunum];                                               \
+	addr &= mask;                                                              \
+	if (mtvu && THREAD_VU1) vu1Thread.WaitVU();                                \
+	return vu->Micro[addr];                                                    \
+}                                                                              \
+static mem16_t vuMicroRead16_##vunum(u32 addr)                                 \
+{                                                                              \
+	VURegs* vu = &vuRegs[vunum];                                               \
+	addr &= mask;                                                              \
+	if (mtvu && THREAD_VU1) vu1Thread.WaitVU();                                \
+	return *(u16*)&vu->Micro[addr];                                            \
+}                                                                              \
+static mem32_t vuMicroRead32_##vunum(u32 addr)                                 \
+{                                                                              \
+	VURegs* vu = &vuRegs[vunum];                                               \
+	addr &= mask;                                                              \
+	if (mtvu && THREAD_VU1) vu1Thread.WaitVU();                                \
+	return *(u32*)&vu->Micro[addr];                                            \
+}                                                                              \
+static mem64_t vuMicroRead64_##vunum(u32 addr)                                 \
+{                                                                              \
+	VURegs* vu = &vuRegs[vunum];                                               \
+	addr &= mask;                                                              \
+	if (mtvu && THREAD_VU1) vu1Thread.WaitVU();                                \
+	return *(u64*)&vu->Micro[addr];                                            \
+}                                                                              \
+static RETURNS_R128 vuMicroRead128_##vunum(u32 addr)                           \
+{                                                                              \
+	VURegs* vu = &vuRegs[vunum];                                               \
+	addr &= mask;                                                              \
+	if (mtvu && THREAD_VU1) vu1Thread.WaitVU();                                \
+	return r128_load(&vu->Micro[addr]);                                        \
+}                                                                              \
+static void vuMicroWrite8_##vunum(u32 addr, mem8_t data)                       \
+{                                                                              \
+	VURegs* vu = &vuRegs[vunum];                                               \
+	addr &= mask;                                                              \
+	if (mtvu && THREAD_VU1)                                                    \
+	{                                                                          \
+		vu1Thread.WriteMicroMem(addr, &data, sizeof(u8));                      \
+		return;                                                                \
+	}                                                                          \
+	if (vu->Micro[addr] != data) /* clear before writing new data */           \
+	{                                                                          \
+		clear(addr, 8); /* 8 bytes: one instruction */                         \
+		vu->Micro[addr] = data;                                                \
+	}                                                                          \
+}                                                                              \
+static void vuMicroWrite16_##vunum(u32 addr, mem16_t data)                     \
+{                                                                              \
+	VURegs* vu = &vuRegs[vunum];                                               \
+	addr &= mask;                                                              \
+	if (mtvu && THREAD_VU1)                                                    \
+	{                                                                          \
+		vu1Thread.WriteMicroMem(addr, &data, sizeof(u16));                     \
+		return;                                                                \
+	}                                                                          \
+	if (*(u16*)&vu->Micro[addr] != data)                                       \
+	{                                                                          \
+		clear(addr, 8);                                                        \
+		*(u16*)&vu->Micro[addr] = data;                                        \
+	}                                                                          \
+}                                                                              \
+static void vuMicroWrite32_##vunum(u32 addr, mem32_t data)                     \
+{                                                                              \
+	VURegs* vu = &vuRegs[vunum];                                               \
+	addr &= mask;                                                              \
+	if (mtvu && THREAD_VU1)                                                    \
+	{                                                                          \
+		vu1Thread.WriteMicroMem(addr, &data, sizeof(u32));                     \
+		return;                                                                \
+	}                                                                          \
+	if (*(u32*)&vu->Micro[addr] != data)                                       \
+	{                                                                          \
+		clear(addr, 8);                                                        \
+		*(u32*)&vu->Micro[addr] = data;                                        \
+	}                                                                          \
+}                                                                              \
+static void vuMicroWrite64_##vunum(u32 addr, mem64_t data)                     \
+{                                                                              \
+	VURegs* vu = &vuRegs[vunum];                                               \
+	addr &= mask;                                                              \
+	if (mtvu && THREAD_VU1)                                                    \
+	{                                                                          \
+		vu1Thread.WriteMicroMem(addr, &data, sizeof(u64));                     \
+		return;                                                                \
+	}                                                                          \
+	if (*(u64*)&vu->Micro[addr] != data)                                       \
+	{                                                                          \
+		clear(addr, 8);                                                        \
+		*(u64*)&vu->Micro[addr] = data;                                        \
+	}                                                                          \
+}                                                                              \
+VU_WRITE128_HEAD(vuMicroWrite128_##vunum)                                      \
+	VURegs* vu = &vuRegs[vunum];                                               \
+	u128 udata;                                                                \
+	u128 comp;                                                                 \
+	addr &= mask;                                                              \
+	udata = r128_to_u128(data);                                                \
+	if (mtvu && THREAD_VU1)                                                    \
+	{                                                                          \
+		vu1Thread.WriteMicroMem(addr, &udata, sizeof(u128));                   \
+		return;                                                                \
+	}                                                                          \
+	comp = (u128&)vu->Micro[addr];                                             \
+	if ((comp.lo != udata.lo) || (comp.hi != udata.hi))                        \
+	{                                                                          \
+		clear(addr, 16);                                                       \
+		r128_store_unaligned(&vu->Micro[addr], data);                          \
+	}                                                                          \
 }
 
-// VU Data Memory Reads...
-template<int vunum>
-static mem8_t vuDataRead8(u32 addr)
-{
-	VURegs* vu = vunum ?  &vuRegs[1] :  &vuRegs[0];
-	addr      &= vunum ? 0x3fff: 0xfff;
-	if (vunum && THREAD_VU1) vu1Thread.WaitVU();
-	return vu->Mem[addr];
+VU_DEFINE_MICRO(0, 0xfff,  0, ClearVuFunc0)
+VU_DEFINE_MICRO(1, 0x3fff, 1, ClearVuFunc1)
+
+/* VU data memory. Only the VU1 instantiation is registered. */
+#define VU_DEFINE_DATA(vunum, mask, mtvu)                                      \
+static mem8_t vuDataRead8_##vunum(u32 addr)                                    \
+{                                                                              \
+	VURegs* vu = &vuRegs[vunum];                                               \
+	addr &= mask;                                                              \
+	if (mtvu && THREAD_VU1) vu1Thread.WaitVU();                                \
+	return vu->Mem[addr];                                                      \
+}                                                                              \
+static mem16_t vuDataRead16_##vunum(u32 addr)                                  \
+{                                                                              \
+	VURegs* vu = &vuRegs[vunum];                                               \
+	addr &= mask;                                                              \
+	if (mtvu && THREAD_VU1) vu1Thread.WaitVU();                                \
+	return *(u16*)&vu->Mem[addr];                                              \
+}                                                                              \
+static mem32_t vuDataRead32_##vunum(u32 addr)                                  \
+{                                                                              \
+	VURegs* vu = &vuRegs[vunum];                                               \
+	addr &= mask;                                                              \
+	if (mtvu && THREAD_VU1) vu1Thread.WaitVU();                                \
+	return *(u32*)&vu->Mem[addr];                                              \
+}                                                                              \
+static mem64_t vuDataRead64_##vunum(u32 addr)                                  \
+{                                                                              \
+	VURegs* vu = &vuRegs[vunum];                                               \
+	addr &= mask;                                                              \
+	if (mtvu && THREAD_VU1) vu1Thread.WaitVU();                                \
+	return *(u64*)&vu->Mem[addr];                                              \
+}                                                                              \
+static RETURNS_R128 vuDataRead128_##vunum(u32 addr)                            \
+{                                                                              \
+	VURegs* vu = &vuRegs[vunum];                                               \
+	addr &= mask;                                                              \
+	if (mtvu && THREAD_VU1) vu1Thread.WaitVU();                                \
+	return r128_load(&vu->Mem[addr]);                                          \
+}                                                                              \
+static void vuDataWrite8_##vunum(u32 addr, mem8_t data)                        \
+{                                                                              \
+	VURegs* vu = &vuRegs[vunum];                                               \
+	addr &= mask;                                                              \
+	if (mtvu && THREAD_VU1)                                                    \
+	{                                                                          \
+		vu1Thread.WriteDataMem(addr, &data, sizeof(u8));                       \
+		return;                                                                \
+	}                                                                          \
+	vu->Mem[addr] = data;                                                      \
+}                                                                              \
+static void vuDataWrite16_##vunum(u32 addr, mem16_t data)                      \
+{                                                                              \
+	VURegs* vu = &vuRegs[vunum];                                               \
+	addr &= mask;                                                              \
+	if (mtvu && THREAD_VU1)                                                    \
+	{                                                                          \
+		vu1Thread.WriteDataMem(addr, &data, sizeof(u16));                      \
+		return;                                                                \
+	}                                                                          \
+	*(u16*)&vu->Mem[addr] = data;                                              \
+}                                                                              \
+static void vuDataWrite32_##vunum(u32 addr, mem32_t data)                      \
+{                                                                              \
+	VURegs* vu = &vuRegs[vunum];                                               \
+	addr &= mask;                                                              \
+	if (mtvu && THREAD_VU1)                                                    \
+	{                                                                          \
+		vu1Thread.WriteDataMem(addr, &data, sizeof(u32));                      \
+		return;                                                                \
+	}                                                                          \
+	*(u32*)&vu->Mem[addr] = data;                                              \
+}                                                                              \
+static void vuDataWrite64_##vunum(u32 addr, mem64_t data)                      \
+{                                                                              \
+	VURegs* vu = &vuRegs[vunum];                                               \
+	addr &= mask;                                                              \
+	if (mtvu && THREAD_VU1)                                                    \
+	{                                                                          \
+		vu1Thread.WriteDataMem(addr, &data, sizeof(u64));                      \
+		return;                                                                \
+	}                                                                          \
+	*(u64*)&vu->Mem[addr] = data;                                              \
+}                                                                              \
+VU_WRITE128_HEAD(vuDataWrite128_##vunum)                                       \
+	VURegs* vu = &vuRegs[vunum];                                               \
+	addr &= mask;                                                              \
+	if (mtvu && THREAD_VU1)                                                    \
+	{                                                                          \
+		alignas(16) const u128 udata = r128_to_u128(data);                     \
+		vu1Thread.WriteDataMem(addr, &udata, sizeof(u128));                    \
+		return;                                                                \
+	}                                                                          \
+	r128_store_unaligned(&vu->Mem[addr], data);                                \
 }
 
-template<int vunum>
-static mem16_t vuDataRead16(u32 addr)
-{
-	VURegs* vu = vunum ?  &vuRegs[1] :  &vuRegs[0];
-	addr      &= vunum ? 0x3fff: 0xfff;
-	if (vunum && THREAD_VU1) vu1Thread.WaitVU();
-	return *(u16*)&vu->Mem[addr];
-}
-
-template<int vunum>
-static mem32_t vuDataRead32(u32 addr)
-{
-	VURegs* vu = vunum ?  &vuRegs[1] :  &vuRegs[0];
-	addr      &= vunum ? 0x3fff: 0xfff;
-	if (vunum && THREAD_VU1) vu1Thread.WaitVU();
-	return *(u32*)&vu->Mem[addr];
-}
-
-template<int vunum>
-static mem64_t vuDataRead64(u32 addr)
-{
-	VURegs* vu = vunum ?  &vuRegs[1] :  &vuRegs[0];
-	addr      &= vunum ? 0x3fff: 0xfff;
-	if (vunum && THREAD_VU1) vu1Thread.WaitVU();
-	return *(u64*)&vu->Mem[addr];
-}
-
-template<int vunum>
-static RETURNS_R128 vuDataRead128(u32 addr)
-{
-	VURegs* vu = vunum ?  &vuRegs[1] :  &vuRegs[0];
-	addr      &= vunum ? 0x3fff: 0xfff;
-	if (vunum && THREAD_VU1) vu1Thread.WaitVU();
-	return r128_load(&vu->Mem[addr]);
-}
-
-// VU Data Memory Writes...
-template<int vunum>
-static void vuDataWrite8(u32 addr, mem8_t data)
-{
-	VURegs* vu = vunum ?  &vuRegs[1] :  &vuRegs[0];
-	addr      &= vunum ? 0x3fff: 0xfff;
-	if (vunum && THREAD_VU1)
-	{
-		vu1Thread.WriteDataMem(addr, &data, sizeof(u8));
-		return;
-	}
-	vu->Mem[addr] = data;
-}
-
-template<int vunum>
-static void vuDataWrite16(u32 addr, mem16_t data)
-{
-	VURegs* vu = vunum ?  &vuRegs[1] :  &vuRegs[0];
-	addr      &= vunum ? 0x3fff: 0xfff;
-	if (vunum && THREAD_VU1)
-	{
-		vu1Thread.WriteDataMem(addr, &data, sizeof(u16));
-		return;
-	}
-	*(u16*)&vu->Mem[addr] = data;
-}
-
-template<int vunum>
-static void vuDataWrite32(u32 addr, mem32_t data)
-{
-	VURegs* vu = vunum ?  &vuRegs[1] :  &vuRegs[0];
-	addr      &= vunum ? 0x3fff: 0xfff;
-	if (vunum && THREAD_VU1)
-	{
-		vu1Thread.WriteDataMem(addr, &data, sizeof(u32));
-		return;
-	}
-	*(u32*)&vu->Mem[addr] = data;
-}
-
-template<int vunum>
-static void vuDataWrite64(u32 addr, mem64_t data)
-{
-	VURegs* vu = vunum ?  &vuRegs[1] :  &vuRegs[0];
-	addr      &= vunum ? 0x3fff: 0xfff;
-	if (vunum && THREAD_VU1)
-	{
-		vu1Thread.WriteDataMem(addr, &data, sizeof(u64));
-		return;
-	}
-	*(u64*)&vu->Mem[addr] = data;
-}
-
-template<int vunum>
-#if PCSX2_MINGW_R128_BY_PTR
-static void vuDataWrite128(u32 addr, const r128* data_ptr)
-{
-	const r128 data = r128_load(data_ptr);
-#else
-static void TAKES_R128 vuDataWrite128(u32 addr, r128 data)
-{
-#endif
-	VURegs* vu = vunum ?  &vuRegs[1] :  &vuRegs[0];
-	addr      &= vunum ? 0x3fff: 0xfff;
-	if (vunum && THREAD_VU1)
-	{
-		alignas(16) const u128 udata = r128_to_u128(data);
-		vu1Thread.WriteDataMem(addr, &udata, sizeof(u128));
-		return;
-	}
-	r128_store_unaligned(&vu->Mem[addr], data);
-}
+VU_DEFINE_DATA(1, 0x3fff, 1)
 
 ///////////////////////////////////////////////////////////////////////////
 // PS2 Memory Init / Reset / Shutdown
@@ -693,9 +634,15 @@ void eeMemoryReserve::Reset()
 		ext_miss_write8, _ext_memWrite16_8, ext_miss_write32, ext_miss_write64, ext_miss_write128);
 
 	// Dynarec versions of VUs
-	vu0_micro_mem = vtlb_RegisterHandlerTempl1(vuMicro,0);
-	vu1_micro_mem = vtlb_RegisterHandlerTempl1(vuMicro,1);
-	vu1_data_mem  = (1||THREAD_VU1) ? vtlb_RegisterHandlerTempl1(vuData,1) : 0;
+	vu0_micro_mem = vtlb_RegisterHandler(
+		vuMicroRead8_0, vuMicroRead16_0, vuMicroRead32_0, vuMicroRead64_0, vuMicroRead128_0,
+		vuMicroWrite8_0, vuMicroWrite16_0, vuMicroWrite32_0, vuMicroWrite64_0, vuMicroWrite128_0);
+	vu1_micro_mem = vtlb_RegisterHandler(
+		vuMicroRead8_1, vuMicroRead16_1, vuMicroRead32_1, vuMicroRead64_1, vuMicroRead128_1,
+		vuMicroWrite8_1, vuMicroWrite16_1, vuMicroWrite32_1, vuMicroWrite64_1, vuMicroWrite128_1);
+	vu1_data_mem  = (1||THREAD_VU1) ? vtlb_RegisterHandler(
+		vuDataRead8_1, vuDataRead16_1, vuDataRead32_1, vuDataRead64_1, vuDataRead128_1,
+		vuDataWrite8_1, vuDataWrite16_1, vuDataWrite32_1, vuDataWrite64_1, vuDataWrite128_1) : 0;
 
 	//////////////////////////////////////////////////////////////////////////////////////////
 	// IOP's "secret" Hardware Register mapping, accessible from the EE (and meant for use
