@@ -22,16 +22,14 @@
 
 #include "common/Console.h"
 
-IsoFile::IsoFile(SectorSource& reader)
-	: internalReader(reader)
+IsoFile::IsoFile()
 {
 }
 
 IsoFile::~IsoFile() = default;
 
-IsoFile::IsoFile(SectorSource& reader, const IsoFileDescriptor& fileEntry)
-	: internalReader(reader)
-	, fileEntry(fileEntry)
+IsoFile::IsoFile(const IsoFileDescriptor& fileEntry)
+	: fileEntry(fileEntry)
 {
 	Init();
 }
@@ -44,7 +42,7 @@ void IsoFile::Init()
 	maxOffset = fileEntry.size;
 
 	if (maxOffset > 0)
-		internalReader.readSector(currentSector, currentSectorNumber);
+		isofs_read_sector(currentSector, currentSectorNumber);
 }
 
 bool IsoFile::open(const IsoDirectory& dir, const std::string_view& filename)
@@ -69,7 +67,7 @@ bool IsoFile::open(const IsoDirectory& dir, const std::string_view& filename)
 
 bool IsoFile::open(const std::string_view& filename)
 {
-	IsoDirectory dir(internalReader);
+	IsoDirectory dir;
 	if (!dir.OpenRootDirectory())
 		return false;
 
@@ -85,7 +83,7 @@ u32 IsoFile::seek(u32 absoffset)
 
 	if (oldSectorNumber != newSectorNumber)
 	{
-		internalReader.readSector(currentSector, newSectorNumber);
+		isofs_read_sector(currentSector, newSectorNumber);
 	}
 
 	currentOffset = endOffset;
@@ -152,7 +150,7 @@ void IsoFile::makeDataAvailable()
 	if (sectorOffset >= sectorLength)
 	{
 		currentSectorNumber++;
-		internalReader.readSector(currentSector, currentSectorNumber);
+		isofs_read_sector(currentSector, currentSectorNumber);
 		sectorOffset -= sectorLength;
 	}
 }

@@ -27,7 +27,6 @@ public:
 	static const int sectorLength = 2048;
 
 protected:
-	SectorSource& internalReader;
 	IsoFileDescriptor fileEntry;
 
 	u32 currentOffset;
@@ -38,8 +37,8 @@ protected:
 	int sectorOffset;
 
 public:
-	IsoFile(SectorSource& reader);
-	IsoFile(SectorSource& reader, const IsoFileDescriptor& fileEntry);
+	IsoFile();
+	IsoFile(const IsoFileDescriptor& fileEntry);
 	~IsoFile();
 
 	bool open(const IsoDirectory& dir, const std::string_view& filename);

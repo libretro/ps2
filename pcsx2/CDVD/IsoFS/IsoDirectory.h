@@ -23,11 +23,10 @@
 class IsoDirectory final
 {
 public:
-	SectorSource& internalReader;
 	std::vector<IsoFileDescriptor> files;
 
 public:
-	IsoDirectory(SectorSource& r);
+	IsoDirectory();
 	~IsoDirectory();
 
 	bool OpenRootDirectory();

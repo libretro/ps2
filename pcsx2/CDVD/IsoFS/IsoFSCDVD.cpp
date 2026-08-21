@@ -13,12 +13,10 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "IsoFSCDVD.h"
+#include "SectorSource.h"
 #include "CDVD/CDVDcommon.h"
 
-IsoFSCDVD::IsoFSCDVD() { }
-
-bool IsoFSCDVD::readSector(unsigned char* buffer, int lba)
+bool isofs_read_sector(unsigned char* buffer, int lba)
 {
 	return DoCDVDreadSector(buffer, lba, CDVD_MODE_2048) >= 0;
 }

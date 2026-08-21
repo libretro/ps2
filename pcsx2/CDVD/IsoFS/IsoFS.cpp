@@ -28,8 +28,7 @@
 //////////////////////////////////////////////////////////////////////////
 
 // Used to load the Root directory from an image
-IsoDirectory::IsoDirectory(SectorSource& r)
-	: internalReader(r)
+IsoDirectory::IsoDirectory()
 {
 }
 
@@ -46,7 +45,7 @@ bool IsoDirectory::OpenRootDirectory()
 	{
 		u8 sector[2048];
 		// If this fails, we're not reading an iso, or it's bad.
-		if (!internalReader.readSector(sector, i))
+		if (!isofs_read_sector(sector, i))
 			break;
 
 		if (memcmp(&sector[1], "CD001", 5) == 0)
@@ -98,7 +97,7 @@ bool IsoDirectory::Open(const IsoFileDescriptor& directoryEntry)
 {
 	u8 b[257];
 	// parse directory sector
-	IsoFile dataStream(internalReader, directoryEntry);
+	IsoFile dataStream(directoryEntry);
 
 	files.clear();
 
@@ -159,7 +158,7 @@ std::optional<IsoFileDescriptor> IsoDirectory::FindFile(const std::string_view& 
 	// is case sensitivity, and that won't matter for path splitting.
 	std::vector<std::string_view> parts(Path::SplitWindowsPath(filePath));
 	const IsoDirectory* dir = this;
-	IsoDirectory subdir(internalReader);
+	IsoDirectory subdir;
 
 	// walk through path ("." and ".." entries are in the directories themselves, so even if the
 	// path included . and/or .., it still works)

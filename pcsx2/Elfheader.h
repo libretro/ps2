@@ -17,7 +17,7 @@
 
 #include <vector>
 
-#include "CDVD/IsoFS/IsoFSCDVD.h"
+#include "CDVD/IsoFS/SectorSource.h"
 #include "CDVD/IsoFS/IsoFS.h"
 
 struct ELF_HEADER {

@@ -15,9 +15,10 @@
 
 #pragma once
 
-class SectorSource
-{
-public:
-	virtual bool readSector(unsigned char* buffer, int lba) = 0;
-	virtual ~SectorSource() = default;
-};
+/* Reads one 2048-byte sector by LBA.
+ *
+ * This was an abstract class with a pure-virtual readSector and exactly one
+ * implementation, IsoFSCDVD, which forwards to DoCDVDreadSector. The vtable
+ * bought nothing, so it is a free function: the IsoFS walkers call it
+ * directly and no longer carry a reference to a source object. */
+bool isofs_read_sector(unsigned char* buffer, int lba);

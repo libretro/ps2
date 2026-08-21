@@ -22,7 +22,7 @@
 #include "../../common/Console.h"
 
 #include "IsoFS/IsoFS.h"
-#include "IsoFS/IsoFSCDVD.h"
+#include "IsoFS/SectorSource.h"
 #include "IsoFileFormats.h"
 
 #include "../Config.h"
@@ -86,11 +86,10 @@ static constexpr u32 MAX_SYSTEM_CNF_SIZE = 1024 * 1024;
 
 static int CheckDiskTypeFS(int baseType)
 {
-	IsoFSCDVD isofs;
-	IsoDirectory rootdir(isofs);
+	IsoDirectory rootdir;
 	if (rootdir.OpenRootDirectory())
 	{
-		if (IsoFile file(isofs); file.open(rootdir, "SYSTEM.CNF;1"))
+		if (IsoFile file; file.open(rootdir, "SYSTEM.CNF;1"))
 		{
 			/* The length is a u32 read straight out of the directory
 			 * record, so it is whatever the image says it is - up to

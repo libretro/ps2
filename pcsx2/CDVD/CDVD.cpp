@@ -405,8 +405,7 @@ static bool cdvdLoadElf(ElfObject *elfo, std::string elfpath)
 		if (StringUtil::StartsWith(elfpath, "cdrom:") && elfpath[6] != '\\' && elfpath[6] != '/')
 			elfpath.insert(6, 1, '\\');
 
-		IsoFSCDVD isofs;
-		IsoFile file(isofs);
+		IsoFile file;
 		if (!file.open(elfpath) || !elfo->OpenIsoFile(file))
 			return false;
 	}
@@ -2829,8 +2828,7 @@ int GetPS2ElfName( std::string& name )
 {
 	int retype = 0;
 
-	IsoFSCDVD isofs;
-	IsoFile file(isofs);
+	IsoFile file;
 
 	if (!file.open("SYSTEM.CNF;1"))
 		return 0;
