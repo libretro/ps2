@@ -349,7 +349,7 @@ namespace
 		const float src_y_base  = sy0 * static_cast<float>(src_h);
 
 		/* Pre-compute the doubled constant alpha (clamped to 255). */
-		const u32 const_a2 = std::min<u32>(static_cast<u32>(alpha8) * 2u, 255u);
+		const u32 const_a2 = pcsx2_min_u(static_cast<u32>(alpha8) * 2u, 255u);
 
 		/* Fast-path condition: x mapping is exactly 1:1 src->dst with
 		 * no horizontal stretch, output range fully inside both src
@@ -426,7 +426,7 @@ namespace
 					else
 					{
 						const u32 raw = (s >> 24) & 0xFFu;
-						a = std::min<u32>(raw * 2u, 255u);
+						a = pcsx2_min_u(raw * 2u, 255u);
 					}
 					const u32 ia = 255u - a;
 
@@ -467,7 +467,7 @@ namespace
 				else
 				{
 					const u32 raw = (s >> 24) & 0xFFu;
-					a = std::min<u32>(raw * 2u, 255u);
+					a = pcsx2_min_u(raw * 2u, 255u);
 				}
 				const u32 ia = 255u - a;
 
@@ -511,8 +511,8 @@ namespace
 		u8* dst, int dst_pitch, int dst_w, int dst_h,
 		int y_shift, int field)
 	{
-		const int copy_w = std::min(src_w, dst_w);
-		const int copy_h = std::min(src_h, dst_h);
+		const int copy_w = pcsx2_min_i(src_w, dst_w);
+		const int copy_h = pcsx2_min_i(src_h, dst_h);
 
 		for (int y = 0; y < copy_h; y++)
 		{
@@ -537,15 +537,15 @@ namespace
 		u8* dst, int dst_pitch, int dst_w, int dst_h,
 		int y_shift)
 	{
-		const int copy_w = std::min(src_w, dst_w);
+		const int copy_w = pcsx2_min_i(src_w, dst_w);
 
 		/* Black-fill any destination rows we won't overwrite. With
 		 * y_shift=0..1 in normal cases this is at most one row at
 		 * top or bottom; with larger shifts more rows could be left
 		 * unwritten. Use the same opaque-black sentinel
 		 * 0xFF000000 to keep the field consistent. */
-		const int copy_start = std::max(0, y_shift);
-		const int copy_end   = std::min(dst_h, src_h + y_shift);
+		const int copy_start = pcsx2_max_i(0, y_shift);
+		const int copy_end   = pcsx2_min_i(dst_h, src_h + y_shift);
 
 		if (copy_start > 0)
 			ClearRectPx(dst, dst_pitch, dst_w, copy_start, 0xFF000000u);
@@ -572,13 +572,13 @@ namespace
 		const u8* src, int src_pitch, int src_w, int src_h,
 		u8* dst, int dst_pitch, int dst_w, int dst_h)
 	{
-		const int copy_w = std::min(src_w, dst_w);
-		const int copy_h = std::min(src_h, dst_h);
+		const int copy_w = pcsx2_min_i(src_w, dst_w);
+		const int copy_h = pcsx2_min_i(src_h, dst_h);
 
 		for (int y = 0; y < copy_h; y++)
 		{
-			const int y_above = std::max(y - 1, 0);
-			const int y_below = std::min(y + 1, src_h - 1);
+			const int y_above = pcsx2_max_i(y - 1, 0);
+			const int y_below = pcsx2_min_i(y + 1, src_h - 1);
 
 			const u8* row_above = src + (size_t)y_above * src_pitch;
 			const u8* row_cent  = src + (size_t)y       * src_pitch;
@@ -687,7 +687,7 @@ namespace
 		u8* dst, int dst_pitch, int dst_w, int dst_h,
 		int dy_begin, int dy_end, int field, int bank, int vres)
 	{
-		const int copy_w = std::min(src_w, dst_w);
+		const int copy_w = pcsx2_min_i(src_w, dst_w);
 
 		/* lofs corrects parity for odd vres in bank 1 (the shader's
 		 * standard formula). 0 in all other cases. */
@@ -825,10 +825,10 @@ namespace
 			 * neighbors are only consulted for non-edge rows
 			 * (vpos in (0, frame_h-1)) the clamping is moot
 			 * there anyway. We clamp defensively. */
-			const int t0_up_row   = std::max(t0_base, p_t0_row - 1);
-			const int t0_down_row = std::min(t0_base + frame_h - 1, p_t0_row + 1);
-			const int t2_up_row   = std::max(t2_base, p_t2_row - 1);
-			const int t2_down_row = std::min(t2_base + frame_h - 1, p_t2_row + 1);
+			const int t0_up_row   = pcsx2_max_i(t0_base, p_t0_row - 1);
+			const int t0_down_row = pcsx2_min_i(t0_base + frame_h - 1, p_t0_row + 1);
+			const int t2_up_row   = pcsx2_max_i(t2_base, p_t2_row - 1);
+			const int t2_down_row = pcsx2_min_i(t2_base + frame_h - 1, p_t2_row + 1);
 
 			const u8* row_t0_up   = src + (size_t)t0_up_row   * src_pitch;
 			const u8* row_t0_down = src + (size_t)t0_down_row * src_pitch;

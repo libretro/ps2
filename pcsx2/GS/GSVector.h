@@ -85,12 +85,12 @@ public:
 
 	GSVector2T _min(const GSVector2T& v) const
 	{
-		return { std::min(x, v.x), std::min(y, v.y) };
+		return { pcsx2_min_i(x, v.x), pcsx2_min_i(y, v.y) };
 	}
 
 	GSVector2T _max(const GSVector2T& v) const
 	{
-		return { std::max(x, v.x), std::max(y, v.y) };
+		return { pcsx2_max_i(x, v.x), pcsx2_max_i(y, v.y) };
 	}
 };
 

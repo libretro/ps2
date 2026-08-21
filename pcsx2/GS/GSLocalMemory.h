@@ -348,7 +348,7 @@ public:
 
 				for (int y = 0; y < yCnt; y++)
 				{
-					u32 start = std::max<u32>(nextMin, lineBP + startOff);
+					u32 start = pcsx2_max_u(nextMin, lineBP + startOff);
 					u32 end   = lineBP + endOff;
 					nextMin = end;
 					lineBP += yInc;

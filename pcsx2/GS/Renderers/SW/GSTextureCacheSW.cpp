@@ -141,7 +141,7 @@ GSTextureCacheSW::Texture::Texture(u32 tw0, const GIFRegTEX0& TEX0, const GIFReg
 	, m_p2t(nullptr)
 {
 	if (m_tw == 0)
-		m_tw = std::max<int>(m_TEX0.TW, GSLocalMemory::m_psm[m_TEX0.PSM].pal == 0 ? 3 : 5); // makes one row 32 bytes at least, matches the smallest block size that is allocated for m_buff
+		m_tw = pcsx2_max_i(m_TEX0.TW, GSLocalMemory::m_psm[m_TEX0.PSM].pal == 0 ? 3 : 5); // makes one row 32 bytes at least, matches the smallest block size that is allocated for m_buff
 
 	memset(m_valid, 0, sizeof(m_valid));
 
@@ -178,7 +178,7 @@ void GSTextureCacheSW::Texture::Reset(u32 tw0, const GIFRegTEX0& TEX0, const GIF
 	m_TEXA     = TEXA;
 
 	if (m_tw == 0)
-		m_tw = std::max<int>(m_TEX0.TW, GSLocalMemory::m_psm[m_TEX0.PSM].pal == 0 ? 3 : 5); // makes one row 32 bytes at least, matches the smallest block size that is allocated for m_buff
+		m_tw = pcsx2_max_i(m_TEX0.TW, GSLocalMemory::m_psm[m_TEX0.PSM].pal == 0 ? 3 : 5); // makes one row 32 bytes at least, matches the smallest block size that is allocated for m_buff
 
 	memset(m_valid, 0, sizeof(m_valid));
 
@@ -204,8 +204,8 @@ bool GSTextureCacheSW::Texture::Update(const GSVector4i& rect)
 
 	int shift = psm.pal == 0 ? 2 : 0;
 
-	int tw = std::max<int>(1 << m_TEX0.TW, bs.x);
-	int th = std::max<int>(1 << m_TEX0.TH, bs.y);
+	int tw = pcsx2_max_i(1 << m_TEX0.TW, bs.x);
+	int th = pcsx2_max_i(1 << m_TEX0.TH, bs.y);
 
 	GSVector4i r = rect;
 

@@ -573,7 +573,7 @@ void GSClut::ReadCLUT_T32_I8(const u16* RESTRICT clut, u32* RESTRICT dst, int of
 	for (int i = 0; i < 256; i += 16)
 	{
 		// Min value + offet or Last CSA * 16 (240)
-		ReadCLUT_T32_I4(&clut[std::min((i + offset), 240)], &dst[i]);
+		ReadCLUT_T32_I4(&clut[pcsx2_min_i((i + offset), 240)], &dst[i]);
 	}
 }
 

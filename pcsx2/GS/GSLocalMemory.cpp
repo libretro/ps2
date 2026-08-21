@@ -370,8 +370,8 @@ std::vector<GSVector2i>* GSLocalMemory::GetPage2TileMap(const GIFRegTEX0& TEX0)
 
 	GSVector2i bs = m_psm[TEX0.PSM].bs;
 
-	int tw = std::max<int>(1 << TEX0.TW, bs.x);
-	int th = std::max<int>(1 << TEX0.TH, bs.y);
+	int tw = pcsx2_max_i(1 << TEX0.TW, bs.x);
+	int th = pcsx2_max_i(1 << TEX0.TH, bs.y);
 
 	// Limit the size to the maximum size of the GS memory, there's no point in mapping more than this.
 	if (static_cast<u32>(tw * th) > VM_SIZE)
@@ -492,8 +492,8 @@ GSVector4i GSLocalMemory::GetRectForPageOffset(u32 base_bp, u32 offset_bp, u32 b
 {
 	const u32 page_offset = (offset_bp - base_bp) >> 5;
 	const GSVector2i& pgs = m_psm[psm].pgs;
-	const u32 valid_bw = std::max(1U, bw);
-	const GSVector2i page_offset_xy = GSVector2i(page_offset % valid_bw, page_offset / std::max(1U, valid_bw));
+	const u32 valid_bw = pcsx2_max_i(1U, bw);
+	const GSVector2i page_offset_xy = GSVector2i(page_offset % valid_bw, page_offset / pcsx2_max_i(1U, valid_bw));
 	return GSVector4i(pgs * page_offset_xy).xyxy() + GSVector4i::loadh(pgs);
 }
 

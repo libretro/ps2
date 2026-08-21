@@ -779,7 +779,7 @@ void GSRasterizer::DrawSprite(const GSVertexSW* vertex, const u16* index)
 			while (top < bottom)
 			{
 				r.top = top;
-				r.bottom = std::min<int>((top + (1 << m_thread_height)) & ~((1 << m_thread_height) - 1), bottom);
+				r.bottom = pcsx2_min_i((top + (1 << m_thread_height)) & ~((1 << m_thread_height) - 1), bottom);
 
 				GSDrawScanline::DrawRect(r, scan, m_local);
 
@@ -1179,7 +1179,7 @@ void GSRasterizerList::Queue(const GSRingHeap::SharedPtr<GSRasterizerData>& data
 	}
 
 	int top = r.top >> m_thread_height;
-	int bottom = std::min<int>((r.bottom + (1 << m_thread_height) - 1) >> m_thread_height, top + m_workers.size());
+	int bottom = pcsx2_min_i((r.bottom + (1 << m_thread_height) - 1) >> m_thread_height, top + m_workers.size());
 
 	while (top < bottom)
 	{
@@ -1223,7 +1223,7 @@ int GSRasterizerList::GetPixels(bool reset)
 
 std::unique_ptr<IRasterizer> GSRasterizerList::Create(int threads)
 {
-	threads = std::max<int>(threads, 0);
+	threads = pcsx2_max_i(threads, 0);
 
 	if (threads == 0)
 		return std::make_unique<GSSingleRasterizer>();

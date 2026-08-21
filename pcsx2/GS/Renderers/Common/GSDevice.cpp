@@ -110,7 +110,7 @@ void GSDevice::GenerateExpansionIndexBuffer(void* buffer)
 
 int GSDevice::GetMipmapLevelsForSize(int width, int height)
 {
-	return std::min(static_cast<int>(std::log2(std::max(width, height))) + 1, MAXIMUM_TEXTURE_MIPMAP_LEVELS);
+	return pcsx2_min_i(static_cast<int>(std::log2(pcsx2_max_i(width, height))) + 1, MAXIMUM_TEXTURE_MIPMAP_LEVELS);
 }
 
 bool GSDevice::Create()

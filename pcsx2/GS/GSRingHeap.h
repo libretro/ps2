@@ -38,11 +38,14 @@ class GSRingHeap
 	/// Free a value of size `size` (equal to prefix_size + size when allocated)
 	static void free_internal(void* ptr, size_t size) noexcept;
 
-	static constexpr size_t MIN_ALIGN = std::max(alignof(size_t), alignof(void*));
+	/* constexpr context: the helpers are ordinary inline functions, so this
+	 * one stays a conditional expression. */
+	static constexpr size_t MIN_ALIGN =
+		(alignof(size_t) > alignof(void*)) ? alignof(size_t) : alignof(void*);
 
 	static size_t getAlignMask(size_t align)
 	{
-		return std::max(MIN_ALIGN, align) - 1;
+		return pcsx2_max_i(MIN_ALIGN, align) - 1;
 	}
 
 public:

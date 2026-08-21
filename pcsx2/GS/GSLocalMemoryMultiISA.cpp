@@ -307,7 +307,7 @@ void GSLocalMemoryFunctions::WriteImageTopBottom(GSLocalMemory& mem, int l, int 
 
 	if (y2 > 0)
 	{
-		int h2 = std::min(h, csy - y2);
+		int h2 = pcsx2_min_i(h, csy - y2);
 
 		for (int x = l; x < r; x += bsx)
 		{
@@ -469,7 +469,7 @@ void GSLocalMemoryFunctions::WriteImage(GSLocalMemory& mem, int& tx, int& ty, co
 
 	if (tx != l)
 	{
-		int n = std::min(len, (r - tx) * trbpp >> 3);
+		int n = pcsx2_min_i(len, (r - tx) * trbpp >> 3);
 		WriteImageX(mem, tx, ty, src, n, BITBLTBUF, TRXPOS, TRXREG);
 		src += n;
 		len -= n;
@@ -529,7 +529,7 @@ void GSLocalMemoryFunctions::WriteImage(GSLocalMemory& mem, int& tx, int& ty, co
 			// top part
 
 			{
-				int h2 = std::min(h, bsy - (ty & (bsy - 1)));
+				int h2 = pcsx2_min_i(h, bsy - (ty & (bsy - 1)));
 
 				if (h2 < bsy)
 				{
@@ -791,7 +791,7 @@ static void readWriteHelper(int& tx, int& ty, int len, int xinc, int sx, int w, 
 
 	while (len > 0)
 	{
-		int stop = std::min(remX, len);
+		int stop = pcsx2_min_i(remX, len);
 		len -= stop;
 		remX -= stop;
 

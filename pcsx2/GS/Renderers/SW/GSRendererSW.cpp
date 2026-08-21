@@ -821,7 +821,7 @@ bool GSRendererSW::GetScanlineGlobalData(SharedData* data)
 				gd.sel.mmin = (context->TEX1.MMIN & 1) + 1; // 1: round, 2: tri
 				gd.sel.lcm = context->TEX1.LCM;
 
-				int mxl = std::min<int>((int)context->TEX1.MXL, 6) << 16;
+				int mxl = pcsx2_min_i((int)context->TEX1.MXL, 6) << 16;
 				int k = context->TEX1.K << 12;
 
 				if ((int)m_vt.m_lod.x >= (int)context->TEX1.MXL)
@@ -840,7 +840,7 @@ bool GSRendererSW::GetScanlineGlobalData(SharedData* data)
 
 				if (gd.sel.lcm)
 				{
-					int lod = std::max<int>(std::min<int>(k, mxl), 0);
+					int lod = pcsx2_max_i(pcsx2_min_i(k, mxl), 0);
 
 					if (gd.sel.mmin == 1)
 					{
@@ -864,7 +864,7 @@ bool GSRendererSW::GetScanlineGlobalData(SharedData* data)
 				GSVector4 tmin = m_vt.m_min.t;
 				GSVector4 tmax = m_vt.m_max.t;
 
-				for (int i = 1, j = std::min<int>((int)context->TEX1.MXL, 6); i <= j; i++)
+				for (int i = 1, j = pcsx2_min_i((int)context->TEX1.MXL, 6); i <= j; i++)
 				{
 					const GIFRegTEX0& MIP_TEX0 = GetTex0Layer(i);
 
@@ -938,8 +938,8 @@ bool GSRendererSW::GetScanlineGlobalData(SharedData* data)
 				case CLAMP_REGION_CLAMP:
 					// REGION_CLAMP ignores the actual texture size, but tw is already optimised in GetFixedTEX0Size.
 					// It's important we don't go off MAXU (if bigger) here as the sw renderer can attempt to draw pixels outside the triangle which can cause out of bounds issues.
-					gd.t.min.U16[0] = gd.t.minmax.U16[0] = std::min<u16>(context->CLAMP.MINU, tw - 1);
-					gd.t.max.U16[0] = gd.t.minmax.U16[2] = std::min<u16>(context->CLAMP.MAXU, tw - 1);
+					gd.t.min.U16[0] = gd.t.minmax.U16[0] = pcsx2_min_i(context->CLAMP.MINU, tw - 1);
+					gd.t.max.U16[0] = gd.t.minmax.U16[2] = pcsx2_min_i(context->CLAMP.MAXU, tw - 1);
 					gd.t.mask.U32[0] = 0;
 					break;
 				case CLAMP_REGION_REPEAT:
@@ -967,8 +967,8 @@ bool GSRendererSW::GetScanlineGlobalData(SharedData* data)
 				case CLAMP_REGION_CLAMP:
 					// REGION_CLAMP ignores the actual texture size, but th is already optimised in GetFixedTEX0Size
 					// It's important we don't go off MAXV (if bigger) here as the sw renderer can attempt to draw pixels outside the triangle which can cause out of bounds issues.
-					gd.t.min.U16[4] = gd.t.minmax.U16[1] = std::min<u16>(context->CLAMP.MINV, th - 1);
-					gd.t.max.U16[4] = gd.t.minmax.U16[3] = std::min<u16>(context->CLAMP.MAXV, th - 1); // ffx anima summon scene, when the anchor appears (th = 256, maxv > 256)
+					gd.t.min.U16[4] = gd.t.minmax.U16[1] = pcsx2_min_i(context->CLAMP.MINV, th - 1);
+					gd.t.max.U16[4] = gd.t.minmax.U16[3] = pcsx2_min_i(context->CLAMP.MAXV, th - 1); // ffx anima summon scene, when the anchor appears (th = 256, maxv > 256)
 					gd.t.mask.U32[2] = 0;
 					break;
 				case CLAMP_REGION_REPEAT:

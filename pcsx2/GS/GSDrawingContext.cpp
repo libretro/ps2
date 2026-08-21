@@ -51,7 +51,7 @@ static int findmax(int tl, int br, int limit, int wm, int minuv, int maxuv)
 		if (tl < 0)
 			uv = minuv | maxuv; // wrap around, just use (any & mask) | fix.
 		else
-			uv = std::min(uv, minuv) | maxuv; // (any & mask) cannot be larger than mask, select br if that is smaller (not br & mask because there might be a larger value between tl and br when &'ed with the mask).
+			uv = pcsx2_min_i(uv, minuv) | maxuv; // (any & mask) cannot be larger than mask, select br if that is smaller (not br & mask because there might be a larger value between tl and br when &'ed with the mask).
 	}
 
 	return uv;
