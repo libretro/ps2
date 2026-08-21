@@ -124,55 +124,82 @@ static int getFreeCache(u32 mem, int* way)
 	return setIdx;
 }
 
-template <bool Write, int Bytes>
-static void* prepareCacheAccess(u32 mem, int* way, int* idx)
+/* Cache line access. prepareCacheAccess was template<bool Write, int Bytes>
+ * and the read/write bodies were template<typename Int>; every parameter is
+ * a constant at each of the ten entry points below, so the Write flag and
+ * the alignment mask folded away per instantiation. Written out, the two
+ * variants differ by one OR of DIRTY_FLAG. */
+static void* prepareCacheAccessRead(u32 mem, int bytes, int* way, int* idx)
 {
+	u32 aligned;
+
 	*way = 0;
 	*idx = getFreeCache(mem, way);
-	CacheLine line = { cache.sets[*idx].tags[*way], cache.sets[*idx].data[*way], *idx };
-	if (Write)
-		line.tag.rawValue |= DIRTY_FLAG;
-	u32 aligned = mem & ~(Bytes - 1);
-	return &line.data.bytes[aligned & 0x3f];
+	{
+		CacheLine line = { cache.sets[*idx].tags[*way], cache.sets[*idx].data[*way], *idx };
+		aligned = mem & ~(bytes - 1);
+		return &line.data.bytes[aligned & 0x3f];
+	}
 }
 
-template <typename Int>
-static void writeCache(u32 mem, Int value)
+static void* prepareCacheAccessWrite(u32 mem, int bytes, int* way, int* idx)
+{
+	u32 aligned;
+
+	*way = 0;
+	*idx = getFreeCache(mem, way);
+	{
+		CacheLine line = { cache.sets[*idx].tags[*way], cache.sets[*idx].data[*way], *idx };
+		line.tag.rawValue |= DIRTY_FLAG;
+		aligned = mem & ~(bytes - 1);
+		return &line.data.bytes[aligned & 0x3f];
+	}
+}
+
+#define CACHE_DEFINE_ACCESS(bits, type)                                        \
+void writeCache##bits(u32 mem, type value)                                     \
+{                                                                              \
+	int way, idx;                                                              \
+	void* addr = prepareCacheAccessWrite(mem, sizeof(type), &way, &idx);       \
+	*(type*)addr = value;                                                      \
+}                                                                              \
+type readCache##bits(u32 mem)                                                  \
+{                                                                              \
+	int way, idx;                                                              \
+	void* addr = prepareCacheAccessRead(mem, sizeof(type), &way, &idx);        \
+	return *(type*)addr;                                                       \
+}
+
+CACHE_DEFINE_ACCESS(8,  u8)
+CACHE_DEFINE_ACCESS(16, u16)
+CACHE_DEFINE_ACCESS(32, u32)
+
+/* 64-bit write takes its value by const value in the header. */
+void writeCache64(u32 mem, const u64 value)
 {
 	int way, idx;
-	void* addr = prepareCacheAccess<true, sizeof(Int)>(mem, &way, &idx);
-	*reinterpret_cast<Int*>(addr) = value;
+	void* addr = prepareCacheAccessWrite(mem, sizeof(u64), &way, &idx);
+	*(u64*)addr = value;
 }
 
-void writeCache8(u32 mem, u8 value)         { writeCache<u8>(mem, value); }
-void writeCache16(u32 mem, u16 value)       { writeCache<u16>(mem, value); }
-void writeCache32(u32 mem, u32 value)       { writeCache<u32>(mem, value); }
-void writeCache64(u32 mem, const u64 value) { writeCache<u64>(mem, value); }
+u64 readCache64(u32 mem)
+{
+	int way, idx;
+	void* addr = prepareCacheAccessRead(mem, sizeof(u64), &way, &idx);
+	return *(u64*)addr;
+}
 
 void writeCache128(u32 mem, const mem128_t* value)
 {
 	int way, idx;
-	void* addr = prepareCacheAccess<true, sizeof(mem128_t)>(mem, &way, &idx);
-	*reinterpret_cast<mem128_t*>(addr) = *value;
+	void* addr = prepareCacheAccessWrite(mem, sizeof(mem128_t), &way, &idx);
+	*(mem128_t*)addr = *value;
 }
-
-template <typename Int>
-static Int readCache(u32 mem)
-{
-	int way, idx;
-	void* addr = prepareCacheAccess<false, sizeof(Int)>(mem, &way, &idx);
-	return *reinterpret_cast<Int*>(addr);
-}
-
-u8 readCache8(u32 mem)   { return readCache<u8>(mem);  }
-u16 readCache16(u32 mem) { return readCache<u16>(mem); }
-u32 readCache32(u32 mem) { return readCache<u32>(mem); }
-u64 readCache64(u32 mem) { return readCache<u64>(mem); }
 
 RETURNS_R128 readCache128(u32 mem)
 {
 	int way, idx;
-	void* addr = prepareCacheAccess<false, sizeof(mem128_t)>(mem, &way, &idx);
+	void* addr = prepareCacheAccessRead(mem, sizeof(mem128_t), &way, &idx);
 	return r128_load(addr);
 }
 
