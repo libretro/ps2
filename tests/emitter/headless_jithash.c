@@ -122,8 +122,51 @@ static int env_cb(unsigned cmd, void* data)
     }
 }
 
+/* Framebuffer oracle.
+ *
+ * The JIT hashes prove the recompilers emit the same bytes; they say nothing
+ * about what ends up on screen, so any change to the interpreter paths that
+ * feed the GS -- VIF unpack, the software rasterizer, the memory handlers --
+ * has been landing without a pixel-level gate. PCSX2_FBHASH=1 prints an FNV
+ * hash of every Nth frame's pixels (N from PCSX2_FBHASH, default 1) so two
+ * builds can be compared frame for frame.
+ *
+ * Duped frames (d == NULL) are reported as such rather than skipped: whether
+ * a frame duped is itself part of the behaviour being compared. */
 static void video_cb(const void* d, unsigned w, unsigned h, size_t p)
-{ (void)d;(void)w;(void)h;(void)p; }
+{
+    static long fbn = 0, every = -1;
+    unsigned long long hsh = 1469598103934665603ULL;
+    const unsigned char* row;
+    unsigned y, x, bytes;
+
+    if (every < 0)
+    {
+        const char* e = getenv("PCSX2_FBHASH");
+        every = (e && e[0] != '0') ? (atoi(e) > 0 ? atoi(e) : 1) : 0;
+    }
+    fbn++;
+    if (!every || (fbn % every) != 0)
+        return;
+
+    if (!d)
+    {
+        fprintf(stderr, "[FBHASH] frame %ld duped\n", fbn);
+        return;
+    }
+
+    /* 16bpp unless the core asked for XRGB8888; the harness accepts either,
+     * so hash the row bytes the core actually handed over. */
+    bytes = (unsigned)(p / (w ? w : 1));
+    row = (const unsigned char*)d;
+    for (y = 0; y < h; y++, row += p)
+        for (x = 0; x < w * bytes; x++)
+        {
+            hsh ^= row[x];
+            hsh *= 1099511628211ULL;
+        }
+    fprintf(stderr, "[FBHASH] frame %ld %ux%u %016llx\n", fbn, w, h, hsh);
+}
 static void audio_cb(int16_t l, int16_t r) { (void)l;(void)r; }
 static size_t audio_batch_cb(const int16_t* d, size_t f) { (void)d; return f; }
 static void input_poll_cb(void) {}
