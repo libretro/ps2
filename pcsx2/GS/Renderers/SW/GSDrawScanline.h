@@ -16,8 +16,10 @@
 #pragma once
 
 #include "../../GSState.h"
+#ifdef ARCH_X86 /* the xbyak generators; see ENABLE_JIT_RASTERIZER */
 #include "GSSetupPrimCodeGenerator.h"
 #include "GSDrawScanlineCodeGenerator.h"
+#endif
 
 struct GSScanlineLocalData;
 
@@ -25,13 +27,17 @@ MULTI_ISA_UNSHARED_START
 
 class GSRasterizerData;
 
+#ifdef ARCH_X86
 class GSSetupPrimCodeGenerator;
 class GSDrawScanlineCodeGenerator;
+#endif
 
 class GSDrawScanline : public GSVirtualAlignedClass<32>
 {
+#ifdef ARCH_X86
 	friend GSSetupPrimCodeGenerator;
 	friend GSDrawScanlineCodeGenerator;
+#endif
 
 public:
 	GSDrawScanline();
@@ -54,8 +60,10 @@ public:
 	static void DrawRect(const GSVector4i& r, const GSVertexSW& v, GSScanlineLocalData& local);
 
 private:
+#ifdef ARCH_X86
 	GSCodeGeneratorFunctionMap<GSSetupPrimCodeGenerator, u64, SetupPrimPtr> m_sp_map;
 	GSCodeGeneratorFunctionMap<GSDrawScanlineCodeGenerator, u64, DrawScanlinePtr> m_ds_map;
+#endif
 
 	static void CSetupPrim(const GSVertexSW* vertex, const u16* index, const GSVertexSW& dscan, GSScanlineLocalData& local);
 	static void CDrawScanline(int pixels, int left, int top, const GSVertexSW& scan, GSScanlineLocalData& local);

@@ -397,13 +397,19 @@ SOURCES_CXX += \
 	$(LRPS2_DIR)/GS/Renderers/SW/GSTextureCacheSW.cpp \
 	$(LRPS2_DIR)/GS/Renderers/SW/GSTextureSW.cpp
 
-ifneq ($(IS_ARM64), 1)
+# The rasterizer, the renderer and the scanline dispatcher are portable: they
+# are written against GSVector4/4i, which have NEON implementations. Only the
+# xbyak code generators are x86-only, and GSDrawScanline falls back to its C++
+# reference path (CSetupPrim / CDrawScanline / CDrawEdge) without them.
 SOURCES_CXX += \
 	$(LRPS2_DIR)/GS/Renderers/SW/GSDrawScanline.cpp \
+	$(LRPS2_DIR)/GS/Renderers/SW/GSRasterizer.cpp \
+	$(LRPS2_DIR)/GS/Renderers/SW/GSRendererSW.cpp
+
+ifneq ($(IS_ARM64), 1)
+SOURCES_CXX += \
 	$(LRPS2_DIR)/GS/Renderers/SW/GSDrawScanlineCodeGenerator.all.cpp \
 	$(LRPS2_DIR)/GS/Renderers/SW/GSDrawScanlineCodeGenerator.cpp \
-	$(LRPS2_DIR)/GS/Renderers/SW/GSRasterizer.cpp \
-	$(LRPS2_DIR)/GS/Renderers/SW/GSRendererSW.cpp \
 	$(LRPS2_DIR)/GS/Renderers/SW/GSSetupPrimCodeGenerator.all.cpp \
 	$(LRPS2_DIR)/GS/Renderers/SW/GSSetupPrimCodeGenerator.cpp
 endif

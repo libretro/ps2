@@ -18,8 +18,16 @@
 #include "GSScanlineEnvironment.h"
 #include "GSRasterizer.h"
 
-// Comment to disable all dynamic code generation.
+/* Comment to disable all dynamic code generation.
+ *
+ * The scanline/setup code generators are xbyak and x86-only. On other
+ * architectures the C++ reference rasterizer below (CSetupPrim,
+ * CDrawScanline, CDrawEdge) is the whole renderer: slower than generated
+ * code, but it is written against GSVector4/4i, which have NEON
+ * implementations, so it builds and runs. */
+#ifdef ARCH_X86
 #define ENABLE_JIT_RASTERIZER
+#endif
 
 #if MULTI_ISA_COMPILE_ONCE
 // Lack of a better home
@@ -34,16 +42,22 @@ static __forceinline const GSScanlineGlobalData& GlobalFromLocal(const GSScanlin
 }
 
 GSDrawScanline::GSDrawScanline()
+#ifdef ENABLE_JIT_RASTERIZER
 	: m_sp_map() /* GSSetupPrim */
 	, m_ds_map() /* GSDrawScanline */
+#endif
 {
+#ifdef ENABLE_JIT_RASTERIZER
 	GSCodeReserve::GetInstance().AllowModification();
 	GSCodeReserve::GetInstance().Reset();
+#endif
 }
 
 GSDrawScanline::~GSDrawScanline()
 {
+#ifdef ENABLE_JIT_RASTERIZER
 	GSCodeReserve::GetInstance().ForbidModification();
+#endif
 }
 
 void GSDrawScanline::BeginDraw(const GSRasterizerData& data, GSScanlineLocalData& local)
@@ -78,9 +92,11 @@ void GSDrawScanline::BeginDraw(const GSRasterizerData& data, GSScanlineLocalData
 
 void GSDrawScanline::ResetCodeCache()
 {
+#ifdef ENABLE_JIT_RASTERIZER
 	m_sp_map.Clear();
 	m_ds_map.Clear();
 	GSCodeReserve::GetInstance().Reset();
+#endif
 }
 
 bool GSDrawScanline::SetupDraw(GSRasterizerData& data)

@@ -59,9 +59,7 @@ Pcsx2Config::GSOptions GSConfig;
 
 void GSinit(void)
 {
-#ifndef ARCH_ARM64
-	GSVertexSW::InitStatic();	// SW renderer (and its s_cvb table) isn't built on arm64
-#endif
+	GSVertexSW::InitStatic();
 	GSUtil::Init();
 	m_disp_fb_sprite_blits = 0;
 }
@@ -205,16 +203,10 @@ static bool OpenGSRenderer(GSRendererType renderer, u8* basemem)
 	else
 #endif
 	{
-#ifndef ARCH_ARM64
 		if (renderer != GSRendererType::SW)
 			g_gs_renderer = std::make_unique<GSRendererHW>();
 		else
 			g_gs_renderer = std::unique_ptr<GSRenderer>(MULTI_ISA_SELECT(makeGSRendererSW)(GSConfig.SWExtraThreads));
-#else
-		// arm64: the SW rasterizer is x86 xbyak codegen and is not built; only
-		// the HW renderer (and paraLLEl-GS above) are available.
-		g_gs_renderer = std::make_unique<GSRendererHW>();
-#endif
 
 		g_gs_renderer->SetRegsMem(basemem);
 		g_gs_renderer->ResetPCRTC();
