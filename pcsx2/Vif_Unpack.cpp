@@ -35,109 +35,66 @@ static __fi u32 setVifRow(vifStruct& vif, u32 reg, u32 data) {
 
 // cycle derives from vif.cl
 // mode derives from vifRegs.mode
-template< uint idx, uint mode, bool doMask >
-static __ri void writeXYZW(u32 offnum, u32 &dest, u32 data) {
-	int n = 0;
+/* MTVU_VifX / MTVU_VifXRegs read a variable named `idx` from the enclosing
+ * scope; these take the unit as a macro argument instead, so the generated
+ * per-unit functions can name it directly. */
+#define MTVU_VIFX_N(n)     ((n) ? ((THREAD_VU1) ? vu1Thread.vif     : vif1)     : (vif0))
+#define MTVU_VIFXREGS_N(n) ((n) ? ((THREAD_VU1) ? vu1Thread.vifRegs : vif1Regs) : (vif0Regs))
 
-	vifStruct& vif = MTVU_VifX;
-
-	if (doMask) {
-		const VIFregisters& regs = MTVU_VifXRegs;
-		switch (vif.cl) {
-			case 0:  n = (regs.mask >> (offnum * 2)) & 0x3;		break;
-			case 1:  n = (regs.mask >> ( 8 + (offnum * 2))) & 0x3;	break;
-			case 2:  n = (regs.mask >> (16 + (offnum * 2))) & 0x3;	break;
-			default: n = (regs.mask >> (24 + (offnum * 2))) & 0x3;	break;
-		}
+/* The unpack workers, one concrete set per (idx, mode, doMask) triple.
+ *
+ * These were templates on <idx, mode, doMask, T>: idx picks the VIF unit,
+ * mode selects the MaskRow/MaskCol arithmetic, doMask decides whether the
+ * mask register is consulted at all, and T is the source element type. Every
+ * one of those is a compile-time constant in each of the 512 VIFfuncTable
+ * slots, so the switches on `mode` and the `if (doMask)` folded away per
+ * instantiation. The macros below emit exactly those folded functions.
+ *
+ * VIF_WRITE_XYZW carries the masked and unmasked forms because the doMask
+ * branch is the one that decides whether vif.cl is read at all -- keeping it
+ * as a runtime argument would put a load and a branch into the innermost
+ * write of the geometry path.
+ */
+#define VIF_WRITE_XYZW_BODY(mode_arith)                                        \
+	switch (n)                                                                 \
+	{                                                                          \
+		case 0:                                                                \
+			mode_arith                                                         \
+			break;                                                             \
+		case 1: dest = vif.MaskRow._u32[offnum]; break;                        \
+		case 2: dest = vif.MaskCol._u32[std::min(vif.cl, 3)]; break;            \
+		case 3: break;                                                         \
 	}
 
-	// Four possible types of masking are handled below:
-	//   0 - Data
-	//   1 - MaskRow
-	//   2 - MaskCol
-	//   3 - Write protect
+#define VIF_MODE_ARITH_0 dest = data;
+#define VIF_MODE_ARITH_1 dest = data + vif.MaskRow._u32[offnum];
+#define VIF_MODE_ARITH_2 dest = setVifRow(vif, offnum, vif.MaskRow._u32[offnum] + data);
+#define VIF_MODE_ARITH_3 dest = setVifRow(vif, offnum, data);
 
-	switch (n) {
-		case 0:
-			switch (mode) {
-				case 1:  dest = data + vif.MaskRow._u32[offnum]; break;
-				case 2:  dest = setVifRow(vif, offnum, vif.MaskRow._u32[offnum] + data); break;
-				case 3:  dest = setVifRow(vif, offnum, data); break;
-				default: dest = data; break;
-			}
-			break;
-		case 1: dest = vif.MaskRow._u32[offnum]; break;
-		case 2: dest = vif.MaskCol._u32[std::min(vif.cl,3)]; break;
-		case 3: break;
-	}
-}
-#define tParam idx,mode,doMask
-
-template < uint idx, uint mode, bool doMask, class T >
-static void UNPACK_S(u32* dest, const T* src)
-{
-	u32 data = *src;
-
-	//S-# will always be a complete packet, no matter what. So we can skip the offset bits
-	writeXYZW<tParam>(OFFSET_X, *(dest+0), data);
-	writeXYZW<tParam>(OFFSET_Y, *(dest+1), data);
-	writeXYZW<tParam>(OFFSET_Z, *(dest+2), data);
-	writeXYZW<tParam>(OFFSET_W, *(dest+3), data);
+/* doMask == 0: n is always zero, so only the mode arithmetic remains. */
+#define VIF_DEFINE_WRITE_NOMASK(idx, mode)                                     \
+static __ri void writeXYZW_##idx##_##mode##_0(u32 offnum, u32& dest, u32 data) \
+{                                                                              \
+	vifStruct& vif = MTVU_VIFX_N(idx);                                       \
+	(void)offnum;                                                              \
+	VIF_MODE_ARITH_##mode                                                      \
 }
 
-// The PS2 console actually writes v1v0v1v0 for all V2 unpacks -- the second v1v0 pair
-// being officially "indeterminate" but some games very much depend on it.
-template < uint idx, uint mode, bool doMask, class T >
-static void UNPACK_V2(u32* dest, const T* src)
-{
-	writeXYZW<tParam>(OFFSET_X, *(dest+0), *(src+0));
-	writeXYZW<tParam>(OFFSET_Y, *(dest+1), *(src+1));
-	writeXYZW<tParam>(OFFSET_Z, *(dest+2), *(src+0));
-	writeXYZW<tParam>(OFFSET_W, *(dest+3), *(src+1));
+#define VIF_DEFINE_WRITE_MASK(idx, mode)                                       \
+static __ri void writeXYZW_##idx##_##mode##_1(u32 offnum, u32& dest, u32 data) \
+{                                                                              \
+	vifStruct& vif = MTVU_VIFX_N(idx);                                       \
+	const VIFregisters& regs = MTVU_VIFXREGS_N(idx);                         \
+	int n;                                                                     \
+	switch (vif.cl)                                                            \
+	{                                                                          \
+		case 0:  n = (regs.mask >> (offnum * 2)) & 0x3;        break;          \
+		case 1:  n = (regs.mask >> ( 8 + (offnum * 2))) & 0x3; break;          \
+		case 2:  n = (regs.mask >> (16 + (offnum * 2))) & 0x3; break;          \
+		default: n = (regs.mask >> (24 + (offnum * 2))) & 0x3; break;          \
+	}                                                                          \
+	VIF_WRITE_XYZW_BODY(VIF_MODE_ARITH_##mode)                                 \
 }
-
-// V3 and V4 unpacks both use the V4 unpack logic, even though most of the OFFSET_W fields
-// during V3 unpacking end up being overwritten by the next unpack.  This is confirmed real
-// hardware behavior that games such as Ape Escape 3 depend on.
-template < uint idx, uint mode, bool doMask, class T >
-static void UNPACK_V4(u32* dest, const T* src)
-{
-	writeXYZW<tParam>(OFFSET_X, *(dest+0), *(src+0));
-	writeXYZW<tParam>(OFFSET_Y, *(dest+1), *(src+1));
-	writeXYZW<tParam>(OFFSET_Z, *(dest+2), *(src+2));
-	writeXYZW<tParam>(OFFSET_W, *(dest+3), *(src+3));
-}
-
-// V4_5 unpacks do not support the MODE register, and act as mode==0 always.
-template< uint idx, bool doMask >
-static void UNPACK_V4_5(u32 *dest, const u32* src)
-{
-	u32 data = *src;
-
-	writeXYZW<idx,0,doMask>(OFFSET_X, *(dest+0),	((data & 0x001f) << 3));
-	writeXYZW<idx,0,doMask>(OFFSET_Y, *(dest+1),	((data & 0x03e0) >> 2));
-	writeXYZW<idx,0,doMask>(OFFSET_Z, *(dest+2),	((data & 0x7c00) >> 7));
-	writeXYZW<idx,0,doMask>(OFFSET_W, *(dest+3),	((data & 0x8000) >> 8));
-}
-
-// =====================================================================================================
-
-// --------------------------------------------------------------------------------------
-//  Main table for function unpacking.
-// --------------------------------------------------------------------------------------
-// The extra data bsize/dsize/etc are all duplicated between the doMask enabled and
-// disabled versions.  This is probably simpler and more efficient than bothering
-// to generate separate tables.
-//
-// The double-cast function pointer nonsense is to appease GCC, which gives some rather
-// cryptic error about being unable to deduce the type parameters (I think it's a bug
-// relating to __fastcall, which I recall having some other places as well).  It's fixed
-// by explicitly casting the function to itself prior to casting it to what we need it
-// to be cast as. --air
-//
-
-#define _upk				(UNPACKFUNCTYPE)
-#define _unpk(usn, bits)	(UNPACKFUNCTYPE_##usn##bits)
 
 // Placeholder for invalid VN/VL unpack combinations. These slots in
 // VIFfuncTable were previously NULL; if a game (or a malformed transfer) ever
@@ -150,13 +107,76 @@ static void UNPACK_Invalid(u32* dest, const void* src)
 		warned = true;
 }
 
-#define UnpackFuncSet( vt, idx, mode, usn, doMask ) \
-	(UNPACKFUNCTYPE)_unpk(u,32)		UNPACK_##vt<idx, mode, doMask, u32>, \
-	(UNPACKFUNCTYPE)_unpk(usn,16)	UNPACK_##vt<idx, mode, doMask, usn##16>, \
-	(UNPACKFUNCTYPE)_unpk(usn,8)	UNPACK_##vt<idx, mode, doMask, usn##8> \
+/* The four unpack shapes, per (idx, mode, doMask) and per source type.
+ * V3 and V4 both use the V4 logic -- confirmed hardware behaviour that Ape
+ * Escape 3 depends on -- and V2 writes v1v0v1v0, the second pair officially
+ * indeterminate but relied on by games. V4_5 ignores MODE and acts as
+ * mode 0 always, so it is generated per (idx, doMask) only. */
+#define VIF_DEFINE_UNPACKS(idx, mode, dm, T, tag)                              \
+static void UNPACK_S_##idx##_##mode##_##dm##_##tag(u32* dest, const T* src)    \
+{                                                                              \
+	u32 data = *src;                                                           \
+	/* S-# is always a complete packet, so the offset bits can be skipped. */  \
+	writeXYZW_##idx##_##mode##_##dm(OFFSET_X, *(dest+0), data);                \
+	writeXYZW_##idx##_##mode##_##dm(OFFSET_Y, *(dest+1), data);                \
+	writeXYZW_##idx##_##mode##_##dm(OFFSET_Z, *(dest+2), data);                \
+	writeXYZW_##idx##_##mode##_##dm(OFFSET_W, *(dest+3), data);                \
+}                                                                              \
+static void UNPACK_V2_##idx##_##mode##_##dm##_##tag(u32* dest, const T* src)   \
+{                                                                              \
+	writeXYZW_##idx##_##mode##_##dm(OFFSET_X, *(dest+0), *(src+0));            \
+	writeXYZW_##idx##_##mode##_##dm(OFFSET_Y, *(dest+1), *(src+1));            \
+	writeXYZW_##idx##_##mode##_##dm(OFFSET_Z, *(dest+2), *(src+0));            \
+	writeXYZW_##idx##_##mode##_##dm(OFFSET_W, *(dest+3), *(src+1));            \
+}                                                                              \
+static void UNPACK_V4_##idx##_##mode##_##dm##_##tag(u32* dest, const T* src)   \
+{                                                                              \
+	writeXYZW_##idx##_##mode##_##dm(OFFSET_X, *(dest+0), *(src+0));            \
+	writeXYZW_##idx##_##mode##_##dm(OFFSET_Y, *(dest+1), *(src+1));            \
+	writeXYZW_##idx##_##mode##_##dm(OFFSET_Z, *(dest+2), *(src+2));            \
+	writeXYZW_##idx##_##mode##_##dm(OFFSET_W, *(dest+3), *(src+3));            \
+}
 
-#define UnpackV4_5set(idx, doMask) \
-	(UNPACKFUNCTYPE)_unpk(u,32) UNPACK_V4_5<idx, doMask> \
+#define VIF_DEFINE_V4_5(idx, dm)                                               \
+static void UNPACK_V4_5_##idx##_##dm(u32* dest, const u32* src)                \
+{                                                                              \
+	u32 data = *src;                                                           \
+	writeXYZW_##idx##_0_##dm(OFFSET_X, *(dest+0), ((data & 0x001f) << 3));     \
+	writeXYZW_##idx##_0_##dm(OFFSET_Y, *(dest+1), ((data & 0x03e0) >> 2));     \
+	writeXYZW_##idx##_0_##dm(OFFSET_Z, *(dest+2), ((data & 0x7c00) >> 7));     \
+	writeXYZW_##idx##_0_##dm(OFFSET_W, *(dest+3), ((data & 0x8000) >> 8));     \
+}
+
+/* One (idx, mode, doMask) group: the five source types the table names. */
+#define VIF_DEFINE_GROUP(idx, mode, dm)                                        \
+	VIF_DEFINE_UNPACKS(idx, mode, dm, u32, u32)                                \
+	VIF_DEFINE_UNPACKS(idx, mode, dm, s16, s16)                                \
+	VIF_DEFINE_UNPACKS(idx, mode, dm, s8,  s8)                                 \
+	VIF_DEFINE_UNPACKS(idx, mode, dm, u16, u16)                                \
+	VIF_DEFINE_UNPACKS(idx, mode, dm, u8,  u8)
+
+#define VIF_DEFINE_IDX(idx)                                                    \
+	VIF_DEFINE_WRITE_NOMASK(idx, 0) VIF_DEFINE_WRITE_MASK(idx, 0)              \
+	VIF_DEFINE_WRITE_NOMASK(idx, 1) VIF_DEFINE_WRITE_MASK(idx, 1)              \
+	VIF_DEFINE_WRITE_NOMASK(idx, 2) VIF_DEFINE_WRITE_MASK(idx, 2)              \
+	VIF_DEFINE_WRITE_NOMASK(idx, 3) VIF_DEFINE_WRITE_MASK(idx, 3)              \
+	VIF_DEFINE_GROUP(idx, 0, 0) VIF_DEFINE_GROUP(idx, 0, 1)                    \
+	VIF_DEFINE_GROUP(idx, 1, 0) VIF_DEFINE_GROUP(idx, 1, 1)                    \
+	VIF_DEFINE_GROUP(idx, 2, 0) VIF_DEFINE_GROUP(idx, 2, 1)                    \
+	VIF_DEFINE_GROUP(idx, 3, 0) VIF_DEFINE_GROUP(idx, 3, 1)                    \
+	VIF_DEFINE_V4_5(idx, 0) VIF_DEFINE_V4_5(idx, 1)
+
+VIF_DEFINE_IDX(0)
+VIF_DEFINE_IDX(1)
+
+/* Table rows. `usn` selects the signed or unsigned 16/8-bit source type,
+ * matching the old UnpackFuncSet(vt, idx, mode, usn, doMask). */
+#define UnpackFuncSet(vt, idx, mode, usn, dm) \
+	(UNPACKFUNCTYPE)UNPACK_##vt##_##idx##_##mode##_##dm##_u32, \
+	(UNPACKFUNCTYPE)UNPACK_##vt##_##idx##_##mode##_##dm##_##usn##16, \
+	(UNPACKFUNCTYPE)UNPACK_##vt##_##idx##_##mode##_##dm##_##usn##8
+
+#define UnpackV4_5set(idx, dm) (UNPACKFUNCTYPE)UNPACK_V4_5_##idx##_##dm
 
 #define UnpackModeSet(idx, mode) \
 	UnpackFuncSet( S,  idx, mode, s, 0 ), (UNPACKFUNCTYPE)UNPACK_Invalid,  \
@@ -164,15 +184,15 @@ static void UNPACK_Invalid(u32* dest, const void* src)
 	UnpackFuncSet( V4, idx, mode, s, 0 ), (UNPACKFUNCTYPE)UNPACK_Invalid,  \
 	UnpackFuncSet( V4, idx, mode, s, 0 ), UnpackV4_5set(idx, 0), \
  \
-	UnpackFuncSet( S,  idx, mode, s, 1 ), (UNPACKFUNCTYPE)UNPACK_Invalid,  \
-	UnpackFuncSet( V2, idx, mode, s, 1 ), (UNPACKFUNCTYPE)UNPACK_Invalid,  \
-	UnpackFuncSet( V4, idx, mode, s, 1 ), (UNPACKFUNCTYPE)UNPACK_Invalid,  \
-	UnpackFuncSet( V4, idx, mode, s, 1 ), UnpackV4_5set(idx, 1), \
- \
 	UnpackFuncSet( S,  idx, mode, u, 0 ), (UNPACKFUNCTYPE)UNPACK_Invalid,  \
 	UnpackFuncSet( V2, idx, mode, u, 0 ), (UNPACKFUNCTYPE)UNPACK_Invalid,  \
 	UnpackFuncSet( V4, idx, mode, u, 0 ), (UNPACKFUNCTYPE)UNPACK_Invalid,  \
 	UnpackFuncSet( V4, idx, mode, u, 0 ), UnpackV4_5set(idx, 0), \
+ \
+	UnpackFuncSet( S,  idx, mode, s, 1 ), (UNPACKFUNCTYPE)UNPACK_Invalid,  \
+	UnpackFuncSet( V2, idx, mode, s, 1 ), (UNPACKFUNCTYPE)UNPACK_Invalid,  \
+	UnpackFuncSet( V4, idx, mode, s, 1 ), (UNPACKFUNCTYPE)UNPACK_Invalid,  \
+	UnpackFuncSet( V4, idx, mode, s, 1 ), UnpackV4_5set(idx, 1), \
  \
 	UnpackFuncSet( S,  idx, mode, u, 1 ), (UNPACKFUNCTYPE)UNPACK_Invalid,  \
 	UnpackFuncSet( V2, idx, mode, u, 1 ), (UNPACKFUNCTYPE)UNPACK_Invalid,  \
