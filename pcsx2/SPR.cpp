@@ -144,7 +144,7 @@ int  _SPR0chain(void)
 		}
 		else
 		{
-			partialqwc = std::min(spr0ch.qwc, 0x400 - ((spr0ch.sadr & 0x3fff) >> 4));
+			partialqwc = pcsx2_min_i(spr0ch.qwc, 0x400 - ((spr0ch.sadr & 0x3fff) >> 4));
 
 			if ((spr0ch.madr & ~dmacRegs.rbsr.RMSK) != dmacRegs.rbor.ADDR) { }
 			else
@@ -164,7 +164,7 @@ int  _SPR0chain(void)
 
 		// Taking an arbitary small value for games which like to check the QWC/MADR instead of STR, so get most of
 		// the cycle delay out of the way before the end.
-		partialqwc = std::min(spr0ch.qwc, 0x400 - ((spr0ch.sadr & 0x3fff) >> 4));
+		partialqwc = pcsx2_min_i(spr0ch.qwc, 0x400 - ((spr0ch.sadr & 0x3fff) >> 4));
 		memcpy_from_spr((u8*)pMem, spr0ch.sadr, partialqwc*16);
 
 		// Clear VU mem also!
@@ -207,7 +207,7 @@ void _SPR0interleave(void)
 
 	while (qwc > 0)
 	{
-		spr0ch.qwc = std::min(tqwc, qwc);
+		spr0ch.qwc = pcsx2_min_i(tqwc, qwc);
 		qwc -= spr0ch.qwc;
 		pMem = SPRdmaGetAddr(spr0ch.madr, true);
 
@@ -374,7 +374,7 @@ int  _SPR1chain(void)
 	int partialqwc = 0;
 	// Taking an arbitary small value for games which like to check the QWC/MADR instead of STR, so get most of
 	// the cycle delay out of the way before the end.
-	partialqwc = std::min(spr1ch.qwc, 0x400u);
+	partialqwc = pcsx2_min_i(spr1ch.qwc, 0x400u);
 
 	SPR1transfer(pMem, partialqwc);
 	spr1ch.madr += partialqwc * 16;
@@ -402,7 +402,7 @@ void _SPR1interleave(void)
 	CPU_INT(DMAC_TO_SPR, qwc * BIAS);
 	while (qwc > 0)
 	{
-		spr1ch.qwc = std::min(tqwc, qwc);
+		spr1ch.qwc = pcsx2_min_i(tqwc, qwc);
 		qwc -= spr1ch.qwc;
 		pMem = SPRdmaGetAddr(spr1ch.madr, false);
 		memcpy_to_spr(spr1ch.sadr, (u8*)pMem, spr1ch.qwc*16);

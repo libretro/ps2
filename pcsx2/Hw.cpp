@@ -455,7 +455,7 @@ mem32_t _hwRead32(u32 mem)
 			if ((mem & 0x1000ff00) == 0x1000f300)
 			{
 				int ret = 0;
-				u32 sif2fifosize = std::min(sif2.fifo.size, 7);
+				u32 sif2fifosize = pcsx2_min_i(sif2.fifo.size, 7);
 
 				switch (mem & 0xf0)
 				{

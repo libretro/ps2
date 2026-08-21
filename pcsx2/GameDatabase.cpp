@@ -784,7 +784,7 @@ u32 GameDatabaseSchema::GameEntry::applyGSHardwareFixes(Pcsx2Config::GSOptions& 
 			case GSHWFixId::TexturePreloading:
 			{
 				if (value >= 0 && value <= static_cast<int>(TexturePreloadingLevel::Full))
-					config.TexturePreloading = std::min(config.TexturePreloading, static_cast<TexturePreloadingLevel>(value));
+					config.TexturePreloading = (TexturePreloadingLevel)pcsx2_min_i((int)config.TexturePreloading, value);
 			}
 			break;
 
@@ -832,14 +832,14 @@ u32 GameDatabaseSchema::GameEntry::applyGSHardwareFixes(Pcsx2Config::GSOptions& 
 			case GSHWFixId::MinimumBlendingLevel:
 			{
 				if (value >= 0 && value <= static_cast<int>(AccBlendLevel::Maximum))
-					config.AccurateBlendingUnit = std::max(config.AccurateBlendingUnit, static_cast<AccBlendLevel>(value));
+					config.AccurateBlendingUnit = (AccBlendLevel)pcsx2_max_i((int)config.AccurateBlendingUnit, value);
 			}
 			break;
 
 			case GSHWFixId::MaximumBlendingLevel:
 			{
 				if (value >= 0 && value <= static_cast<int>(AccBlendLevel::Maximum))
-					config.AccurateBlendingUnit = std::min(config.AccurateBlendingUnit, static_cast<AccBlendLevel>(value));
+					config.AccurateBlendingUnit = (AccBlendLevel)pcsx2_min_i((int)config.AccurateBlendingUnit, value);
 			}
 			break;
 
@@ -867,7 +867,7 @@ u32 GameDatabaseSchema::GameEntry::applyGSHardwareFixes(Pcsx2Config::GSOptions& 
 	}
 
 	// fixup skipdraw range just in case the db has a bad range (but the linter should catch this)
-	config.SkipDrawEnd = std::max(config.SkipDrawStart, config.SkipDrawEnd);
+	config.SkipDrawEnd = pcsx2_max_i(config.SkipDrawStart, config.SkipDrawEnd);
 
 	return num_applied_fixes;
 }

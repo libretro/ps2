@@ -41,7 +41,7 @@ __fi void ReadFifoSingleWord(void)
 // Write from Fifo to EE.
 static __fi bool WriteFifoToEE(void)
 {
-	const int readSize = std::min((s32)sif2dma.qwc, sif2.fifo.size >> 2);
+	const int readSize = pcsx2_min_i((s32)sif2dma.qwc, sif2.fifo.size >> 2);
 	tDMA_TAG *ptag = sif2dma.getAddr(sif2dma.madr, DMAC_SIF2, true);
 	if (ptag == NULL)
 		return false;
@@ -60,7 +60,7 @@ static __fi bool WriteFifoToEE(void)
 static __fi bool WriteIOPtoFifo(void)
 {
 	// There's some data ready to transfer into the fifo..
-	const int writeSize = std::min(sif2.iop.counter, FIFO_SIF_W - sif2.fifo.size);
+	const int writeSize = pcsx2_min_i(sif2.iop.counter, FIFO_SIF_W - sif2.fifo.size);
 
 	if (writeSize > 0)
 		sif2.fifo.write((u32*)&iopMem->Main[hw_dma2.madr & 0x1fffff], writeSize);

@@ -53,7 +53,7 @@ void vif1TransferToMemory(void)
 	// MTGS concerns:  The MTGS is inherently disagreeable with the idea of downloading
 	// stuff from the GS.  The *only* way to handle this case safely is to flush the GS
 	// completely and execute the transfer there-after.
-	const u32 size = std::min(vif1.GSLastDownloadSize, (u32)vif1ch.qwc);
+	const u32 size = pcsx2_min_u(vif1.GSLastDownloadSize, (u32)vif1ch.qwc);
 
 	MTGS::InitAndReadFIFO(reinterpret_cast<u8*>(pMem), size);
 
@@ -62,7 +62,7 @@ void vif1TransferToMemory(void)
 	if (vif1.GSLastDownloadSize >= vif1ch.qwc)
 	{
 		vif1.GSLastDownloadSize -= vif1ch.qwc;
-		vif1Regs.stat.FQC = std::min((u32)16, vif1.GSLastDownloadSize);
+		vif1Regs.stat.FQC = pcsx2_min_u((u32)16, vif1.GSLastDownloadSize);
 		vif1ch.qwc = 0;
 	}
 	else
@@ -247,7 +247,7 @@ __fi void vif1Interrupt(void)
 	if (dmacRegs.ctrl.MFD == MFD_VIF1)
 	{
 		// Test changed because the Final Fantasy 12 opening somehow has the tag in *Undefined* mode, which is not in the documentation that I saw.
-		vif1Regs.stat.FQC = std::min((u32)0x10, vif1ch.qwc);
+		vif1Regs.stat.FQC = pcsx2_min_u((u32)0x10, vif1ch.qwc);
 		vifMFIFOInterrupt();
 		return;
 	}
@@ -267,13 +267,13 @@ __fi void vif1Interrupt(void)
 			return;
 		}
 		vif1Regs.stat.VGW = 0; //Path 3 isn't busy so we don't need to wait for it.
-		vif1Regs.stat.FQC = std::min(vif1ch.qwc, (u32)16);
+		vif1Regs.stat.FQC = pcsx2_min_u(vif1ch.qwc, (u32)16);
 		//Simulated GS transfer time done, clear the flags
 	}
 
 	if (vif1.waitforvu)
 	{
-		CPU_INT(VIF_VU1_FINISH, std::max(16, cpuGetCycles()));
+		CPU_INT(VIF_VU1_FINISH, pcsx2_max_i(16, cpuGetCycles()));
 		cpuRegs.dmastall |= 1 << DMAC_VIF1;
 		return;
 	}
@@ -303,7 +303,7 @@ __fi void vif1Interrupt(void)
 		{
 			//NFSHPS stalls when the whole packet has gone across (it stalls in the last 32bit cmd)
 			//In this case VIF will end
-			vif1Regs.stat.FQC = std::min((u32)0x10, vif1ch.qwc);
+			vif1Regs.stat.FQC = pcsx2_min_u((u32)0x10, vif1ch.qwc);
 			if ((vif1ch.qwc > 0 || !vif1.done) && !CHECK_VIF1STALLHACK)
 			{
 				vif1Regs.stat.VPS = VPS_DECODING; //If there's more data you need to say it's decoding the next VIF CMD (Onimusha - Blade Warriors)

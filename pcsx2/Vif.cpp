@@ -278,7 +278,7 @@ static __fi void vif1STAT(u32 value)
 		// As far as the GS is concerned, the transfer starts as soon as TRXDIR is accessed, which is why fatal frame
 		// was expecting data, the GS should already be sending it over (buffering in the FIFO)
 
-		vif1Regs.stat.FQC = std::min((u32)16, vif1.GSLastDownloadSize);
+		vif1Regs.stat.FQC = pcsx2_min_u((u32)16, vif1.GSLastDownloadSize);
 	}
 	else // Memory transferring to Vif.
 	{

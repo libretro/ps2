@@ -62,7 +62,7 @@ static __fi u32 setVifRow(vifStruct& vif, u32 reg, u32 data) {
 			mode_arith                                                         \
 			break;                                                             \
 		case 1: dest = vif.MaskRow._u32[offnum]; break;                        \
-		case 2: dest = vif.MaskCol._u32[std::min(vif.cl, 3)]; break;            \
+		case 2: dest = vif.MaskCol._u32[pcsx2_min_i(vif.cl, 3)]; break;            \
 		case 3: break;                                                         \
 	}
 
@@ -363,7 +363,7 @@ _vifT int nVifUnpack(const u8* data)
 	VIFregisters& vifRegs = vifXRegs;
 
 	const uint wl     = vifRegs.cycle.wl ? vifRegs.cycle.wl : 256;
-	const uint ret    = std::min(vif.vifpacketsize, vif.tag.size);
+	const uint ret    = pcsx2_min_i(vif.vifpacketsize, vif.tag.size);
 	const bool isFill = (vifRegs.cycle.cl < wl);
 	s32        size   = ret << 2;
 
@@ -517,14 +517,14 @@ __ri void _nVifUnpackLoop(const u8* data)
 			// table handles the
 			// same no-mode case (upkNum bit 4 selects the doMask variant and
 			// writeXYZW applies the per-cycle mask via vif.cl internally).
-			uint cl3 = std::min(vif.cl, 3);
+			uint cl3 = pcsx2_min_i(vif.cl, 3);
 			nVifCall f = fnbase[cl3];
 			if (f)
 				f(dest, data);
 			else
 				ft(dest, data);
 #else
-			uint cl3 = std::min(vif.cl, 3);
+			uint cl3 = pcsx2_min_i(vif.cl, 3);
 			fnbase[cl3](dest, data);
 #endif
 		}

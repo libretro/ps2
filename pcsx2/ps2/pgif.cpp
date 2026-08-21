@@ -232,7 +232,7 @@ static u32 getUpdPgpuStatReg(void)
 static u32 getUpdPgifCtrlReg(void)
 {
 	//Update fifo counts before returning register value
-	pgif.ctrl.bits.GP0_fifo_count = std::min(rb_gp0.count, 0x1F);
+	pgif.ctrl.bits.GP0_fifo_count = pcsx2_min_i(rb_gp0.count, 0x1F);
 	pgif.ctrl.bits.GP1_fifo_count = rb_gp1.count;
 	return pgif.ctrl._u32;
 }

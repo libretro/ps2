@@ -206,8 +206,8 @@ void Pcsx2Config::SpeedhackOptions::LoadSave(SettingsWrapper& wrap)
 	SettingsWrapBitBool(vuThread);
 	SettingsWrapBitBool(vu1Instant);
 
-	EECycleRate = std::clamp(EECycleRate, MIN_EE_CYCLE_RATE, MAX_EE_CYCLE_RATE);
-	EECycleSkip = std::min(EECycleSkip, MAX_EE_CYCLE_SKIP);
+	EECycleRate = pcsx2_clamp_i(EECycleRate, MIN_EE_CYCLE_RATE, MAX_EE_CYCLE_RATE);
+	EECycleSkip = pcsx2_min_i(EECycleSkip, MAX_EE_CYCLE_SKIP);
 }
 
 Pcsx2Config::RecompilerOptions::RecompilerOptions()
@@ -354,7 +354,7 @@ void Pcsx2Config::CpuOptions::LoadSave(SettingsWrapper& wrap)
 
 		uint round_mode = static_cast<uint>(FPUFPCR.GetRoundMode());
 		wrap.Entry("FPU", "FPU.Roundmode", round_mode, round_mode);
-		round_mode = std::min(round_mode, static_cast<uint>(FPRoundMode::MaxCount) - 1u);
+		round_mode = pcsx2_min_u(round_mode, static_cast<uint>(FPRoundMode::MaxCount) - 1u);
 		FPUFPCR.SetRoundMode(static_cast<FPRoundMode>(round_mode));
 	}
 	{
@@ -365,7 +365,7 @@ void Pcsx2Config::CpuOptions::LoadSave(SettingsWrapper& wrap)
 
 		uint round_mode = static_cast<uint>(FPUDivFPCR.GetRoundMode());
 		wrap.Entry("FPUDiv", "FPUDiv.Roundmode", round_mode, round_mode);
-		round_mode = std::min(round_mode, static_cast<uint>(FPRoundMode::MaxCount) - 1u);
+		round_mode = pcsx2_min_u(round_mode, static_cast<uint>(FPRoundMode::MaxCount) - 1u);
 		FPUDivFPCR.SetRoundMode(static_cast<FPRoundMode>(round_mode));
 	}
 	{
@@ -376,7 +376,7 @@ void Pcsx2Config::CpuOptions::LoadSave(SettingsWrapper& wrap)
 
 		uint round_mode = static_cast<uint>(VU0FPCR.GetRoundMode());
 		wrap.Entry("VU0", "VU0.Roundmode", round_mode, round_mode);
-		round_mode = std::min(round_mode, static_cast<uint>(FPRoundMode::MaxCount) - 1u);
+		round_mode = pcsx2_min_u(round_mode, static_cast<uint>(FPRoundMode::MaxCount) - 1u);
 		VU0FPCR.SetRoundMode(static_cast<FPRoundMode>(round_mode));
 	}
 	{
@@ -387,7 +387,7 @@ void Pcsx2Config::CpuOptions::LoadSave(SettingsWrapper& wrap)
 
 		uint round_mode = static_cast<uint>(VU1FPCR.GetRoundMode());
 		wrap.Entry("VU1", "VU1.Roundmode", round_mode, round_mode);
-		round_mode = std::min(round_mode, static_cast<uint>(FPRoundMode::MaxCount) - 1u);
+		round_mode = pcsx2_min_u(round_mode, static_cast<uint>(FPRoundMode::MaxCount) - 1u);
 		VU1FPCR.SetRoundMode(static_cast<FPRoundMode>(round_mode));
 	}
 

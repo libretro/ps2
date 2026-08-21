@@ -80,7 +80,7 @@ static void _vu0Exec(VURegs* VU)
 		_vuTestPipes(VU);
 
 		if (VU->VIBackupCycles > 0)
-			VU->VIBackupCycles -= std::min((u8)(vuRegs[0].cycle - cyclesBeforeOp), VU->VIBackupCycles);
+			VU->VIBackupCycles -= pcsx2_min_i((u8)(vuRegs[0].cycle - cyclesBeforeOp), VU->VIBackupCycles);
 
 		_vu0ExecUpper(VU, ptr);
 
@@ -104,7 +104,7 @@ static void _vu0Exec(VURegs* VU)
 
 		_vuTestPipes(VU);
 		if (VU->VIBackupCycles > 0)
-			VU->VIBackupCycles -= std::min((u8)(vuRegs[0].cycle - cyclesBeforeOp), VU->VIBackupCycles);
+			VU->VIBackupCycles -= pcsx2_min_i((u8)(vuRegs[0].cycle - cyclesBeforeOp), VU->VIBackupCycles);
 
 		if (uregs.VFwrite)
 		{
@@ -255,7 +255,7 @@ static void interp_vu0_execute(u32 cycles)
 	{
 		u64 cycle_change = vuRegs[0].cycle - startcycles;
 		vuRegs[0].cycle -= cycle_change;
-		switch (std::min(static_cast<int>(EmuConfig.Speedhacks.EECycleRate), static_cast<int>(cycle_change)))
+		switch (pcsx2_min_i(static_cast<int>(EmuConfig.Speedhacks.EECycleRate), static_cast<int>(cycle_change)))
 		{
 			case -3: // 50%
 				cycle_change *= 2.0f;

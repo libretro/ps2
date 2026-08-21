@@ -159,7 +159,7 @@ static __fi int _vifCode_Direct(int pass, const u8* data, bool isDirectHL)
 	pass2
 	{
 		GIF_TRANSFER_TYPE tranType = isDirectHL ? GIF_TRANS_DIRECTHL : GIF_TRANS_DIRECT;
-		uint size = std::min(vif1.vifpacketsize, vif1.tag.size) * 4; // Get size in bytes
+		uint size = pcsx2_min_i(vif1.vifpacketsize, vif1.tag.size) * 4; // Get size in bytes
 		uint ret = gifUnit.TransferGSPacketData(tranType, (u8*)data, size);
 
 		vif1.tag.size -= ret / 4; // Convert to u32's
@@ -555,7 +555,7 @@ static __fi int _vifCode_STColRow(const u32* data, u32* pmem2)
 {
 	vifStruct& vifX = GetVifX;
 
-	int ret = std::min(4 - vifX.tag.addr, vifX.vifpacketsize);
+	int ret = pcsx2_min_i(4 - vifX.tag.addr, vifX.vifpacketsize);
 
 	switch (ret)
 	{

@@ -184,7 +184,7 @@ void cpuTlbMiss(u32 addr, u32 bd, u32 excode)
 __fi int cpuGetCycles(void)
 {
 	const int cycles = (cpuRegs.sCycle[VU_MTVU_BUSY] + cpuRegs.eCycle[VU_MTVU_BUSY]) - cpuRegs.cycle;
-	return ((!THREAD_VU1 || INSTANT_VU1)) ? 1 : std::max(1, cycles);
+	return ((!THREAD_VU1 || INSTANT_VU1)) ? 1 : pcsx2_max_i(1, cycles);
 }
 
 // tests the cpu cycle against the given start and delta values.

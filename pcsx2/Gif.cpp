@@ -85,7 +85,7 @@ int GIF_Fifo::write_fifo(u32* pMem, int size)
 	if (fifoSize == 16)
 		return 0;
 
-	int transferSize = std::min(size, 16 - (int)fifoSize);
+	int transferSize = pcsx2_min_i(size, 16 - (int)fifoSize);
 
 	int writePos = fifoSize * 4;
 
@@ -298,7 +298,7 @@ static u32 WRITERING_DMA(u32* pMem, u32 qwc)
 		if (qwc > 64)
 			qwc = qwc * 0.5f;
 		else
-			qwc = std::min(qwc, 8u);
+			qwc = pcsx2_min_i(qwc, 8u);
 	}
 	// If the packet is larger than 8qw, try to time the packet somewhat so any "finish" signals don't fire way too early and GIF syncs with other units.
 	// (Mana Khemia exhibits flickering characters without).
@@ -391,7 +391,7 @@ void GIFdma(void)
 			ptag = ReadTag();
 			if (ptag == NULL)
 				return;
-			gifRegs.stat.FQC = std::min((u32)0x10, gifch.qwc);
+			gifRegs.stat.FQC = pcsx2_min_u((u32)0x10, gifch.qwc);
 			gsCSRfield(GS_CSR_FIFO, (u32)CalculateFIFOCSR() << GS_CSR_FIFO_SH);
 
 			if (dmacRegs.ctrl.STD == STD_GIF)
@@ -474,7 +474,7 @@ static u32 QWCinGIFMFIFO(u32 DrainADDR)
 
 static __fi bool mfifoGIFrbTransfer(void)
 {
-	u32 qwc = std::min(QWCinGIFMFIFO(gifch.madr), gifch.qwc);
+	u32 qwc = pcsx2_min_i(QWCinGIFMFIFO(gifch.madr), gifch.qwc);
 
 	if (qwc == 0) // Either gifch.qwc is 0 (shouldn't get here) or the FIFO is empty.
 		return true;
@@ -609,7 +609,7 @@ void mfifoGIFtransfer(void)
 		gifch.unsafeTransfer(ptag);
 		gifch.madr       = ptag[1]._u32;
 
-		gifRegs.stat.FQC = std::min((u32)0x10, gifch.qwc);
+		gifRegs.stat.FQC = pcsx2_min_u((u32)0x10, gifch.qwc);
 		gsCSRfield(GS_CSR_FIFO, (u32)CalculateFIFOCSR() << GS_CSR_FIFO_SH);
 
 		gif.mfifocycles += 2;
@@ -626,7 +626,7 @@ void mfifoGIFtransfer(void)
 
 	mfifoGIFchain();
 
-	GifDMAInt(std::max(gif.mfifocycles, (u32)4));
+	GifDMAInt(pcsx2_max_u(gif.mfifocycles, (u32)4));
 }
 
 void gifMFIFOInterrupt(void)

@@ -947,7 +947,7 @@ static void vtlb_UpdateFastmemProtection(u32 paddr, u32 size, const PageProtecti
 		return;
 
 	u32 current_mainmem = mainmem_start;
-	const u32 num_pages = std::min(size, mainmem_size) / VTLB_PAGE_SIZE;
+	const u32 num_pages = pcsx2_min_i(size, mainmem_size) / VTLB_PAGE_SIZE;
 	for (u32 i = 0; i < num_pages; i++, current_mainmem += VTLB_PAGE_SIZE)
 	{
 		// update virtual mapping mapping

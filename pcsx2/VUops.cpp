@@ -2617,13 +2617,13 @@ void _vuXGKICKTransfer(s32 cycles, bool flush)
 
 		if (!flush)
 		{
-			transfersize = std::min(vuRegs[1].xgkicksizeremaining / 0x10, vuRegs[1].xgkickcyclecount / 2);
-			transfersize = std::min(transfersize, vuRegs[1].xgkickdiff / 0x10);
+			transfersize = pcsx2_min_i(vuRegs[1].xgkicksizeremaining / 0x10, vuRegs[1].xgkickcyclecount / 2);
+			transfersize = pcsx2_min_i(transfersize, vuRegs[1].xgkickdiff / 0x10);
 		}
 		else
 		{
 			transfersize = vuRegs[1].xgkicksizeremaining / 0x10;
-			transfersize = std::min(transfersize, vuRegs[1].xgkickdiff / 0x10);
+			transfersize = pcsx2_min_i(transfersize, vuRegs[1].xgkickdiff / 0x10);
 		}
 
 		// Would be "nicer" to do the copy until it's all up, 

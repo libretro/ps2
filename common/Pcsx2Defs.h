@@ -337,6 +337,30 @@
 // method is not implemented!  You must implement it yourself if you want to use it:
 //   EnumToString(value);
 //
+/* min/max/clamp without <algorithm>.
+ *
+ * These are inline functions rather than macros on purpose: a macro
+ * evaluates its arguments twice, and of the 523 call sites in this tree, 73
+ * pass a function call or an increment -- std::max(Get_vuCycles(), 4u),
+ * std::max(16, cpuGetCycles()) and so on. A macro would call those twice and
+ * the bug would be invisible at the call site. The overload set covers the
+ * types actually used; anything else is a compile error rather than a silent
+ * conversion.
+ */
+#define PCSX2_DEFINE_MINMAX(suffix, type)                                     \
+	static inline type pcsx2_min_##suffix(type a, type b) { return (a < b) ? a : b; } \
+	static inline type pcsx2_max_##suffix(type a, type b) { return (a > b) ? a : b; } \
+	static inline type pcsx2_clamp_##suffix(type v, type lo, type hi)         \
+	{ return (v < lo) ? lo : ((v > hi) ? hi : v); }
+
+PCSX2_DEFINE_MINMAX(i,   int)
+PCSX2_DEFINE_MINMAX(u,   unsigned int)
+PCSX2_DEFINE_MINMAX(s64, s64)
+PCSX2_DEFINE_MINMAX(u64, u64)
+PCSX2_DEFINE_MINMAX(sz,  size_t)
+PCSX2_DEFINE_MINMAX(f,   float)
+PCSX2_DEFINE_MINMAX(d,   double)
+
 #define ImplementEnumOperators(enumName) \
 	static __fi enumName& operator++(enumName& src) \
 	{ \

@@ -132,9 +132,9 @@ __ri void ipu_dither(const macroblock_rgb32 &rgb32, macroblock_rgb16 &rgb16, con
 			for (int j = 0; j < 16; ++j)
 			{
 				const int dither = dither_coefficient[i & 3][j & 3];
-				const int r = std::max(0, std::min(rgb32.c[i][j].r + dither, 255));
-				const int g = std::max(0, std::min(rgb32.c[i][j].g + dither, 255));
-				const int b = std::max(0, std::min(rgb32.c[i][j].b + dither, 255));
+				const int r = pcsx2_max_i(0, pcsx2_min_i(rgb32.c[i][j].r + dither, 255));
+				const int g = pcsx2_max_i(0, pcsx2_min_i(rgb32.c[i][j].g + dither, 255));
+				const int b = pcsx2_max_i(0, pcsx2_min_i(rgb32.c[i][j].b + dither, 255));
 
 				rgb16.c[i][j].r = r >> 3;
 				rgb16.c[i][j].g = g >> 3;

@@ -32,7 +32,7 @@ __inline u32 CalculateMinRunCycles(u32 cycles, bool requiresAccurateCycles)
 	// Allow a minimum of 16 cycles to avoid running small blocks
 	// Running a block of like 3 cycles is highly inefficient
 	// so while sync isn't tight, it's okay to run ahead a little bit.
-	return std::max(16U, cycles);
+	return pcsx2_max_i(16U, cycles);
 }
 
 // Executes a Block based on EE delta time

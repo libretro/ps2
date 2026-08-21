@@ -45,7 +45,7 @@ void ReadFIFO_VIF1(mem128_t* out)
 			vif1.GSLastDownloadSize--;
 			if (vif1.GSLastDownloadSize <= 16)
 				gifRegs.stat.OPH = false;
-			vif1Regs.stat.FQC = std::min((u32)16, vif1.GSLastDownloadSize);
+			vif1Regs.stat.FQC = pcsx2_min_u((u32)16, vif1.GSLastDownloadSize);
 		}
 	}
 }

@@ -217,7 +217,7 @@ static void LoadIrx(const std::string& filename, u8* dest, size_t maxSize)
 		return;
 
 	const s64 filesize = FileSystem::FSize64(fp);
-	const s64 readSize = std::min(filesize, static_cast<s64>(maxSize));
+	const s64 readSize = pcsx2_min_s64(filesize, static_cast<s64>(maxSize));
 	if (rfread(dest, readSize, 1, fp) == 1)
 	{
 		filestream_close(fp);

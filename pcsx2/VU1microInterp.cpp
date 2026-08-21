@@ -82,7 +82,7 @@ static void _vu1Exec(VURegs* VU)
 		_vuTestPipes(VU);
 
 		if (VU->VIBackupCycles > 0)
-			VU->VIBackupCycles -= std::min((u8)(vuRegs[1].cycle - cyclesBeforeOp), VU->VIBackupCycles);
+			VU->VIBackupCycles -= pcsx2_min_i((u8)(vuRegs[1].cycle - cyclesBeforeOp), VU->VIBackupCycles);
 
 		_vu1ExecUpper(VU, ptr);
 
@@ -109,7 +109,7 @@ static void _vu1Exec(VURegs* VU)
 		_vuTestPipes(VU);
 
 		if (VU->VIBackupCycles > 0)
-			VU->VIBackupCycles-= std::min((u8)(vuRegs[1].cycle- cyclesBeforeOp), VU->VIBackupCycles);
+			VU->VIBackupCycles-= pcsx2_min_i((u8)(vuRegs[1].cycle- cyclesBeforeOp), VU->VIBackupCycles);
 
 		if (uregs.VFwrite)
 		{

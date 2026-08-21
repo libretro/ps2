@@ -528,8 +528,8 @@ void VU_Thread::ExecuteVU(u32 vu_addr, u32 vif_top, u32 vif_itop, u32 fbrst)
 	retro_atomic_store_release_int(&m_ato_write_pos, m_write_pos);
 	gifUnit.TransferGSPacketData(GIF_TRANS_MTVU, NULL, 0);
 	KickStart();
-	u32 cycles = std::max(Get_vuCycles(), 4u);
-	u32 skip_cycles = std::min(cycles, 3000u);
+	u32 cycles = pcsx2_max_i(Get_vuCycles(), 4u);
+	u32 skip_cycles = pcsx2_min_i(cycles, 3000u);
 	cpuRegs.cycle += skip_cycles * EmuConfig.Speedhacks.EECycleSkip;
 	vuRegs[0].cycle += skip_cycles * EmuConfig.Speedhacks.EECycleSkip;
 	Get_MTVUChanges();

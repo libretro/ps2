@@ -65,10 +65,10 @@ void IPU_Fifo::clear()
 
 int IPU_Fifo_Input::write(const u32* pMem, int size)
 {
-	const int transfer_size = std::min(size, 8 - (int)g_BP.IFC);
+	const int transfer_size = pcsx2_min_i(size, 8 - (int)g_BP.IFC);
 	if (!transfer_size) return 0;
 
-	const int first_words  = std::min((32 - writepos), transfer_size << 2);
+	const int first_words  = pcsx2_min_i((32 - writepos), transfer_size << 2);
 	const int second_words = (transfer_size << 2) - first_words;
 
 	memcpy(&data[writepos], pMem, first_words << 2);
@@ -97,7 +97,7 @@ int IPU_Fifo_Input::read(void *value)
 
 		if(ipu1ch.chcr.STR && cpuRegs.eCycle[4] == 0x9999)
 		{
-			CPU_INT( DMAC_TO_IPU, std::min(8U, ipu1ch.qwc));
+			CPU_INT( DMAC_TO_IPU, pcsx2_min_i(8U, ipu1ch.qwc));
 		}
 
 		if (g_BP.IFC == 0) return 0;
@@ -113,10 +113,10 @@ int IPU_Fifo_Input::read(void *value)
 
 int IPU_Fifo_Output::write(const u32 *value, uint size)
 {
-	const int transfer_size = std::min(size, 8 - (uint)ipuRegs.ctrl.OFC);
+	const int transfer_size = pcsx2_min_i(size, 8 - (uint)ipuRegs.ctrl.OFC);
 	if(!transfer_size) return 0;
 
-	const int first_words = std::min((32 - writepos), transfer_size << 2);
+	const int first_words = pcsx2_min_i((32 - writepos), transfer_size << 2);
 	const int second_words = (transfer_size << 2) - first_words;
 
 	memcpy(&data[writepos], value, first_words << 2);
@@ -137,7 +137,7 @@ void IPU_Fifo_Output::read(void *value, uint size)
 {
 	ipuRegs.ctrl.OFC -= size;
 
-	const int first_words = std::min((32 - readpos), static_cast<int>(size << 2));
+	const int first_words = pcsx2_min_i((32 - readpos), static_cast<int>(size << 2));
 	const int second_words = static_cast<int>(size << 2) - first_words;
 
 	memcpy(value, &data[readpos], first_words << 2);

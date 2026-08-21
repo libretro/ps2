@@ -34,7 +34,7 @@ static __fi void Sif1Init(void)
 static __fi bool WriteEEtoFifo(void)
 {
 	// There's some data ready to transfer into the fifo..
-	const int writeSize = std::min((s32)sif1ch.qwc, (FIFO_SIF_W - sif1.fifo.size) >> 2);
+	const int writeSize = pcsx2_min_i((s32)sif1ch.qwc, (FIFO_SIF_W - sif1.fifo.size) >> 2);
 	tDMA_TAG *ptag      = sif1ch.getAddr(sif1ch.madr, DMAC_SIF1, false);
 	if (!ptag)
 		return false;
@@ -55,7 +55,7 @@ static __fi void WriteFifoToIOP(void)
 {
 	// If we're reading something, continue to do so.
 
-	const int readSize = std::min(sif1.iop.counter, sif1.fifo.size);
+	const int readSize = pcsx2_min_i(sif1.iop.counter, sif1.fifo.size);
 
 	if (readSize > 0)
 		sif1.fifo.read((u32*)&iopMem->Main[hw_dma10.madr & 0x1fffff], readSize);
@@ -134,7 +134,7 @@ static __fi void EndIOP(void)
 	if (sif1.iop.cycles == 0)
 		sif1.iop.cycles = 1;
 	// IOP is 1/8th the clock rate of the EE and psxcycles is in words (not quadwords)
-	PSX_INT(IopEvt_SIF1, /*std::min((*/sif1.iop.cycles/* * 26*//*), 1024)*/);
+	PSX_INT(IopEvt_SIF1, /*pcsx2_min_i((*/sif1.iop.cycles/* * 26*//*), 1024)*/);
 }
 
 // Handle the EE transfer.
@@ -166,7 +166,7 @@ static __fi void HandleEETransfer(void)
 		{
 			if ((sif1ch.chcr.MOD == NORMAL_MODE) || ((sif1ch.chcr.TAG >> 28) & 0x7) == TAG_REFS)
 			{
-				const int writeSize = std::min((s32)sif1ch.qwc, (FIFO_SIF_W - sif1.fifo.size) >> 2);
+				const int writeSize = pcsx2_min_i((s32)sif1ch.qwc, (FIFO_SIF_W - sif1.fifo.size) >> 2);
 				if ((sif1ch.madr + (writeSize * 16)) > dmacRegs.stadr.ADDR)
 				{
 					hwDmacIrq(DMAC_STALL_SIS);
@@ -212,7 +212,7 @@ __fi void SIF1Dma(void)
 
 	if (sif1_dma_stall)
 	{
-		const int writeSize = std::min((s32)sif1ch.qwc, (FIFO_SIF_W - sif1.fifo.size) >> 2);
+		const int writeSize = pcsx2_min_i((s32)sif1ch.qwc, (FIFO_SIF_W - sif1.fifo.size) >> 2);
 		if ((sif1ch.madr + (writeSize * 16)) > dmacRegs.stadr.ADDR)
 			return;
 	}

@@ -157,7 +157,7 @@ __fi void vif0Interrupt(void)
 {
 	g_vif0Cycles = 0;
 
-	vif0Regs.stat.FQC = std::min(vif0ch.qwc, (u32)8);
+	vif0Regs.stat.FQC = pcsx2_min_u(vif0ch.qwc, (u32)8);
 
 	if(vif0.waitforvu)
 	{
@@ -185,7 +185,7 @@ __fi void vif0Interrupt(void)
 
 			// One game doesn't like vif stalling at end, can't remember what. Spiderman isn't keen on it tho
 			//vif0ch.chcr.STR = false;
-			vif0Regs.stat.FQC = std::min((u32)0x8, vif0ch.qwc);
+			vif0Regs.stat.FQC = pcsx2_min_u((u32)0x8, vif0ch.qwc);
 			if (vif0ch.qwc > 0 || !vif0.done)
 			{
 				vif0Regs.stat.VPS = VPS_DECODING; //If there's more data you need to say it's decoding the next VIF CMD (Onimusha - Blade Warriors)
@@ -210,7 +210,7 @@ __fi void vif0Interrupt(void)
 	if (vif0.inprogress & 0x1)
 	{
 		_VIF0chain();
-		vif0Regs.stat.FQC = std::min(vif0ch.qwc, (u32)8);
+		vif0Regs.stat.FQC = pcsx2_min_u(vif0ch.qwc, (u32)8);
 		CPU_INT(DMAC_VIF0, g_vif0Cycles);
 		return;
 	}
@@ -222,7 +222,7 @@ __fi void vif0Interrupt(void)
 			return;
 
 		if ((vif0.inprogress & 0x1) == 0) vif0SetupTransfer();
-		vif0Regs.stat.FQC = std::min(vif0ch.qwc, (u32)8);
+		vif0Regs.stat.FQC = pcsx2_min_u(vif0ch.qwc, (u32)8);
 		CPU_INT(DMAC_VIF0, g_vif0Cycles);
 		return;
 	}
@@ -234,7 +234,7 @@ __fi void vif0Interrupt(void)
 	}
 
 	vif0ch.chcr.STR = false;
-	vif0Regs.stat.FQC = std::min((u32)0x8, vif0ch.qwc);
+	vif0Regs.stat.FQC = pcsx2_min_u((u32)0x8, vif0ch.qwc);
 	vif0.vifstalled.enabled = false;
 	vif0.irqoffset.enabled = false;
 	if(vif0.queued_program) vifExecQueue(0);
@@ -278,7 +278,7 @@ void dmaVIF0(void)
 		vif0.inprogress &= ~0x1;
 	}
 
-	vif0Regs.stat.FQC = std::min((u32)0x8, vif0ch.qwc);
+	vif0Regs.stat.FQC = pcsx2_min_u((u32)0x8, vif0ch.qwc);
 
 	//Using a delay as Beyond Good and Evil does the DMA twice with 2 different TADR's (no checks in the middle, all one block of code),
 	//the first bit it sends isnt required for it to work.

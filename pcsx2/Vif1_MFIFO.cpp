@@ -47,7 +47,7 @@ static u32 QWCinVIFMFIFO(u32 DrainADDR, u32 qwc)
 static __fi bool mfifoVIF1rbTransfer()
 {
 	u32 msize = dmacRegs.rbor.ADDR + dmacRegs.rbsr.RMSK + 16;
-	u32 mfifoqwc = std::min(QWCinVIFMFIFO(vif1ch.madr, vif1ch.qwc), vif1ch.qwc);
+	u32 mfifoqwc = pcsx2_min_i(QWCinVIFMFIFO(vif1ch.madr, vif1ch.qwc), vif1ch.qwc);
 	u32* src;
 	bool ret;
 
@@ -264,7 +264,7 @@ void vifMFIFOInterrupt(void)
 	}
 	if (vif1.waitforvu)
 	{
-		CPU_INT(VIF_VU1_FINISH, std::max(16, cpuGetCycles()));
+		CPU_INT(VIF_VU1_FINISH, pcsx2_max_i(16, cpuGetCycles()));
 		cpuRegs.dmastall |= 1 << DMAC_MFIFO_VIF;
 		return;
 	}
@@ -288,7 +288,7 @@ void vifMFIFOInterrupt(void)
 		{
 			//vif1Regs.stat.FQC = 0; // FQC=0
 			//vif1ch.chcr.STR = false;
-			vif1Regs.stat.FQC = std::min((u32)0x10, vif1ch.qwc);
+			vif1Regs.stat.FQC = pcsx2_min_u((u32)0x10, vif1ch.qwc);
 			//Used to check if the MFIFO was empty, there's really no need if it's finished what it needed.
 			if ((vif1ch.qwc > 0 || !vif1.done))
 			{
@@ -325,7 +325,7 @@ void vifMFIFOInterrupt(void)
 		{
 			case 0: //Set up transfer
 				mfifoVIF1transfer();
-				vif1Regs.stat.FQC = std::min((u32)0x10, vif1ch.qwc);
+				vif1Regs.stat.FQC = pcsx2_min_u((u32)0x10, vif1ch.qwc);
 				// fallthrough 
 
 			case 1: //Transfer data
@@ -336,13 +336,13 @@ void vifMFIFOInterrupt(void)
 				{
 					if (vif1.waitforvu)
 					{
-						CPU_INT(DMAC_MFIFO_VIF, std::max(static_cast<int>((g_vif1Cycles == 0 ? 4 : g_vif1Cycles)), cpuGetCycles()));
+						CPU_INT(DMAC_MFIFO_VIF, pcsx2_max_i(static_cast<int>((g_vif1Cycles == 0 ? 4 : g_vif1Cycles)), cpuGetCycles()));
 					}
 					else
 						CPU_INT(DMAC_MFIFO_VIF, (g_vif1Cycles == 0 ? 4 : g_vif1Cycles));
 				}
 
-				vif1Regs.stat.FQC = std::min((u32)0x10, vif1ch.qwc);
+				vif1Regs.stat.FQC = pcsx2_min_u((u32)0x10, vif1ch.qwc);
 				return;
 		}
 		return;
