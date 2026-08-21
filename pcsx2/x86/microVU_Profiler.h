@@ -83,70 +83,24 @@ static const char microOpcodeName[][16] = {
 	"EEXP", "XITOP", "XTOP", "XGKICK"
 };
 
-#ifdef mVUprofileProg
-
-struct microProfiler
-{
-	static const u32 progLimit = 10000;
-	u64 opStats[opLastOpcode];
-	u32 progCount;
-	int index;
-	void Reset(int _index)
-	{
-		memset(this, 0, sizeof(*this));
-		index = _index;
-	}
-	void EmitOp(microOpcode op)
-	{
-		xe_add32_mi(&(((u32*)opStats)[op * 2 + 0]), 1);
-		xe_adc32_mi(&(((u32*)opStats)[op * 2 + 1]), 0);
-	}
-	void Print()
-	{
-		progCount++;
-		if ((progCount % progLimit) == 0)
-		{
-			/* C89 shape: fixed table + insertion sort descending by count. */
-			u64 total = 0;
-			u64 counts[opLastOpcode];
-			int order[opLastOpcode];
-			int i, j;
-			char name[16];
-			for (i = 0; i < opLastOpcode; i++)
-			{
-				counts[i] = opStats[i];
-				order[i] = i;
-				total += counts[i];
-			}
-			for (i = 1; i < opLastOpcode; i++)
-			{
-				const int oi = order[i];
-				const u64 ci = counts[oi];
-				for (j = i; j > 0 && counts[order[j - 1]] < ci; j--)
-					order[j] = order[j - 1];
-				order[j] = oi;
-			}
-			DevCon.WriteLn("microVU%d Profiler:", index);
-			for (i = 0; i < opLastOpcode; i++)
-			{
-				const int op = order[i];
-				const u64 count = counts[op];
-				const double stat = (double)count / (double)total * 100.0;
-				int n = 0;
-				while (n < 8 && microOpcodeName[op][n]) { name[n] = microOpcodeName[op][n]; n++; }
-				while (n < 8) name[n++] = ' ';
-				name[n] = 0;
-				DevCon.WriteLn("%s - [%3.4f%%][count=%u]", name, stat, (u32)count);
-			}
-			DevCon.WriteLn("Total = 0x%x%x\n\n", (u32)(u64)(total >> 32), (u32)total);
-		}
-	}
-};
-#else
+/* The opcode profiler is a no-op, and has to be.
+ *
+ * Its counting variant emitted x86 instructions directly (add/adc to a pair
+ * of counters, then a report at Print()), but this header is now included
+ * only by pcsx2/arm64/aVU.h -- the x86 microVU struct has no profiler member
+ * -- so defining mVUprofileProg would put x86 encodings into the aarch64
+ * recompiler and fail to build. Rather than keep a variant that cannot
+ * compile where it is used, the counters are gone and the interface stays.
+ *
+ * Restoring it means one arch-appropriate EmitOp (two increments against
+ * opStats[op]) plus a profiler member on whichever microVU struct wants it;
+ * microOpcodeName above is still here and is used by the arm64 disassembly
+ * logger regardless.
+ */
 struct microProfiler
 {
 	__fi void Reset(int _index) {}
 	__fi void EmitOp(microOpcode op) {}
 	__fi void Print() {}
 };
-#endif
+
