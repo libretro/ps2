@@ -261,7 +261,7 @@ namespace R3000A
 	}
 
 	// TODO: sandbox option, other permissions
-	class HostFile : public IOManFile
+	class HostFile
 	{
 	public:
 		int fd;
@@ -271,7 +271,7 @@ namespace R3000A
 			fd = hostfd;
 		}
 
-		virtual ~HostFile() = default;
+		~HostFile() = default;
 
 		static __fi int translate_error(int err)
 		{
@@ -292,7 +292,7 @@ namespace R3000A
 			}
 		}
 
-		static int open(IOManFile** file, const std::string& full_path, s32 flags, u16 mode)
+		static int open(HostFile** file, const std::string& full_path, s32 flags, u16 mode)
 		{
 			const std::string path(full_path.substr(full_path.find(':') + 1));
 			const std::string file_path(host_path(path, false));
@@ -335,13 +335,13 @@ namespace R3000A
 			return 0;
 		}
 
-		virtual void close()
+		void close()
 		{
 			::close(fd);
 			delete this;
 		}
 
-		virtual int lseek(s32 offset, s32 whence)
+		int lseek(s32 offset, s32 whence)
 		{
 			int err;
 
@@ -363,18 +363,18 @@ namespace R3000A
 			return translate_error(err);
 		}
 
-		virtual int read(void* buf, u32 count) /* Flawfinder: ignore */
+		int read(void* buf, u32 count) /* Flawfinder: ignore */
 		{
 			return translate_error((int)::read(fd, buf, count));
 		}
 
-		virtual int write(void* buf, u32 count)
+		int write(void* buf, u32 count)
 		{
 			return translate_error((int)::write(fd, buf, count));
 		}
 	};
 
-	class HostDir : public IOManDir
+	class HostDir
 	{
 	public:
 		FileSystem::FindResultsArray results;
@@ -388,9 +388,9 @@ namespace R3000A
 			dir = results.begin();
 		}
 
-		virtual ~HostDir() = default;
+		~HostDir() = default;
 
-		static int open(IOManDir** dir, const std::string& full_path)
+		static int open(HostDir** dir, const std::string& full_path)
 		{
 			std::string relativePath = full_path.substr(full_path.find(':') + 1);
 			std::string path = host_path(relativePath, true);
@@ -408,7 +408,7 @@ namespace R3000A
 			return 0;
 		}
 
-		virtual int read(void* buf, bool iomanX) /* Flawfinder: ignore */
+		int read(void* buf, bool iomanX) /* Flawfinder: ignore */
 		{
 			if (dir == results.end())
 				return 0;
@@ -430,7 +430,7 @@ namespace R3000A
 			return 1;
 		}
 
-		virtual void close()
+		void close()
 		{
 			delete this;
 		}
@@ -457,8 +457,8 @@ namespace R3000A
 			} type;
 			union
 			{
-				IOManFile* file;
-				IOManDir* dir;
+				HostFile* file;
+				HostDir* dir;
 			};
 
 			constexpr filedesc()
@@ -467,15 +467,15 @@ namespace R3000A
 			{
 			}
 			operator bool() const { return type != FILE_FREE; }
-			operator IOManFile*() const { return type == FILE_FILE ? file : NULL; }
-			operator IOManDir*() const { return type == FILE_DIR ? dir : NULL; }
-			void operator=(IOManFile* f)
+			operator HostFile*() const { return type == FILE_FILE ? file : NULL; }
+			operator HostDir*() const { return type == FILE_DIR ? dir : NULL; }
+			void operator=(HostFile* f)
 			{
 				type = FILE_FILE;
 				file = f;
 				openfds++;
 			}
-			void operator=(IOManDir* d)
+			void operator=(HostDir* d)
 			{
 				type = FILE_DIR;
 				dir = d;
@@ -562,7 +562,7 @@ namespace R3000A
 
 		int open_HLE()
 		{
-			IOManFile* file = NULL;
+			HostFile* file = NULL;
 			const std::string path = clean_path(Ra0);
 			s32 flags = a1;
 			u16 mode = a2;
@@ -604,7 +604,7 @@ namespace R3000A
 		{
 			s32 fd = a0;
 
-			if (getfd<IOManFile>(fd))
+			if (getfd<HostFile>(fd))
 			{
 				freefd(fd);
 				v0 = 0;
@@ -617,7 +617,7 @@ namespace R3000A
 
 		int dopen_HLE()
 		{
-			IOManDir* dir = NULL;
+			HostDir* dir = NULL;
 			const std::string path = clean_path(Ra0);
 
 			if (is_host(path))
@@ -650,7 +650,7 @@ namespace R3000A
 		{
 			s32 dir = a0;
 
-			if (getfd<IOManDir>(dir))
+			if (getfd<HostDir>(dir))
 			{
 				freefd(dir);
 				v0 = 0;
@@ -667,7 +667,7 @@ namespace R3000A
 			u32 data = a1;
 			if (iomanX)
 			{
-				if (IOManDir* dir = getfd<IOManDir>(fh))
+				if (HostDir* dir = getfd<HostDir>(fh))
 				{
 					char buf[sizeof(fxio_dirent_t)];
 					v0 = dir->read(&buf, iomanX); /* Flawfinder: ignore */
@@ -681,10 +681,10 @@ namespace R3000A
 			}
 			else
 			{
-				if (IOManDir* dir = getfd<IOManDir>(fh))
+				if (HostDir* dir = getfd<HostDir>(fh))
 				{
 					char buf[sizeof(fio_dirent_t)];
-					v0 = dir->read(&buf); /* Flawfinder: ignore */
+					v0 = dir->read(&buf, false); /* Flawfinder: ignore */
 
 					for (s32 i = 0; i < (s32)sizeof(fio_dirent_t); i++)
 						iopMemWrite8(data + i, buf[i]);
@@ -753,7 +753,7 @@ namespace R3000A
 			s32 offset = a1;
 			s32 whence = a2;
 
-			if (IOManFile* file = getfd<IOManFile>(fd))
+			if (HostFile* file = getfd<HostFile>(fd))
 			{
 				v0 = file->lseek(offset, whence);
 				pc = ra;
@@ -805,7 +805,7 @@ namespace R3000A
 			u32 data = a1;
 			u32 count = a2;
 
-			if (IOManFile* file = getfd<IOManFile>(fd))
+			if (HostFile* file = getfd<HostFile>(fd))
 			{
 				auto buf = std::make_unique<char[]>(count);
 
@@ -853,7 +853,7 @@ namespace R3000A
 				v0 = a2;
 				return 1;
 			}
-			else if (IOManFile* file = getfd<IOManFile>(fd))
+			else if (HostFile* file = getfd<HostFile>(fd))
 			{
 				auto buf = std::make_unique<char[]>(count);
 

@@ -36,36 +36,17 @@
 #define IOP_SEEK_CUR 1
 #define IOP_SEEK_END 2
 
-class IOManFile
-{
-public:
-	static int open(IOManFile** file, const std::string& path, s32 flags, u16 mode)
-	{
-		return -IOP_ENODEV;
-	}
-
-	virtual void close() = 0;
-
-	virtual int lseek(s32 offset, s32 whence) { return -IOP_EIO; }
-	virtual int read(void* buf, u32 count) { return -IOP_EIO; } /* Flawfinder: ignore */
-	virtual int write(void* buf, u32 count) { return -IOP_EIO; }
-};
-
-class IOManDir
-{
-	// Don't think about it until we know the loaded ioman version.
-	// The dirent structure changed between versions.
-public:
-	static int open(IOManDir** dir, const std::string& full_path)
-	{
-		return -IOP_ENODEV;
-	}
-
-	virtual void close() = 0;
-
-	virtual int read(void* buf, bool iomanX = false) { return -IOP_EIO; } /* Flawfinder: ignore */
-};
-
+/* The IOP HLE file and directory objects.
+ *
+ * These were two abstract classes with pure-virtual close() and defaulted
+ * virtual read/write/lseek returning -IOP_EIO. Each had exactly one
+ * subclass -- HostFile and HostDir in IopBios.cpp -- so every virtual call
+ * resolved to a single implementation and the defaulted overrides were
+ * never reached. The abstraction is gone: the concrete types are declared
+ * here and the call sites call them directly. Both types are local to
+ * IopBios.cpp -- nothing outside it ever named them -- so the header no
+ * longer declares them at all.
+ */
 typedef int (*irxHLE)(); // return 1 if handled, otherwise 0
 typedef void (*irxDEBUG)();
 
