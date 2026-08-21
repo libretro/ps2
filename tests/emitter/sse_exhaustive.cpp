@@ -12,8 +12,8 @@ using namespace x86Emitter;
 static u8* B; static long C=0,F=0; static int NF=0;
 template <typename A,typename Bf> static void ck(const char* w,A a,Bf b){
     u8 x[40],y[40]; size_t nx,ny;
-    xSetPtr(B); a(); nx=xGetPtr()-B; if(nx>40)nx=40; memcpy(x,B,nx);
-    memset(B,0xcc,40); xSetPtr(B); b(); ny=xGetPtr()-B; if(ny>40)ny=40; memcpy(y,B,ny);
+    x86Ptr = (u8*)(B); a(); nx=x86Ptr-B; if(nx>40)nx=40; memcpy(x,B,nx);
+    memset(B,0xcc,40); x86Ptr = (u8*)(B); b(); ny=x86Ptr-B; if(ny>40)ny=40; memcpy(y,B,ny);
     C++;
     if(nx!=ny||memcmp(x,y,nx)){ F++;
       if(NF<12){ printf("  %-26s ref[%zu]:",w,nx);

@@ -35,7 +35,7 @@ int main()
 	u8* buf = (u8*)mmap((void*)0x200000000ull, 1 << 20, PROT_READ | PROT_WRITE,
 			MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
 	if (buf == MAP_FAILED) { perror("mmap"); return 2; }
-	xSetPtr(buf);
+	x86Ptr = (u8*)(buf);
 
 	const s32 imms[] = { 0, 1, 0x7f, 0x80, -1, -0x80, -0x81, 0x1234, 0x7fffffff };
 	const int nimm = (int)(sizeof(imms) / sizeof(imms[0]));
@@ -309,7 +309,7 @@ int main()
 		xLDMXCSR(ptr32[kAddrs[a & 3]]);
 	}
 
-	const size_t n = (size_t)(xGetPtr() - buf);
+	const size_t n = (size_t)(x86Ptr - buf);
 	fprintf(stderr, "emitted %zu bytes\n", n);
 	for (size_t i = 0; i < n; i++)
 		printf("%02x%s", buf[i], (i % 32 == 31) ? "\n" : " ");

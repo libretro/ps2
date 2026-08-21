@@ -347,7 +347,7 @@ namespace x86Emitter
 
 		__fi void callNear(const void* f) const
 		{
-			const sptr disp = ((sptr)xGetPtr() + 5) - (sptr)f;
+			const sptr disp = ((sptr)x86Ptr + 5) - (sptr)f;
 			if (disp == (sptr)(s32)disp)
 			{
 				xCALL(f);
@@ -483,7 +483,7 @@ namespace x86Emitter
 	inline void xLoadFarAddr(const xAddressReg& dst, void* addr)
 	{
 		sptr iaddr = (sptr)addr;
-		sptr rip = (sptr)xGetPtr() + 7; // LEA will be 7 bytes
+		sptr rip = (sptr)x86Ptr + 7; // LEA will be 7 bytes
 		sptr disp = iaddr - rip;
 		if (disp == (s32)disp)
 		{
@@ -527,7 +527,7 @@ namespace x86Emitter
 		}
 		x86Ptr += sizeof(s32);
 
-		return ((s32*)xGetPtr()) - 1;
+		return ((s32*)x86Ptr) - 1;
 	}
 
 	// ------------------------------------------------------------------------
@@ -540,7 +540,7 @@ namespace x86Emitter
 	inline void xJccKnownTarget(JccComparisonType comparison, const void* target, bool slideForward)
 	{
 		// Calculate the potential j8 displacement first, assuming an instruction length of 2:
-		sptr displacement8 = (sptr)target - (sptr)(xGetPtr() + 2);
+		sptr displacement8 = (sptr)target - (sptr)(x86Ptr + 2);
 
 		if (is_s8(displacement8))
 		{
@@ -552,7 +552,7 @@ namespace x86Emitter
 		{
 			// Perform a 32 bit jump instead. :(
 			s32* bah = xJcc32(comparison, 0);
-			sptr distance = (sptr)target - (sptr)xGetPtr();
+			sptr distance = (sptr)target - (sptr)x86Ptr;
 
 			{
 				const s32 dist32_ = (s32)distance;

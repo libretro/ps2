@@ -317,10 +317,10 @@ _vifT __fi nVifBlock* dVifCompile(nVifBlock* block, int isFill)
 	nVifStruct& v = nVif[idx];
 
 	// Compile the block now
-	xSetPtr(v.recWritePtr);
+	x86Ptr = (u8*)(v.recWritePtr);
 
 	// +1 bias keeps 0 as the empty-cell sentinel; reserve is 8MB so u32 always fits
-	block->startOffset = (u32)((u8*)xGetAlignedCallTarget() - v.recReserve->GetPtr()) + 1;
+	block->startOffset = (u32)((u8*)x86Ptr - v.recReserve->GetPtr()) + 1;
 	block->length = dVifComputeLength(block->cl, block->wl, block->num, isFill);
 	v.vifBlocks.add(*block);
 
@@ -329,7 +329,7 @@ _vifT __fi nVifBlock* dVifCompile(nVifBlock* block, int isFill)
 		VifUnpackSSE_InitDynarec(&vpu, &v, block);
 		VifUnpackSSE_CompileRoutine(&vpu);
 	}
-	v.recWritePtr = xGetPtr();
+	v.recWritePtr = x86Ptr;
 
 	return block;
 }

@@ -117,7 +117,7 @@ static void recEventTest(void)
 // dispatches to the recompiled block address.
 static const void* _DynGen_JITCompile(void)
 {
-	u8* retval = xGetPtr();
+	u8* retval = x86Ptr;
 
 	xe_fastcall1_m32(iopRecRecompile, &psxRegs.pc);
 
@@ -133,7 +133,7 @@ static const void* _DynGen_JITCompile(void)
 // called when jumping to variable pc address
 static const void* _DynGen_DispatcherReg(void)
 {
-	u8* retval = xGetPtr();
+	u8* retval = x86Ptr;
 
 	xe_mov32_rm(XE_AX, &psxRegs.pc);
 	xe_mov32_rr(XE_BX, XE_AX);
@@ -153,7 +153,7 @@ static const void* _DynGen_EnterRecompiledCode(void)
 	// allocating any room on the stack for it (which is important since the IOP's entry
 	// code gets invoked quite a lot).
 
-	u8* retval = xGetPtr();
+	u8* retval = x86Ptr;
 
 	{ // Properly scope the frame prologue/epilogue
 		int m_offset;
@@ -162,7 +162,7 @@ static const void* _DynGen_EnterRecompiledCode(void)
 		xe_jmp_to(iopDispatcherReg);
 
 		// Save an exit point
-		iopExitRecompiledCode = xGetPtr();
+		iopExitRecompiledCode = x86Ptr;
 		SCOPED_STACK_FRAME_END(m_offset);
 	}
 
@@ -183,11 +183,11 @@ static void _DynGen_Dispatchers(void)
 	// clear the buffer to 0xcc (easier debugging).
 	memset(iopRecDispatchers, 0xcc, __pagesize);
 
-	xSetPtr(iopRecDispatchers);
+	x86Ptr = (u8*)(iopRecDispatchers);
 
 	// Place the EventTest and DispatcherReg stuff at the top, because they get called the
 	// most and stand to benefit from strong alignment and direct referencing.
-	iopDispatcherEvent = xGetPtr();
+	iopDispatcherEvent = x86Ptr;
 	xe_fastcall0(recEventTest);
 	iopDispatcherReg = _DynGen_DispatcherReg();
 
@@ -1013,7 +1013,7 @@ void psxSetBranchReg(u32 reg)
 	_psxFlushCall(FLUSH_EVERYTHING);
 	iPsxBranchTest(0xffffffff, 1);
 
-	JMP32((uptr)iopDispatcherReg - ((uptr)x86Ptr + 5));
+	xe_jmp_to(iopDispatcherReg);
 }
 
 void psxSetBranchImm(u32 imm)
@@ -1098,14 +1098,14 @@ void rpsxSYSCALL(void)
 	xe_fastcall2_ii(psxException, 0x20, psxbranch == 1);
 
 	xe_cmp32_mi(&psxRegs.pc, psxpc - 4);
-	u8 *j8Ptr = JE8(0);
+	e_u8* j8Ptr; xe_fwd_jcc8(Jcc_Equal, j8Ptr);
 
 	xe_add32_mi(&psxRegs.cycle, psxScaleBlockCycles());
 	xe_sub32_mi(&psxRegs.iopCycleEE, psxScaleBlockCycles() * 8);
-	JMP32((uptr)iopDispatcherReg - ((uptr)x86Ptr + 5));
+	xe_jmp_to(iopDispatcherReg);
 
 	// jump target for skipping blockCycle updates
-	x86SetJ8(j8Ptr);
+	xe_fwd_set8(j8Ptr);
 
 	//if (!psxbranch) psxbranch = 2;
 }
@@ -1121,11 +1121,11 @@ void rpsxBREAK(void)
 	xe_fastcall2_ii(psxException, 0x24, psxbranch == 1);
 
 	xe_cmp32_mi(&psxRegs.pc, psxpc - 4);
-	u8 *j8Ptr = JE8(0);
+	e_u8* j8Ptr; xe_fwd_jcc8(Jcc_Equal, j8Ptr);
 	xe_add32_mi(&psxRegs.cycle, psxScaleBlockCycles());
 	xe_sub32_mi(&psxRegs.iopCycleEE, psxScaleBlockCycles() * 8);
-	JMP32((uptr)iopDispatcherReg - ((uptr)x86Ptr + 5));
-	x86SetJ8(j8Ptr);
+	xe_jmp_to(iopDispatcherReg);
+	xe_fwd_set8(j8Ptr);
 
 	//if (!psxbranch) psxbranch = 2;
 }
@@ -1178,8 +1178,8 @@ static void iopRecRecompile(const u32 startpc)
 		recResetIOP();
 	}
 
-	xSetPtr(recPtr);
-	recPtr = xGetAlignedCallTarget();
+	x86Ptr = (u8*)(recPtr);
+	recPtr = x86Ptr;
 
 	s_pCurBlock = PSX_GETBLOCK(startpc);
 
@@ -1332,7 +1332,7 @@ StartRecomp:
 
 		iPsxBranchTest(0xffffffff, 1);
 
-		JMP32((uptr)iopDispatcherReg - ((uptr)x86Ptr + 5));
+		xe_jmp_to(iopDispatcherReg);
 	}
 	else
 	{
@@ -1352,9 +1352,9 @@ StartRecomp:
 		}
 	}
 
-	s_pCurBlockEx->x86size = xGetPtr() - recPtr;
+	s_pCurBlockEx->x86size = x86Ptr - recPtr;
 
-	recPtr = xGetPtr();
+	recPtr = x86Ptr;
 
 	s_pCurBlock = NULL;
 	s_pCurBlockEx = NULL;

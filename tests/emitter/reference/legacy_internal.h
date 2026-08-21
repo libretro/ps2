@@ -21,6 +21,5 @@
 // Legacy Helper Macros and Functions (deprecated)
 //------------------------------------------------------------------
 
-#include "common/emitter/legacy_instructions.h"
 
 extern void ModRM(uint mod, uint reg, uint rm);

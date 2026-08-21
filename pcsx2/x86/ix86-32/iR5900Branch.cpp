@@ -22,7 +22,7 @@
 * Format:  OP rs, rt, offset                             *
 *********************************************************/
 
-static u32 *recSetBranchEQ(int bne, int process)
+static e_u8 *recSetBranchEQ(int bne, int process)
 {
 	// TODO(Stenzek): This is suboptimal if the registers are in XMMs.
 	// If the constant register is already in a host register, we don't need the immediate...
@@ -64,11 +64,11 @@ static u32 *recSetBranchEQ(int bne, int process)
 	}
 
 	if (bne)
-		return JE32(0);
-	return JNE32(0);
+		{ e_u8* s_; xe_fwd_jcc32(Jcc_Equal, s_); return s_; }
+	{ e_u8* s_; xe_fwd_jcc32(Jcc_NotEqual, s_); return s_; }
 }
 
-static u32 *recSetBranchL(int ltz)
+static e_u8 *recSetBranchL(int ltz)
 {
 	const int regs = _checkX86reg(X86TYPE_GPR, _Rs_, MODE_READ);
 	const int regsxmm = _checkXMMreg(XMMTYPE_GPRREG, _Rs_, MODE_READ);
@@ -80,8 +80,8 @@ static u32 *recSetBranchL(int ltz)
 		xe_test8_ri(0, 2);
 
 		if (ltz)
-			return JZ32(0);
-		return JNZ32(0);
+			{ e_u8* s_; xe_fwd_jcc32(Jcc_Zero, s_); return s_; }
+		{ e_u8* s_; xe_fwd_jcc32(Jcc_NotZero, s_); return s_; }
 	}
 
 	if (regs >= 0)
@@ -90,8 +90,8 @@ static u32 *recSetBranchL(int ltz)
 		xe_cmp64_mi(&cpuRegs.GPR.r[_Rs_].UD[0], 0);
 
 	if (ltz)
-		return JGE32(0);
-	return JL32(0);
+		{ e_u8* s_; xe_fwd_jcc32(Jcc_GreaterOrEqual, s_); return s_; }
+	{ e_u8* s_; xe_fwd_jcc32(Jcc_Less, s_); return s_; }
 }
 
 //// BEQ
@@ -120,7 +120,7 @@ static void recBEQ_process(int process)
 	else
 	{
 		const int swap = !!(TrySwapDelaySlot(_Rs_, _Rt_, 0, 1));
-		u32 *j32Ptr = recSetBranchEQ(0, process);
+		e_u8* j32Ptr = recSetBranchEQ(0, process);
 
 		if (!swap)
 		{
@@ -130,7 +130,7 @@ static void recBEQ_process(int process)
 
 		SetBranchImm(branchTo);
 
-		x86SetJ32(j32Ptr);
+		xe_fwd_set32(j32Ptr);
 
 		if (!swap)
 		{
@@ -184,7 +184,7 @@ static void recBNE_process(int process)
 
 	const int swap = !!(TrySwapDelaySlot(_Rs_, _Rt_, 0, 1));
 
-	u32 *j32Ptr = recSetBranchEQ(1, process);
+	e_u8* j32Ptr = recSetBranchEQ(1, process);
 
 	if (!swap)
 	{
@@ -194,7 +194,7 @@ static void recBNE_process(int process)
 
 	SetBranchImm(branchTo);
 
-	x86SetJ32(j32Ptr);
+	xe_fwd_set32(j32Ptr);
 
 	if (!swap)
 	{
@@ -237,13 +237,13 @@ static void recBEQL_const(void)
 static void recBEQL_process(int process)
 {
 	u32 branchTo = ((s32)_Imm_ * 4) + pc;
-	u32 *j32Ptr = recSetBranchEQ(0, process);
+	e_u8* j32Ptr = recSetBranchEQ(0, process);
 
 	SaveBranchState();
 	recompileNextInstruction(1, 0);
 	SetBranchImm(branchTo);
 
-	x86SetJ32(j32Ptr);
+	xe_fwd_set32(j32Ptr);
 
 	LoadBranchState();
 	SetBranchImm(pc);
@@ -280,12 +280,12 @@ static void recBNEL_process(int process)
 {
 	u32 branchTo = ((s32)_Imm_ * 4) + pc;
 
-	u32 *j32Ptr = recSetBranchEQ(0, process);
+	e_u8* j32Ptr = recSetBranchEQ(0, process);
 
 	SaveBranchState();
 	SetBranchImm(pc + 4);
 
-	x86SetJ32(j32Ptr);
+	xe_fwd_set32(j32Ptr);
 
 	// recopy the next inst
 	LoadBranchState();
@@ -329,7 +329,7 @@ void recBLTZAL(void)
 
 	const int swap = !!(TrySwapDelaySlot(_Rs_, 0, 0, 1));
 
-	u32 *j32Ptr = recSetBranchL(1);
+	e_u8* j32Ptr = recSetBranchL(1);
 
 	if (!swap)
 	{
@@ -339,7 +339,7 @@ void recBLTZAL(void)
 
 	SetBranchImm(branchTo);
 
-	x86SetJ32(j32Ptr);
+	xe_fwd_set32(j32Ptr);
 
 	if (!swap)
 	{
@@ -376,7 +376,7 @@ void recBGEZAL(void)
 
 	const int swap = !!(TrySwapDelaySlot(_Rs_, 0, 0, 1));
 
-	u32 *j32Ptr = recSetBranchL(0);
+	e_u8* j32Ptr = recSetBranchL(0);
 
 	if (!swap)
 	{
@@ -386,7 +386,7 @@ void recBGEZAL(void)
 
 	SetBranchImm(branchTo);
 
-	x86SetJ32(j32Ptr);
+	xe_fwd_set32(j32Ptr);
 
 	if (!swap)
 	{
@@ -423,13 +423,13 @@ void recBLTZALL(void)
 		return;
 	}
 
-	u32 *j32Ptr = recSetBranchL(1);
+	e_u8* j32Ptr = recSetBranchL(1);
 
 	SaveBranchState();
 	recompileNextInstruction(1, 0);
 	SetBranchImm(branchTo);
 
-	x86SetJ32(j32Ptr);
+	xe_fwd_set32(j32Ptr);
 
 	LoadBranchState();
 	SetBranchImm(pc);
@@ -459,13 +459,13 @@ void recBGEZALL(void)
 		return;
 	}
 
-	u32 *j32Ptr = recSetBranchL(0);
+	e_u8* j32Ptr = recSetBranchL(0);
 
 	SaveBranchState();
 	recompileNextInstruction(1, 0);
 	SetBranchImm(branchTo);
 
-	x86SetJ32(j32Ptr);
+	xe_fwd_set32(j32Ptr);
 
 	LoadBranchState();
 	SetBranchImm(pc);
@@ -496,7 +496,7 @@ void recBLEZ(void)
 	else
 		xe_cmp64_mi(&cpuRegs.GPR.r[_Rs_].UD[0], 0);
 
-	u32 *j32Ptr = JG32(0);
+	e_u8* j32Ptr; xe_fwd_jcc32(Jcc_Greater, j32Ptr);
 
 	if (!swap)
 	{
@@ -506,7 +506,7 @@ void recBLEZ(void)
 
 	SetBranchImm(branchTo);
 
-	x86SetJ32(j32Ptr);
+	xe_fwd_set32(j32Ptr);
 
 	if (!swap)
 	{
@@ -543,7 +543,7 @@ void recBGTZ(void)
 	else
 		xe_cmp64_mi(&cpuRegs.GPR.r[_Rs_].UD[0], 0);
 
-	u32 *j32Ptr = JLE32(0);
+	e_u8* j32Ptr; xe_fwd_jcc32(Jcc_LessOrEqual, j32Ptr);
 
 	if (!swap)
 	{
@@ -553,7 +553,7 @@ void recBGTZ(void)
 
 	SetBranchImm(branchTo);
 
-	x86SetJ32(j32Ptr);
+	xe_fwd_set32(j32Ptr);
 
 	if (!swap)
 	{
@@ -583,7 +583,7 @@ void recBLTZ(void)
 
 	const int swap = !!(TrySwapDelaySlot(_Rs_, 0, 0, 1));
 	_eeFlushAllDirty();
-	u32 *j32Ptr = recSetBranchL(1);
+	e_u8* j32Ptr = recSetBranchL(1);
 
 	if (!swap)
 	{
@@ -593,7 +593,7 @@ void recBLTZ(void)
 
 	SetBranchImm(branchTo);
 
-	x86SetJ32(j32Ptr);
+	xe_fwd_set32(j32Ptr);
 
 	if (!swap)
 	{
@@ -624,7 +624,7 @@ void recBGEZ(void)
 	const int swap = !!(TrySwapDelaySlot(_Rs_, 0, 0, 1));
 	_eeFlushAllDirty();
 
-	u32 *j32Ptr = recSetBranchL(0);
+	e_u8* j32Ptr = recSetBranchL(0);
 
 	if (!swap)
 	{
@@ -634,7 +634,7 @@ void recBGEZ(void)
 
 	SetBranchImm(branchTo);
 
-	x86SetJ32(j32Ptr);
+	xe_fwd_set32(j32Ptr);
 
 	if (!swap)
 	{
@@ -665,13 +665,13 @@ void recBLTZL(void)
 	}
 
 	_eeFlushAllDirty();
-	u32 *j32Ptr = recSetBranchL(1);
+	e_u8* j32Ptr = recSetBranchL(1);
 
 	SaveBranchState();
 	recompileNextInstruction(1, 0);
 	SetBranchImm(branchTo);
 
-	x86SetJ32(j32Ptr);
+	xe_fwd_set32(j32Ptr);
 
 	LoadBranchState();
 	SetBranchImm(pc);
@@ -696,13 +696,13 @@ void recBGEZL(void)
 	}
 
 	_eeFlushAllDirty();
-	u32 *j32Ptr = recSetBranchL(0);
+	e_u8* j32Ptr = recSetBranchL(0);
 
 	SaveBranchState();
 	recompileNextInstruction(1, 0);
 	SetBranchImm(branchTo);
 
-	x86SetJ32(j32Ptr);
+	xe_fwd_set32(j32Ptr);
 
 	LoadBranchState();
 	SetBranchImm(pc);
@@ -740,13 +740,13 @@ void recBLEZL(void)
 	else
 		xe_cmp64_mi(&cpuRegs.GPR.r[_Rs_].UD[0], 0);
 
-	u32 *j32Ptr = JG32(0);
+	e_u8* j32Ptr; xe_fwd_jcc32(Jcc_Greater, j32Ptr);
 
 	SaveBranchState();
 	recompileNextInstruction(1, 0);
 	SetBranchImm(branchTo);
 
-	x86SetJ32(j32Ptr);
+	xe_fwd_set32(j32Ptr);
 
 	LoadBranchState();
 	SetBranchImm(pc);
@@ -778,13 +778,13 @@ void recBGTZL(void)
 	else
 		xe_cmp64_mi(&cpuRegs.GPR.r[_Rs_].UD[0], 0);
 
-	u32 *j32Ptr = JLE32(0);
+	e_u8* j32Ptr; xe_fwd_jcc32(Jcc_LessOrEqual, j32Ptr);
 
 	SaveBranchState();
 	recompileNextInstruction(1, 0);
 	SetBranchImm(branchTo);
 
-	x86SetJ32(j32Ptr);
+	xe_fwd_set32(j32Ptr);
 
 	LoadBranchState();
 	SetBranchImm(pc);

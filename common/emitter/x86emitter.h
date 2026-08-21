@@ -51,8 +51,6 @@
 #include "c89compat.h"
 #include "c89ops.h"
 
-// Legacy static helpers; their bodies emit through the C89 core directly.
-#include "legacy_instructions.h"
 
 //////////////////////////////////////////////////////////////////////////////////////////
 // Helper object to handle ABI frame

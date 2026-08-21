@@ -1698,8 +1698,8 @@ static __fi void mVU_XGKICK_DELAY(mV)
 	mVUbackupRegs(mVU, 1, 1);
 #if 0 // XGkick Break - ToDo: Change "SomeGifPathValue" to w/e needs to be tested
 	xTEST(ptr32[&SomeGifPathValue], 1); // If '1', breaks execution
-	xMOV(ptr32[&mVU->resumePtrXG], (uptr)xGetPtr() + 10 + 6);
-	xJcc32(Jcc_NotZero, (uptr)mVU->exitFunctXG - ((uptr)xGetPtr()+6));
+	xMOV(ptr32[&mVU->resumePtrXG], (uptr)x86Ptr + 10 + 6);
+	xJcc32(Jcc_NotZero, (uptr)mVU->exitFunctXG - ((uptr)x86Ptr+6));
 #endif
 	xe_fastcall1_m32(mVU_XGKICK_, &mVU->VIxgkick);
 	mVUrestoreRegs(mVU, 1, 1);

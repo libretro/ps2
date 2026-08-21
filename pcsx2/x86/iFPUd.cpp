@@ -126,22 +126,22 @@ alignas(32) static const FPUd_Globals s_const =
 static void ToDouble(int reg)
 {
 	xe_ucomiss_xm(reg, s_const.pos_inf); // Sets ZF if reg is equal or incomparable to pos_inf
-	u8* to_complex = JE8(0); // Complex conversion if positive infinity or NaN
+	e_u8* to_complex; xe_fwd_jcc8(Jcc_Equal, to_complex); // Complex conversion if positive infinity or NaN
 	xe_ucomiss_xm(reg, s_const.neg_inf);
-	u8* to_complex2 = JE8(0); // Complex conversion if negative infinity
+	e_u8* to_complex2; xe_fwd_jcc8(Jcc_Equal, to_complex2); // Complex conversion if negative infinity
 
 	xe_cvtss2sd_xx(reg, reg); // Simply convert
-	u8* end = JMP8(0);
+	e_u8* end; xe_fwd_jcc8(Jcc_Unconditional, end);
 
-	x86SetJ8(to_complex);
-	x86SetJ8(to_complex2);
+	xe_fwd_set8(to_complex);
+	xe_fwd_set8(to_complex2);
 
 	// Special conversion for when IEEE sees the value in reg as an INF/NaN
 	xe_psubd_xm(reg, s_const.one_exp); // Lower exponent by one
 	xe_cvtss2sd_xx(reg, reg);
 	xe_paddq_xm(reg, s_const.dbl_one_exp); // Raise exponent by one
 
-	x86SetJ8(end);
+	xe_fwd_set8(end);
 }
 
 //------------------------------------------------------------------
@@ -173,26 +173,26 @@ static void ToPS2FPU_Full(int reg, int flags, int absreg, int acc, int addsub)
 	xe_andpd_xm(absreg, &s_const.dbl_s_pos);
 
 	xe_ucomisd_xm(absreg, &s_const.dbl_cvt_overflow);
-	u8* to_complex = JAE8(0);
+	e_u8* to_complex; xe_fwd_jcc8(Jcc_AboveOrEqual, to_complex);
 
 	xe_ucomisd_xm(absreg, &s_const.dbl_underflow);
-	u8* to_underflow = JB8(0);
+	e_u8* to_underflow; xe_fwd_jcc8(Jcc_Below, to_underflow);
 
 	xe_cvtsd2ss_xx(reg, reg); //simply convert
 
-	u32* end = JMP32(0);
+	e_u8* end; xe_fwd_jcc32(Jcc_Unconditional, end);
 
-	x86SetJ8(to_complex);
+	xe_fwd_set8(to_complex);
 	xe_ucomisd_xm(absreg, &s_const.dbl_ps2_overflow);
-	u8* to_overflow = JAE8(0);
+	e_u8* to_overflow; xe_fwd_jcc8(Jcc_AboveOrEqual, to_overflow);
 
 	xe_psubq_xm(reg, &s_const.dbl_one_exp); //lower exponent
 	xe_cvtsd2ss_xx(reg, reg); //convert
 	xe_paddd_xm(reg, s_const.one_exp); //raise exponent
 
-	u32* end2 = JMP32(0);
+	e_u8* end2; xe_fwd_jcc32(Jcc_Unconditional, end2);
 
-	x86SetJ8(to_overflow);
+	xe_fwd_set8(to_overflow);
 	xe_cvtsd2ss_xx(reg, reg);
 	xe_orps_xm(reg, &s_const.pos); //clamp
 	if (flags)
@@ -201,15 +201,15 @@ static void ToPS2FPU_Full(int reg, int flags, int absreg, int acc, int addsub)
 		if (acc)
 			xe_or32_mi(&fpuRegs.ACCflag, 1);
 	}
-	u8* end3 = JMP8(0);
+	e_u8* end3; xe_fwd_jcc8(Jcc_Unconditional, end3);
 
-	x86SetJ8(to_underflow);
+	xe_fwd_set8(to_underflow);
 	u8* end4 = NULL;
 	if (flags) //set underflow flags if not zero
 	{
 		xe_xorpd_xx(absreg, absreg);
 		xe_ucomisd_xx(reg, absreg);
-		u8* is_zero = JE8(0);
+		e_u8* is_zero; xe_fwd_jcc8(Jcc_Equal, is_zero);
 
 		xe_or32_mi(&fpuRegs.fprc[31], (FPUflagU | FPUflagSU));
 		if (addsub)
@@ -223,20 +223,20 @@ static void ToPS2FPU_Full(int reg, int flags, int absreg, int acc, int addsub)
 			xe_psrlq_xi(absreg, 63); //sign bit
 			xe_psllq_xi(absreg, 31);
 			xe_por_xx(reg, absreg);
-			end4 = JMP8(0);
+			xe_fwd_jcc8(Jcc_Unconditional, end4);
 		}
 
-		x86SetJ8(is_zero);
+		xe_fwd_set8(is_zero);
 	}
 	xe_cvtsd2ss_xx(reg, reg);
 	xe_andps_xm(reg, s_const.neg); //flush to zero
 
-	x86SetJ32(end);
-	x86SetJ32(end2);
+	xe_fwd_set32(end);
+	xe_fwd_set32(end2);
 
-	x86SetJ8(end3);
+	xe_fwd_set8(end3);
 	if (flags && addsub)
-		x86SetJ8(end4);
+		xe_fwd_set8(end4);
 }
 
 //sets the maximum (positive or negative) value into regd.
@@ -330,12 +330,12 @@ static void FPU_ADD_SUB(int tempd, int tempt) //tempd and tempt are overwritten,
 
 	xe_sub32_rr(XE_CX, XE_AX); //tempecx = exponent difference
 	xe_cmp32_ri(XE_CX, 25);
-	j8Ptr0 = JGE8(0);
+	xe_fwd_jcc8(Jcc_GreaterOrEqual, j8Ptr0);
 	xe_cmp32_ri(XE_CX, 0);
-	j8Ptr1 = JG8(0);
-	j8Ptr2 = JE8(0);
+	xe_fwd_jcc8(Jcc_Greater, j8Ptr1);
+	xe_fwd_jcc8(Jcc_Equal, j8Ptr2);
 	xe_cmp32_ri(XE_CX, -25);
-	j8Ptr3 = JLE8(0);
+	xe_fwd_jcc8(Jcc_LessOrEqual, j8Ptr3);
 
 	//diff = -24 .. -1 , expd < expt
 	xe_neg32_r(XE_CX);
@@ -344,39 +344,39 @@ static void FPU_ADD_SUB(int tempd, int tempt) //tempd and tempt are overwritten,
 	xe_shl32_rcl(XE_AX); //temp2 = 0xffffffff << tempecx
 	xe_movdzx_xr(xmmtemp, XE_AX);
 	xe_andps_xx(tempd, xmmtemp);
-	j8Ptr4 = JMP8(0);
+	xe_fwd_jcc8(Jcc_Unconditional, j8Ptr4);
 
-	x86SetJ8(j8Ptr0);
+	xe_fwd_set8(j8Ptr0);
 	//diff = 25 .. 255 , expt < expd
 	xe_andps_xm(tempt, s_const.neg);
-	j8Ptr5 = JMP8(0);
+	xe_fwd_jcc8(Jcc_Unconditional, j8Ptr5);
 
-	x86SetJ8(j8Ptr1);
+	xe_fwd_set8(j8Ptr1);
 	//diff = 1 .. 24, expt < expd
 	xe_dec32_r(XE_CX);
 	xe_mov32_ri(XE_AX, 0xffffffff);
 	xe_shl32_rcl(XE_AX); //temp2 = 0xffffffff << tempecx
 	xe_movdzx_xr(xmmtemp, XE_AX);
 	xe_andps_xx(tempt, xmmtemp);
-	j8Ptr6 = JMP8(0);
+	xe_fwd_jcc8(Jcc_Unconditional, j8Ptr6);
 
-	x86SetJ8(j8Ptr3);
+	xe_fwd_set8(j8Ptr3);
 	//diff = -255 .. -25, expd < expt
 	xe_andps_xm(tempd, s_const.neg);
 
-	x86SetJ8(j8Ptr2);
+	xe_fwd_set8(j8Ptr2);
 	//diff == 0
 
-	x86SetJ8(j8Ptr4);
-	x86SetJ8(j8Ptr5);
-	x86SetJ8(j8Ptr6);
+	xe_fwd_set8(j8Ptr4);
+	xe_fwd_set8(j8Ptr5);
+	xe_fwd_set8(j8Ptr6);
 
 	_freeXMMreg(xmmtemp);
 }
 
 static void FPU_MUL(int info, int regd, int sreg, int treg, int acc)
 {
-	u32* endMul = NULL;
+	e_u8* endMul = NULL;
 
 	if (CHECK_FPUMULHACK)
 	{
@@ -395,10 +395,10 @@ static void FPU_MUL(int info, int regd, int sreg, int treg, int acc)
 		xe_xor32_ri(XE_DX, 0x40490fdb);
 		xe_or32_rr(XE_DX, XE_CX);
 
-		u8* noHack = JNZ8(0);
+		e_u8* noHack; xe_fwd_jcc8(Jcc_NotZero, noHack);
 			xe_movaps_xm(regd, result);
-			endMul = JMP32(0);
-		x86SetJ8(noHack);
+			xe_fwd_jcc32(Jcc_Unconditional, endMul);
+		xe_fwd_set8(noHack);
 	}
 
 	ToDouble(sreg);
@@ -408,14 +408,22 @@ static void FPU_MUL(int info, int regd, int sreg, int treg, int acc)
 	xe_movss_xx(regd, sreg);
 
 	if (CHECK_FPUMULHACK)
-		x86SetJ32(endMul);
+		xe_fwd_set32(endMul);
 }
 
 //------------------------------------------------------------------
 // CommutativeOp XMM (used for ADD and SUB opcodes. that's it.)
 //------------------------------------------------------------------
-static void (*recFPUOpXMM_to_XMM[])(int, int) = {
-	SSE2_ADDSD_XMM_to_XMM, SSE2_SUBSD_XMM_to_XMM};
+/* ADD and SUB, selected by op. Was a two-entry function-pointer table; the
+ * entries are emitter macros with no address, and op is constant at every
+ * call site, so the switch inlines to a direct emission. */
+static __fi void recFPUOpEmit(int op, int regd, int regt)
+{
+	if (op == 0)
+		xe_addsd_xx(regd, regt);
+	else
+		xe_subsd_xx(regd, regt);
+}
 
 static void recFPUOp(int info, int regd, int op, int acc)
 {
@@ -428,7 +436,7 @@ static void recFPUOp(int info, int regd, int op, int acc)
 	ToDouble(sreg);
 	ToDouble(treg);
 
-	recFPUOpXMM_to_XMM[op](sreg, treg);
+	recFPUOpEmit(op, sreg, treg);
 
 	ToPS2FPU_Full(sreg, 1, treg, acc, 1);
 	xe_movss_xx(regd, sreg);
@@ -476,12 +484,12 @@ void DOUBLE_recC_EQ_xmm(int info)
 	u8 *j8Ptr0, *j8Ptr1;
 	recCMP(info);
 
-	j8Ptr0 = JZ8(0);
+	xe_fwd_jcc8(Jcc_Zero, j8Ptr0);
 	xe_and32_mi(&fpuRegs.fprc[31], ~FPUflagC);
-	j8Ptr1 = JMP8(0);
-	x86SetJ8(j8Ptr0);
+	xe_fwd_jcc8(Jcc_Unconditional, j8Ptr1);
+	xe_fwd_set8(j8Ptr0);
 	xe_or32_mi(&fpuRegs.fprc[31], FPUflagC);
-	x86SetJ8(j8Ptr1);
+	xe_fwd_set8(j8Ptr1);
 }
 
 
@@ -490,12 +498,12 @@ void DOUBLE_recC_LE_xmm(int info)
 	u8 *j8Ptr0, *j8Ptr1;
 	recCMP(info);
 
-	j8Ptr0 = JBE8(0);
+	xe_fwd_jcc8(Jcc_BelowOrEqual, j8Ptr0);
 	xe_and32_mi(&fpuRegs.fprc[31], ~FPUflagC);
-	j8Ptr1 = JMP8(0);
-	x86SetJ8(j8Ptr0);
+	xe_fwd_jcc8(Jcc_Unconditional, j8Ptr1);
+	xe_fwd_set8(j8Ptr0);
 	xe_or32_mi(&fpuRegs.fprc[31], FPUflagC);
-	x86SetJ8(j8Ptr1);
+	xe_fwd_set8(j8Ptr1);
 }
 
 
@@ -504,12 +512,12 @@ void DOUBLE_recC_LT_xmm(int info)
 	u8 *j8Ptr0, *j8Ptr1;
 	recCMP(info);
 
-	j8Ptr0 = JB8(0);
+	xe_fwd_jcc8(Jcc_Below, j8Ptr0);
 	xe_and32_mi(&fpuRegs.fprc[31], ~FPUflagC);
-	j8Ptr1 = JMP8(0);
-	x86SetJ8(j8Ptr0);
+	xe_fwd_jcc8(Jcc_Unconditional, j8Ptr1);
+	xe_fwd_set8(j8Ptr0);
 	xe_or32_mi(&fpuRegs.fprc[31], FPUflagC);
-	x86SetJ8(j8Ptr1);
+	xe_fwd_set8(j8Ptr1);
 }
 
 //------------------------------------------------------------------
@@ -529,7 +537,7 @@ void DOUBLE_recC_LT_xmm(int info)
 static void recDIVhelper1(int regd, int regt) // Sets flags
 {
 	u8 *pjmp1, *pjmp2;
-	u32 *ajmp32, *bjmp32;
+	e_u8 *ajmp32, *bjmp32;
 	const int t1reg = _allocTempXMMreg(XMMT_FPS);
 
 	xe_and32_mi(&fpuRegs.fprc[31], ~(FPUflagI | FPUflagD)); // Clear I and D flags
@@ -539,26 +547,26 @@ static void recDIVhelper1(int regd, int regt) // Sets flags
 	xe_cmpeqss_xx(t1reg, regt);
 	xe_movmskps_rx(XE_AX, t1reg);
 	xe_and32_ri(XE_AX, 1); //Check sign (if regt == zero, sign will be set)
-	ajmp32 = JZ32(0); //Skip if not set
+	xe_fwd_jcc32(Jcc_Zero, ajmp32); //Skip if not set
 
 	//--- Check for 0/0 ---
 	xe_xorps_xx(t1reg, t1reg);
 	xe_cmpeqss_xx(t1reg, regd);
 	xe_movmskps_rx(XE_AX, t1reg);
 	xe_and32_ri(XE_AX, 1); //Check sign (if regd == zero, sign will be set)
-	pjmp1 = JZ8(0); //Skip if not set
+	xe_fwd_jcc8(Jcc_Zero, pjmp1); //Skip if not set
 	xe_or32_mi(&fpuRegs.fprc[31], FPUflagI | FPUflagSI); // Set I and SI flags ( 0/0 )
-	pjmp2 = JMP8(0);
-	x86SetJ8(pjmp1); //x/0 but not 0/0
+	xe_fwd_jcc8(Jcc_Unconditional, pjmp2);
+	xe_fwd_set8(pjmp1); //x/0 but not 0/0
 	xe_or32_mi(&fpuRegs.fprc[31], FPUflagD | FPUflagSD); // Set D and SD flags ( x/0 )
-	x86SetJ8(pjmp2);
+	xe_fwd_set8(pjmp2);
 
 	//--- Make regd +/- Maximum ---
 	xe_xorps_xx(regd, regt); // Make regd Positive or Negative
 	SetMaxValue(regd); //clamp to max
-	bjmp32 = JMP32(0);
+	xe_fwd_jcc32(Jcc_Unconditional, bjmp32);
 
-	x86SetJ32(ajmp32);
+	xe_fwd_set32(ajmp32);
 
 	//--- Normal Divide ---
 	ToDouble(regd);
@@ -568,7 +576,7 @@ static void recDIVhelper1(int regd, int regt) // Sets flags
 
 	ToPS2FPU_Full(regd, 0, regt, 0, 0);
 
-	x86SetJ32(bjmp32);
+	xe_fwd_set32(bjmp32);
 
 	_freeXMMreg(t1reg);
 }
@@ -624,37 +632,37 @@ static void recMaddsub(int info, int regd, int op, int acc)
 	//          TEST FOR ACC/MUL OVERFLOWS, PROPOGATE THEM IF THEY OCCUR
 
 	xe_test32_mi(&fpuRegs.fprc[31], FPUflagO);
-	u8* mulovf = JNZ8(0);
+	e_u8* mulovf; xe_fwd_jcc8(Jcc_NotZero, mulovf);
 	ToDouble(sreg); //else, convert
 
 	xe_test32_mi(&fpuRegs.ACCflag, 1);
-	u8* accovf = JNZ8(0);
+	e_u8* accovf; xe_fwd_jcc8(Jcc_NotZero, accovf);
 	ToDouble(treg); //else, convert
-	u8* operation = JMP8(0);
+	e_u8* operation; xe_fwd_jcc8(Jcc_Unconditional, operation);
 
-	x86SetJ8(mulovf);
+	xe_fwd_set8(mulovf);
 	if (op == 1) //sub
 		xe_xorps_xm(sreg, s_const.neg);
 	xe_movaps_xx(treg, sreg); //fall through below
 
-	x86SetJ8(accovf);
+	xe_fwd_set8(accovf);
 	SetMaxValue(treg); //just in case... I think it has to be a MaxValue already here
 	CLEAR_OU_FLAGS; //clear U flag
 	xe_or32_mi(&fpuRegs.fprc[31], FPUflagO | FPUflagSO);
 	if (acc)
 		xe_or32_mi(&fpuRegs.ACCflag, 1);
-	u32* skipall = JMP32(0);
+	e_u8* skipall; xe_fwd_jcc32(Jcc_Unconditional, skipall);
 
 	//			PERFORM THE ACCUMULATION AND TEST RESULT. CONVERT TO SINGLE
 
-	x86SetJ8(operation);
+	xe_fwd_set8(operation);
 	if (op == 1)
 		xe_subsd_xx(treg, sreg);
 	else
 		xe_addsd_xx(treg, sreg);
 
 	ToPS2FPU_Full(treg, 1, sreg, acc, 1);
-	x86SetJ32(skipall);
+	xe_fwd_set32(skipall);
 
 	xe_movss_xx(regd, treg);
 
@@ -841,10 +849,10 @@ void DOUBLE_recSQRT_S_xmm(int info)
 		//--- Check for negative SQRT --- (sqrt(-0) = 0, unlike what the docs say)
 		xe_movmskps_rx(XE_AX, EEREC_D);
 		xe_and32_ri(XE_AX, 1); //Check sign
-		u8* pjmp = JZ8(0); //Skip if none are
+		e_u8* pjmp; xe_fwd_jcc8(Jcc_Zero, pjmp); //Skip if none are
 			xe_or32_mi(&fpuRegs.fprc[31], FPUflagI | FPUflagSI); // Set I and SI flags
 			xe_andps_xm(EEREC_D, &s_const.pos[0]); // Make EEREC_D Positive
-		x86SetJ8(pjmp);
+		xe_fwd_set8(pjmp);
 	}
 
 
@@ -870,7 +878,7 @@ static void recRSQRThelper1(int regd, int regt) // Preforms the RSQRT function w
 {
 	u8 *pjmp1, *pjmp2;
 	u8 *qjmp1, *qjmp2;
-	u32* pjmp32;
+	e_u8* pjmp32;
 	int t1reg = _allocTempXMMreg(XMMT_FPS);
 
 	xe_and32_mi(&fpuRegs.fprc[31], ~(FPUflagI | FPUflagD)); // Clear I and D flags
@@ -878,33 +886,33 @@ static void recRSQRThelper1(int regd, int regt) // Preforms the RSQRT function w
 	//--- (first) Check for negative SQRT ---
 	xe_movmskps_rx(XE_AX, regt);
 	xe_and32_ri(XE_AX, 1); //Check sign
-	pjmp2 = JZ8(0); //Skip if not set
+	xe_fwd_jcc8(Jcc_Zero, pjmp2); //Skip if not set
 	xe_or32_mi(&fpuRegs.fprc[31], FPUflagI | FPUflagSI); // Set I and SI flags
 	xe_andps_xm(regt, &s_const.pos[0]); // Make regt Positive
-	x86SetJ8(pjmp2);
+	xe_fwd_set8(pjmp2);
 
 	//--- Check for zero ---
 	xe_xorps_xx(t1reg, t1reg);
 	xe_cmpeqss_xx(t1reg, regt);
 	xe_movmskps_rx(XE_AX, t1reg);
 	xe_and32_ri(XE_AX, 1); //Check sign (if regt == zero, sign will be set)
-	pjmp1 = JZ8(0); //Skip if not set
+	xe_fwd_jcc8(Jcc_Zero, pjmp1); //Skip if not set
 
 	//--- Check for 0/0 ---
 	xe_xorps_xx(t1reg, t1reg);
 	xe_cmpeqss_xx(t1reg, regd);
 	xe_movmskps_rx(XE_AX, t1reg);
 	xe_and32_ri(XE_AX, 1); //Check sign (if regd == zero, sign will be set)
-	qjmp1 = JZ8(0); //Skip if not set
+	xe_fwd_jcc8(Jcc_Zero, qjmp1); //Skip if not set
 	xe_or32_mi(&fpuRegs.fprc[31], FPUflagI | FPUflagSI); // Set I and SI flags ( 0/0 )
-	qjmp2 = JMP8(0);
-	x86SetJ8(qjmp1); //x/0 but not 0/0
+	xe_fwd_jcc8(Jcc_Unconditional, qjmp2);
+	xe_fwd_set8(qjmp1); //x/0 but not 0/0
 	xe_or32_mi(&fpuRegs.fprc[31], FPUflagD | FPUflagSD); // Set D and SD flags ( x/0 )
-	x86SetJ8(qjmp2);
+	xe_fwd_set8(qjmp2);
 
 	SetMaxValue(regd); //clamp to max
-	pjmp32 = JMP32(0);
-	x86SetJ8(pjmp1);
+	xe_fwd_jcc32(Jcc_Unconditional, pjmp32);
+	xe_fwd_set8(pjmp1);
 
 	ToDouble(regt);
 	ToDouble(regd);
@@ -913,7 +921,7 @@ static void recRSQRThelper1(int regd, int regt) // Preforms the RSQRT function w
 	xe_divsd_xx(regd, regt);
 
 	ToPS2FPU_Full(regd, 0, regt, 0, 0);
-	x86SetJ32(pjmp32);
+	xe_fwd_set32(pjmp32);
 
 	_freeXMMreg(t1reg);
 }

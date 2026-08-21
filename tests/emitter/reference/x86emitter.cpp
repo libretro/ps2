@@ -647,7 +647,7 @@ namespace x86Emitter
 	void xLoadFarAddr(const xAddressReg& dst, void* addr)
 	{
 		sptr iaddr = (sptr)addr;
-		sptr rip = (sptr)xGetPtr() + 7; // LEA will be 7 bytes
+		sptr rip = (sptr)x86Ptr + 7; // LEA will be 7 bytes
 		sptr disp = iaddr - rip;
 		if (disp == (s32)disp)
 		{

@@ -1,6 +1,5 @@
 #include "common/emitter/x86emitter.h"
 #include "tests/emitter/reference/x86emitter_shim.h"
-#include "common/emitter/legacy_instructions.h"
 #include <cstdio>
 #include <cstring>
 #include <sys/mman.h>
@@ -8,8 +7,8 @@ using namespace x86Emitter;
 static u8* B; static long C=0,F=0; static int NF=0;
 template <typename A,typename Bf> static void ck(const char* w,A a,Bf b){
     u8 x[40],y[40]; size_t nx,ny;
-    xSetPtr(B); a(); nx=xGetPtr()-B; if(nx>40)nx=40; memcpy(x,B,nx);
-    memset(B,0xcc,40); xSetPtr(B); b(); ny=xGetPtr()-B; if(ny>40)ny=40; memcpy(y,B,ny);
+    x86Ptr = (u8*)(B); a(); nx=x86Ptr-B; if(nx>40)nx=40; memcpy(x,B,nx);
+    memset(B,0xcc,40); x86Ptr = (u8*)(B); b(); ny=x86Ptr-B; if(ny>40)ny=40; memcpy(y,B,ny);
     C++;
     if(nx!=ny||memcmp(x,y,nx)){ F++; if(NF<10){ printf("  %-26s ref[%zu]:",w,nx);
       for(size_t i=0;i<nx;i++)printf(" %02x",x[i]); printf("  c89[%zu]:",ny);
@@ -419,22 +418,24 @@ int main(){
         ck(nm,[&]{xPMOVMSKB(xRegister64(g),xRegisterSSE(x));},[&]{shim_xPMOVMSKB(xRegister64(g),xRegisterSSE(x));}); } }
 
 
-    /* Legacy C-API wrappers vs the C89 core directly: same constants the
-       flag-side macros in legacy_instructions.h use. */
-    { struct W { const char* nm; void (*f)(int,int); e_u8 pre, op; };
+    /* The scalar SSE/SSE2 ops the FPU recompilers use, macro against core.
+       These were the legacy_instructions.h C wrappers until that header was
+       retired; the macros are what the recompilers call now, so they are
+       what gets oracled. */
+    { struct W { const char* nm; int which; e_u8 pre, op; };
       static const W ws[] = {
-        {"SSE_MAXSS",  SSE_MAXSS_XMM_to_XMM,  0xf3, 0x5f},
-        {"SSE_MINSS",  SSE_MINSS_XMM_to_XMM,  0xf3, 0x5d},
-        {"SSE_ADDSS",  SSE_ADDSS_XMM_to_XMM,  0xf3, 0x58},
-        {"SSE_SUBSS",  SSE_SUBSS_XMM_to_XMM,  0xf3, 0x5c},
-        {"SSE2_MAXSD", SSE2_MAXSD_XMM_to_XMM, 0xf2, 0x5f},
-        {"SSE2_MINSD", SSE2_MINSD_XMM_to_XMM, 0xf2, 0x5d},
-        {"SSE2_ADDSD", SSE2_ADDSD_XMM_to_XMM, 0xf2, 0x58},
-        {"SSE2_SUBSD", SSE2_SUBSD_XMM_to_XMM, 0xf2, 0x5c},
+        {"MAXSS", 0, 0xf3, 0x5f}, {"MINSS", 1, 0xf3, 0x5d},
+        {"ADDSS", 2, 0xf3, 0x58}, {"SUBSS", 3, 0xf3, 0x5c},
+        {"MAXSD", 4, 0xf2, 0x5f}, {"MINSD", 5, 0xf2, 0x5d},
+        {"ADDSD", 6, 0xf2, 0x58}, {"SUBSD", 7, 0xf2, 0x5c},
       };
       for (const W& w : ws) for(int a=0;a<16;a++) for(int b=0;b<16;b++){
         snprintf(nm,sizeof nm,"%s %d,%d",w.nm,a,b);
-        ck(nm,[&]{ w.f(a,b); },
+        ck(nm,[&]{ switch (w.which) {
+                     case 0: xe_maxss_xx(a,b); break; case 1: xe_minss_xx(a,b); break;
+                     case 2: xe_addss_xx(a,b); break; case 3: xe_subss_xx(a,b); break;
+                     case 4: xe_maxsd_xx(a,b); break; case 5: xe_minsd_xx(a,b); break;
+                     case 6: xe_addsd_xx(a,b); break; default: xe_subsd_xx(a,b); break; } },
              [&]{ e_u8* q=(e_u8*)x86Ptr; E_SSE_RR(q, w.pre, w.op, a, b); x86Ptr=(u8*)q; }); } }
 
     printf("newly bound: cases %ld | divergent %ld\n",C,F);

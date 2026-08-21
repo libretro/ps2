@@ -18,9 +18,9 @@ template <typename A, typename B>
 static void check(const char* what, A a, B b)
 {
     u8 x[32], y[32]; size_t nx, ny;
-    xSetPtr(g_buf); a(); nx = xGetPtr()-g_buf; memcpy(x,g_buf,nx);
+    x86Ptr = (u8*)(g_buf); a(); nx = x86Ptr-g_buf; memcpy(x,g_buf,nx);
     memset(g_buf,0xcc,32);
-    xSetPtr(g_buf); b(); ny = xGetPtr()-g_buf; memcpy(y,g_buf,ny);
+    x86Ptr = (u8*)(g_buf); b(); ny = x86Ptr-g_buf; memcpy(y,g_buf,ny);
     g_cases++;
     if (nx!=ny || memcmp(x,y,nx)) {
         g_fail++;

@@ -85,7 +85,7 @@ namespace x86Emitter
 	void xImpl_FastCall::operator()(const void* f, const xRegister32& a1, const xRegister32& a2) const
 	{
 		prepareRegsForFastcall(a1, a2);
-		uptr disp = ((uptr)xGetPtr() + 5) - (uptr)f;
+		uptr disp = ((uptr)x86Ptr + 5) - (uptr)f;
 		if ((sptr)disp == (s32)disp)
 		{
 			xCALL(f);
@@ -100,7 +100,7 @@ namespace x86Emitter
 	void xImpl_FastCall::operator()(const void* f, const xRegisterLong& a1, const xRegisterLong& a2) const
 	{
 		prepareRegsForFastcall(a1, a2);
-		uptr disp = ((uptr)xGetPtr() + 5) - (uptr)f;
+		uptr disp = ((uptr)x86Ptr + 5) - (uptr)f;
 		if ((sptr)disp == (s32)disp)
 		{
 			xCALL(f);

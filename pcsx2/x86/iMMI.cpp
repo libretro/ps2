@@ -81,16 +81,16 @@ void recPLZCW()
 
 	xe_mov32_ri(XE_CX, 31);
 	xe_test32_rr(XE_AX, XE_AX); // TEST sets the sign flag accordingly.
-	u8* label_notSigned = JNS8(0);
+	e_u8* label_notSigned; xe_fwd_jcc8(Jcc_Unsigned /* JNS: 0x9 */, label_notSigned);
 	xe_not32_r(XE_AX);
-	x86SetJ8(label_notSigned);
+	xe_fwd_set8(label_notSigned);
 
 	xe_bsr32_rr(XE_AX, XE_AX);
-	u8* label_Zeroed = JZ8(0); // If BSR sets the ZF, eax is "trash"
+	e_u8* label_Zeroed; xe_fwd_jcc8(Jcc_Zero, label_Zeroed); // If BSR sets the ZF, eax is "trash"
 	xe_sub32_rr(XE_CX, XE_AX);
 	xe_dec32_r(XE_CX); // PS2 doesn't count the first bit
 
-	x86SetJ8(label_Zeroed);
+	xe_fwd_set8(label_Zeroed);
 	xe_mov32_mr(&cpuRegs.GPR.r[_Rd_].UL[0], XE_CX);
 
 	// second word
@@ -111,16 +111,16 @@ void recPLZCW()
 
 	xe_mov32_ri(XE_CX, 31);
 	xe_test32_rr(XE_AX, XE_AX); // TEST sets the sign flag accordingly.
-	label_notSigned = JNS8(0);
+	xe_fwd_jcc8(Jcc_Unsigned /* JNS: 0x9 */, label_notSigned);
 	xe_not32_r(XE_AX);
-	x86SetJ8(label_notSigned);
+	xe_fwd_set8(label_notSigned);
 
 	xe_bsr32_rr(XE_AX, XE_AX);
-	label_Zeroed = JZ8(0); // If BSR sets the ZF, eax is "trash"
+	xe_fwd_jcc8(Jcc_Zero, label_Zeroed); // If BSR sets the ZF, eax is "trash"
 	xe_sub32_rr(XE_CX, XE_AX);
 	xe_dec32_r(XE_CX); // PS2 doesn't count the first bit
 
-	x86SetJ8(label_Zeroed);
+	xe_fwd_set8(label_Zeroed);
 	xe_mov32_mr(&cpuRegs.GPR.r[_Rd_].UL[1], XE_CX);
 
 	GPR_DEL_CONST(_Rd_);
@@ -1931,17 +1931,17 @@ static void recPDIVW_half(int hilo, int word)
 	// INT_MIN / -1: quotient stays 0x80000000, remainder 0. x86 would raise
 	// #DE here, so the case has to be branched around rather than divided.
 	xe_cmp32_ri(XE_AX, 0x80000000);
-	cont1 = JNE8(0);
+	xe_fwd_jcc8(Jcc_NotEqual, cont1);
 	xe_cmp32_ri(XE_CX, 0xffffffff);
-	cont2 = JNE8(0);
+	xe_fwd_jcc8(Jcc_NotEqual, cont2);
 	xe_xor32_rr(XE_DX, XE_DX);
-	end1 = JMP8(0);
+	xe_fwd_jcc8(Jcc_Unconditional, end1);
 
-	x86SetJ8(cont1);
-	x86SetJ8(cont2);
+	xe_fwd_set8(cont1);
+	xe_fwd_set8(cont2);
 
 	xe_cmp32_ri(XE_CX, 0);
-	cont3 = JNE8(0);
+	xe_fwd_jcc8(Jcc_NotEqual, cont3);
 	// Divide by zero: remainder is the dividend, quotient is its sign
 	// mapped to 1 / -1. SAR+SHL+NOT turns (x<0) into 1 and (x>=0) into -1
 	// without a branch.
@@ -1949,14 +1949,14 @@ static void recPDIVW_half(int hilo, int word)
 	xe_sar32_ri(XE_AX, 31);
 	xe_shl32_ri(XE_AX, 1);
 	xe_not32_r(XE_AX);
-	end2 = JMP8(0);
+	xe_fwd_jcc8(Jcc_Unconditional, end2);
 
-	x86SetJ8(cont3);
+	xe_fwd_set8(cont3);
 	xe_cdq();
 	xe_div32_r(XE_CX);
 
-	x86SetJ8(end1);
-	x86SetJ8(end2);
+	xe_fwd_set8(end1);
+	xe_fwd_set8(end2);
 
 	// LO/HI hold 64-bit lanes; both results are sign-extended into them.
 	xe_movsxd_rr(XE_AX, XE_AX);
@@ -2007,29 +2007,29 @@ static void recPDIVBW_lane(int n)
 	xe_mov32_rm(XE_AX, &cpuRegs.GPR.r[_Rs_].UL[n]);
 
 	xe_cmp32_ri(XE_AX, 0x80000000);
-	cont1 = JNE8(0);
+	xe_fwd_jcc8(Jcc_NotEqual, cont1);
 	xe_cmp32_ri(XE_CX, 0xffffffff);
-	cont2 = JNE8(0);
+	xe_fwd_jcc8(Jcc_NotEqual, cont2);
 	xe_xor32_rr(XE_DX, XE_DX);
-	end1 = JMP8(0);
+	xe_fwd_jcc8(Jcc_Unconditional, end1);
 
-	x86SetJ8(cont1);
-	x86SetJ8(cont2);
+	xe_fwd_set8(cont1);
+	xe_fwd_set8(cont2);
 
 	xe_cmp32_ri(XE_CX, 0);
-	cont3 = JNE8(0);
+	xe_fwd_jcc8(Jcc_NotEqual, cont3);
 	xe_mov32_rr(XE_DX, XE_AX);
 	xe_sar32_ri(XE_AX, 31);
 	xe_shl32_ri(XE_AX, 1);
 	xe_not32_r(XE_AX);
-	end2 = JMP8(0);
+	xe_fwd_jcc8(Jcc_Unconditional, end2);
 
-	x86SetJ8(cont3);
+	xe_fwd_set8(cont3);
 	xe_cdq();
 	xe_div32_r(XE_CX);
 
-	x86SetJ8(end1);
-	x86SetJ8(end2);
+	xe_fwd_set8(end1);
+	xe_fwd_set8(end2);
 
 	xe_mov32_mr(&cpuRegs.LO.UL[n], XE_AX);
 	xe_mov32_mr(&cpuRegs.HI.UL[n], XE_DX);
@@ -2736,17 +2736,17 @@ static void recPDIVUW_half(int hilo, int word)
 	xe_mov32_rm(XE_AX, &cpuRegs.GPR.r[_Rs_].UL[word]);
 
 	xe_cmp32_ri(XE_CX, 0);
-	cont = JNE8(0);
+	xe_fwd_jcc8(Jcc_NotEqual, cont);
 	// Divide by zero: quotient -1, remainder the dividend.
 	xe_mov32_rr(XE_DX, XE_AX);
 	xe_mov32_ri(XE_AX, 0xffffffff);
-	end = JMP8(0);
+	xe_fwd_jcc8(Jcc_Unconditional, end);
 
-	x86SetJ8(cont);
+	xe_fwd_set8(cont);
 	xe_xor32_rr(XE_DX, XE_DX);
 	xe_udiv32_r(XE_CX);
 
-	x86SetJ8(end);
+	xe_fwd_set8(end);
 
 	xe_movsxd_rr(XE_AX, XE_AX);
 	xe_mov64_mr(&cpuRegs.LO.UD[hilo], XE_AX);

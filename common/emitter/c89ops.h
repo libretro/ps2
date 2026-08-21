@@ -969,6 +969,14 @@
 #define xe_fwd_set32(slot) do { XE_OPEN();  \
 	{ *(e_s32*)(slot) = (e_s32)(xep - ((slot) + 4)); }; XE_CLOSE(); } while (0)
 
+/* Pad to a 16-byte boundary with NOPs, then patch. The legacy x86SetJ32A
+ * did this so a branch target starts a fresh cache line; the padding is
+ * part of the emitted stream, so it has to happen before the displacement
+ * is computed. */
+#define xe_fwd_set32_aligned(slot) do { XE_OPEN(); \
+	while (((e_uptr)xep) & 0xf) EW8(xep, 0x90); \
+	{ *(e_s32*)(slot) = (e_s32)(xep - ((slot) + 4)); }; XE_CLOSE(); } while (0)
+
 /* microVU_Lower vocabulary */
 #define xe_mulss_xm(x, addr)  do { XE_OPEN(); { struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
 	E_SSE_R_MEM(xep, 0xf3, 0x59, (x), xm_); }; XE_CLOSE(); } while (0)

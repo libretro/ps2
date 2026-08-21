@@ -559,7 +559,7 @@ void mVUreset(microVU& mVU, bool resetReserve)
 	}
 
 	// Point the VIXL emitter at mVU.cache and emit the dispatchers + helper thunks
-	// at the start of the cache (x86: xSetPtr(mVU.cache) + the five generate calls).
+	// at the start of the cache (x86: x86Ptr = (u8*)(mVU.cache) + the five generate calls).
 	// Also sets mVU.prog.codeStart / codePtr just past the emitted dispatchers.
 	mVUgenerateDispatchers(mVU);
 
@@ -575,7 +575,7 @@ void mVUreset(microVU& mVU, bool resetReserve)
 	mVU.prog.curFrame =  0;
 
 	// (codeStart / codePtr were set by mVUgenerateDispatchers, just past the
-	// emitted dispatchers — the x86 rec does this with xGetAlignedCallTarget().)
+	// emitted dispatchers — the x86 rec does this with x86Ptr.)
 
 	for (u32 i = 0; i < (mVU.progSize / 2); i++)
 	{
@@ -1182,7 +1182,7 @@ static void mVUGenerateCompareState(microVU& mVU)
 }
 
 // Emit the dispatchers + helper thunks at the start of the VU's code cache, then
-// set codeStart/codePtr just past them (x86: xSetPtr(mVU.cache) + the five
+// set codeStart/codePtr just past them (x86: x86Ptr = (u8*)(mVU.cache) + the five
 // generate calls + xGetAlignedCallTarget in mVUreset). No constant pool: the
 // dispatchers materialise addresses via adrp/mov and call C helpers via mov+blr.
 static void mVUgenerateDispatchers(microVU& mVU)
@@ -1270,7 +1270,7 @@ static void mVUcleanUp()
 	microVU& mVU = (vuIndex ? microVU1 : microVU0);
 
 	// The block compiler advanced mVU.prog.codePtr as it emitted; if it ran past
-	// the cache limit, reset the program cache (x86 checks xGetPtr() here).
+	// the cache limit, reset the program cache (x86 checks x86Ptr here).
 	if ((mVU.prog.codePtr < mVU.prog.codeStart) || (mVU.prog.codePtr >= mVU.prog.codeEnd))
 	{
 		Console.WriteLn(vuIndex ? Color_Orange : Color_Magenta, "microVU%d: Program cache limit reached.", mVU.index);

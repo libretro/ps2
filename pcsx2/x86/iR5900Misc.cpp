@@ -24,7 +24,7 @@
 // Parameters:
 //   jmpSkip - This parameter is the result of the appropriate J32 instruction
 //   (usually JZ32 or JNZ32).
-void recDoBranchImm(u32 branchTo, u32* jmpSkip, int isLikely, int swappedDelaySlot)
+void recDoBranchImm(u32 branchTo, e_u8* jmpSkip, int isLikely, int swappedDelaySlot)
 {
 	// First up is the Branch Taken Path : Save the recompiler's state, compile the
 	// DelaySlot, and issue a BranchTest insertion.  The state is reloaded below for
@@ -40,7 +40,7 @@ void recDoBranchImm(u32 branchTo, u32* jmpSkip, int isLikely, int swappedDelaySl
 
 	// Jump target when the branch is *not* taken, skips the branchtest code
 	// insertion above.
-	x86SetJ32(jmpSkip);
+	xe_fwd_set32(jmpSkip);
 
 	// if it's a likely branch then we'll need to skip the delay slot here, since
 	// MIPS cancels the delay slot instruction when branches aren't taken.

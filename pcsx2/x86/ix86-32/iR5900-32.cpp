@@ -408,7 +408,7 @@ static void recClear(u32 addr, u32 size)
 // dispatches to the recompiled block address.
 static const void* _DynGen_InvalidPCDispatch(void)
 {
-	u8* retval = xGetAlignedCallTarget();
+	u8* retval = x86Ptr;
 	xe_fastcall0(recInvalidPCFetch);
 	xe_jmp_to(DispatcherReg);
 	return retval;
@@ -416,7 +416,7 @@ static const void* _DynGen_InvalidPCDispatch(void)
 
 static const void* _DynGen_JITCompile(void)
 {
-	u8* retval = xGetAlignedCallTarget();
+	u8* retval = x86Ptr;
 
 	xe_fastcall1_m32(recRecompile, &cpuRegs.pc);
 
@@ -436,7 +436,7 @@ static const void* _DynGen_JITCompile(void)
 // called when jumping to variable pc address
 static const void* _DynGen_DispatcherReg(void)
 {
-	u8* retval = xGetPtr(); // fallthrough target, can't align it!
+	u8* retval = x86Ptr; // fallthrough target, can't align it!
 
 	// C equivalent:
 	// u32 addr = cpuRegs.pc;
@@ -453,7 +453,7 @@ static const void* _DynGen_DispatcherReg(void)
 
 static const void* _DynGen_DispatcherEvent(void)
 {
-	u8* retval = xGetPtr();
+	u8* retval = x86Ptr;
 
 	xe_fastcall0(recEventTest);
 
@@ -462,7 +462,7 @@ static const void* _DynGen_DispatcherEvent(void)
 
 static const void* _DynGen_EnterRecompiledCode(void)
 {
-	u8* retval = xGetAlignedCallTarget();
+	u8* retval = x86Ptr;
 
 #ifdef _WIN32
 	// Shadow space for Win32
@@ -486,7 +486,7 @@ static const void* _DynGen_EnterRecompiledCode(void)
 
 static const void* _DynGen_DispatchBlockDiscard(void)
 {
-	u8* retval = xGetPtr();
+	u8* retval = x86Ptr;
 	xe_fastcall0(recClear);
 	xe_jmp_to(DispatcherReg);
 	return retval;
@@ -494,7 +494,7 @@ static const void* _DynGen_DispatchBlockDiscard(void)
 
 static const void* _DynGen_DispatchPageReset(void)
 {
-	u8* retval = xGetPtr();
+	u8* retval = x86Ptr;
 	xe_fastcall0(dyna_page_reset);
 	xe_jmp_to(DispatcherReg);
 	return retval;
@@ -512,7 +512,7 @@ static void _DynGen_Dispatchers(void)
 	// clear the buffer to 0xcc (easier debugging).
 	memset(eeRecDispatchers, 0xcc, __pagesize);
 
-	xSetPtr(eeRecDispatchers);
+	x86Ptr = (u8*)(eeRecDispatchers);
 
 	// Place the EventTest and DispatcherReg stuff at the top, because they get called the
 	// most and stand to benefit from strong alignment and direct referencing.
@@ -650,8 +650,8 @@ static void recResetRaw(void)
 	memset(manual_page, 0, sizeof(manual_page));
 	memset(manual_counter, 0, sizeof(manual_counter));
 
-	xSetPtr(recMem.baseptr);
-	recPtr = xGetPtr();
+	x86Ptr = (u8*)(recMem.baseptr);
+	recPtr = x86Ptr;
 
 	g_branch = 0;
 	g_resetEeScalingStats = 1;
@@ -832,9 +832,9 @@ u8* recBeginThunk(void)
 	if (recPtr >= ((recMem.baseptr + recMem.size) - _64kb))
 		eeRecNeedsReset = 1;
 
-	xSetPtr(recPtr);
-	recPtr = xGetAlignedCallTarget();
-	xSetPtr(recPtr);
+	x86Ptr = (u8*)(recPtr);
+	recPtr = x86Ptr;
+	x86Ptr = (u8*)(recPtr);
 	return recPtr;
 }
 
@@ -1790,8 +1790,8 @@ static void recRecompile(const u32 startpc)
 		recResetRaw();
 	}
 
-	xSetPtr(recPtr);
-	recPtr = xGetAlignedCallTarget();
+	x86Ptr = (u8*)(recPtr);
+	recPtr = x86Ptr;
 
 	s_pCurBlock = PC_GETBLOCK(startpc);
 
@@ -2244,9 +2244,9 @@ StartRecomp:
 		}
 	}
 
-	s_pCurBlockEx->x86size = (u32)(xGetPtr() - recPtr);
+	s_pCurBlockEx->x86size = (u32)(x86Ptr - recPtr);
 
-	recPtr = xGetPtr();
+	recPtr = x86Ptr;
 
 	s_pCurBlock = NULL;
 	s_pCurBlockEx = NULL;

@@ -307,19 +307,23 @@ INTERPRETATE_COP2_FUNC(CALLMSR);
 // Macro VU - Branches
 //------------------------------------------------------------------
 
-static void _setupBranchTest(u32*(jmpType)(u32), int isLikely)
+/* cc is a JccComparisonType; the branch's rel32 slot is emitted here and
+ * handed to recDoBranchImm to patch. */
+static void _setupBranchTest(int cc, int isLikely)
 {
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
 	const int swap = !!(isLikely ? 0 : TrySwapDelaySlot(0, 0, 0, 0));
+	e_u8* slot_;
 	_eeFlushAllDirty();
 	xe_test32_mi(&vuRegs[0].VI[REG_VPU_STAT].UL, 0x100);
-	recDoBranchImm(branchTo, jmpType(0), isLikely, swap);
+	xe_fwd_jcc32(cc, slot_);
+	recDoBranchImm(branchTo, slot_, isLikely, swap);
 }
 
-void recBC2F(void)  { _setupBranchTest(JNZ32, 0); }
-void recBC2T(void)  { _setupBranchTest(JZ32,  0); }
-void recBC2FL(void) { _setupBranchTest(JNZ32, 1);  }
-void recBC2TL(void) { _setupBranchTest(JZ32,  1);  }
+void recBC2F(void)  { _setupBranchTest(Jcc_NotZero, 0); }
+void recBC2T(void)  { _setupBranchTest(Jcc_Zero,    0); }
+void recBC2FL(void) { _setupBranchTest(Jcc_NotZero, 1); }
+void recBC2TL(void) { _setupBranchTest(Jcc_Zero,    1); }
 
 //------------------------------------------------------------------
 // Macro VU - COP2 Transfer Instructions

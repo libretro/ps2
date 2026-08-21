@@ -902,19 +902,19 @@ static void rpsxDIVsuper(int info, int sign, int process)
 	if (sign) //test for overflow (x86 will just throw an exception)
 	{
 		xe_cmp32_ri(XE_AX, 0x80000000);
-		u8* cont1 = JNE8(0);
+		e_u8* cont1; xe_fwd_jcc8(Jcc_NotEqual, cont1);
 		xe_cmp32_ri(XE_CX, 0xffffffff);
-		u8* cont2 = JNE8(0);
+		e_u8* cont2; xe_fwd_jcc8(Jcc_NotEqual, cont2);
 		//overflow case:
 		xe_xor32_rr(XE_DX, XE_DX); //EAX remains 0x80000000
-		end1 = JMP8(0);
+		xe_fwd_jcc8(Jcc_Unconditional, end1);
 
-		x86SetJ8(cont1);
-		x86SetJ8(cont2);
+		xe_fwd_set8(cont1);
+		xe_fwd_set8(cont2);
 	}
 
 	xe_cmp32_ri(XE_CX, 0);
-	u8* cont3 = JNE8(0);
+	e_u8* cont3; xe_fwd_jcc8(Jcc_NotEqual, cont3);
 
 	//divide by zero
 	xe_mov32_rr(XE_DX, XE_AX);
@@ -926,10 +926,10 @@ static void rpsxDIVsuper(int info, int sign, int process)
 	}
 	else
 		xe_mov32_ri(XE_AX, 0xffffffff);
-	u8* end2 = JMP8(0);
+	e_u8* end2; xe_fwd_jcc8(Jcc_Unconditional, end2);
 
 	// Normal division
-	x86SetJ8(cont3);
+	xe_fwd_set8(cont3);
 	if (sign)
 	{
 		xe_cdq();
@@ -942,8 +942,8 @@ static void rpsxDIVsuper(int info, int sign, int process)
 	}
 
 	if (sign)
-		x86SetJ8(end1);
-	x86SetJ8(end2);
+		xe_fwd_set8(end1);
+	xe_fwd_set8(end2);
 
 	rpsxWritebackHILO(info);
 }
@@ -1634,7 +1634,7 @@ static void rpsxJALR()
 }
 
 //// BEQ
-static u32* s_pbranchjmp;
+static e_u8* s_pbranchjmp;
 
 static void rpsxSetBranchEQ(int process)
 {
@@ -1666,7 +1666,7 @@ static void rpsxSetBranchEQ(int process)
 			xe_cmp32_rm(regs, &psxRegs.GPR.r[_Rt_]);
 	}
 
-	s_pbranchjmp = JNE32(0);
+	xe_fwd_jcc32(Jcc_NotEqual, s_pbranchjmp);
 }
 
 static void rpsxBEQ_const()
@@ -1705,7 +1705,7 @@ static void rpsxBEQ_process(int process)
 
 		psxSetBranchImm(branchTo);
 
-		x86SetJ32A(s_pbranchjmp);
+		xe_fwd_set32_aligned(s_pbranchjmp);
 
 		if (!swap)
 		{
@@ -1769,7 +1769,7 @@ static void rpsxBNE_process(int process)
 
 	psxSetBranchImm(psxpc);
 
-	x86SetJ32A(s_pbranchjmp);
+	xe_fwd_set32_aligned(s_pbranchjmp);
 
 	if (!swap)
 	{
@@ -1819,7 +1819,7 @@ static void rpsxBLTZ()
 	else
 		xe_cmp32_mi(&psxRegs.GPR.r[_Rs_], 0);
 
-	u32* pjmp = JL32(0);
+	e_u8* pjmp; xe_fwd_jcc32(Jcc_Less, pjmp);
 
 	if (!swap)
 	{
@@ -1829,7 +1829,7 @@ static void rpsxBLTZ()
 
 	psxSetBranchImm(psxpc);
 
-	x86SetJ32A(pjmp);
+	xe_fwd_set32_aligned(pjmp);
 
 	if (!swap)
 	{
@@ -1866,7 +1866,7 @@ static void rpsxBGEZ()
 	else
 		xe_cmp32_mi(&psxRegs.GPR.r[_Rs_], 0);
 
-	u32* pjmp = JGE32(0);
+	e_u8* pjmp; xe_fwd_jcc32(Jcc_GreaterOrEqual, pjmp);
 
 	if (!swap)
 	{
@@ -1876,7 +1876,7 @@ static void rpsxBGEZ()
 
 	psxSetBranchImm(psxpc);
 
-	x86SetJ32A(pjmp);
+	xe_fwd_set32_aligned(pjmp);
 
 	if (!swap)
 	{
@@ -1919,7 +1919,7 @@ static void rpsxBLTZAL()
 	else
 		xe_cmp32_mi(&psxRegs.GPR.r[_Rs_], 0);
 
-	u32* pjmp = JL32(0);
+	e_u8* pjmp; xe_fwd_jcc32(Jcc_Less, pjmp);
 
 	if (!swap)
 	{
@@ -1929,7 +1929,7 @@ static void rpsxBLTZAL()
 
 	psxSetBranchImm(psxpc);
 
-	x86SetJ32A(pjmp);
+	xe_fwd_set32_aligned(pjmp);
 
 	if (!swap)
 	{
@@ -1971,7 +1971,7 @@ static void rpsxBGEZAL()
 	else
 		xe_cmp32_mi(&psxRegs.GPR.r[_Rs_], 0);
 
-	u32* pjmp = JGE32(0);
+	e_u8* pjmp; xe_fwd_jcc32(Jcc_GreaterOrEqual, pjmp);
 
 	if (!swap)
 	{
@@ -1981,7 +1981,7 @@ static void rpsxBGEZAL()
 
 	psxSetBranchImm(psxpc);
 
-	x86SetJ32A(pjmp);
+	xe_fwd_set32_aligned(pjmp);
 
 	if (!swap)
 	{
@@ -2019,7 +2019,7 @@ static void rpsxBLEZ()
 	else
 		xe_cmp32_mi(&psxRegs.GPR.r[_Rs_], 0);
 
-	u32* pjmp = JLE32(0);
+	e_u8* pjmp; xe_fwd_jcc32(Jcc_LessOrEqual, pjmp);
 
 	if (!swap)
 	{
@@ -2029,7 +2029,7 @@ static void rpsxBLEZ()
 
 	psxSetBranchImm(psxpc);
 
-	x86SetJ32A(pjmp);
+	xe_fwd_set32_aligned(pjmp);
 
 	if (!swap)
 	{
@@ -2068,7 +2068,7 @@ static void rpsxBGTZ()
 	else
 		xe_cmp32_mi(&psxRegs.GPR.r[_Rs_], 0);
 
-	u32* pjmp = JG32(0);
+	e_u8* pjmp; xe_fwd_jcc32(Jcc_Greater, pjmp);
 
 	if (!swap)
 	{
@@ -2078,7 +2078,7 @@ static void rpsxBGTZ()
 
 	psxSetBranchImm(psxpc);
 
-	x86SetJ32A(pjmp);
+	xe_fwd_set32_aligned(pjmp);
 
 	if (!swap)
 	{

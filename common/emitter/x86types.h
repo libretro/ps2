@@ -35,17 +35,10 @@ XMMT_FPS = 1  // floating point
 inline thread_local u8* x86Ptr PCSX2_TLS_INITIAL_EXEC = nullptr;
 inline thread_local XMMSSEType g_xmmtypes[iREGCNT_XMM] PCSX2_TLS_INITIAL_EXEC = {XMMT_INT};
 
-// Retrieves the current emitter buffer target address.
-// This is provided instead of using x86Ptr directly, since we may in the future find
-// a need to change the storage scheme for the x86Ptr 'under the hood.'
-#define xGetPtr() (x86Ptr)
-
-// Assigns the current emitter buffer target address.
-// This is provided instead of using x86Ptr directly, since we may in the future find
-// a need to change the storage scheme for the x86Ptr 'under the hood.'
-#define xSetPtr(ptr) (x86Ptr = (u8*)(ptr))
-
-#define xGetAlignedCallTarget() (x86Ptr)
+/* x86Ptr is the emitter cursor; read and assign it directly. The old
+ * x86Ptr/x86Ptr = (u8*)()/x86Ptr wrappers existed against a
+ * future change of storage scheme that never came, and the "aligned call
+ * target" one did no alignment -- it was the cursor under another name. */
 
 #define xWrite8(val) \
 { \

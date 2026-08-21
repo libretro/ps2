@@ -52,7 +52,7 @@ void recBranchCall(void (*func)(void));
 void recCall(void (*func)(void));
 u32 scaleblockcycles_clear(void);
 
-		extern void recDoBranchImm(u32 branchTo, u32* jmpSkip, int isLikely, int swappedDelaySlot);
+		extern void recDoBranchImm(u32 branchTo, e_u8* jmpSkip, int isLikely, int swappedDelaySlot);
 
 ////////////////////////////////////////////////////////////////////
 // Constant Propagation - From here to the end of the header!

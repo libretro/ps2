@@ -1058,7 +1058,7 @@ inline constexpr xRegister32
 		// type must be valid (Jcc_Unknown generates an assertion).
 		xForwardJump(JccComparisonType cctype = Jcc_Unconditional)
 		{
-			BasePtr = (s8*)xGetPtr() +
+			BasePtr = (s8*)x86Ptr +
 				((OperandSize == 1) ? 2 : // j8's are always 2 bytes.
 				 ((cctype == Jcc_Unconditional) ? 5 : 6)); // j32's are either 5 or 6 bytes
 
@@ -1087,7 +1087,7 @@ inline constexpr xRegister32
 		// in each case. (the the last call is the one that takes effect).
 		void SetTarget() const
 		{
-			sptr displacement = (sptr)xGetPtr() - (sptr)BasePtr;
+			sptr displacement = (sptr)x86Ptr - (sptr)BasePtr;
 			if (OperandSize == 1)
 				BasePtr[-1] = (s8)displacement;
 			else

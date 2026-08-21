@@ -31,9 +31,9 @@ static void check(const char* what, CppFn cpp, C89Fn c89)
 	u8 a[32], b[32];
 	size_t na, nb;
 
-	xSetPtr(g_buf);
+	x86Ptr = (u8*)(g_buf);
 	cpp();
-	na = (size_t)(xGetPtr() - g_buf);
+	na = (size_t)(x86Ptr - g_buf);
 	memcpy(a, g_buf, na);
 
 	memset(g_buf, 0xcc, 32);

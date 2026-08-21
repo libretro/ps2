@@ -59,7 +59,7 @@ void recBC0F()
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
 	const int swap = !!(TrySwapDelaySlot(0, 0, 0, 0));
 	_setupBranchTest();
-	recDoBranchImm(branchTo, JE32(0), 0, swap);
+	{ e_u8* bslot_; xe_fwd_jcc32(Jcc_Equal, bslot_); recDoBranchImm(branchTo, bslot_, 0, swap); }
 }
 
 void recBC0T()
@@ -67,21 +67,21 @@ void recBC0T()
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
 	const int swap = !!(TrySwapDelaySlot(0, 0, 0, 0));
 	_setupBranchTest();
-	recDoBranchImm(branchTo, JNE32(0), 0, swap);
+	{ e_u8* bslot_; xe_fwd_jcc32(Jcc_NotEqual, bslot_); recDoBranchImm(branchTo, bslot_, 0, swap); }
 }
 
 void recBC0FL()
 {
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
 	_setupBranchTest();
-	recDoBranchImm(branchTo, JE32(0), 1, 0);
+	{ e_u8* bslot_; xe_fwd_jcc32(Jcc_Equal, bslot_); recDoBranchImm(branchTo, bslot_, 1, 0); }
 }
 
 void recBC0TL()
 {
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
 	_setupBranchTest();
-	recDoBranchImm(branchTo, JNE32(0), 1, 0);
+	{ e_u8* bslot_; xe_fwd_jcc32(Jcc_NotEqual, bslot_); recDoBranchImm(branchTo, bslot_, 1, 0); }
 }
 
 // TLBR copies one TLB entry into the CP0 registers. It is pure register
@@ -171,7 +171,7 @@ void recTLBP()
 	xe_lea_far(XE_CX, tlb);
 	xe_xor32_rr(10, 10);
 
-	u8* loop = xGetPtr();
+	u8* loop = x86Ptr;
 	{
 		// tlb[i].VPN2 == ((~tlb[i].Mask) & VPN2)
 		xe_mov32_rbd(XE_AX, XE_CX, offsetof(tlbs, Mask));

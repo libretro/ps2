@@ -347,19 +347,19 @@ static void recDIVsuper(int info, int sign, int upper, int process)
 	if (sign) //test for overflow (x86 will just throw an exception)
 	{
 		xe_cmp32_ri(XE_AX, 0x80000000);
-		u8* cont1 = JNE8(0);
+		e_u8* cont1; xe_fwd_jcc8(Jcc_NotEqual, cont1);
 		xe_cmp32_ri(divisor, 0xffffffff);
-		u8* cont2 = JNE8(0);
+		e_u8* cont2; xe_fwd_jcc8(Jcc_NotEqual, cont2);
 		//overflow case:
 		xe_xor32_rr(XE_DX, XE_DX); //EAX remains 0x80000000
-		end1 = JMP8(0);
+		xe_fwd_jcc8(Jcc_Unconditional, end1);
 
-		x86SetJ8(cont1);
-		x86SetJ8(cont2);
+		xe_fwd_set8(cont1);
+		xe_fwd_set8(cont2);
 	}
 
 	xe_cmp32_ri(divisor, 0);
-	u8* cont3 = JNE8(0);
+	e_u8* cont3; xe_fwd_jcc8(Jcc_NotEqual, cont3);
 	//divide by zero
 	xe_mov32_rr(XE_DX, XE_AX);
 	if (sign) //set EAX to (EAX < 0)?1:-1
@@ -370,9 +370,9 @@ static void recDIVsuper(int info, int sign, int upper, int process)
 	}
 	else
 		xe_mov32_ri(XE_AX, 0xffffffff);
-	u8* end2 = JMP8(0);
+	e_u8* end2; xe_fwd_jcc8(Jcc_Unconditional, end2);
 
-	x86SetJ8(cont3);
+	xe_fwd_set8(cont3);
 	if (sign)
 	{
 		xe_cdq();
@@ -385,8 +385,8 @@ static void recDIVsuper(int info, int sign, int upper, int process)
 	}
 
 	if (sign)
-		x86SetJ8(end1);
-	x86SetJ8(end2);
+		xe_fwd_set8(end1);
+	xe_fwd_set8(end2);
 
 	// need to execute regardless of bad divide
 	recWritebackHILO(info, 0, upper);
