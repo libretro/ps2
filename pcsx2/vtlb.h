@@ -38,18 +38,9 @@ typedef  void vtlbMemW128FP(u32 addr, const r128* data);
 typedef  void TAKES_R128 vtlbMemW128FP(u32 addr,r128 data);
 #endif
 
-template <size_t Width, bool Write> struct vtlbMemFP;
-
-template<> struct vtlbMemFP<  8, false> { typedef vtlbMemR8FP   fn; static const uptr Index = 0; };
-template<> struct vtlbMemFP< 16, false> { typedef vtlbMemR16FP  fn; static const uptr Index = 1; };
-template<> struct vtlbMemFP< 32, false> { typedef vtlbMemR32FP  fn; static const uptr Index = 2; };
-template<> struct vtlbMemFP< 64, false> { typedef vtlbMemR64FP  fn; static const uptr Index = 3; };
-template<> struct vtlbMemFP<128, false> { typedef vtlbMemR128FP fn; static const uptr Index = 4; };
-template<> struct vtlbMemFP<  8,  true> { typedef vtlbMemW8FP   fn; static const uptr Index = 0; };
-template<> struct vtlbMemFP< 16,  true> { typedef vtlbMemW16FP  fn; static const uptr Index = 1; };
-template<> struct vtlbMemFP< 32,  true> { typedef vtlbMemW32FP  fn; static const uptr Index = 2; };
-template<> struct vtlbMemFP< 64,  true> { typedef vtlbMemW64FP  fn; static const uptr Index = 3; };
-template<> struct vtlbMemFP<128,  true> { typedef vtlbMemW128FP fn; static const uptr Index = 4; };
+/* vtlbMemFP<Width, Write> mapped a width and direction onto a handler
+ * typedef and an RWFT row index at compile time. The read/write paths name
+ * the row and the function-pointer type directly now, so it has no users. */
 
 typedef u32 vtlbHandler;
 
@@ -109,11 +100,6 @@ extern void TAKES_R128 vtlb_memWrite128(u32 mem, r128 value);
 #endif
 
 // "Safe" variants of vtlb, designed for external tools.
-// These routines only access the various RAM, and will not call handlers
-// which has the potential to change hardware state.
-template <typename DataType>
-extern DataType vtlb_ramRead(u32 mem);
-
 using vtlb_ReadRegAllocCallback = int(*)(void);
 extern int vtlb_DynGenReadNonQuad(u32 bits, int sign, int xmm, int addr_reg, vtlb_ReadRegAllocCallback dest_reg_alloc = nullptr);
 extern int vtlb_DynGenReadNonQuad_Const(u32 bits, int sign, int xmm, u32 addr_const, vtlb_ReadRegAllocCallback dest_reg_alloc = nullptr);
@@ -251,9 +237,6 @@ namespace vtlb_private
 		u32 assumeHandlerGetPAddr(u32 vaddr) const { return (value + vaddr - assumeHandlerGetID()) & ~POINTER_SIGN_BIT; }
 		/// Assumes the entry is a handler, returning it as a void*
 		void *assumeHandlerGetRaw(int index, bool write) const;
-		/// Assumes the entry is a handler, returning it
-		template <size_t Width, bool Write>
-		typename vtlbMemFP<Width, Write>::fn *assumeHandler() const;
 	};
 
 	struct MapData
@@ -286,12 +269,6 @@ namespace vtlb_private
 		return vtlbdata.RWFT[index][write][assumeHandlerGetID()];
 	}
 
-	template <size_t Width, bool Write>
-	typename vtlbMemFP<Width, Write>::fn *VTLBVirtual::assumeHandler() const
-	{
-		using FP = vtlbMemFP<Width, Write>;
-		return (typename FP::fn *)assumeHandlerGetRaw(FP::Index, Write);
-	}
 }
 
 enum vtlb_ProtectionMode

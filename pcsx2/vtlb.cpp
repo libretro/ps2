@@ -363,7 +363,7 @@ RETURNS_R128 vtlb_memRead128(u32 mem)
 	{
 		//has to: translate, find function, call function
 		u32 paddr = vmv.assumeHandlerGetPAddr(mem);
-		return vmv.assumeHandler<128, false>()(paddr);
+		return ((vtlbMemR128FP*)vtlbdata.RWFT[4][0][vmv.assumeHandlerGetID()])(paddr);
 	}
 }
 
@@ -426,50 +426,20 @@ void TAKES_R128 vtlb_memWrite128(u32 mem, r128 value)
 		//has to: translate, find function, call function
 		u32 paddr = vmv.assumeHandlerGetPAddr(mem);
 #if PCSX2_MINGW_R128_BY_PTR
-		vmv.assumeHandler<128, true>()(paddr, value_ptr);
+		((vtlbMemW128FP*)vtlbdata.RWFT[4][1][vmv.assumeHandlerGetID()])(paddr, value_ptr);
 #else
-		vmv.assumeHandler<128, true>()(paddr, value);
+		((vtlbMemW128FP*)vtlbdata.RWFT[4][1][vmv.assumeHandlerGetID()])(paddr, value);
 #endif
 	}
 }
 
 
-template <typename DataType>
-bool vtlb_ramRead(u32 addr, DataType* value)
-{
-	const auto vmv = vtlbdata.vmap[addr >> VTLB_PAGE_BITS];
-	if (vmv.isHandler(addr))
-	{
-		memset(value, 0, sizeof(DataType));
-		return false;
-	}
-
-	memcpy(value, reinterpret_cast<DataType*>(vmv.assumePtr(addr)), sizeof(DataType));
-	return true;
-}
-
-template <typename DataType>
-bool vtlb_ramWrite(u32 addr, const DataType& data)
-{
-	const auto vmv = vtlbdata.vmap[addr >> VTLB_PAGE_BITS];
-	if (vmv.isHandler(addr))
-		return false;
-
-	memcpy(reinterpret_cast<DataType*>(vmv.assumePtr(addr)), &data, sizeof(DataType));
-	return true;
-}
-
-
-template bool vtlb_ramRead<mem8_t>(u32 mem, mem8_t* value);
-template bool vtlb_ramRead<mem16_t>(u32 mem, mem16_t* value);
-template bool vtlb_ramRead<mem32_t>(u32 mem, mem32_t* value);
-template bool vtlb_ramRead<mem64_t>(u32 mem, mem64_t* value);
-template bool vtlb_ramRead<mem128_t>(u32 mem, mem128_t* value);
-template bool vtlb_ramWrite<mem8_t>(u32 mem, const mem8_t& data);
-template bool vtlb_ramWrite<mem16_t>(u32 mem, const mem16_t& data);
-template bool vtlb_ramWrite<mem32_t>(u32 mem, const mem32_t& data);
-template bool vtlb_ramWrite<mem64_t>(u32 mem, const mem64_t& data);
-template bool vtlb_ramWrite<mem128_t>(u32 mem, const mem128_t& data);
+/* RAM-only accessors: they refuse handler pages rather than calling into
+ * them, so hardware state cannot change underneath. These were
+ * template<typename DataType> with eight explicit instantiations and no
+ * callers outside this file at all -- the declaration in vtlb.h had no
+ * users either. Dead code with a template on it is still dead code; if a
+ * caller ever appears, one concrete function per width is what it wants. */
 
 // --------------------------------------------------------------------------------------
 //  TLB Miss / BusError Handlers
