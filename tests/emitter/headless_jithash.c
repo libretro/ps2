@@ -151,7 +151,10 @@ static void video_cb(const void* d, unsigned w, unsigned h, size_t p)
 
     if (!d)
     {
-        fprintf(stderr, "[FBHASH] frame %ld duped\n", fbn);
+        /* A duped frame carries no pixels, and the dupe pattern is not
+         * stable across a savestate reload, so counting them would
+         * misalign two otherwise identical streams. Not counted. */
+        fbn--;
         return;
     }
 
@@ -165,7 +168,7 @@ static void video_cb(const void* d, unsigned w, unsigned h, size_t p)
             hsh ^= row[x];
             hsh *= 1099511628211ULL;
         }
-    fprintf(stderr, "[FBHASH] frame %ld %ux%u %016llx\n", fbn, w, h, hsh);
+    fprintf(stderr, "[FBHASH] %ld %ux%u %016llx\n", fbn, w, h, hsh);
 }
 static void audio_cb(int16_t l, int16_t r) { (void)l;(void)r; }
 static size_t audio_batch_cb(const int16_t* d, size_t f) { (void)d; return f; }
@@ -190,6 +193,9 @@ int main(int argc, char** argv)
     void (*p_set_input_state)(int16_t(*)(unsigned, unsigned, unsigned, unsigned));
     void (*p_init)(void);
     void (*p_deinit)(void);
+    size_t (*p_serialize_size)(void);
+    int  (*p_serialize)(void*, size_t);
+    int  (*p_unserialize)(const void*, size_t);
     int  (*p_load_game)(const struct retro_game_info*);
     void (*p_run)(void);
     struct retro_game_info gi;
@@ -217,6 +223,9 @@ int main(int argc, char** argv)
     SYM(p_set_input_state,        "retro_set_input_state");
     SYM(p_init,                   "retro_init");
     SYM(p_deinit,                 "retro_deinit");
+    SYM(p_serialize_size,         "retro_serialize_size");
+    SYM(p_serialize,              "retro_serialize");
+    SYM(p_unserialize,            "retro_unserialize");
     SYM(p_load_game,              "retro_load_game");
     SYM(p_run,                    "retro_run");
 #undef SYM
@@ -237,11 +246,53 @@ int main(int argc, char** argv)
     fprintf(stderr, "[headless] game loaded, running %d frames\n", frames);
 
     t0 = now();
-    for (i = 0; i < frames; i++) {
-        p_run();
-        if ((i % 20) == 0)
-            { fprintf(stderr, "[headless] frame %d  (%.1f s)\n", i, now() - t0); fflush(stderr); }
+    {
+        const char* ss_env = getenv("PS2_SAVESTATE");
+        const int   ss_at  = ss_env ? atoi(ss_env) : -1;
+        void*  ss_buf  = NULL;
+        size_t ss_size = 0;
+
+        for (i = 0; i < frames; i++) {
+            p_run();
+            if ((i % 20) == 0)
+                { fprintf(stderr, "[headless] frame %d  (%.1f s)\n", i, now() - t0); fflush(stderr); }
+
+            if (ss_at >= 0 && i == ss_at && p_serialize_size) {
+                ss_size = p_serialize_size();
+                ss_buf  = malloc(ss_size);
+                if (!ss_buf || !p_serialize(ss_buf, ss_size)) {
+                    fprintf(stderr, "[SAVESTATE] serialize failed (size %zu)\n", ss_size);
+                    free(ss_buf);
+                    ss_buf = NULL;
+                } else {
+                    fprintf(stderr, "[SAVESTATE] saved at frame %d, %zu bytes\n", i, ss_size);
+                }
+            }
+        }
+
+        if (ss_buf) {
+            if (!p_unserialize(ss_buf, ss_size))
+                fprintf(stderr, "[SAVESTATE] unserialize failed\n");
+            else {
+                /* The replay's hash stream must reappear verbatim as a run
+                 * of the pre-save stream: same content, offset by wherever
+                 * the save landed. Compare the two with
+                 *   grep '^\[FBHASH\]' log | awk '{print $4}'
+                 * and look for the tail as a substring of the head. */
+                fprintf(stderr, "[SAVESTATE] reloaded, replaying %d frames\n", frames - ss_at - 1);
+                for (i = ss_at + 1; i < frames; i++)
+                    p_run();
+            }
+            free(ss_buf);
+        }
     }
+    /* Savestate round trip.
+     *
+     * PS2_SAVESTATE=N saves after frame N, runs on, then reloads and runs
+     * the same number of frames again. With PCSX2_FBHASH set the two
+     * post-N hash streams have to match: a savestate that restores an
+     * incomplete machine shows up as diverging pixels rather than as a
+     * crash, and nothing in this harness tested serialize at all before. */
     t1 = now();
     fprintf(stderr, "[headless] %d frames in %.2f s (%.2f fps)\n",
             frames, t1 - t0, frames / (t1 - t0));
