@@ -23,7 +23,7 @@
 #include "../Config.h"
 #include "../Host.h"
 
-#define CLAMP(val, minval, maxval) (std::min(maxval, std::max(minval, val)))
+#define CLAMP(val, minval, maxval) (pcsx2_min_i(maxval, pcsx2_max_i(minval, val)))
 
 #define GZIP_ID "PCSX2.index.gzip.v1|"
 #define GZIP_ID_LEN (sizeof(GZIP_ID) - 1) /* sizeof includes the \0 terminator */
@@ -249,8 +249,7 @@ ThreadedFileReader::Chunk GzippedFileReader::ChunkForOffset(u64 offset)
 		 * partway into one described a buffer shorter than what would be
 		 * written into it - by exactly how far into the chunk the caller
 		 * had asked. */
-		chunk.length  = static_cast<u32>(std::min<u64>(
-					m_index->uncompressed_size - chunk.offset, m_index->span));
+		chunk.length  = static_cast<u32>(pcsx2_min_u64(m_index->uncompressed_size - chunk.offset, m_index->span));
 	}
 
 	return chunk;
@@ -262,7 +261,7 @@ int GzippedFileReader::ReadChunk(void* dst, s64 chunkID)
 		return -1;
 
 	const s64 file_offset = chunkID * m_index->span;
-	const u32 read_len = static_cast<u32>(std::min<s64>(m_index->uncompressed_size - file_offset, m_index->span));
+	const u32 read_len = static_cast<u32>(pcsx2_min_s64(m_index->uncompressed_size - file_offset, m_index->span));
 	return extract(m_src, m_index, file_offset, static_cast<unsigned char*>(dst), read_len, &m_z_state);
 }
 

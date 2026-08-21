@@ -758,7 +758,7 @@ int LoadPatchesFromZip(const std::string& crc, const u8* zip_data, size_t zip_da
 		return 0;
 
 	/* EOCD: signature 0x06054b50, within the last 64KB+22 */
-	const size_t scan_max = std::min<size_t>(zip_data_size, 22 + 65535);
+	const size_t scan_max = pcsx2_min_sz(zip_data_size, 22 + 65535);
 	size_t eocd = SIZE_MAX;
 	for (size_t back = 22; back <= scan_max; back++)
 	{

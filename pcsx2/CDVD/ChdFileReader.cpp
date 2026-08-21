@@ -70,7 +70,7 @@ bool ChdFileReader::DriveRead(rchd_t* chd, const Source& self, const Source& par
 				if (reqs[i].offset >= static_cast<uint64_t>(src.len))
 					return false;
 				const uint64_t avail = static_cast<uint64_t>(src.len) - reqs[i].offset;
-				const size_t   len   = static_cast<size_t>(std::min<uint64_t>(reqs[i].length, avail));
+				const size_t   len   = static_cast<size_t>(pcsx2_min_i(reqs[i].length, avail));
 				if (rchd_feed_at(chd, reqs[i].offset, reqs[i].source, src.base + reqs[i].offset, len) < 0)
 					return false;
 			}
@@ -80,7 +80,7 @@ bool ChdFileReader::DriveRead(rchd_t* chd, const Source& self, const Source& par
 					return false;
 				if (filestream_seek(src.fp, static_cast<int64_t>(reqs[i].offset), RETRO_VFS_SEEK_POSITION_START) != 0)
 					return false;
-				const size_t  want = std::min<size_t>(reqs[i].length, FEED_CHUNK);
+				const size_t  want = pcsx2_min_sz(reqs[i].length, FEED_CHUNK);
 				const int64_t got  = filestream_read(src.fp, scratch, static_cast<int64_t>(want));
 				if (got <= 0)
 					return false;
@@ -144,7 +144,7 @@ bool ChdFileReader::OpenOne(const std::string& path, rchd_t** out_chd, Source* o
 			}
 			const uint64_t avail = static_cast<uint64_t>(src.len) - req.offset;
 			rchd_feed(chd, src.base + req.offset,
-					static_cast<size_t>(std::min<uint64_t>(req.length, avail)));
+					static_cast<size_t>(pcsx2_min_i(req.length, avail)));
 		}
 		else
 		{
@@ -154,7 +154,7 @@ bool ChdFileReader::OpenOne(const std::string& path, rchd_t** out_chd, Source* o
 				filestream_close(src.fp);
 				return false;
 			}
-			const size_t  want = std::min<size_t>(req.length, FEED_CHUNK);
+			const size_t  want = pcsx2_min_sz(req.length, FEED_CHUNK);
 			const int64_t got  = filestream_read(src.fp, scratch, static_cast<int64_t>(want));
 			if (got <= 0)
 			{

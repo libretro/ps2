@@ -122,7 +122,7 @@ int InputIsoFile::FinishRead3(u8* dst, uint mode)
 
 	int end1 = m_blockofs + m_blocksize;
 	int end2 = _offset + length;
-	int end = std::min(end1, end2);
+	int end = pcsx2_min_i(end1, end2);
 
 	int diff = m_blockofs - _offset;
 	int ndiff = 0;

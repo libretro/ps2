@@ -330,13 +330,13 @@ __fi void vif1Interrupt(void)
 		// VIF_NORMAL_FROM_MEM_MODE is a very slow operation.
 		// Timesplitters 2 depends on this beeing a bit higher than 128.
 		if (vif1ch.chcr.DIR)
-			vif1Regs.stat.FQC = std::min(vif1ch.qwc, (u32)16);
+			vif1Regs.stat.FQC = pcsx2_min_u(vif1ch.qwc, (u32)16);
 
 		if (!(vif1Regs.stat.VGW && gifUnit.gifPath[GIF_PATH_3].state != GIF_PATH_IDLE)) //If we're waiting on GIF, stop looping, (can be over 1000 loops!)
 		{
 			if (vif1.waitforvu)
 			{
-				CPU_INT(DMAC_VIF1, std::max(static_cast<int>(g_vif1Cycles), cpuGetCycles()));
+				CPU_INT(DMAC_VIF1, pcsx2_max_i(static_cast<int>(g_vif1Cycles), cpuGetCycles()));
 			}
 			else
 				CPU_INT(DMAC_VIF1, g_vif1Cycles);
@@ -353,13 +353,13 @@ __fi void vif1Interrupt(void)
 		if ((vif1.inprogress & 0x1) == 0)
 			vif1SetupTransfer();
 		if (vif1ch.chcr.DIR)
-			vif1Regs.stat.FQC = std::min(vif1ch.qwc, (u32)16);
+			vif1Regs.stat.FQC = pcsx2_min_u(vif1ch.qwc, (u32)16);
 
 		if (!(vif1Regs.stat.VGW && gifUnit.gifPath[GIF_PATH_3].state != GIF_PATH_IDLE)) //If we're waiting on GIF, stop looping, (can be over 1000 loops!)
 		{
 			if (vif1.waitforvu)
 			{
-				CPU_INT(DMAC_VIF1, std::max(static_cast<int>(g_vif1Cycles), cpuGetCycles()));
+				CPU_INT(DMAC_VIF1, pcsx2_max_i(static_cast<int>(g_vif1Cycles), cpuGetCycles()));
 			}
 			else
 				CPU_INT(DMAC_VIF1, g_vif1Cycles);
@@ -379,7 +379,7 @@ __fi void vif1Interrupt(void)
 		//Reverse fifo has finished and nothing is left, so lets clear the outputting flag
 		if ((vif1ch.chcr.DIR == VIF_NORMAL_TO_MEM_MODE) && vif1.GSLastDownloadSize <= 16)
 			gifRegs.stat.OPH = false;
-		vif1Regs.stat.FQC = std::min(vif1ch.qwc, (u32)16);
+		vif1Regs.stat.FQC = pcsx2_min_u(vif1ch.qwc, (u32)16);
 	}
 
 	vif1ch.chcr.STR          = false;
@@ -435,7 +435,7 @@ void dmaVIF1(void)
 	}
 
 	if (vif1ch.chcr.DIR)
-		vif1Regs.stat.FQC = std::min((u32)0x10, vif1ch.qwc);
+		vif1Regs.stat.FQC = pcsx2_min_u((u32)0x10, vif1ch.qwc);
 
 	// Check VIF isn't stalled before starting the loop.
 	// Batman Vengence does something stupid and instead of cancelling a stall it tries to restart VIF, THEN check the stall

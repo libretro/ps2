@@ -358,7 +358,7 @@ void vifMFIFOInterrupt(void)
 	}
 
 	g_vif1Cycles = 0;
-	vif1Regs.stat.FQC = std::min((u32)0x10, vif1ch.qwc);
+	vif1Regs.stat.FQC = pcsx2_min_u((u32)0x10, vif1ch.qwc);
 	vif1ch.chcr.STR   = false;
 	if (THREAD_VU1)
 		vu1Thread.KickPending(); // C.80: MFIFO transfer done -- flush deferred unpack notify

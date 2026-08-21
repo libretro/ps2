@@ -267,7 +267,7 @@ static void cdvdReadNVM(u8* dst, int offset, int bytes)
 	if ((offset + bytes) > static_cast<int>(sizeof(s_nvram)))
 	{
 		Console.Warning("CDVD: Out of bounds NVRAM read: offset=%d, bytes=%d", offset, bytes);
-		to_read = std::max(static_cast<int>(sizeof(s_nvram)) - offset, 0);
+		to_read = pcsx2_max_i(static_cast<int>(sizeof(s_nvram)) - offset, 0);
 		memset(dst + to_read, 0, bytes - to_read);
 	}
 
@@ -281,7 +281,7 @@ static void cdvdWriteNVM(const u8* src, int offset, int bytes)
 	if ((offset + bytes) > static_cast<int>(sizeof(s_nvram)))
 	{
 		Console.Warning("CDVD: Out of bounds NVRAM write: offset=%d, bytes=%d", offset, bytes);
-		to_write = std::max(static_cast<int>(sizeof(s_nvram)) - offset, 0);
+		to_write = pcsx2_max_i(static_cast<int>(sizeof(s_nvram)) - offset, 0);
 	}
 
 	if (to_write > 0)
@@ -760,7 +760,7 @@ static u32 cdvdRotationTime(CDVD_MODE_TYPE mode)
 	// so 8000..14000 across the surface and never zero.
 	const u64 ss_ptm    = 14000ULL - cdvdSurfacePosPtm(numSectors, offset);
 	const u64 cap_x10   = (mode == MODE_CDROM) ? 103ULL : 16ULL;
-	const u64 speed_x10 = std::min<u64>(cdvdDriveSpeed() * 10ULL, cap_x10);
+	const u64 speed_x10 = pcsx2_min_u64(cdvdDriveSpeed() * 10ULL, cap_x10);
 	return (u32)((u64)PSXCLK * 60ULL * 10ULL * 10000ULL / (rot * speed_x10 * ss_ptm));
 }
 
@@ -796,7 +796,7 @@ static uint cdvdBlockReadTime(CDVD_MODE_TYPE mode)
 
 	// CLV Read Speed is constant
 	const u64 cap_x10   = (mode == MODE_CDROM) ? 103ULL : 16ULL;
-	const u64 speed_x10 = std::min<u64>(cdvdDriveSpeed() * 10ULL, cap_x10);
+	const u64 speed_x10 = pcsx2_min_u64(cdvdDriveSpeed() * 10ULL, cap_x10);
 	return (u32)((u64)PSXCLK * 10ULL / (sps * speed_x10));
 }
 
@@ -2600,7 +2600,7 @@ static void cdvdWrite16(u8 rt) // SCOMMAND
 
 		case 0x8E: // sceMgReadData
 			{
-				u8 _siz = std::min(16, cdvd.mg_size);
+				u8 _siz = pcsx2_min_i(16, cdvd.mg_size);
 				cdvd.SCMDResultCnt  = _siz;
 				cdvd.SCMDResultPos  = 0;
 				cdvd.sDataIn       &= ~0x40;

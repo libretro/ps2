@@ -275,8 +275,8 @@ static void process_analog(int &axis_x, int &axis_y, u32 sensitivity_q16, u16 de
 		/* The clamp is not optional: the caller negates these axes for
 		 * inversion (axis_invert_* == -1), and a raw -32768 would
 		 * otherwise become +32768 and wrap the 8-bit pad axis. */
-		axis_x = std::clamp(axis_x, -32767, 32767);
-		axis_y = std::clamp(axis_y, -32767, 32767);
+		axis_x = pcsx2_clamp_i(axis_x, -32767, 32767);
+		axis_y = pcsx2_clamp_i(axis_y, -32767, 32767);
 		return;
 	}
 
@@ -286,7 +286,7 @@ static void process_analog(int &axis_x, int &axis_y, u32 sensitivity_q16, u16 de
 	if (deadzone > 0)
 	{
 		u32 magnitude = isqrt64((u64)(x * x) + (u64)(y * y));
-		magnitude     = std::min<u32>(magnitude, 32767u);
+		magnitude     = pcsx2_min_u(magnitude, 32767u);
 
 		if (magnitude > deadzone)
 		{
@@ -307,8 +307,8 @@ static void process_analog(int &axis_x, int &axis_y, u32 sensitivity_q16, u16 de
 	// Apply sensitivity
 	x      = (x * (s64)sensitivity_q16) >> 16;
 	y      = (y * (s64)sensitivity_q16) >> 16;
-	axis_x = std::clamp<int>((int)x, -32767, 32767);
-	axis_y = std::clamp<int>((int)y, -32767, 32767);
+	axis_x = pcsx2_clamp_i((int)x, -32767, 32767);
+	axis_y = pcsx2_clamp_i((int)y, -32767, 32767);
 }
 
 static u8 process_button(u16 deadzone, u32 port, int id, u32 mask)
@@ -571,7 +571,7 @@ void Pad::rumble(u32 rumble_scale_q8, unsigned port)
 	for (int i = 0; i < 2; ++i)
 	{
 		currentVibrate[i] = nextVibrate[i];
-		do_rumble((u8)std::min<u32>(((u32)currentVibrate[i] * rumble_scale_q8) >> 8, 255u), i, port);
+		do_rumble((u8)pcsx2_min_u(((u32)currentVibrate[i] * rumble_scale_q8) >> 8, 255u), i, port);
 	}
 }
 
@@ -1011,8 +1011,8 @@ void PAD::LoadConfig(const SettingsInterface& si)
 			if (type == info.name)
 			{
 				// INI stores a float; snap to the 8.8 grid once, here.
-				const u16 large_motor_scale      = (u16)std::clamp<long>(lrintf(si.GetFloatValue(section_c, "LargeMotorScale", DEFAULT_MOTOR_SCALE) * 256.0f), 0, 65535);
-				const u16 small_motor_scale      = (u16)std::clamp<long>(lrintf(si.GetFloatValue(section_c, "SmallMotorScale", DEFAULT_MOTOR_SCALE) * 256.0f), 0, 65535);
+				const u16 large_motor_scale      = (u16)pcsx2_clamp_i(lrintf(si.GetFloatValue(section_c, "LargeMotorScale", DEFAULT_MOTOR_SCALE) * 256.0f), 0, 65535);
+				const u16 small_motor_scale      = (u16)pcsx2_clamp_i(lrintf(si.GetFloatValue(section_c, "SmallMotorScale", DEFAULT_MOTOR_SCALE) * 256.0f), 0, 65535);
 
 				if (info.vibration_caps != NoVibration)
 				{

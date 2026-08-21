@@ -158,7 +158,7 @@ void Pcsx2Config::SpeedhackOptions::Set(SpeedHack id, int value)
 			vuThread = (value != 0);
 			break;
 		case SpeedHack::EECycleRate:
-			EECycleRate = static_cast<int>(std::clamp<int>(value, MIN_EE_CYCLE_RATE, MAX_EE_CYCLE_RATE));
+			EECycleRate = static_cast<int>(pcsx2_clamp_i(value, MIN_EE_CYCLE_RATE, MAX_EE_CYCLE_RATE));
 			break;
 		default:
 			break;
@@ -339,7 +339,7 @@ Pcsx2Config::CpuOptions::CpuOptions()
 
 void Pcsx2Config::CpuOptions::ApplySanityCheck()
 {
-	AffinityControlMode = std::min<u32>(AffinityControlMode, 6);
+	AffinityControlMode = pcsx2_min_u(AffinityControlMode, 6);
 
 	Recompiler.ApplySanityCheck();
 }
@@ -571,7 +571,7 @@ void Pcsx2Config::GSOptions::LoadSave(SettingsWrapper& wrap)
 	SettingsWrapBitfieldEx(MaxAnisotropy, "MaxAnisotropy");
 	SettingsWrapBitfieldEx(SkipDrawStart, "UserHacks_SkipDraw_Start");
 	SettingsWrapBitfieldEx(SkipDrawEnd, "UserHacks_SkipDraw_End");
-	SkipDrawEnd = std::max(SkipDrawStart, SkipDrawEnd);
+	SkipDrawEnd = pcsx2_max_i(SkipDrawStart, SkipDrawEnd);
 
 	SettingsWrapIntEnumEx(UserHacks_HalfPixelOffset, "UserHacks_HalfPixelOffset");
 	SettingsWrapBitfieldEx(UserHacks_RoundSprite, "UserHacks_round_sprite_offset");
@@ -932,7 +932,7 @@ void Pcsx2Config::FramerateOptions::SanityCheck()
 {
        // Ensure Conformation of various options...
 
-       TurboScalar = std::clamp(TurboScalar, 0.05f, 10.0f);
+       TurboScalar = pcsx2_clamp_i(TurboScalar, 0.05f, 10.0f);
 }
 
 void Pcsx2Config::FramerateOptions::LoadSave(SettingsWrapper& wrap)

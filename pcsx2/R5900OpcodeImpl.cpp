@@ -150,7 +150,7 @@ static int __Deci2Call(int call, u32 *addr)
 				else
 					pdeciaddr += (d2ptr[4]+0xc) % 16;
 
-				const int copylen = std::min<uint>(255, d2ptr[1]-0xc);
+				const int copylen = pcsx2_min_u(255, d2ptr[1]-0xc);
 				memcpy(deci2buffer, pdeciaddr, copylen );
 				deci2buffer[copylen] = '\0';
 

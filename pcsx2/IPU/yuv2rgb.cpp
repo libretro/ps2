@@ -250,7 +250,7 @@ void yuv2rgb(void)
 
 			rgb32.c[y][x].r = pcsx2_max_i(0, pcsx2_min_i(255, (lum + rcr + 1) >> 1));
 			rgb32.c[y][x].g = pcsx2_max_i(0, pcsx2_min_i(255, (lum + gcr + gcb + 1) >> 1));
-			rgb32.c[y][x].b = std::max(0, pcsx2_min_i(255, (lum + bcb + 1) >> 1));
+			rgb32.c[y][x].b = pcsx2_max_i(0, pcsx2_min_i(255, (lum + bcb + 1) >> 1));
 			rgb32.c[y][x].a = 0x80; // the norm to save doing this on the alpha pass
 		}
 #endif

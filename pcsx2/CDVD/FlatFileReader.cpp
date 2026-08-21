@@ -69,7 +69,7 @@ ThreadedFileReader::Chunk FlatFileReader::ChunkForOffset(u64 offset)
 	else
 	{
 		chunk.chunkID = offset / CHUNK_SIZE;
-		chunk.length = static_cast<u32>(std::min<u64>(m_file_size - offset, CHUNK_SIZE));
+		chunk.length = static_cast<u32>(pcsx2_min_u64(m_file_size - offset, CHUNK_SIZE));
 		chunk.offset = static_cast<u64>(chunk.chunkID) * CHUNK_SIZE;
 	}
 
@@ -85,7 +85,7 @@ int FlatFileReader::ReadChunk(void* dst, s64 blockID)
 	if (FileSystem::FSeek64(m_file, file_offset, SEEK_SET) != 0)
 		return -1;
 
-	const u32 read_size = static_cast<u32>(std::min<u64>(m_file_size - file_offset, CHUNK_SIZE));
+	const u32 read_size = static_cast<u32>(pcsx2_min_u64(m_file_size - file_offset, CHUNK_SIZE));
 
 	return (rfread(dst, read_size, 1, m_file) == 1) ? static_cast<int>(read_size) : 0;
 }

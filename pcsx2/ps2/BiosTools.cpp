@@ -205,7 +205,7 @@ static void LoadExtraRom(const char* ext, u8 (&dest)[_size])
 	}
 
 	RFILE *fp = FileSystem::OpenFile(Bios1.c_str(), "rb");
-	if (!fp || rfread(dest, static_cast<size_t>(std::min<s64>(_size, filesize)), 1, fp) != 1)
+	if (!fp || rfread(dest, static_cast<size_t>(pcsx2_min_s64(_size, filesize)), 1, fp) != 1)
 		Console.Warning("BIOS Warning: %s could not be read (permission denied?)", ext);
 	filestream_close(fp);
 }
@@ -294,7 +294,7 @@ bool LoadBIOS(void)
 	LoadBiosVersion(fp, BiosVersion, BiosDescription, BiosRegion, zone, BiosSerial);
 
 	if (FileSystem::FSeek64(fp, 0, SEEK_SET) ||
-		rfread(eeMem->ROM, static_cast<size_t>(std::min<s64>(Ps2MemSize::Rom, filesize)), 1, fp) != 1)
+		rfread(eeMem->ROM, static_cast<size_t>(pcsx2_min_s64(Ps2MemSize::Rom, filesize)), 1, fp) != 1)
 	{
 		filestream_close(fp);
 		return false;

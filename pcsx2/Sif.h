@@ -42,7 +42,7 @@ struct sifFifo
 
 	void write(u32 *from, int words)
 	{
-		const int wP0 = std::min((FIFO_SIF_W - writePos), words);
+		const int wP0 = pcsx2_min_i((FIFO_SIF_W - writePos), words);
 		const int wP1 = words - wP0;
 
 		memcpy(&data[writePos], from, wP0 << 2);
@@ -94,13 +94,13 @@ struct sifFifo
 		const int prevQWPos = (writePos - (4 + transferredWords)) & (FIFO_SIF_W - 1);
 
 		// Read the old data in to our junk array in case of wrapping.
-		const int rP0 = std::min((FIFO_SIF_W - prevQWPos), 4);
+		const int rP0 = pcsx2_min_i((FIFO_SIF_W - prevQWPos), 4);
 		const int rP1 = 4 - rP0;
 		memcpy(&junk[0], &data[prevQWPos], rP0 << 2);
 		memcpy(&junk[rP0], &data[0], rP1 << 2);
 
 		// Fill the missing words to fill the QW.
-		const int wP0 = std::min((FIFO_SIF_W - writePos), words);
+		const int wP0 = pcsx2_min_i((FIFO_SIF_W - writePos), words);
 		const int wP1 = words - wP0;
 
 		memcpy(&data[writePos], &junk[4-wP0], wP0 << 2);
@@ -112,7 +112,7 @@ struct sifFifo
 
 	void read(u32 *to, int words)
 	{
-		const int wP0 = std::min((FIFO_SIF_W - readPos), words);
+		const int wP0 = pcsx2_min_i((FIFO_SIF_W - readPos), words);
 		const int wP1 = words - wP0;
 
 		memcpy(to, &data[readPos], wP0 << 2);

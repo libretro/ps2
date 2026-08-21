@@ -33,7 +33,7 @@ int ThreadedFileReader::DirectRead(void* dst, u64 offset, u32 size)
 	if (offset >= m_directSize)
 		return 0;
 	const u64 avail = m_directSize - offset;
-	const u32 len   = static_cast<u32>(std::min<u64>(size, avail));
+	const u32 len   = static_cast<u32>(pcsx2_min_u64(size, avail));
 	memcpy(dst, m_direct + offset, len);
 	return static_cast<int>(len);
 }
@@ -59,7 +59,7 @@ ThreadedFileReader::Buffer* ThreadedFileReader::GetBlockPtr(const Chunk& block)
 	}
 
 	Buffer& buf = m_buffer[m_nextBuffer];
-	u32 size = std::max(block.length, MINIMUM_SIZE);
+	u32 size = pcsx2_max_i(block.length, MINIMUM_SIZE);
 	if (buf.cap < size)
 	{
 		void* new_ptr = realloc(buf.ptr, size);
@@ -97,7 +97,7 @@ bool ThreadedFileReader::Decompress(void* target, u64 begin, u32 size)
 			u32 bufsize = buf->size;
 			if (bufsize <= bufoff)
 				return false;
-			u32 len     = std::min(bufsize - bufoff, remaining);
+			u32 len     = pcsx2_min_i(bufsize - bufoff, remaining);
 			char* cdst       = static_cast<char*>(write);
 			const char* csrc = static_cast<const char*>(static_cast<char*>(buf->ptr) + bufoff);
 			const char* cend = csrc + len;
@@ -122,7 +122,7 @@ bool ThreadedFileReader::Decompress(void* target, u64 begin, u32 size)
 				u32 bufsize = buf->size;
 				if (bufsize <= bufoff)
 					return false;
-				u32 len     = std::min(bufsize - bufoff, remaining);
+				u32 len     = pcsx2_min_i(bufsize - bufoff, remaining);
 				memcpy(write, static_cast<char*>(buf->ptr) + bufoff, len);
 				write      += len;
 				remaining  -= len;
@@ -161,7 +161,7 @@ bool ThreadedFileReader::TryCachedRead(void*& buffer, u64& offset, u32& size)
 			{
 				size_t read;
 				u32 off          = offset - buf.offset;
-				u32 cpysize      = std::min(size, bufsize - off);
+				u32 cpysize      = pcsx2_min_i(size, bufsize - off);
 				char* cdst       = static_cast<char*>(buffer);
 				const char* csrc = static_cast<const char*>(static_cast<char*>(buf.ptr) + off);
 				const char* cend = csrc + cpysize;
@@ -192,7 +192,7 @@ bool ThreadedFileReader::TryCachedRead(void*& buffer, u64& offset, u32& size)
 			{
 				size_t read;
 				u32 off      = offset - buf.offset;
-				u32 cpysize  = std::min(size, bufsize - off);
+				u32 cpysize  = pcsx2_min_i(size, bufsize - off);
 				memcpy(buffer, static_cast<char*>(buf.ptr) + off, cpysize);
 				read         = cpysize;
 				m_amtRead   += read;

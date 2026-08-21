@@ -151,7 +151,7 @@ struct Gif_Tag
 		hasAD = false;
 		u32 t = tag.REGS[0];
 		u32 i = 0;
-		u32 j = std::min<u32>(nRegs, 8);
+		u32 j = pcsx2_min_u(nRegs, 8);
 		for (; i < j; i++)
 		{
 			regs[i] = t & 0xf;
