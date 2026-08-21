@@ -41,8 +41,9 @@
 // --------------------------------------------------------------------------------------
 //  SaveStateBase  (implementations)
 // --------------------------------------------------------------------------------------
-SaveStateBase::SaveStateBase( std::vector<u8>& memblock )
-	: m_memory(memblock) { }
+SaveStateBase::SaveStateBase( std::vector<u8>& memblock, bool is_saving )
+	: m_memory(memblock) {
+	m_is_saving = is_saving; }
 
 void SaveStateBase::PrepBlock(int size)
 {
@@ -171,43 +172,40 @@ bool SaveStateBase::FreezeInternals()
 
 
 // --------------------------------------------------------------------------------------
-//  memSavingState (implementations)
+//  SaveStateBase memory I/O
 // --------------------------------------------------------------------------------------
 // uncompressed to/from memory state saves implementation
 
-memSavingState::memSavingState( std::vector<u8>& save_to ) : SaveStateBase( save_to ) { }
-
-// Saving of state data
-void memSavingState::FreezeMem(void* data, int size)
+/* One FreezeMem for both directions. Saving grows the buffer and copies in;
+ * loading copies out, and after an error it zero-fills rather than reading
+ * past whatever went wrong. */
+void SaveStateBase::FreezeMem(void* data, int size)
 {
-	if (!size) return;
+	if (!size)
+		return;
 
-	const int new_size = m_idx + size;
-	if (static_cast<u32>(new_size) > m_memory.size())
-		m_memory.resize(static_cast<u32>(new_size));
+	if (m_is_saving)
+	{
+		const int new_size = m_idx + size;
+		if ((u32)new_size > m_memory.size())
+			m_memory.resize((u32)new_size);
 
-	memcpy(&m_memory[m_idx], data, size);
-	m_idx += size;
-}
+		memcpy(&m_memory[m_idx], data, size);
+		m_idx += size;
+		return;
+	}
 
-// --------------------------------------------------------------------------------------
-//  memLoadingState  (implementations)
-// --------------------------------------------------------------------------------------
-memLoadingState::memLoadingState( const std::vector<u8>& load_from )
-	: SaveStateBase( const_cast<std::vector<u8>&>(load_from) ) { }
-
-// Loading of state data from a memory buffer...
-void memLoadingState::FreezeMem(void* data, int size)
-{
 	if (m_error)
 	{
 		memset(data, 0, size);
 		return;
 	}
 
-	const u8* const src = &m_memory[m_idx];
-	m_idx += size;
-	memcpy(data, src, size);
+	{
+		const u8* const src = &m_memory[m_idx];
+		m_idx += size;
+		memcpy(data, src, size);
+	}
 }
 
 // --------------------------------------------------------------------------------------

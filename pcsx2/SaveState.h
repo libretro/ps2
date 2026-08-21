@@ -62,10 +62,15 @@ protected:
 
 	int m_idx = 0;			// current read/write index of the allocation
 	bool m_error = false; // error occurred while reading/writing
+	bool m_is_saving = false; // direction: save when true, load when false
 
 public:
-	SaveStateBase( std::vector<u8>& memblock );
-	virtual ~SaveStateBase() { }
+	/* is_saving picks the direction; there is no vtable. The two former
+	 * subclasses (memSavingState / memLoadingState) differed only in
+	 * FreezeMem and in what IsSaving() returned, so they are constructor
+	 * arguments now rather than derived types. */
+	SaveStateBase( std::vector<u8>& memblock, bool is_saving );
+	~SaveStateBase() { }
 
 	__fi bool IsOkay() const { return !m_error; }
 
@@ -162,11 +167,11 @@ public:
 	// Returns true if this object is a StateLoading type object.
 	bool IsLoading() const { return !IsSaving(); }
 
-	// Loads or saves a memory block.
-	virtual void FreezeMem( void* data, int size )=0;
+	// Loads or saves a memory block, according to m_is_saving.
+	void FreezeMem( void* data, int size );
 
 	// Returns true if this object is a StateSaving type object.
-	virtual bool IsSaving() const=0;
+	bool IsSaving() const { return m_is_saving; }
 
 public:
 	// note: gsFreeze() needs to be public because of the GSState recorder.
@@ -206,32 +211,8 @@ protected:
 //  Saving and Loading Specialized Implementations...
 // --------------------------------------------------------------------------------------
 
-class memSavingState : public SaveStateBase
-{
-	typedef SaveStateBase _parent;
-
-protected:
-	// 256k reallocation block size.
-	static const int ReallocThreshold	= _1mb / 4;
-	// 8 meg base alloc when PS2 main memory is excluded
-	static const int MemoryBaseAllocSize	= _8mb;
-
-public:
-	virtual ~memSavingState() = default;
-	memSavingState( std::vector<u8>& save_to );
-
-	void FreezeMem( void* data, int size );
-
-	bool IsSaving() const { return true; }
-};
-
-class memLoadingState : public SaveStateBase
-{
-public:
-	virtual ~memLoadingState() = default;
-	memLoadingState( const std::vector<u8>& load_from );
-
-	void FreezeMem( void* data, int size );
-
-	bool IsSaving() const { return false; }
-};
+/* memSavingState / memLoadingState were the only two SaveStateBase
+ * subclasses and existed solely to supply FreezeMem and IsSaving. Construct
+ * SaveStateBase directly with the direction instead. The 256k reallocation
+ * block size and the 8MB base allocation the saving side declared were both
+ * unused. */

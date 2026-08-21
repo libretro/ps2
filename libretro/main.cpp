@@ -2675,13 +2675,13 @@ bool retro_serialize(void* data, size_t size)
 	MTGS::WaitGS(false);
 
 	/* retro_serialize_size() already computed the exact upper bound on
-	 * what we need. Reserve once so memSavingState's incremental
+	 * what we need. Reserve once so SaveStateBase's incremental
 	 * resize() calls inside FreezeMem/PrepBlock don't realloc and copy
 	 * the partial buffer multiple times as different sections (BIOS,
 	 * internals, EE/IOP/VU memory, SPU2/PAD/GS freeze blocks) accumulate. */
 	buffer.reserve(size);
 
-	memSavingState saveme(buffer);
+	SaveStateBase saveme(buffer, true);
 
 	saveme.FreezeBios();
 	saveme.FreezeInternals();
@@ -2758,13 +2758,13 @@ bool retro_unserialize(const void* data, size_t size)
 	MTGS::WaitGS(false);
 
 	/* resize() (not reserve()): m_memory.size() is what PrepBlock and
-	 * memLoadingState::FreezeMem use for bounds-checking. With reserve()
+	 * SaveStateBase::FreezeMem uses for bounds-checking. With reserve()
 	 * size() stays 0, the very first PrepBlock for SPU2/PAD/GS sets
 	 * m_error=true, and every subsequent freeze block silently loads as
 	 * zeros - SPU2/PAD/GS state was effectively never restored. */
 	buffer.resize(size);
 	memcpy(buffer.data(), data, size);
-	memLoadingState loadme(buffer);
+	SaveStateBase loadme(buffer, false);
 
 	loadme.FreezeBios();
 	loadme.FreezeInternals();
