@@ -177,6 +177,10 @@ static vtlbHandler
 	iopHw_by_page_08;
 
 
+/* Still used by the vuMicro/vuData handler families, which remain templates. */
+#define vtlb_RegisterHandlerTempl1(nam,t) vtlb_RegisterHandler(nam##Read8<t>,nam##Read16<t>,nam##Read32<t>,nam##Read64<t>,nam##Read128<t>, \
+																	   nam##Write8<t>,nam##Write16<t>,nam##Write32<t>,nam##Write64<t>,nam##Write128<t>)
+
 static void memMapVUmicro(void)
 {
 	// VU0/VU1 micro mem (instructions)
@@ -273,150 +277,53 @@ static void nullWrite128(u32 mem, const r128* value) { (void)mem; (void)value; }
 static void TAKES_R128 nullWrite128(u32 mem, r128 value) { }
 #endif
 
-template<int p>
-static mem8_t _ext_memRead8 (u32 mem)
-{
-	switch (p)
-	{
-		case 3: // psh4
-			return psxHw4Read8(mem);
-		case 6: // gsm
-			return gsRead8(mem);
-		case 7: // dev9
-			return DEV9read8(mem & ~0xa4000000);
-		default: break;
-	}
-
-	cpuTlbMiss(mem, cpuRegs.branch, EXC_CODE_TLBL);
-	return 0;
-}
-
-template<int p>
-static mem16_t _ext_memRead16(u32 mem)
-{
-	switch (p)
-	{
-		case 4: // b80
-			return 0;
-		case 5: // ba0
-			return ba0R16(mem);
-		case 6: // gsm
-			return gsRead16(mem);
-
-		case 7: // dev9
-			return DEV9read16(mem & ~0xa4000000);
-
-		case 8: // spu2
-			return SPU2read(mem);
-
-		default: break;
-	}
-	cpuTlbMiss(mem, cpuRegs.branch, EXC_CODE_TLBL);
-	return 0;
-}
-
-template<int p>
-static mem32_t _ext_memRead32(u32 mem)
-{
-	switch (p)
-	{
-		case 6: // gsm
-			return gsRead32(mem);
-		case 7: // dev9
-			return DEV9read32(mem & ~0xa4000000);
-		default: break;
-	}
-	cpuTlbMiss(mem, cpuRegs.branch, EXC_CODE_TLBL);
-	return 0;
-}
-
-template<int p>
-static u64 _ext_memRead64(u32 mem)
-{
-	cpuTlbMiss(mem, cpuRegs.branch, EXC_CODE_TLBL);
-	return 0;
-}
-
-template<int p>
-static RETURNS_R128 _ext_memRead128(u32 mem)
-{
-	if (p == 6) /* GSM */
-		return r128_load(PS2GS_BASE(mem));
-	cpuTlbMiss(mem, cpuRegs.branch, EXC_CODE_TLBL);
-	return r128_zero();
-}
-
-template<int p>
-static void _ext_memWrite8 (u32 mem, mem8_t  value)
-{
-	switch (p) {
-		case 3: // psh4
-			psxHw4Write8(mem, value); return;
-		case 6: // gsm
-			gsWrite8(mem, value); return;
-		case 7: // dev9
-			DEV9write8(mem & ~0xa4000000, value);
-			return;
-		default: break;
-	}
-
-	cpuTlbMiss(mem, cpuRegs.branch, EXC_CODE_TLBS);
-}
-
-template<int p>
-static void _ext_memWrite16(u32 mem, mem16_t value)
-{
-	switch (p) {
-		case 5: // ba0
-			return;
-		case 6: // gsm
-			gsWrite16(mem, value); return;
-		case 7: // dev9
-			DEV9write16(mem & ~0xa4000000, value);
-			return;
-		case 8: // spu2
-			SPU2write(mem, value); return;
-		default: break;
-	}
-	cpuTlbMiss(mem, cpuRegs.branch, EXC_CODE_TLBS);
-}
-
-template<int p>
-static void _ext_memWrite32(u32 mem, mem32_t value)
-{
-	switch (p) {
-		case 6: // gsm
-			gsWrite32(mem, value); return;
-		case 7: // dev9
-			DEV9write32(mem & ~0xa4000000, value);
-			return;
-		default: break;
-	}
-	cpuTlbMiss(mem, cpuRegs.branch, EXC_CODE_TLBS);
-}
-
-template<int p>
-static void _ext_memWrite64(u32 mem, mem64_t value)
-{
-	cpuTlbMiss(mem, cpuRegs.branch, EXC_CODE_TLBS);
-}
-
-template<int p>
+/* Unmapped-page fallbacks, shared by every page kind for the widths that
+ * kind does not handle. The template<int p> family below still covers the
+ * kinds with MMIO arms; they are being converted one kind at a time, with
+ * the JIT hashes checked after each, because a mis-wired handler table
+ * produces a core that builds, links, runs and boots nothing. */
+static mem8_t  ext_miss_read8  (u32 mem) { cpuTlbMiss(mem, cpuRegs.branch, EXC_CODE_TLBL); return 0; }
+static mem16_t ext_miss_read16 (u32 mem) { cpuTlbMiss(mem, cpuRegs.branch, EXC_CODE_TLBL); return 0; }
+static mem32_t ext_miss_read32 (u32 mem) { cpuTlbMiss(mem, cpuRegs.branch, EXC_CODE_TLBL); return 0; }
+static u64     ext_miss_read64 (u32 mem) { cpuTlbMiss(mem, cpuRegs.branch, EXC_CODE_TLBL); return 0; }
+static RETURNS_R128 ext_miss_read128(u32 mem) { cpuTlbMiss(mem, cpuRegs.branch, EXC_CODE_TLBL); return r128_zero(); }
+static void ext_miss_write8 (u32 mem, mem8_t  value) { (void)value; cpuTlbMiss(mem, cpuRegs.branch, EXC_CODE_TLBS); }
+static void ext_miss_write16(u32 mem, mem16_t value) { (void)value; cpuTlbMiss(mem, cpuRegs.branch, EXC_CODE_TLBS); }
+static void ext_miss_write32(u32 mem, mem32_t value) { (void)value; cpuTlbMiss(mem, cpuRegs.branch, EXC_CODE_TLBS); }
+static void ext_miss_write64(u32 mem, mem64_t value) { (void)value; cpuTlbMiss(mem, cpuRegs.branch, EXC_CODE_TLBS); }
 #if PCSX2_MINGW_R128_BY_PTR
-static void _ext_memWrite128(u32 mem, const r128* value)
-{
-	(void)value;
-	cpuTlbMiss(mem, cpuRegs.branch, EXC_CODE_TLBS);
-}
+static void ext_miss_write128(u32 mem, const r128* value) { (void)value; cpuTlbMiss(mem, cpuRegs.branch, EXC_CODE_TLBS); }
 #else
-static void TAKES_R128 _ext_memWrite128(u32 mem, r128 value)
-{
-	cpuTlbMiss(mem, cpuRegs.branch, EXC_CODE_TLBS);
-}
+static void TAKES_R128 ext_miss_write128(u32 mem, r128 value) { cpuTlbMiss(mem, cpuRegs.branch, EXC_CODE_TLBS); }
 #endif
 
-#define vtlb_RegisterHandlerTempl1(nam,t) vtlb_RegisterHandler(nam##Read8<t>,nam##Read16<t>,nam##Read32<t>,nam##Read64<t>,nam##Read128<t>, \
-															   nam##Write8<t>,nam##Write16<t>,nam##Write32<t>,nam##Write64<t>,nam##Write128<t>)
+/* page kind 3 (psh4) */
+static mem8_t _ext_memRead8_3(u32 mem) { return psxHw4Read8(mem); }
+static void _ext_memWrite8_3(u32 mem, mem8_t value) { psxHw4Write8(mem, value); }
+
+/* page kind 4 (b80): 16-bit reads answer zero, everything else misses. */
+static mem16_t _ext_memRead16_4(u32 mem) { (void)mem; return 0; }
+
+/* page kind 5 (ba0): 16-bit reads go through ba0R16 -- the BIOS polls
+ * 0x1a000006 during boot -- and 16-bit writes are swallowed. */
+static mem16_t _ext_memRead16_5(u32 mem) { return ba0R16(mem); }
+static void _ext_memWrite16_5(u32 mem, mem16_t value) { (void)mem; (void)value; }
+
+/* page kind 8 (spu2): 16-bit reads and writes go to SPU2, others miss. */
+static mem16_t _ext_memRead16_8(u32 mem) { return SPU2read(mem); }
+static void _ext_memWrite16_8(u32 mem, mem16_t value) { SPU2write(mem, value); }
+
+/* page kind 7 (dev9): 8/16/32 MMIO with the address mask, others miss. */
+static mem8_t  _ext_memRead8_7 (u32 mem) { return DEV9read8 (mem & ~0xa4000000); }
+static mem16_t _ext_memRead16_7(u32 mem) { return DEV9read16(mem & ~0xa4000000); }
+static mem32_t _ext_memRead32_7(u32 mem) { return DEV9read32(mem & ~0xa4000000); }
+static void _ext_memWrite8_7 (u32 mem, mem8_t  value) { DEV9write8 (mem & ~0xa4000000, value); }
+static void _ext_memWrite16_7(u32 mem, mem16_t value) { DEV9write16(mem & ~0xa4000000, value); }
+static void _ext_memWrite32_7(u32 mem, mem32_t value) { DEV9write32(mem & ~0xa4000000, value); }
+
+/* page kind 6 (gsm): only the 128-bit read arm is still referenced here --
+ * the GS tables below name gsRead8/16/32 and gsWrite* directly. */
+static RETURNS_R128 _ext_memRead128_6(u32 mem) { return r128_load(PS2GS_BASE(mem)); }
 
 typedef void ClearFunc_t( u32 addr, u32 qwc );
 
@@ -764,12 +671,26 @@ void eeMemoryReserve::Reset()
 	null_handler = vtlb_RegisterHandler(nullRead8, nullRead16, nullRead32, nullRead64, nullRead128,
 		nullWrite8, nullWrite16, nullWrite32, nullWrite64, nullWrite128);
 
-	tlb_fallback_0 = vtlb_RegisterHandlerTempl1(_ext_mem,0);
-	tlb_fallback_3 = vtlb_RegisterHandlerTempl1(_ext_mem,3);
-	tlb_fallback_4 = vtlb_RegisterHandlerTempl1(_ext_mem,4);
-	tlb_fallback_5 = vtlb_RegisterHandlerTempl1(_ext_mem,5);
-	tlb_fallback_7 = vtlb_RegisterHandlerTempl1(_ext_mem,7);
-	tlb_fallback_8 = vtlb_RegisterHandlerTempl1(_ext_mem,8);
+	/* page kind 0: no MMIO arms in any width -- all ten are the miss path. */
+	tlb_fallback_0 = vtlb_RegisterHandler(
+		ext_miss_read8, ext_miss_read16, ext_miss_read32, ext_miss_read64, ext_miss_read128,
+		ext_miss_write8, ext_miss_write16, ext_miss_write32, ext_miss_write64, ext_miss_write128);
+	/* page kind 3 (psh4): 8-bit MMIO, every other width misses. */
+	tlb_fallback_3 = vtlb_RegisterHandler(
+		_ext_memRead8_3, ext_miss_read16, ext_miss_read32, ext_miss_read64, ext_miss_read128,
+		_ext_memWrite8_3, ext_miss_write16, ext_miss_write32, ext_miss_write64, ext_miss_write128);
+	tlb_fallback_4 = vtlb_RegisterHandler(
+		ext_miss_read8, _ext_memRead16_4, ext_miss_read32, ext_miss_read64, ext_miss_read128,
+		ext_miss_write8, ext_miss_write16, ext_miss_write32, ext_miss_write64, ext_miss_write128);
+	tlb_fallback_5 = vtlb_RegisterHandler(
+		ext_miss_read8, _ext_memRead16_5, ext_miss_read32, ext_miss_read64, ext_miss_read128,
+		ext_miss_write8, _ext_memWrite16_5, ext_miss_write32, ext_miss_write64, ext_miss_write128);
+	tlb_fallback_7 = vtlb_RegisterHandler(
+		_ext_memRead8_7, _ext_memRead16_7, _ext_memRead32_7, ext_miss_read64, ext_miss_read128,
+		_ext_memWrite8_7, _ext_memWrite16_7, _ext_memWrite32_7, ext_miss_write64, ext_miss_write128);
+	tlb_fallback_8 = vtlb_RegisterHandler(
+		ext_miss_read8, _ext_memRead16_8, ext_miss_read32, ext_miss_read64, ext_miss_read128,
+		ext_miss_write8, _ext_memWrite16_8, ext_miss_write32, ext_miss_write64, ext_miss_write128);
 
 	// Dynarec versions of VUs
 	vu0_micro_mem = vtlb_RegisterHandlerTempl1(vuMicro,0);
@@ -785,23 +706,23 @@ void eeMemoryReserve::Reset()
 	using namespace IopMemory;
 
 	tlb_fallback_2 = vtlb_RegisterHandler(
-		iopHwRead8_generic, iopHwRead16_generic, iopHwRead32_generic, _ext_memRead64<2>, _ext_memRead128<2>,
-		iopHwWrite8_generic, iopHwWrite16_generic, iopHwWrite32_generic, _ext_memWrite64<2>, _ext_memWrite128<2>
+		iopHwRead8_generic, iopHwRead16_generic, iopHwRead32_generic, ext_miss_read64, ext_miss_read128,
+		iopHwWrite8_generic, iopHwWrite16_generic, iopHwWrite32_generic, ext_miss_write64, ext_miss_write128
 	);
 
 	iopHw_by_page_01 = vtlb_RegisterHandler(
-		iopHwRead8_Page1, iopHwRead16_Page1, iopHwRead32_Page1, _ext_memRead64<2>, _ext_memRead128<2>,
-		iopHwWrite8_Page1, iopHwWrite16_Page1, iopHwWrite32_Page1, _ext_memWrite64<2>, _ext_memWrite128<2>
+		iopHwRead8_Page1, iopHwRead16_Page1, iopHwRead32_Page1, ext_miss_read64, ext_miss_read128,
+		iopHwWrite8_Page1, iopHwWrite16_Page1, iopHwWrite32_Page1, ext_miss_write64, ext_miss_write128
 	);
 
 	iopHw_by_page_03 = vtlb_RegisterHandler(
-		iopHwRead8_Page3, iopHwRead16_Page3, iopHwRead32_Page3, _ext_memRead64<2>, _ext_memRead128<2>,
-		iopHwWrite8_Page3, iopHwWrite16_Page3, iopHwWrite32_Page3, _ext_memWrite64<2>, _ext_memWrite128<2>
+		iopHwRead8_Page3, iopHwRead16_Page3, iopHwRead32_Page3, ext_miss_read64, ext_miss_read128,
+		iopHwWrite8_Page3, iopHwWrite16_Page3, iopHwWrite32_Page3, ext_miss_write64, ext_miss_write128
 	);
 
 	iopHw_by_page_08 = vtlb_RegisterHandler(
-		iopHwRead8_Page8, iopHwRead16_Page8, iopHwRead32_Page8, _ext_memRead64<2>, _ext_memRead128<2>,
-		iopHwWrite8_Page8, iopHwWrite16_Page8, iopHwWrite32_Page8, _ext_memWrite64<2>, _ext_memWrite128<2>
+		iopHwRead8_Page8, iopHwRead16_Page8, iopHwRead32_Page8, ext_miss_read64, ext_miss_read128,
+		iopHwWrite8_Page8, iopHwWrite16_Page8, iopHwWrite32_Page8, ext_miss_write64, ext_miss_write128
 	);
 
 
@@ -834,17 +755,17 @@ void eeMemoryReserve::Reset()
 	// GS Optimized Mappings
 
 	tlb_fallback_6 = vtlb_RegisterHandler(
-		gsRead8, gsRead16, gsRead32, gsRead64, _ext_memRead128<6>,
+		gsRead8, gsRead16, gsRead32, gsRead64, _ext_memRead128_6,
 		gsWrite8, gsWrite16, gsWrite32, gsWrite64_generic, gsWrite128_generic
 	);
 
 	gs_page_0 = vtlb_RegisterHandler(
-		gsRead8, gsRead16, gsRead32, gsRead64, _ext_memRead128<6>,
+		gsRead8, gsRead16, gsRead32, gsRead64, _ext_memRead128_6,
 		gsWrite8, gsWrite16, gsWrite32, gsWrite64_page_00, gsWrite128_generic
 	);
 
 	gs_page_1 = vtlb_RegisterHandler(
-		gsRead8, gsRead16, gsRead32, gsRead64, _ext_memRead128<6>,
+		gsRead8, gsRead16, gsRead32, gsRead64, _ext_memRead128_6,
 		gsWrite8, gsWrite16, gsWrite32, gsWrite64_page_01, gsWrite128_page_01
 	);
 
