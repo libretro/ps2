@@ -13,6 +13,8 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <float.h>
+#include <stdint.h>
 #include "../common/FileSystem.h"
 #include "../common/Path.h"
 #include "../common/SettingsInterface.h"
@@ -65,13 +67,13 @@ s32 SettingInfo::IntegerDefaultValue() const
 
 s32 SettingInfo::IntegerMinValue() const
 {
-	static constexpr s32 fallback_value = std::numeric_limits<s32>::min();
+	static constexpr s32 fallback_value = INT32_MIN;
 	return min_value ? StringUtil::FromChars<s32>(min_value).value_or(fallback_value) : fallback_value;
 }
 
 s32 SettingInfo::IntegerMaxValue() const
 {
-	static constexpr s32 fallback_value = std::numeric_limits<s32>::max();
+	static constexpr s32 fallback_value = INT32_MAX;
 	return max_value ? StringUtil::FromChars<s32>(max_value).value_or(fallback_value) : fallback_value;
 }
 
@@ -88,13 +90,13 @@ float SettingInfo::FloatDefaultValue() const
 
 float SettingInfo::FloatMinValue() const
 {
-	static constexpr float fallback_value = std::numeric_limits<float>::min();
+	static constexpr float fallback_value = FLT_MIN;
 	return min_value ? StringUtil::FromChars<float>(min_value).value_or(fallback_value) : fallback_value;
 }
 
 float SettingInfo::FloatMaxValue() const
 {
-	static constexpr float fallback_value = std::numeric_limits<float>::max();
+	static constexpr float fallback_value = FLT_MAX;
 	return max_value ? StringUtil::FromChars<float>(max_value).value_or(fallback_value) : fallback_value;
 }
 
@@ -133,7 +135,7 @@ const char* Pcsx2Config::SpeedhackOptions::GetSpeedHackName(SpeedHack id)
 
 std::optional<SpeedHack> Pcsx2Config::SpeedhackOptions::ParseSpeedHackName(const std::string_view& name)
 {
-	for (u32 i = 0; i < std::size(s_speed_hack_names); i++)
+	for (u32 i = 0; i < C89_ARRAY_SIZE(s_speed_hack_names); i++)
 	{
 		if (name == s_speed_hack_names[i])
 			return static_cast<SpeedHack>(i);
@@ -790,7 +792,7 @@ void Pcsx2Config::DEV9Options::LoadIPHelper(u8* field, const std::string& settin
 	return;
 
 fail:
-	std::fill(field, field + 4, 0);
+	memset(field, 0, sizeof(field[0]) * 4);
 }
 std::string Pcsx2Config::DEV9Options::SaveIPHelper(u8* field)
 {

@@ -25,10 +25,10 @@
 
 struct DCTcode
 {
-	std::uint16_t bits;  /* code value, right-aligned */
-	std::uint8_t  len;   /* code length in bits */
-	std::uint8_t  run;   /* zero-run, 64 = EOB, 65 = escape */
-	std::uint8_t  level;
+	uint16_t bits;  /* code value, right-aligned */
+	uint8_t  len;   /* code length in bits */
+	uint8_t  run;   /* zero-run, 64 = EOB, 65 = escape */
+	uint8_t  level;
 };
 
 static constexpr DCTcode DCT_CODES_NEXT[] =

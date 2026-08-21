@@ -556,7 +556,7 @@ u64 FileMemoryCard::GetCRC(uint slot)
 			if (rfread(buffer, sizeof(buffer), 1, mcfp) != 1)
 				return 0;
 
-			for (uint t = 0; t < std::size(buffer); ++t)
+			for (uint t = 0; t < C89_ARRAY_SIZE(buffer); ++t)
 				retval ^= buffer[t];
 		}
 		return retval;

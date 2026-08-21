@@ -55,7 +55,7 @@ size_t RingBuffer::read(void* dst, size_t nbytes)
 			break;
 
 		const size_t copy = std::min(available, to_read);
-		std::memcpy(bdst, m_data.get() + m_rpos, copy);
+		memcpy(bdst, m_data.get() + m_rpos, copy);
 		bdst += copy;
 		to_read -= copy;
 
@@ -78,7 +78,7 @@ void RingBuffer::write(const void* src, size_t nbytes)
 			free = m_rpos - m_wpos;
 
 		const size_t copy = std::min(free, nbytes);
-		std::memcpy(m_data.get() + m_wpos, bsrc, copy);
+		memcpy(m_data.get() + m_wpos, bsrc, copy);
 		bsrc += copy;
 		nbytes -= copy;
 

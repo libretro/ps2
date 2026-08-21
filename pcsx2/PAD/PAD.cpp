@@ -151,7 +151,7 @@ static const InputBindingInfo s_dualshock2_binds[] = {
 
 static const PAD::ControllerInfo s_controller_info[] = {
 	{NotConnected, "None", nullptr, 0, NoVibration},
-	{DualShock2, "DualShock2", s_dualshock2_binds, std::size(s_dualshock2_binds), LargeSmallMotors},
+	{DualShock2, "DualShock2", s_dualshock2_binds, C89_ARRAY_SIZE(s_dualshock2_binds), LargeSmallMotors},
 };
 
 static KeyStatus g_key_status;

@@ -48,7 +48,7 @@ void usb_pick_speed(USBPort* port)
 	};
 	USBDevice* udev = port->dev;
 
-	for (u32 i = 0; i < std::size(speeds); i++)
+	for (u32 i = 0; i < C89_ARRAY_SIZE(speeds); i++)
 	{
 		if ((udev->speedmask & (1 << speeds[i])) &&
 			(port->speedmask & (1 << speeds[i])))
@@ -584,7 +584,7 @@ static const char* usb_packet_state_name(USBPacketState state)
 		/*[USB_PACKET_COMPLETE]  =*/"complete",
 		/*[USB_PACKET_CANCELED]  =*/"canceled",
 	};
-	if (static_cast<u32>(state) < std::size(name))
+	if (static_cast<u32>(state) < C89_ARRAY_SIZE(name))
 	{
 		return name[state];
 	}
@@ -655,10 +655,10 @@ void usb_packet_copy(USBPacket* p, void* ptr, size_t bytes)
 	{
 		case USB_TOKEN_SETUP:
 		case USB_TOKEN_OUT:
-			std::memcpy(ptr, p->buffer_ptr, bytes);
+			memcpy(ptr, p->buffer_ptr, bytes);
 			break;
 		case USB_TOKEN_IN:
-			std::memcpy(p->buffer_ptr, ptr, bytes);
+			memcpy(p->buffer_ptr, ptr, bytes);
 			break;
 		default:
 			Console.Warning("%s: invalid pid: %x\n", __func__, p->pid);
@@ -674,7 +674,7 @@ void usb_packet_skip(USBPacket* p, size_t bytes)
 	assert(p->actual_length + bytes <= p->buffer_size);
 	if (p->pid == USB_TOKEN_IN)
 	{
-		std::memset(p->buffer_ptr, 0, bytes);
+		memset(p->buffer_ptr, 0, bytes);
 	}
 	p->actual_length += bytes;
 }

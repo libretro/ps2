@@ -65,46 +65,46 @@ enum picture_coding_type
 
 struct MBtab
 {
-	std::uint8_t modes;
-	std::uint8_t len;
+	uint8_t modes;
+	uint8_t len;
 };
 
 struct MVtab
 {
-	std::uint8_t delta;
-	std::uint8_t len;
+	uint8_t delta;
+	uint8_t len;
 };
 
 struct DMVtab
 {
-	std::int8_t dmv;
-	std::uint8_t len;
+	int8_t dmv;
+	uint8_t len;
 };
 
 struct CBPtab
 {
-	std::uint8_t cbp;
-	std::uint8_t len;
+	uint8_t cbp;
+	uint8_t len;
 };
 
 struct DCtab
 {
-	std::uint8_t size;
-	std::uint8_t len;
+	uint8_t size;
+	uint8_t len;
 };
 
 struct MBAtab
 {
-	std::uint8_t mba;
-	std::uint8_t len;
+	uint8_t mba;
+	uint8_t len;
 };
 
-static constexpr void vlc_store(MBtab& t, int v) { t.modes = (std::uint8_t)v; }
-static constexpr void vlc_store(MVtab& t, int v) { t.delta = (std::uint8_t)v; }
-static constexpr void vlc_store(DMVtab& t, int v) { t.dmv = (std::int8_t)v; }
-static constexpr void vlc_store(CBPtab& t, int v) { t.cbp = (std::uint8_t)v; }
-static constexpr void vlc_store(DCtab& t, int v) { t.size = (std::uint8_t)v; }
-static constexpr void vlc_store(MBAtab& t, int v) { t.mba = (std::uint8_t)v; }
+static constexpr void vlc_store(MBtab& t, int v) { t.modes = (uint8_t)v; }
+static constexpr void vlc_store(MVtab& t, int v) { t.delta = (uint8_t)v; }
+static constexpr void vlc_store(DMVtab& t, int v) { t.dmv = (int8_t)v; }
+static constexpr void vlc_store(CBPtab& t, int v) { t.cbp = (uint8_t)v; }
+static constexpr void vlc_store(DCtab& t, int v) { t.size = (uint8_t)v; }
+static constexpr void vlc_store(MBAtab& t, int v) { t.mba = (uint8_t)v; }
 
 
 /* Expands a code list into the indexed array a decode path reads.

@@ -45,9 +45,9 @@
 
 struct DCTtabLut
 {
-	std::uint8_t run;
-	std::uint8_t level;
-	std::uint8_t len;
+	uint8_t run;
+	uint8_t level;
+	uint8_t len;
 };
 
 struct DCTlutHi

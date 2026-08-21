@@ -227,9 +227,6 @@ void _flushXMMregs();
 #define EEINST_COP2_FINISH_VU0 0x4000
 #define EEINST_COP2_FLUSH_VU0_REGISTERS 0x8000
 
-/* C89 array length; replaces std::size at the recompiler's use sites. */
-#define C89_ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
-
 struct EEINST
 {
 	u16 info; /* extra info, if 1 inst is COP1, 2 inst is COP2. Also uses EEINST_XMM */

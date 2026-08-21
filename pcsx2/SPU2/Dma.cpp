@@ -13,6 +13,7 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stdlib.h>
 #include "Global.h"
 #include "Dma.h"
 #include "spu2.h"
@@ -125,7 +126,7 @@ void V_Core::FinishDMAwrite()
 
 	DMAICounter = ReadSize;
 
-	u32 buff1end = ActiveTSA + std::min(ReadSize, (u32)0x100 + std::abs(DMAICounter / 4));
+	u32 buff1end = ActiveTSA + std::min(ReadSize, (u32)0x100 + abs(DMAICounter / 4));
 	u32 buff2end = 0;
 
 	if (buff1end > 0x100000)
@@ -229,7 +230,7 @@ void V_Core::FinishDMAwrite()
 
 void V_Core::FinishDMAread()
 {
-	u32 buff1end = ActiveTSA + std::min(ReadSize, (u32)0x100 + std::abs(DMAICounter / 4));
+	u32 buff1end = ActiveTSA + std::min(ReadSize, (u32)0x100 + abs(DMAICounter / 4));
 	u32 buff2end = 0;
 
 	if (buff1end > 0x100000)

@@ -726,7 +726,7 @@ void hwWrite8(u32 mem, u8 value)
 			sio_buffer[sio_count++] = value;
 		}
 
-		if ((sio_count == std::size(sio_buffer)-1) || (sio_count != 0 && sio_buffer[sio_count-1] == '\n'))
+		if ((sio_count == C89_ARRAY_SIZE(sio_buffer)-1) || (sio_count != 0 && sio_buffer[sio_count-1] == '\n'))
 		{
 			sio_buffer[sio_count]   = 0;
 			sio_count               = 0;

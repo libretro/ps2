@@ -285,7 +285,7 @@ __fi static int get_dwords(u32 addr, u32* buf, u32 num)
 	if ((addr + (num * sizeof(u32))) > Ps2MemSize::IopRam)
 		return 0;
 
-	std::memcpy(buf, iopMem->Main + addr, num * sizeof(u32));
+	memcpy(buf, iopMem->Main + addr, num * sizeof(u32));
 	return 1;
 }
 
@@ -295,7 +295,7 @@ __fi static int get_words(u32 addr, u16* buf, u32 num)
 	if ((addr + (num * sizeof(u16))) > Ps2MemSize::IopRam)
 		return 0;
 
-	std::memcpy(buf, iopMem->Main + addr, num * sizeof(u16));
+	memcpy(buf, iopMem->Main + addr, num * sizeof(u16));
 	return 1;
 }
 
@@ -305,7 +305,7 @@ __fi static int put_dwords(u32 addr, u32* buf, u32 num)
 	if ((addr + (num * sizeof(u32))) > Ps2MemSize::IopRam)
 		return 0;
 
-	std::memcpy(iopMem->Main + addr, buf, num * sizeof(u32));
+	memcpy(iopMem->Main + addr, buf, num * sizeof(u32));
 	return 1;
 }
 
@@ -315,7 +315,7 @@ __fi static int put_words(u32 addr, u16* buf, u32 num)
 	if ((addr + (num * sizeof(u16))) > Ps2MemSize::IopRam)
 		return 0;
 
-	std::memcpy(iopMem->Main + addr, buf, num * sizeof(u16));
+	memcpy(iopMem->Main + addr, buf, num * sizeof(u16));
 	return 1;
 }
 
@@ -366,9 +366,9 @@ static int ohci_copy_td(OHCIState* ohci, struct ohci_td* td, uint8_t* buf, u32 l
 		return 1;
 
 	if (write)
-		std::memcpy(iopMem->Main + ptr, buf, len);
+		memcpy(iopMem->Main + ptr, buf, len);
 	else
-		std::memcpy(buf, iopMem->Main + ptr, len);
+		memcpy(buf, iopMem->Main + ptr, len);
 
 	if (n == len)
 		return 0;
@@ -380,9 +380,9 @@ static int ohci_copy_td(OHCIState* ohci, struct ohci_td* td, uint8_t* buf, u32 l
 		return 1;
 
 	if (write)
-		std::memcpy(iopMem->Main + ptr, buf, len);
+		memcpy(iopMem->Main + ptr, buf, len);
 	else
-		std::memcpy(buf, iopMem->Main + ptr, len);
+		memcpy(buf, iopMem->Main + ptr, len);
 
 	return 0;
 }
@@ -398,9 +398,9 @@ static int ohci_copy_iso_td(OHCIState* ohci, u32 start_addr, u32 end_addr,
 		return 1;
 
 	if (write)
-		std::memcpy(iopMem->Main + ptr, buf, len);
+		memcpy(iopMem->Main + ptr, buf, len);
 	else
-		std::memcpy(buf, iopMem->Main + ptr, len);
+		memcpy(buf, iopMem->Main + ptr, len);
 
 	if (n == len)
 		return 0;
@@ -412,9 +412,9 @@ static int ohci_copy_iso_td(OHCIState* ohci, u32 start_addr, u32 end_addr,
 		return 1;
 
 	if (write)
-		std::memcpy(iopMem->Main + ptr, buf, len);
+		memcpy(iopMem->Main + ptr, buf, len);
 	else
-		std::memcpy(buf, iopMem->Main + ptr, len);
+		memcpy(buf, iopMem->Main + ptr, len);
 
 	return 0;
 }
@@ -1641,7 +1641,7 @@ OHCIState* ohci_create(u32 base, int ports)
 
 	const int ticks_per_sec = usb_get_ticks_per_second();
 
-	std::memset(ohci, 0, sizeof(OHCIState));
+	memset(ohci, 0, sizeof(OHCIState));
 
 	ohci->mem_base = base;
 
@@ -1666,7 +1666,7 @@ OHCIState* ohci_create(u32 base, int ports)
 	ohci->num_ports = ports;
 	for (i = 0; i < ports; i++)
 	{
-		std::memset(&(ohci->rhport[i].port), 0, sizeof(USBPort));
+		memset(&(ohci->rhport[i].port), 0, sizeof(USBPort));
 		ohci->rhport[i].port.opaque = ohci;
 		ohci->rhport[i].port.index = i;
 		ohci->rhport[i].port.speedmask = USB_SPEED_MASK_LOW | USB_SPEED_MASK_FULL;

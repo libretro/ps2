@@ -669,7 +669,7 @@ static const PatchTextTable cpuCore[] =
 static void inifile_trim(std::string& buffer)
 {
 	StringUtil::StripWhitespace(&buffer);
-	if (std::strncmp(buffer.c_str(), "//", 2) == 0)
+	if (strncmp(buffer.c_str(), "//", 2) == 0)
 	{
 		// comment
 		buffer.clear();

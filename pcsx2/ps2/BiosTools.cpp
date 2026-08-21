@@ -65,7 +65,7 @@ static bool LoadBiosVersion(RFILE* fp, u32& version, std::string& description, u
 		if (rfread(&rd, sizeof(rd), 1, fp) != 1)
 			return false;
 
-		if (std::strncmp(rd.fileName, "RESET", sizeof(rd.fileName)) == 0)
+		if (strncmp(rd.fileName, "RESET", sizeof(rd.fileName)) == 0)
 			break; /* found romdir */
 	}
 
@@ -78,7 +78,7 @@ static bool LoadBiosVersion(RFILE* fp, u32& version, std::string& description, u
 	// ensure it's a null-terminated and not zero-length string
 	while (rd.fileName[0] != '\0' && strnlen(rd.fileName, sizeof(rd.fileName)) != sizeof(rd.fileName))
 	{
-		if (std::strncmp(rd.fileName, "EXTINFO", sizeof(rd.fileName)) == 0)
+		if (strncmp(rd.fileName, "EXTINFO", sizeof(rd.fileName)) == 0)
 		{
 			s64 pos = FileSystem::FTell64(fp);
 			if (FileSystem::FSeek64(fp, fileOffset + 0x10, SEEK_SET) != 0 ||
@@ -87,7 +87,7 @@ static bool LoadBiosVersion(RFILE* fp, u32& version, std::string& description, u
 			serial = extinfo;
 		}
 
-		if (std::strncmp(rd.fileName, "ROMVER", sizeof(rd.fileName)) == 0)
+		if (strncmp(rd.fileName, "ROMVER", sizeof(rd.fileName)) == 0)
 		{
 
 			s64 pos = FileSystem::FTell64(fp);

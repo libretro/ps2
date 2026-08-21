@@ -337,6 +337,11 @@
 // method is not implemented!  You must implement it yourself if you want to use it:
 //   EnumToString(value);
 //
+/* Array length, in place of std::size. */
+#ifndef C89_ARRAY_SIZE
+#define C89_ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
+#endif
+
 /* min/max/clamp without <algorithm>.
  *
  * These are inline functions rather than macros on purpose: a macro

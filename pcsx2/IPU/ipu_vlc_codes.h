@@ -25,10 +25,10 @@
 
 struct VLCcode
 {
-	std::uint16_t bits;   /* code value, right-aligned; prefix truncated to
+	uint16_t bits;   /* code value, right-aligned; prefix truncated to
 	                       * the lookup window when the code is longer */
-	std::uint8_t  len;    /* code length in bits */
-	std::int16_t  value;  /* decoded value (modes, delta, cbp, mba, size) */
+	uint8_t  len;    /* code length in bits */
+	int16_t  value;  /* decoded value (modes, delta, cbp, mba, size) */
 };
 
 /* MB_I: 3 codes, window 2 bits */

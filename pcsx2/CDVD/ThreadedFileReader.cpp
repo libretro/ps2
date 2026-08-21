@@ -47,13 +47,13 @@ ThreadedFileReader::~ThreadedFileReader()
 
 ThreadedFileReader::Buffer* ThreadedFileReader::GetBlockPtr(const Chunk& block)
 {
-	for (int i = 0; i < static_cast<int>(std::size(m_buffer)); i++)
+	for (int i = 0; i < static_cast<int>(C89_ARRAY_SIZE(m_buffer)); i++)
 	{
 		u32 size   = m_buffer[i].size;
 		u64 offset = m_buffer[i].offset;
 		if (size && offset <= block.offset && offset + size >= block.offset + block.length)
 		{
-			m_nextBuffer = (i + 1) % std::size(m_buffer);
+			m_nextBuffer = (i + 1) % C89_ARRAY_SIZE(m_buffer);
 			return m_buffer + i;
 		}
 	}
@@ -74,7 +74,7 @@ ThreadedFileReader::Buffer* ThreadedFileReader::GetBlockPtr(const Chunk& block)
 	{
 		buf.offset = block.offset;
 		buf.size   = amt;
-		m_nextBuffer = (m_nextBuffer + 1) % std::size(m_buffer);
+		m_nextBuffer = (m_nextBuffer + 1) % C89_ARRAY_SIZE(m_buffer);
 		return &buf;
 	}
 	return nullptr;
@@ -151,9 +151,9 @@ bool ThreadedFileReader::TryCachedRead(void*& buffer, u64& offset, u32& size)
 	bool allDone = false;
 	if (m_internalBlockSize)
 	{
-		for (int i = 0; i < static_cast<int>(std::size(m_buffer) * 2); i++)
+		for (int i = 0; i < static_cast<int>(C89_ARRAY_SIZE(m_buffer) * 2); i++)
 		{
-			Buffer& buf = m_buffer[i % std::size(m_buffer)];
+			Buffer& buf = m_buffer[i % C89_ARRAY_SIZE(m_buffer)];
 			u32 bufsize = buf.size;
 			if (!bufsize)
 				continue;
@@ -182,9 +182,9 @@ bool ThreadedFileReader::TryCachedRead(void*& buffer, u64& offset, u32& size)
 	}
 	else
 	{
-		for (int i = 0; i < static_cast<int>(std::size(m_buffer) * 2); i++)
+		for (int i = 0; i < static_cast<int>(C89_ARRAY_SIZE(m_buffer) * 2); i++)
 		{
-			Buffer& buf = m_buffer[i % std::size(m_buffer)];
+			Buffer& buf = m_buffer[i % C89_ARRAY_SIZE(m_buffer)];
 			u32 bufsize = buf.size;
 			if (!bufsize)
 				continue;

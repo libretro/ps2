@@ -1112,7 +1112,7 @@ void VMManager::CheckForMemoryCardConfigChanges(const Pcsx2Config& old_config)
 {
 	bool changed = false;
 
-	for (size_t i = 0; i < std::size(EmuConfig.Mcd); i++)
+	for (size_t i = 0; i < C89_ARRAY_SIZE(EmuConfig.Mcd); i++)
 	{
 		if (EmuConfig.Mcd[i].Enabled != old_config.Mcd[i].Enabled ||
 			EmuConfig.Mcd[i].Filename != old_config.Mcd[i].Filename)
@@ -1254,7 +1254,7 @@ static void InitializeCPUInfo(void)
 	// cannot name its processors at all answers with nothing, leaving
 	// affinity control switched off exactly as before.
 	unsigned order[64];
-	const size_t count = cpu_features_get_processor_order(order, std::size(order));
+	const size_t count = cpu_features_get_processor_order(order, C89_ARRAY_SIZE(order));
 	if (count == 0)
 	{
 		Console.Error("No processor list available");

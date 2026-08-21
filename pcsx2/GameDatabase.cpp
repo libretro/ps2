@@ -370,7 +370,7 @@ const char* GameDatabaseSchema::getHWFixName(GSHWFixId id)
 
 static std::optional<GameDatabaseSchema::GSHWFixId> GameDatabaseSchema::parseHWFixName(const std::string_view& name)
 {
-	for (u32 i = 0; i < std::size(s_gs_hw_fix_names); i++)
+	for (u32 i = 0; i < C89_ARRAY_SIZE(s_gs_hw_fix_names); i++)
 	{
 		if (name.compare(s_gs_hw_fix_names[i]) == 0)
 			return static_cast<GameDatabaseSchema::GSHWFixId>(i);
