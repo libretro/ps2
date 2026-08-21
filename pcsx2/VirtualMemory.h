@@ -152,7 +152,7 @@ struct CodeReserve
 };
 
 void code_reserve_init(struct CodeReserve* r);
-void code_reserve_assign(struct CodeReserve* r, const VirtualMemoryManagerPtr& allocator, size_t offset, size_t size);
+void code_reserve_assign(struct CodeReserve* r, const VirtualMemoryManager* allocator, size_t offset, size_t size);
 void code_reserve_release(struct CodeReserve* r);
 void code_reserve_allow_modification(struct CodeReserve* r);
 void code_reserve_forbid_modification(struct CodeReserve* r);

@@ -318,7 +318,7 @@ void code_reserve_init(struct CodeReserve* r)
 	r->allocator = NULL;
 }
 
-void code_reserve_assign(struct CodeReserve* r, const VirtualMemoryManagerPtr& allocator, size_t offset, size_t size)
+void code_reserve_assign(struct CodeReserve* r, const VirtualMemoryManager* allocator, size_t offset, size_t size)
 {
 	u8* base;
 
@@ -335,7 +335,7 @@ void code_reserve_assign(struct CodeReserve* r, const VirtualMemoryManagerPtr& a
 
 	r->baseptr   = base;
 	r->size      = size;
-	r->allocator = allocator.get();
+	r->allocator = allocator;
 }
 
 void code_reserve_release(struct CodeReserve* r)

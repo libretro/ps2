@@ -185,11 +185,12 @@ int main(int argc, char** argv)
     p_set_input_poll(input_poll_cb);
     p_set_input_state(input_state_cb);
 
-    p_init();
+    { double a_=now(); p_init(); fprintf(stderr, "[phase] retro_init %.3f s\n", now()-a_); }
 
     memset(&gi, 0, sizeof(gi));
     gi.path = argv[2];
-    if (!p_load_game(&gi)) { fprintf(stderr, "retro_load_game failed\n"); return 5; }
+    { double a_=now(); int ok_=p_load_game(&gi); fprintf(stderr, "[phase] retro_load_game %.3f s\n", now()-a_);
+      if (!ok_) { fprintf(stderr, "retro_load_game failed\n"); return 5; } }
     fprintf(stderr, "[headless] game loaded, running %d frames\n", frames);
 
     t0 = now();
@@ -211,8 +212,24 @@ int main(int argc, char** argv)
             p_jithash();
     }
 
-    /* teardown races the GS thread in this cut-down frontend; the numbers
-     * are already printed, so leave without it. */
+    /* Teardown. This used to be skipped -- the harness _exit(0)'d after
+     * printing -- which meant retro_unload_game and retro_deinit were never
+     * exercised by any gate. Timed, because shutdown cost is exactly the
+     * kind of regression that hides behind an early exit. */
+    if (getenv("PS2_SKIP_DEINIT"))
+    {
+        fflush(stderr);
+        _exit(0);
+    }
+    {
+        void (*p_unload)(void) = (void (*)(void))dlsym(h, "retro_unload_game");
+        double a_ = now();
+        if (p_unload) p_unload();
+        fprintf(stderr, "[phase] retro_unload_game %.3f s\n", now() - a_);
+        a_ = now();
+        p_deinit();
+        fprintf(stderr, "[phase] retro_deinit %.3f s\n", now() - a_);
+    }
     fflush(stderr);
     _exit(0);
 }

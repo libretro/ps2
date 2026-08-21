@@ -784,7 +784,7 @@ static void recReserve(void)
 	/* R3000A Recompiler Cache */
 	code_reserve_init(&recMem);
 	recMemAssigned = 1;
-	code_reserve_assign(&recMem, GetVmMemory().CodeMemory(), HostMemoryMap::IOPrecOffset, 32 * _1mb);
+	code_reserve_assign(&recMem, GetVmMemory().CodeMemory().get(), HostMemoryMap::IOPrecOffset, 32 * _1mb);
 }
 
 static void recAlloc(void)

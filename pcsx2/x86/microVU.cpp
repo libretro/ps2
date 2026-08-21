@@ -34,7 +34,7 @@ static void mVUreserveCache(microVU* mVU)
 	code_reserve_init(mVU->cache_reserve);
 
 	const size_t alloc_offset = mVU->index ? HostMemoryMap::mVU0recOffset : HostMemoryMap::mVU1recOffset;
-	code_reserve_assign(mVU->cache_reserve, GetVmMemory().CodeMemory(), alloc_offset, mVU->cacheSize * _1mb);
+	code_reserve_assign(mVU->cache_reserve, GetVmMemory().CodeMemory().get(), alloc_offset, mVU->cacheSize * _1mb);
 	mVU->cache = mVU->cache_reserve->baseptr;
 }
 

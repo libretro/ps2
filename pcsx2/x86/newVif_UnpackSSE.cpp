@@ -371,7 +371,7 @@ void VifUnpackSSE_Init(void)
 
 	code_reserve_init(&nVifUpkExec);
 	nVifUpkAssigned = 1;
-	code_reserve_assign(&nVifUpkExec, GetVmMemory().CodeMemory(), HostMemoryMap::VIFUnpackRecOffset, _1mb);
+	code_reserve_assign(&nVifUpkExec, GetVmMemory().CodeMemory().get(), HostMemoryMap::VIFUnpackRecOffset, _1mb);
 	x86Ptr = (u8*)(nVifUpkExec.baseptr);
 
 	for (int a = 0; a < 2; a++)
