@@ -18,9 +18,6 @@
 #include "x86/iR5900.h"
 #include "common/emitter/c89ops.h"
 #include "x86/iR5900LoadStore.h"
-
-using namespace x86Emitter;
-
 #define REC_STORES
 #define REC_LOADS
 

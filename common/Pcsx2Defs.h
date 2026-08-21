@@ -168,7 +168,7 @@
 // which under GNU inline rules means "inline at every callsite AND DO NOT
 // emit an out-of-line copy".  That last part breaks the libretro non-LTO
 // Makefile build: every cross-TU call (e.g. dmaSIF1, vtlb_GetPhyPtr,
-// x86Emitter::xPUSH, SPU2 Mix/TimeUpdate/spu2M_Write/UpdateSpdifMode...)
+// xPUSH, SPU2 Mix/TimeUpdate/spu2M_Write/UpdateSpdifMode...)
 // becomes an undefined reference.  cmake builds avoid this via PCSX2_LTO=ON
 // merging all TUs at link time, but the libretro Makefile builds do not LTO.
 //

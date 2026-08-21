@@ -16,12 +16,9 @@
 #include "common/emitter/x86types.h"
 #include "common/emitter/c89ops.h"
 
-namespace x86Emitter
+inline JccComparisonType xInvertCond(JccComparisonType src)
 {
-	inline JccComparisonType xInvertCond(JccComparisonType src)
-	{
-		return (src == Jcc_Unconditional) ? Jcc_Unconditional : (JccComparisonType)((int)src ^ 1);
-	}
+	return (src == Jcc_Unconditional) ? Jcc_Unconditional : (JccComparisonType)((int)src ^ 1);
+}
 
-} // namespace x86Emitter
 

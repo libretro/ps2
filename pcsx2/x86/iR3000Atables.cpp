@@ -21,9 +21,6 @@
 #include "../IopMem.h"
 #include "../IopDma.h"
 #include "../IopGte.h"
-
-using namespace x86Emitter;
-
 extern int g_psxWriteOk;
 extern u32 g_psxMaxRecMem;
 

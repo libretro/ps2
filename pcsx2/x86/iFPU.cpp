@@ -20,9 +20,6 @@
 #include "iR5900.h"
 #include "common/emitter/c89ops.h"
 #include "iFPU.h"
-
-using namespace x86Emitter;
-
 alignas(16) const u32 g_minvals[4] = {0xff7fffff, 0xff7fffff, 0xff7fffff, 0xff7fffff};
 alignas(16) const u32 g_maxvals[4] = {0x7f7fffff, 0x7f7fffff, 0x7f7fffff, 0x7f7fffff};
 

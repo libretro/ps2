@@ -27,9 +27,6 @@
 #include "iCOP0.h"
 
 namespace Interp = R5900::Interpreter::OpcodeImpl::COP0;
-using namespace x86Emitter;
-
-
 /*********************************************************
 *   COP0 opcodes                                         *
 *                                                        *

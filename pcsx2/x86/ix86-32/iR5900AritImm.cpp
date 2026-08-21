@@ -17,9 +17,6 @@
 #include "R5900OpcodeTables.h"
 #include "x86/iR5900.h"
 #include "common/emitter/c89ops.h"
-
-using namespace x86Emitter;
-
 /*********************************************************
 * Arithmetic with immediate operand                      *
 * Format:  OP rt, rs, immediate                          *
@@ -100,7 +97,7 @@ static void recSLTIU_(int info)
 	else
 		xe_cmp64_mi(&cpuRegs.GPR.r[_Rs_].UD[0], _Imm_);
 
-	xe_setcc_r8(x86Emitter::Jcc_Below, dreg);
+	xe_setcc_r8(Jcc_Below, dreg);
 
 	if (dreg != EEREC_T)
 	{
@@ -127,7 +124,7 @@ static void recSLTI_(int info)
 	else
 		xe_cmp64_mi(&cpuRegs.GPR.r[_Rs_].UD[0], _Imm_);
 
-	xe_setcc_r8(x86Emitter::Jcc_Less, dreg);
+	xe_setcc_r8(Jcc_Less, dreg);
 
 	if (dreg != EEREC_T)
 	{

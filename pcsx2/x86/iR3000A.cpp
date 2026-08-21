@@ -38,9 +38,6 @@
 #include "../../common/AlignedMalloc.h"
 #include "../../common/FileSystem.h"
 #include "../../common/Path.h"
-
-using namespace x86Emitter;
-
 extern void psxBREAK();
 
 u32 g_psxMaxRecMem = 0;

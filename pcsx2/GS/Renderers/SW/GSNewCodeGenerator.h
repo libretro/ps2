@@ -81,9 +81,9 @@ public:
 
 	GSNewCodeGenerator(Xbyak::CodeGenerator* actual)
 		: actual(*actual)
-		, hasAVX(CpuHasAVX())
-		, hasAVX2(CpuHasAVX2())
-		, hasFMA(CpuHasFMA())
+		, hasAVX(CPU_HAS_AVX)
+		, hasAVX2(CPU_HAS_AVX2)
+		, hasFMA(CPU_HAS_FMA)
 	{
 	}
 

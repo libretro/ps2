@@ -17,10 +17,6 @@
 #include "iR5900.h"
 #include "common/emitter/c89ops.h"
 #include "R5900OpcodeTables.h"
-
-using namespace x86Emitter;
-
-
 // R5900 branch helper!
 // Recompiles code for a branch test and/or skip, complete with delay slot
 // handling.  Note, for "likely" branches use iDoBranchImm_Likely instead, which

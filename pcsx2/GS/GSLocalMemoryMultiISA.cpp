@@ -178,7 +178,7 @@ void GSLocalMemoryFunctions::PopulateFunctions(GSLocalMemory& mem)
 	mem.m_psm[PSMZ16].rtxbP = ReadTextureBlock16;
 	mem.m_psm[PSMZ16S].rtxbP = ReadTextureBlock16;
 
-	if (CpuHasAVX2())
+	if (CPU_HAS_AVX2)
 	{
 		mem.m_psm[PSMT8].rtx   = ReadTexture8HSW;
 		mem.m_psm[PSMT8H].rtx  = ReadTexture8HHSW;

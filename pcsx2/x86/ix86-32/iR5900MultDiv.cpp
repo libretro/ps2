@@ -17,10 +17,6 @@
 #include "R5900OpcodeTables.h"
 #include "x86/iR5900.h"
 #include "common/emitter/c89ops.h"
-
-using namespace x86Emitter;
-
-
 /*********************************************************
 * Register mult/div & Register trap logic                *
 * Format:  OP rs, rt                                     *

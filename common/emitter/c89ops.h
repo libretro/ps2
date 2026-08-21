@@ -282,7 +282,7 @@
 #define xe_cmovcc64_rr(cc, dst, src) do { XE_OPEN();  \
 	E_REX(xep, 1, (dst), 0, (src)); EW8(xep, 0x0f); \
 	EW8(xep, (e_u8)(0x40 | (cc))); E_MODRM_RR(xep, (dst), (src)); XE_CLOSE(); } while (0)
-#define xe_cmovb64_rr(dst, src) xe_cmovcc64_rr(x86Emitter::Jcc_Below, (dst), (src))
+#define xe_cmovb64_rr(dst, src) xe_cmovcc64_rr(Jcc_Below, (dst), (src))
 #define xe_cmovcc64_rm(cc, dst, addr) do { XE_OPEN();  \
 	{ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
 	  E_REX_MEM(xep, 1, (dst), xm_); EW8(xep, 0x0f); \
@@ -388,7 +388,7 @@
 	/* mirror xForwardJump<s8> exactly: unconditional is EB, not 0x70|cc. \
 	 * Jcc_Unconditional is -1, and 0x70 | -1 truncates to 0xFF -- a real \
 	 * opcode byte, and a crash the first time the block runs. */ \
-	EW8(xep, ((cc) == x86Emitter::Jcc_Unconditional) ? (e_u8)0xeb \
+	EW8(xep, ((cc) == Jcc_Unconditional) ? (e_u8)0xeb \
 	                                                 : (e_u8)(0x70 | (cc))); \
 	(slot) = xep; EW8(xep, 0); XE_CLOSE(); } while (0)
 /* The reference emitter asserted the displacement fit; the pair must too,
@@ -443,7 +443,7 @@
  * given displacement and stores the address of the 32-bit slot -- the
  * xJcc32 contract, as an out-parameter since macros do not return. */
 #define xe_jcc32_slot(cc, disp, slot) do { XE_OPEN();  \
-	{ if ((cc) == x86Emitter::Jcc_Unconditional) { EW8(xep, 0xe9); } \
+	{ if ((cc) == Jcc_Unconditional) { EW8(xep, 0xe9); } \
 	  else { EW8(xep, 0x0f); EW8(xep, (e_u8)(0x80 | (cc))); } \
 	  (slot) = (s32*)xep; EW32(xep, (e_u32)(e_s32)(disp)); }; XE_CLOSE(); } while (0)
 
@@ -794,7 +794,7 @@
 	E_MODRM_MEM(xep, 0, xm_, 4); EW32(xep, (e_u32)(imm)); }; XE_CLOSE(); } while (0)
 #define xe_cmovge32_rr(dst, src) do { XE_OPEN();  \
 	{ E_REX(xep, 0, (dst), 0, (src)); \
-	  EW8(xep, 0x0f); EW8(xep, (e_u8)(0x40 | x86Emitter::Jcc_GreaterOrEqual)); \
+	  EW8(xep, 0x0f); EW8(xep, (e_u8)(0x40 | Jcc_GreaterOrEqual)); \
 	  E_MODRM_RR(xep, (dst), (src)); }; XE_CLOSE(); } while (0)
 
 /* or dword [abs], imm (the FPU flag-set sites) */
@@ -963,7 +963,7 @@
  * for unconditional) with a zero placeholder, patched by set32. Both
  * shadow arms patch the same dword from the same anchor. */
 #define xe_fwd_jcc32(cc, slot) do { XE_OPEN();  \
-	{ if ((cc) == x86Emitter::Jcc_Unconditional) { EW8(xep, 0xe9); } \
+	{ if ((cc) == Jcc_Unconditional) { EW8(xep, 0xe9); } \
 	  else { EW8(xep, 0x0f); EW8(xep, (e_u8)(0x80 | (cc))); } \
 	  (slot) = xep; EW32(xep, 0); }; XE_CLOSE(); } while (0)
 #define xe_fwd_set32(slot) do { XE_OPEN();  \

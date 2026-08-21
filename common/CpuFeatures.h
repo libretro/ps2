@@ -10,24 +10,11 @@
 #include <features/features_cpu.h>
 #include <libretro.h>
 
-static inline bool CpuHasSSE41(void)
-{
-	return (cpu_features_get() & RETRO_SIMD_SSE4) != 0;
-}
-
-static inline bool CpuHasAVX(void)
-{
-	return (cpu_features_get() & RETRO_SIMD_AVX) != 0;
-}
-
-static inline bool CpuHasAVX2(void)
-{
-	return (cpu_features_get() & RETRO_SIMD_AVX2) != 0;
-}
+/* Plain bit tests over the cached mask; no wrapper functions to inline. */
+#define CPU_HAS_SSE41 ((cpu_features_get() & RETRO_SIMD_SSE4) != 0)
+#define CPU_HAS_AVX   ((cpu_features_get() & RETRO_SIMD_AVX)  != 0)
+#define CPU_HAS_AVX2  ((cpu_features_get() & RETRO_SIMD_AVX2) != 0)
 
 /* Either encoding answers for a caller that only needs a fused
  * multiply-add to exist. */
-static inline bool CpuHasFMA(void)
-{
-	return (cpu_features_get() & (RETRO_SIMD_FMA3 | RETRO_SIMD_FMA4)) != 0;
-}
+#define CPU_HAS_FMA   ((cpu_features_get() & (RETRO_SIMD_FMA3 | RETRO_SIMD_FMA4)) != 0)

@@ -20,8 +20,6 @@
 #include "common/emitter/c89ops.h"
 
 using namespace vtlb_private;
-using namespace x86Emitter;
-
 // we need enough for a 32-bit jump forwards (5 bytes)
 static const u32 LOADSTORE_PADDING = 5;
 

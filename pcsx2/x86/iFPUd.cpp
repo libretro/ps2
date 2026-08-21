@@ -34,10 +34,6 @@
 //													and IEEE's result with round to +/-infinity.
 // other stuff - no known problems.
 //----------------------------------------------------------------
-
-
-using namespace x86Emitter;
-
 // If 1, result is not clamped (Gives correct results as in PS2,
 // but can cause problems due to insufficient clamping levels in the VUs)
 #define FPU_RESULT 1

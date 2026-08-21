@@ -39,8 +39,6 @@
 #ifndef PCSX2_C89_EMITTER
 #include "tests/emitter/reference/internal.h"
 #endif
-
-using namespace x86Emitter;
 using namespace R5900;
 
 static int eeRecNeedsReset = 0;

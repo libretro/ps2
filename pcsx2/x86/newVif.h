@@ -19,9 +19,6 @@
 #include "../VirtualMemory.h"
 
 #include "../../common/emitter/x86emitter.h"
-
-using namespace x86Emitter;
-
 extern void  mVUmergeRegs(int dest, int src,  int xyzw, int modXYZW);
 extern void  mVUsaveReg(int reg, struct e_mem ptr, int xyzw, int modXYZW);
 

@@ -24,9 +24,6 @@
 #include "x86/iFPU.h"
 #include "x86/iMMI.h"
 #include "x86/iR5900.h"
-
-using namespace x86Emitter;
-
 ////////////////////
 // Code Templates //
 ////////////////////

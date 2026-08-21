@@ -29,12 +29,6 @@
 #include "iMMI.h"
 
 #include "../../common/MathUtils.h"
-
-using namespace x86Emitter;
-
-
-
-
 void recPLZCW()
 {
 	int x86regs = -1;
@@ -2528,7 +2522,7 @@ void recPSRAVW(void)
 
 		// merge & sign extend
 		xe_punpckldq_xx(EEREC_D, t1reg);
-		if (CpuHasSSE41())
+		if (CPU_HAS_SSE41)
 		{
 			xe_pmovsxdq_xx(EEREC_D, EEREC_D);
 		}
@@ -2642,7 +2636,7 @@ void recPMULTUW(void)
 		}
 
 		// interleave & sign extend
-		if (CpuHasSSE41())
+		if (CPU_HAS_SSE41)
 		{
 			xe_pshufd_xxi(EEREC_LO, EEREC_HI, 0x88);
 			xe_pshufd_xxi(EEREC_HI, EEREC_HI, 0xdd);
@@ -2706,7 +2700,7 @@ void recPMADDUW(void)
 		xe_paddq_xx(EEREC_HI, EEREC_LO);
 
 	// interleave & sign extend
-	if (CpuHasSSE41())
+	if (CPU_HAS_SSE41)
 	{
 		xe_pshufd_xxi(EEREC_LO, EEREC_HI, 0x88);
 		xe_pshufd_xxi(EEREC_HI, EEREC_HI, 0xdd);

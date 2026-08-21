@@ -14,10 +14,6 @@
  */
 
 #pragma once
-
-using namespace x86Emitter;
-
-
 #include "../microVU/microVU_Const.h"
 
 #define xmmT1  0  // Used for regAlloc

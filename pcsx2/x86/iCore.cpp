@@ -19,9 +19,6 @@
 #include "../Vif.h"
 #include "../VU.h"
 #include "../R3000A.h"
-
-using namespace x86Emitter;
-
 u16 g_x86AllocCounter = 0;
 static u16 g_xmmAllocCounter = 0;
 
