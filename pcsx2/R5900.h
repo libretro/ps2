@@ -244,9 +244,6 @@ extern void eeloadHook2(void);
 // --------------------------------------------------------------------------------------
 //  R5900cpu
 // --------------------------------------------------------------------------------------
-// [TODO] : This is on the list to get converted to a proper C++ class.  I'm putting it
-// off until I get my new IOPint and IOPrec re-merged. --air
-//
 struct R5900cpu
 {
 	// Memory allocation function, for allocating virtual memory spaces needed by
