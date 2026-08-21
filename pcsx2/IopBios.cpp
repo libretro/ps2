@@ -35,6 +35,7 @@
 
 #include "Common.h"
 #include "R5900.h" // for g_GameStarted
+#include <streams/file_stream.h>
 #include "IopBios.h"
 #include "IopMem.h"
 #include "iR3000A.h"
@@ -264,113 +265,108 @@ namespace R3000A
 	class HostFile
 	{
 	public:
-		int fd;
+		RFILE* fp;
 
-		HostFile(int hostfd)
+		HostFile(RFILE* hostfp)
 		{
-			fd = hostfd;
+			fp = hostfp;
 		}
 
 		~HostFile() = default;
 
-		static __fi int translate_error(int err)
-		{
-			if (err >= 0)
-				return err;
 
-			switch (err)
-			{
-				case -ENOENT:
-					return -IOP_ENOENT;
-				case -EACCES:
-					return -IOP_EACCES;
-				case -EISDIR:
-					return -IOP_EISDIR;
-				case -EIO:
-				default:
-					return -IOP_EIO;
-			}
-		}
 
+		/* host: I/O goes through the libretro VFS rather than open(2).
+		 * The frontend can then serve these paths itself -- on Android a
+		 * content:// URI is not something open(2) can take at all -- and
+		 * this was the last raw POSIX file path left in the core. */
 		static int open(HostFile** file, const std::string& full_path, s32 flags, u16 mode)
 		{
 			const std::string path(full_path.substr(full_path.find(':') + 1));
 			const std::string file_path(host_path(path, false));
-			int native_flags = O_BINARY; // necessary in Windows.
+			unsigned vfs_mode;
+			RFILE* fp;
 
 			switch (flags & IOP_O_RDWR)
 			{
-				case IOP_O_RDONLY:
-					native_flags |= O_RDONLY;
-					break;
 				case IOP_O_WRONLY:
-					native_flags |= O_WRONLY;
+					vfs_mode = RETRO_VFS_FILE_ACCESS_WRITE;
 					break;
 				case IOP_O_RDWR:
-					native_flags |= O_RDWR;
+					vfs_mode = RETRO_VFS_FILE_ACCESS_READ_WRITE;
+					break;
+				case IOP_O_RDONLY:
+				default:
+					vfs_mode = RETRO_VFS_FILE_ACCESS_READ;
 					break;
 			}
 
+			/* O_TRUNC is the VFS default for a writable open; without
+			 * O_TRUNC the existing contents have to be kept, and O_APPEND
+			 * needs them kept as well before the seek to the end below. */
+			if ((vfs_mode & RETRO_VFS_FILE_ACCESS_WRITE) &&
+			    !(flags & IOP_O_TRUNC))
+				vfs_mode |= RETRO_VFS_FILE_ACCESS_UPDATE_EXISTING;
+
+			/* IOP_O_CREAT is implied by a writable VFS open; a read-only
+			 * open of a missing file fails below either way. */
+
+			fp = filestream_open(file_path.c_str(), vfs_mode,
+					RETRO_VFS_FILE_ACCESS_HINT_NONE);
+			if (!fp)
+				return -IOP_ENOENT;
+
 			if (flags & IOP_O_APPEND)
-				native_flags |= O_APPEND;
-			if (flags & IOP_O_CREAT)
-				native_flags |= O_CREAT;
-			if (flags & IOP_O_TRUNC)
-				native_flags |= O_TRUNC;
+				filestream_seek(fp, 0, RETRO_VFS_SEEK_POSITION_END);
 
-#ifdef _WIN32
-			const int native_mode = _S_IREAD | _S_IWRITE;
-#else
-			const int native_mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
-#endif
-
-			const int hostfd = FileSystem::OpenFDFile(file_path.c_str(), native_flags, native_mode);
-			if (hostfd < 0)
-				return translate_error(hostfd);
-
-			*file = new HostFile(hostfd);
+			*file = new HostFile(fp);
 			if (!*file)
+			{
+				filestream_close(fp);
 				return -IOP_ENOMEM;
+			}
 
 			return 0;
 		}
 
 		void close()
 		{
-			::close(fd);
+			filestream_close(fp);
 			delete this;
 		}
 
 		int lseek(s32 offset, s32 whence)
 		{
-			int err;
+			int seek_position;
 
 			switch (whence)
 			{
 				case IOP_SEEK_SET:
-					err = (int)::lseek(fd, offset, SEEK_SET);
+					seek_position = RETRO_VFS_SEEK_POSITION_START;
 					break;
 				case IOP_SEEK_CUR:
-					err = (int)::lseek(fd, offset, SEEK_CUR);
+					seek_position = RETRO_VFS_SEEK_POSITION_CURRENT;
 					break;
 				case IOP_SEEK_END:
-					err = (int)::lseek(fd, offset, SEEK_END);
+					seek_position = RETRO_VFS_SEEK_POSITION_END;
 					break;
 				default:
 					return -IOP_EIO;
 			}
 
-			return translate_error(err);
+			return (int)filestream_seek(fp, offset, seek_position);
 		}
 
 		int read(void* buf, u32 count) /* Flawfinder: ignore */
 		{
-			return translate_error((int)::read(fd, buf, count));
+			const int64_t r = filestream_read(fp, buf, count);
+			return (r < 0) ? -IOP_EIO : (int)r;
 		}
 
 		int write(void* buf, u32 count)
 		{
-			return translate_error((int)::write(fd, buf, count));
+			const int64_t w = filestream_write(fp, buf, count);
+			return (w < 0) ? -IOP_EIO : (int)w;
 		}
 	};
 
