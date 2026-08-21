@@ -313,7 +313,7 @@ static void _setupBranchTest(int cc, int isLikely)
 {
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
 	const int swap = !!(isLikely ? 0 : TrySwapDelaySlot(0, 0, 0, 0));
-	e_u8* slot_;
+	uint8_t* slot_;
 	_eeFlushAllDirty();
 	xe_test32_mi(&vuRegs[0].VI[REG_VPU_STAT].UL, 0x100);
 	xe_fwd_jcc32(cc, slot_);
@@ -346,7 +346,7 @@ static void COP2_Interlock(int mBitSync)
 			xe_mov64_mr(&cpuRegs.cycle, XE_AX); // update cycles
 
 			xe_test32_mi(&vuRegs[0].VI[REG_VPU_STAT].UL, 0x1);
-			e_u8* skipvuidle; xe_fwd_jcc32(Jcc_Zero, skipvuidle);
+			uint8_t* skipvuidle; xe_fwd_jcc32(Jcc_Zero, skipvuidle);
 			if (mBitSync)
 			{
 				xe_sub64_rm(XE_AX, &vuRegs[0].cycle);
@@ -357,7 +357,7 @@ static void COP2_Interlock(int mBitSync)
 				if (EmuConfig.Gamefixes.VUSyncHack || EmuConfig.Gamefixes.FullVU0SyncHack)
 					xe_sub64_rm(XE_AX, &vuRegs[0].nextBlockCycles);
 				xe_cmp64_ri(XE_AX, 4);
-				e_u8* skip; xe_fwd_jcc32(Jcc_Less, skip);
+				uint8_t* skip; xe_fwd_jcc32(Jcc_Less, skip);
 				xe_lea_far(XE_ARG1, CpuVU0);
 				xe_mov64_ri(XE_ARG2, s_nBlockInterlocked);
 				xe_fastcall2_rr(BaseVUmicroCPU::ExecuteBlockJIT, XE_ARG1, XE_ARG2);
@@ -381,12 +381,12 @@ static void mVUSyncVU0(void)
 	xe_mov64_mr(&cpuRegs.cycle, XE_AX); // update cycles
 
 	xe_test32_mi(&vuRegs[0].VI[REG_VPU_STAT].UL, 0x1);
-	e_u8* skipvuidle; xe_fwd_jcc32(Jcc_Zero, skipvuidle);
+	uint8_t* skipvuidle; xe_fwd_jcc32(Jcc_Zero, skipvuidle);
 	xe_sub64_rm(XE_AX, &vuRegs[0].cycle);
 	if (EmuConfig.Gamefixes.VUSyncHack || EmuConfig.Gamefixes.FullVU0SyncHack)
 		xe_sub64_rm(XE_AX, &vuRegs[0].nextBlockCycles);
 	xe_cmp64_ri(XE_AX, 4);
-	e_u8* skip; xe_fwd_jcc32(Jcc_Less, skip);
+	uint8_t* skip; xe_fwd_jcc32(Jcc_Less, skip);
 	xe_lea_far(XE_ARG1, CpuVU0);
 	xe_mov64_ri(XE_ARG2, s_nBlockInterlocked);
 	xe_fastcall2_rr(BaseVUmicroCPU::ExecuteBlockJIT, XE_ARG1, XE_ARG2);
@@ -398,7 +398,7 @@ static void mVUFinishVU0(void)
 {
 	iFlushCall(FLUSH_FOR_POSSIBLE_MICRO_EXEC);
 	xe_test32_mi(&vuRegs[0].VI[REG_VPU_STAT].UL, 0x1);
-	e_u8* skipvuidle; xe_fwd_jcc32(Jcc_Zero, skipvuidle);
+	uint8_t* skipvuidle; xe_fwd_jcc32(Jcc_Zero, skipvuidle);
 	xe_fastcall0(_vu0FinishMicro);
 	xe_fwd_set32(skipvuidle);
 }
@@ -406,7 +406,7 @@ static void mVUFinishVU0(void)
 static void TEST_FBRST_RESET(int flagreg, void(*resetFunct)(), int vuIndex)
 {
 	xe_test32_ri(flagreg, (vuIndex) ? 0x200 : 0x002);
-	e_u8* skip; xe_fwd_jcc8(Jcc_Zero, skip);
+	uint8_t* skip; xe_fwd_jcc8(Jcc_Zero, skip);
 	xe_fastcall0(resetFunct);
 	xe_fwd_set8(skip);
 }

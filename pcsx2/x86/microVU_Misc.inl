@@ -293,9 +293,9 @@ __fi void mVUaddrFix(mV, int gprReg)
 	else
 	{
 		xe_test32_ri(gprReg, 0x400);
-		e_u8* jmpA; xe_fwd_jcc8(Jcc_NotZero, jmpA); // if addr & 0x4000, reads VU1's VF regs and VI regs
+		uint8_t* jmpA; xe_fwd_jcc8(Jcc_NotZero, jmpA); // if addr & 0x4000, reads VU1's VF regs and VI regs
 			xe_and32_ri(gprReg, 0xff); // if !(addr & 0x4000), wrap around
-			e_u8* jmpB; xe_fwd_jcc32(Jcc_Unconditional, jmpB);
+			uint8_t* jmpB; xe_fwd_jcc32(Jcc_Unconditional, jmpB);
 		xe_fwd_set8(jmpA);
 			if (THREAD_VU1)
 			{
@@ -396,13 +396,13 @@ void ADD_SS_TriAceHack(microVU* mVU, int to, int from)
 	xe_sub32_rr(XE_CX, XE_AX); // Exponent Difference
 
 	xe_cmp32_ri(XE_CX, -25);
-	e_u8* case_neg_big; xe_fwd_jcc8(Jcc_LessOrEqual, case_neg_big);
+	uint8_t* case_neg_big; xe_fwd_jcc8(Jcc_LessOrEqual, case_neg_big);
 	xe_cmp32_ri(XE_CX, 25);
-	e_u8* case_end1; xe_fwd_jcc8(Jcc_Less, case_end1);
+	uint8_t* case_end1; xe_fwd_jcc8(Jcc_Less, case_end1);
 
 	// case_pos_big:
 	xe_pand_xm(to, sseMasks.ADD_SS);
-	e_u8* case_end2; xe_fwd_jcc8(Jcc_Unconditional, case_end2);
+	uint8_t* case_end2; xe_fwd_jcc8(Jcc_Unconditional, case_end2);
 
 	xe_fwd_set8(case_neg_big);
 	xe_pand_xm(from, sseMasks.ADD_SS);

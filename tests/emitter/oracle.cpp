@@ -38,7 +38,7 @@ static void check(const char* what, CppFn cpp, C89Fn c89)
 
 	memset(g_buf, 0xcc, 32);
 	{
-		e_u8* p = (e_u8*)g_buf;
+		uint8_t* p = (uint8_t*)g_buf;
 		p = c89(p);
 		nb = (size_t)((u8*)p - g_buf);
 		memcpy(b, g_buf, nb);
@@ -98,13 +98,13 @@ int main()
 				check(nm,
 					[&]{ if (w) xMOV(xRegister64(r), ptrNative[ad]);
 					     else    xMOV(xRegister32(r), ptr32[ad]); },
-					[&](e_u8* p){ E_MOV_R_M(p, w, r, ad); return p; });
+					[&](uint8_t* p){ E_MOV_R_M(p, w, r, ad); return p; });
 
 				snprintf(nm, sizeof(nm), "MOV_M_R w%d r%d a%d", w, r, a);
 				check(nm,
 					[&]{ if (w) xMOV(ptrNative[ad], xRegister64(r));
 					     else    xMOV(ptr32[ad], xRegister32(r)); },
-					[&](e_u8* p){ E_MOV_M_R(p, w, r, ad); return p; });
+					[&](uint8_t* p){ E_MOV_M_R(p, w, r, ad); return p; });
 			}
 
 	/* ---- group1 reg,reg ---- */
@@ -136,7 +136,7 @@ int main()
 								case 6: xXOR(xRegister32(d), xRegister32(s)); break;
 								default:xCMP(xRegister32(d), xRegister32(s)); break; }
 							} },
-						[&](e_u8* p){ E_G1_RR(p, w, op, d, s); return p; });
+						[&](uint8_t* p){ E_G1_RR(p, w, op, d, s); return p; });
 				}
 
 	/* ---- group1 reg, imm ---- */
@@ -166,7 +166,7 @@ int main()
 								case 6: xXOR(xRegister32(r), im); break;
 								default:xCMP(xRegister32(r), im); break; }
 							} },
-						[&](e_u8* p){ E_G1_RI(p, w, op, r, im); return p; });
+						[&](uint8_t* p){ E_G1_RI(p, w, op, r, im); return p; });
 				}
 
 	/* ---- group1 dword [abs], imm ---- */
@@ -185,7 +185,7 @@ int main()
 						case 5: xSUB(ptr32[ad], im); break;
 						case 6: xXOR(ptr32[ad], im); break;
 						default:xCMP(ptr32[ad], im); break; } },
-					[&](e_u8* p){ E_G1_MI(p, op, ad, im); return p; });
+					[&](uint8_t* p){ E_G1_MI(p, op, ad, im); return p; });
 			}
 
 	/* ---- mov dword [abs], imm32 ---- */
@@ -196,7 +196,7 @@ int main()
 			snprintf(nm, sizeof(nm), "MOV_M_I a%d i%d", a, ii);
 			check(nm,
 				[&]{ xMOV(ptr32[ad], im); },
-				[&](e_u8* p){ E_MOV_M_I(p, ad, im); return p; });
+				[&](uint8_t* p){ E_MOV_M_I(p, ad, im); return p; });
 		}
 
 	/* ---- shl r32, imm8 ---- */
@@ -206,7 +206,7 @@ int main()
 			snprintf(nm, sizeof(nm), "SHL_RI r%d s%d", r, sh);
 			check(nm,
 				[&]{ xSHL(xRegister32(r), sh); },
-				[&](e_u8* p){ E_SHL_RI(p, r, sh); return p; });
+				[&](uint8_t* p){ E_SHL_RI(p, r, sh); return p; });
 		}
 
 	/* ---- test r32, r32 ---- */
@@ -216,7 +216,7 @@ int main()
 			snprintf(nm, sizeof(nm), "TEST_RR d%d s%d", d, s);
 			check(nm,
 				[&]{ xTEST(xRegister32(d), xRegister32(s)); },
-				[&](e_u8* p){ E_TEST_RR(p, d, s); return p; });
+				[&](uint8_t* p){ E_TEST_RR(p, d, s); return p; });
 		}
 
 	/* ---- movss xmm,[abs] / [abs],xmm ---- */
@@ -227,11 +227,11 @@ int main()
 			snprintf(nm, sizeof(nm), "MOVSS_R_M r%d a%d", r, a);
 			check(nm,
 				[&]{ xMOVSSZX(xRegisterSSE(r), ptr32[ad]); },
-				[&](e_u8* p){ E_MOVSS_R_M(p, r, ad); return p; });
+				[&](uint8_t* p){ E_MOVSS_R_M(p, r, ad); return p; });
 			snprintf(nm, sizeof(nm), "MOVSS_M_R r%d a%d", r, a);
 			check(nm,
 				[&]{ xMOVSS(ptr32[ad], xRegisterSSE(r)); },
-				[&](e_u8* p){ E_MOVSS_M_R(p, r, ad); return p; });
+				[&](uint8_t* p){ E_MOVSS_M_R(p, r, ad); return p; });
 		}
 
 
@@ -260,7 +260,7 @@ int main()
 							case 5: xSUB(xRegister32(r), ptr32[ad]); break;
 							case 6: xXOR(xRegister32(r), ptr32[ad]); break;
 							default:xCMP(xRegister32(r), ptr32[ad]); break; } } },
-						[&](e_u8* p){ E_G1_RM(p, w, op, r, ad); return p; });
+						[&](uint8_t* p){ E_G1_RM(p, w, op, r, ad); return p; });
 
 					snprintf(nm, sizeof(nm), "%s_MR w%d r%d a%d", g1[gi].n, w, r, a);
 					check(nm,
@@ -278,7 +278,7 @@ int main()
 							case 5: xSUB(ptr32[ad], xRegister32(r)); break;
 							case 6: xXOR(ptr32[ad], xRegister32(r)); break;
 							default:xCMP(ptr32[ad], xRegister32(r)); break; } } },
-						[&](e_u8* p){ E_G1_MR(p, w, op, r, ad); return p; });
+						[&](uint8_t* p){ E_G1_MR(p, w, op, r, ad); return p; });
 				}
 
 	/* group2 shifts: reg,imm and reg,cl */
@@ -306,7 +306,7 @@ int main()
 								case 4: xSHL(xRegister32(r), sh); break;
 								case 5: xSHR(xRegister32(r), sh); break;
 								default:xSAR(xRegister32(r), sh); break; } } },
-							[&](e_u8* p){ E_G2_RI(p, w, g, r, sh); return p; });
+							[&](uint8_t* p){ E_G2_RI(p, w, g, r, sh); return p; });
 					}
 					{
 						const int g = g2t[gi].g;
@@ -324,7 +324,7 @@ int main()
 								case 4: xSHL(xRegister32(r), cl); break;
 								case 5: xSHR(xRegister32(r), cl); break;
 								default:xSAR(xRegister32(r), cl); break; } } },
-							[&](e_u8* p){ E_G2_RCL(p, w, g, r); return p; });
+							[&](uint8_t* p){ E_G2_RCL(p, w, g, r); return p; });
 					}
 				}
 	}
@@ -338,7 +338,7 @@ int main()
 				check(nm,
 					[&]{ if (w) xMOV(xRegister64(d), xRegister64(s));
 					     else    xMOV(xRegister32(d), xRegister32(s)); },
-					[&](e_u8* p){ E_MOV_RR(p, w, d, s); return p; });
+					[&](uint8_t* p){ E_MOV_RR(p, w, d, s); return p; });
 			}
 
 	/* movzx / movsx from r8 and r16 */
@@ -354,7 +354,7 @@ int main()
 						               else      xMOVSX(xRegister32(d), xRegister8(s)); }
 						     else    { if (srcw) xMOVZX(xRegister32(d), xRegister16(s));
 						               else      xMOVZX(xRegister32(d), xRegister8(s)); } },
-						[&](e_u8* p){ E_MOVEXT_RR(p, 0, sx, srcw, d, s); return p; });
+						[&](uint8_t* p){ E_MOVEXT_RR(p, 0, sx, srcw, d, s); return p; });
 				}
 
 	/* group3 NOT/NEG on registers */
@@ -363,10 +363,10 @@ int main()
 		{
 			snprintf(nm, sizeof(nm), "NOT_R w%d r%d", w, r);
 			check(nm, [&]{ if (w) xNOT(xRegister64(r)); else xNOT(xRegister32(r)); },
-				[&](e_u8* p){ E_G3_R(p, w, 2, r); return p; });
+				[&](uint8_t* p){ E_G3_R(p, w, 2, r); return p; });
 			snprintf(nm, sizeof(nm), "NEG_R w%d r%d", w, r);
 			check(nm, [&]{ if (w) xNEG(xRegister64(r)); else xNEG(xRegister32(r)); },
-				[&](e_u8* p){ E_G3_R(p, w, 3, r); return p; });
+				[&](uint8_t* p){ E_G3_R(p, w, 3, r); return p; });
 		}
 
 	/* inc / dec */
@@ -375,19 +375,19 @@ int main()
 		{
 			snprintf(nm, sizeof(nm), "INC_R w%d r%d", w, r);
 			check(nm, [&]{ if (w) xINC(xRegister64(r)); else xINC(xRegister32(r)); },
-				[&](e_u8* p){ E_INCDEC_R(p, w, 0, r); return p; });
+				[&](uint8_t* p){ E_INCDEC_R(p, w, 0, r); return p; });
 			snprintf(nm, sizeof(nm), "DEC_R w%d r%d", w, r);
 			check(nm, [&]{ if (w) xDEC(xRegister64(r)); else xDEC(xRegister32(r)); },
-				[&](e_u8* p){ E_INCDEC_R(p, w, 1, r); return p; });
+				[&](uint8_t* p){ E_INCDEC_R(p, w, 1, r); return p; });
 		}
 
 	/* push / pop */
 	for (int r = 0; r < 16; r++)
 	{
 		snprintf(nm, sizeof(nm), "PUSH_R r%d", r);
-		check(nm, [&]{ xPUSH(xRegister64(r)); }, [&](e_u8* p){ E_PUSH_R(p, r); return p; });
+		check(nm, [&]{ xPUSH(xRegister64(r)); }, [&](uint8_t* p){ E_PUSH_R(p, r); return p; });
 		snprintf(nm, sizeof(nm), "POP_R r%d", r);
-		check(nm, [&]{ xPOP(xRegister64(r)); }, [&](e_u8* p){ E_POP_R(p, r); return p; });
+		check(nm, [&]{ xPOP(xRegister64(r)); }, [&](uint8_t* p){ E_POP_R(p, r); return p; });
 	}
 
 	/* test r, imm32 */
@@ -399,7 +399,7 @@ int main()
 				snprintf(nm, sizeof(nm), "TEST_RI w%d r%d i%d", w, r, ii);
 				check(nm,
 					[&]{ if (w) xTEST(xRegister64(r), im); else xTEST(xRegister32(r), im); },
-					[&](e_u8* p){ E_TEST_RI(p, w, r, im); return p; });
+					[&](uint8_t* p){ E_TEST_RI(p, w, r, im); return p; });
 			}
 
 
@@ -425,7 +425,7 @@ int main()
 			check(nm,
 				[&]{ if (w) xMOV(xRegister64(r), ptrNative[xAddressReg(b) + d]);
 				     else    xMOV(xRegister32(r), ptr32[xAddressReg(b) + d]); },
-				[&](e_u8* p){ struct e_mem m; E_MEM(m, b, E_NOREG, 0, d);
+				[&](uint8_t* p){ struct e_mem m; E_MEM(m, b, E_NOREG, 0, d);
 				              E_MOV_R_MEM(p, w, r, m); return p; });
 		}
 
@@ -443,14 +443,14 @@ int main()
 			check(nm,
 				[&]{ if (w) xMOV(xRegister64(r), ptrNative[xAddressVoid(xAddressReg(b), xAddressReg(x), sc, d)]);
 				     else    xMOV(xRegister32(r), ptr32[xAddressVoid(xAddressReg(b), xAddressReg(x), sc, d)]); },
-				[&](e_u8* p){ struct e_mem m; E_MEM(m, b, x, sc, d);
+				[&](uint8_t* p){ struct e_mem m; E_MEM(m, b, x, sc, d);
 				              E_MOV_R_MEM(p, w, r, m); return p; });
 
 			snprintf(nm, sizeof(nm), "MOV_MEM_R bx w%d b%d x%d s%d d%d", w, b, x, sc, di);
 			check(nm,
 				[&]{ if (w) xMOV(ptrNative[xAddressVoid(xAddressReg(b), xAddressReg(x), sc, d)], xRegister64(r));
 				     else    xMOV(ptr32[xAddressVoid(xAddressReg(b), xAddressReg(x), sc, d)], xRegister32(r)); },
-				[&](e_u8* p){ struct e_mem m; E_MEM(m, b, x, sc, d);
+				[&](uint8_t* p){ struct e_mem m; E_MEM(m, b, x, sc, d);
 				              E_MOV_MEM_R(p, w, r, m); return p; });
 		}
 
@@ -464,7 +464,7 @@ int main()
 			snprintf(nm, sizeof(nm), "MOV_R_MEM idx x%d s%d d%d", x, sc, di);
 			check(nm,
 				[&]{ xMOV(xRegister32(r), ptr32[xAddressReg(x)*sc + d]); },
-				[&](e_u8* p){ struct e_mem m; E_MEM(m, E_NOREG, x, sc, d);
+				[&](uint8_t* p){ struct e_mem m; E_MEM(m, E_NOREG, x, sc, d);
 				              E_MOV_R_MEM(p, 0, r, m); return p; });
 		}
 
@@ -485,7 +485,7 @@ int main()
 					case 5: xSUB(xRegister32(r), ptr32[xAddressVoid(xAddressReg(b), xAddressReg(x), sc, d)]); break;
 					case 6: xXOR(xRegister32(r), ptr32[xAddressVoid(xAddressReg(b), xAddressReg(x), sc, d)]); break;
 					default:xCMP(xRegister32(r), ptr32[xAddressVoid(xAddressReg(b), xAddressReg(x), sc, d)]); break; } },
-				[&](e_u8* p){ struct e_mem m; E_MEM(m, b, x, sc, d);
+				[&](uint8_t* p){ struct e_mem m; E_MEM(m, b, x, sc, d);
 				              E_G1_R_MEM(p, 0, op, r, m); return p; });
 		}
 	}
@@ -516,7 +516,7 @@ int main()
 						case 3: xNEG (ptr32[xAddressReg(b) + d]); break;
 						case 4: xUMUL(ptr32[xAddressReg(b) + d]); break;
 						default:xUDIV(ptr32[xAddressReg(b) + d]); break; } },
-					[&](e_u8* p){ struct e_mem m; E_MEM(m, b, E_NOREG, 0, d);
+					[&](uint8_t* p){ struct e_mem m; E_MEM(m, b, E_NOREG, 0, d);
 					              E_G3_MEM(p, 0, g, m); return p; });
 			}
 		}
@@ -527,7 +527,7 @@ int main()
 		{
 			snprintf(nm, sizeof(nm), "IMUL_RR d%d s%d", d0, s0);
 			check(nm, [&]{ xMUL(xRegister32(d0), xRegister32(s0)); },
-				[&](e_u8* p){ E_IMUL_RR(p, 0, d0, s0); return p; });
+				[&](uint8_t* p){ E_IMUL_RR(p, 0, d0, s0); return p; });
 		}
 		for (int bi = 0; bi < nreg4; bi++)
 		for (int di = 0; di < nd4; di++)
@@ -535,7 +535,7 @@ int main()
 			const int b = regs4[bi]; const s32 d = disps4[di]; const int r = 3;
 			snprintf(nm, sizeof(nm), "IMUL_R_MEM b%d d%d", b, di);
 			check(nm, [&]{ xMUL(xRegister32(r), ptr32[xAddressReg(b) + d]); },
-				[&](e_u8* p){ struct e_mem m; E_MEM(m, b, E_NOREG, 0, d);
+				[&](uint8_t* p){ struct e_mem m; E_MEM(m, b, E_NOREG, 0, d);
 				              E_IMUL_R_MEM(p, 0, r, m); return p; });
 		}
 
@@ -547,7 +547,7 @@ int main()
 			const s32 im = imms[ii];
 			snprintf(nm, sizeof(nm), "IMUL_RRI d%d s%d i%d", d0, s0, ii);
 			check(nm, [&]{ xMUL(xRegister32(d0), xRegister32(s0), im); },
-				[&](e_u8* p){ E_IMUL_RRI(p, 0, d0, s0, im); return p; });
+				[&](uint8_t* p){ E_IMUL_RRI(p, 0, d0, s0, im); return p; });
 		}
 		for (int bi = 0; bi < nreg4; bi++)
 		for (int ii = 0; ii < nimm; ii++)
@@ -555,7 +555,7 @@ int main()
 			const int b = regs4[bi]; const s32 im = imms[ii]; const int r = 2; const s32 d = 0x40;
 			snprintf(nm, sizeof(nm), "IMUL_RMI b%d i%d", b, ii);
 			check(nm, [&]{ xMUL(xRegister32(r), ptr32[xAddressReg(b) + d], im); },
-				[&](e_u8* p){ struct e_mem m; E_MEM(m, b, E_NOREG, 0, d);
+				[&](uint8_t* p){ struct e_mem m; E_MEM(m, b, E_NOREG, 0, d);
 				              E_IMUL_RMI(p, 0, r, m, im); return p; });
 		}
 
@@ -573,7 +573,7 @@ int main()
 			check(nm,
 				[&]{ if (w) xLEA(xRegister64(r), ptrNative[xAddressVoid(xAddressReg(b), xAddressReg(x), sc, d)], pf);
 				     else    xLEA(xRegister32(r), ptr32[xAddressVoid(xAddressReg(b), xAddressReg(x), sc, d)], pf); },
-				[&](e_u8* p){ struct e_mem m; E_MEM(m, b, x, sc, d);
+				[&](uint8_t* p){ struct e_mem m; E_MEM(m, b, x, sc, d);
 				              E_LEA(p, w, pf, r, m); return p; });
 		}
 		/* LEA: index only, and displacement only */
@@ -586,7 +586,7 @@ int main()
 			snprintf(nm, sizeof(nm), "LEA idx pf%d x%d s%d d%d", pf, x, sc, di);
 			check(nm,
 				[&]{ xLEA(xRegister32(r), ptr32[xAddressReg(x)*sc + d], pf); },
-				[&](e_u8* p){ struct e_mem m; E_MEM(m, E_NOREG, x, sc, d);
+				[&](uint8_t* p){ struct e_mem m; E_MEM(m, E_NOREG, x, sc, d);
 				              E_LEA(p, 0, pf, r, m); return p; });
 		}
 	}
@@ -611,7 +611,7 @@ int main()
 			check(nm,
 				[&]{ xJccKnownTarget(cc == 0x10 ? Jcc_Unconditional : (JccComparisonType)cc,
 				                     tgt, false); },
-				[&](e_u8* p){ E_JCC_TO(p, cc, tgt); return p; });
+				[&](uint8_t* p){ E_JCC_TO(p, cc, tgt); return p; });
 		}
 
 		/* Forward jumps: emit, then place the target n bytes later. */
@@ -624,7 +624,7 @@ int main()
 				[&]{ xForwardJump8 j(cc == 0x10 ? Jcc_Unconditional : (JccComparisonType)cc);
 				     for (int k = 0; k < pad; k++) xNOP();
 				     j.SetTarget(); },
-				[&](e_u8* p){ e_u8* base; int k;
+				[&](uint8_t* p){ uint8_t* base; int k;
 				     E_FWD8(p, cc, base);
 				     for (k = 0; k < pad; k++) E_NOP(p);
 				     E_FWD8_SET(p, base); return p; });
@@ -634,7 +634,7 @@ int main()
 				[&]{ xForwardJump32 j(cc == 0x10 ? Jcc_Unconditional : (JccComparisonType)cc);
 				     for (int k = 0; k < pad; k++) xNOP();
 				     j.SetTarget(); },
-				[&](e_u8* p){ e_u8* base; int k;
+				[&](uint8_t* p){ uint8_t* base; int k;
 				     E_FWD32(p, cc, base);
 				     for (k = 0; k < pad; k++) E_NOP(p);
 				     E_FWD32_SET(p, base); return p; });
@@ -645,13 +645,13 @@ int main()
 		{
 			snprintf(nm, sizeof(nm), "CALL_R r%d", r);
 			check(nm, [&]{ xCALL(xAddressReg(r)); },
-				[&](e_u8* p){ E_CALL_R(p, r); return p; });
+				[&](uint8_t* p){ E_CALL_R(p, r); return p; });
 			snprintf(nm, sizeof(nm), "JMP_R r%d", r);
 			check(nm, [&]{ xJMP(xAddressReg(r)); },
-				[&](e_u8* p){ E_JMP_R(p, r); return p; });
+				[&](uint8_t* p){ E_JMP_R(p, r); return p; });
 		}
-		check("RET", []{ xRET(); }, [](e_u8* p){ E_RET(p); return p; });
-		check("NOP", []{ xNOP(); }, [](e_u8* p){ E_NOP(p); return p; });
+		check("RET", []{ xRET(); }, [](uint8_t* p){ E_RET(p); return p; });
+		check("NOP", []{ xNOP(); }, [](uint8_t* p){ E_NOP(p); return p; });
 	}
 
 
@@ -664,10 +664,10 @@ int main()
 		{
 			snprintf(nm, sizeof(nm), "MOV16_RR d%d s%d", d, s2);
 			check(nm, [&]{ xMOV(xRegister16(d), xRegister16(s2)); },
-				[&](e_u8* p){ E_MOV16_RR(p, d, s2); return p; });
+				[&](uint8_t* p){ E_MOV16_RR(p, d, s2); return p; });
 			snprintf(nm, sizeof(nm), "ADD16_RR d%d s%d", d, s2);
 			check(nm, [&]{ xADD(xRegister16(d), xRegister16(s2)); },
-				[&](e_u8* p){ E_G1_16_RR(p, 0, d, s2); return p; });
+				[&](uint8_t* p){ E_G1_16_RR(p, 0, d, s2); return p; });
 		}
 		for (int r = 0; r < 16; r++)
 		for (int a = 0; a < naddr; a++)
@@ -675,10 +675,10 @@ int main()
 			const void* ad = addrs[a];
 			snprintf(nm, sizeof(nm), "MOV16_R_M r%d a%d", r, a);
 			check(nm, [&]{ xMOV(xRegister16(r), ptr16[ad]); },
-				[&](e_u8* p){ E_MOV16_R_M(p, r, ad); return p; });
+				[&](uint8_t* p){ E_MOV16_R_M(p, r, ad); return p; });
 			snprintf(nm, sizeof(nm), "MOV16_M_R r%d a%d", r, a);
 			check(nm, [&]{ xMOV(ptr16[ad], xRegister16(r)); },
-				[&](e_u8* p){ E_MOV16_M_R(p, r, ad); return p; });
+				[&](uint8_t* p){ E_MOV16_M_R(p, r, ad); return p; });
 		}
 		for (int gi = 0; gi < 6; gi++)
 		for (int r = 0; r < 16; r++)
@@ -694,7 +694,7 @@ int main()
 					case 5: xSUB(xRegister16(r), im); break;
 					case 6: xXOR(xRegister16(r), im); break;
 					default:xCMP(xRegister16(r), im); break; } },
-				[&](e_u8* p){ E_G1_16_RI(p, op, r, im); return p; });
+				[&](uint8_t* p){ E_G1_16_RI(p, op, r, im); return p; });
 		}
 	}
 
@@ -723,10 +723,10 @@ int main()
 			if ((s3 < 0x10 && s3 >= 4 && s3 < 8) && (d >= 0x10 || (d & 0x0F) > 7)) continue;
 			snprintf(nm, sizeof(nm), "MOV8_RR %s,%s", r8s[di].n, r8s[si].n);
 			check(nm, [&]{ xMOV(xRegister8(d & 0x0F, d >= 0x10), xRegister8(s3 & 0x0F, s3 >= 0x10)); },
-				[&](e_u8* p){ E_MOV8_RR(p, d, s3); return p; });
+				[&](uint8_t* p){ E_MOV8_RR(p, d, s3); return p; });
 			snprintf(nm, sizeof(nm), "ADD8_RR %s,%s", r8s[di].n, r8s[si].n);
 			check(nm, [&]{ xADD(xRegister8(d & 0x0F, d >= 0x10), xRegister8(s3 & 0x0F, s3 >= 0x10)); },
-				[&](e_u8* p){ E_G1_8_RR(p, 0, d, s3); return p; });
+				[&](uint8_t* p){ E_G1_8_RR(p, 0, d, s3); return p; });
 		}
 
 		for (int ri = 0; ri < nr8; ri++)
@@ -735,10 +735,10 @@ int main()
 			const int r = r8s[ri].id; const void* ad = addrs[a];
 			snprintf(nm, sizeof(nm), "MOV8_R_M %s a%d", r8s[ri].n, a);
 			check(nm, [&]{ xMOV(xRegister8(r & 0x0F, r >= 0x10), ptr8[ad]); },
-				[&](e_u8* p){ E_MOV8_R_M(p, r, ad); return p; });
+				[&](uint8_t* p){ E_MOV8_R_M(p, r, ad); return p; });
 			snprintf(nm, sizeof(nm), "MOV8_M_R %s a%d", r8s[ri].n, a);
 			check(nm, [&]{ xMOV(ptr8[ad], xRegister8(r & 0x0F, r >= 0x10)); },
-				[&](e_u8* p){ E_MOV8_M_R(p, r, ad); return p; });
+				[&](uint8_t* p){ E_MOV8_M_R(p, r, ad); return p; });
 		}
 
 		for (int gi = 0; gi < 6; gi++)
@@ -753,7 +753,7 @@ int main()
 					case 0: xADD(R, im); break;  case 1: xOR (R, im); break;
 					case 4: xAND(R, im); break;  case 5: xSUB(R, im); break;
 					case 6: xXOR(R, im); break;  default: xCMP(R, im); break; } },
-				[&](e_u8* p){ E_G1_8_RI(p, op, r, im); return p; });
+				[&](uint8_t* p){ E_G1_8_RI(p, op, r, im); return p; });
 		}
 
 		for (int ri = 0; ri < nr8; ri++)
@@ -761,7 +761,7 @@ int main()
 			const int r = r8s[ri].id;
 			snprintf(nm, sizeof(nm), "SETL %s", r8s[ri].n);
 			check(nm, [&]{ xSETL(xRegister8(r & 0x0F, r >= 0x10)); },
-				[&](e_u8* p){ E_SETCC_R8(p, 0xc, r); return p; });
+				[&](uint8_t* p){ E_SETCC_R8(p, 0xc, r); return p; });
 		}
 	}
 
@@ -793,7 +793,7 @@ int main()
 			snprintf(nm, sizeof(nm), "SSE_RR %s x%d,x%d", rr[i].n, a2, b2);
 			check(nm,
 				[&]{ xOpWrite0F(pre, op, xRegisterSSE(a2), xRegisterSSE(b2)); },
-				[&](e_u8* p){ E_SSE_RR(p, pre, op, a2, b2); return p; });
+				[&](uint8_t* p){ E_SSE_RR(p, pre, op, a2, b2); return p; });
 		}
 
 		for (int i = 0; i < nrr; i++)
@@ -804,7 +804,7 @@ int main()
 			snprintf(nm, sizeof(nm), "SSE_R_M %s x%d a%d", rr[i].n, r, a);
 			check(nm,
 				[&]{ xOpWrite0F(pre, op, xRegisterSSE(r), ptr128[ad]); },
-				[&](e_u8* p){ E_SSE_R_M(p, pre, op, r, ad); return p; });
+				[&](uint8_t* p){ E_SSE_R_M(p, pre, op, r, ad); return p; });
 		}
 
 		/* full addressing under SSE */
@@ -826,7 +826,7 @@ int main()
 				check(nm,
 					[&]{ xOpWrite0F(pre, op, xRegisterSSE(r),
 					        ptr128[xAddressVoid(xAddressReg(b3), xAddressReg(x3), sc, d)]); },
-					[&](e_u8* p){ struct e_mem m; E_MEM(m, b3, x3, sc, d);
+					[&](uint8_t* p){ struct e_mem m; E_MEM(m, b3, x3, sc, d);
 					              E_SSE_R_MEM(p, pre, op, r, m); return p; });
 			}
 		}
@@ -848,7 +848,7 @@ int main()
 				snprintf(nm, sizeof(nm), "SSE_RRI %s x%d,x%d i%d", imm8s[i].n, a2, b2, k);
 				check(nm,
 					[&]{ xOpWrite0F(pre, op, xRegisterSSE(a2), xRegisterSSE(b2), im); },
-					[&](e_u8* p){ E_SSE_RRI(p, pre, op, a2, b2, im); return p; });
+					[&](uint8_t* p){ E_SSE_RRI(p, pre, op, a2, b2, im); return p; });
 			}
 			for (int i = 0; i < nimm8; i++)
 			for (int r = 0; r < 16; r += 5)
@@ -860,7 +860,7 @@ int main()
 				snprintf(nm, sizeof(nm), "SSE_R_MI %s x%d a%d i%d", imm8s[i].n, r, a, k);
 				check(nm,
 					[&]{ xOpWrite0F(pre, op, xRegisterSSE(r), ptr128[ad], im); },
-					[&](e_u8* p){ E_SSE_R_MI(p, pre, op, r, ad, im); return p; });
+					[&](uint8_t* p){ E_SSE_R_MI(p, pre, op, r, ad, im); return p; });
 			}
 		}
 	}
@@ -875,10 +875,10 @@ int main()
 		{
 			snprintf(nm, sizeof(nm), "VMOVAPS_RR x%d,x%d", d, s4);
 			check(nm, [&]{ xVMOVAPS(xRegisterSSE(d), xRegisterSSE(s4)); },
-				[&](e_u8* p){ E_VEX_RR(p, 0x00, 0x28, d, s4, 0); return p; });
+				[&](uint8_t* p){ E_VEX_RR(p, 0x00, 0x28, d, s4, 0); return p; });
 			snprintf(nm, sizeof(nm), "VMOVUPS_RR x%d,x%d", d, s4);
 			check(nm, [&]{ xVMOVUPS(xRegisterSSE(d), xRegisterSSE(s4)); },
-				[&](e_u8* p){ E_VEX_RR(p, 0x00, 0x10, d, s4, 0); return p; });
+				[&](uint8_t* p){ E_VEX_RR(p, 0x00, 0x10, d, s4, 0); return p; });
 		}
 		for (int d = 0; d < 16; d++)
 		for (int a = 0; a < naddr; a++)
@@ -886,10 +886,10 @@ int main()
 			const void* ad = addrs[a];
 			snprintf(nm, sizeof(nm), "VMOVAPS_RM x%d a%d", d, a);
 			check(nm, [&]{ xVMOVAPS(xRegisterSSE(d), ptr128[ad]); },
-				[&](e_u8* p){ E_VEX_RM(p, 0x00, 0x28, d, ad, 0); return p; });
+				[&](uint8_t* p){ E_VEX_RM(p, 0x00, 0x28, d, ad, 0); return p; });
 			snprintf(nm, sizeof(nm), "VMOVAPS_MR x%d a%d", d, a);
 			check(nm, [&]{ xVMOVAPS(ptr128[ad], xRegisterSSE(d)); },
-				[&](e_u8* p){ E_VEX_RM(p, 0x00, 0x29, d, ad, 0); return p; });
+				[&](uint8_t* p){ E_VEX_RM(p, 0x00, 0x29, d, ad, 0); return p; });
 		}
 		/* three-operand, xmm and ymm */
 		for (int d = 0; d < 16; d++)
@@ -898,7 +898,7 @@ int main()
 		{
 			snprintf(nm, sizeof(nm), "VPAND_RRR x%d,x%d,x%d", d, s1, s2);
 			check(nm, [&]{ xVPAND(xRegisterSSE(d), xRegisterSSE(s1), xRegisterSSE(s2)); },
-				[&](e_u8* p){ E_VEX_RRR(p, 0x66, 0xDB, d, s1, s2, 0); return p; });
+				[&](uint8_t* p){ E_VEX_RRR(p, 0x66, 0xDB, d, s1, s2, 0); return p; });
 		}
 		/* three-operand with memory */
 		for (int d = 0; d < 16; d += 3)
@@ -908,7 +908,7 @@ int main()
 			const void* ad = addrs[a];
 			snprintf(nm, sizeof(nm), "VPAND_RRM x%d,x%d a%d", d, s1, a);
 			check(nm, [&]{ xVPAND(xRegisterSSE(d), xRegisterSSE(s1), ptr128[ad]); },
-				[&](e_u8* p){ E_VEX_RRM(p, 0x66, 0xDB, d, s1, ad, 0); return p; });
+				[&](uint8_t* p){ E_VEX_RRM(p, 0x66, 0xDB, d, s1, ad, 0); return p; });
 		}
 	}
 
@@ -934,7 +934,7 @@ int main()
 			check(nm,
 				[&]{ if (w) xMOV(xRegister64(r), (sptr)im, pf);
 				     else    xMOV(xRegister32(r), (sptr)im, pf); },
-				[&](e_u8* p){ E_MOV_RI(p, w, pf, r, (e_sptr)im); return p; });
+				[&](uint8_t* p){ E_MOV_RI(p, w, pf, r, (intptr_t)im); return p; });
 		}
 
 		for (int pf = 0; pf <= 1; pf++)
@@ -945,7 +945,7 @@ int main()
 			snprintf(nm, sizeof(nm), "MOV64_RI pf%d r%d i%d", pf, r, ii);
 			check(nm,
 				[&]{ xMOV64(xRegister64(r), im, pf); },
-				[&](e_u8* p){ E_MOV64_RI(p, pf, r, im); return p; });
+				[&](uint8_t* p){ E_MOV64_RI(p, pf, r, im); return p; });
 		}
 
 		for (int a = 0; a < naddr; a++)
@@ -954,13 +954,13 @@ int main()
 			const void* ad = addrs[a]; const s32 im = imms[ii];
 			snprintf(nm, sizeof(nm), "MOV_M_I8 a%d i%d", a, ii);
 			check(nm, [&]{ xMOV(ptr8[ad], (u8)im); },
-				[&](e_u8* p){ E_MOV_M_I8(p, ad, im); return p; });
+				[&](uint8_t* p){ E_MOV_M_I8(p, ad, im); return p; });
 			snprintf(nm, sizeof(nm), "MOV_M_I16 a%d i%d", a, ii);
 			check(nm, [&]{ xMOV(ptr16[ad], (u16)im); },
-				[&](e_u8* p){ E_MOV_M_I16(p, ad, im); return p; });
+				[&](uint8_t* p){ E_MOV_M_I16(p, ad, im); return p; });
 			snprintf(nm, sizeof(nm), "MOV_M_I64 a%d i%d", a, ii);
 			check(nm, [&]{ xMOV(ptr64[ad], im); },
-				[&](e_u8* p){ E_MOV_M_I64(p, ad, im); return p; });
+				[&](uint8_t* p){ E_MOV_M_I64(p, ad, im); return p; });
 		}
 	}
 
@@ -974,28 +974,28 @@ int main()
 			const int to = rels[ri];
 			snprintf(nm, sizeof(nm), "L_JMP8 r%d", ri);
 			check(nm, [&]{ JMP8((u8)to); },
-				[&](e_u8* p){ e_u8* s5; E_L_JMP8(p, (u8)to, s5); (void)s5; return p; });
+				[&](uint8_t* p){ uint8_t* s5; E_L_JMP8(p, (u8)to, s5); (void)s5; return p; });
 			snprintf(nm, sizeof(nm), "L_JMP32 r%d", ri);
 			check(nm, [&]{ JMP32((uptr)to); },
-				[&](e_u8* p){ e_u8* s5; E_L_JMP32(p, (u32)to, s5); (void)s5; return p; });
+				[&](uint8_t* p){ uint8_t* s5; E_L_JMP32(p, (u32)to, s5); (void)s5; return p; });
 			snprintf(nm, sizeof(nm), "L_JZ8 r%d", ri);
 			check(nm, [&]{ JZ8((u8)to); },
-				[&](e_u8* p){ e_u8* s5; E_L_JCC8(p, 0x4, (u8)to, s5); (void)s5; return p; });
+				[&](uint8_t* p){ uint8_t* s5; E_L_JCC8(p, 0x4, (u8)to, s5); (void)s5; return p; });
 			snprintf(nm, sizeof(nm), "L_JNZ8 r%d", ri);
 			check(nm, [&]{ JNZ8((u8)to); },
-				[&](e_u8* p){ e_u8* s5; E_L_JCC8(p, 0x5, (u8)to, s5); (void)s5; return p; });
+				[&](uint8_t* p){ uint8_t* s5; E_L_JCC8(p, 0x5, (u8)to, s5); (void)s5; return p; });
 			snprintf(nm, sizeof(nm), "L_JZ32 r%d", ri);
 			check(nm, [&]{ JZ32((u32)to); },
-				[&](e_u8* p){ e_u8* s5; E_L_JCC32(p, 0x4, (u32)to, s5); (void)s5; return p; });
+				[&](uint8_t* p){ uint8_t* s5; E_L_JCC32(p, 0x4, (u32)to, s5); (void)s5; return p; });
 			snprintf(nm, sizeof(nm), "L_JNZ32 r%d", ri);
 			check(nm, [&]{ JNZ32((u32)to); },
-				[&](e_u8* p){ e_u8* s5; E_L_JCC32(p, 0x5, (u32)to, s5); (void)s5; return p; });
+				[&](uint8_t* p){ uint8_t* s5; E_L_JCC32(p, 0x5, (u32)to, s5); (void)s5; return p; });
 			snprintf(nm, sizeof(nm), "L_JL8 r%d", ri);
 			check(nm, [&]{ JL8((u8)to); },
-				[&](e_u8* p){ e_u8* s5; E_L_JCC8(p, 0xc, (u8)to, s5); (void)s5; return p; });
+				[&](uint8_t* p){ uint8_t* s5; E_L_JCC8(p, 0xc, (u8)to, s5); (void)s5; return p; });
 			snprintf(nm, sizeof(nm), "L_JGE8 r%d", ri);
 			check(nm, [&]{ JGE8((u8)to); },
-				[&](e_u8* p){ e_u8* s5; E_L_JCC8(p, 0xd, (u8)to, s5); (void)s5; return p; });
+				[&](uint8_t* p){ uint8_t* s5; E_L_JCC8(p, 0xd, (u8)to, s5); (void)s5; return p; });
 		}
 		for (int m = 0; m < 4; m++)
 		for (int rg = 0; rg < 8; rg++)
@@ -1003,7 +1003,7 @@ int main()
 		{
 			snprintf(nm, sizeof(nm), "L_MODRM %d %d %d", m, rg, rm);
 			check(nm, [&]{ ModRM(m, rg, rm); },
-				[&](e_u8* p){ E_L_MODRM(p, m, rg, rm); return p; });
+				[&](uint8_t* p){ E_L_MODRM(p, m, rg, rm); return p; });
 		}
 		/* push imm / push,pop mem / inc,dec mem */
 		for (int ii = 0; ii < nimm; ii++)
@@ -1011,23 +1011,23 @@ int main()
 			const s32 im = imms[ii];
 			snprintf(nm, sizeof(nm), "PUSH_I i%d", ii);
 			check(nm, [&]{ xPUSH((u32)im); },
-				[&](e_u8* p){ E_PUSH_I(p, (e_u32)im); return p; });
+				[&](uint8_t* p){ E_PUSH_I(p, (uint32_t)im); return p; });
 		}
 		for (int a = 0; a < naddr; a++)
 		{
 			const void* ad = addrs[a];
 			snprintf(nm, sizeof(nm), "PUSH_M a%d", a);
 			check(nm, [&]{ xPUSH(ptrNative[ad]); },
-				[&](e_u8* p){ E_PUSH_M(p, ad); return p; });
+				[&](uint8_t* p){ E_PUSH_M(p, ad); return p; });
 			snprintf(nm, sizeof(nm), "POP_M a%d", a);
 			check(nm, [&]{ xPOP(ptrNative[ad]); },
-				[&](e_u8* p){ E_POP_M(p, ad); return p; });
+				[&](uint8_t* p){ E_POP_M(p, ad); return p; });
 			snprintf(nm, sizeof(nm), "INC_M a%d", a);
 			check(nm, [&]{ xINC(ptr32[ad]); },
-				[&](e_u8* p){ E_INCDEC_M(p, 0, ad); return p; });
+				[&](uint8_t* p){ E_INCDEC_M(p, 0, ad); return p; });
 			snprintf(nm, sizeof(nm), "DEC_M a%d", a);
 			check(nm, [&]{ xDEC(ptr32[ad]); },
-				[&](e_u8* p){ E_INCDEC_M(p, 1, ad); return p; });
+				[&](uint8_t* p){ E_INCDEC_M(p, 1, ad); return p; });
 		}
 	}
 
@@ -1153,7 +1153,7 @@ int main()
 				snprintf(nm, sizeof(nm), "ALLOP_RR p%02x o%04x x%d,x%d", pre, op, a2, b2);
 				check(nm,
 					[&]{ xOpWrite0F(pre, op, xRegisterSSE(a2), xRegisterSSE(b2)); },
-					[&](e_u8* p){ E_SSE_RR(p, pre, op, a2, b2); return p; });
+					[&](uint8_t* p){ E_SSE_RR(p, pre, op, a2, b2); return p; });
 			}
 			for (int r = 0; r < 16; r += 7)
 			for (int a = 0; a < naddr; a++)
@@ -1162,11 +1162,11 @@ int main()
 				snprintf(nm, sizeof(nm), "ALLOP_RM p%02x o%04x x%d a%d", pre, op, r, a);
 				check(nm,
 					[&]{ xOpWrite0F(pre, op, xRegisterSSE(r), ptr128[ad]); },
-					[&](e_u8* p){ E_SSE_R_M(p, pre, op, r, ad); return p; });
+					[&](uint8_t* p){ E_SSE_R_M(p, pre, op, r, ad); return p; });
 				snprintf(nm, sizeof(nm), "ALLOP_RMI p%02x o%04x x%d a%d", pre, op, r, a);
 				check(nm,
 					[&]{ xOpWrite0F(pre, op, xRegisterSSE(r), ptr128[ad], (u8)0x5a); },
-					[&](e_u8* p){ E_SSE_R_MI(p, pre, op, r, ad, 0x5a); return p; });
+					[&](uint8_t* p){ E_SSE_R_MI(p, pre, op, r, ad, 0x5a); return p; });
 			}
 		}
 	}

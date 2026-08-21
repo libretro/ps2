@@ -55,7 +55,7 @@ namespace x86Emitter
 		out.base  = m.Base.IsEmpty()  ? E_NOREG : m.Base.Id;
 		out.index = m.Index.IsEmpty() ? E_NOREG : m.Index.Id;
 		out.scale = m.Scale;
-		out.disp  = (e_sptr)m.Displacement;
+		out.disp  = (intptr_t)m.Displacement;
 		return out;
 	}
 
@@ -70,7 +70,7 @@ namespace x86Emitter
 	static __fi int shim_sz(const xRegisterInt& r) { return (int)r._operandSize; }
 
 	// The cursor is stored back after each instruction; see the header comment.
-	#define SHIM_BEGIN  e_u8* p_ = (e_u8*)x86Ptr
+	#define SHIM_BEGIN  uint8_t* p_ = (uint8_t*)x86Ptr
 	#define SHIM_END    x86Ptr = (u8*)p_
 
 	// ---- group 1 ----------------------------------------------------------
@@ -204,7 +204,7 @@ namespace x86Emitter
 		__fi void operator()(const xRegisterInt& to, sptr imm, bool preserve_flags = false) const
 		{
 			SHIM_BEGIN;
-			E_MOV_RI_SZ(p_, shim_sz(to), preserve_flags, shim_id(to), (e_sptr)imm);
+			E_MOV_RI_SZ(p_, shim_sz(to), preserve_flags, shim_id(to), (intptr_t)imm);
 			SHIM_END;
 		}
 	};
@@ -499,7 +499,7 @@ namespace x86Emitter
 			if (to->_operandSize == 2) E_P16(p_);
 			E_REX_MEM(p_, to->_operandSize == 8, to->Id, m);
 			EW8(p_, 0x0f);
-			EW8(p_, (e_u8)(SignExtend ? 0xbe : 0xb6));
+			EW8(p_, (uint8_t)(SignExtend ? 0xbe : 0xb6));
 			E_MODRM_MEM(p_, to->Id, m, 0);
 			SHIM_END;
 		}
@@ -517,7 +517,7 @@ namespace x86Emitter
 			SHIM_BEGIN;
 			E_REX_MEM(p_, to->_operandSize == 8, to->Id, m);
 			EW8(p_, 0x0f);
-			EW8(p_, (e_u8)(SignExtend ? 0xbf : 0xb7));
+			EW8(p_, (uint8_t)(SignExtend ? 0xbf : 0xb7));
 			E_MODRM_MEM(p_, to->Id, m, 0);
 			SHIM_END;
 		}
@@ -652,7 +652,7 @@ namespace x86Emitter
 			// That matters: the mov bindings have to sit above the xImm64Op
 			// template, which is above xLEA's declaration.
 			struct e_mem m;
-			E_MEM(m, E_NOREG, E_NOREG, 0, (e_sptr)f);
+			E_MEM(m, E_NOREG, E_NOREG, 0, (intptr_t)f);
 			SHIM_BEGIN;
 			E_LEA(p_, 1, 0, 0 /* rax */, m);
 			E_CALL_R(p_, 0);
@@ -847,7 +847,7 @@ namespace x86Emitter
 			if (from->_operandSize == 2) E_P16(p_);
 			E_REX(p_, to->_operandSize == 8, to->Id, 0, from->Id);
 			EW8(p_, 0x0f);
-			EW8(p_, (e_u8)Opcode);
+			EW8(p_, (uint8_t)Opcode);
 			E_MODRM_RR(p_, to->Id, from->Id);
 			SHIM_END;
 		}
@@ -858,7 +858,7 @@ namespace x86Emitter
 			if (to->_operandSize == 2) E_P16(p_);
 			E_REX_MEM(p_, to->_operandSize == 8, to->Id, m);
 			EW8(p_, 0x0f);
-			EW8(p_, (e_u8)Opcode);
+			EW8(p_, (uint8_t)Opcode);
 			E_MODRM_MEM(p_, to->Id, m, 0);
 			SHIM_END;
 		}
@@ -1078,7 +1078,7 @@ namespace x86Emitter
 			if (to->_operandSize == 2) E_P16(p_);
 			E_REX(p_, to->_operandSize == 8, to->Id, 0, from->Id);
 			EW8(p_, 0x0f);
-			EW8(p_, (e_u8)(0x40 | ccType));
+			EW8(p_, (uint8_t)(0x40 | ccType));
 			E_MODRM_RR(p_, to->Id, from->Id);
 			SHIM_END;
 		}
@@ -1089,7 +1089,7 @@ namespace x86Emitter
 			if (to->_operandSize == 2) E_P16(p_);
 			E_REX_MEM(p_, to->_operandSize == 8, to->Id, m);
 			EW8(p_, 0x0f);
-			EW8(p_, (e_u8)(0x40 | ccType));
+			EW8(p_, (uint8_t)(0x40 | ccType));
 			E_MODRM_MEM(p_, to->Id, m, 0);
 			SHIM_END;
 		}
@@ -1103,11 +1103,11 @@ namespace x86Emitter
 		{
 			SHIM_BEGIN;
 			{
-				e_u8 rex_ = (e_u8)(0x40 | E_R8_EXT(to.Id));
+				uint8_t rex_ = (uint8_t)(0x40 | E_R8_EXT(to.Id));
 				if (rex_ != 0x40 || E_R8_NEEDREX(to.Id)) EW8(p_, rex_);
 			}
 			EW8(p_, 0x0f);
-			EW8(p_, (e_u8)(0x90 | ccType));
+			EW8(p_, (uint8_t)(0x90 | ccType));
 			E_MODRM_RR(p_, 0, to.Id);
 			SHIM_END;
 		}
@@ -1117,7 +1117,7 @@ namespace x86Emitter
 			SHIM_BEGIN;
 			E_REX_MEM(p_, 0, 0, m);
 			EW8(p_, 0x0f);
-			EW8(p_, (e_u8)(0x90 | ccType));
+			EW8(p_, (uint8_t)(0x90 | ccType));
 			E_MODRM_MEM(p_, 0, m, 0);
 			SHIM_END;
 		}
@@ -1146,7 +1146,7 @@ namespace x86Emitter
 	{ struct e_mem m = shim_mem(src); SHIM_BEGIN;
 	  E_SSE_R_MEM_W(p_, 0xf3, 0x7e, to.Id, m, 0); SHIM_END; }
 	static __fi void shim_xMOVQZX(const xRegisterSSE& to, const void* src)
-	{ SHIM_BEGIN; E_SSE_R_M(p_, 0xf3, 0x7e, to.Id, (e_uptr)src); SHIM_END; }
+	{ SHIM_BEGIN; E_SSE_R_M(p_, 0xf3, 0x7e, to.Id, (uintptr_t)src); SHIM_END; }
 	static __fi void shim_xMOVQ(const xIndirectVoid& dest, const xRegisterSSE& from)
 	{ struct e_mem m = shim_mem(dest); SHIM_BEGIN;
 	  E_SSE_R_MEM_W(p_, 0x66, 0xd6, from.Id, m, 0); SHIM_END; }
@@ -1178,15 +1178,15 @@ namespace x86Emitter
 	static __fi void shim_xPOP(xRegister32or64 from)
 	{ SHIM_BEGIN;
 	  if (from->Id >= 8) EW8(p_, 0x41);
-	  EW8(p_, (e_u8)(0x58 | (from->Id & 7))); SHIM_END; }
+	  EW8(p_, (uint8_t)(0x58 | (from->Id & 7))); SHIM_END; }
 	static __fi void shim_xPUSH(u32 imm)
 	{ SHIM_BEGIN;
-	  if (E_IS_S8((e_s32)imm)) { EW8(p_, 0x6a); EW8(p_, (e_u8)imm); }
+	  if (E_IS_S8((int32_t)imm)) { EW8(p_, 0x6a); EW8(p_, (uint8_t)imm); }
 	  else { EW8(p_, 0x68); EW32(p_, imm); } SHIM_END; }
 	static __fi void shim_xPUSH(xRegister32or64 from)
 	{ SHIM_BEGIN;
 	  if (from->Id >= 8) EW8(p_, 0x41);
-	  EW8(p_, (e_u8)(0x50 | (from->Id & 7))); SHIM_END; }
+	  EW8(p_, (uint8_t)(0x50 | (from->Id & 7))); SHIM_END; }
 
 
 	// CMPPS/CMPSS family: opcode 0xC2 with the comparison type as the imm8.
@@ -1195,25 +1195,25 @@ namespace x86Emitter
 		SSE2_ComparisonType CType;
 
 		__fi void PS(const xRegisterSSE& to, const xRegisterSSE& from) const
-		{ SHIM_BEGIN; E_SSE_RRI_W(p_, 0x00, 0xc2, to.Id, from.Id, (e_u8)CType, 0); SHIM_END; }
+		{ SHIM_BEGIN; E_SSE_RRI_W(p_, 0x00, 0xc2, to.Id, from.Id, (uint8_t)CType, 0); SHIM_END; }
 		__fi void PS(const xRegisterSSE& to, const xIndirectVoid& from) const
 		{ struct e_mem m = shim_mem(from); SHIM_BEGIN;
-		  E_SSE_R_MEM_I_W(p_, 0x00, 0xc2, to.Id, m, (e_u8)CType, 0); SHIM_END; }
+		  E_SSE_R_MEM_I_W(p_, 0x00, 0xc2, to.Id, m, (uint8_t)CType, 0); SHIM_END; }
 		__fi void PD(const xRegisterSSE& to, const xRegisterSSE& from) const
-		{ SHIM_BEGIN; E_SSE_RRI_W(p_, 0x66, 0xc2, to.Id, from.Id, (e_u8)CType, 0); SHIM_END; }
+		{ SHIM_BEGIN; E_SSE_RRI_W(p_, 0x66, 0xc2, to.Id, from.Id, (uint8_t)CType, 0); SHIM_END; }
 		__fi void PD(const xRegisterSSE& to, const xIndirectVoid& from) const
 		{ struct e_mem m = shim_mem(from); SHIM_BEGIN;
-		  E_SSE_R_MEM_I_W(p_, 0x66, 0xc2, to.Id, m, (e_u8)CType, 0); SHIM_END; }
+		  E_SSE_R_MEM_I_W(p_, 0x66, 0xc2, to.Id, m, (uint8_t)CType, 0); SHIM_END; }
 		__fi void SS(const xRegisterSSE& to, const xRegisterSSE& from) const
-		{ SHIM_BEGIN; E_SSE_RRI_W(p_, 0xf3, 0xc2, to.Id, from.Id, (e_u8)CType, 0); SHIM_END; }
+		{ SHIM_BEGIN; E_SSE_RRI_W(p_, 0xf3, 0xc2, to.Id, from.Id, (uint8_t)CType, 0); SHIM_END; }
 		__fi void SS(const xRegisterSSE& to, const xIndirectVoid& from) const
 		{ struct e_mem m = shim_mem(from); SHIM_BEGIN;
-		  E_SSE_R_MEM_I_W(p_, 0xf3, 0xc2, to.Id, m, (e_u8)CType, 0); SHIM_END; }
+		  E_SSE_R_MEM_I_W(p_, 0xf3, 0xc2, to.Id, m, (uint8_t)CType, 0); SHIM_END; }
 		__fi void SD(const xRegisterSSE& to, const xRegisterSSE& from) const
-		{ SHIM_BEGIN; E_SSE_RRI_W(p_, 0xf2, 0xc2, to.Id, from.Id, (e_u8)CType, 0); SHIM_END; }
+		{ SHIM_BEGIN; E_SSE_RRI_W(p_, 0xf2, 0xc2, to.Id, from.Id, (uint8_t)CType, 0); SHIM_END; }
 		__fi void SD(const xRegisterSSE& to, const xIndirectVoid& from) const
 		{ struct e_mem m = shim_mem(from); SHIM_BEGIN;
-		  E_SSE_R_MEM_I_W(p_, 0xf2, 0xc2, to.Id, m, (e_u8)CType, 0); SHIM_END; }
+		  E_SSE_R_MEM_I_W(p_, 0xf2, 0xc2, to.Id, m, (uint8_t)CType, 0); SHIM_END; }
 	};
 
 	// CVT family. The GPR operand, where present, carries REX.W from its own

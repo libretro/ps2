@@ -1073,7 +1073,7 @@ static void iPsxBranchTest(u32 newpc, u32 cpuBranch)
 
 		// check if an event is pending
 		xe_sub32_rm(XE_AX, &psxRegs.iopNextEventCycle);
-		e_u8* nointerruptpending; xe_fwd_jcc8(Jcc_Signed, nointerruptpending);
+		uint8_t* nointerruptpending; xe_fwd_jcc8(Jcc_Signed, nointerruptpending);
 
 		xe_fastcall0(iopEventTest);
 
@@ -1098,7 +1098,7 @@ void rpsxSYSCALL(void)
 	xe_fastcall2_ii(psxException, 0x20, psxbranch == 1);
 
 	xe_cmp32_mi(&psxRegs.pc, psxpc - 4);
-	e_u8* j8Ptr; xe_fwd_jcc8(Jcc_Equal, j8Ptr);
+	uint8_t* j8Ptr; xe_fwd_jcc8(Jcc_Equal, j8Ptr);
 
 	xe_add32_mi(&psxRegs.cycle, psxScaleBlockCycles());
 	xe_sub32_mi(&psxRegs.iopCycleEE, psxScaleBlockCycles() * 8);
@@ -1121,7 +1121,7 @@ void rpsxBREAK(void)
 	xe_fastcall2_ii(psxException, 0x24, psxbranch == 1);
 
 	xe_cmp32_mi(&psxRegs.pc, psxpc - 4);
-	e_u8* j8Ptr; xe_fwd_jcc8(Jcc_Equal, j8Ptr);
+	uint8_t* j8Ptr; xe_fwd_jcc8(Jcc_Equal, j8Ptr);
 	xe_add32_mi(&psxRegs.cycle, psxScaleBlockCycles());
 	xe_sub32_mi(&psxRegs.iopCycleEE, psxScaleBlockCycles() * 8);
 	xe_jmp_to(iopDispatcherReg);

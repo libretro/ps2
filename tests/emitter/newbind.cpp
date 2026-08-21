@@ -400,12 +400,12 @@ int main(){
     { for(int g=0;g<16;g++) for(int x=0;x<16;x++){
         snprintf(nm,sizeof nm,"VPMOVMSKB x %d,%d",g,x);
         ck(nm,[&]{ xVPMOVMSKB(xRegister32(g), xRegisterSSE(x)); },
-             [&]{ e_u8* q=(e_u8*)x86Ptr;
+             [&]{ uint8_t* q=(uint8_t*)x86Ptr;
                   E_VEX_RRR(q,0x66,0xd7,xRegister32(g).Id,E_NOREG,xRegisterSSE(x).Id,0);
                   x86Ptr=(u8*)q; });
         snprintf(nm,sizeof nm,"VPMOVMSKB y %d,%d",g,x);
         ck(nm,[&]{ xVPMOVMSKB(xRegister32(g), xRegisterSSE(x, xRegisterYMMTag())); },
-             [&]{ e_u8* q=(e_u8*)x86Ptr;
+             [&]{ uint8_t* q=(uint8_t*)x86Ptr;
                   E_VEX_RRR(q,0x66,0xd7,xRegister32(g).Id,E_NOREG,xRegisterSSE(x, xRegisterYMMTag()).Id,1);
                   x86Ptr=(u8*)q; }); } }
 
@@ -422,7 +422,7 @@ int main(){
        These were the legacy_instructions.h C wrappers until that header was
        retired; the macros are what the recompilers call now, so they are
        what gets oracled. */
-    { struct W { const char* nm; int which; e_u8 pre, op; };
+    { struct W { const char* nm; int which; uint8_t pre, op; };
       static const W ws[] = {
         {"MAXSS", 0, 0xf3, 0x5f}, {"MINSS", 1, 0xf3, 0x5d},
         {"ADDSS", 2, 0xf3, 0x58}, {"SUBSS", 3, 0xf3, 0x5c},
@@ -436,7 +436,7 @@ int main(){
                      case 2: xe_addss_xx(a,b); break; case 3: xe_subss_xx(a,b); break;
                      case 4: xe_maxsd_xx(a,b); break; case 5: xe_minsd_xx(a,b); break;
                      case 6: xe_addsd_xx(a,b); break; default: xe_subsd_xx(a,b); break; } },
-             [&]{ e_u8* q=(e_u8*)x86Ptr; E_SSE_RR(q, w.pre, w.op, a, b); x86Ptr=(u8*)q; }); } }
+             [&]{ uint8_t* q=(uint8_t*)x86Ptr; E_SSE_RR(q, w.pre, w.op, a, b); x86Ptr=(u8*)q; }); } }
 
     printf("newly bound: cases %ld | divergent %ld\n",C,F);
     return F?1:0; }

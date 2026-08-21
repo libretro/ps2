@@ -1,5 +1,6 @@
-// Bodies moved inline to legacy_instructions.h; this file retains only
-// what nothing outside the reference needs.
+// The reference emitter's ModRM helper. The C-API wrappers this file used
+// to carry moved into common/emitter/legacy_instructions.h and were retired
+// with it; what is left is what only the reference build needs.
 /*  PCSX2 - PS2 Emulator for PCs
  *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *

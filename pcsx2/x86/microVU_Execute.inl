@@ -222,8 +222,8 @@ static void mVUGenerateCopyPipelineState(mV)
 		{ struct e_mem xm; E_MEM(xm, XE_AX, E_NOREG, 0, 64); xe_vmovaps_xmemg(2, xm, 1); }
 
 		{ struct e_mem xm; XE_MEM_ABS(xm, &mVU->prog.lpState); xe_vmovups_memxg(xm, 0, 1); }
-		{ struct e_mem xm; E_MEM(xm, E_NOREG, E_NOREG, 0, (e_sptr)&mVU->prog.lpState + 32); xe_vmovups_memxg(xm, 1, 1); }
-		{ struct e_mem xm; E_MEM(xm, E_NOREG, E_NOREG, 0, (e_sptr)&mVU->prog.lpState + 64); xe_vmovups_memxg(xm, 2, 1); }
+		{ struct e_mem xm; E_MEM(xm, E_NOREG, E_NOREG, 0, (intptr_t)&mVU->prog.lpState + 32); xe_vmovups_memxg(xm, 1, 1); }
+		{ struct e_mem xm; E_MEM(xm, E_NOREG, E_NOREG, 0, (intptr_t)&mVU->prog.lpState + 64); xe_vmovups_memxg(xm, 2, 1); }
 
 		xe_vzeroupper();
 	}
@@ -237,11 +237,11 @@ static void mVUGenerateCopyPipelineState(mV)
 		{ struct e_mem xm; E_MEM(xm, XE_AX, E_NOREG, 0, 80); xe_movaps_xmemg(5, xm); }
 
 		{ struct e_mem xm; XE_MEM_ABS(xm, &mVU->prog.lpState); xe_movups_memxg(xm, 0); }
-		{ struct e_mem xm; E_MEM(xm, E_NOREG, E_NOREG, 0, (e_sptr)&mVU->prog.lpState + 16); xe_movups_memxg(xm, 1); }
-		{ struct e_mem xm; E_MEM(xm, E_NOREG, E_NOREG, 0, (e_sptr)&mVU->prog.lpState + 32); xe_movups_memxg(xm, 2); }
-		{ struct e_mem xm; E_MEM(xm, E_NOREG, E_NOREG, 0, (e_sptr)&mVU->prog.lpState + 48); xe_movups_memxg(xm, 3); }
-		{ struct e_mem xm; E_MEM(xm, E_NOREG, E_NOREG, 0, (e_sptr)&mVU->prog.lpState + 64); xe_movups_memxg(xm, 4); }
-		{ struct e_mem xm; E_MEM(xm, E_NOREG, E_NOREG, 0, (e_sptr)&mVU->prog.lpState + 80); xe_movups_memxg(xm, 5); }
+		{ struct e_mem xm; E_MEM(xm, E_NOREG, E_NOREG, 0, (intptr_t)&mVU->prog.lpState + 16); xe_movups_memxg(xm, 1); }
+		{ struct e_mem xm; E_MEM(xm, E_NOREG, E_NOREG, 0, (intptr_t)&mVU->prog.lpState + 32); xe_movups_memxg(xm, 2); }
+		{ struct e_mem xm; E_MEM(xm, E_NOREG, E_NOREG, 0, (intptr_t)&mVU->prog.lpState + 48); xe_movups_memxg(xm, 3); }
+		{ struct e_mem xm; E_MEM(xm, E_NOREG, E_NOREG, 0, (intptr_t)&mVU->prog.lpState + 64); xe_movups_memxg(xm, 4); }
+		{ struct e_mem xm; E_MEM(xm, E_NOREG, E_NOREG, 0, (intptr_t)&mVU->prog.lpState + 80); xe_movups_memxg(xm, 5); }
 	}
 
 	xe_ret();
@@ -264,7 +264,7 @@ static void mVUGenerateCompareState(mV)
 		{ struct e_mem xm; E_MEM(xm, XE_ARG2, E_NOREG, 0, 0); xe_vpcmpeqd_xxmemg(0, 0, xm, 1); }
 		xe_vpmovmskb_rx(XE_AX, 0, 1);
 		xe_xor32_ri(XE_AX, 0xffffffff);
-		e_u8* exitPoint; xe_fwd_jcc8(Jcc_NotZero, exitPoint);
+		uint8_t* exitPoint; xe_fwd_jcc8(Jcc_NotZero, exitPoint);
 
 		{ struct e_mem xm; E_MEM(xm, XE_ARG1, E_NOREG, 0, 0x20); xe_vmovups_xmemg(0, xm, 1); }
 		{ struct e_mem xm; E_MEM(xm, XE_ARG1, E_NOREG, 0, 0x40); xe_vmovups_xmemg(1, xm, 1); }
@@ -288,7 +288,7 @@ static void mVUGenerateCompareState(mV)
 
 		xe_movmskps_rx(XE_AX, 0);
 		xe_xor32_ri(XE_AX, 0xf);
-		e_u8* exitPoint; xe_fwd_jcc8(Jcc_NotZero, exitPoint);
+		uint8_t* exitPoint; xe_fwd_jcc8(Jcc_NotZero, exitPoint);
 
 		{ struct e_mem xm; E_MEM(xm, XE_ARG1, E_NOREG, 0, 0x20); xe_movaps_xmemg(0, xm); }
 		{ struct e_mem xm; E_MEM(xm, XE_ARG2, E_NOREG, 0, 0x20); xe_pcmpeqd_xmemg(0, xm); }

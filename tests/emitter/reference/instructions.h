@@ -46,7 +46,7 @@
 // the reference's param3 rule dictates for a GPR destination -- this is the
 // 256-bit movemask that rule exists for.
 #define xVPMOVMSKB(to, from) do { \
-	e_u8* vpm_p_ = (e_u8*)x86Ptr; \
+	uint8_t* vpm_p_ = (uint8_t*)x86Ptr; \
 	E_VEX_RRR(vpm_p_, 0x66, 0xd7, (to).Id, E_NOREG, (from).Id, \
 	          x86Emitter::shim_ymm(from)); \
 	x86Ptr = (u8*)vpm_p_; } while (0)

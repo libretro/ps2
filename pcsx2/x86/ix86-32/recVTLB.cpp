@@ -217,12 +217,12 @@ static void DynGen_HandlerTest(int direct_kind, u32 direct_bits, int direct_sign
 		default:
 			  break;
 	}
-	e_u8* to_handler; xe_fwd_jcc8(Jcc_Signed, to_handler);
+	uint8_t* to_handler; xe_fwd_jcc8(Jcc_Signed, to_handler);
 	if (direct_kind == DYNGEN_DIRECT_WRITE)
 		vtlb_private::DynGen_DirectWrite(direct_bits);
 	else
 		vtlb_private::DynGen_DirectRead(direct_bits, direct_sign);
-	e_u8* done; xe_fwd_jcc8(Jcc_Unconditional, done);
+	uint8_t* done; xe_fwd_jcc8(Jcc_Unconditional, done);
 	xe_fwd_set8(to_handler);
 	xe_fastcall0(GetIndirectDispatcherPtr(mode, szidx, sign));
 	xe_fwd_set8(done);
@@ -251,7 +251,7 @@ static void DynGen_IndirectTlbDispatcher(int mode, int bits, int sign)
 	sptr table = (sptr)vtlbdata.RWFT[bits][mode];
 	if (table == (s32)table)
 	{
-		{ struct e_mem xm; E_MEM(xm, E_NOREG, XE_AX, XE_WORDSIZE, (e_sptr)table); xe_call_memg(xm); }
+		{ struct e_mem xm; E_MEM(xm, E_NOREG, XE_AX, XE_WORDSIZE, (intptr_t)table); xe_call_memg(xm); }
 	}
 	else
 	{

@@ -22,7 +22,7 @@
 * Format:  OP rs, rt, offset                             *
 *********************************************************/
 
-static e_u8 *recSetBranchEQ(int bne, int process)
+static uint8_t *recSetBranchEQ(int bne, int process)
 {
 	// TODO(Stenzek): This is suboptimal if the registers are in XMMs.
 	// If the constant register is already in a host register, we don't need the immediate...
@@ -64,11 +64,11 @@ static e_u8 *recSetBranchEQ(int bne, int process)
 	}
 
 	if (bne)
-		{ e_u8* s_; xe_fwd_jcc32(Jcc_Equal, s_); return s_; }
-	{ e_u8* s_; xe_fwd_jcc32(Jcc_NotEqual, s_); return s_; }
+		{ uint8_t* s_; xe_fwd_jcc32(Jcc_Equal, s_); return s_; }
+	{ uint8_t* s_; xe_fwd_jcc32(Jcc_NotEqual, s_); return s_; }
 }
 
-static e_u8 *recSetBranchL(int ltz)
+static uint8_t *recSetBranchL(int ltz)
 {
 	const int regs = _checkX86reg(X86TYPE_GPR, _Rs_, MODE_READ);
 	const int regsxmm = _checkXMMreg(XMMTYPE_GPRREG, _Rs_, MODE_READ);
@@ -80,8 +80,8 @@ static e_u8 *recSetBranchL(int ltz)
 		xe_test8_ri(0, 2);
 
 		if (ltz)
-			{ e_u8* s_; xe_fwd_jcc32(Jcc_Zero, s_); return s_; }
-		{ e_u8* s_; xe_fwd_jcc32(Jcc_NotZero, s_); return s_; }
+			{ uint8_t* s_; xe_fwd_jcc32(Jcc_Zero, s_); return s_; }
+		{ uint8_t* s_; xe_fwd_jcc32(Jcc_NotZero, s_); return s_; }
 	}
 
 	if (regs >= 0)
@@ -90,8 +90,8 @@ static e_u8 *recSetBranchL(int ltz)
 		xe_cmp64_mi(&cpuRegs.GPR.r[_Rs_].UD[0], 0);
 
 	if (ltz)
-		{ e_u8* s_; xe_fwd_jcc32(Jcc_GreaterOrEqual, s_); return s_; }
-	{ e_u8* s_; xe_fwd_jcc32(Jcc_Less, s_); return s_; }
+		{ uint8_t* s_; xe_fwd_jcc32(Jcc_GreaterOrEqual, s_); return s_; }
+	{ uint8_t* s_; xe_fwd_jcc32(Jcc_Less, s_); return s_; }
 }
 
 //// BEQ
@@ -120,7 +120,7 @@ static void recBEQ_process(int process)
 	else
 	{
 		const int swap = !!(TrySwapDelaySlot(_Rs_, _Rt_, 0, 1));
-		e_u8* j32Ptr = recSetBranchEQ(0, process);
+		uint8_t* j32Ptr = recSetBranchEQ(0, process);
 
 		if (!swap)
 		{
@@ -184,7 +184,7 @@ static void recBNE_process(int process)
 
 	const int swap = !!(TrySwapDelaySlot(_Rs_, _Rt_, 0, 1));
 
-	e_u8* j32Ptr = recSetBranchEQ(1, process);
+	uint8_t* j32Ptr = recSetBranchEQ(1, process);
 
 	if (!swap)
 	{
@@ -237,7 +237,7 @@ static void recBEQL_const(void)
 static void recBEQL_process(int process)
 {
 	u32 branchTo = ((s32)_Imm_ * 4) + pc;
-	e_u8* j32Ptr = recSetBranchEQ(0, process);
+	uint8_t* j32Ptr = recSetBranchEQ(0, process);
 
 	SaveBranchState();
 	recompileNextInstruction(1, 0);
@@ -280,7 +280,7 @@ static void recBNEL_process(int process)
 {
 	u32 branchTo = ((s32)_Imm_ * 4) + pc;
 
-	e_u8* j32Ptr = recSetBranchEQ(0, process);
+	uint8_t* j32Ptr = recSetBranchEQ(0, process);
 
 	SaveBranchState();
 	SetBranchImm(pc + 4);
@@ -329,7 +329,7 @@ void recBLTZAL(void)
 
 	const int swap = !!(TrySwapDelaySlot(_Rs_, 0, 0, 1));
 
-	e_u8* j32Ptr = recSetBranchL(1);
+	uint8_t* j32Ptr = recSetBranchL(1);
 
 	if (!swap)
 	{
@@ -376,7 +376,7 @@ void recBGEZAL(void)
 
 	const int swap = !!(TrySwapDelaySlot(_Rs_, 0, 0, 1));
 
-	e_u8* j32Ptr = recSetBranchL(0);
+	uint8_t* j32Ptr = recSetBranchL(0);
 
 	if (!swap)
 	{
@@ -423,7 +423,7 @@ void recBLTZALL(void)
 		return;
 	}
 
-	e_u8* j32Ptr = recSetBranchL(1);
+	uint8_t* j32Ptr = recSetBranchL(1);
 
 	SaveBranchState();
 	recompileNextInstruction(1, 0);
@@ -459,7 +459,7 @@ void recBGEZALL(void)
 		return;
 	}
 
-	e_u8* j32Ptr = recSetBranchL(0);
+	uint8_t* j32Ptr = recSetBranchL(0);
 
 	SaveBranchState();
 	recompileNextInstruction(1, 0);
@@ -496,7 +496,7 @@ void recBLEZ(void)
 	else
 		xe_cmp64_mi(&cpuRegs.GPR.r[_Rs_].UD[0], 0);
 
-	e_u8* j32Ptr; xe_fwd_jcc32(Jcc_Greater, j32Ptr);
+	uint8_t* j32Ptr; xe_fwd_jcc32(Jcc_Greater, j32Ptr);
 
 	if (!swap)
 	{
@@ -543,7 +543,7 @@ void recBGTZ(void)
 	else
 		xe_cmp64_mi(&cpuRegs.GPR.r[_Rs_].UD[0], 0);
 
-	e_u8* j32Ptr; xe_fwd_jcc32(Jcc_LessOrEqual, j32Ptr);
+	uint8_t* j32Ptr; xe_fwd_jcc32(Jcc_LessOrEqual, j32Ptr);
 
 	if (!swap)
 	{
@@ -583,7 +583,7 @@ void recBLTZ(void)
 
 	const int swap = !!(TrySwapDelaySlot(_Rs_, 0, 0, 1));
 	_eeFlushAllDirty();
-	e_u8* j32Ptr = recSetBranchL(1);
+	uint8_t* j32Ptr = recSetBranchL(1);
 
 	if (!swap)
 	{
@@ -624,7 +624,7 @@ void recBGEZ(void)
 	const int swap = !!(TrySwapDelaySlot(_Rs_, 0, 0, 1));
 	_eeFlushAllDirty();
 
-	e_u8* j32Ptr = recSetBranchL(0);
+	uint8_t* j32Ptr = recSetBranchL(0);
 
 	if (!swap)
 	{
@@ -665,7 +665,7 @@ void recBLTZL(void)
 	}
 
 	_eeFlushAllDirty();
-	e_u8* j32Ptr = recSetBranchL(1);
+	uint8_t* j32Ptr = recSetBranchL(1);
 
 	SaveBranchState();
 	recompileNextInstruction(1, 0);
@@ -696,7 +696,7 @@ void recBGEZL(void)
 	}
 
 	_eeFlushAllDirty();
-	e_u8* j32Ptr = recSetBranchL(0);
+	uint8_t* j32Ptr = recSetBranchL(0);
 
 	SaveBranchState();
 	recompileNextInstruction(1, 0);
@@ -740,7 +740,7 @@ void recBLEZL(void)
 	else
 		xe_cmp64_mi(&cpuRegs.GPR.r[_Rs_].UD[0], 0);
 
-	e_u8* j32Ptr; xe_fwd_jcc32(Jcc_Greater, j32Ptr);
+	uint8_t* j32Ptr; xe_fwd_jcc32(Jcc_Greater, j32Ptr);
 
 	SaveBranchState();
 	recompileNextInstruction(1, 0);
@@ -778,7 +778,7 @@ void recBGTZL(void)
 	else
 		xe_cmp64_mi(&cpuRegs.GPR.r[_Rs_].UD[0], 0);
 
-	e_u8* j32Ptr; xe_fwd_jcc32(Jcc_LessOrEqual, j32Ptr);
+	uint8_t* j32Ptr; xe_fwd_jcc32(Jcc_LessOrEqual, j32Ptr);
 
 	SaveBranchState();
 	recompileNextInstruction(1, 0);

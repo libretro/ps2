@@ -81,12 +81,12 @@ void recPLZCW()
 
 	xe_mov32_ri(XE_CX, 31);
 	xe_test32_rr(XE_AX, XE_AX); // TEST sets the sign flag accordingly.
-	e_u8* label_notSigned; xe_fwd_jcc8(Jcc_Unsigned /* JNS: 0x9 */, label_notSigned);
+	uint8_t* label_notSigned; xe_fwd_jcc8(Jcc_Unsigned /* JNS: 0x9 */, label_notSigned);
 	xe_not32_r(XE_AX);
 	xe_fwd_set8(label_notSigned);
 
 	xe_bsr32_rr(XE_AX, XE_AX);
-	e_u8* label_Zeroed; xe_fwd_jcc8(Jcc_Zero, label_Zeroed); // If BSR sets the ZF, eax is "trash"
+	uint8_t* label_Zeroed; xe_fwd_jcc8(Jcc_Zero, label_Zeroed); // If BSR sets the ZF, eax is "trash"
 	xe_sub32_rr(XE_CX, XE_AX);
 	xe_dec32_r(XE_CX); // PS2 doesn't count the first bit
 
@@ -183,17 +183,17 @@ void recPMFHL()
 
 				xe_mov64_ri(XE_CX, 0x000000007fffffffLL);
 				xe_cmp64_rr(XE_AX, XE_CX);
-				e_u8* sat_hi; xe_fwd_jcc8(Jcc_GreaterOrEqual, sat_hi);
+				uint8_t* sat_hi; xe_fwd_jcc8(Jcc_GreaterOrEqual, sat_hi);
 				xe_mov64_ri(XE_CX, -0x80000000LL);
 				xe_cmp64_rr(XE_AX, XE_CX);
-				e_u8* sat_lo; xe_fwd_jcc8(Jcc_LessOrEqual, sat_lo);
+				uint8_t* sat_lo; xe_fwd_jcc8(Jcc_LessOrEqual, sat_lo);
 
 				xe_movsxd_rm(XE_AX, &cpuRegs.LO.UL[w]);
-				e_u8* done; xe_fwd_jmp8(done);
+				uint8_t* done; xe_fwd_jmp8(done);
 
 				xe_fwd_set8(sat_hi);
 				xe_mov64_ri(XE_AX, 0x000000007fffffffLL);
-				e_u8* done2; xe_fwd_jmp8(done2);
+				uint8_t* done2; xe_fwd_jmp8(done2);
 
 				xe_fwd_set8(sat_lo);
 				xe_mov64_ri(XE_AX, (s64)0xffffffff80000000ULL);

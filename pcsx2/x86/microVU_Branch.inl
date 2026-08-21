@@ -357,7 +357,7 @@ void normBranch(mV, microFlagCycles* mFC)
 			xe_test32_mi(&vu1Thread.vuFBRST, (isVU1 ? 0x400 : 0x4));
 		else
 			xe_test32_mi(&vuRegs[0].VI[REG_FBRST].UL, (isVU1 ? 0x400 : 0x4));
-		e_u8* eJMP; xe_fwd_jcc32(Jcc_Zero, eJMP);
+		uint8_t* eJMP; xe_fwd_jcc32(Jcc_Zero, eJMP);
 		if (!mVU->index || !THREAD_VU1)
 		{
 			xe_or32_mi(&vuRegs[0].VI[REG_VPU_STAT].UL, (isVU1 ? 0x200 : 0x2));
@@ -378,7 +378,7 @@ void normBranch(mV, microFlagCycles* mFC)
 			xe_test32_mi(&vu1Thread.vuFBRST, (isVU1 ? 0x800 : 0x8));
 		else
 			xe_test32_mi(&vuRegs[0].VI[REG_FBRST].UL, (isVU1 ? 0x800 : 0x8));
-		e_u8* eJMP; xe_fwd_jcc32(Jcc_Zero, eJMP);
+		uint8_t* eJMP; xe_fwd_jcc32(Jcc_Zero, eJMP);
 		if (!mVU->index || !THREAD_VU1)
 		{
 			xe_or32_mi(&vuRegs[0].VI[REG_VPU_STAT].UL, (isVU1 ? 0x400 : 0x4));
@@ -429,7 +429,7 @@ void condBranch(mV, microFlagCycles* mFC, int JMPcc)
 			xe_test32_mi(&vu1Thread.vuFBRST, (isVU1 ? 0x800 : 0x8));
 		else
 			xe_test32_mi(&vuRegs[0].VI[REG_FBRST].UL, (isVU1 ? 0x800 : 0x8));
-		e_u8* eJMP; xe_fwd_jcc32(Jcc_Zero, eJMP);
+		uint8_t* eJMP; xe_fwd_jcc32(Jcc_Zero, eJMP);
 		if (!mVU->index || !THREAD_VU1)
 		{
 			xe_or32_mi(&vuRegs[0].VI[REG_VPU_STAT].UL, (isVU1 ? 0x400 : 0x4));
@@ -437,7 +437,7 @@ void condBranch(mV, microFlagCycles* mFC, int JMPcc)
 		}
 		mVUDTendProgram(mVU, mFC, 2);
 		xe_cmp16_mi(&mVU->branch, 0);
-		e_u8* tJMP; xe_fwd_jcc32(xInvertCond((JccComparisonType)JMPcc), tJMP);
+		uint8_t* tJMP; xe_fwd_jcc32(xInvertCond((JccComparisonType)JMPcc), tJMP);
 			incPC(4); // Set PC to First instruction of Non-Taken Side
 			xe_mov32_mi(&vuRegs[mVU->index].VI[REG_TPC].UL, xPC);
 			if (mVU->index && THREAD_VU1)
@@ -460,7 +460,7 @@ void condBranch(mV, microFlagCycles* mFC, int JMPcc)
 			xe_test32_mi(&vu1Thread.vuFBRST, (isVU1 ? 0x400 : 0x4));
 		else
 			xe_test32_mi(&vuRegs[0].VI[REG_FBRST].UL, (isVU1 ? 0x400 : 0x4));
-		e_u8* eJMP; xe_fwd_jcc32(Jcc_Zero, eJMP);
+		uint8_t* eJMP; xe_fwd_jcc32(Jcc_Zero, eJMP);
 		if (!mVU->index || !THREAD_VU1)
 		{
 			xe_or32_mi(&vuRegs[0].VI[REG_VPU_STAT].UL, (isVU1 ? 0x200 : 0x2));
@@ -468,7 +468,7 @@ void condBranch(mV, microFlagCycles* mFC, int JMPcc)
 		}
 		mVUDTendProgram(mVU, mFC, 2);
 		xe_cmp16_mi(&mVU->branch, 0);
-		e_u8* dJMP; xe_fwd_jcc32(xInvertCond((JccComparisonType)JMPcc), dJMP);
+		uint8_t* dJMP; xe_fwd_jcc32(xInvertCond((JccComparisonType)JMPcc), dJMP);
 			incPC(4); // Set PC to First instruction of Non-Taken Side
 			xe_mov32_mi(&vuRegs[mVU->index].VI[REG_TPC].UL, xPC);
 			xe_jmp_to(mVU->exitFunct);
@@ -490,7 +490,7 @@ void condBranch(mV, microFlagCycles* mFC, int JMPcc)
 
 		mVUendProgram(mVU, mFC, 3);
 		xe_cmp16_mi(&mVU->branch, 0);
-		e_u8* dJMP; xe_fwd_jcc32((JccComparisonType)JMPcc, dJMP);
+		uint8_t* dJMP; xe_fwd_jcc32((JccComparisonType)JMPcc, dJMP);
 		incPC(4); // Set PC to First instruction of Non-Taken Side
 		xe_mov32_mi(&vuRegs[mVU->index].VI[REG_TPC].UL, xPC);
 		if (mVU->index && THREAD_VU1)
@@ -511,7 +511,7 @@ void condBranch(mV, microFlagCycles* mFC, int JMPcc)
 		xe_cmp16_mi(&mVU->branch, 0);
 
 		incPC(3);
-		e_u8* eJMP; xe_fwd_jcc32((JccComparisonType)JMPcc, eJMP);
+		uint8_t* eJMP; xe_fwd_jcc32((JccComparisonType)JMPcc, eJMP);
 			incPC(1); // Set PC to First instruction of Non-Taken Side
 			xe_mov32_mi(&vuRegs[mVU->index].VI[REG_TPC].UL, xPC);
 			if (mVU->index && THREAD_VU1)
@@ -586,7 +586,7 @@ void normJump(mV, microFlagCycles* mFC)
 			xe_test32_mi(&vu1Thread.vuFBRST, (isVU1 ? 0x400 : 0x4));
 		else
 			xe_test32_mi(&vuRegs[0].VI[REG_FBRST].UL, (isVU1 ? 0x400 : 0x4));
-		e_u8* eJMP; xe_fwd_jcc32(Jcc_Zero, eJMP);
+		uint8_t* eJMP; xe_fwd_jcc32(Jcc_Zero, eJMP);
 		if (!mVU->index || !THREAD_VU1)
 		{
 			xe_or32_mi(&vuRegs[0].VI[REG_VPU_STAT].UL, (isVU1 ? 0x200 : 0x2));
@@ -607,7 +607,7 @@ void normJump(mV, microFlagCycles* mFC)
 			xe_test32_mi(&vu1Thread.vuFBRST, (isVU1 ? 0x800 : 0x8));
 		else
 			xe_test32_mi(&vuRegs[0].VI[REG_FBRST].UL, (isVU1 ? 0x800 : 0x8));
-		e_u8* eJMP; xe_fwd_jcc32(Jcc_Zero, eJMP);
+		uint8_t* eJMP; xe_fwd_jcc32(Jcc_Zero, eJMP);
 		if (!mVU->index || !THREAD_VU1)
 		{
 			xe_or32_mi(&vuRegs[0].VI[REG_VPU_STAT].UL, (isVU1 ? 0x400 : 0x4));

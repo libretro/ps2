@@ -22,9 +22,9 @@
 // handling.  Note, for "likely" branches use iDoBranchImm_Likely instead, which
 // handles delay slots differently.
 // Parameters:
-//   jmpSkip - This parameter is the result of the appropriate J32 instruction
-//   (usually JZ32 or JNZ32).
-void recDoBranchImm(u32 branchTo, e_u8* jmpSkip, int isLikely, int swappedDelaySlot)
+//   jmpSkip - the rel32 displacement slot of a conditional forward jump the
+//   caller has already emitted (xe_fwd_jcc32); this function patches it.
+void recDoBranchImm(u32 branchTo, uint8_t* jmpSkip, int isLikely, int swappedDelaySlot)
 {
 	// First up is the Branch Taken Path : Save the recompiler's state, compile the
 	// DelaySlot, and issue a BranchTest insertion.  The state is reloaded below for
@@ -222,7 +222,7 @@ static void recTrap(JccComparisonType skip_cond, int use_imm, int is_unsigned)
 	else
 		xe_cmp64_rm(XE_AX, &cpuRegs.GPR.r[_Rt_].UD[0]);
 
-	e_u8* no_trap; xe_fwd_jcc8(skip_cond, no_trap);
+	uint8_t* no_trap; xe_fwd_jcc8(skip_cond, no_trap);
 	// trap(): cpuRegs.pc -= 4; cpuException(0x34, cpuRegs.branch);
 	xe_sub32_mi(&cpuRegs.pc, 4);
 	xe_mov32_ri(XE_ARG1, 0x34);

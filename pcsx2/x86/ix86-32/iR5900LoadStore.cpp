@@ -304,7 +304,7 @@ void recLWR()
 	const int treg = _allocX86reg(X86TYPE_GPR, _Rt_, MODE_READ | MODE_WRITE);
 	xe_and32_ri(temp, 3);
 
-	e_u8* nomask; xe_fwd_jcc8(Jcc_Equal, nomask);
+	uint8_t* nomask; xe_fwd_jcc8(Jcc_Equal, nomask);
 	xe_shl32_ri(temp, 3);
 	// mask off bytes loaded
 	xe_mov32_ri(XE_CX, 24);
@@ -318,7 +318,7 @@ void recLWR()
 	xe_shr32_rcl(XE_AX);
 	xe_or32_rr(treg, XE_AX);
 
-	e_u8* end; xe_fwd_jcc8(Jcc_Unconditional, end);
+	uint8_t* end; xe_fwd_jcc8(Jcc_Unconditional, end);
 	xe_fwd_set8(nomask);
 	// NOTE: This might look wrong, but it's correct - see interpreter.
 	xe_movsxd_rr(treg, XE_AX);
@@ -368,7 +368,7 @@ void recSWL()
 	if (!CHECK_FASTMEM || vtlb_IsFaultingPC(pc))
 		iFlushCall(FLUSH_FULLVTLB);
 
-	e_u8* skip; xe_fwd_jcc8(Jcc_Equal, skip);
+	uint8_t* skip; xe_fwd_jcc8(Jcc_Equal, skip);
 	xe_shl32_ri(temp, 3);
 
 	vtlb_DynGenReadNonQuad(32, 0, 0, XE_ARG1, RETURN_READ_IN_RAX);
@@ -394,7 +394,7 @@ void recSWL()
 		xe_add32_ri(XE_ARG1, _Imm_);
 	xe_and32_ri(XE_ARG1, ~3);
 
-	e_u8* end; xe_fwd_jcc8(Jcc_Unconditional, end);
+	uint8_t* end; xe_fwd_jcc8(Jcc_Unconditional, end);
 	xe_fwd_set8(skip);
 	_eeMoveGPRtoR32(XE_ARG2, _Rt_, 0);
 	xe_fwd_set8(end);
@@ -441,7 +441,7 @@ void recSWR()
 	if (!CHECK_FASTMEM || vtlb_IsFaultingPC(pc))
 		iFlushCall(FLUSH_FULLVTLB);
 
-	e_u8* skip; xe_fwd_jcc8(Jcc_Equal, skip);
+	uint8_t* skip; xe_fwd_jcc8(Jcc_Equal, skip);
 	xe_shl32_ri(temp, 3);
 
 	vtlb_DynGenReadNonQuad(32, 0, 0, XE_ARG1, RETURN_READ_IN_RAX);
@@ -467,7 +467,7 @@ void recSWR()
 		xe_add32_ri(XE_ARG1, _Imm_);
 	xe_and32_ri(XE_ARG1, ~3);
 
-	e_u8* end; xe_fwd_jcc8(Jcc_Unconditional, end);
+	uint8_t* end; xe_fwd_jcc8(Jcc_Unconditional, end);
 	xe_fwd_set8(skip);
 	_eeMoveGPRtoR32(XE_ARG2, _Rt_, 0);
 	xe_fwd_set8(end);
@@ -576,7 +576,7 @@ void recLDL()
 		xe_and32_ri(temp1, 0x7);
 		xe_cmp32_ri(temp1, 7);
 		xe_cmovcc64_rr(Jcc_Equal, treg, XE_AX); // swap register with memory when not shifting
-		e_u8* skip; xe_fwd_jcc8(Jcc_Equal, skip);
+		uint8_t* skip; xe_fwd_jcc8(Jcc_Equal, skip);
 		// Calculate the shift from top bit to lowest.
 		xe_add32_ri(temp1, 1);
 		xe_mov32_ri(XE_DX, 64);
@@ -660,7 +660,7 @@ void recLDR()
 	{
 		xe_and32_ri(temp1, 0x7);
 		xe_cmovcc64_rr(Jcc_Equal, treg, XE_AX); // swap register with memory when not shifting
-		e_u8* skip; xe_fwd_jcc8(Jcc_Equal, skip);
+		uint8_t* skip; xe_fwd_jcc8(Jcc_Equal, skip);
 		// Calculate the shift from top bit to lowest.
 		xe_mov32_ri(XE_DX, 64);
 		xe_shl32_ri(temp1, 3);
@@ -764,7 +764,7 @@ void recSDL(void)
 		if (!CHECK_FASTMEM || vtlb_IsFaultingPC(pc))
 			iFlushCall(FLUSH_FULLVTLB);
 
-		e_u8* skip; xe_fwd_jcc8(Jcc_Equal, skip);
+		uint8_t* skip; xe_fwd_jcc8(Jcc_Equal, skip);
 		xe_add32_ri(temp1, 1);
 		vtlb_DynGenReadNonQuad(64, 0, 0, XE_ARG1, RETURN_READ_IN_RAX);
 
@@ -849,7 +849,7 @@ void recSDR(void)
 		if (!CHECK_FASTMEM || vtlb_IsFaultingPC(pc))
 			iFlushCall(FLUSH_FULLVTLB);
 
-		e_u8* skip; xe_fwd_jcc8(Jcc_Equal, skip);
+		uint8_t* skip; xe_fwd_jcc8(Jcc_Equal, skip);
 		vtlb_DynGenReadNonQuad(64, 0, 0, XE_ARG1, RETURN_READ_IN_RAX);
 
 		xe_mov32_ri(XE_DX, 64);

@@ -902,9 +902,9 @@ static void rpsxDIVsuper(int info, int sign, int process)
 	if (sign) //test for overflow (x86 will just throw an exception)
 	{
 		xe_cmp32_ri(XE_AX, 0x80000000);
-		e_u8* cont1; xe_fwd_jcc8(Jcc_NotEqual, cont1);
+		uint8_t* cont1; xe_fwd_jcc8(Jcc_NotEqual, cont1);
 		xe_cmp32_ri(XE_CX, 0xffffffff);
-		e_u8* cont2; xe_fwd_jcc8(Jcc_NotEqual, cont2);
+		uint8_t* cont2; xe_fwd_jcc8(Jcc_NotEqual, cont2);
 		//overflow case:
 		xe_xor32_rr(XE_DX, XE_DX); //EAX remains 0x80000000
 		xe_fwd_jcc8(Jcc_Unconditional, end1);
@@ -914,7 +914,7 @@ static void rpsxDIVsuper(int info, int sign, int process)
 	}
 
 	xe_cmp32_ri(XE_CX, 0);
-	e_u8* cont3; xe_fwd_jcc8(Jcc_NotEqual, cont3);
+	uint8_t* cont3; xe_fwd_jcc8(Jcc_NotEqual, cont3);
 
 	//divide by zero
 	xe_mov32_rr(XE_DX, XE_AX);
@@ -926,7 +926,7 @@ static void rpsxDIVsuper(int info, int sign, int process)
 	}
 	else
 		xe_mov32_ri(XE_AX, 0xffffffff);
-	e_u8* end2; xe_fwd_jcc8(Jcc_Unconditional, end2);
+	uint8_t* end2; xe_fwd_jcc8(Jcc_Unconditional, end2);
 
 	// Normal division
 	xe_fwd_set8(cont3);
@@ -1060,7 +1060,7 @@ static void rpsxLoad(int size, int sign)
 
 	_psxFlushCall(FLUSH_FULLVTLB);
 	xe_test32_ri(XE_ARG1, 0x10000000);
-	e_u8* is_ram_read; xe_fwd_jcc8(Jcc_Zero, is_ram_read);
+	uint8_t* is_ram_read; xe_fwd_jcc8(Jcc_Zero, is_ram_read);
 
 	switch (size)
 	{
@@ -1084,7 +1084,7 @@ static void rpsxLoad(int size, int sign)
 		return;
 	}
 
-	e_u8* done; xe_fwd_jmp8(done);
+	uint8_t* done; xe_fwd_jmp8(done);
 	xe_fwd_set8(is_ram_read);
 
 	// read from psM directly
@@ -1196,9 +1196,9 @@ static void rpsxLoadUnaligned(int isLeft)
 	_psxFlushCall(FLUSH_FULLVTLB);
 
 	xe_test32_ri(XE_ARG1, 0x10000000);
-	e_u8* is_ram_read; xe_fwd_jcc8(Jcc_Zero, is_ram_read);
+	uint8_t* is_ram_read; xe_fwd_jcc8(Jcc_Zero, is_ram_read);
 	xe_fastcall0(iopMemRead32);
-	e_u8* done; xe_fwd_jmp8(done);
+	uint8_t* done; xe_fwd_jmp8(done);
 	xe_fwd_set8(is_ram_read);
 	xe_and32_ri(XE_ARG1, 0x1fffff);
 	{ struct e_mem xm; xe_complexaddr(xm, 0 /* rax */, iopMem->Main, XE_ARG1); xe_mov32_rmem(XE_AX, xm); }
@@ -1274,7 +1274,7 @@ static void rpsxStoreUnaligned(int isLeft)
 
 	xe_mov32_rr(XE_AX, XE_ARG1);
 	xe_test32_ri(XE_AX, 0x10000000);
-	e_u8* not_ram; xe_fwd_jcc8(Jcc_NotZero, not_ram);
+	uint8_t* not_ram; xe_fwd_jcc8(Jcc_NotZero, not_ram);
 
 	// --- RAM: inline the read, then merge ---
 	xe_mov32_rr(XE_CX, XE_AX);
@@ -1318,7 +1318,7 @@ static void rpsxStoreUnaligned(int isLeft)
 	xe_and32_ri(XE_ARG1, 0xfffffffc);
 	xe_mov32_rr(XE_ARG2, XE_AX);
 	xe_fastcall0(iopMemWrite32);
-	e_u8* done; xe_fwd_jmp8(done);
+	uint8_t* done; xe_fwd_jmp8(done);
 
 	xe_fwd_set8(not_ram);
 	xe_fastcall0((uptr)(isLeft ? psxSWL : psxSWR));
@@ -1634,7 +1634,7 @@ static void rpsxJALR()
 }
 
 //// BEQ
-static e_u8* s_pbranchjmp;
+static uint8_t* s_pbranchjmp;
 
 static void rpsxSetBranchEQ(int process)
 {
@@ -1819,7 +1819,7 @@ static void rpsxBLTZ()
 	else
 		xe_cmp32_mi(&psxRegs.GPR.r[_Rs_], 0);
 
-	e_u8* pjmp; xe_fwd_jcc32(Jcc_Less, pjmp);
+	uint8_t* pjmp; xe_fwd_jcc32(Jcc_Less, pjmp);
 
 	if (!swap)
 	{
@@ -1866,7 +1866,7 @@ static void rpsxBGEZ()
 	else
 		xe_cmp32_mi(&psxRegs.GPR.r[_Rs_], 0);
 
-	e_u8* pjmp; xe_fwd_jcc32(Jcc_GreaterOrEqual, pjmp);
+	uint8_t* pjmp; xe_fwd_jcc32(Jcc_GreaterOrEqual, pjmp);
 
 	if (!swap)
 	{
@@ -1919,7 +1919,7 @@ static void rpsxBLTZAL()
 	else
 		xe_cmp32_mi(&psxRegs.GPR.r[_Rs_], 0);
 
-	e_u8* pjmp; xe_fwd_jcc32(Jcc_Less, pjmp);
+	uint8_t* pjmp; xe_fwd_jcc32(Jcc_Less, pjmp);
 
 	if (!swap)
 	{
@@ -1971,7 +1971,7 @@ static void rpsxBGEZAL()
 	else
 		xe_cmp32_mi(&psxRegs.GPR.r[_Rs_], 0);
 
-	e_u8* pjmp; xe_fwd_jcc32(Jcc_GreaterOrEqual, pjmp);
+	uint8_t* pjmp; xe_fwd_jcc32(Jcc_GreaterOrEqual, pjmp);
 
 	if (!swap)
 	{
@@ -2019,7 +2019,7 @@ static void rpsxBLEZ()
 	else
 		xe_cmp32_mi(&psxRegs.GPR.r[_Rs_], 0);
 
-	e_u8* pjmp; xe_fwd_jcc32(Jcc_LessOrEqual, pjmp);
+	uint8_t* pjmp; xe_fwd_jcc32(Jcc_LessOrEqual, pjmp);
 
 	if (!swap)
 	{
@@ -2068,7 +2068,7 @@ static void rpsxBGTZ()
 	else
 		xe_cmp32_mi(&psxRegs.GPR.r[_Rs_], 0);
 
-	e_u8* pjmp; xe_fwd_jcc32(Jcc_Greater, pjmp);
+	uint8_t* pjmp; xe_fwd_jcc32(Jcc_Greater, pjmp);
 
 	if (!swap)
 	{

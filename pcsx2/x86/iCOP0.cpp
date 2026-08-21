@@ -59,7 +59,7 @@ void recBC0F()
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
 	const int swap = !!(TrySwapDelaySlot(0, 0, 0, 0));
 	_setupBranchTest();
-	{ e_u8* bslot_; xe_fwd_jcc32(Jcc_Equal, bslot_); recDoBranchImm(branchTo, bslot_, 0, swap); }
+	{ uint8_t* bslot_; xe_fwd_jcc32(Jcc_Equal, bslot_); recDoBranchImm(branchTo, bslot_, 0, swap); }
 }
 
 void recBC0T()
@@ -67,21 +67,21 @@ void recBC0T()
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
 	const int swap = !!(TrySwapDelaySlot(0, 0, 0, 0));
 	_setupBranchTest();
-	{ e_u8* bslot_; xe_fwd_jcc32(Jcc_NotEqual, bslot_); recDoBranchImm(branchTo, bslot_, 0, swap); }
+	{ uint8_t* bslot_; xe_fwd_jcc32(Jcc_NotEqual, bslot_); recDoBranchImm(branchTo, bslot_, 0, swap); }
 }
 
 void recBC0FL()
 {
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
 	_setupBranchTest();
-	{ e_u8* bslot_; xe_fwd_jcc32(Jcc_Equal, bslot_); recDoBranchImm(branchTo, bslot_, 1, 0); }
+	{ uint8_t* bslot_; xe_fwd_jcc32(Jcc_Equal, bslot_); recDoBranchImm(branchTo, bslot_, 1, 0); }
 }
 
 void recBC0TL()
 {
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
 	_setupBranchTest();
-	{ e_u8* bslot_; xe_fwd_jcc32(Jcc_NotEqual, bslot_); recDoBranchImm(branchTo, bslot_, 1, 0); }
+	{ uint8_t* bslot_; xe_fwd_jcc32(Jcc_NotEqual, bslot_); recDoBranchImm(branchTo, bslot_, 1, 0); }
 }
 
 // TLBR copies one TLB entry into the CP0 registers. It is pure register
@@ -178,20 +178,20 @@ void recTLBP()
 		xe_not32_r(XE_AX);
 		xe_and32_rr(XE_AX, 8);
 		xe_cmp32_rbd(XE_AX, XE_CX, offsetof(tlbs, VPN2));
-		e_u8* next; xe_fwd_jcc8(Jcc_NotEqual, next);
+		uint8_t* next; xe_fwd_jcc8(Jcc_NotEqual, next);
 
 		// && ((tlb[i].G & 1) || (tlb[i].ASID & 0xff) == ASID)
 		xe_mov32_rbd(XE_DX, XE_CX, offsetof(tlbs, G));
 		xe_test32_ri(XE_DX, 1);
-		e_u8* found; xe_fwd_jcc8(Jcc_NotZero, found);
+		uint8_t* found; xe_fwd_jcc8(Jcc_NotZero, found);
 		xe_mov32_rbd(XE_DX, XE_CX, offsetof(tlbs, ASID));
 		xe_and32_ri(XE_DX, 0xff);
 		xe_cmp32_rr(XE_DX, 9);
-		e_u8* next2; xe_fwd_jcc8(Jcc_NotEqual, next2);
+		uint8_t* next2; xe_fwd_jcc8(Jcc_NotEqual, next2);
 
 		xe_fwd_set8(found);
 		xe_mov32_mr(&cpuRegs.CP0.n.Index, 10);
-		e_u8* done; xe_fwd_jmp8(done);
+		uint8_t* done; xe_fwd_jmp8(done);
 
 		xe_fwd_set8(next);
 		xe_fwd_set8(next2);
@@ -240,11 +240,11 @@ void recERET()
 	// ERL selects which EPC to resume from, and which flag to clear.
 	xe_mov32_rm(XE_AX, &cpuRegs.CP0.n.Status);
 	xe_test32_ri(XE_AX, 0x4); // ERL
-	e_u8* useEPC; xe_fwd_jcc8(Jcc_Zero, useEPC);
+	uint8_t* useEPC; xe_fwd_jcc8(Jcc_Zero, useEPC);
 	xe_mov32_rm(XE_DX, &cpuRegs.CP0.n.ErrorEPC);
 	xe_mov32_mr(&cpuRegs.pc, XE_DX);
 	xe_and32_ri(XE_AX, ~(u32)0x4);
-	e_u8* done; xe_fwd_jmp8(done);
+	uint8_t* done; xe_fwd_jmp8(done);
 	xe_fwd_set8(useEPC);
 	xe_mov32_rm(XE_DX, &cpuRegs.CP0.n.EPC);
 	xe_mov32_mr(&cpuRegs.pc, XE_DX);
@@ -264,9 +264,9 @@ void recEI()
 	// Same guard recDI uses, inverted only in what it does to EIE.
 	xe_mov32_rm(XE_AX, &cpuRegs.CP0.n.Status);
 	xe_test32_ri(XE_AX, 0x20006); // EXL | ERL | EDI
-	e_u8* privileged; xe_fwd_jcc8(Jcc_NotZero, privileged);
+	uint8_t* privileged; xe_fwd_jcc8(Jcc_NotZero, privileged);
 	xe_test32_ri(XE_AX, 0x18); // KSU
-	e_u8* inUserMode; xe_fwd_jcc8(Jcc_NotZero, inUserMode);
+	uint8_t* inUserMode; xe_fwd_jcc8(Jcc_NotZero, inUserMode);
 	xe_fwd_set8(privileged);
 	xe_or32_ri(XE_AX, 0x10000); // EIE
 	xe_mov32_mr(&cpuRegs.CP0.n.Status, XE_AX);
@@ -294,9 +294,9 @@ void recDI()
 
 	xe_mov32_rm(XE_AX, &cpuRegs.CP0.n.Status);
 	xe_test32_ri(XE_AX, 0x20006); // EXL | ERL | EDI
-	e_u8* iHaveNoIdea; xe_fwd_jcc8(Jcc_NotZero, iHaveNoIdea);
+	uint8_t* iHaveNoIdea; xe_fwd_jcc8(Jcc_NotZero, iHaveNoIdea);
 	xe_test32_ri(XE_AX, 0x18); // KSU
-	e_u8* inUserMode; xe_fwd_jcc8(Jcc_NotZero, inUserMode);
+	uint8_t* inUserMode; xe_fwd_jcc8(Jcc_NotZero, inUserMode);
 	xe_fwd_set8(iHaveNoIdea);
 	xe_and32_ri(XE_AX, ~(u32)0x10000); // EIE
 	xe_mov32_mr(&cpuRegs.CP0.n.Status, XE_AX);

@@ -33,7 +33,7 @@ __fi static int getFlagReg(uint fInst)
 __fi void setBitSFLAG(int reg, int regT, int bitTest, int bitSet)
 {
 	xe_test32_ri(regT, bitTest);
-	e_u8* skip; xe_fwd_jcc8(Jcc_Zero, skip);
+	uint8_t* skip; xe_fwd_jcc8(Jcc_Zero, skip);
 	xe_or32_ri(reg, bitSet);
 	xe_fwd_set8(skip);
 }
@@ -41,7 +41,7 @@ __fi void setBitSFLAG(int reg, int regT, int bitTest, int bitSet)
 __fi void setBitFSEQ(int reg, int bitX)
 {
 	xe_test32_ri(reg, bitX);
-	e_u8* skip; xe_fwd_jcc8(Jcc_Zero, skip);
+	uint8_t* skip; xe_fwd_jcc8(Jcc_Zero, skip);
 	xe_or32_ri(reg, bitX);
 	xe_fwd_set8(skip);
 }

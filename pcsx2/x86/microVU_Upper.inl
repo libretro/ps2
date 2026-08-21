@@ -96,7 +96,7 @@ static void mVUupdateFlags(mV, int reg, int regT1in = -1, int regT2in = -1, int 
 		xe_cmpnltps_xm(regT1, &sse4_compvals[0][0]); // Compare if T1 == FLT_MAX
 		xe_movmskps_rx(gprT2, regT1); // Grab sign bits  for equal results
 		xe_and32_ri(gprT2, AND_XYZW); // Grab "Is FLT_MAX" bits from the previous calculation
-		e_u8* oJMP; xe_fwd_jcc32(Jcc_Zero, oJMP);
+		uint8_t* oJMP; xe_fwd_jcc32(Jcc_Zero, oJMP);
 
 		xe_or32_ri(sReg, 0x820000);
 		if (mFLAG.doFlag)

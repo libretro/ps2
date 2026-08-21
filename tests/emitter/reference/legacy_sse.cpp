@@ -21,14 +21,9 @@ using namespace x86Emitter;
 //                         Begin SSE-Only Part!
 // ------------------------------------------------------------------------
 
-#define DEFINE_LEGACY_SSSD_OPCODE(mod)                                                                                                \
-    __fi void SSE_##mod##SS_XMM_to_XMM(int to, int from) { x##mod.SS(xRegisterSSE(to), xRegisterSSE(from)); } \
-    __fi void SSE2_##mod##SD_XMM_to_XMM(int to, int from) { x##mod.SD(xRegisterSSE(to), xRegisterSSE(from)); }
-
-#ifndef PCSX2_C89_EMITTER
-DEFINE_LEGACY_SSSD_OPCODE(SUB)
-DEFINE_LEGACY_SSSD_OPCODE(ADD)
-
-DEFINE_LEGACY_SSSD_OPCODE(MIN)
-DEFINE_LEGACY_SSSD_OPCODE(MAX)
-#endif
+/* The SSE_xxSS / SSE2_xxSD C wrappers that lived here had exactly one caller,
+ * the newbind byte suite, and it now oracles the xe_* macros the recompilers
+ * actually emit through. With no callers the wrappers were dead code in the
+ * reference build too, so they are gone; this TU stays in the link because
+ * the suites' object list expects it and because it is where any future
+ * reference-only SSE helper belongs. */

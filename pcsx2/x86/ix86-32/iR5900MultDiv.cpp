@@ -347,9 +347,9 @@ static void recDIVsuper(int info, int sign, int upper, int process)
 	if (sign) //test for overflow (x86 will just throw an exception)
 	{
 		xe_cmp32_ri(XE_AX, 0x80000000);
-		e_u8* cont1; xe_fwd_jcc8(Jcc_NotEqual, cont1);
+		uint8_t* cont1; xe_fwd_jcc8(Jcc_NotEqual, cont1);
 		xe_cmp32_ri(divisor, 0xffffffff);
-		e_u8* cont2; xe_fwd_jcc8(Jcc_NotEqual, cont2);
+		uint8_t* cont2; xe_fwd_jcc8(Jcc_NotEqual, cont2);
 		//overflow case:
 		xe_xor32_rr(XE_DX, XE_DX); //EAX remains 0x80000000
 		xe_fwd_jcc8(Jcc_Unconditional, end1);
@@ -359,7 +359,7 @@ static void recDIVsuper(int info, int sign, int upper, int process)
 	}
 
 	xe_cmp32_ri(divisor, 0);
-	e_u8* cont3; xe_fwd_jcc8(Jcc_NotEqual, cont3);
+	uint8_t* cont3; xe_fwd_jcc8(Jcc_NotEqual, cont3);
 	//divide by zero
 	xe_mov32_rr(XE_DX, XE_AX);
 	if (sign) //set EAX to (EAX < 0)?1:-1
@@ -370,7 +370,7 @@ static void recDIVsuper(int info, int sign, int upper, int process)
 	}
 	else
 		xe_mov32_ri(XE_AX, 0xffffffff);
-	e_u8* end2; xe_fwd_jcc8(Jcc_Unconditional, end2);
+	uint8_t* end2; xe_fwd_jcc8(Jcc_Unconditional, end2);
 
 	xe_fwd_set8(cont3);
 	if (sign)

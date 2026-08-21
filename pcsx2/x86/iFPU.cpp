@@ -517,7 +517,7 @@ static void FPU_MUL(int regd, int regt, int reverseOperands)
 		xe_xor32_ri(XE_DX, 0x40490fdb);
 		xe_or32_rr(XE_DX, XE_CX);
 
-		e_u8* noHack; xe_fwd_jcc8(Jcc_NotZero, noHack);
+		uint8_t* noHack; xe_fwd_jcc8(Jcc_NotZero, noHack);
 			xe_movaps_xm(regd, result);
 			xe_fwd_jcc8(Jcc_Unconditional, endMul);
 		xe_fwd_set8(noHack);
@@ -703,7 +703,7 @@ void recBC1F(void)
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
 	const int swap = !!(TrySwapDelaySlot(0, 0, 0, 1));
 	_setupBranchTest();
-	{ e_u8* bslot_; xe_fwd_jcc32(Jcc_NotZero, bslot_); recDoBranchImm(branchTo, bslot_, 0, swap); }
+	{ uint8_t* bslot_; xe_fwd_jcc32(Jcc_NotZero, bslot_); recDoBranchImm(branchTo, bslot_, 0, swap); }
 }
 
 void recBC1T(void)
@@ -711,21 +711,21 @@ void recBC1T(void)
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
 	const int swap = !!(TrySwapDelaySlot(0, 0, 0, 1));
 	_setupBranchTest();
-	{ e_u8* bslot_; xe_fwd_jcc32(Jcc_Zero, bslot_); recDoBranchImm(branchTo, bslot_, 0, swap); }
+	{ uint8_t* bslot_; xe_fwd_jcc32(Jcc_Zero, bslot_); recDoBranchImm(branchTo, bslot_, 0, swap); }
 }
 
 void recBC1FL(void)
 {
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
 	_setupBranchTest();
-	{ e_u8* bslot_; xe_fwd_jcc32(Jcc_NotZero, bslot_); recDoBranchImm(branchTo, bslot_, 1, 0); }
+	{ uint8_t* bslot_; xe_fwd_jcc32(Jcc_NotZero, bslot_); recDoBranchImm(branchTo, bslot_, 1, 0); }
 }
 
 void recBC1TL(void)
 {
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
 	_setupBranchTest();
-	{ e_u8* bslot_; xe_fwd_jcc32(Jcc_Zero, bslot_); recDoBranchImm(branchTo, bslot_, 1, 0); }
+	{ uint8_t* bslot_; xe_fwd_jcc32(Jcc_Zero, bslot_); recDoBranchImm(branchTo, bslot_, 1, 0); }
 }
 //------------------------------------------------------------------
 
@@ -1032,7 +1032,7 @@ void recCVT_W(void)
 static void recDIVhelper1(int regd, int regt) // Sets flags
 {
 	u8 *pjmp1, *pjmp2;
-	e_u8 *ajmp32, *bjmp32;
+	uint8_t *ajmp32, *bjmp32;
 	const int t1reg = _allocTempXMMreg(XMMT_FPS);
 
 	xe_and32_mi(&fpuRegs.fprc[31], ~(FPUflagI | FPUflagD)); // Clear I and D flags
@@ -1704,7 +1704,7 @@ void recSQRT_S_xmm(int info)
 		/*--- Check for negative SQRT ---*/
 		xe_movmskps_rx(XE_AX, EEREC_D);
 		xe_and32_ri(XE_AX, 1); //Check sign
-		e_u8* pjmp; xe_fwd_jcc8(Jcc_Zero, pjmp); //Skip if none are
+		uint8_t* pjmp; xe_fwd_jcc8(Jcc_Zero, pjmp); //Skip if none are
 			xe_or32_mi(&fpuRegs.fprc[31], FPUflagI | FPUflagSI); // Set I and SI flags
 			xe_andps_xm(EEREC_D, &s_pos[0]); // Make EEREC_D Positive
 		xe_fwd_set8(pjmp);
@@ -1730,7 +1730,7 @@ FPURECOMPILE_CONSTCODE(SQRT_S, XMMINFO_WRITED | XMMINFO_READT);
 static void recRSQRThelper1(int regd, int t0reg) // Preforms the RSQRT function when regd <- Fs and t0reg <- Ft (Sets correct flags)
 {
 	u8 *pjmp1, *pjmp2;
-	e_u8* pjmp32;
+	uint8_t* pjmp32;
 	u8 *qjmp1, *qjmp2;
 	int t1reg = _allocTempXMMreg(XMMT_FPS);
 

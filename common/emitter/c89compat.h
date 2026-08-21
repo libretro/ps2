@@ -1,7 +1,7 @@
 /* c89compat.h -- the surviving C++-side pieces after the veneer cut.
  *
  * Under PCSX2_C89_EMITTER, x86emitter.h includes x86types.h, this header,
- * c89ops.h, and legacy_instructions.h -- NOT the reference emitter and NOT the
+ * c89ops.h -- NOT the reference emitter and NOT the
  * shim. This header carries the handful of names converted code still
  * spells the C++ way, each either pure metadata or emitting through the
  * C89 core:

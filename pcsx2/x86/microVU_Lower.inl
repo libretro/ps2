@@ -37,7 +37,7 @@ static __fi void testNeg(mV, int xmmReg, int gprTemp)
 {
 	xe_movmskps_rx(gprTemp, xmmReg);
 	xe_test32_ri(gprTemp, 1);
-	e_u8* skip; xe_fwd_jcc8(Jcc_Zero, skip);
+	uint8_t* skip; xe_fwd_jcc8(Jcc_Zero, skip);
 		xe_mov32_mi(&mVU->divFlag, divI);
 		xe_andps_xm(xmmReg, mVUglob.absclip);
 	xe_fwd_set8(skip);
@@ -55,12 +55,12 @@ mVUop(mVU_DIV)
 		const int t1 = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
 
 		testZero(Ft, t1, gprT1); // Test if Ft is zero
-		e_u8* cjmp; xe_fwd_jcc8(Jcc_Zero, cjmp); // Skip if not zero
+		uint8_t* cjmp; xe_fwd_jcc8(Jcc_Zero, cjmp); // Skip if not zero
 
 		testZero(Fs, t1, gprT1); // Test if Fs is zero
-		e_u8* ajmp; xe_fwd_jcc8(Jcc_Zero, ajmp);
+		uint8_t* ajmp; xe_fwd_jcc8(Jcc_Zero, ajmp);
 		xe_mov32_mi(&mVU->divFlag, divI); // Set invalid flag (0/0)
-		e_u8* bjmp; xe_fwd_jcc8(Jcc_Unconditional, bjmp);
+		uint8_t* bjmp; xe_fwd_jcc8(Jcc_Unconditional, bjmp);
 		xe_fwd_set8(ajmp);
 		xe_mov32_mi(&mVU->divFlag, divD); // Zero divide (only when not 0/0)
 		xe_fwd_set8(bjmp);
@@ -69,7 +69,7 @@ mVUop(mVU_DIV)
 		xe_andps_xm(Fs, mVUglob.signbit);
 		xe_orps_xm(Fs, mVUglob.maxvals); // If division by zero, then xmmFs = +/- fmax
 
-		e_u8* djmp; xe_fwd_jcc8(Jcc_Unconditional, djmp);
+		uint8_t* djmp; xe_fwd_jcc8(Jcc_Unconditional, djmp);
 
 		xe_fwd_set8(cjmp);
 
@@ -134,12 +134,12 @@ mVUop(mVU_RSQRT)
 
 		xe_sqrtss_xx(Ft, Ft);
 		testZero(Ft, t1, gprT1); // Test if Ft is zero
-		e_u8* ajmp; xe_fwd_jcc8(Jcc_Zero, ajmp); // Skip if not zero
+		uint8_t* ajmp; xe_fwd_jcc8(Jcc_Zero, ajmp); // Skip if not zero
 
 			testZero(Fs, t1, gprT1); // Test if Fs is zero
-			e_u8* bjmp; xe_fwd_jcc8(Jcc_Zero, bjmp); // Skip if none are
+			uint8_t* bjmp; xe_fwd_jcc8(Jcc_Zero, bjmp); // Skip if none are
 				xe_mov32_mi(&mVU->divFlag, divI); // Set invalid flag (0/0)
-				e_u8* cjmp; xe_fwd_jcc8(Jcc_Unconditional, cjmp);
+				uint8_t* cjmp; xe_fwd_jcc8(Jcc_Unconditional, cjmp);
 			xe_fwd_set8(bjmp);
 				xe_mov32_mi(&mVU->divFlag, divD); // Zero divide flag (only when not 0/0)
 			xe_fwd_set8(cjmp);
@@ -147,7 +147,7 @@ mVUop(mVU_RSQRT)
 			xe_andps_xm(Fs, mVUglob.signbit);
 			xe_orps_xm(Fs, mVUglob.maxvals); // xmmFs = +/-Max
 
-			e_u8* djmp; xe_fwd_jcc8(Jcc_Unconditional, djmp);
+			uint8_t* djmp; xe_fwd_jcc8(Jcc_Unconditional, djmp);
 		xe_fwd_set8(ajmp);
 			SSE_DIVSS(mVU, Fs, Ft);
 			mVUclamp1(mVU, Fs, t1, 8, 1);
@@ -1226,7 +1226,7 @@ mVUop(mVU_ISWR)
 					xe_lea64_m(gprT2q, (void*)((sptr)base + (offset))); \
 					register_offset = (offset); \
 				} \
-				{ struct e_mem xm; E_MEM(xm, gprT2q, is, 1, (e_sptr)((offset) - register_offset)); xe_mov32_memgr(xm, regT); } \
+				{ struct e_mem xm; E_MEM(xm, gprT2q, is, 1, (intptr_t)((offset) - register_offset)); xe_mov32_memgr(xm, regT); } \
 			} while (0)
 			if (_X) MVU_ISW_LANE(0);
 			if (_Y) MVU_ISW_LANE(4);
@@ -1243,10 +1243,10 @@ mVUop(mVU_ISWR)
 		}
 		else
 		{
-			if (_X) { struct e_mem xm; E_MEM(xm, E_NOREG, is, 1, (e_sptr)(uptr)base + 0); xe_mov32_memgr(xm, regT); }
-			if (_Y) { struct e_mem xm; E_MEM(xm, E_NOREG, is, 1, (e_sptr)(uptr)base + 4); xe_mov32_memgr(xm, regT); }
-			if (_Z) { struct e_mem xm; E_MEM(xm, E_NOREG, is, 1, (e_sptr)(uptr)base + 8); xe_mov32_memgr(xm, regT); }
-			if (_W) { struct e_mem xm; E_MEM(xm, E_NOREG, is, 1, (e_sptr)(uptr)base + 12); xe_mov32_memgr(xm, regT); }
+			if (_X) { struct e_mem xm; E_MEM(xm, E_NOREG, is, 1, (intptr_t)(uptr)base + 0); xe_mov32_memgr(xm, regT); }
+			if (_Y) { struct e_mem xm; E_MEM(xm, E_NOREG, is, 1, (intptr_t)(uptr)base + 4); xe_mov32_memgr(xm, regT); }
+			if (_Z) { struct e_mem xm; E_MEM(xm, E_NOREG, is, 1, (intptr_t)(uptr)base + 8); xe_mov32_memgr(xm, regT); }
+			if (_W) { struct e_mem xm; E_MEM(xm, E_NOREG, is, 1, (intptr_t)(uptr)base + 12); xe_mov32_memgr(xm, regT); }
 		}
 		mVUra_clearNeededGPR(mVU->regAlloc, regT);
 	}
@@ -1679,10 +1679,10 @@ static __fi void mVU_XGKICK_SYNC(mV, int flush)
 	// on the second instruction after the kick and that needs to go through first
 	// but that's VERY close..
 	xe_test32_mi(&vuRegs[1].xgkickenable, 0x1);
-	e_u8* skipxgkick; xe_fwd_jcc32(Jcc_Zero, skipxgkick);
+	uint8_t* skipxgkick; xe_fwd_jcc32(Jcc_Zero, skipxgkick);
 	xe_add32_mi(&vuRegs[1].xgkickcyclecount, mVUlow.kickcycles-1);
 	xe_cmp32_mi(&vuRegs[1].xgkickcyclecount, 2);
-	e_u8* needcycles; xe_fwd_jcc32(Jcc_Less, needcycles);
+	uint8_t* needcycles; xe_fwd_jcc32(Jcc_Less, needcycles);
 	mVUbackupRegs(mVU, 1, 1);
 	xe_fastcall1_i(_vuXGKICKTransfermVU, flush);
 	mVUrestoreRegs(mVU, 1, 1);
@@ -1789,7 +1789,7 @@ void condEvilBranch(mV, int JMPcc)
 		xe_mov32_mi(&mVU->badBranch, branchAddr(mVU));
 
 		xe_cmp8_ri(gprT1b, 0);
-		e_u8* cJMP; xe_fwd_jcc8((JccComparisonType)JMPcc, cJMP);
+		uint8_t* cJMP; xe_fwd_jcc8((JccComparisonType)JMPcc, cJMP);
 			incPC(4); // Branch Not Taken Addr
 			xe_mov32_mi(&mVU->badBranch, xPC);
 			incPC(-4);
@@ -1800,7 +1800,7 @@ void condEvilBranch(mV, int JMPcc)
 	{
 		xe_mov32_mi(&mVU->evilevilBranch, branchAddr(mVU));
 		xe_cmp8_ri(gprT1b, 0);
-		e_u8* cJMP; xe_fwd_jcc8((JccComparisonType)JMPcc, cJMP);
+		uint8_t* cJMP; xe_fwd_jcc8((JccComparisonType)JMPcc, cJMP);
 		xe_mov32_rm(gprT1, &mVU->evilBranch); // Branch Not Taken
 		xe_add32_ri(gprT1, 8); // We have already executed 1 instruction from the original branch
 		xe_mov32_mr(&mVU->evilevilBranch, gprT1);
@@ -1810,7 +1810,7 @@ void condEvilBranch(mV, int JMPcc)
 	{
 		xe_mov32_mi(&mVU->evilBranch, branchAddr(mVU));
 		xe_cmp8_ri(gprT1b, 0);
-		e_u8* cJMP; xe_fwd_jcc8((JccComparisonType)JMPcc, cJMP);
+		uint8_t* cJMP; xe_fwd_jcc8((JccComparisonType)JMPcc, cJMP);
 		xe_mov32_rm(gprT1, &mVU->badBranch); // Branch Not Taken
 		xe_add32_ri(gprT1, 8); // We have already executed 1 instruction from the original branch
 		xe_mov32_mr(&mVU->evilBranch, gprT1);
