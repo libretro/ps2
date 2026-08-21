@@ -201,8 +201,13 @@ bool IsoDirectory::IsFile(const std::string_view& filePath) const
 	if (filePath.empty())
 		return false;
 
+	/* The test used to read `if (fd.has_value()) return false;`, which
+	 * answered false for every file that existed and then fell through to
+	 * fd->flags for every file that did not -- operator-> on a disengaged
+	 * optional, so undefined behaviour on the miss path. Nothing calls this
+	 * function, which is why it has never been noticed. */
 	const std::optional<IsoFileDescriptor> fd(FindFile(filePath));
-	if (fd.has_value())
+	if (!fd.has_value())
 		return false;
 
 	return ((fd->flags & 2) != 2);
