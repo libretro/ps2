@@ -925,6 +925,33 @@ else
    LD = $(CXX)
 endif
 
+# Objects are built in the source tree, and nothing in their names records
+# which toolchain produced them. Building for a second architecture in the
+# same checkout therefore leaves the first one's objects behind, and the link
+# fails with "Relocations in generic ELF (EM: 183) -- file in wrong format",
+# which says nothing about the actual cause. The stamp below records the
+# toolchain; when it changes, the stale objects are removed first.
+#
+# The recipe runs on every build but only writes the file when the tag
+# differs, so incremental builds do not see a newer prerequisite and do not
+# rebuild.
+BUILD_TAG := $(CC)|$(CXX)|$(platform)|$(arch)|$(IS_ARM64)|$(IS_X86)
+
+.PHONY: FORCE
+FORCE:
+
+.build-tag: FORCE
+	@if [ ! -f $@ ] || [ "`cat $@`" != "$(BUILD_TAG)" ]; then \
+		if [ -f $@ ]; then \
+			echo "toolchain changed, removing objects from the previous build"; \
+			find . -name '*.o' -delete; \
+			find . -name '*.d' -delete; \
+		fi; \
+		echo "$(BUILD_TAG)" > $@; \
+	fi
+
+$(OBJECTS): .build-tag
+
 $(TARGET): $(OBJECTS)
 ifeq ($(STATIC_LINKING), 1)
 	$(AR) rcs $@ $(OBJECTS)
@@ -947,6 +974,6 @@ endif
 clean:
 	@find . -name '*.o' -delete
 	@find . -name '*.d' -delete
-	rm -f $(TARGET) $(TARGET_TMP)
+	rm -f $(TARGET) $(TARGET_TMP) .build-tag
 
 .PHONY: clean
