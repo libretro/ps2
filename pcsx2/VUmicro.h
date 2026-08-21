@@ -32,125 +32,47 @@ static const uint VU1_PROGMASK	= VU1_PROGSIZE-1;
 #define vu1RunCycles (3000000) // mVU1 uses this for inf loop detection on dev builds
 
 
-// --------------------------------------------------------------------------------------
-//  BaseVUmicroCPU
-// --------------------------------------------------------------------------------------
-// Layer class for possible future implementation (currently is nothing more than a type-safe
-// type define).
-//
-class BaseVUmicroCPU
+/* --------------------------------------------------------------------------
+ *  VU micro CPU provider
+ * --------------------------------------------------------------------------
+ * VU0 and VU1 each run either the interpreter or the recompiler. That was a
+ * class hierarchy with five virtuals; it is a struct of function pointers
+ * now, one static instance per (unit, provider) pair. Same indirect call at
+ * the dispatch point, minus the vtable indirection to find it -- and the
+ * unit index is baked into each provider's functions instead of being
+ * branched on at run time.
+ *
+ * ResumeXGkick is NULL for every provider except the VU1 recompiler; the
+ * call sites test it, which is what the empty virtual overrides did.
+ */
+struct VUmicroCpu
 {
-public:
-	int m_Idx = 0;
-
-	// this boolean indicates to some generic logging facilities if the VU's registers
-	// are valid for logging or not. (see DisVU1Micro.cpp, etc)  [kinda hacky, might
-	// be removed in the future]
-	bool	IsInterpreter;
-
-public:
-	BaseVUmicroCPU()
-	{
-		IsInterpreter = false;
-	}
-
-	virtual ~BaseVUmicroCPU() = default;
-
-	virtual void Shutdown()=0;
-	virtual void Reset()=0;
-	virtual void SetStartPC(u32 startPC)=0;
-	virtual void Execute(u32 cycles)=0;
-
-	virtual void Clear(u32 Addr, u32 Size)=0;
-
-	// Executes a Block based on EE delta time (see VUmicro.cpp)
-	void ExecuteBlock(bool startUp = 0);
-
-	// C++ Calling Conventions are unstable, and some compilers don't even allow us to take the
-	// address of C++ methods.  We need to use a wrapper function to invoke the ExecuteBlock from
-	// recompiled code.
-	static void ExecuteBlockJIT(BaseVUmicroCPU* cpu, bool interlocked);
-
-	// VU1 sometimes needs to break execution on XGkick Path1 transfers if
-	// there is another gif path 2/3 transfer already taking place.
-	// Use this method to resume execution of VU1.
-	virtual void ResumeXGkick() {}
+	int  idx;              /* 0 = VU0, 1 = VU1 */
+	int  is_interpreter;   /* logging facilities ask this */
+	void (*Shutdown)(void);
+	void (*Reset)(void);
+	void (*SetStartPC)(u32 startPC);
+	void (*Execute)(u32 cycles);
+	void (*Clear)(u32 addr, u32 size);
+	void (*ResumeXGkick)(void); /* NULL when the provider has none */
 };
 
-// --------------------------------------------------------------------------------------
-//  InterpVU0 / InterpVU1
-// --------------------------------------------------------------------------------------
-class InterpVU0 final : public BaseVUmicroCPU
-{
-public:
-	InterpVU0();
-	~InterpVU0() override { Shutdown(); }
+/* Executes a block based on EE delta time (see VUmicro.cpp). */
+void vucpu_execute_block(const struct VUmicroCpu* cpu, int startUp);
 
-	void Shutdown() override {}
-	void Reset() override;
+/* Called from recompiled code after a COP2 transfer; see VUmicro.cpp. */
+void vucpu_execute_block_jit(const struct VUmicroCpu* cpu, int interlocked);
 
-	void SetStartPC(u32 startPC) override;
-	void Execute(u32 cycles) override;
-	void Clear(u32 addr, u32 size) override {}
-};
+extern const struct VUmicroCpu vucpu_interp_vu0;
+extern const struct VUmicroCpu vucpu_interp_vu1;
+extern const struct VUmicroCpu vucpu_rec_vu0;
+extern const struct VUmicroCpu vucpu_rec_vu1;
 
-class InterpVU1 final : public BaseVUmicroCPU
-{
-public:
-	InterpVU1();
-	~InterpVU1() override { Shutdown(); }
+void vucpu_rec_vu0_reserve(void);
+void vucpu_rec_vu1_reserve(void);
 
-	void Shutdown() override {}
-	void Reset() override;
-
-	void SetStartPC(u32 startPC) override;
-	void Execute(u32 cycles) override;
-	void Clear(u32 addr, u32 size) override {}
-	void ResumeXGkick() override {}
-};
-
-// --------------------------------------------------------------------------------------
-//  recMicroVU0 / recMicroVU1
-// --------------------------------------------------------------------------------------
-class recMicroVU0 final : public BaseVUmicroCPU
-{
-public:
-	recMicroVU0();
-	~recMicroVU0() override { Shutdown(); }
-
-	void Reserve();
-	void Shutdown() override;
-
-	void Reset() override;
-	void SetStartPC(u32 startPC) override;
-	void Execute(u32 cycles) override;
-	void Clear(u32 addr, u32 size) override;
-};
-
-class recMicroVU1 final : public BaseVUmicroCPU
-{
-public:
-	recMicroVU1();
-	virtual ~recMicroVU1() { Shutdown(); }
-
-	void Reserve();
-	void Shutdown() override;
-	void Reset() override;
-	void SetStartPC(u32 startPC) override;
-	void Execute(u32 cycles) override;
-	void Clear(u32 addr, u32 size) override;
-	void ResumeXGkick() override;
-};
-
-extern InterpVU0 CpuIntVU0;
-extern InterpVU1 CpuIntVU1;
-
-
-extern recMicroVU0 CpuMicroVU0;
-extern recMicroVU1 CpuMicroVU1;
-
-extern BaseVUmicroCPU* CpuVU0;
-extern BaseVUmicroCPU* CpuVU1;
+extern const struct VUmicroCpu* CpuVU0;
+extern const struct VUmicroCpu* CpuVU1;
 
 
 // VU0

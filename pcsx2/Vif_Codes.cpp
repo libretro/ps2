@@ -59,7 +59,7 @@ __ri void vifExecQueue(int idx)
 	/*if (idx && !INSTANT_VU1)
 	{
 		vuRegs[1].cycle -= 256;
-		CpuVU1->ExecuteBlock(0);
+		vucpu_execute_block(CpuVU1, 0);
 	}*/
 }
 

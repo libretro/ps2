@@ -322,54 +322,50 @@ _mVUt __fi void* mVUsearchProg(u32 startPC, uptr pState)
 }
 
 //------------------------------------------------------------------
-// recMicroVU0 / recMicroVU1
+// VU0 / VU1 recompiler providers
 //------------------------------------------------------------------
 
-recMicroVU0 CpuMicroVU0;
-recMicroVU1 CpuMicroVU1;
 
-recMicroVU0::recMicroVU0() { m_Idx = 0; IsInterpreter = 0; }
-recMicroVU1::recMicroVU1() { m_Idx = 1; IsInterpreter = 0; }
 
-void recMicroVU0::Reserve()
+void vucpu_rec_vu0_reserve(void)
 {
 	mVUinit(&microVU0, 0);
 }
-void recMicroVU1::Reserve()
+void vucpu_rec_vu1_reserve(void)
 {
 	mVUinit(&microVU1, 1);
 	vu1Thread.Open();
 }
 
-void recMicroVU0::Shutdown()
+static void rec_vu0_shutdown(void)
 {
 	mVUclose(&microVU0);
 }
-void recMicroVU1::Shutdown()
+static void rec_vu1_shutdown(void)
 {
 	if (vu1Thread.IsOpen())
 		vu1Thread.WaitVU();
 	mVUclose(&microVU1);
 }
 
-void recMicroVU0::Reset()
+static void rec_vu0_reset(void)
 {
 	mVUreset(&microVU0, 1);
 }
 
-void recMicroVU1::Reset()
+static void rec_vu1_reset(void)
 {
 	vu1Thread.WaitVU();
 	vu1Thread.Get_MTVUChanges();
 	mVUreset(&microVU1, 1);
 }
 
-void recMicroVU0::SetStartPC(u32 startPC)
+static void rec_vu0_set_start_pc(u32 startPC)
 {
 	vuRegs[0].start_pc = startPC;
 }
 
-void recMicroVU0::Execute(u32 cycles)
+static void rec_vu0_execute(u32 cycles)
 {
 	vuRegs[0].flags &= ~VUFLAG_MFLAGSET;
 
@@ -386,12 +382,12 @@ void recMicroVU0::Execute(u32 cycles)
 	}
 }
 
-void recMicroVU1::SetStartPC(u32 startPC)
+static void rec_vu1_set_start_pc(u32 startPC)
 {
 	vuRegs[1].start_pc = startPC;
 }
 
-void recMicroVU1::Execute(u32 cycles)
+static void rec_vu1_execute(u32 cycles)
 {
 	if (!THREAD_VU1)
 	{
@@ -408,16 +404,16 @@ void recMicroVU1::Execute(u32 cycles)
 	}
 }
 
-void recMicroVU0::Clear(u32 addr, u32 size)
+static void rec_vu0_clear(u32 addr, u32 size)
 {
 	mVUclear(&microVU0, addr, size);
 }
-void recMicroVU1::Clear(u32 addr, u32 size)
+static void rec_vu1_clear(u32 addr, u32 size)
 {
 	mVUclear(&microVU1, addr, size);
 }
 
-void recMicroVU1::ResumeXGkick()
+static void rec_vu1_resume_xgkick(void)
 {
 	if (!(vuRegs[0].VI[REG_VPU_STAT].UL & 0x100))
 		return;
@@ -434,3 +430,17 @@ bool SaveStateBase::vuJITFreeze()
 
 	return IsOkay();
 }
+
+const struct VUmicroCpu vucpu_rec_vu0 =
+{
+	0, 0,
+	rec_vu0_shutdown, rec_vu0_reset, rec_vu0_set_start_pc,
+	rec_vu0_execute,  rec_vu0_clear, NULL
+};
+
+const struct VUmicroCpu vucpu_rec_vu1 =
+{
+	1, 0,
+	rec_vu1_shutdown, rec_vu1_reset, rec_vu1_set_start_pc,
+	rec_vu1_execute,  rec_vu1_clear, rec_vu1_resume_xgkick
+};

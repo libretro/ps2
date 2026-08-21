@@ -74,7 +74,7 @@ void vu1ExecMicro(u32 addr)
 
 	CpuVU1->SetStartPC(vuRegs[1].VI[REG_TPC].UL << 3);
 	if(!INSTANT_VU1)
-		CpuVU1->ExecuteBlock(1);
+		vucpu_execute_block(CpuVU1, 1);
 	else
 		CpuVU1->Execute(vu1RunCycles);
 }

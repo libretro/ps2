@@ -360,7 +360,7 @@ static void COP2_Interlock(int mBitSync)
 				uint8_t* skip; xe_fwd_jcc32(Jcc_Less, skip);
 				xe_lea_far(XE_ARG1, CpuVU0);
 				xe_mov64_ri(XE_ARG2, s_nBlockInterlocked);
-				xe_fastcall2_rr(BaseVUmicroCPU::ExecuteBlockJIT, XE_ARG1, XE_ARG2);
+				xe_fastcall2_rr(vucpu_execute_block_jit, XE_ARG1, XE_ARG2);
 				xe_fwd_set32(skip);
 
 				xe_fastcall0(_vu0WaitMicro);
@@ -389,7 +389,7 @@ static void mVUSyncVU0(void)
 	uint8_t* skip; xe_fwd_jcc32(Jcc_Less, skip);
 	xe_lea_far(XE_ARG1, CpuVU0);
 	xe_mov64_ri(XE_ARG2, s_nBlockInterlocked);
-	xe_fastcall2_rr(BaseVUmicroCPU::ExecuteBlockJIT, XE_ARG1, XE_ARG2);
+	xe_fastcall2_rr(vucpu_execute_block_jit, XE_ARG1, XE_ARG2);
 	xe_fwd_set32(skip);
 	xe_fwd_set32(skipvuidle);
 }

@@ -188,7 +188,7 @@ void VU_Thread::ExecuteRingBuffer(void)
 					// worker-side set would STICK, the game would wait forever for
 					// VU1 idle, and kicks stop after a handful of programs (C.28-3:
 					// GT3 FMV black again, 4 progs then stall).
-					if (CpuVU1 != &CpuMicroVU1)
+					if (CpuVU1 != &vucpu_rec_vu1)
 						vuRegs[0].VI[REG_VPU_STAT].UL |= 0x0100;
 					CpuVU1->Execute(vu1RunCycles);
 					gifUnit.gifPath[GIF_PATH_1].FinishGSPacketMTVU();

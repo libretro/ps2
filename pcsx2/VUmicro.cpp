@@ -19,8 +19,8 @@
 #include "GS.h"
 #include "Gif_Unit.h"
 
-BaseVUmicroCPU* CpuVU0 = nullptr;
-BaseVUmicroCPU* CpuVU1 = nullptr;
+const struct VUmicroCpu* CpuVU0 = NULL;
+const struct VUmicroCpu* CpuVU1 = NULL;
 
 __inline u32 CalculateMinRunCycles(u32 cycles, bool requiresAccurateCycles)
 {
@@ -36,12 +36,12 @@ __inline u32 CalculateMinRunCycles(u32 cycles, bool requiresAccurateCycles)
 }
 
 // Executes a Block based on EE delta time
-void BaseVUmicroCPU::ExecuteBlock(bool startUp)
+void vucpu_execute_block(const struct VUmicroCpu* cpu, int startUp)
 {
 	const u32& stat = vuRegs[0].VI[REG_VPU_STAT].UL;
-	const int test  = m_Idx ? 0x100 : 1;
+	const int test  = cpu->idx ? 0x100 : 1;
 
-	if (m_Idx && THREAD_VU1)
+	if (cpu->idx && THREAD_VU1)
 	{
 		vu1Thread.Get_MTVUChanges();
 		return;
@@ -52,15 +52,15 @@ void BaseVUmicroCPU::ExecuteBlock(bool startUp)
 
 	if (startUp)
 	{
-		Execute(16U);
+		cpu->Execute(16U);
 	}
 	else // Continue Executing
 	{
-		u64 cycle = m_Idx ? vuRegs[1].cycle : vuRegs[0].cycle;
+		u64 cycle = cpu->idx ? vuRegs[1].cycle : vuRegs[0].cycle;
 		s32 delta = (s32)(u32)(cpuRegs.cycle - cycle);
 
 		if (delta > 0)
-			Execute(std::max(16, delta));
+			cpu->Execute((delta > 16 ? (u32)delta : 16u));
 	}
 }
 
@@ -68,7 +68,7 @@ void BaseVUmicroCPU::ExecuteBlock(bool startUp)
 // EE data to VU0's registers. We want to run VU0 Micro right after this
 // to ensure that the register is used at the correct time.
 // This fixes spinning/hanging in some games like Ratchet and Clank's Intro.
-void BaseVUmicroCPU::ExecuteBlockJIT(BaseVUmicroCPU* cpu, bool interlocked)
+void vucpu_execute_block_jit(const struct VUmicroCpu* cpu, int interlocked)
 {
 	const u32& stat = vuRegs[0].VI[REG_VPU_STAT].UL;
 	constexpr int test = 1;

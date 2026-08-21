@@ -221,15 +221,7 @@ void vu1Exec(VURegs* VU)
 	_vu1Exec(VU);
 }
 
-InterpVU1 CpuIntVU1;
-
-InterpVU1::InterpVU1()
-{
-	m_Idx = 1;
-	IsInterpreter = true;
-}
-
-void InterpVU1::Reset()
+static void interp_vu1_reset(void)
 {
 	vuRegs[1].fmacwritepos = 0;
 	vuRegs[1].fmacreadpos = 0;
@@ -239,12 +231,12 @@ void InterpVU1::Reset()
 	vuRegs[1].ialucount = 0;
 }
 
-void InterpVU1::SetStartPC(u32 startPC)
+static void interp_vu1_set_start_pc(u32 startPC)
 {
 	vuRegs[1].start_pc = startPC;
 }
 
-void InterpVU1::Execute(u32 cycles)
+static void interp_vu1_execute(u32 cycles)
 {
 	const FPControlRegisterBackup fpcr_backup(EmuConfig.Cpu.VU1FPCR);
 
@@ -268,3 +260,18 @@ void InterpVU1::Execute(u32 cycles)
 	vuRegs[1].VI[REG_TPC].UL >>= 3;
 	vuRegs[1].nextBlockCycles = (vuRegs[1].cycle - cpuRegs.cycle) + 1;
 }
+
+static void interp_vu1_shutdown(void) {}
+static void interp_vu1_clear(u32 addr, u32 size) { (void)addr; (void)size; }
+
+const struct VUmicroCpu vucpu_interp_vu1 =
+{
+	1,                          /* idx */
+	1,                          /* is_interpreter */
+	interp_vu1_shutdown,
+	interp_vu1_reset,
+	interp_vu1_set_start_pc,
+	interp_vu1_execute,
+	interp_vu1_clear,
+	NULL                        /* ResumeXGkick */
+};

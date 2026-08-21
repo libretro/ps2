@@ -83,7 +83,7 @@ __fi void _vu0run(bool breakOnMbit, bool addCycles, bool sync_only) {
 	if (addCycles)
 	{
 		cpuRegs.cycle += (vuRegs[0].cycle - startcycle);
-		CpuVU1->ExecuteBlock(0); // Catch up VU1 as it's likely fallen behind
+		vucpu_execute_block(CpuVU1, 0); // Catch up VU1 as it's likely fallen behind
 
 		if (vuRegs[0].VI[REG_VPU_STAT].UL & 1)
 		{

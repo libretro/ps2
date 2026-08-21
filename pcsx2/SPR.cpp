@@ -34,7 +34,7 @@ static void TestClearVUs(u32 madr, u32 qwc, bool isWrite)
 		{
 			_vu0FinishMicro();
 			//Catch up VU1 too
-			CpuVU1->ExecuteBlock(0);
+			vucpu_execute_block(CpuVU1, 0);
 		}
 		if ((madr >= 0x11008000) && (vuRegs[0].VI[REG_VPU_STAT].UL & 0x100) && (!THREAD_VU1 || !isWrite))
 		{
@@ -44,7 +44,7 @@ static void TestClearVUs(u32 madr, u32 qwc, bool isWrite)
 				CpuVU1->Execute(vu1RunCycles);
 			cpuRegs.cycle = vuRegs[1].cycle;
 			//Catch up VU0 too
-			CpuVU0->ExecuteBlock(0);
+			vucpu_execute_block(CpuVU0, 0);
 		}
 
 		if (isWrite)
