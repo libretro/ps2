@@ -13,6 +13,7 @@
 *  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <compat/strl.h>
 #include <encodings/rlz4.h>
 
 #include "../../common/Pcsx2Types.h"
@@ -129,11 +130,11 @@ bool CsoFileReader::ValidateHeader(const CsoHeader& hdr)
 	return true;
 }
 
-bool CsoFileReader::Open2(std::string fileName)
+bool CsoFileReader::Open2(const char* fileName)
 {
 	Close2();
-	m_filename = std::move(fileName);
-	m_src = FileSystem::OpenFile(m_filename.c_str(), "rb");
+	strlcpy(m_filename, fileName, sizeof(m_filename));
+	m_src = FileSystem::OpenFile(m_filename, "rb");
 
 	bool success = false;
 	if (m_src && ReadFileHeader() && InitializeBuffers())
@@ -226,7 +227,7 @@ bool CsoFileReader::InitializeBuffers()
 
 void CsoFileReader::Close2()
 {
-	m_filename.clear();
+	m_filename[0] = '\0';
 
 	if (m_src)
 	{

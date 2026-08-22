@@ -4,6 +4,7 @@
  *  SPDX-License-Identifier: LGPL-3.0+
  */
 
+#include <compat/strl.h>
 #include "ChdFileReader.h"
 
 #include "../../common/Console.h"
@@ -171,16 +172,16 @@ bool ChdFileReader::OpenOne(const std::string& path, rchd_t** out_chd, Source* o
 	return true;
 }
 
-bool ChdFileReader::Open2(std::string fileName)
+bool ChdFileReader::Open2(const char* fileName)
 {
 	Close2();
-	m_filename = std::move(fileName);
+	strlcpy(m_filename, fileName, sizeof(m_filename));
 
 	rchd_t* chd = nullptr;
 	Source src;
 	if (!OpenOne(m_filename, &chd, &src))
 	{
-		Console.Error("CDVD: failed to open CHD: %s", m_filename.c_str());
+		Console.Error("CDVD: failed to open CHD: %s", m_filename);
 		return false;
 	}
 	m_chds.push_back(chd);
@@ -232,7 +233,7 @@ bool ChdFileReader::Open2(std::string fileName)
 
 		if (!found)
 		{
-			Console.Error("CDVD: no parent found for: %s", m_filename.c_str());
+			Console.Error("CDVD: no parent found for: %s", m_filename);
 			Close2();
 			return false;
 		}

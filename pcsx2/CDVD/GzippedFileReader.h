@@ -28,7 +28,7 @@ public:
 	GzippedFileReader();
 	~GzippedFileReader();
 
-	bool Open2(std::string filename) override;
+	bool Open2(const char* filename) override;
 
 	Chunk ChunkForOffset(u64 offset) override;
 	int ReadChunk(void* dst, s64 chunkID) override;

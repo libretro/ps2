@@ -30,7 +30,7 @@ public:
 	u32 GetBlockCount() const override;
 
 protected:
-	bool Open2(std::string fileName) override;
+	bool Open2(const char* fileName) override;
 	Chunk ChunkForOffset(u64 offset) override;
 	int ReadChunk(void* dst, s64 chunkID) override;
 	void Close2() override;

@@ -20,6 +20,8 @@
 
 #include "../../common/Pcsx2Defs.h"
 
+#include <retro_miscellaneous.h>
+
 #include <string>
 
 /// A file reader for use with compressed formats
@@ -31,7 +33,10 @@ class ThreadedFileReader
 {
 	ThreadedFileReader(ThreadedFileReader&&) = delete;
 protected:
-	std::string m_filename;
+	/* Fixed buffer rather than std::string: a path has a bound, the
+	 * libretro path API this tree already uses works on char*, and the
+	 * member was only ever read back through c_str(). */
+	char m_filename[PATH_MAX_LENGTH];
 
 	u32 m_dataoffset = 0;
 	u32 m_blocksize = 2048;
@@ -54,7 +59,7 @@ protected:
 	/// Synchronously read the given block into `dst`
 	virtual int ReadChunk(void* dst, s64 chunkID) = 0;
 	/// AsyncFileReader open but ThreadedFileReader needs prep work first
-	virtual bool Open2(std::string filename) = 0;
+	virtual bool Open2(const char* filename) = 0;
 	/// AsyncFileReader close but ThreadedFileReader needs prep work first
 	virtual void Close2() = 0;
 
@@ -109,7 +114,7 @@ public:
 
 	virtual u32 GetBlockCount() const = 0;
 
-	bool Open(std::string filename);
+	bool Open(const char* filename);
 	int ReadSync(void* pBuffer, u32 sector, u32 count);
 	void BeginRead(void* pBuffer, u32 sector, u32 count);
 	int FinishRead();

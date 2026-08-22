@@ -15,6 +15,8 @@
 
 #pragma once
 
+#include <retro_miscellaneous.h>
+
 #include "CDVD.h"
 #include "ThreadedFileReader.h"
 #include <memory>
@@ -39,7 +41,7 @@ class InputIsoFile
 	DeclareNoncopyableObject(InputIsoFile);
 
 protected:
-	std::string m_filename;
+	char m_filename[PATH_MAX_LENGTH];
 	/* Owned raw pointer rather than unique_ptr: the lifetime is two
 	 * explicit points -- created in Open, destroyed in Close, which Open
 	 * also calls first -- so the smart pointer expressed nothing the code
@@ -72,7 +74,7 @@ public:
 	uint GetBlockCount() const { return m_blocks; }
 	int GetBlockOffset() const { return m_blockofs; }
 
-	bool Open(std::string srcfile);
+	bool Open(const char* srcfile);
 	void Close();
 	bool Detect(void);
 

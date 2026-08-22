@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2002-2024 PCSX2 Dev Team
 // SPDX-License-Identifier: LGPL-3.0+
 
+#include <compat/strl.h>
 #include "FlatFileReader.h"
 
 #include "../../common/Console.h"
@@ -20,16 +21,16 @@ FlatFileReader::~FlatFileReader()
 	Close2();
 }
 
-bool FlatFileReader::Open2(std::string filename)
+bool FlatFileReader::Open2(const char* filename)
 {
-	m_filename = std::move(filename);
+	strlcpy(m_filename, filename, sizeof(m_filename));
 	/* FREQUENT_ACCESS invites the local VFS to memory-map: an ISO is
 	   read sector-by-sector for the whole session.  A mapping turns
 	   every read into a page-cache memcpy on the calling thread and
 	   lets the base class skip its worker thread and staging buffers
 	   entirely; without one, the threaded chunk path below runs
 	   exactly as before. */
-	m_file = filestream_open(m_filename.c_str(),
+	m_file = filestream_open(m_filename,
 			RETRO_VFS_FILE_ACCESS_READ,
 			RETRO_VFS_FILE_ACCESS_HINT_FREQUENT_ACCESS);
 	if (!m_file)
@@ -45,7 +46,7 @@ bool FlatFileReader::Open2(std::string filename)
 		 * one line to say so rather than leaving the whole disc open
 		 * as a silent false. */
 		Console.Error("CDVD: cannot determine size of %s (VFS reported %lld) - image unreadable",
-				m_filename.c_str(), static_cast<long long>(filesize));
+				m_filename, static_cast<long long>(filesize));
 		Close2();
 		return false;
 	}

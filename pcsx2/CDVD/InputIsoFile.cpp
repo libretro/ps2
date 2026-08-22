@@ -13,6 +13,7 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <compat/strl.h>
 #include "../../common/Path.h"
 #include "../../common/StringUtil.h"
 
@@ -182,12 +183,12 @@ void InputIsoFile::_init()
 	m_reader = NULL;
 }
 
-bool InputIsoFile::Open(std::string srcfile)
+bool InputIsoFile::Open(const char* srcfile)
 {
 	Close();
-	m_filename = std::move(srcfile);
+	strlcpy(m_filename, srcfile, sizeof(m_filename));
 
-	m_reader = GetFileReader(m_filename.c_str());
+	m_reader = GetFileReader(m_filename);
 	if (!m_reader->Open(m_filename))
 		return false;
 

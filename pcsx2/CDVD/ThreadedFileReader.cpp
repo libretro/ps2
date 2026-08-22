@@ -210,11 +210,11 @@ bool ThreadedFileReader::TryCachedRead(void*& buffer, u64& offset, u32& size)
 	return allDone;
 }
 
-bool ThreadedFileReader::Open(std::string filename)
+bool ThreadedFileReader::Open(const char* filename)
 {
-	m_direct     = nullptr;
+	m_direct     = NULL;
 	m_directSize = 0;
-	return Open2(std::move(filename));
+	return Open2(filename);
 }
 
 int ThreadedFileReader::ReadSync(void* pBuffer, u32 sector, u32 count)

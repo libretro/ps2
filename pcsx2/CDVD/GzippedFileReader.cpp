@@ -13,6 +13,7 @@
 *  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <compat/strl.h>
 #include "../../common/Console.h"
 #include "../../common/FileSystem.h"
 #include "../../common/Path.h"
@@ -199,12 +200,12 @@ bool GzippedFileReader::LoadOrCreateIndex()
 	return true;
 }
 
-bool GzippedFileReader::Open2(std::string filename)
+bool GzippedFileReader::Open2(const char* filename)
 {
 	Close();
 
-	m_filename = std::move(filename);
-	if (!(m_src = FileSystem::OpenFile(m_filename.c_str(), "rb")) || !LoadOrCreateIndex())
+	strlcpy(m_filename, filename, sizeof(m_filename));
+	if (!(m_src = FileSystem::OpenFile(m_filename, "rb")) || !LoadOrCreateIndex())
 	{
 		Close();
 		return false;
