@@ -233,7 +233,7 @@ extern u32 sioConvertPortAndSlotToPad(u32 port, u32 slot);
 /// Returns true if the given pad index is a multitap slot.
 extern bool sioPadIsMultitapSlot(u32 index);
 extern bool sioPortAndSlotIsMultitap(u32 port, u32 slot);
-extern void sioSetGameSerial(const std::string& serial);
+extern void sioSetGameSerial(const char* serial);
 
 namespace AutoEject
 {

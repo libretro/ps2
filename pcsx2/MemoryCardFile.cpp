@@ -662,4 +662,4 @@ u64 FileMcd_GetCRC(uint port, uint slot)
 	return 0;
 }
 
-bool FileMcd_ReIndex(uint port, uint slot, const std::string& filter) { return false; }
+bool FileMcd_ReIndex(uint port, uint slot, const char* filter) { return false; }

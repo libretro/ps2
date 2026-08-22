@@ -78,28 +78,30 @@
 // Example for romver 0160EC20010704
 // 20010704-160707,ROMconf,PS20160EC20010704.bin,kuma@rom-server/~/f10k/g/app/rom
 // 20010704-160707 can be used as unique ID for Bios
-static std::string SysGetBiosDiscID(void)
+static void SysGetBiosDiscID(char* out, size_t out_size)
 {
-	if (BiosSerial[0])
-		return BiosSerial;
-	return {};
+	strlcpy(out, BiosSerial, out_size);
 }
 
 // This function always returns a valid DiscID -- using the Sony serial when possible, and
 // falling back on the CRC checksum of the ELF binary if the PS2 software being run is
 // homebrew or some other serial-less item.
-static std::string SysGetDiscID(void)
+static void SysGetDiscID(char* out, size_t out_size)
 {
 	if (DiscSerial[0])
-		return DiscSerial;
+	{
+		strlcpy(out, DiscSerial, out_size);
+		return;
+	}
 
 	if (!ElfCRC)
 	{
-		// system is currently running the BIOS
-		return SysGetBiosDiscID();
+		/* system is currently running the BIOS */
+		SysGetBiosDiscID(out, out_size);
+		return;
 	}
 
-	return StringUtil::StdStringFromFormat("%08x", ElfCRC);
+	snprintf(out, out_size, "%08x", ElfCRC);
 }
 
 namespace VMManager
@@ -139,7 +141,7 @@ static Threading::RecursiveMutex s_info_mutex;
 static std::string s_disc_path;
 static u32 s_game_crc;
 static u32 s_patches_crc;
-static std::string s_game_serial;
+static char s_game_serial[64];
 static std::string s_elf_override;
 static u32 s_active_game_fixes = 0;
 static std::vector<u8> s_widescreen_cheats_data;
@@ -178,7 +180,7 @@ bool VMManager::HasValidVM()
 	return (state >= VMState::Running && state <= VMState::Resetting);
 }
 
-std::string VMManager::GetDiscSerial()
+const char* VMManager::GetDiscSerial()
 {
 	Threading::ScopedRecursiveLock lock(s_info_mutex);
 	return s_game_serial;
@@ -459,14 +461,19 @@ void VMManager::UpdateRunningGame(bool resetting, bool game_starting, bool swapp
 	// settings as if the game is already running (title, loadeding patches, etc).
 	const bool ingame      = (ElfCRC && (g_GameLoading || g_GameStarted));
 	u32 new_crc            = ingame ? ElfCRC : 0;
-	std::string new_serial = ingame ? SysGetDiscID() : SysGetBiosDiscID();
+	char new_serial[64];
 
-	if (!resetting && s_game_crc == new_crc && s_game_serial == new_serial)
+	if (ingame)
+		SysGetDiscID(new_serial, sizeof(new_serial));
+	else
+		SysGetBiosDiscID(new_serial, sizeof(new_serial));
+
+	if (!resetting && s_game_crc == new_crc && !strcmp(s_game_serial, new_serial))
 		return;
 
 	{
 		Threading::ScopedRecursiveLock lock(s_info_mutex);
-		s_game_serial = std::move(new_serial);
+		strlcpy(s_game_serial, new_serial, sizeof(s_game_serial));
 		s_game_crc    = new_crc;
 
 		std::string memcardFilters;
@@ -479,7 +486,7 @@ void VMManager::UpdateRunningGame(bool resetting, bool game_starting, bool swapp
 		{
 		}
 
-		sioSetGameSerial(memcardFilters.empty() ? s_game_serial : memcardFilters);
+		sioSetGameSerial(memcardFilters.empty() ? s_game_serial : memcardFilters.c_str());
 
 		// If we don't reset the timer here, when using folder memcards the reindex will cause an eject,
 		// which a bunch of games don't like since they access the memory card on boot.
@@ -745,7 +752,7 @@ void VMManager::Shutdown()
 		s_elf_override.clear();
 		s_game_crc = 0;
 		s_patches_crc = 0;
-		s_game_serial.clear();
+		s_game_serial[0] = '\0';
 		Host::OnGameChanged(s_disc_path, s_elf_override, s_game_serial, 0);
 	}
 	s_active_game_fixes = 0;
@@ -1026,7 +1033,11 @@ void VMManager::Internal::EntryPointCompilingOnCPUThread()
 	// until the game entry point actually runs, because that can update settings, which
 	// can flush the JIT, etc. But we need to apply patches for games where the entry
 	// point is in the patch (e.g. WRC 4). So. Gross, but the only way to handle it really.
-	LoadPatches(SysGetDiscID(), ElfCRC);
+	{
+		char serial[64];
+		SysGetDiscID(serial, sizeof(serial));
+		LoadPatches(serial, ElfCRC);
+	}
 	for (i = 0; static_cast<size_t>(i) < Patch.size(); i++)
 	{
 		int _place = Patch[i].placetopatch;
@@ -1155,7 +1166,7 @@ void VMManager::CheckForMemoryCardConfigChanges(const Pcsx2Config& old_config)
 		if (sioSerial.empty())
 			sioSerial = s_game_serial;
 	}
-	sioSetGameSerial(sioSerial);
+	sioSetGameSerial(sioSerial.c_str());
 }
 
 void VMManager::CheckForConfigChanges(const Pcsx2Config& old_config)

@@ -677,7 +677,7 @@ u8 Sio2::Read()
 	return ret;
 }
 
-void sioSetGameSerial( const std::string& serial )
+void sioSetGameSerial( const char* serial )
 {
 	for ( uint port = 0; port < 2; ++port )
 	{

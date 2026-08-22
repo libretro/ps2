@@ -59,7 +59,7 @@ namespace VMManager
 	bool MtvuHardwareAllowed();
 
 	/// Returns the serial of the disc/executable currently running.
-	std::string GetDiscSerial();
+	const char* GetDiscSerial();
 
 	/// Loads global settings (i.e. EmuConfig).
 	void LoadSettings();
