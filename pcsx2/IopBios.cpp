@@ -16,6 +16,9 @@
 #include <ctype.h>
 #include <string.h>
 #include <compat/strl.h>
+#include <retro_miscellaneous.h>
+#include <file/file_path.h>
+#include <compat/strl.h>
 #include <sys/stat.h>
 
 #include <fcntl.h>
@@ -89,17 +92,102 @@ typedef struct
 	uint32_t unknown;
 } fxio_dirent_t;
 
-static std::string hostRoot;
+static char hostRoot[PATH_MAX_LENGTH];
+
+/* Lexical canonicalise: a port of Path::Canonicalize, checked against it
+ * in tests/path/canon_test.c over that table and 200,000 generated paths. */
+static void iop_canonicalize(char *s)
+{
+	char       *comps[128];
+	int         ncomp   = 0;
+	int         total   = 0;
+	char       *r       = s;
+	char       *w;
+	int         i;
+	char       *starts[128];
+	int         nstart  = 0;
+
+	/* Split exactly as SplitNativePath does, including the empty leading
+	 * component for an absolute path. */
+	{
+		size_t start = 0, pos = 0;
+		const size_t len = strlen(s);
+
+		while (pos < len)
+		{
+			if (s[pos] != '/')
+			{
+				pos++;
+				continue;
+			}
+			if (pos != start || pos == 0)
+			{
+				s[pos] = '\0';
+				if (nstart < 128)
+					starts[nstart++] = s + start;
+			}
+			pos++;
+			start = pos;
+		}
+		if (start != pos && nstart < 128)
+			starts[nstart++] = s + start;
+	}
+	total = nstart;
+
+	for (i = 0; i < total; i++)
+	{
+		char *c = starts[i];
+
+		if (!strcmp(c, "."))
+		{
+			if (total == 1)
+				comps[ncomp++] = c;
+			continue;
+		}
+		if (!strcmp(c, ".."))
+		{
+			if (ncomp > 0)
+				ncomp--;
+			else if (ncomp < 128)
+				comps[ncomp++] = c;
+			continue;
+		}
+		if (ncomp < 128)
+			comps[ncomp++] = c;
+	}
+
+	w = s;
+	for (i = 0; i < ncomp; i++)
+	{
+		const size_t len = strlen(comps[i]);
+
+		if (i)
+			*w++ = '/';
+		memmove(w, comps[i], len);
+		w += len;
+	}
+	*w = '\0';
+}
+
+
 
 void Hle_SetElfPath(const char* elfFileName)
 {
-	hostRoot = Path::ToNativePath(Path::GetDirectory(elfFileName));
-	Console.WriteLn("HLE Host: Set 'host:' root path to: %s\n", hostRoot.c_str());
+	strlcpy(hostRoot, elfFileName, sizeof(hostRoot));
+	path_basedir(hostRoot);
+	/* path_basedir leaves a trailing separator; the sandbox comparison
+	 * below expects the root without one. */
+	{
+		const size_t n = strlen(hostRoot);
+		if (n > 1 && hostRoot[n - 1] == FS_OSPATH_SEPARATOR_CHARACTER)
+			hostRoot[n - 1] = '\0';
+	}
+	Console.WriteLn("HLE Host: Set 'host:' root path to: %s\n", hostRoot);
 }
 
 void Hle_ClearElfPath()
 {
-	hostRoot = {};
+	hostRoot[0] = '\0';
 }
 
 namespace R3000A
@@ -114,8 +202,11 @@ namespace R3000A
 #define ra (psxRegs.GPR.n.ra)
 #define pc (psxRegs.pc)
 
-#define Ra0 (iopMemReadString(a0))
-#define Ra1 (iopMemReadString(a1))
+/* Guest strings into caller buffers. iopMemReadString returns a
+ * std::string and every consumer here read it back as characters; the
+ * buffer form already existed in IopMem and simply was not used. */
+#define Ra0_BUF(buf) iopMemReadStringBuf((buf), (int)sizeof(buf), a0, 65536)
+#define Ra1_BUF(buf) iopMemReadStringBuf((buf), (int)sizeof(buf), a1, 65536)
 #define Ra2 (iopMemReadString(a2))
 #define Ra3 (iopMemReadString(a3))
 
@@ -159,56 +250,94 @@ namespace R3000A
 		0x1000,
 	};
 
-	static std::string host_path(const std::string& path, bool allow_open_host_root)
+	/* Resolve a guest path under hostRoot, or yield an empty string if it
+	 * escapes. Writes into the caller's buffer; no allocation. */
+	static void host_path(char* out, size_t out_size, const char* path, int allow_open_host_root)
 	{
-		// We are NOT allowing to use the root of the host unit.
-		// For now it just supports relative folders from the location of the elf
-		std::string native_path(Path::Canonicalize(path));
-		std::string new_path;
-		if (!hostRoot.empty() && StringUtil::StartsWith(native_path, hostRoot))
-			new_path = std::move(native_path);
-		else if (!hostRoot.empty()) // relative paths
-			new_path = Path::Combine(hostRoot, native_path);
+		char   native[PATH_MAX_LENGTH];
+		char   canonical[PATH_MAX_LENGTH];
+		size_t root_len;
 
-		// Double-check that it falls within the directory of the elf.
-		// Not a real sandbox, but emulators shouldn't be treated as such. Don't run untrusted code!
-		std::string canonicalized_path(Path::Canonicalize(new_path));
+		out[0] = '\0';
+		strlcpy(native, path, sizeof(native));
+		iop_canonicalize(native);
 
-		// Are we opening the root of host? (i.e. `host:.` or `host:`)
-		// We want to allow this as a directory open, but not as a file open.
-		if (!allow_open_host_root || canonicalized_path != hostRoot)
+		root_len = strlen(hostRoot);
+		if (root_len == 0)
+			return;
+
+		if (!strncmp(native, hostRoot, root_len))
+			strlcpy(out, native, out_size);
+		else
 		{
-			// Only allow descendants of the hostfs directory.
-			if (canonicalized_path.length() <= hostRoot.length() || // Length has to be equal or longer,
-				!StringUtil::StartsWith(canonicalized_path, hostRoot) || // and start with the host root,
-				canonicalized_path[hostRoot.length()] != FS_OSPATH_SEPARATOR_CHARACTER) // and we can't access a sibling.
+			/* Join as Path::Combine does: no trailing separator on the
+			 * base, no leading one on the next component, exactly one
+			 * between them. A plain concat produced "root//path" whenever
+			 * the guest path was absolute, and "root/" for an empty one. */
+			size_t n = root_len;
+			const char* tail = native;
+
+			while (n > 0 && hostRoot[n - 1] == FS_OSPATH_SEPARATOR_CHARACTER)
+				n--;
+			while (*tail == FS_OSPATH_SEPARATOR_CHARACTER)
+				tail++;
+
+			if (n >= out_size)
+				n = out_size - 1;
+			memcpy(out, hostRoot, n);
+			out[n] = '\0';
+			if (*tail)
 			{
-				Console.Error(
-					"IopHLE: Denying access to path outside of ELF directory. Requested path: '{%s}', Resolved path: '{%s}', ELF directory: '{%s}'",
-					path.c_str(), new_path.c_str(), hostRoot.c_str());
-				new_path.clear();
+				strlcat(out, "/", out_size);
+				strlcat(out, tail, out_size);
 			}
 		}
 
-		return new_path;
+		/* Double-check that it falls within the directory of the elf.
+		 * Not a real sandbox, but emulators shouldn't be treated as such.
+		 * Don't run untrusted code! */
+		strlcpy(canonical, out, sizeof(canonical));
+		iop_canonicalize(canonical);
+
+		/* Opening the root of host (`host:.` or `host:`) is allowed as a
+		 * directory open but not as a file open. */
+		if (!allow_open_host_root || strcmp(canonical, hostRoot))
+		{
+			if (   strlen(canonical) <= root_len
+			    || strncmp(canonical, hostRoot, root_len)
+			    || canonical[root_len] != FS_OSPATH_SEPARATOR_CHARACTER)
+			{
+				Console.Error(
+					"IopHLE: Denying access to path outside of ELF directory. Requested path: '{%s}', Resolved path: '{%s}', ELF directory: '{%s}'",
+					path, out, hostRoot);
+				out[0] = '\0';
+			}
+		}
 	}
 
 	// This is a workaround for GHS on *NIX platforms
 	// Whenever a program splits directories with a backslash (ulaunchelf)
 	// the directory is considered non-existant
-	static __fi std::string clean_path(const std::string path)
+	static __fi void clean_path(char* out, size_t out_size, const char* path)
 	{
-		std::string ret = path;
-		std::replace(ret.begin(), ret.end(), '\\', '/');
-		return ret;
+		char* p;
+
+		strlcpy(out, path, out_size);
+		for (p = out; *p; p++)
+		{
+			if (*p == '\\')
+				*p = '/';
+		}
 	}
 
-	static int host_stat(const std::string path, fio_stat_t* host_stats, fio_stat_flags& stat = ioman_stat)
+	static int host_stat(const char* path, fio_stat_t* host_stats, fio_stat_flags& stat = ioman_stat)
 	{
 		struct stat file_stats;
-		const std::string file_path(host_path(path, true));
+		char file_path[PATH_MAX_LENGTH];
 
-		if (!FileSystem::StatFile(file_path.c_str(), &file_stats))
+		host_path(file_path, sizeof(file_path), path, 1);
+
+		if (!FileSystem::StatFile(file_path, &file_stats))
 			return -IOP_ENOENT;
 
 		host_stats->size = (uint32_t)file_stats.st_size;
@@ -256,7 +385,7 @@ namespace R3000A
 		return 0;
 	}
 
-	static int host_stat(const std::string path, fxio_stat_t* host_stats)
+	static int host_stat(const char* path, fxio_stat_t* host_stats)
 	{
 		return host_stat(path, &host_stats->_fioStat, iomanx_stat);
 	}
@@ -280,10 +409,12 @@ namespace R3000A
 		 * The frontend can then serve these paths itself -- on Android a
 		 * content:// URI is not something open(2) can take at all -- and
 		 * this was the last raw POSIX file path left in the core. */
-		static int open(HostFile** file, const std::string& full_path, s32 flags, u16 mode)
+		static int open(HostFile** file, const char* full_path, s32 flags, u16 mode)
 		{
-			const std::string path(full_path.substr(full_path.find(':') + 1));
-			const std::string file_path(host_path(path, false));
+			const char* colon = strchr(full_path, ':');
+			char file_path[PATH_MAX_LENGTH];
+
+			host_path(file_path, sizeof(file_path), colon ? colon + 1 : full_path, 0);
 			unsigned vfs_mode;
 			RFILE* fp;
 
@@ -311,7 +442,7 @@ namespace R3000A
 			/* IOP_O_CREAT is implied by a writable VFS open; a read-only
 			 * open of a missing file fails below either way. */
 
-			fp = filestream_open(file_path.c_str(), vfs_mode,
+			fp = filestream_open(file_path, vfs_mode,
 					RETRO_VFS_FILE_ACCESS_HINT_NONE);
 			if (!fp)
 				return -IOP_ENOENT;
@@ -375,29 +506,31 @@ namespace R3000A
 	public:
 		FileSystem::FindResultsArray results;
 		FileSystem::FindResultsArray::iterator dir;
-		std::string basedir;
+		char basedir[PATH_MAX_LENGTH];
 
-		HostDir(FileSystem::FindResultsArray results_, std::string basedir_)
+		HostDir(FileSystem::FindResultsArray results_, const char* basedir_)
 			: results(std::move(results_))
-			, basedir(std::move(basedir_))
 		{
+			strlcpy(basedir, basedir_, sizeof(basedir));
 			dir = results.begin();
 		}
 
 		~HostDir() = default;
 
-		static int open(HostDir** dir, const std::string& full_path)
+		static int open(HostDir** dir, const char* full_path)
 		{
-			std::string relativePath = full_path.substr(full_path.find(':') + 1);
-			std::string path = host_path(relativePath, true);
+			const char* colon = strchr(full_path, ':');
+			char path[PATH_MAX_LENGTH];
 
-			if (!path_is_directory(path.c_str()))
+			host_path(path, sizeof(path), colon ? colon + 1 : full_path, 1);
+
+			if (!path_is_directory(path))
 				return -IOP_ENOENT; // Should return ENOTDIR if path is a file?
 			
 			FileSystem::FindResultsArray results;
-			FileSystem::FindFiles(path.c_str(), "*", FILESYSTEM_FIND_FILES | FILESYSTEM_FIND_FOLDERS | FILESYSTEM_FIND_RELATIVE_PATHS | FILESYSTEM_FIND_HIDDEN_FILES, &results);
+			FileSystem::FindFiles(path, "*", FILESYSTEM_FIND_FILES | FILESYSTEM_FIND_FOLDERS | FILESYSTEM_FIND_RELATIVE_PATHS | FILESYSTEM_FIND_HIDDEN_FILES, &results);
 
-			*dir = new HostDir(std::move(results), std::move(path));
+			*dir = new HostDir(std::move(results), path);
 			if (!*dir)
 				return -IOP_ENOMEM;
 
@@ -413,13 +546,21 @@ namespace R3000A
 			{
 				fxio_dirent_t* hostcontent = (fxio_dirent_t*)buf;
 				strlcpy(hostcontent->name, dir->FileName.c_str(), sizeof(hostcontent->name));
-				host_stat(host_path(Path::Combine(basedir, dir->FileName), true), &hostcontent->stat);
+				{
+					char joined[PATH_MAX_LENGTH];
+					snprintf(joined, sizeof(joined), "%s/%s", basedir, dir->FileName.c_str());
+					host_stat(joined, &hostcontent->stat);
+				}
 			}
 			else
 			{
 				fio_dirent_t* hostcontent = (fio_dirent_t*)buf;
 				strlcpy(hostcontent->name, dir->FileName.c_str(), sizeof(hostcontent->name));
-				host_stat(host_path(Path::Combine(basedir, dir->FileName), true), &hostcontent->stat);
+				{
+					char joined[PATH_MAX_LENGTH];
+					snprintf(joined, sizeof(joined), "%s/%s", basedir, dir->FileName.c_str());
+					host_stat(joined, &hostcontent->stat);
+				}
 			}
 
 			dir = std::next(dir);
@@ -547,19 +688,30 @@ namespace R3000A
 			}
 		}
 
-		bool is_host(const std::string path)
+		/* "host:", or "host0:" through "host9...:" -- the digits between
+		 * the name and the colon are a unit number and are ignored. */
+		static int is_host(const char* path)
 		{
-			auto not_number_pos = path.find_first_not_of("0123456789", 4);
-			if (not_number_pos == std::string::npos)
-				return false;
+			size_t i;
 
-			return ((!g_GameStarted || EmuConfig.HostFs) && 0 == path.compare(0, 4, "host") && path[not_number_pos] == ':');
+			if (strncmp(path, "host", 4))
+				return 0;
+
+			for (i = 4; path[i] >= '0' && path[i] <= '9'; i++)
+				;
+			if (path[i] != ':')
+				return 0;
+
+			return (!g_GameStarted || EmuConfig.HostFs);
 		}
 
 		int open_HLE()
 		{
 			HostFile* file = NULL;
-			const std::string path = clean_path(Ra0);
+			char path_raw[PATH_MAX_LENGTH];
+			char path[PATH_MAX_LENGTH];
+			Ra0_BUF(path_raw);
+			clean_path(path, sizeof(path), path_raw);
 			s32 flags = a1;
 			u16 mode = a2;
 
@@ -614,7 +766,10 @@ namespace R3000A
 		int dopen_HLE()
 		{
 			HostDir* dir = NULL;
-			const std::string path = clean_path(Ra0);
+			char path_raw[PATH_MAX_LENGTH];
+			char path[PATH_MAX_LENGTH];
+			Ra0_BUF(path_raw);
+			clean_path(path, sizeof(path), path_raw);
 
 			if (is_host(path))
 			{
@@ -704,12 +859,18 @@ namespace R3000A
 
 		int _getStat_HLE(bool iomanx)
 		{
-			const std::string path = clean_path(Ra0);
+			char path_raw[PATH_MAX_LENGTH];
+			char path[PATH_MAX_LENGTH];
+			Ra0_BUF(path_raw);
+			clean_path(path, sizeof(path), path_raw);
 			u32 data = a1;
 
 			if (is_host(path))
 			{
-				const std::string full_path = host_path(path.substr(path.find(':') + 1), true);
+				const char* colon = strchr(path, ':');
+				char full_path[PATH_MAX_LENGTH];
+
+				host_path(full_path, sizeof(full_path), colon ? colon + 1 : path, 1);
 				if (iomanx)
 				{
 					char buf[sizeof(fxio_stat_t)];
@@ -761,15 +922,20 @@ namespace R3000A
 
 		int remove_HLE()
 		{
-			const std::string full_path = clean_path(Ra0);
+			char full_path_raw[PATH_MAX_LENGTH];
+			char full_path[PATH_MAX_LENGTH];
+			Ra0_BUF(full_path_raw);
+			clean_path(full_path, sizeof(full_path), full_path_raw);
 
 			if (is_host(full_path))
 			{
-				const std::string path = full_path.substr(full_path.find(':') + 1);
-				const std::string file_path(host_path(path, false));
-				const bool succeeded = FileSystem::DeleteFilePath(file_path.c_str());
+				const char* colon = strchr(full_path, ':');
+				char file_path[PATH_MAX_LENGTH];
+
+				host_path(file_path, sizeof(file_path), colon ? colon + 1 : full_path, 0);
+				const bool succeeded = FileSystem::DeleteFilePath(file_path);
 				if (!succeeded)
-					Console.Warning("IOPHLE remove_HLE failed for '%s'", file_path.c_str());
+					Console.Warning("IOPHLE remove_HLE failed for '%s'", file_path);
 				v0 = succeeded ? 0 : -IOP_EIO;
 				pc = ra;
 			}
@@ -778,15 +944,20 @@ namespace R3000A
 
 		int mkdir_HLE()
 		{
-			const std::string full_path = clean_path(Ra0);
+			char full_path_raw[PATH_MAX_LENGTH];
+			char full_path[PATH_MAX_LENGTH];
+			Ra0_BUF(full_path_raw);
+			clean_path(full_path, sizeof(full_path), full_path_raw);
 
 			if (is_host(full_path))
 			{
-				const std::string path = full_path.substr(full_path.find(':') + 1);
-				const std::string folder_path(host_path(path, false)); // NOTE: Don't allow creating the ELF directory.
-				const bool succeeded = path_mkdir(folder_path.c_str());
+				const char* colon = strchr(full_path, ':');
+				char folder_path[PATH_MAX_LENGTH];
+
+				host_path(folder_path, sizeof(folder_path), colon ? colon + 1 : full_path, 0); // NOTE: Don't allow creating the ELF directory.
+				const bool succeeded = path_mkdir(folder_path);
 				if (!succeeded)
-					Console.Warning("IOPHLE mkdir_HLE failed for '%s'", folder_path.c_str());
+					Console.Warning("IOPHLE mkdir_HLE failed for '%s'", folder_path);
 				v0 = succeeded ? 0 : -IOP_EIO;
 				pc = ra;
 				return 1;
@@ -819,15 +990,20 @@ namespace R3000A
 
 		int rmdir_HLE()
 		{
-			const std::string full_path = clean_path(Ra0);
+			char full_path_raw[PATH_MAX_LENGTH];
+			char full_path[PATH_MAX_LENGTH];
+			Ra0_BUF(full_path_raw);
+			clean_path(full_path, sizeof(full_path), full_path_raw);
 
 			if (is_host(full_path))
 			{
-				const std::string path = full_path.substr(full_path.find(':') + 1);
-				const std::string folder_path(host_path(path, false)); // NOTE: Don't allow removing the elf directory itself.
-				const bool succeeded = FileSystem::DeleteDirectory(folder_path.c_str());
+				const char* colon = strchr(full_path, ':');
+				char folder_path[PATH_MAX_LENGTH];
+
+				host_path(folder_path, sizeof(folder_path), colon ? colon + 1 : full_path, 0); // NOTE: Don't allow removing the elf directory itself.
+				const bool succeeded = FileSystem::DeleteDirectory(folder_path);
 				if (!succeeded)
-					Console.Warning("IOPHLE rmdir_HLE failed for '%s'", folder_path.c_str());
+					Console.Warning("IOPHLE rmdir_HLE failed for '%s'", folder_path);
 				v0 = succeeded ? 0 : -IOP_EIO;
 				pc = ra;
 				return 1;
@@ -844,7 +1020,8 @@ namespace R3000A
 
 			if (fd == 1) // stdout
 			{
-				const std::string s = Ra1;
+				char s[PATH_MAX_LENGTH];
+				Ra1_BUF(s);
 				pc = ra;
 				v0 = a2;
 				return 1;
