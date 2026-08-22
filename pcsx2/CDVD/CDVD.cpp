@@ -14,6 +14,7 @@
  */
 
 #include <compat/strl.h>
+#include <file/file_path.h>
 #include <retro_miscellaneous.h>
 #include <ctype.h>
 #include <string.h>
@@ -180,18 +181,26 @@ static void cdvdCreateNewNVM(void)
 	memcpy(&s_nvram[nvmLayout->config1 + 0x10], biosLangDefaults[BiosRegion], 16);
 }
 
-static std::string cdvdGetNVRAMPath(void)
+
+/* BIOS path with the extension swapped, into a caller buffer. Replaces
+ * three Path::ReplaceExtension(BiosPath, ...) calls, each of which
+ * allocated a std::string to be read straight back as a C string. */
+static void cdvdBiosSiblingPath(char* out, size_t out_size, const char* ext)
 {
-	return Path::ReplaceExtension(BiosPath, "nvm");
+	strlcpy(out, BiosPath.c_str(), out_size);
+	path_remove_extension(out);
+	strlcat(out, ".", out_size);
+	strlcat(out, ext, out_size);
 }
 
 void cdvdLoadNVRAM(void)
 {
-	std::string nvmfile = Path::ReplaceExtension(BiosPath, "nvm");
-	RFILE *fp = FileSystem::OpenFile(nvmfile.c_str(), "rb");
+	char nvmfile[PATH_MAX_LENGTH];
+	cdvdBiosSiblingPath(nvmfile, sizeof(nvmfile), "nvm");
+	RFILE *fp = FileSystem::OpenFile(nvmfile, "rb");
 	if (!fp || rfread(s_nvram, sizeof(s_nvram), 1, fp) != 1)
 	{
-		Console.Warning("Failed to open or read NVRAM: %s", nvmfile.c_str());
+		Console.Warning("Failed to open or read NVRAM: %s", nvmfile);
 		cdvdCreateNewNVM();
 	}
 	else
@@ -200,7 +209,7 @@ void cdvdLoadNVRAM(void)
 		const NVMLayout* nvmLayout = getNvmLayout();
 		constexpr u8 zero[16] = {0};
 
-		Console.WriteLn("Reading NVRAM file: %s", nvmfile.c_str());
+		Console.WriteLn("Reading NVRAM file: %s", nvmfile);
 
 		if (memcmp(&s_nvram[nvmLayout->config1 + 0x10], zero, 16) == 0 ||
 			(((BiosVersion >> 8) == 2) && ((BiosVersion & 0xff) != 10) &&
@@ -217,17 +226,18 @@ void cdvdLoadNVRAM(void)
 	if (fp)
 		filestream_close(fp);
 
-	std::string mecfile = Path::ReplaceExtension(BiosPath, "mec");
-	fp = FileSystem::OpenFile(mecfile.c_str(), "rb");
+	char mecfile[PATH_MAX_LENGTH];
+	cdvdBiosSiblingPath(mecfile, sizeof(mecfile), "mec");
+	fp = FileSystem::OpenFile(mecfile, "rb");
 	if (!fp || rfread(&s_mecha_version, sizeof(s_mecha_version), 1, fp) != 1)
 	{
 		s_mecha_version = DEFAULT_MECHA_VERSION;
-		Console.Error("Failed to open or read MEC file at %s, creating default.", mecfile.c_str());
+		Console.Error("Failed to open or read MEC file at %s, creating default.", mecfile);
 		/* Same again: the read may have failed on an open handle, and
 		 * the reopen below would drop it. */
 		if (fp)
 			filestream_close(fp);
-		fp = FileSystem::OpenFile(mecfile.c_str(), "w+b");
+		fp = FileSystem::OpenFile(mecfile, "w+b");
 		if (!fp || rfwrite(&s_mecha_version, sizeof(s_mecha_version), 1, fp) != 1)
 			Console.Error("Failed to write MEC file. Check your BIOS setup/permission settings.");
 	}
@@ -237,11 +247,12 @@ void cdvdLoadNVRAM(void)
 
 void cdvdSaveNVRAM(void)
 {
-	std::string nvmfile = Path::ReplaceExtension(BiosPath, "nvm");
-	RFILE *fp = FileSystem::OpenFile(nvmfile.c_str(), "w+b");
+	char nvmfile[PATH_MAX_LENGTH];
+	cdvdBiosSiblingPath(nvmfile, sizeof(nvmfile), "nvm");
+	RFILE *fp = FileSystem::OpenFile(nvmfile, "w+b");
 	if (!fp)
 	{
-		Console.Error("Failed to open NVRAM for updating: %s...", nvmfile.c_str());
+		Console.Error("Failed to open NVRAM for updating: %s...", nvmfile);
 		return;
 	}
 
@@ -257,11 +268,11 @@ void cdvdSaveNVRAM(void)
 	if (FileSystem::FSeek64(fp, 0, SEEK_SET) == 0 &&
 		rfwrite(s_nvram, NVRAM_SIZE, 1, fp) == 1)
 	{
-		Console.WriteLn("NVRAM saved to %s.", nvmfile.c_str());
+		Console.WriteLn("NVRAM saved to %s.", nvmfile);
 	}
 	else
 	{
-		Console.Error("Failed to save NVRAM to %s", nvmfile.c_str());
+		Console.Error("Failed to save NVRAM to %s", nvmfile);
 	}
 	filestream_close(fp);
 }
