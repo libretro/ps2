@@ -25,7 +25,7 @@
 #include "IsoFileFormats.h"
 #include "../Config.h"
 
-static std::unique_ptr<ThreadedFileReader> GetFileReader(const char *path)
+static ThreadedFileReader* GetFileReader(const char *path)
 {
 	const char *extension = path_get_extension(path);
 	size_t ext_length     = strlen(extension);
@@ -33,20 +33,20 @@ static std::unique_ptr<ThreadedFileReader> GetFileReader(const char *path)
 	if (ext_length == 3)
 	{
 		if (Strncasecmp(extension, "chd", 3) == 0)
-			return std::make_unique<ChdFileReader>();
+			return new ChdFileReader();
 
 		if (       (Strncasecmp(extension, "cso", 3) == 0) 
 			|| (Strncasecmp(extension, "zso", 3) == 0))
-			return std::make_unique<CsoFileReader>();
+			return new CsoFileReader();
 	}
 	else if (ext_length == 2)
 	{
 		if (Strncasecmp(extension, "gz", 2) == 0)
-			return std::make_unique<GzippedFileReader>();
+			return new GzippedFileReader();
 	}
 
 
-	return std::make_unique<FlatFileReader>();
+	return new FlatFileReader();
 }
 
 int InputIsoFile::ReadSync(u8* dst, uint lsn)
@@ -174,7 +174,12 @@ void InputIsoFile::_init()
 	m_current_lsn = -1;
 	m_read_lsn = -1;
 
-	m_reader.reset();
+	/* _init runs from the constructor as well as from Close, so the
+	 * member is initialised at its declaration -- deleting an
+	 * uninitialised pointer here is exactly what unique_ptr's default
+	 * null was quietly preventing. */
+	delete m_reader;
+	m_reader = NULL;
 }
 
 bool InputIsoFile::Open(std::string srcfile)
@@ -202,7 +207,8 @@ void InputIsoFile::Close()
 	if (m_reader)
 	{
 		m_reader->Close();
-		m_reader.reset();
+		delete m_reader;
+	m_reader = NULL;
 	}
 
 	_init();

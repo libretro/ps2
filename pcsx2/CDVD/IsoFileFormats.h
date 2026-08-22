@@ -40,7 +40,11 @@ class InputIsoFile
 
 protected:
 	std::string m_filename;
-	std::unique_ptr<ThreadedFileReader> m_reader;
+	/* Owned raw pointer rather than unique_ptr: the lifetime is two
+	 * explicit points -- created in Open, destroyed in Close, which Open
+	 * also calls first -- so the smart pointer expressed nothing the code
+	 * was not already saying. */
+	ThreadedFileReader* m_reader = NULL;
 
 	u32 m_current_lsn;
 
