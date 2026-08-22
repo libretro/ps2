@@ -97,7 +97,7 @@ void cpuReset()
 	AllowParams2 = !g_SkipBiosHack;
 
 	ElfCRC = 0;
-	DiscSerial.clear();
+	DiscSerial[0] = '\0';
 	ElfEntry = -1;
 	g_GameStarted = false;
 	g_GameLoading = false;

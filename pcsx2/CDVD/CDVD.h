@@ -172,4 +172,4 @@ extern s32 cdvdCtrlTrayOpen(void);
 extern s32 cdvdCtrlTrayClose(void);
 int GetPS2ElfName( std::string& name );
 
-extern std::string DiscSerial;
+extern char DiscSerial[];

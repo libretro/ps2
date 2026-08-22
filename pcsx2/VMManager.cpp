@@ -90,7 +90,7 @@ static std::string SysGetBiosDiscID(void)
 // homebrew or some other serial-less item.
 static std::string SysGetDiscID(void)
 {
-	if (!DiscSerial.empty())
+	if (DiscSerial[0])
 		return DiscSerial;
 
 	if (!ElfCRC)
@@ -736,7 +736,7 @@ void VMManager::Shutdown()
 
 	{
 		LastELF.clear();
-		DiscSerial.clear();
+		DiscSerial[0] = '\0';
 		ElfCRC = 0;
 		ElfEntry = 0;
 

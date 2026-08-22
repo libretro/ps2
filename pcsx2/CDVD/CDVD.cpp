@@ -13,6 +13,10 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <compat/strl.h>
+#include <retro_miscellaneous.h>
+#include <ctype.h>
+#include <string.h>
 #include <cstring> /* memset */
 
 #include "../R3000A.h"
@@ -50,7 +54,8 @@ extern MemorySettingsInterface s_settings_interface;
 //  (examples:  SLUS-2113, etc).
 // If the disc is homebrew then it probably won't have a valid serial; in which case
 // this string will be empty.
-std::string DiscSerial;
+/* Bounded: the format is four letters, a separator, five digits. */
+char DiscSerial[PATH_MAX_LENGTH];
 
 cdvdStruct cdvd;
 
@@ -435,59 +440,62 @@ static __fi void _reloadElfInfo(std::string elfpath)
 	// binary).
 }
 
-static std::string ExecutablePathToSerial(const std::string& path)
+/* cdrom:\SCES_123.45;1 -> SCES-12345, in place, no allocation.
+ *
+ * The rules are unchanged: take the text after the last backslash, or
+ * failing that after the last colon, or the whole path; drop the version
+ * suffix from ';'; require it to match one of the two expected shapes;
+ * then remove the dot, turn '_' into '-', and upper-case the rest. An
+ * input that does not match yields an empty string, as before. */
+static void ExecutablePathToSerial(char* out, size_t out_size, const char* path)
 {
-	// cdrom:\SCES_123.45;1
-	std::string::size_type pos = path.rfind('\\');
-	std::string serial;
-	if (pos != std::string::npos)
-		serial = path.substr(pos + 1);
-	else
+	const char* start;
+	const char* sep;
+	char*       semi;
+	char*       r;
+	char*       w;
+
+	out[0] = '\0';
+	if (!path)
+		return;
+
+	sep   = strrchr(path, '\\');
+	start = sep ? sep + 1 : NULL;
+	if (!start)
 	{
-		// cdrom:SCES_123.45;1
-		pos = path.rfind(':');
-		if (pos != std::string::npos)
-			serial = path.substr(pos + 1);
-		else
-			serial = path;
+		sep   = strrchr(path, ':');
+		start = sep ? sep + 1 : path;
+	}
+	strlcpy(out, start, out_size);
+
+	semi = strchr(out, ';');
+	if (semi)
+		*semi = '\0';
+
+	if (   !StringUtil::WildcardMatch(out, "????_???.??*")
+	    && !StringUtil::WildcardMatch(out, "????" "-???.??*")) /* split: trigraph */
+	{
+		out[0] = '\0';
+		return;
 	}
 
-	// strip off ; or version number
-	pos = serial.rfind(';');
-	if (pos != std::string::npos)
-		serial.erase(pos);
-
-	// check that it matches our expected format.
-	// this maintains the old behavior of PCSX2.
-	if (!StringUtil::WildcardMatch(serial.c_str(), "????_???.??*") &&
-		!StringUtil::WildcardMatch(serial.c_str(), "????""-???.??*")) // double quote because trigraphs
-		serial.clear();
-
-	// SCES_123.45 -> SCES-12345
-	for (std::string::size_type pos = 0; pos < serial.size();)
+	for (r = out, w = out; *r; r++)
 	{
-		if (serial[pos] == '.')
-		{
-			serial.erase(pos, 1);
-			continue;
-		}
-
-		if (serial[pos] == '_')
-			serial[pos] = '-';
+		if (*r == '.')
+			continue;              /* SCES_123.45 -> SCES_12345 */
+		if (*r == '_')
+			*w++ = '-';
 		else
-			serial[pos] = static_cast<char>(std::toupper(serial[pos]));
-
-		pos++;
+			*w++ = (char)toupper((unsigned char)*r);
 	}
-
-	return serial;
+	*w = '\0';
 }
 
 void cdvdReloadElfInfo(std::string elfoverride)
 {
 	std::string elfpath;
 	const u32 disc_type = GetPS2ElfName(elfpath);
-	DiscSerial   = ExecutablePathToSerial(elfpath);
+	ExecutablePathToSerial(DiscSerial, sizeof(DiscSerial), elfpath.c_str());
 
 	// Use the serial from the disc (if any), and the ELF CRC of the override.
 	if (!elfoverride.empty())
@@ -521,7 +529,7 @@ static void cdvdReadKey(u8, u16, u32 arg2, u8* key)
 	// clear key values
 	memset(key, 0, 16);
 
-	if (!DiscSerial.empty())
+	if (DiscSerial[0])
 	{
 		// convert the number characters to a real 32 bit number
 		numbers = StringUtil::FromChars<s32>(std::string_view(DiscSerial).substr(5, 5)).value_or(0);
