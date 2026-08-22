@@ -316,15 +316,15 @@ static D3D12ShaderCache::CacheIndexKey D3D12ShaderCache_GetShaderCacheKey(D3D12S
 		XXH3_128bits_reset(&state);
 		for (const D3D_SHADER_MACRO* macro = macros; macro->Name != nullptr; macro++)
 		{
-			XXH3_128bits_update(&state, macro->Name, std::strlen(macro->Name));
-			XXH3_128bits_update(&state, macro->Definition, std::strlen(macro->Definition));
+			XXH3_128bits_update(&state, macro->Name, strlen(macro->Name));
+			XXH3_128bits_update(&state, macro->Definition, strlen(macro->Definition));
 		}
 		h = XXH3_128bits_digest(&state);
 		key.macro_hash_low = h.low64;
 		key.macro_hash_high = h.high64;
 	}
 
-	h = XXH3_128bits(entry_point, std::strlen(entry_point));
+	h = XXH3_128bits(entry_point, strlen(entry_point));
 	key.entry_point_low = h.low64;
 	key.entry_point_high = h.high64;
 
@@ -373,7 +373,7 @@ D3D12ShaderCache::CacheIndexKey D3D12ShaderCache::GetPipelineCacheKey(const D3D1
 	for (u32 i = 0; i < gpdesc.InputLayout.NumElements; i++)
 	{
 		const D3D12_INPUT_ELEMENT_DESC& ie = gpdesc.InputLayout.pInputElementDescs[i];
-		XXH3_128bits_update(&state, ie.SemanticName, std::strlen(ie.SemanticName));
+		XXH3_128bits_update(&state, ie.SemanticName, strlen(ie.SemanticName));
 		XXH3_128bits_update(&state, &ie.SemanticIndex, sizeof(ie.SemanticIndex));
 		XXH3_128bits_update(&state, &ie.Format, sizeof(ie.Format));
 		XXH3_128bits_update(&state, &ie.InputSlot, sizeof(ie.InputSlot));

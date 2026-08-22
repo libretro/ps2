@@ -319,7 +319,7 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 				available_extension_list.end())
 			{
 				if (std::none_of(extension_list->begin(), extension_list->end(),
-						[name](const char* existing_name) { return (std::strcmp(existing_name, name) == 0); }))
+						[name](const char* existing_name) { return (strcmp(existing_name, name) == 0); }))
 				{
 					Console.WriteLn("Enabling extension: %s", name);
 					extension_list->push_back(name);
@@ -613,7 +613,7 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 			};
 
 			VkDescriptorPoolCreateInfo pool_create_info = {VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO, nullptr, 0,
-				MAX_DESCRIPTOR_SETS_PER_FRAME, static_cast<u32>(std::size(pool_sizes)), pool_sizes};
+				MAX_DESCRIPTOR_SETS_PER_FRAME, static_cast<u32>(C89_ARRAY_SIZE(pool_sizes)), pool_sizes};
 
 			res = vkCreateDescriptorPool(m_device, &pool_create_info, nullptr, &resources.descriptor_pool);
 			if (res != VK_SUCCESS)
@@ -673,7 +673,7 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 								nullptr,
 								VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
 								1024, // TODO: tweak this
-								static_cast<u32>(std::size(pool_sizes)), pool_sizes};
+								static_cast<u32>(C89_ARRAY_SIZE(pool_sizes)), pool_sizes};
 
 		VkResult res = vkCreateDescriptorPool(vk_init_info.device, &pool_create_info, nullptr, &m_global_descriptor_pool);
 		if (res != VK_SUCCESS)
@@ -1882,7 +1882,7 @@ void GSDeviceVK::DrawStretchRect(const GSVector4& sRect, const GSVector4& dRect,
 		{GSVector4(left, bottom, 0.5f, 1.0f), GSVector2(sRect.x, sRect.w)},
 		{GSVector4(right, bottom, 0.5f, 1.0f), GSVector2(sRect.z, sRect.w)},
 	};
-	IASetVertexBuffer(vertices, sizeof(vertices[0]), std::size(vertices));
+	IASetVertexBuffer(vertices, sizeof(vertices[0]), C89_ARRAY_SIZE(vertices));
 
 	if (ApplyUtilityState())
 		DrawPrimitive();
@@ -3949,7 +3949,7 @@ GSTextureVK* GSDeviceVK::SetupPrimitiveTrackingDATE(GSHWDrawConfig& config)
 	};
 	const VkPipeline pipeline = m_date_image_setup_pipelines[ds][static_cast<u8>(config.datm)];
 	SetPipeline(pipeline);
-	IASetVertexBuffer(vertices, sizeof(vertices[0]), std::size(vertices));
+	IASetVertexBuffer(vertices, sizeof(vertices[0]), C89_ARRAY_SIZE(vertices));
 	if (ApplyUtilityState())
 		DrawPrimitive();
 

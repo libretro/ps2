@@ -138,10 +138,10 @@ bool GSDevice11::Create()
 
 	ShaderMacro sm_model(m_shader_cache.GetFeatureLevel());
 
-	if (!m_shader_cache.GetVertexShaderAndInputLayout(m_dev.get(), m_convert.vs.put(), m_convert.il.put(), il_convert, std::size(il_convert), convert_fx_shader_raw, sm_model.GetPtr(), "vs_main"))
+	if (!m_shader_cache.GetVertexShaderAndInputLayout(m_dev.get(), m_convert.vs.put(), m_convert.il.put(), il_convert, C89_ARRAY_SIZE(il_convert), convert_fx_shader_raw, sm_model.GetPtr(), "vs_main"))
 		return false;
 
-	for (size_t i = 0; i < std::size(m_convert.ps); i++)
+	for (size_t i = 0; i < C89_ARRAY_SIZE(m_convert.ps); i++)
 	{
 		m_convert.ps[i] = m_shader_cache.GetPixelShader(m_dev.get(), convert_fx_shader_raw, sm_model.GetPtr(), shaderName(static_cast<ShaderConvert>(i)));
 		if (!m_convert.ps[i])
@@ -176,7 +176,7 @@ bool GSDevice11::Create()
 
 	m_dev->CreateBuffer(&bd, nullptr, m_merge.cb.put());
 
-	for (size_t i = 0; i < std::size(m_merge.ps); i++)
+	for (size_t i = 0; i < C89_ARRAY_SIZE(m_merge.ps); i++)
 	{
 		const std::string entry_point(StringUtil::StdStringFromFormat("ps_main%d", i));
 		m_merge.ps[i] = m_shader_cache.GetPixelShader(m_dev.get(), merge_fx_shader_raw, sm_model.GetPtr(), entry_point.c_str());
@@ -207,7 +207,7 @@ bool GSDevice11::Create()
 
 	m_dev->CreateBuffer(&bd, nullptr, m_interlace.cb.put());
 
-	for (size_t i = 0; i < std::size(m_interlace.ps); i++)
+	for (size_t i = 0; i < C89_ARRAY_SIZE(m_interlace.ps); i++)
 	{
 		const std::string entry_point(StringUtil::StdStringFromFormat("ps_main%d", i));
 		m_interlace.ps[i] = m_shader_cache.GetPixelShader(m_dev.get(), interlace_fx_shader_raw, sm_model.GetPtr(), entry_point.c_str());
@@ -347,7 +347,7 @@ bool GSDevice11::Create()
 
 	m_dev->CreateBlendState(&blend, m_date.bs.put());
 
-	for (size_t i = 0; i < std::size(m_date.primid_init_ps); i++)
+	for (size_t i = 0; i < C89_ARRAY_SIZE(m_date.primid_init_ps); i++)
 	{
 		const std::string entry_point(StringUtil::StdStringFromFormat("ps_stencil_image_init_%d", i));
 		m_date.primid_init_ps[i] = m_shader_cache.GetPixelShader(m_dev.get(), convert_fx_shader_raw, sm_model.GetPtr(), entry_point.c_str());
@@ -635,7 +635,7 @@ void GSDevice11::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture*
 
 
 
-    IASetVertexBuffer(vertices, sizeof(vertices[0]), std::size(vertices));
+    IASetVertexBuffer(vertices, sizeof(vertices[0]), C89_ARRAY_SIZE(vertices));
 	IASetInputLayout(m_convert.il.get());
 	IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
@@ -1553,7 +1553,7 @@ void GSDevice11::SetupVS(VSSelector sel, const GSHWDrawConfig::VSConstantBuffer*
 		if (sel.expand == GSHWDrawConfig::VSExpand::None)
 		{
 			m_shader_cache.GetVertexShaderAndInputLayout(m_dev.get(), vs.vs.put(), vs.il.put(), layout,
-				std::size(layout), tfx_fx_shader_raw, sm.GetPtr(), "vs_main");
+				C89_ARRAY_SIZE(layout), tfx_fx_shader_raw, sm.GetPtr(), "vs_main");
 		}
 		else
 			vs.vs = m_shader_cache.GetVertexShader(m_dev.get(), tfx_fx_shader_raw, sm.GetPtr(), "vs_main_expand");

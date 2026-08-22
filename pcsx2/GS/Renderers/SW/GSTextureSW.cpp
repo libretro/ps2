@@ -41,7 +41,7 @@ GSTextureSW::GSTextureSW(Type type, int width, int height, Format format)
 	const size_t bytes = static_cast<size_t>(m_pitch) * static_cast<size_t>(height);
 	m_data = (u8*)_aligned_malloc(bytes ? bytes : VECTOR_ALIGNMENT, VECTOR_ALIGNMENT);
 	if (m_data && bytes)
-		std::memset(m_data, 0, bytes);
+		memset(m_data, 0, bytes);
 }
 
 GSTextureSW::~GSTextureSW()
@@ -71,7 +71,7 @@ bool GSTextureSW::Update(const GSVector4i& r, const void* data, int pitch, int /
 
 	for (int y = 0; y < rh; y++)
 	{
-		std::memcpy(dst, src, row_bytes);
+		memcpy(dst, src, row_bytes);
 		dst += m_pitch;
 		src += pitch;
 	}

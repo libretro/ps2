@@ -34,7 +34,7 @@ int GSState::s_transfer_n = 0;
 template <class T2, class T1>
 static T2 cpp11_bit_cast(T1 t1) {
   T2 t2;
-  std::memcpy( std::addressof(t2), std::addressof(t1), sizeof(T1) );
+  memcpy( std::addressof(t2), std::addressof(t1), sizeof(T1) );
   return t2;
 }
 
@@ -95,7 +95,7 @@ int GSState::GetSaveStateSize()
 	size += sizeof(m_tr.x);
 	size += sizeof(m_tr.y);
 	size += GSLocalMemory::m_vmsize;
-	size += (sizeof(GIFPath::tag) + sizeof(GIFPath::reg)) * 4 /* std::size(GSState::m_path) */; // std::size won't work without an instance.
+	size += (sizeof(GIFPath::tag) + sizeof(GIFPath::reg)) * 4 /* C89_ARRAY_SIZE(GSState::m_path) */; // std::size won't work without an instance.
 	size += sizeof(m_q);
 
 	return size;
@@ -2470,7 +2470,7 @@ int GSState::Freeze(freezeData* fd, bool sizeonly)
 		path.tag.NLOOP = path.nloop;
 		path.tag.REGS = 0;
 
-		for (size_t j = 0; j < std::size(path.regs.U8); j++)
+		for (size_t j = 0; j < C89_ARRAY_SIZE(path.regs.U8); j++)
 		{
 			path.tag.U32[2 + (j >> 3)] |= path.regs.U8[j] << ((j & 7) << 2);
 		}
@@ -2814,7 +2814,7 @@ bool GSState::SpriteDrawWithoutGaps()
 		{
 			const int last_pY = v[i - 1].XYZ.Y;
 			const int dpY = v[i + 1].XYZ.Y - v[i].XYZ.Y;
-			if (std::abs(dpY - first_dpY) >= 16 || std::abs(static_cast<int>(v[i].XYZ.Y) - last_pY) >= 16)
+			if (abs(dpY - first_dpY) >= 16 || abs(static_cast<int>(v[i].XYZ.Y) - last_pY) >= 16)
 				return false;
 		}
 
@@ -2837,13 +2837,13 @@ bool GSState::SpriteDrawWithoutGaps()
 			if (this_start_X < last_start_X)
 			{
 				const int prev_X = last_start_X - offset_X;
-				if (std::abs(dpX - prev_X) >= 16 || std::abs(this_start_X - offset_X) >= 16)
+				if (abs(dpX - prev_X) >= 16 || abs(this_start_X - offset_X) >= 16)
 					return false;
 			}
 			else
 			{
 				const int dpY = v[i + 1].XYZ.Y - v[i].XYZ.Y;
-				if ((std::abs(dpY - first_dpY) >= 16 && (i + 2) < m_vertex.next) || std::abs(this_start_X - last_pX) >= 16)
+				if ((abs(dpY - first_dpY) >= 16 && (i + 2) < m_vertex.next) || abs(this_start_X - last_pX) >= 16)
 					return false;
 			}
 		}

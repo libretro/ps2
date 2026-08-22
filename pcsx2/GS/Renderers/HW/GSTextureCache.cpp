@@ -498,7 +498,7 @@ void GSTextureCache::DirtyRectByPage(u32 sbp, u32 spsm, u32 sbw, Target* t, GSVe
 			}
 			else if (inc_horizontal_offset < 0)
 			{
-				const int max_horizontal_adjust = pcsx2_min_i(in_rect.x, std::abs(inc_horizontal_offset));
+				const int max_horizontal_adjust = pcsx2_min_i(in_rect.x, abs(inc_horizontal_offset));
 				in_rect = (in_rect - GSVector4i(max_horizontal_adjust, 0).xyxy()).max_i32(GSVector4i(0));
 				const int h_page_offset = (max_horizontal_adjust / src_info->pgs.x);
 				page_offset += h_page_offset;
@@ -3708,7 +3708,7 @@ bool GSTextureCache::ShuffleMove(u32 BP, u32 BW, u32 PSM, int sx, int sy, int dx
 
 	// Since we're only concerned with 32->16 shuffles, the difference should be 8x8 for this to work.
 	const s32 diff_x = (dx - sx);
-	if (std::abs(diff_x) != 8 || sy != dy)
+	if (abs(diff_x) != 8 || sy != dy)
 		return false;
 
 	const bool read_ba = (diff_x < 0);
@@ -4549,7 +4549,7 @@ GSTextureCache::Source* GSTextureCache::CreateMergedSource(GIFRegTEX0 TEX0, GIFR
 	bool lmtex_mapped = false;
 
 	u8* pages_done = static_cast<u8*>(alloca((num_pages + 7) / 8));
-	std::memset(pages_done, 0, (num_pages + 7) / 8);
+	memset(pages_done, 0, (num_pages + 7) / 8);
 
 	// Queue of rectangles to copy, we try to batch as many at once as possible.
 	// Multiply by 2 in case we need to preload.

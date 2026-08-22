@@ -316,7 +316,7 @@ bool GSDeviceOGL::Create()
 		glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, NULL, true);
 		// Useless info message on Nvidia driver
 		static constexpr const GLuint ids[] = { 0x20004 };
-		glDebugMessageControl(GL_DEBUG_SOURCE_API_ARB, GL_DEBUG_TYPE_OTHER_ARB, GL_DONT_CARE, std::size(ids), ids, false);
+		glDebugMessageControl(GL_DEBUG_SOURCE_API_ARB, GL_DEBUG_TYPE_OTHER_ARB, GL_DONT_CARE, C89_ARRAY_SIZE(ids), ids, false);
 
 		// Uncomment synchronous if you want callstacks which match where the error occurred.
 		glEnable(GL_DEBUG_OUTPUT);
@@ -407,7 +407,7 @@ bool GSDeviceOGL::Create()
 	// Pre Generate the different sampler object
 	// ****************************************************************
 	{
-		for (u32 key = 0; key < std::size(m_ps_ss); key++)
+		for (u32 key = 0; key < C89_ARRAY_SIZE(m_ps_ss); key++)
 			m_ps_ss[key] = CreateSampler(PSSamplerSelector(key));
 	}
 
@@ -417,7 +417,7 @@ bool GSDeviceOGL::Create()
 	{
 		m_convert.vs = GetShaderSource("vs_main", GL_VERTEX_SHADER, convert_glsl_shader_raw);
 
-		for (size_t i = 0; i < std::size(m_convert.ps); i++)
+		for (size_t i = 0; i < C89_ARRAY_SIZE(m_convert.ps); i++)
 		{
 			const char* name = shaderName(static_cast<ShaderConvert>(i));
 			const std::string ps(GetShaderSource(name, GL_FRAGMENT_SHADER, convert_glsl_shader_raw));
@@ -489,7 +489,7 @@ bool GSDeviceOGL::Create()
 	// merge
 	// ****************************************************************
 	{
-		for (unsigned i = 0; i < std::size(m_merge_obj.ps); i++)
+		for (unsigned i = 0; i < C89_ARRAY_SIZE(m_merge_obj.ps); i++)
 		{
 			char entry[32];
 			snprintf(entry, sizeof(entry), "ps_main%d", i);
@@ -504,7 +504,7 @@ bool GSDeviceOGL::Create()
 	// interlace
 	// ****************************************************************
 	{
-		for (unsigned i = 0; i < std::size(m_interlace.ps); i++)
+		for (unsigned i = 0; i < C89_ARRAY_SIZE(m_interlace.ps); i++)
 		{
 			char entry[32];
 			snprintf(entry, sizeof(entry), "ps_main%d", i);
@@ -535,7 +535,7 @@ bool GSDeviceOGL::Create()
 		m_date.dss->EnableStencil();
 		m_date.dss->SetStencil(GL_ALWAYS, GL_REPLACE);
 
-		for (unsigned i = 0; i < std::size(m_date.primid_ps); i++)
+		for (unsigned i = 0; i < C89_ARRAY_SIZE(m_date.primid_ps); i++)
 		{
 			char entry[32];
 			snprintf(entry, sizeof(entry), "ps_stencil_image_init_%d", i);
@@ -603,7 +603,7 @@ bool GSDeviceOGL::CreateTextureFX()
 	// enough but buffer is polluted with noise. Clear will be limited
 	// to the mask.
 	glStencilMask(0xFF);
-	for (u32 key = 0; key < std::size(m_om_dss); key++)
+	for (u32 key = 0; key < C89_ARRAY_SIZE(m_om_dss); key++)
 		m_om_dss[key] = CreateDepthStencil(OMDepthStencilSelector(key));
 
 	GLProgram::ResetLastProgram();
@@ -623,7 +623,7 @@ void GSDeviceOGL::DestroyResources()
 		delete ds;
 
 	if (m_ps_ss[0] != 0)
-		glDeleteSamplers(std::size(m_ps_ss), m_ps_ss);
+		glDeleteSamplers(C89_ARRAY_SIZE(m_ps_ss), m_ps_ss);
 
 	for (GLProgram& prog : m_date.primid_ps)
 		prog.Destroy();
@@ -823,12 +823,12 @@ void GSDeviceOGL::CommitClear(GSTexture* t, bool use_write_fbo)
 			if (T->GetType() == GSTexture::Type::DepthStencil)
 			{
 				const GLenum attachments[] = {GL_DEPTH_STENCIL_ATTACHMENT};
-				glInvalidateFramebuffer(GL_DRAW_FRAMEBUFFER, std::size(attachments), attachments);
+				glInvalidateFramebuffer(GL_DRAW_FRAMEBUFFER, C89_ARRAY_SIZE(attachments), attachments);
 			}
 			else
 			{
 				const GLenum attachments[] = {GL_COLOR_ATTACHMENT0};
-				glInvalidateFramebuffer(GL_DRAW_FRAMEBUFFER, std::size(attachments), attachments);
+				glInvalidateFramebuffer(GL_DRAW_FRAMEBUFFER, C89_ARRAY_SIZE(attachments), attachments);
 			}
 		}
 	}
@@ -1645,9 +1645,9 @@ void GSDeviceOGL::PSSetSamplerState(GLuint ss)
 
 void GSDeviceOGL::ClearSamplerCache()
 {
-	glDeleteSamplers(std::size(m_ps_ss), m_ps_ss);
+	glDeleteSamplers(C89_ARRAY_SIZE(m_ps_ss), m_ps_ss);
 
-	for (u32 key = 0; key < std::size(m_ps_ss); key++)
+	for (u32 key = 0; key < C89_ARRAY_SIZE(m_ps_ss); key++)
 	{
 		m_ps_ss[key] = CreateSampler(PSSamplerSelector(key));
 	}

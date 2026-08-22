@@ -15,7 +15,7 @@
 
 #include <cfloat>
 
-#include <iterator> /* std::size() - TODO/FIXME - C++17 */
+#include <iterator> /* C89_ARRAY_SIZE() - TODO/FIXME - C++17 */
 
 #include "GSVector.h"
 
@@ -200,7 +200,7 @@ GSVector4i GSVector4i::fit(int preset) const
 	static const int s_ar[][2] = {{0, 0}, {4, 3}, {16, 9}};
 	GSVector4i r;
 
-	if (preset > 0 && preset < (int)std::size(s_ar))
+	if (preset > 0 && preset < (int)C89_ARRAY_SIZE(s_ar))
 		r = fit(s_ar[preset][0], s_ar[preset][1]);
 	else
 		r = *this;

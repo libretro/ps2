@@ -18,7 +18,7 @@
 #include "../../common/Pcsx2Defs.h"
 
 #include <cstddef>
-#include <iterator> /* std::size() TODO/FIXME - C++17, find way to downgrade */
+#include <iterator> /* C89_ARRAY_SIZE() TODO/FIXME - C++17, find way to downgrade */
 
 #include "GSTables.h"
 
@@ -289,7 +289,7 @@ constexpr GSSizedPixelRowOffsetTable<BlocksWide * ColWidth> makeRowOffsetTable(c
 {
 	int base = pxOffset(blockTable, colTable, 0, y);
 	GSSizedPixelRowOffsetTable<BlocksWide * ColWidth> table = {};
-	for (size_t x = 0; x < std::size(table.value); x++)
+	for (size_t x = 0; x < C89_ARRAY_SIZE(table.value); x++)
 	{
 		table.value[x] = pxOffset(blockTable, colTable, x % 2048, y) - base;
 	}

@@ -124,7 +124,7 @@ namespace
 
 			if (x_is_identity)
 			{
-				std::memcpy(dst_row + dx0 * 4, src_row + dx0 * 4,
+				memcpy(dst_row + dx0 * 4, src_row + dx0 * 4,
 					(size_t)out_w * 4);
 				continue;
 			}
@@ -522,7 +522,7 @@ namespace
 			if ((dy & 1) != field)
 				continue;
 
-			std::memcpy(
+			memcpy(
 				dst + (size_t)dy * dst_pitch,
 				src + (size_t)y * src_pitch,
 				(size_t)copy_w * 4);
@@ -556,7 +556,7 @@ namespace
 		for (int dy = copy_start; dy < copy_end; dy++)
 		{
 			const int sy = dy - y_shift;
-			std::memcpy(
+			memcpy(
 				dst + (size_t)dy * dst_pitch,
 				src + (size_t)sy * src_pitch,
 				(size_t)copy_w * 4);
@@ -706,7 +706,7 @@ namespace
 			if ((vpos & 1) != field)
 				continue;
 
-			std::memcpy(
+			memcpy(
 				dst + (size_t)dst_y * dst_pitch,
 				src + (size_t)n * src_pitch,
 				(size_t)copy_w * 4);
@@ -843,7 +843,7 @@ namespace
 			if (current_field_row)
 			{
 				/* Row exists in current field - take it. */
-				std::memcpy(dst_row, row_t0, (size_t)dst_w * 4);
+				memcpy(dst_row, row_t0, (size_t)dst_w * 4);
 				continue;
 			}
 
@@ -851,7 +851,7 @@ namespace
 			{
 				/* Top or bottom row - weave (no neighbors to
 				 * interpolate from). */
-				std::memcpy(dst_row, row_t1, (size_t)dst_w * 4);
+				memcpy(dst_row, row_t1, (size_t)dst_w * 4);
 				continue;
 			}
 
@@ -953,7 +953,7 @@ namespace
 			m_buffer_size = m_current_pitch * height;
 			m_buffer = (u8*)_aligned_malloc(m_buffer_size ? m_buffer_size : VECTOR_ALIGNMENT, VECTOR_ALIGNMENT);
 			if (m_buffer && m_buffer_size)
-				std::memset(m_buffer, 0, m_buffer_size);
+				memset(m_buffer, 0, m_buffer_size);
 		}
 
 		~GSDownloadTextureSW() override

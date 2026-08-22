@@ -1281,7 +1281,7 @@ bool GSHwHack::MV_Ico(GSRendererHW& r)
 
 	// Store B -> A using a channel shuffle.
 	u32 pal[256];
-	for (u32 i = 0; i < std::size(pal); i++)
+	for (u32 i = 0; i < C89_ARRAY_SIZE(pal); i++)
 		pal[i] = i << 24;	
 	std::shared_ptr<GSTextureCache::Palette> palette = g_texture_cache->LookupPaletteObject(pal, 256, true);
 	if (!palette)
@@ -1385,7 +1385,7 @@ const GSHwHack::Entry<GSRendererHW::MV_Ptr> GSHwHack::s_move_handler_functions[]
 
 s16 GSLookupGetSkipCountFunctionId(const std::string_view& name)
 {
-	for (u32 i = 0; i < std::size(GSHwHack::s_get_skip_count_functions); i++)
+	for (u32 i = 0; i < C89_ARRAY_SIZE(GSHwHack::s_get_skip_count_functions); i++)
 	{
 		if (name == GSHwHack::s_get_skip_count_functions[i].name)
 			return static_cast<s16>(i);
@@ -1396,7 +1396,7 @@ s16 GSLookupGetSkipCountFunctionId(const std::string_view& name)
 
 s16 GSLookupBeforeDrawFunctionId(const std::string_view& name)
 {
-	for (u32 i = 0; i < std::size(GSHwHack::s_before_draw_functions); i++)
+	for (u32 i = 0; i < C89_ARRAY_SIZE(GSHwHack::s_before_draw_functions); i++)
 	{
 		if (name == GSHwHack::s_before_draw_functions[i].name)
 			return static_cast<s16>(i);
@@ -1407,7 +1407,7 @@ s16 GSLookupBeforeDrawFunctionId(const std::string_view& name)
 
 s16 GSLookupMoveHandlerFunctionId(const std::string_view& name)
 {
-	for (u32 i = 0; i < std::size(GSHwHack::s_move_handler_functions); i++)
+	for (u32 i = 0; i < C89_ARRAY_SIZE(GSHwHack::s_move_handler_functions); i++)
 	{
 		if (name == GSHwHack::s_move_handler_functions[i].name)
 			return static_cast<s16>(i);
@@ -1429,19 +1429,19 @@ void GSRendererHW::UpdateRenderFixes()
 	if (!GSConfig.UserHacks_DisableRenderFixes)
 	{
 		if (GSConfig.GetSkipCountFunctionId >= 0 &&
-			static_cast<size_t>(GSConfig.GetSkipCountFunctionId) < std::size(GSHwHack::s_get_skip_count_functions))
+			static_cast<size_t>(GSConfig.GetSkipCountFunctionId) < C89_ARRAY_SIZE(GSHwHack::s_get_skip_count_functions))
 		{
 			m_gsc = GSHwHack::s_get_skip_count_functions[GSConfig.GetSkipCountFunctionId].ptr;
 		}
 
 		if (GSConfig.BeforeDrawFunctionId >= 0 &&
-			static_cast<size_t>(GSConfig.BeforeDrawFunctionId) < std::size(GSHwHack::s_before_draw_functions))
+			static_cast<size_t>(GSConfig.BeforeDrawFunctionId) < C89_ARRAY_SIZE(GSHwHack::s_before_draw_functions))
 		{
 			m_oi = GSHwHack::s_before_draw_functions[GSConfig.BeforeDrawFunctionId].ptr;
 		}
 
 		if (GSConfig.MoveHandlerFunctionId >= 0 &&
-			static_cast<size_t>(GSConfig.MoveHandlerFunctionId) < std::size(GSHwHack::s_move_handler_functions))
+			static_cast<size_t>(GSConfig.MoveHandlerFunctionId) < C89_ARRAY_SIZE(GSHwHack::s_move_handler_functions))
 		{
 			m_mv = GSHwHack::s_move_handler_functions[GSConfig.MoveHandlerFunctionId].ptr;
 		}

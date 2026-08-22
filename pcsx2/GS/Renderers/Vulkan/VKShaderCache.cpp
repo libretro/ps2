@@ -125,8 +125,8 @@ static std::optional<SPIRVCodeVector> CompileShaderToSPV(
 	// Write out messages
 	const char *info_log_msg     = shader->getInfoLog();
 	const char *info_dbg_log_msg = shader->getInfoDebugLog();
-	size_t info_log_size         = std::strlen(info_log_msg);
-	size_t info_dbg_log_size     = std::strlen(info_dbg_log_msg);
+	size_t info_log_size         = strlen(info_log_msg);
+	size_t info_dbg_log_size     = strlen(info_dbg_log_msg);
 	if (info_log_size > 0)
 		Console.Warning("Shader info log: %s", info_log_msg);
 	if (info_dbg_log_size > 0)

@@ -948,8 +948,8 @@ bool GSRendererHW::IsPossibleChannelShuffle() const
 	{
 		const GSVertex* v = &m_vertex.buff[0];
 
-		const int draw_width = std::abs(v[1].XYZ.X - v[0].XYZ.X) >> 4;
-		const int draw_height = std::abs(v[1].XYZ.Y - v[0].XYZ.Y) >> 4;
+		const int draw_width = abs(v[1].XYZ.X - v[0].XYZ.X) >> 4;
+		const int draw_height = abs(v[1].XYZ.Y - v[0].XYZ.Y) >> 4;
 
 		const bool mask_clamp = (m_cached_ctx.CLAMP.WMS | m_cached_ctx.CLAMP.WMT) & 0x2;
 		const bool draw_match = (draw_height == 2) || (draw_width == 8);
@@ -968,8 +968,8 @@ bool GSRendererHW::IsPossibleChannelShuffle() const
 	{
 		const GSVertex* v = &m_vertex.buff[0];
 
-		const int draw_width = std::abs(v[1].XYZ.X - v[0].XYZ.X) >> 4;
-		const int draw_height = std::abs(v[1].XYZ.Y - v[0].XYZ.Y) >> 4;
+		const int draw_width = abs(v[1].XYZ.X - v[0].XYZ.X) >> 4;
+		const int draw_height = abs(v[1].XYZ.Y - v[0].XYZ.Y) >> 4;
 
 		const bool mask_clamp = (m_cached_ctx.CLAMP.WMS | m_cached_ctx.CLAMP.WMT) & 0x2;
 		const bool draw_match = (draw_height == 2) || (draw_width == 8);
@@ -1020,7 +1020,7 @@ bool GSRendererHW::IsSplitTextureShuffle(GSTextureCache::Target* rt)
 	const GSVector4i tex_rc = GSVector4i(m_vt.m_min.t.upld(m_vt.m_max.t));
 
 	// Width/height should match.
-	if (std::abs(pos_rc.width() - tex_rc.width()) > 8 || pos_rc.height() != tex_rc.height())
+	if (abs(pos_rc.width() - tex_rc.width()) > 8 || pos_rc.height() != tex_rc.height())
 		return false;
 
 	// X might be offset by up to -8/+8, but either the position or UV should be aligned.
@@ -1196,10 +1196,10 @@ GSRendererHW::TextureShuffleInfo GSRendererHW::DetectTextureShuffleImpl()
 
 	const int x_pixels = xy.width();
 	const int y_pixels = xy.height();
-	const int u_pixels = std::abs(uv.width());
-	const int v_pixels = std::abs(uv.height());
+	const int u_pixels = abs(uv.width());
+	const int v_pixels = abs(uv.height());
 
-	const int x_u_offset = std::abs(xy.x - uv.x) % 16;
+	const int x_u_offset = abs(xy.x - uv.x) % 16;
 
 	// Handle the two pixel Powerdrome shuffle as a one-off, since
 	// it doesn't fit nicely into the other detection.
@@ -1237,8 +1237,8 @@ GSRendererHW::TextureShuffleInfo GSRendererHW::DetectTextureShuffleImpl()
 		const GSVector4i& xy1, const GSVector4i& uv1) {
 			// Check whether the two quads are offset by the given number of pixels. 
 			return
-				((std::abs(xy1.x - xy0.z) == offset) && (std::abs(uv1.x - uv0.z) == offset)) ||
-				((std::abs(xy0.x - xy1.z) == offset) && (std::abs(uv0.x - uv1.z) == offset));
+				((abs(xy1.x - xy0.z) == offset) && (abs(uv1.x - uv0.z) == offset)) ||
+				((abs(xy0.x - xy1.z) == offset) && (abs(uv0.x - uv1.z) == offset));
 	};
 
 	// Checks that the next quad is offset by the specified pixels.
@@ -1369,7 +1369,7 @@ GSRendererHW::TextureShuffleInfo GSRendererHW::DetectTextureShuffleImpl()
 	// For 8 pixel wide strips, we will be writing to only R, G or B, A.
 	if (x_pixels <= 8)
 	{
-		const int x_offset = std::abs(xy.x) % 16;
+		const int x_offset = abs(xy.x) % 16;
 		if (x_offset == 0)
 		{
 			b_mask = 0;
@@ -2807,8 +2807,8 @@ void GSRendererHW::Draw()
 				const int first_u = PRIM->FST ? ((v[0].U + 8) >> 4) : static_cast<int>(((1 << m_cached_ctx.TEX0.TW) * (v[0].ST.S / v[1].RGBAQ.Q)) + 0.5f);
 				const int second_u = PRIM->FST ? ((v[1].U + 8) >> 4) : static_cast<int>(((1 << m_cached_ctx.TEX0.TW) * (v[1].ST.S / v[1].RGBAQ.Q)) + 0.5f);
 				const bool shuffle_coords = (first_x ^ first_u) & 8;
-				const int draw_width = std::abs(v[1].XYZ.X - v[0].XYZ.X) >> 4;
-				const int read_width = std::abs(second_u - first_u);
+				const int draw_width = abs(v[1].XYZ.X - v[0].XYZ.X) >> 4;
+				const int read_width = abs(second_u - first_u);
 
 				shuffle_target = shuffle_coords && draw_width == 8 && draw_width == read_width;
 			}
@@ -3190,7 +3190,7 @@ void GSRendererHW::Draw()
 		{
 			// Full final framebuffer only.
 			const GSVector2i fb_size = PCRTCDisplays.GetFramebufferSize(-1);
-			if (std::abs(fb_size.x - m_r.width()) <= 1 && std::abs(fb_size.y - m_r.height()) <= 1)
+			if (abs(fb_size.x - m_r.width()) <= 1 && abs(fb_size.y - m_r.height()) <= 1)
 			{
 				GSVertex* v = m_vertex.buff;
 
@@ -6532,7 +6532,7 @@ void GSRendererHW::SetNewZBUF(u32 bp, u32 psm)
 bool GSRendererHW::DetectStripedDoubleClear(bool& no_rt, bool& no_ds)
 {
 	const bool single_page_offset =
-		std::abs(static_cast<int>(m_cached_ctx.FRAME.FBP) - static_cast<int>(m_cached_ctx.ZBUF.ZBP)) == 1;
+		abs(static_cast<int>(m_cached_ctx.FRAME.FBP) - static_cast<int>(m_cached_ctx.ZBUF.ZBP)) == 1;
 	const bool z_is_frame = (m_cached_ctx.FRAME.FBP == m_cached_ctx.ZBUF.ZBP ||
 								(m_cached_ctx.FRAME.FBW > 1 && single_page_offset)) && // GT4O Public Beta
 							!m_cached_ctx.ZBUF.ZMSK &&
@@ -7169,8 +7169,8 @@ bool GSRendererHW::TextureCoversWithoutGapsNotEqual()
 		{
 			const int last_tV = v[i - 1].V;
 			const int dtV = v[i + 1].V - v[i].V;
-			const u32 last_tV_diff = std::abs(static_cast<int>(v[i].XYZ.Y) - last_tV);
-			if (std::abs(dtV - first_dtV) >= 16 || last_tV_diff >= 16 || last_tV_diff == 0)
+			const u32 last_tV_diff = abs(static_cast<int>(v[i].XYZ.Y) - last_tV);
+			if (abs(dtV - first_dtV) >= 16 || last_tV_diff >= 16 || last_tV_diff == 0)
 				return false;
 		}
 
@@ -7191,13 +7191,13 @@ bool GSRendererHW::TextureCoversWithoutGapsNotEqual()
 
 			if (this_start_U < last_start_U)
 			{
-				if (std::abs(dtU - last_start_U) >= 16 || std::abs(this_start_U) >= 16)
+				if (abs(dtU - last_start_U) >= 16 || abs(this_start_U) >= 16)
 					return false;
 			}
 			else
 			{
-				const u32 last_tU_diff = std::abs(this_start_U - last_tU);
-				if (std::abs(dtU - first_dtU) >= 16 || last_tU_diff >= 16 || last_tU_diff == 0)
+				const u32 last_tU_diff = abs(this_start_U - last_tU);
+				if (abs(dtU - first_dtU) >= 16 || last_tU_diff >= 16 || last_tU_diff == 0)
 					return false;
 			}
 		}
@@ -7223,7 +7223,7 @@ int GSRendererHW::IsScalingDraw(GSTextureCache::Source* src, bool no_gaps)
 	if (tex_size.x == 0 || tex_size.y == 0 || draw_size.x == 0 || draw_size.y == 0 || !is_target_src)
 		return 0;
 
-	if (is_target_src && src->m_from_target->m_downscaled && std::abs(draw_size.x - tex_size.x) <= 1 && std::abs(draw_size.y - tex_size.y) <= 1)
+	if (is_target_src && src->m_from_target->m_downscaled && abs(draw_size.x - tex_size.x) <= 1 && abs(draw_size.y - tex_size.y) <= 1)
 		return -1;
 
 	const GSDrawingContext& next_ctx = m_env.CTXT[m_env.PRIM.CTXT];
@@ -7433,8 +7433,8 @@ GSHWDrawConfig& GSRendererHW::BeginHLEHardwareDraw(
 	config.pal = nullptr;
 	config.indices = indices;
 	config.verts = vertices;
-	config.nverts = static_cast<u32>(std::size(vertices));
-	config.nindices = static_cast<u32>(std::size(indices));
+	config.nverts = static_cast<u32>(C89_ARRAY_SIZE(vertices));
+	config.nindices = static_cast<u32>(C89_ARRAY_SIZE(indices));
 	config.indices_per_prim = 3;
 	config.drawlist = nullptr;
 	config.scissor = rt_or_ds->GetRect();

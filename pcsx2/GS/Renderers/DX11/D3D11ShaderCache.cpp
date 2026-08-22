@@ -267,15 +267,15 @@ D3D11ShaderCache::CacheIndexKey D3D11ShaderCache::GetCacheKey(D3D::ShaderType ty
 		XXH3_128bits_reset(&state);
 		for (const D3D_SHADER_MACRO* macro = macros; macro->Name != nullptr; macro++)
 		{
-			XXH3_128bits_update(&state, macro->Name, std::strlen(macro->Name));
-			XXH3_128bits_update(&state, macro->Definition, std::strlen(macro->Definition));
+			XXH3_128bits_update(&state, macro->Name, strlen(macro->Name));
+			XXH3_128bits_update(&state, macro->Definition, strlen(macro->Definition));
 		}
 		h = XXH3_128bits_digest(&state);
 		key.macro_hash_low = h.low64;
 		key.macro_hash_high = h.high64;
 	}
 
-	h = XXH3_128bits(entry_point, std::strlen(entry_point));
+	h = XXH3_128bits(entry_point, strlen(entry_point));
 	key.entry_point_low = h.low64;
 	key.entry_point_high = h.high64;
 

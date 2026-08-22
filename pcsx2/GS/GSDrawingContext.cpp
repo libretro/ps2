@@ -76,18 +76,18 @@ static int extend(int uv, int size)
 
 void GSDrawingContext::Reset()
 {
-	std::memset(&XYOFFSET, 0, sizeof(XYOFFSET));
-	std::memset(&TEX0, 0, sizeof(TEX0));
-	std::memset(&TEX1, 0, sizeof(TEX1));
-	std::memset(&CLAMP, 0, sizeof(CLAMP));
-	std::memset(&MIPTBP1, 0, sizeof(MIPTBP1));
-	std::memset(&MIPTBP2, 0, sizeof(MIPTBP2));
-	std::memset(&SCISSOR, 0, sizeof(SCISSOR));
-	std::memset(&ALPHA, 0, sizeof(ALPHA));
-	std::memset(&TEST, 0, sizeof(TEST));
-	std::memset(&FBA, 0, sizeof(FBA));
-	std::memset(&FRAME, 0, sizeof(FRAME));
-	std::memset(&ZBUF, 0, sizeof(ZBUF));
+	memset(&XYOFFSET, 0, sizeof(XYOFFSET));
+	memset(&TEX0, 0, sizeof(TEX0));
+	memset(&TEX1, 0, sizeof(TEX1));
+	memset(&CLAMP, 0, sizeof(CLAMP));
+	memset(&MIPTBP1, 0, sizeof(MIPTBP1));
+	memset(&MIPTBP2, 0, sizeof(MIPTBP2));
+	memset(&SCISSOR, 0, sizeof(SCISSOR));
+	memset(&ALPHA, 0, sizeof(ALPHA));
+	memset(&TEST, 0, sizeof(TEST));
+	memset(&FBA, 0, sizeof(FBA));
+	memset(&FRAME, 0, sizeof(FRAME));
+	memset(&ZBUF, 0, sizeof(ZBUF));
 }
 
 void GSDrawingContext::UpdateScissor()
