@@ -13,6 +13,8 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <utility>
+
 #include "MemorySettingsInterface.h"
 #include "StringUtil.h"
 

@@ -40,6 +40,7 @@
 #endif
 #include <xxhash.h>
 
+#include <cerrno>
 #include <cstring>
 #include <memory>
 

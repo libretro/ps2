@@ -15,6 +15,8 @@
 
 #pragma once
 
+#include <cstring>
+
 namespace PacketReader::IP
 {
 	class IP_Payload

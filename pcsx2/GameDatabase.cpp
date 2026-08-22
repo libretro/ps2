@@ -13,9 +13,11 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <algorithm>
 #include <sstream>
 #include <fstream>
 #include <optional>
+#include <utility>
 
 #include "../common/Threading.h"
 

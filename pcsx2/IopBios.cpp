@@ -15,6 +15,8 @@
 
 #include <ctype.h>
 #include <string.h>
+#include <iterator>
+#include <utility>
 #include <compat/strl.h>
 #include <retro_miscellaneous.h>
 #include <file/file_path.h>

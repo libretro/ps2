@@ -14,6 +14,7 @@
  */
 
 #include <cstring>
+#include <utility>
 
 #include <file/file_path.h>
 #include <streams/file_stream.h>

@@ -15,6 +15,7 @@
 
 #include <array>
 #include <cstring> /* memset */
+#include <utility>
 #include <vector>
 
 #include <file/file_path.h>

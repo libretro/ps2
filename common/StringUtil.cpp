@@ -19,6 +19,8 @@
 #include <cstring>
 #include <sstream>
 #include <algorithm>
+#include <iterator>
+#include <utility>
 
 #ifdef _WIN32
 #include "RedtapeWindows.h"

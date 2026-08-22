@@ -44,6 +44,7 @@
 #endif
 
 #include <limits.h>
+#include <string.h>
 
 #ifdef _MSC_VER
 #include <compat/msvc.h>

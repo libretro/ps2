@@ -23,6 +23,7 @@
 #include <cstring>
 #include <cerrno>
 #include <limits>
+#include <utility>
 
 #include <file/file_path.h>
 #include <encodings/utf.h>
