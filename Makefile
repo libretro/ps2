@@ -930,27 +930,29 @@ endif
 # same checkout therefore leaves the first one's objects behind, and the link
 # fails with "Relocations in generic ELF (EM: 183) -- file in wrong format",
 # which says nothing about the actual cause. The stamp below records the
-# toolchain; when it changes, the stale objects are removed first.
+# toolchain; when it changes, the stale objects are removed.
 #
-# The recipe runs on every build but only writes the file when the tag
-# differs, so incremental builds do not see a newer prerequisite and do not
-# rebuild.
+# This runs at PARSE time, via $(shell), not as a recipe. A recipe is too
+# late: make reads the generated .d files before running anything, so a
+# depfile from the previous build referring to a header that has since been
+# deleted aborts the build with "No rule to make target" before the cleanup
+# would ever fire. Parse-time removal happens before those files are read.
 BUILD_TAG := $(CC)|$(CXX)|$(platform)|$(arch)|$(IS_ARM64)|$(IS_X86)
 
-.PHONY: FORCE
-FORCE:
-
-.build-tag: FORCE
-	@if [ ! -f $@ ] || [ "`cat $@`" != "$(BUILD_TAG)" ]; then \
-		if [ -f $@ ]; then \
-			echo "toolchain changed, removing objects from the previous build"; \
+BUILD_TAG_STATUS := $(shell \
+	if [ ! -f .build-tag ] || [ "`cat .build-tag 2>/dev/null`" != "$(BUILD_TAG)" ]; then \
+		if [ -f .build-tag ]; then \
 			find . -name '*.o' -delete; \
 			find . -name '*.d' -delete; \
+			echo cleaned; \
 		fi; \
-		echo "$(BUILD_TAG)" > $@; \
-	fi
+		echo "$(BUILD_TAG)" > .build-tag; \
+	fi)
 
-$(OBJECTS): .build-tag
+ifeq ($(BUILD_TAG_STATUS),cleaned)
+   $(info toolchain changed, removed objects from the previous build)
+endif
+
 
 $(TARGET): $(OBJECTS)
 ifeq ($(STATIC_LINKING), 1)
