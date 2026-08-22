@@ -22,6 +22,7 @@
 #endif
 
 #include "Threading.h"
+#include <utility>
 
 #ifdef _WIN32
 #include "RedtapeWindows.h"

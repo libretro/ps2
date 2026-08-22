@@ -14,6 +14,8 @@
  */
 
 #include <chrono>
+#include <algorithm>
+#include <cctype>
 
 #ifdef _WIN32
 #include <ws2tcpip.h>

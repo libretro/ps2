@@ -16,6 +16,7 @@
 #pragma once
 
 #include "common/Pcsx2Types.h"
+#include <cstdlib>
 
 struct microVU;
 

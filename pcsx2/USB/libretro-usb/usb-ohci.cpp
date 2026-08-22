@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: GPL-2.0+
 
 #include "USB/libretro-usb/qusb.h"
+#include <algorithm>
+#include <cstdlib>
 #include "USB/libretro-usb/queue.h"
 #include "USB/libretro-usb/USBinternal.h"
 #include "IopMem.h"

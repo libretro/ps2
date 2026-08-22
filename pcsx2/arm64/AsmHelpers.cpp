@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 #include "../../common/Threading.h"
+#include <cstring>
 #include "arm64/AsmHelpers.h"
 
 #include "arm64/ArmCompat.h"

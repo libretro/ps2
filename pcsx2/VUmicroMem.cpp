@@ -14,6 +14,7 @@
  */
 
 #include <cstring> /* memset */
+#include <utility>
 
 #include "Common.h"
 #include "VUmicro.h"

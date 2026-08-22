@@ -14,6 +14,7 @@
  */
 
 #include "ATA.h"
+#include <algorithm>
 #include "DEV9/DEV9.h"
 
 void ATA::WriteUInt16(u8* data, int* index, u16 value)

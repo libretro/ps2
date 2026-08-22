@@ -10,6 +10,7 @@
 // index (lrps2's RecompiledCodeReserve infra stays x86-only).
 
 #include "arm64/Vif_UnpackNEON.h"
+#include <algorithm>
 #include "arm64/AsmHelpers.h"
 #include "MTVU.h"
 

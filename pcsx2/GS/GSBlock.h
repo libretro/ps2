@@ -16,6 +16,7 @@
 #pragma once
 
 #include "GSRegs.h"
+#include <utility>
 #include "GSTables.h"
 #include "GSVector.h"
 #include "MultiISA.h"

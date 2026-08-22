@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2002-2023 PCSX2 Dev Team
 // SPDX-License-Identifier: LGPL-3.0+
 
+#include <cstring>
+
 class alignas(32) GSVector8i
 {
 	static const GSVector8i m_xff[33];

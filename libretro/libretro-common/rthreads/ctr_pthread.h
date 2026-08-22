@@ -24,6 +24,7 @@
 #define _CTR_PTHREAD_WRAP_CTR_
 
 #include <3ds/thread.h>
+#include <stdint.h>
 #include <3ds/synchronization.h>
 #include <3ds/svc.h>
 #include <3ds/services/apt.h>

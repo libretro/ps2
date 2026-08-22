@@ -16,6 +16,7 @@
 #ifdef __POSIX__
 #define SOCKET_ERROR -1
 #include <errno.h>
+#include <algorithm>
 #include <sys/ioctl.h>
 #include <netinet/in.h>
 #endif

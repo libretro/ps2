@@ -16,6 +16,7 @@
 #pragma once
 
 #include <retro_atomic.h>
+#include <utility>
 #include <algorithm>
 #include <cstdint>
 #include <cstdlib>

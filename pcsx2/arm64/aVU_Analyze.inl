@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0+
 
 #pragma once
+#include <algorithm>
 
 // ARM64 microVU — pass-1 analysis (Phase 7, task 7.3).
 //

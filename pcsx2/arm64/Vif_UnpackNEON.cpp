@@ -6,6 +6,7 @@
 // instead of SysMemory.
 
 #include "Vif_UnpackNEON.h"
+#include <algorithm>
 
 #include "common/Console.h"
 

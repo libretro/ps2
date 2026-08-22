@@ -14,6 +14,7 @@
  */
 
 #include "GLShaderCache.h"
+#include <cerrno>
 
 #include "GS/Renderers/OpenGL/GLShaderCache.h"
 #include "GS/GS.h"

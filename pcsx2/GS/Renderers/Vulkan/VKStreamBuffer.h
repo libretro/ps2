@@ -16,6 +16,7 @@
 #pragma once
 
 #include "common/Pcsx2Defs.h"
+#include <utility>
 #include "VKLoader.h"
 #include "vk_mem_alloc.h"
 #include <deque>

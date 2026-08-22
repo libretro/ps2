@@ -21,6 +21,7 @@
  */
 
 #include <cstring>
+#include <algorithm>
 #include <array>
 
 #include "../../common/Console.h"

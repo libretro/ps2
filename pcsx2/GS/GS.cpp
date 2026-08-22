@@ -14,6 +14,7 @@
  */
 
 #include "../../common/Console.h"
+#include <cerrno>
 #include "../../common/FileSystem.h"
 #include "../../common/Path.h"
 

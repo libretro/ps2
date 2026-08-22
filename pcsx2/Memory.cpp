@@ -35,6 +35,7 @@ BIOS
 */
 
 #include "IopHw.h"
+#include <utility>
 #include "GS.h"
 #include "VUmicro.h"
 #include "MTVU.h"

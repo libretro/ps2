@@ -14,6 +14,7 @@
  */
 
 #include <retro_atomic.h>
+#include <utility>
 #include "VirtualMemory.h"
 
 #include "../common/Align.h"

@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0+
 
 #pragma once
+#include <algorithm>
+#include <cstring>
 
 // ARM64 microVU — emit-coupled compile-driver helpers (Phase 7, Tables/Compile
 // big-bang). VIXL port of the emit half of pcsx2/x86/microVU_Compile.inl.

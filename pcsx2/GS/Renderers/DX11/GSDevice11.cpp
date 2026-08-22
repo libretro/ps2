@@ -14,6 +14,7 @@
  */
 
 #include "common/Align.h"
+#include <cfloat>
 #include "common/Console.h"
 #include "common/Path.h"
 #include "common/StringUtil.h"

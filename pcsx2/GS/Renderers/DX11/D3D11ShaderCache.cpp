@@ -14,6 +14,7 @@
  */
 
 #include "D3D.h"
+#include <cerrno>
 
 #include "D3D11ShaderCache.h"
 #include "GS/GS.h"

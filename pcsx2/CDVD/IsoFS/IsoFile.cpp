@@ -14,6 +14,7 @@
  */
 
 #include <algorithm> /* std::min */
+#include <utility>
 #include <cstring>
 #include <climits>
 

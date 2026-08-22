@@ -14,6 +14,7 @@
  */
 
 #pragma once
+#include <cstring>
 
 //------------------------------------------------------------------
 // Program Range Checking and Setting up Ranges

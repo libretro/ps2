@@ -14,6 +14,7 @@
  */
 
 #include <retro_atomic.h>
+#include <algorithm>
 #include "../../../common/Threading.h"
 #include "common/FileSystem.h"
 #include "common/StringUtil.h"

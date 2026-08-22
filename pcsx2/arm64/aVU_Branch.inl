@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0+
 
 #pragma once
+#include <cstring>
 
 // ARM64 microVU recompiler — branch / program-exit emission (Phase 7, task 7.7).
 //

@@ -14,6 +14,7 @@
  */
 
 #include <retro_atomic.h>
+#include <algorithm>
 #include "common/FileSystem.h"
 
 #include <file/file_path.h>

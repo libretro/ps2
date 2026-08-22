@@ -14,6 +14,7 @@
  */
 
 #include "GS/GS.h"
+#include <cfloat>
 #include "GS/GSUtil.h"
 #include "GS/Renderers/DX11/D3D.h"
 #include "GS/Renderers/DX12/GSDevice12.h"

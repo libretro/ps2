@@ -14,6 +14,7 @@
  */
 
 #include <cstring> /* memset/memcpy */
+#include <limits>
 #include <algorithm> /* clamp */
 #include <cfloat> /* FLT_MAX */
 #include <cmath>

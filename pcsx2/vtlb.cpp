@@ -29,6 +29,7 @@
 */
 
 #include <algorithm>
+#include <utility>
 #include <cstdlib> /* bsearch, realloc, free */
 #include <cstring> /* memset */
 #include <retro_atomic.h>
