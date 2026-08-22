@@ -164,8 +164,8 @@ extern CDVD_API* CDVD; // currently active CDVD access mode api (either Iso, NoD
 extern CDVD_API CDVDapi_Iso;
 
 extern void CDVDsys_ChangeSource(CDVD_SourceType type);
-extern void CDVDsys_SetFile(CDVD_SourceType srctype, std::string newfile);
-extern const std::string& CDVDsys_GetFile(CDVD_SourceType srctype);
+extern void CDVDsys_SetFile(CDVD_SourceType srctype, const char* newfile);
+extern const char* CDVDsys_GetFile(CDVD_SourceType srctype);
 extern CDVD_SourceType CDVDsys_GetSourceType(void);
 extern void CDVDsys_ClearFiles();
 

@@ -13,6 +13,8 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <retro_miscellaneous.h>
+#include <compat/strl.h>
 #include <retro_atomic.h>
 #include <features/features_cpu.h>
 #include "VMManager.h"
@@ -541,7 +543,7 @@ bool VMManager::AutoDetectSource(const std::string& filename)
 			std::string disc_path = GetDiscOverrideFromGameSettings(filename);
 			if (!disc_path.empty())
 			{
-				CDVDsys_SetFile(CDVD_SourceType::Iso, std::move(disc_path));
+				CDVDsys_SetFile(CDVD_SourceType::Iso, disc_path.c_str());
 				CDVDsys_ChangeSource(CDVD_SourceType::Iso);
 			}
 			else
@@ -555,7 +557,7 @@ bool VMManager::AutoDetectSource(const std::string& filename)
 		else
 		{
 			// TODO: Maybe we should check if it's a valid iso here...
-			CDVDsys_SetFile(CDVD_SourceType::Iso, filename);
+			CDVDsys_SetFile(CDVD_SourceType::Iso, filename.c_str());
 			CDVDsys_ChangeSource(CDVD_SourceType::Iso);
 			s_disc_path = filename;
 		}
@@ -588,7 +590,7 @@ bool VMManager::ApplyBootParameters(VMBootParameters params, std::string* state_
 
 		// Use specified source type.
 		s_disc_path = std::move(params.filename);
-		CDVDsys_SetFile(params.source_type.value(), s_disc_path);
+		CDVDsys_SetFile(params.source_type.value(), s_disc_path.c_str());
 		CDVDsys_ChangeSource(params.source_type.value());
 	}
 	else
@@ -825,18 +827,19 @@ bool VMManager::ChangeDisc(CDVD_SourceType source, std::string path)
 {
 	CDVDsys_ChangeSource(source);
 	if (!path.empty())
-		CDVDsys_SetFile(source, path);
+		CDVDsys_SetFile(source, path.c_str());
 
 	const bool result = DoCDVDopen();
 	if (!result)
 	{
 		const CDVD_SourceType old_type = CDVDsys_GetSourceType();
-		const std::string old_path(CDVDsys_GetFile(old_type));
+		char old_path[PATH_MAX_LENGTH];
+		strlcpy(old_path, CDVDsys_GetFile(old_type), sizeof(old_path));
 
 		/* Failed to open new disc image '{}'. Reverting to old image */
 		CDVDsys_ChangeSource(old_type);
-		if (!old_path.empty())
-			CDVDsys_SetFile(old_type, std::move(old_path));
+		if (old_path[0])
+			CDVDsys_SetFile(old_type, old_path);
 		if (!DoCDVDopen())
 		{
 			/* Failed to switch back to old disc image. Removing disc. */

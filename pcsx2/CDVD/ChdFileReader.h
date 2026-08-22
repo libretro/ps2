@@ -25,7 +25,6 @@ public:
 	ChdFileReader();
 	~ChdFileReader() override;
 
-	static bool CanHandle(const std::string& fileName, const std::string& displayName);
 
 	u32 GetBlockCount() const override;
 
@@ -43,7 +42,7 @@ private:
 		int64_t        len  = 0;
 	};
 
-	bool OpenOne(const std::string& path, rchd_t** out_chd, Source* out_src);
+	bool OpenOne(const char* path, rchd_t** out_chd, Source* out_src);
 	bool DriveRead(rchd_t* chd, const Source& self, const Source& parent);
 
 	/// index 0 = the image itself, 1.. = parent chain outward

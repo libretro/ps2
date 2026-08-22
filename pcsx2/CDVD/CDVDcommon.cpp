@@ -13,6 +13,8 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <compat/strl.h>
+#include <retro_miscellaneous.h>
 #include <ctype.h>
 #include <time.h>
 #include <exception>
@@ -269,15 +271,25 @@ static void DetectDiskType(void)
 		diskTypeCached = FindDiskType(-1);
 }
 
-static std::string m_SourceFilename[3];
+/* Three source slots (Iso, Disc, NoDisc), each holding a path. Fixed
+ * buffers: the paths are bounded, and every consumer wanted a const char*
+ * anyway. */
+static char m_SourceFilename[3][PATH_MAX_LENGTH];
 static CDVD_SourceType m_CurrentSourceType = CDVD_SourceType::NoDisc;
 
-void CDVDsys_SetFile(CDVD_SourceType srctype, std::string newfile)
+void CDVDsys_SetFile(CDVD_SourceType srctype, const char* newfile)
 {
-	m_SourceFilename[enum_cast(srctype)] = std::move(newfile);
+	char* slot = m_SourceFilename[enum_cast(srctype)];
+
+	if (!newfile)
+	{
+		slot[0] = '\0';
+		return;
+	}
+	strlcpy(slot, newfile, PATH_MAX_LENGTH);
 }
 
-const std::string& CDVDsys_GetFile(CDVD_SourceType srctype)
+const char* CDVDsys_GetFile(CDVD_SourceType srctype)
 {
 	return m_SourceFilename[enum_cast(srctype)];
 }
@@ -290,7 +302,7 @@ CDVD_SourceType CDVDsys_GetSourceType(void)
 void CDVDsys_ClearFiles()
 {
 	for (u32 i = 0; i < C89_ARRAY_SIZE(m_SourceFilename); i++)
-		m_SourceFilename[i] = {};
+		m_SourceFilename[i][0] = '\0';
 }
 
 void CDVDsys_ChangeSource(CDVD_SourceType type)
@@ -318,7 +330,7 @@ bool DoCDVDopen(void)
 	CDVD->newDiskCB(cdvdNewDiskCB);
 
 	auto CurrentSourceType = enum_cast(m_CurrentSourceType);
-	int ret = CDVD->open(!m_SourceFilename[CurrentSourceType].empty() ? m_SourceFilename[CurrentSourceType].c_str() : nullptr);
+	int ret = CDVD->open(!m_SourceFilename[CurrentSourceType][0] == '\0' ? m_SourceFilename[CurrentSourceType] : nullptr);
 	if (ret == -1)
 		return false; // error! (handled by caller)
 

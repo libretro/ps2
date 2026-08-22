@@ -39,10 +39,6 @@ ChdFileReader::~ChdFileReader()
 	Close2();
 }
 
-bool ChdFileReader::CanHandle(const std::string& fileName, const std::string& displayName)
-{
-	return StringUtil::EndsWith(displayName, ".chd");
-}
 
 /* Feed one outstanding request cycle.  Mapped sources feed straight
  * from the mapping - the decoder consumes bytes in place, so a mapped
@@ -101,10 +97,10 @@ bool ChdFileReader::DriveRead(rchd_t* chd, const Source& self, const Source& par
 	}
 }
 
-bool ChdFileReader::OpenOne(const std::string& path, rchd_t** out_chd, Source* out_src)
+bool ChdFileReader::OpenOne(const char* path, rchd_t** out_chd, Source* out_src)
 {
 	Source src;
-	src.fp = filestream_open(path.c_str(),
+	src.fp = filestream_open(path,
 			RETRO_VFS_FILE_ACCESS_READ,
 			RETRO_VFS_FILE_ACCESS_HINT_FREQUENT_ACCESS);
 	if (!src.fp)
@@ -215,7 +211,7 @@ bool ChdFileReader::Open2(const char* fileName)
 
 				rchd_t* cand = nullptr;
 				Source cand_src;
-				if (!OpenOne(fd.FileName, &cand, &cand_src))
+				if (!OpenOne(fd.FileName.c_str(), &cand, &cand_src))
 					continue;
 
 				if (rchd_parent_sha1_matches(m_chds.back(), rchd_info(cand)->sha1))

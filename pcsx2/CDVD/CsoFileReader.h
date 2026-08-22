@@ -32,7 +32,6 @@ public:
 	CsoFileReader();
 	~CsoFileReader() override;
 
-	static bool CanHandle(const std::string& fileName, const std::string& displayName);
 	bool Open2(const char* fileName) override;
 
 	Chunk ChunkForOffset(u64 offset) override;

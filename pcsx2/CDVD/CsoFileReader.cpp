@@ -53,22 +53,6 @@ CsoFileReader::CsoFileReader()
 
 CsoFileReader::~CsoFileReader() { }
 
-bool CsoFileReader::CanHandle(const std::string& fileName, const std::string& displayName)
-{
-	bool supported = false;
-	if (StringUtil::EndsWith(displayName, ".cso") || StringUtil::EndsWith(displayName, ".zso"))
-	{
-		CsoHeader hdr;
-		RFILE* fp = FileSystem::OpenFile(fileName.c_str(), "rb");
-		if (fp)
-		{
-			if (rfread(&hdr, 1, sizeof(hdr), fp) == sizeof(hdr))
-				supported = ValidateHeader(hdr);
-			rfclose(fp);
-		}
-	}
-	return supported;
-}
 
 bool CsoFileReader::ValidateHeader(const CsoHeader& hdr)
 {
