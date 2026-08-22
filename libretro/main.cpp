@@ -2144,14 +2144,15 @@ void retro_init(void)
 			u32 version, region;
 			static constexpr u32 MIN_BIOS_SIZE = 4 * _1mb;
 			static constexpr u32 MAX_BIOS_SIZE = 8 * _1mb;
-			std::string description, zone;
+			char description[BIOS_DESCRIPTION_MAX];
+			char zone[BIOS_ZONE_MAX];
 			for (const FILESYSTEM_FIND_DATA& fd : results)
 			{
 				if (fd.Size < MIN_BIOS_SIZE || fd.Size > MAX_BIOS_SIZE)
 					continue;
 
-				if (IsBIOS(fd.FileName.c_str(), version, description, region, zone))
-					bios_info.push_back({ std::string(Path::GetFileName(fd.FileName)), description });
+				if (IsBIOS(fd.FileName.c_str(), version, description, sizeof(description), region, zone, sizeof(zone)))
+					bios_info.push_back({ std::string(Path::GetFileName(fd.FileName)), std::string(description) });
 			}
 
 			/* Find the BIOS core option and fill its values/labels/default_values */

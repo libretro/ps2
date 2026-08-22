@@ -37,10 +37,14 @@ extern bool NoOSD;			// Used for HLE OSD Config Params
 extern bool AllowParams1;
 extern bool AllowParams2;
 extern u32 BiosChecksum;
-extern std::string BiosDescription;
-extern std::string BiosSerial;
+#define BIOS_DESCRIPTION_MAX 96
+#define BIOS_SERIAL_MAX      32
+#define BIOS_ZONE_MAX        16
+
+extern char BiosDescription[];
+extern char BiosSerial[];
 extern std::string BiosPath;
 extern bool LoadBIOS();
-extern bool IsBIOS(const char* filename, u32& version, std::string& description, u32& region, std::string& zone);
+extern bool IsBIOS(const char* filename, u32& version, char* description, size_t description_size, u32& region, char* zone, size_t zone_size);
 extern bool IsBIOSAvailable(const std::string& full_path);
 

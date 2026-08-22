@@ -80,7 +80,7 @@
 // 20010704-160707 can be used as unique ID for Bios
 static std::string SysGetBiosDiscID(void)
 {
-	if (!BiosSerial.empty())
+	if (BiosSerial[0])
 		return BiosSerial;
 	return {};
 }

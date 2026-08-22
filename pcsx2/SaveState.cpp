@@ -91,7 +91,7 @@ bool SaveStateBase::FreezeBios()
 	// work fine, but some games are very picky).
 	u32 bioscheck = BiosChecksum;
 	memset(biosdesc, 0, sizeof(biosdesc));
-	memcpy( biosdesc, BiosDescription.c_str(), pcsx2_min_i(sizeof(biosdesc), BiosDescription.length()) );
+	memcpy( biosdesc, BiosDescription, pcsx2_min_sz(sizeof(biosdesc), strlen(BiosDescription)) );
 
 	Freeze( bioscheck );
 	Freeze( biosdesc );
