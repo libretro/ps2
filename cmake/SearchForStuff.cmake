@@ -49,16 +49,6 @@ endif()
 # decodes through rchd, ZIP members and CSO/gz through rinflate, all in
 # libretro-common (see libretro/CMakeLists.txt for the source list).
 
-# The rapidyaml tree is kept only for fast_float, which is header-only;
-# YAML itself is read by ryaml in libretro-common. Normally we would just
-# pull in the cmake project and link to it, but... it seems to enable
-# permissive mode, which breaks other parts of PCSX2. So, we'll just create
-# a target here for now.
-#add_subdirectory(3rdparty/rapidyaml/rapidyaml/ext/c4core/src/c4/ext/fast_float EXCLUDE_FROM_ALL)
-add_library(fast_float INTERFACE)
-target_include_directories(fast_float INTERFACE 3rdparty/rapidyaml/rapidyaml/ext/c4core/src/c4/ext/fast_float/include)
-
-
 # arm64 recompiler port (Phase C): VIXL is the AArch64 code emitter. x86 builds
 # use the in-tree x86 emitter (common/emitter) instead, so this is arm64-only.
 if(NOT _M_X86)

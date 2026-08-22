@@ -30,7 +30,6 @@ INCFLAGS := \
 	-I$(DEPS_DIR) \
 	-I$(DEPS_DIR)/include \
 	-I$(DEPS_DIR)/xbyak \
-	-I$(DEPS_DIR)/rapidyaml/rapidyaml/ext/c4core/src/c4/ext/fast_float/include \
 	-I$(DEPS_DIR)/d3d12memalloc/include
 
 ifeq ($(HAVE_OPENGL), 1)

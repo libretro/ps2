@@ -15,6 +15,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <libretro.h>
 
 #include <retro_atomic.h>

@@ -113,10 +113,6 @@ target_link_libraries(common PRIVATE
 	${LIBC_LIBRARIES}
 )
 
-target_link_libraries(common PUBLIC
-	fast_float
-)
-
 fixup_file_properties(common)
 target_compile_features(common PUBLIC cxx_std_17)
 target_include_directories(common PUBLIC ../3rdparty/include ../ ../libretro/libretro-common/include)
