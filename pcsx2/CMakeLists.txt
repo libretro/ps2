@@ -222,7 +222,6 @@ set(pcsx2CDVDHeaders
 	CDVD/IsoFS/IsoDirectory.h
 	CDVD/IsoFS/IsoFileDescriptor.h
 	CDVD/IsoFS/IsoFile.h
-	CDVD/IsoFS/IsoFSCDVD.h
 	CDVD/IsoFS/IsoFS.h
 	CDVD/IsoFS/SectorSource.h
 	CDVD/zlib_indexed.h
