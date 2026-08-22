@@ -410,15 +410,15 @@ public:
 
 	__forceinline GSVector8 clamp(const float scale = 255) const
 	{
-		return min(GSVector8(scale));
+		return vmin(GSVector8(scale));
 	}
 
-	__forceinline GSVector8 min(const GSVector8& a) const
+	__forceinline GSVector8 vmin(const GSVector8& a) const
 	{
 		return GSVector8(_mm256_min_ps(m, a));
 	}
 
-	__forceinline GSVector8 max(const GSVector8& a) const
+	__forceinline GSVector8 vmax(const GSVector8& a) const
 	{
 		return GSVector8(_mm256_max_ps(m, a));
 	}

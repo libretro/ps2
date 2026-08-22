@@ -15,8 +15,9 @@
 
 #pragma once
 
-#include <retro_miscellaneous.h>
 #include <string.h>
+
+#include "../common/Pcsx2Defs.h"
 
 #include <cstring>
 #include <utility>
@@ -782,9 +783,9 @@ struct Pcsx2Config
 	struct FilenameOptions
 	{
 		/* A BIOS filename, not a full path -- FullpathToBios joins it under
-		 * EmuFolders::Bios. PATH_MAX_LENGTH is generous for a leaf name and
+		 * EmuFolders::Bios. PCSX2_PATH_MAX is generous for a leaf name and
 		 * matches what the rest of the tree uses. */
-		char Bios[PATH_MAX_LENGTH];
+		char Bios[PCSX2_PATH_MAX];
 
 		FilenameOptions();
 		void LoadSave(SettingsWrapper& wrap);
@@ -880,11 +881,11 @@ struct Pcsx2Config
 	// Memorycard options - first 2 are default slots, last 6 are multitap 1 and 2
 	// slots (3 each)
 	McdOptions Mcd[8];
-	char GzipIsoIndexTemplate[PATH_MAX_LENGTH]; /* quick-access index for gzipped ISO */
+	char GzipIsoIndexTemplate[PCSX2_PATH_MAX]; /* quick-access index for gzipped ISO */
 
 	// Set at runtime, not loaded from config.
-	char CurrentIRX[PATH_MAX_LENGTH];
-	char CurrentGameArgs[PATH_MAX_LENGTH];
+	char CurrentIRX[PCSX2_PATH_MAX];
+	char CurrentGameArgs[PCSX2_PATH_MAX];
 
 	Pcsx2Config();
 	void LoadSave(SettingsWrapper& wrap);

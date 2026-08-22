@@ -14,7 +14,6 @@
  */
 
 #include <compat/strl.h>
-#include <retro_miscellaneous.h>
 #include <ctype.h>
 #include <time.h>
 #include <exception>
@@ -274,7 +273,7 @@ static void DetectDiskType(void)
 /* Three source slots (Iso, Disc, NoDisc), each holding a path. Fixed
  * buffers: the paths are bounded, and every consumer wanted a const char*
  * anyway. */
-static char m_SourceFilename[3][PATH_MAX_LENGTH];
+static char m_SourceFilename[3][PCSX2_PATH_MAX];
 static CDVD_SourceType m_CurrentSourceType = CDVD_SourceType::NoDisc;
 
 void CDVDsys_SetFile(CDVD_SourceType srctype, const char* newfile)
@@ -286,7 +285,7 @@ void CDVDsys_SetFile(CDVD_SourceType srctype, const char* newfile)
 		slot[0] = '\0';
 		return;
 	}
-	strlcpy(slot, newfile, PATH_MAX_LENGTH);
+	strlcpy(slot, newfile, PCSX2_PATH_MAX);
 }
 
 const char* CDVDsys_GetFile(CDVD_SourceType srctype)

@@ -15,7 +15,6 @@
 
 #include <compat/strl.h>
 #include <file/file_path.h>
-#include <retro_miscellaneous.h>
 #include <ctype.h>
 #include <string.h>
 #include <cstring> /* memset */
@@ -57,7 +56,7 @@ extern MemorySettingsInterface s_settings_interface;
 // If the disc is homebrew then it probably won't have a valid serial; in which case
 // this string will be empty.
 /* Bounded: the format is four letters, a separator, five digits. */
-char DiscSerial[PATH_MAX_LENGTH];
+char DiscSerial[PCSX2_PATH_MAX];
 
 cdvdStruct cdvd;
 
@@ -196,7 +195,7 @@ static void cdvdBiosSiblingPath(char* out, size_t out_size, const char* ext)
 
 void cdvdLoadNVRAM(void)
 {
-	char nvmfile[PATH_MAX_LENGTH];
+	char nvmfile[PCSX2_PATH_MAX];
 	cdvdBiosSiblingPath(nvmfile, sizeof(nvmfile), "nvm");
 	RFILE *fp = FileSystem::OpenFile(nvmfile, "rb");
 	if (!fp || rfread(s_nvram, sizeof(s_nvram), 1, fp) != 1)
@@ -227,7 +226,7 @@ void cdvdLoadNVRAM(void)
 	if (fp)
 		filestream_close(fp);
 
-	char mecfile[PATH_MAX_LENGTH];
+	char mecfile[PCSX2_PATH_MAX];
 	cdvdBiosSiblingPath(mecfile, sizeof(mecfile), "mec");
 	fp = FileSystem::OpenFile(mecfile, "rb");
 	if (!fp || rfread(&s_mecha_version, sizeof(s_mecha_version), 1, fp) != 1)
@@ -248,7 +247,7 @@ void cdvdLoadNVRAM(void)
 
 void cdvdSaveNVRAM(void)
 {
-	char nvmfile[PATH_MAX_LENGTH];
+	char nvmfile[PCSX2_PATH_MAX];
 	cdvdBiosSiblingPath(nvmfile, sizeof(nvmfile), "nvm");
 	RFILE *fp = FileSystem::OpenFile(nvmfile, "w+b");
 	if (!fp)

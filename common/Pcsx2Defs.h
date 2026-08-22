@@ -337,6 +337,26 @@
 // method is not implemented!  You must implement it yourself if you want to use it:
 //   EnumToString(value);
 //
+/* Path buffer size.
+ *
+ * Deliberately NOT PATH_MAX_LENGTH from <retro_miscellaneous.h>: that
+ * header pulls in <windows.h> with WIN32_LEAN_AND_MEAN but without
+ * NOMINMAX, so including it from a widely-included header turns min and
+ * max into macros. Under MSVC that breaks every declaration named min or
+ * max -- GSVector8::min(), GSTextureCache's std::max initialisers -- with
+ * a cascade of syntax errors far from the include that caused them. The
+ * tree already has common/RedtapeWindows.h for pulling in windows.h
+ * safely; a config header has no business doing it at all.
+ *
+ * Having our own constant also fixes the size across translation units,
+ * which PATH_MAX_LENGTH does not: it is 512 on some platforms and 2048 on
+ * others, so a header that saw one value and a .cpp that saw the other
+ * would disagree about a struct's layout.
+ */
+#ifndef PCSX2_PATH_MAX
+#define PCSX2_PATH_MAX 2048
+#endif
+
 /* Array length, in place of std::size. */
 #ifndef C89_ARRAY_SIZE
 #define C89_ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))

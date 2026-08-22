@@ -20,8 +20,6 @@
 
 #include "../../common/Pcsx2Defs.h"
 
-#include <retro_miscellaneous.h>
-
 #include <string>
 
 /// A file reader for use with compressed formats
@@ -36,7 +34,7 @@ protected:
 	/* Fixed buffer rather than std::string: a path has a bound, the
 	 * libretro path API this tree already uses works on char*, and the
 	 * member was only ever read back through c_str(). */
-	char m_filename[PATH_MAX_LENGTH];
+	char m_filename[PCSX2_PATH_MAX];
 
 	u32 m_dataoffset = 0;
 	u32 m_blocksize = 2048;

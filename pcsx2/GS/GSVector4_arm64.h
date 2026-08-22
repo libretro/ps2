@@ -344,7 +344,7 @@ public:
 
 	__forceinline GSVector4 sat(const GSVector4& a, const GSVector4& b) const
 	{
-		return max(a).min(b);
+		return vmax(a).vmin(b);
 	}
 
 	__forceinline GSVector4 sat(const GSVector4& a) const
@@ -361,22 +361,22 @@ public:
 
 	__forceinline GSVector4 clamp(const float scale = 255) const
 	{
-		return min(GSVector4(scale));
+		return vmin(GSVector4(scale));
 	}
 
-	__forceinline GSVector4 min(const GSVector4& a) const
+	__forceinline GSVector4 vmin(const GSVector4& a) const
 	{
 		return GSVector4(vminq_f32(v4s, a.v4s));
 	}
 
-	__forceinline GSVector4 max(const GSVector4& a) const
+	__forceinline GSVector4 vmax(const GSVector4& a) const
 	{
     return GSVector4(vmaxq_f32(v4s, a.v4s));
 	}
 
 	// lrps2 spells these _min/_max (the SSE GSVector4.h does too); keep both.
-	__forceinline GSVector4 _min(const GSVector4& a) const { return min(a); }
-	__forceinline GSVector4 _max(const GSVector4& a) const { return max(a); }
+	__forceinline GSVector4 _min(const GSVector4& a) const { return vmin(a); }
+	__forceinline GSVector4 _max(const GSVector4& a) const { return vmax(a); }
 
 	template <int mask>
 	__forceinline GSVector4 blend32(const GSVector4& a) const

@@ -18,7 +18,6 @@
 #include <iterator>
 #include <utility>
 #include <compat/strl.h>
-#include <retro_miscellaneous.h>
 #include <file/file_path.h>
 #include <compat/strl.h>
 #include <sys/stat.h>
@@ -94,7 +93,7 @@ typedef struct
 	uint32_t unknown;
 } fxio_dirent_t;
 
-static char hostRoot[PATH_MAX_LENGTH];
+static char hostRoot[PCSX2_PATH_MAX];
 
 /* Lexical canonicalise: a port of Path::Canonicalize, checked against it
  * in tests/path/canon_test.c over that table and 200,000 generated paths. */
@@ -256,8 +255,8 @@ namespace R3000A
 	 * escapes. Writes into the caller's buffer; no allocation. */
 	static void host_path(char* out, size_t out_size, const char* path, int allow_open_host_root)
 	{
-		char   native[PATH_MAX_LENGTH];
-		char   canonical[PATH_MAX_LENGTH];
+		char   native[PCSX2_PATH_MAX];
+		char   canonical[PCSX2_PATH_MAX];
 		size_t root_len;
 
 		out[0] = '\0';
@@ -335,7 +334,7 @@ namespace R3000A
 	static int host_stat(const char* path, fio_stat_t* host_stats, fio_stat_flags& stat = ioman_stat)
 	{
 		struct stat file_stats;
-		char file_path[PATH_MAX_LENGTH];
+		char file_path[PCSX2_PATH_MAX];
 
 		host_path(file_path, sizeof(file_path), path, 1);
 
@@ -414,7 +413,7 @@ namespace R3000A
 		static int open(HostFile** file, const char* full_path, s32 flags, u16 mode)
 		{
 			const char* colon = strchr(full_path, ':');
-			char file_path[PATH_MAX_LENGTH];
+			char file_path[PCSX2_PATH_MAX];
 
 			host_path(file_path, sizeof(file_path), colon ? colon + 1 : full_path, 0);
 			unsigned vfs_mode;
@@ -508,7 +507,7 @@ namespace R3000A
 	public:
 		FileSystem::FindResultsArray results;
 		FileSystem::FindResultsArray::iterator dir;
-		char basedir[PATH_MAX_LENGTH];
+		char basedir[PCSX2_PATH_MAX];
 
 		HostDir(FileSystem::FindResultsArray results_, const char* basedir_)
 			: results(std::move(results_))
@@ -522,7 +521,7 @@ namespace R3000A
 		static int open(HostDir** dir, const char* full_path)
 		{
 			const char* colon = strchr(full_path, ':');
-			char path[PATH_MAX_LENGTH];
+			char path[PCSX2_PATH_MAX];
 
 			host_path(path, sizeof(path), colon ? colon + 1 : full_path, 1);
 
@@ -549,7 +548,7 @@ namespace R3000A
 				fxio_dirent_t* hostcontent = (fxio_dirent_t*)buf;
 				strlcpy(hostcontent->name, dir->FileName.c_str(), sizeof(hostcontent->name));
 				{
-					char joined[PATH_MAX_LENGTH];
+					char joined[PCSX2_PATH_MAX];
 					snprintf(joined, sizeof(joined), "%s/%s", basedir, dir->FileName.c_str());
 					host_stat(joined, &hostcontent->stat);
 				}
@@ -559,7 +558,7 @@ namespace R3000A
 				fio_dirent_t* hostcontent = (fio_dirent_t*)buf;
 				strlcpy(hostcontent->name, dir->FileName.c_str(), sizeof(hostcontent->name));
 				{
-					char joined[PATH_MAX_LENGTH];
+					char joined[PCSX2_PATH_MAX];
 					snprintf(joined, sizeof(joined), "%s/%s", basedir, dir->FileName.c_str());
 					host_stat(joined, &hostcontent->stat);
 				}
@@ -710,8 +709,8 @@ namespace R3000A
 		int open_HLE()
 		{
 			HostFile* file = NULL;
-			char path_raw[PATH_MAX_LENGTH];
-			char path[PATH_MAX_LENGTH];
+			char path_raw[PCSX2_PATH_MAX];
+			char path[PCSX2_PATH_MAX];
 			Ra0_BUF(path_raw);
 			clean_path(path, sizeof(path), path_raw);
 			s32 flags = a1;
@@ -768,8 +767,8 @@ namespace R3000A
 		int dopen_HLE()
 		{
 			HostDir* dir = NULL;
-			char path_raw[PATH_MAX_LENGTH];
-			char path[PATH_MAX_LENGTH];
+			char path_raw[PCSX2_PATH_MAX];
+			char path[PCSX2_PATH_MAX];
 			Ra0_BUF(path_raw);
 			clean_path(path, sizeof(path), path_raw);
 
@@ -861,8 +860,8 @@ namespace R3000A
 
 		int _getStat_HLE(bool iomanx)
 		{
-			char path_raw[PATH_MAX_LENGTH];
-			char path[PATH_MAX_LENGTH];
+			char path_raw[PCSX2_PATH_MAX];
+			char path[PCSX2_PATH_MAX];
 			Ra0_BUF(path_raw);
 			clean_path(path, sizeof(path), path_raw);
 			u32 data = a1;
@@ -870,7 +869,7 @@ namespace R3000A
 			if (is_host(path))
 			{
 				const char* colon = strchr(path, ':');
-				char full_path[PATH_MAX_LENGTH];
+				char full_path[PCSX2_PATH_MAX];
 
 				host_path(full_path, sizeof(full_path), colon ? colon + 1 : path, 1);
 				if (iomanx)
@@ -924,15 +923,15 @@ namespace R3000A
 
 		int remove_HLE()
 		{
-			char full_path_raw[PATH_MAX_LENGTH];
-			char full_path[PATH_MAX_LENGTH];
+			char full_path_raw[PCSX2_PATH_MAX];
+			char full_path[PCSX2_PATH_MAX];
 			Ra0_BUF(full_path_raw);
 			clean_path(full_path, sizeof(full_path), full_path_raw);
 
 			if (is_host(full_path))
 			{
 				const char* colon = strchr(full_path, ':');
-				char file_path[PATH_MAX_LENGTH];
+				char file_path[PCSX2_PATH_MAX];
 
 				host_path(file_path, sizeof(file_path), colon ? colon + 1 : full_path, 0);
 				const bool succeeded = FileSystem::DeleteFilePath(file_path);
@@ -946,15 +945,15 @@ namespace R3000A
 
 		int mkdir_HLE()
 		{
-			char full_path_raw[PATH_MAX_LENGTH];
-			char full_path[PATH_MAX_LENGTH];
+			char full_path_raw[PCSX2_PATH_MAX];
+			char full_path[PCSX2_PATH_MAX];
 			Ra0_BUF(full_path_raw);
 			clean_path(full_path, sizeof(full_path), full_path_raw);
 
 			if (is_host(full_path))
 			{
 				const char* colon = strchr(full_path, ':');
-				char folder_path[PATH_MAX_LENGTH];
+				char folder_path[PCSX2_PATH_MAX];
 
 				host_path(folder_path, sizeof(folder_path), colon ? colon + 1 : full_path, 0); // NOTE: Don't allow creating the ELF directory.
 				const bool succeeded = path_mkdir(folder_path);
@@ -992,15 +991,15 @@ namespace R3000A
 
 		int rmdir_HLE()
 		{
-			char full_path_raw[PATH_MAX_LENGTH];
-			char full_path[PATH_MAX_LENGTH];
+			char full_path_raw[PCSX2_PATH_MAX];
+			char full_path[PCSX2_PATH_MAX];
 			Ra0_BUF(full_path_raw);
 			clean_path(full_path, sizeof(full_path), full_path_raw);
 
 			if (is_host(full_path))
 			{
 				const char* colon = strchr(full_path, ':');
-				char folder_path[PATH_MAX_LENGTH];
+				char folder_path[PCSX2_PATH_MAX];
 
 				host_path(folder_path, sizeof(folder_path), colon ? colon + 1 : full_path, 0); // NOTE: Don't allow removing the elf directory itself.
 				const bool succeeded = FileSystem::DeleteDirectory(folder_path);
@@ -1022,7 +1021,7 @@ namespace R3000A
 
 			if (fd == 1) // stdout
 			{
-				char s[PATH_MAX_LENGTH];
+				char s[PCSX2_PATH_MAX];
 				Ra1_BUF(s);
 				pc = ra;
 				v0 = a2;

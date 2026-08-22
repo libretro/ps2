@@ -15,7 +15,7 @@
 
 #pragma once
 
-#include <retro_miscellaneous.h>
+#include "../../common/Pcsx2Defs.h"
 
 #include "CDVD.h"
 #include "ThreadedFileReader.h"
@@ -41,7 +41,7 @@ class InputIsoFile
 	DeclareNoncopyableObject(InputIsoFile);
 
 protected:
-	char m_filename[PATH_MAX_LENGTH];
+	char m_filename[PCSX2_PATH_MAX];
 	/* Owned raw pointer rather than unique_ptr: the lifetime is two
 	 * explicit points -- created in Open, destroyed in Close, which Open
 	 * also calls first -- so the smart pointer expressed nothing the code

@@ -7,7 +7,6 @@
 
 #include <cstdint>
 #include <libretro.h>
-#include <retro_miscellaneous.h>
 #include <file/file_path.h>
 #include <streams/file_stream.h>
 #include <vfs/vfs_hybrid.h>
@@ -2403,7 +2402,7 @@ bool retro_load_game(const struct retro_game_info* game)
 	if (!setting_shared_memory_cards && game && game->path)
 	{
 		const char* save_base = nullptr;
-		char memcard_path[PATH_MAX_LENGTH];
+		char memcard_path[PCSX2_PATH_MAX];
 
 		environ_cb(RETRO_ENVIRONMENT_GET_SAVE_DIRECTORY, &save_base);
 
@@ -2435,9 +2434,9 @@ bool retro_load_game(const struct retro_game_info* game)
 			if (fd)
 			{
 				int len;
-				char linebuf[PATH_MAX_LENGTH];
-				char game_dir[PATH_MAX_LENGTH];
-				char game_abs[PATH_MAX_LENGTH];
+				char linebuf[PCSX2_PATH_MAX];
+				char game_dir[PCSX2_PATH_MAX];
+				char game_abs[PCSX2_PATH_MAX];
 
 				game_dir[0] = '\0';
 				game_abs[0] = '\0';
@@ -2445,7 +2444,7 @@ bool retro_load_game(const struct retro_game_info* game)
 				snprintf(game_dir, sizeof(game_dir), "%s", game_path.c_str());
 				path_basedir(game_dir);
 
-				while ((filestream_gets(fd, linebuf, PATH_MAX_LENGTH) != NULL) && (disk_images.size() < MAX_DISKS))
+				while ((filestream_gets(fd, linebuf, PCSX2_PATH_MAX) != NULL) && (disk_images.size() < MAX_DISKS))
 				{
 					if (linebuf[0] == '#' || linebuf[0] == ';')
 						continue;

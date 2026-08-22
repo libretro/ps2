@@ -13,7 +13,6 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <retro_miscellaneous.h>
 #include <compat/strl.h>
 #include <retro_atomic.h>
 #include <features/features_cpu.h>
@@ -840,7 +839,7 @@ bool VMManager::ChangeDisc(CDVD_SourceType source, std::string path)
 	if (!result)
 	{
 		const CDVD_SourceType old_type = CDVDsys_GetSourceType();
-		char old_path[PATH_MAX_LENGTH];
+		char old_path[PCSX2_PATH_MAX];
 		strlcpy(old_path, CDVDsys_GetFile(old_type), sizeof(old_path));
 
 		/* Failed to open new disc image '{}'. Reverting to old image */
