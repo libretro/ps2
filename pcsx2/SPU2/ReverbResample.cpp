@@ -5,7 +5,7 @@ MULTI_ISA_UNSHARED_START
 
 static constexpr u32 NUM_TAPS = 39;
 // 39 tap filter, the 0's could be optimized out
-static const s16 filter_down_coefs[48] alignas(32) = {
+alignas(32) static const s16 filter_down_coefs[48] = {
 	-1,
 	0,
 	2,
@@ -50,7 +50,7 @@ static const s16 filter_down_coefs[48] alignas(32) = {
 /* The up coefficients are the down coefficients doubled and clamped. This
  * was a constexpr std::array returned by value from make_up_coefs(); it is
  * filled once at startup instead, since a C array cannot be returned. */
-static s16 filter_up_coefs[48] alignas(32);
+alignas(32) static s16 filter_up_coefs[48];
 
 static void make_up_coefs(void)
 {
