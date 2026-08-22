@@ -30,8 +30,6 @@ INCFLAGS := \
 	-I$(DEPS_DIR) \
 	-I$(DEPS_DIR)/include \
 	-I$(DEPS_DIR)/xbyak \
-	-I$(DEPS_DIR)/rapidyaml/rapidyaml/src \
-	-I$(DEPS_DIR)/rapidyaml/rapidyaml/ext/c4core/src \
 	-I$(DEPS_DIR)/rapidyaml/rapidyaml/ext/c4core/src/c4/ext/fast_float/include \
 	-I$(DEPS_DIR)/d3d12memalloc/include
 
@@ -562,6 +560,7 @@ SOURCES_C += $(LIBRETRO_COMM_DIR)/encodings/encoding_rlz4.c
 SOURCES_C += \
 	$(LIBRETRO_COMM_DIR)/formats/chd/rchd.c \
 	$(LIBRETRO_COMM_DIR)/formats/flac/rflac.c \
+	$(LIBRETRO_COMM_DIR)/formats/yaml/ryaml.c \
 	$(LIBRETRO_COMM_DIR)/formats/7z/r7z_lzma.c \
 	$(LIBRETRO_COMM_DIR)/encodings/encoding_rzstd.c \
 	$(LIBRETRO_COMM_DIR)/encodings/encoding_huffman.c \
@@ -593,28 +592,6 @@ SOURCES_CC += \
 	$(wildcard $(DEPS_DIR)/vixl/src/*.cc) \
 	$(wildcard $(DEPS_DIR)/vixl/src/aarch64/*.cc)
 endif
-
-# rapidyaml (rolls c4core into the same library, matching ryml.vcxproj)
-SOURCES_CXX += \
-	$(DEPS_DIR)/rapidyaml/rapidyaml/src/c4/yml/common.cpp \
-	$(DEPS_DIR)/rapidyaml/rapidyaml/src/c4/yml/node.cpp \
-	$(DEPS_DIR)/rapidyaml/rapidyaml/src/c4/yml/node_type.cpp \
-	$(DEPS_DIR)/rapidyaml/rapidyaml/src/c4/yml/parse.cpp \
-	$(DEPS_DIR)/rapidyaml/rapidyaml/src/c4/yml/preprocess.cpp \
-	$(DEPS_DIR)/rapidyaml/rapidyaml/src/c4/yml/reference_resolver.cpp \
-	$(DEPS_DIR)/rapidyaml/rapidyaml/src/c4/yml/tag.cpp \
-	$(DEPS_DIR)/rapidyaml/rapidyaml/src/c4/yml/tree.cpp \
-	$(DEPS_DIR)/rapidyaml/rapidyaml/src/c4/yml/version.cpp \
-	$(DEPS_DIR)/rapidyaml/rapidyaml/ext/c4core/src/c4/base64.cpp \
-	$(DEPS_DIR)/rapidyaml/rapidyaml/ext/c4core/src/c4/char_traits.cpp \
-	$(DEPS_DIR)/rapidyaml/rapidyaml/ext/c4core/src/c4/error.cpp \
-	$(DEPS_DIR)/rapidyaml/rapidyaml/ext/c4core/src/c4/format.cpp \
-	$(DEPS_DIR)/rapidyaml/rapidyaml/ext/c4core/src/c4/language.cpp \
-	$(DEPS_DIR)/rapidyaml/rapidyaml/ext/c4core/src/c4/memory_resource.cpp \
-	$(DEPS_DIR)/rapidyaml/rapidyaml/ext/c4core/src/c4/memory_util.cpp \
-	$(DEPS_DIR)/rapidyaml/rapidyaml/ext/c4core/src/c4/utf.cpp \
-	$(DEPS_DIR)/rapidyaml/rapidyaml/ext/c4core/src/c4/version.cpp
-
 
 # D3D12MemAlloc (Windows only)
 ifeq ($(IS_WINDOWS), 1)

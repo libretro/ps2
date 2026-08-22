@@ -45,15 +45,15 @@ if((GCC_VERSION VERSION_EQUAL "9.0" OR GCC_VERSION VERSION_GREATER "9.0") AND GC
 	This text being in a compile log in an open issue may cause it to be closed.")
 endif()
 
-find_optional_system_library(ryml 3rdparty/rapidyaml/rapidyaml 0.11.1)
 # zstd, libzip, lzma, and chdr are gone with their vendored trees: CHD
 # decodes through rchd, ZIP members and CSO/gz through rinflate, all in
 # libretro-common (see libretro/CMakeLists.txt for the source list).
 
-# rapidyaml includes fast_float as a submodule, saves us pulling it in directly.
-# Normally, we'd just pull in the cmake project, and link to it, but... it seems to enable
-# permissive mode, which breaks other parts of PCSX2. So, we'll just create a target here
-# for now.
+# The rapidyaml tree is kept only for fast_float, which is header-only;
+# YAML itself is read by ryaml in libretro-common. Normally we would just
+# pull in the cmake project and link to it, but... it seems to enable
+# permissive mode, which breaks other parts of PCSX2. So, we'll just create
+# a target here for now.
 #add_subdirectory(3rdparty/rapidyaml/rapidyaml/ext/c4core/src/c4/ext/fast_float EXCLUDE_FROM_ALL)
 add_library(fast_float INTERFACE)
 target_include_directories(fast_float INTERFACE 3rdparty/rapidyaml/rapidyaml/ext/c4core/src/c4/ext/fast_float/include)

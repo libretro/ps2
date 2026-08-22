@@ -18,8 +18,8 @@
 #include <optional>
 
 #include "../common/Threading.h"
-#include "../3rdparty/rapidyaml/rapidyaml/src/ryml_std.hpp"
-#include "../3rdparty/rapidyaml/rapidyaml/src/ryml.hpp"
+
+#include <formats/ryaml.h>
 
 #include "../common/Console.h"
 #include "../common/FileSystem.h"
@@ -40,7 +40,7 @@ namespace GameDatabaseSchema
 
 namespace GameDatabase
 {
-	static void parseAndInsert(const char *serial, const c4::yml::NodeRef& node);
+	static void parseAndInsert(const char *serial, const ryaml_t *yaml, int node);
 	static void initDatabase();
 } // namespace GameDatabase
 
@@ -86,90 +86,117 @@ const std::string* GameDatabaseSchema::GameEntry::findPatch(u32 crc) const
 	return nullptr;
 }
 
-void GameDatabase::parseAndInsert(const char *serial, const c4::yml::NodeRef& node)
+
+/* Small adapters over the C reader, so the extraction sites below read
+ * the way they did when this used a C++ YAML library. A node handle of
+ * RYAML_NONE is inert, so a lookup that missed can be passed straight
+ * on without a test at each step. */
+static std::string yamlString(const ryaml_t* yaml, int node)
+{
+	size_t len = 0;
+	const char* str = ryaml_val(yaml, node, &len);
+	return str ? std::string(str, len) : std::string();
+}
+
+static std::string_view yamlKeyView(const ryaml_t* yaml, int node)
+{
+	size_t len = 0;
+	const char* str = ryaml_key(yaml, node, &len);
+	return str ? std::string_view(str, len) : std::string_view();
+}
+
+static std::string_view yamlValView(const ryaml_t* yaml, int node)
+{
+	size_t len = 0;
+	const char* str = ryaml_val(yaml, node, &len);
+	return str ? std::string_view(str, len) : std::string_view();
+}
+
+static int yamlInt(const ryaml_t* yaml, int node, int def)
+{
+	int value = def;
+	ryaml_val_int(yaml, node, &value);
+	return value;
+}
+
+void GameDatabase::parseAndInsert(const char *serial, const ryaml_t *yaml, int node)
 {
 	GameDatabaseSchema::GameEntry gameEntry;
-	if (node.has_child("name"))
-		node["name"] >> gameEntry.name;
-	if (node.has_child("region"))
-		node["region"] >> gameEntry.region;
-	if (node.has_child("roundModes"))
+	gameEntry.name   = yamlString(yaml, ryaml_find_child(yaml, node, "name"));
+	gameEntry.region = yamlString(yaml, ryaml_find_child(yaml, node, "region"));
 	{
-		if (node["roundModes"].has_child("eeRoundMode"))
+		const int roundModes = ryaml_find_child(yaml, node, "roundModes");
 		{
-			int eeVal = -1;
-			node["roundModes"]["eeRoundMode"] >> eeVal;
+			const int eeVal = yamlInt(yaml,
+				ryaml_find_child(yaml, roundModes, "eeRoundMode"), -1);
 			if (eeVal >= 0 && eeVal < static_cast<int>(FPRoundMode::MaxCount))
 				gameEntry.eeRoundMode = static_cast<FPRoundMode>(eeVal);
 		}
-		if (node["roundModes"].has_child("eeDivRoundMode"))
 		{
-			int eeVal = -1;
-			node["roundModes"]["eeDivRoundMode"] >> eeVal;
+			const int eeVal = yamlInt(yaml,
+				ryaml_find_child(yaml, roundModes, "eeDivRoundMode"), -1);
 			if (eeVal >= 0 && eeVal < static_cast<int>(FPRoundMode::MaxCount))
 				gameEntry.eeDivRoundMode = static_cast<FPRoundMode>(eeVal);
 		}
-		if (node["roundModes"].has_child("vuRoundMode"))
 		{
-			int vuVal = -1;
-			node["roundModes"]["vuRoundMode"] >> vuVal;
+			const int vuVal = yamlInt(yaml,
+				ryaml_find_child(yaml, roundModes, "vuRoundMode"), -1);
 			if (vuVal >= 0 && vuVal < static_cast<int>(FPRoundMode::MaxCount))
 			{
 				gameEntry.vu0RoundMode = static_cast<FPRoundMode>(vuVal);
 				gameEntry.vu1RoundMode = static_cast<FPRoundMode>(vuVal);
 			}
 		}
-		if (node["roundModes"].has_child("vu0RoundMode"))
 		{
-			int vuVal = -1;
-			node["roundModes"]["vu0RoundMode"] >> vuVal;
+			const int vuVal = yamlInt(yaml,
+				ryaml_find_child(yaml, roundModes, "vu0RoundMode"), -1);
 			if (vuVal >= 0 && vuVal < static_cast<int>(FPRoundMode::MaxCount))
 				gameEntry.vu0RoundMode = static_cast<FPRoundMode>(vuVal);
 		}
-		if (node["roundModes"].has_child("vu1RoundMode"))
 		{
-			int vuVal = -1;
-			node["roundModes"]["vu1RoundMode"] >> vuVal;
+			const int vuVal = yamlInt(yaml,
+				ryaml_find_child(yaml, roundModes, "vu1RoundMode"), -1);
 			if (vuVal >= 0 && vuVal < static_cast<int>(FPRoundMode::MaxCount))
 				gameEntry.vu1RoundMode = static_cast<FPRoundMode>(vuVal);
 		}
 	}
-	if (node.has_child("clampModes"))
 	{
-		if (node["clampModes"].has_child("eeClampMode"))
+		const int clampModes = ryaml_find_child(yaml, node, "clampModes");
+		if (ryaml_has_child(yaml, clampModes, "eeClampMode"))
 		{
-			int eeVal = -1;
-			node["clampModes"]["eeClampMode"] >> eeVal;
+			const int eeVal = yamlInt(yaml,
+				ryaml_find_child(yaml, clampModes, "eeClampMode"), -1);
 			gameEntry.eeClampMode = static_cast<GameDatabaseSchema::ClampMode>(eeVal);
 		}
-		if (node["clampModes"].has_child("vuClampMode"))
+		if (ryaml_has_child(yaml, clampModes, "vuClampMode"))
 		{
-			int vuVal = -1;
-			node["clampModes"]["vuClampMode"] >> vuVal;
+			const int vuVal = yamlInt(yaml,
+				ryaml_find_child(yaml, clampModes, "vuClampMode"), -1);
 			gameEntry.vu0ClampMode = static_cast<GameDatabaseSchema::ClampMode>(vuVal);
 			gameEntry.vu1ClampMode = static_cast<GameDatabaseSchema::ClampMode>(vuVal);
 		}
-		if (node["clampModes"].has_child("vu0ClampMode"))
+		if (ryaml_has_child(yaml, clampModes, "vu0ClampMode"))
 		{
-			int vuVal = -1;
-			node["clampModes"]["vu0ClampMode"] >> vuVal;
+			const int vuVal = yamlInt(yaml,
+				ryaml_find_child(yaml, clampModes, "vu0ClampMode"), -1);
 			gameEntry.vu0ClampMode = static_cast<GameDatabaseSchema::ClampMode>(vuVal);
 		}
-		if (node["clampModes"].has_child("vu1ClampMode"))
+		if (ryaml_has_child(yaml, clampModes, "vu1ClampMode"))
 		{
-			int vuVal = -1;
-			node["clampModes"]["vu1ClampMode"] >> vuVal;
+			const int vuVal = yamlInt(yaml,
+				ryaml_find_child(yaml, clampModes, "vu1ClampMode"), -1);
 			gameEntry.vu1ClampMode = static_cast<GameDatabaseSchema::ClampMode>(vuVal);
 		}
 	}
 
 	// Validate game fixes, invalid ones will be dropped!
-	if (node.has_child("gameFixes") && node["gameFixes"].has_children())
 	{
-		for (const auto& n : node["gameFixes"].children())
+		const int gameFixes = ryaml_find_child(yaml, node, "gameFixes");
+		for (int n = ryaml_first_child(yaml, gameFixes); n >= 0;
+			n = ryaml_next_sibling(yaml, n))
 		{
 			bool fixValidated = false;
-			auto fix = std::string(n.val().str, n.val().len);
+			std::string fix(yamlValView(yaml, n));
 
 			// Enum values don't end with Hack, but gamedb does, so remove it before comparing.
 			if (StringUtil::EndsWith(fix, "Hack"))
@@ -192,12 +219,13 @@ void GameDatabase::parseAndInsert(const char *serial, const c4::yml::NodeRef& no
 		}
 	}
 
-	if (node.has_child("speedHacks") && node["speedHacks"].has_children())
 	{
-		for (const auto& n : node["speedHacks"].children())
+		const int speedHacks = ryaml_find_child(yaml, node, "speedHacks");
+		for (int n = ryaml_first_child(yaml, speedHacks); n >= 0;
+			n = ryaml_next_sibling(yaml, n))
 		{
-			const std::string_view id_view = std::string_view(n.key().str, n.key().len);
-			const std::string_view value_view = std::string_view(n.val().str, n.val().len);
+			const std::string_view id_view = yamlKeyView(yaml, n);
+			const std::string_view value_view = yamlValView(yaml, n);
 			const std::optional<SpeedHack> id = Pcsx2Config::SpeedhackOptions::ParseSpeedHackName(id_view);
 			const std::optional<int> value = StringUtil::FromChars<int>(value_view);
 
@@ -210,18 +238,19 @@ void GameDatabase::parseAndInsert(const char *serial, const c4::yml::NodeRef& no
 		}
 	}
 
-	if (node.has_child("gsHWFixes"))
 	{
-		for (const auto& n : node["gsHWFixes"].children())
+		const int gsHWFixes = ryaml_find_child(yaml, node, "gsHWFixes");
+		for (int n = ryaml_first_child(yaml, gsHWFixes); n >= 0;
+			n = ryaml_next_sibling(yaml, n))
 		{
-			const std::string_view id_name(n.key().data(), n.key().size());
+			const std::string_view id_name = yamlKeyView(yaml, n);
 			std::optional<GameDatabaseSchema::GSHWFixId> id = GameDatabaseSchema::parseHWFixName(id_name);
 			std::optional<s32> value;
 			if (id.has_value() && (id.value() == GameDatabaseSchema::GSHWFixId::GetSkipCount ||
 									  id.value() == GameDatabaseSchema::GSHWFixId::BeforeDraw ||
 									  id.value() == GameDatabaseSchema::GSHWFixId::MoveHandler))
 			{
-				const std::string_view str_value(n.has_val() ? std::string_view(n.val().data(), n.val().size()) : std::string_view());
+				const std::string_view str_value = yamlValView(yaml, n);
 				if (id.value() == GameDatabaseSchema::GSHWFixId::GetSkipCount)
 					value = GSLookupGetSkipCountFunctionId(str_value);
 				else if (id.value() == GameDatabaseSchema::GSHWFixId::BeforeDraw)
@@ -236,7 +265,9 @@ void GameDatabase::parseAndInsert(const char *serial, const c4::yml::NodeRef& no
 				}
 			}
 			else
-				value = n.has_val() ? StringUtil::FromChars<s32>(std::string_view(n.val().data(), n.val().size())) : 1;
+				value = ryaml_has_val(yaml, n)
+					? StringUtil::FromChars<s32>(yamlValView(yaml, n))
+					: std::optional<s32>(1);
 
 			if (!id.has_value() || !value.has_value())
 			{
@@ -250,22 +281,21 @@ void GameDatabase::parseAndInsert(const char *serial, const c4::yml::NodeRef& no
 
 	// Memory Card Filters - Store as a vector to allow flexibility in the future
 	// - currently they are used as a '\n' delimited string in the app
-	if (node.has_child("memcardFilters") && node["memcardFilters"].has_children())
 	{
-		for (const auto& n : node["memcardFilters"].children())
-		{
-			auto memcardFilter = std::string(n.val().str, n.val().len);
-			gameEntry.memcardFilters.emplace_back(std::move(memcardFilter));
-		}
+		const int memcardFilters = ryaml_find_child(yaml, node, "memcardFilters");
+		for (int n = ryaml_first_child(yaml, memcardFilters); n >= 0;
+			n = ryaml_next_sibling(yaml, n))
+			gameEntry.memcardFilters.emplace_back(yamlValView(yaml, n));
 	}
 
 	// Game Patches
-	if (node.has_child("patches") && node["patches"].has_children())
 	{
-		for (const auto& n : node["patches"].children())
+		const int patches = ryaml_find_child(yaml, node, "patches");
+		for (int n = ryaml_first_child(yaml, patches); n >= 0;
+			n = ryaml_next_sibling(yaml, n))
 		{
 			// use a crc of 0 for default patches
-			const std::string_view crc_str(n.key().str, n.key().len);
+			const std::string_view crc_str = yamlKeyView(yaml, n);
 			const std::optional<u32> crc = ((crc_str.length() == 7) && (Strncasecmp(crc_str.data(), "default", 7) == 0)) ? std::optional<u32>(0) : StringUtil::FromChars<u32>(crc_str, 16);
 			if (!crc.has_value())
 			{
@@ -278,34 +308,40 @@ void GameDatabase::parseAndInsert(const char *serial, const c4::yml::NodeRef& no
 				continue;
 			}
 
-			std::string patch;
-			if (n.has_child("content"))
-				n["content"] >> patch;
+			std::string patch =
+				yamlString(yaml, ryaml_find_child(yaml, n, "content"));
 			gameEntry.patches.emplace(crc.value(), std::move(patch));
 		}
 	}
 
-	if (node.has_child("dynaPatches") && node["dynaPatches"].has_children())
 	{
-		for (const auto& n : node["dynaPatches"].children())
+		const int dynaPatches = ryaml_find_child(yaml, node, "dynaPatches");
+		for (int n = ryaml_first_child(yaml, dynaPatches); n >= 0;
+			n = ryaml_next_sibling(yaml, n))
 		{
 			DynamicPatch patch;
+			const int pattern = ryaml_find_child(yaml, n, "pattern");
 
-			if (n.has_child("pattern") && n["pattern"].has_children())
+			if (ryaml_has_children(yaml, pattern))
 			{
-				for (const auto& db_pattern : n["pattern"].children())
+				const int replacement = ryaml_find_child(yaml, n, "replacement");
+				int e;
+
+				for (e = ryaml_first_child(yaml, pattern); e >= 0;
+					e = ryaml_next_sibling(yaml, e))
 				{
-					DynamicPatchEntry entry;
-					db_pattern["offset"] >> entry.offset;
-					db_pattern["value"] >> entry.value;
+					DynamicPatchEntry entry = {};
+					ryaml_val_uint(yaml, ryaml_find_child(yaml, e, "offset"), &entry.offset);
+					ryaml_val_uint(yaml, ryaml_find_child(yaml, e, "value"), &entry.value);
 
 					patch.pattern.push_back(entry);
 				}
-				for (const auto& db_replacement : n["replacement"].children())
+				for (e = ryaml_first_child(yaml, replacement); e >= 0;
+					e = ryaml_next_sibling(yaml, e))
 				{
-					DynamicPatchEntry entry;
-					db_replacement["offset"] >> entry.offset;
-					db_replacement["value"] >> entry.value;
+					DynamicPatchEntry entry = {};
+					ryaml_val_uint(yaml, ryaml_find_child(yaml, e, "offset"), &entry.offset);
+					ryaml_val_uint(yaml, ryaml_find_child(yaml, e, "value"), &entry.value);
 
 					patch.replacement.push_back(entry);
 				}
@@ -874,17 +910,6 @@ u32 GameDatabaseSchema::GameEntry::applyGSHardwareFixes(Pcsx2Config::GSOptions& 
 
 void GameDatabase::initDatabase()
 {
-	ryml::Callbacks rymlCallbacks = ryml::get_callbacks();
-	rymlCallbacks.m_error_parse = [](c4::csubstr msg, ryml::ErrorDataParse const& errdata, void*) {
-		Console.Error("[YAML] Parsing error at {%zu}:{%zu} (bufpos={%zu}): {%.*s}",
-			errdata.ymlloc.line, errdata.ymlloc.col, errdata.ymlloc.offset,
-			(int)msg.len, msg.str);
-	};
-	ryml::set_callbacks(rymlCallbacks);
-	c4::set_error_callback([](const char* msg, size_t msg_size) {
-		Console.Error("[YAML] Internal Parsing error: {%s}",
-			msg);
-	});
 	auto buf = Host::ReadResourceFileToString(GAMEDB_YAML_FILE_NAME);
 	if (!buf.has_value())
 	{
@@ -892,12 +917,24 @@ void GameDatabase::initDatabase()
 		return;
 	}
 
-	ryml::Tree tree = ryml::parse_in_arena(c4::to_csubstr(buf.value()));
-	ryml::NodeRef root = tree.rootref();
-
-	for (const auto& n : root.children())
+	/* The reader borrows these bytes rather than copying them, so the
+	 * buffer has to outlive the tree; it does, both are scoped here. */
+	size_t err_line = 0;
+	size_t err_col = 0;
+	ryaml_t* yaml = ryaml_parse_ex(buf.value().data(), buf.value().size(),
+		&err_line, &err_col);
+	if (!yaml)
 	{
-		auto serial = StringUtil::toLower(std::string(n.key().str, n.key().len));
+		Console.Error("[GameDB] Parsing error at {%zu}:{%zu}", err_line, err_col);
+		return;
+	}
+
+	const int root = ryaml_root(yaml);
+
+	for (int n = ryaml_first_child(yaml, root); n >= 0;
+		n = ryaml_next_sibling(yaml, n))
+	{
+		auto serial = StringUtil::toLower(std::string(yamlKeyView(yaml, n)));
 
 		// Serials and CRCs must be inserted as lower-case, as that is how they are retrieved
 		// this is because the application may pass a lowercase CRC or serial along
@@ -908,11 +945,11 @@ void GameDatabase::initDatabase()
 			Console.Error("[GameDB] Duplicate serial '{%s}' found in GameDB. Skipping, Serials are case-insensitive!", serial.c_str());
 			continue;
 		}
-		if (n.is_map())
-			parseAndInsert(serial.c_str(), n);
+		if (ryaml_is_map(yaml, n))
+			parseAndInsert(serial.c_str(), yaml, n);
 	}
 
-	ryml::reset_callbacks();
+	ryaml_free(yaml);
 }
 
 void GameDatabase::ensureLoaded()
