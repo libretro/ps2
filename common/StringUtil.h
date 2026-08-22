@@ -25,16 +25,7 @@
 #include <string_view>
 #include <vector>
 
-// Work around us defining _M_ARM64 but fast_float thinking that it means MSVC.
-#if (defined(_M_ARM64) || defined(__aarch64__)) && !defined(_WIN32)
-#define HAD_M_ARM64 _M_ARM64
-#undef _M_ARM64
-#endif
-#include "../3rdparty/rapidyaml/rapidyaml/ext/c4core/src/c4/ext/fast_float/include/fast_float/fast_float.h"
-#if defined(HAD_M_ARM64) && !defined(_WIN32)
-#define _M_ARM64 HAD_M_ARM64
-#undef HAD_M_ARM64
-#endif
+#include <string/rstrtod.h>
 
 // Older versions of libstdc++ are missing support for from_chars() with floats, and was only recently
 // merged in libc++. So, just fall back to stringstream (yuck!) on everywhere except MSVC.
@@ -94,13 +85,23 @@ namespace StringUtil
 		return value;
 	}
 
+	// Floats parse through rstrtod in libretro-common: locale-independent,
+	// correctly rounded, and the same bytes give the same value on every
+	// platform. Two drifts from the fast_float wrappers this replaces, both
+	// strtod-shaped: values beyond the type's range saturate to infinity or
+	// zero instead of failing, and leading whitespace or '+' is accepted.
 	template <typename T, std::enable_if_t<std::is_floating_point<T>::value, bool> = true>
 	inline std::optional<T> FromChars(const std::string_view& str)
 	{
-		T value;
+		static_assert(std::is_same_v<T, float> || std::is_same_v<T, double>);
 
-		const fast_float::from_chars_result result = fast_float::from_chars(str.data(), str.data() + str.length(), value);
-		if (result.ec != std::errc())
+		size_t used = 0;
+		T value;
+		if constexpr (std::is_same_v<T, float>)
+			value = rstrtof_len(str.data(), str.length(), &used);
+		else
+			value = rstrtod_len(str.data(), str.length(), &used);
+		if (used == 0)
 			return std::nullopt;
 
 		return value;
@@ -108,16 +109,19 @@ namespace StringUtil
 	template <typename T, std::enable_if_t<std::is_floating_point<T>::value, bool> = true>
 	inline std::optional<T> FromChars(const std::string_view& str, std::string_view* endptr)
 	{
-		T value;
+		static_assert(std::is_same_v<T, float> || std::is_same_v<T, double>);
 
-		const char* ptr = str.data();
-		const char* end = ptr + str.length();
-		const fast_float::from_chars_result result = fast_float::from_chars(ptr, end, value);
-		if (result.ec != std::errc())
+		size_t used = 0;
+		T value;
+		if constexpr (std::is_same_v<T, float>)
+			value = rstrtof_len(str.data(), str.length(), &used);
+		else
+			value = rstrtod_len(str.data(), str.length(), &used);
+		if (used == 0)
 			return std::nullopt;
 
 		if (endptr)
-			*endptr = (result.ptr < end) ? std::string_view(result.ptr, end - result.ptr) : std::string_view();
+			*endptr = (used < str.length()) ? std::string_view(str.data() + used, str.length() - used) : std::string_view();
 
 		return value;
 	}

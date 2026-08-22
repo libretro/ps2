@@ -24,6 +24,7 @@ target_sources(pcsx2_libretro PRIVATE
    ${CMAKE_SOURCE_DIR}/libretro/libretro-common/formats/chd/rchd.c
    ${CMAKE_SOURCE_DIR}/libretro/libretro-common/formats/flac/rflac.c
    ${CMAKE_SOURCE_DIR}/libretro/libretro-common/formats/yaml/ryaml.c
+   ${CMAKE_SOURCE_DIR}/libretro/libretro-common/string/rstrtod.c
    ${CMAKE_SOURCE_DIR}/libretro/libretro-common/formats/7z/r7z_lzma.c
    ${CMAKE_SOURCE_DIR}/libretro/libretro-common/encodings/encoding_rzstd.c
    ${CMAKE_SOURCE_DIR}/libretro/libretro-common/encodings/encoding_huffman.c
