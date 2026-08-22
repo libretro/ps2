@@ -29,7 +29,7 @@ static u32 branchPC;
 static __fi void execI(void)
 {
 	// Inject IRX hack
-	if (psxRegs.pc == 0x1630 && EmuConfig.CurrentIRX.length() > 3)
+	if (psxRegs.pc == 0x1630 && strlen(EmuConfig.CurrentIRX) > 3)
 	{
 		// FIXME do I need to increase the module count (0x1F -> 0x20)
 		if (iopMemRead32(0x20018) == 0x1F)

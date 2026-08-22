@@ -1163,7 +1163,7 @@ static void iopRecRecompile(const u32 startpc)
 	u32 willbranch3 = 0;
 
 	// Inject IRX hack
-	if (startpc == 0x1630 && EmuConfig.CurrentIRX.length() > 3)
+	if (startpc == 0x1630 && strlen(EmuConfig.CurrentIRX) > 3)
 	{
 		if (iopMemRead32(0x20018) == 0x1F)
 		{

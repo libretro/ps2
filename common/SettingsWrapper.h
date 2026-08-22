@@ -103,6 +103,8 @@ protected:
 
 #define SettingsWrapSection(section) const char* CURRENT_SETTINGS_SECTION = section;
 #define SettingsWrapEntry(var) wrap.Entry(CURRENT_SETTINGS_SECTION, #var, var, var)
+/* Buffer form, for fields that are char arrays rather than std::string. */
+#define SettingsWrapEntryBuf(var) wrap.EntryBuf(CURRENT_SETTINGS_SECTION, #var, var, sizeof(var), var)
 #define SettingsWrapEntryEx(var, name) wrap.Entry(CURRENT_SETTINGS_SECTION, name, var, var)
 #define SettingsWrapBitfield(varname) varname = wrap.EntryBitfield(CURRENT_SETTINGS_SECTION, #varname, varname, varname)
 #define SettingsWrapBitBool(varname) varname = wrap.EntryBitBool(CURRENT_SETTINGS_SECTION, #varname, !!varname, varname)

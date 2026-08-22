@@ -880,11 +880,11 @@ struct Pcsx2Config
 	// Memorycard options - first 2 are default slots, last 6 are multitap 1 and 2
 	// slots (3 each)
 	McdOptions Mcd[8];
-	std::string GzipIsoIndexTemplate; // for quick-access index with gzipped ISO
+	char GzipIsoIndexTemplate[PATH_MAX_LENGTH]; /* quick-access index for gzipped ISO */
 
 	// Set at runtime, not loaded from config.
-	std::string CurrentIRX;
-	std::string CurrentGameArgs;
+	char CurrentIRX[PATH_MAX_LENGTH];
+	char CurrentGameArgs[PATH_MAX_LENGTH];
 
 	Pcsx2Config();
 	void LoadSave(SettingsWrapper& wrap);

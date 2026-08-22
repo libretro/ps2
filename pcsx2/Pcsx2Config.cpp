@@ -13,6 +13,7 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <compat/strl.h>
 #include <float.h>
 #include <stdint.h>
 #include "../common/FileSystem.h"
@@ -947,6 +948,11 @@ void Pcsx2Config::FramerateOptions::LoadSave(SettingsWrapper& wrap)
 
 Pcsx2Config::Pcsx2Config()
 {
+	/* char arrays have no default constructor; the std::string fields they
+	 * replaced were empty on construction. */
+	CurrentIRX[0]      = '\0';
+	CurrentGameArgs[0] = '\0';
+
 	bitset = 0;
 	// Set defaults for fresh installs / reset settings
 	McdEnableEjection = true;
@@ -964,7 +970,7 @@ Pcsx2Config::Pcsx2Config()
 		Mcd[slot].Type = MemoryCardType::File;
 	}
 
-	GzipIsoIndexTemplate = "$(f).pindex.tmp";
+	strlcpy(GzipIsoIndexTemplate, "$(f).pindex.tmp", sizeof(GzipIsoIndexTemplate));
 }
 
 void Pcsx2Config::LoadSave(SettingsWrapper& wrap)
@@ -989,7 +995,7 @@ void Pcsx2Config::LoadSave(SettingsWrapper& wrap)
 	DEV9.LoadSave(wrap);
 	Gamefixes.LoadSave(wrap);
 
-	SettingsWrapEntry(GzipIsoIndexTemplate);
+	SettingsWrapEntryBuf(GzipIsoIndexTemplate);
 
 	BaseFilenames.LoadSave(wrap);
 	Framerate.LoadSave(wrap);
@@ -1054,7 +1060,7 @@ bool Pcsx2Config::operator==(const Pcsx2Config& right) const
 		OpEqu(Gamefixes) &&
 		OpEqu(Framerate) &&
 		OpEqu(BaseFilenames) &&
-		OpEqu(GzipIsoIndexTemplate);
+		(strcmp(GzipIsoIndexTemplate, right.GzipIsoIndexTemplate) == 0);
 	for (u32 i = 0; i < sizeof(Mcd) / sizeof(Mcd[0]); i++)
 	{
 		equal &= OpEqu(Mcd[i].Enabled);
@@ -1067,8 +1073,8 @@ bool Pcsx2Config::operator==(const Pcsx2Config& right) const
 void Pcsx2Config::CopyRuntimeConfig(Pcsx2Config& cfg)
 {
 	UseBOOT2Injection = cfg.UseBOOT2Injection;
-	CurrentIRX = std::move(cfg.CurrentIRX);
-	CurrentGameArgs = std::move(cfg.CurrentGameArgs);
+	strlcpy(CurrentIRX, cfg.CurrentIRX, sizeof(CurrentIRX));
+	strlcpy(CurrentGameArgs, cfg.CurrentGameArgs, sizeof(CurrentGameArgs));
 
 	for (u32 i = 0; i < sizeof(Mcd) / sizeof(Mcd[0]); i++)
 	{

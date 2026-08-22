@@ -587,7 +587,7 @@ void eeloadHook(void)
 		// mode). Then EELOAD is called with the argument "rom0:PS2LOGO". At this point, we do not need any additional tricks
 		// because EELOAD is now ready to accept launch arguments. So in full-boot mode, we simply wait for PS2LOGO to be called,
 		// then we add the desired launch arguments. PS2LOGO passes those on to the game itself as it calls EELOAD a third time.
-		if (!EmuConfig.CurrentGameArgs.empty() && !strcmp(elfname.c_str(), "rom0:PS2LOGO"))
+		if (EmuConfig.CurrentGameArgs[0] && !strcmp(elfname.c_str(), "rom0:PS2LOGO"))
 		{
 			// Join all arguments by space characters so they can be processed as one string by ParseArgumentString(), then add the
 			// user's launch arguments onto the end
@@ -599,7 +599,7 @@ void eeloadHook(void)
 				arg_len = strlen((char *)PSM(arg_ptr));
 				memset(PSM(arg_ptr + arg_len), 0x20, 1);
 			}
-			strlcpy((char *)PSM(arg_ptr + arg_len + 1), EmuConfig.CurrentGameArgs.c_str(), 512);
+			strlcpy((char *)PSM(arg_ptr + arg_len + 1), EmuConfig.CurrentGameArgs, 512);
 			u32 first_arg_ptr = memRead32(cpuRegs.GPR.n.a1.UD[0]);
 			argc = ParseArgumentString(first_arg_ptr);
 
@@ -653,7 +653,7 @@ void eeloadHook(void)
 // Only called if g_SkipBiosHack is true
 void eeloadHook2(void)
 {
-	if (EmuConfig.CurrentGameArgs.empty())
+	if (EmuConfig.CurrentGameArgs[0] == '\0')
 		return;
 
 	if (!g_osdsys_str)
@@ -663,7 +663,7 @@ void eeloadHook2(void)
 	// string we insert a space character so that ParseArgumentString() has one continuous string to process.
 	size_t game_len = strlen((char *)PSM(g_osdsys_str));
 	memset(PSM(g_osdsys_str + game_len), 0x20, 1);
-	strlcpy((char *)PSM(g_osdsys_str + game_len + 1), EmuConfig.CurrentGameArgs.c_str(), EELOAD_START + EELOAD_SIZE - g_osdsys_str - game_len - 1);
+	strlcpy((char *)PSM(g_osdsys_str + game_len + 1), EmuConfig.CurrentGameArgs, EELOAD_START + EELOAD_SIZE - g_osdsys_str - game_len - 1);
 	int argc = ParseArgumentString(g_osdsys_str);
 
 	// Back up 4 bytes from start of args block for every arg + 4 bytes for start of argv pointer block, write pointers
