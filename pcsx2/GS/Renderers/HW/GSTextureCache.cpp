@@ -184,21 +184,21 @@ void GSTextureCache::ResizeTarget(Target* t, GSVector4i rect, u32 tbp, u32 psm, 
 	if (t->m_valid.z < t->m_unscaled_size.x || t->m_valid.w < t->m_unscaled_size.y)
 		return;
 
-	const GSVector2i size_delta = {std::max(0, (rect.z - t->m_valid.z)), std::max(0, (rect.w - t->m_valid.w))};
+	const GSVector2i size_delta = {pcsx2_max_i(0, (rect.z - t->m_valid.z)), pcsx2_max_i(0, (rect.w - t->m_valid.w))};
 	// If it's 1 row, it's probably the texture bounds accounting for bilinear, ignore it.
 	if (size_delta.x > 1 || size_delta.y > 1)
 	{
 		RGBAMask rgba;
 		rgba._u32 = GSUtil::GetChannelMask(t->m_TEX0.PSM);
 		// Dirty the expanded areas.
-		AddDirtyRectTarget(t, GSVector4i(t->m_valid.x, t->m_valid.w, t->m_valid.z + std::max(0, size_delta.x), t->m_valid.w + std::max(0, size_delta.y)), t->m_TEX0.PSM, t->m_TEX0.TBW, rgba);
-		AddDirtyRectTarget(t, GSVector4i(t->m_valid.z, t->m_valid.y, t->m_valid.z + std::max(0, size_delta.x), t->m_valid.w), t->m_TEX0.PSM, t->m_TEX0.TBW, rgba);
-		const GSVector4i valid_rect = {t->m_valid.x, t->m_valid.y, t->m_valid.z + std::max(0, size_delta.x), t->m_valid.w + std::max(0, size_delta.y)};
+		AddDirtyRectTarget(t, GSVector4i(t->m_valid.x, t->m_valid.w, t->m_valid.z + pcsx2_max_i(0, size_delta.x), t->m_valid.w + pcsx2_max_i(0, size_delta.y)), t->m_TEX0.PSM, t->m_TEX0.TBW, rgba);
+		AddDirtyRectTarget(t, GSVector4i(t->m_valid.z, t->m_valid.y, t->m_valid.z + pcsx2_max_i(0, size_delta.x), t->m_valid.w), t->m_TEX0.PSM, t->m_TEX0.TBW, rgba);
+		const GSVector4i valid_rect = {t->m_valid.x, t->m_valid.y, t->m_valid.z + pcsx2_max_i(0, size_delta.x), t->m_valid.w + pcsx2_max_i(0, size_delta.y)};
 		// Resizes of edges due to bilinear filtering and tex is rt could cause bad valid rects.
 		t->UpdateValidity(valid_rect, size_delta.x > 2 || size_delta.y > 2);
 		GetTargetSize(tbp, tbw, psm, valid_rect.z, valid_rect.w);
-		const int new_w = std::max(t->m_unscaled_size.x, valid_rect.z);
-		const int new_h = std::max(t->m_unscaled_size.y, valid_rect.w);
+		const int new_w = pcsx2_max_i(t->m_unscaled_size.x, valid_rect.z);
+		const int new_h = pcsx2_max_i(t->m_unscaled_size.y, valid_rect.w);
 		t->ResizeTexture(new_w, new_h);
 	}
 }
@@ -240,10 +240,10 @@ GSVector4i GSTextureCache::TranslateAlignedRectByPage(u32 tbp, u32 tebp, u32 tbw
 {
 	const GSVector2i src_page_size = GSLocalMemory::m_psm[spsm].pgs;
 	const GSVector2i dst_page_size = GSLocalMemory::m_psm[tpsm].pgs;
-	const int src_bw = static_cast<int>(std::max(1U, sbw) * 64);
-	const int dst_bw = static_cast<int>(std::max(1U, tbw) * 64);
-	const int src_pgw = std::max(1, src_bw / src_page_size.x);
-	const int dst_pgw = std::max(1, dst_bw / dst_page_size.x);
+	const int src_bw = static_cast<int>(pcsx2_max_i(1U, sbw) * 64);
+	const int dst_bw = static_cast<int>(pcsx2_max_i(1U, tbw) * 64);
+	const int src_pgw = pcsx2_max_i(1, src_bw / src_page_size.x);
+	const int dst_pgw = pcsx2_max_i(1, dst_bw / dst_page_size.x);
 	GSVector4i in_rect = src_r;
 
 	if (sbp < tebp && tebp < tbp)
@@ -329,7 +329,7 @@ GSVector4i GSTextureCache::TranslateAlignedRectByPage(u32 tbp, u32 tebp, u32 tbw
 				if (single_row || full_rows)
 				{
 					new_rect.x = 0;
-					new_rect.z = std::min(totalpages * dst_page_size.x, dst_pgw * dst_page_size.x);
+					new_rect.z = pcsx2_min_i(totalpages * dst_page_size.x, dst_pgw * dst_page_size.x);
 					new_rect.y = start_y_page * dst_page_size.y;
 					new_rect.w = new_rect.y + (((totalpages + (dst_pgw - 1)) / dst_pgw) * dst_page_size.y);
 				}
@@ -405,9 +405,9 @@ void GSTextureCache::DirtyRectByPage(u32 sbp, u32 spsm, u32 sbw, Target* t, GSVe
 
 	GSLocalMemory::psm_t* src_info = &GSLocalMemory::m_psm[spsm];
 	const GSLocalMemory::psm_t* dst_info = &GSLocalMemory::m_psm[t->m_TEX0.PSM];
-	const int dst_width = std::max(static_cast<int>(t->m_TEX0.TBW * 64), 64);
+	const int dst_width = pcsx2_max_i(static_cast<int>(t->m_TEX0.TBW * 64), 64);
 
-	int src_width = std::max(static_cast<int>(sbw * 64), 64);
+	int src_width = pcsx2_max_i(static_cast<int>(sbw * 64), 64);
 	int src_psm = spsm;
 
 	GSVector4i in_rect = src_r;
@@ -445,7 +445,7 @@ void GSTextureCache::DirtyRectByPage(u32 sbp, u32 spsm, u32 sbw, Target* t, GSVe
 		{
 			// FIXME: This could break down if the width is 1 (64 pixels) as this is half a page in memory, but I don't have a good solution right now.
 			if (dst_info->bpp >= 16 && !(src_width & 127))
-				src_width = std::max(src_width / 2, 64);
+				src_width = pcsx2_max_i(src_width / 2, 64);
 			else if (dst_info->bpp < 16)
 				src_width *= 2;
 		}
@@ -453,12 +453,12 @@ void GSTextureCache::DirtyRectByPage(u32 sbp, u32 spsm, u32 sbw, Target* t, GSVe
 
 	// This will round up pages for smaller formats such as PSMT8 and PSMT4.
 	// FIXME: Is this a problem? Does having buffer widths less than pages in size throw a real spanner in the works?
-	const int src_pg_width = std::max((src_width + (src_info->pgs.x - 1)) / src_info->pgs.x, 1);
-	const int dst_pg_width = std::max((dst_width + (dst_info->pgs.x - 1)) / dst_info->pgs.x, 1);
+	const int src_pg_width = pcsx2_max_i((src_width + (src_info->pgs.x - 1)) / src_info->pgs.x, 1);
+	const int dst_pg_width = pcsx2_max_i((dst_width + (dst_info->pgs.x - 1)) / dst_info->pgs.x, 1);
 
 	int page_offset = (block_offset) >> 5;
 	// remove any horizontal offset, this is added back on later.
-	int start_page = page_offset + (in_rect.x / src_info->pgs.x) + ((in_rect.y / src_info->pgs.y) * std::max(static_cast<int>(src_width / 64), 1));
+	int start_page = page_offset + (in_rect.x / src_info->pgs.x) + ((in_rect.y / src_info->pgs.y) * pcsx2_max_i(static_cast<int>(src_width / 64), 1));
 	const int horizontal_pages = (start_page % src_pg_width);
 	start_page -= horizontal_pages;
 
@@ -487,7 +487,7 @@ void GSTextureCache::DirtyRectByPage(u32 sbp, u32 spsm, u32 sbw, Target* t, GSVe
 		{
 			if (inc_horizontal_offset > 0)
 			{
-				const int max_horizontal_adjust = std::min(src_width - in_rect.z, inc_horizontal_offset);
+				const int max_horizontal_adjust = pcsx2_min_i(src_width - in_rect.z, inc_horizontal_offset);
 				in_rect = (in_rect + GSVector4i(max_horizontal_adjust, 0).xyxy()).max_i32(GSVector4i(0));
 				const int h_page_offset = (inc_horizontal_offset / src_info->pgs.x);
 				page_offset -= h_page_offset;
@@ -498,7 +498,7 @@ void GSTextureCache::DirtyRectByPage(u32 sbp, u32 spsm, u32 sbw, Target* t, GSVe
 			}
 			else if (inc_horizontal_offset < 0)
 			{
-				const int max_horizontal_adjust = std::min(in_rect.x, std::abs(inc_horizontal_offset));
+				const int max_horizontal_adjust = pcsx2_min_i(in_rect.x, std::abs(inc_horizontal_offset));
 				in_rect = (in_rect - GSVector4i(max_horizontal_adjust, 0).xyxy()).max_i32(GSVector4i(0));
 				const int h_page_offset = (max_horizontal_adjust / src_info->pgs.x);
 				page_offset += h_page_offset;
@@ -613,10 +613,10 @@ void GSTextureCache::DirtyRectByPage(u32 sbp, u32 spsm, u32 sbw, Target* t, GSVe
 	}
 	else // Slow way.
 	{
-		const int page_draw = (std::max(src_info->pgs.x, in_rect.width()) + (src_info->pgs.x - 1)) / src_info->pgs.x;
+		const int page_draw = (pcsx2_max_i(src_info->pgs.x, in_rect.width()) + (src_info->pgs.x - 1)) / src_info->pgs.x;
 		const int page_skip = src_pg_width - page_draw;
-		const int vertical_pages = (std::max(src_info->pgs.y, in_rect.height()) / src_info->pgs.y);
-		const int horisontal_pages = (std::max(src_info->pgs.x, in_rect.width()) / src_info->pgs.x);
+		const int vertical_pages = (pcsx2_max_i(src_info->pgs.y, in_rect.height()) / src_info->pgs.y);
+		const int horisontal_pages = (pcsx2_max_i(src_info->pgs.x, in_rect.width()) / src_info->pgs.x);
 		const int totalpages = vertical_pages * horisontal_pages + (page_skip * (vertical_pages - 1));
 		const bool single_width = page_draw == 1;
 
@@ -712,7 +712,7 @@ void GSTextureCache::DirtyRectByPage(u32 sbp, u32 spsm, u32 sbw, Target* t, GSVe
 					overflow = x_end_pos - dst_width;
 					x_end_pos = dst_width;
 				}
-				new_rect.z = std::min(x_end_pos, dst_width);
+				new_rect.z = pcsx2_min_i(x_end_pos, dst_width);
 				new_rect.y = y_offset + (page / dst_pg_width) * dst_info->pgs.y;
 				new_rect.w = new_rect.y + height;
 				new_rect = new_rect.rintersect(t->m_valid);
@@ -1050,8 +1050,8 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const bool is_color, const 
 
 		GSVector4i block_boundary_rect = req_rect;
 		// Round up to the nearst block boundary for lookup to avoid problems due to bilinear and inclusive rects.
-		block_boundary_rect.z = std::max(req_rect.x + 1, (block_boundary_rect.z + (psm_s.bs.x - 2)) & ~(psm_s.bs.x - 1));
-		block_boundary_rect.w = std::max(req_rect.y + 1, (block_boundary_rect.w + (psm_s.bs.y - 2)) & ~(psm_s.bs.y - 1));
+		block_boundary_rect.z = pcsx2_max_i(req_rect.x + 1, (block_boundary_rect.z + (psm_s.bs.x - 2)) & ~(psm_s.bs.x - 1));
+		block_boundary_rect.w = pcsx2_max_i(req_rect.y + 1, (block_boundary_rect.w + (psm_s.bs.y - 2)) & ~(psm_s.bs.y - 1));
 
 		// Arc the Lad finds the wrong surface here when looking for a depth stencil.
 		// Since we're currently not caching depth stencils (check ToDo in CreateSource) we should not look for it here.
@@ -1081,8 +1081,8 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const bool is_color, const 
 				if (!overlaps || (found_t && dst->m_TEX0.TBP0 >= bp && (GSState::s_n - dst->m_last_draw) < (GSState::s_n - t->m_last_draw)))
 					continue;
 
-				const bool width_match = (std::max(64U, bw * 64U) >> GSLocalMemory::m_psm[psm].info.pageShiftX()) ==
-										 (std::max(64U, t->m_TEX0.TBW * 64U) >> GSLocalMemory::m_psm[t->m_TEX0.PSM].info.pageShiftX());
+				const bool width_match = (pcsx2_max_i(64U, bw * 64U) >> GSLocalMemory::m_psm[psm].info.pageShiftX()) ==
+										 (pcsx2_max_i(64U, t->m_TEX0.TBW * 64U) >> GSLocalMemory::m_psm[t->m_TEX0.PSM].info.pageShiftX());
 
 				if (bp == t->m_TEX0.TBP0 && !t->m_dirty.empty() && GSUtil::GetChannelMask(psm) == GSUtil::GetChannelMask(t->m_TEX0.PSM) && GSRendererHW::GetInstance()->m_draw_transfers.size() > 0)
 				{
@@ -1258,9 +1258,9 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const bool is_color, const 
 					const GSLocalMemory::psm_t* src_info = &GSLocalMemory::m_psm[psm];
 					const int block_offset = static_cast<int>(bp) - static_cast<int>(t->m_TEX0.TBP0);
 					const int page_offset = (block_offset) >> 5;
-					const int start_page = page_offset + (new_rect.x / src_info->pgs.x) + ((new_rect.y / src_info->pgs.y) * std::max(static_cast<int>(bw), 1));
-					const int src_page_width = std::max(static_cast<int>((bw * 64) / src_info->pgs.x), 1);
-					const int dst_page_width = std::max(static_cast<int>((t->m_TEX0.TBW * 64) / GSLocalMemory::m_psm[t->m_TEX0.PSM].pgs.x), 1);
+					const int start_page = page_offset + (new_rect.x / src_info->pgs.x) + ((new_rect.y / src_info->pgs.y) * pcsx2_max_i(static_cast<int>(bw), 1));
+					const int src_page_width = pcsx2_max_i(static_cast<int>((bw * 64) / src_info->pgs.x), 1);
+					const int dst_page_width = pcsx2_max_i(static_cast<int>((t->m_TEX0.TBW * 64) / GSLocalMemory::m_psm[t->m_TEX0.PSM].pgs.x), 1);
 					if (((start_page % dst_page_width) + src_page_width) > dst_page_width)
 					{
 						const u32 read_start = GSLocalMemory::GetStartBlockAddress(bp, bw, psm, new_rect);
@@ -1688,8 +1688,8 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const bool is_color, const 
 					const bool using_both = (src->m_alpha_minmax.first ^ src->m_alpha_minmax.second) & 128;
 					const bool using_ta1 = (src->m_alpha_minmax.second & 128);
 
-					src->m_alpha_minmax.first = TEXA.AEM ? 0 : (using_both ? std::min(TEXA.TA1, TEXA.TA0) : (using_ta1 ? TEXA.TA1 : TEXA.TA0));
-					src->m_alpha_minmax.second = (using_both ? std::max(TEXA.TA1, TEXA.TA0) : (using_ta1 ? TEXA.TA1 : TEXA.TA0));
+					src->m_alpha_minmax.first = TEXA.AEM ? 0 : (using_both ? pcsx2_min_i(TEXA.TA1, TEXA.TA0) : (using_ta1 ? TEXA.TA1 : TEXA.TA0));
+					src->m_alpha_minmax.second = (using_both ? pcsx2_max_i(TEXA.TA1, TEXA.TA0) : (using_ta1 ? TEXA.TA1 : TEXA.TA0));
 				}
 			}
 		}
@@ -2458,7 +2458,7 @@ bool GSTextureCache::PreloadTarget(GIFRegTEX0 TEX0, const GSVector2i& size, cons
 						else if (dst->m_TEX0.TBP0 < t->m_TEX0.TBP0 && (dst->UnwrappedEndBlock() + 1) > t->m_TEX0.TBP0 && dst->m_TEX0.TBP0 < (t->UnwrappedEndBlock() + 1))
 						{
 							const int rt_pages = ((t->UnwrappedEndBlock() + 1) - t->m_TEX0.TBP0) >> 5;
-							const int overlapping_pages = std::min(rt_pages, static_cast<int>((dst->UnwrappedEndBlock() + 1) - t->m_TEX0.TBP0) >> 5);
+							const int overlapping_pages = pcsx2_min_i(rt_pages, static_cast<int>((dst->UnwrappedEndBlock() + 1) - t->m_TEX0.TBP0) >> 5);
 							const int overlapping_pages_height = (overlapping_pages / dst->m_TEX0.TBW) * GSLocalMemory::m_psm[t->m_TEX0.PSM].pgs.y;
 
 							if (overlapping_pages_height == 0 || (overlapping_pages % dst->m_TEX0.TBW))
@@ -2496,8 +2496,8 @@ bool GSTextureCache::PreloadTarget(GIFRegTEX0 TEX0, const GSVector2i& size, cons
 							{
 								// This should never happen as we're making a new target so the src should never be something it overlaps, but just incase..
 								GSVector4i new_valid = t->m_valid;
-								new_valid.y = std::max(new_valid.y - overlapping_pages_height, 0);
-								new_valid.w = std::max(new_valid.w - overlapping_pages_height, 0);
+								new_valid.y = pcsx2_max_i(new_valid.y - overlapping_pages_height, 0);
+								new_valid.w = pcsx2_max_i(new_valid.w - overlapping_pages_height, 0);
 								t->m_TEX0.TBP0 += (overlapping_pages_height / GSLocalMemory::m_psm[t->m_TEX0.PSM].pgs.y) << 5;
 								t->ResizeValidity(new_valid);
 							}
@@ -2658,13 +2658,13 @@ void GSTextureCache::ScaleTargetForDisplay(Target* t, const GIFRegTEX0& dispfb, 
 	const float scale = t->m_scale;
 	const int old_width = t->m_unscaled_size.x;
 	const int old_height = t->m_unscaled_size.y;
-	const int needed_height = std::min(real_h + y_offset, GSRendererHW::MAX_FRAMEBUFFER_HEIGHT);
-	const int needed_width = std::min(real_w, static_cast<int>(dispfb.TBW * 64));
+	const int needed_height = pcsx2_min_i(real_h + y_offset, GSRendererHW::MAX_FRAMEBUFFER_HEIGHT);
+	const int needed_width = pcsx2_min_i(real_w, static_cast<int>(dispfb.TBW * 64));
 	if (needed_height <= t->m_unscaled_size.y && needed_width <= t->m_unscaled_size.x)
 		return;
 	// We're expanding, so create a new texture.
-	const int new_height = std::max(t->m_unscaled_size.y, needed_height);
-	const int new_width = std::max(t->m_unscaled_size.x, needed_width);
+	const int new_height = pcsx2_max_i(t->m_unscaled_size.y, needed_height);
+	const int new_width = pcsx2_max_i(t->m_unscaled_size.x, needed_width);
 	const int scaled_new_height = static_cast<int>(std::ceil(static_cast<float>(new_height) * scale));
 	const int scaled_new_width = static_cast<int>(std::ceil(static_cast<float>(new_width) * scale));
 	GSTexture* new_texture = g_gs_device->CreateRenderTarget(scaled_new_width, scaled_new_height, GSTexture::Format::Color, false);
@@ -2822,8 +2822,8 @@ bool GSTextureCache::PrepareDownloadTexture(u32 width, u32 height, GSTexture::Fo
 		return true;
 
 	// In the case of oddly sized texture reads, we'll keep the larger dimension.
-	const u32 new_width = ctex ? std::max(ctex->GetWidth(), width) : width;
-	const u32 new_height = ctex ? std::max(ctex->GetHeight(), height) : height;
+	const u32 new_width = ctex ? pcsx2_max_i(ctex->GetWidth(), width) : width;
+	const u32 new_height = ctex ? pcsx2_max_i(ctex->GetHeight(), height) : height;
 	tex->reset();
 	*tex = g_gs_device->CreateDownloadTexture(new_width, new_height, format);
 	if (!tex)
@@ -3075,7 +3075,7 @@ void GSTextureCache::InvalidateVideoMem(const GSOffset& off, const GSVector4i& r
 			{
 				if (bp == t->m_TEX0.TBP0)
 				{
-					if (GSUtil::HasCompatibleBits(psm, t->m_TEX0.PSM) && bw == std::max(t->m_TEX0.TBW, 1U))
+					if (GSUtil::HasCompatibleBits(psm, t->m_TEX0.PSM) && bw == pcsx2_max_i(t->m_TEX0.TBW, 1U))
 					{
 						// If we're dealing with quadrant draws, we need to position them correctly (Final Fantasy X).
 						if (GSLocalMemory::m_psm[psm].depth &&
@@ -3907,8 +3907,8 @@ GSVector2i GSTextureCache::GetTargetSize(u32 bp, u32 fbw, u32 psm, s32 min_width
 		TargetHeightElem& elem = const_cast<TargetHeightElem&>(*it);
 		if (elem.bits == search.bits)
 		{
-			elem.width = std::max(elem.width, min_width);
-			elem.height = std::max(elem.height, min_height);
+			elem.width = pcsx2_max_i(elem.width, min_width);
+			elem.height = pcsx2_max_i(elem.height, min_height);
 
 			m_target_heights.MoveFront(it.Index());
 			elem.age = 0;
@@ -4125,8 +4125,8 @@ GSTextureCache::Source* GSTextureCache::CreateSource(const GIFRegTEX0& TEX0, con
 	// Be careful with offset targets as we can end up sampling the wrong part/not enough, but TW/TH can be nonsense, so we take the biggest one if there is an RT(dst).
 	// DBZ BT3 uses a region clamp offset when processing 2 player split screen and they set it 1 pixel too wide, meaning this code gets triggered.
 	// TS2 has junk small TW and TH, but the region makes more sense for the draw.
-	int tw = std::max(region.IsFixedTEX0W(1 << TEX0.TW) ? static_cast<int>(region.GetWidth()) : (1 << TEX0.TW), dst ? (1 << TEX0.TW) : 0);
-	int th = std::max(region.IsFixedTEX0H(1 << TEX0.TH) ? static_cast<int>(region.GetHeight()) : (1 << TEX0.TH), dst ? (1 << TEX0.TH) : 0);
+	int tw = pcsx2_max_i(region.IsFixedTEX0W(1 << TEX0.TW) ? static_cast<int>(region.GetWidth()) : (1 << TEX0.TW), dst ? (1 << TEX0.TW) : 0);
+	int th = pcsx2_max_i(region.IsFixedTEX0H(1 << TEX0.TH) ? static_cast<int>(region.GetHeight()) : (1 << TEX0.TH), dst ? (1 << TEX0.TH) : 0);
 
 	int tlevels = 1;
 	if (lod)
@@ -4134,7 +4134,7 @@ GSTextureCache::Source* GSTextureCache::CreateSource(const GIFRegTEX0& TEX0, con
 		// lod won't contain the full range when using basic mipmapping, only that
 		// which is hashed, so we just allocate the full thing.
 		tlevels = (GSConfig.HWMipmapMode >= GSHWMipmapMode::Enabled) ?
-		std::min(lod->y - lod->x + 1, GSDevice::GetMipmapLevelsForSize(tw, th)) : -1;
+		pcsx2_min_i(lod->y - lod->x + 1, GSDevice::GetMipmapLevelsForSize(tw, th)) : -1;
 		src->m_lod = *lod;
 	}
 
@@ -4231,8 +4231,8 @@ GSTextureCache::Source* GSTextureCache::CreateSource(const GIFRegTEX0& TEX0, con
 				const bool using_both = (src->m_alpha_minmax.first ^ src->m_alpha_minmax.second) & 128;
 				const bool using_ta1 = (src->m_alpha_minmax.second & 128);
 
-				src->m_alpha_minmax.first = TEXA.AEM ? 0 : (using_both ? std::min(TEXA.TA1, TEXA.TA0) : (using_ta1 ? TEXA.TA1 : TEXA.TA0));
-				src->m_alpha_minmax.second = (using_both ? std::max(TEXA.TA1, TEXA.TA0) : (using_ta1 ? TEXA.TA1 : TEXA.TA0));
+				src->m_alpha_minmax.first = TEXA.AEM ? 0 : (using_both ? pcsx2_min_i(TEXA.TA1, TEXA.TA0) : (using_ta1 ? TEXA.TA1 : TEXA.TA0));
+				src->m_alpha_minmax.second = (using_both ? pcsx2_max_i(TEXA.TA1, TEXA.TA0) : (using_ta1 ? TEXA.TA1 : TEXA.TA0));
 			}
 		}
 		src->m_32_bits_fmt = dst->m_32_bits_fmt;
@@ -4261,7 +4261,7 @@ GSTextureCache::Source* GSTextureCache::CreateSource(const GIFRegTEX0& TEX0, con
 
 		// Keep a trace of origin of the texture
 		src->m_target = true;
-		src->m_unscaled_size = GSVector2i(std::min(dst->m_unscaled_size.x, tw), std::min(dst->m_unscaled_size.y, th));
+		src->m_unscaled_size = GSVector2i(pcsx2_min_i(dst->m_unscaled_size.x, tw), pcsx2_min_i(dst->m_unscaled_size.y, th));
 		src->m_from_target = dst;
 		src->m_from_target_TEX0 = dst->m_TEX0;
 		src->m_valid_rect = dst->m_valid;
@@ -4286,18 +4286,16 @@ GSTextureCache::Source* GSTextureCache::CreateSource(const GIFRegTEX0& TEX0, con
 				const bool using_both = (src->m_alpha_minmax.first ^ src->m_alpha_minmax.second) & 128;
 				const bool using_ta1 = (src->m_alpha_minmax.second & 128);
 
-				src->m_alpha_minmax.first = TEXA.AEM ? 0 : (using_both ? std::min(TEXA.TA1, TEXA.TA0) : (using_ta1 ? TEXA.TA1 : TEXA.TA0));
-				src->m_alpha_minmax.second = (using_both ? std::max(TEXA.TA1, TEXA.TA0) : (using_ta1 ? TEXA.TA1 : TEXA.TA0));
+				src->m_alpha_minmax.first = TEXA.AEM ? 0 : (using_both ? pcsx2_min_i(TEXA.TA1, TEXA.TA0) : (using_ta1 ? TEXA.TA1 : TEXA.TA0));
+				src->m_alpha_minmax.second = (using_both ? pcsx2_max_i(TEXA.TA1, TEXA.TA0) : (using_ta1 ? TEXA.TA1 : TEXA.TA0));
 			}
 		}
 		src->m_32_bits_fmt = dst->m_32_bits_fmt;
 
 		// Rounding up should never exceed the texture size (since it itself should be rounded up), but just in case.
 		GSVector2i new_size(
-			std::min(static_cast<int>(std::ceil(static_cast<float>(src->m_unscaled_size.x) * dst->m_scale)),
-				dst->m_texture->GetWidth()),
-			std::min(static_cast<int>(std::ceil(static_cast<float>(src->m_unscaled_size.y) * dst->m_scale)),
-				dst->m_texture->GetHeight()));
+			pcsx2_min_i(static_cast<int>(std::ceil(static_cast<float>(src->m_unscaled_size.x) * dst->m_scale)), dst->m_texture->GetWidth()),
+			pcsx2_min_i(static_cast<int>(std::ceil(static_cast<float>(src->m_unscaled_size.y) * dst->m_scale)), dst->m_texture->GetHeight()));
 
 		if (is_8bits)
 		{
@@ -4335,7 +4333,7 @@ GSTextureCache::Source* GSTextureCache::CreateSource(const GIFRegTEX0& TEX0, con
 			const int half_width = static_cast<int>(dst->m_TEX0.TBW * (64 / 2));
 			if (half_width < dst->m_unscaled_size.x)
 			{
-				const int copy_width = std::min(half_width, dst->m_unscaled_size.x - half_width);
+				const int copy_width = pcsx2_min_i(half_width, dst->m_unscaled_size.x - half_width);
 				region_rect = GSVector4i(half_width, 0, half_width + copy_width, th);
 
 				sRect = sRect.blend32<5>(GSVector4i(GSVector4(region_rect.rintersect(dst->GetUnscaledRect())) * GSVector4(dst->m_scale)));
@@ -4414,8 +4412,8 @@ GSTextureCache::Source* GSTextureCache::CreateSource(const GIFRegTEX0& TEX0, con
 					}
 
 					g_gs_device->ConvertToIndexedTexture(sTex, dst->m_scale, x_offset, y_offset,
-						std::max<u32>(dst->m_TEX0.TBW, 1u) * 64, dst->m_TEX0.PSM, dTex,
-						std::max<u32>(TEX0.TBW, 1u) * 64, TEX0.PSM);
+						pcsx2_max_u(dst->m_TEX0.TBW, 1u) * 64, dst->m_TEX0.PSM, dTex,
+						pcsx2_max_u(TEX0.TBW, 1u) * 64, TEX0.PSM);
 				}
 				else
 				{
@@ -4523,7 +4521,7 @@ GSTextureCache::Source* GSTextureCache::CreateMergedSource(GIFRegTEX0 TEX0, GIFR
 {
 	// We *should* be able to use the TBW here as an indicator of size... except Destroy All Humans 2 sets
 	// TBW to 10, and samples from 64 through 703... which means it'd be grabbing the next row at the end.
-	const int tex_width = std::max<int>(64 * TEX0.TBW, region.GetMaxX());
+	const int tex_width = pcsx2_max_i(64 * TEX0.TBW, region.GetMaxX());
 	const int tex_height = region.HasY() ? region.GetHeight() : (1 << TEX0.TH);
 	const int scaled_width = static_cast<int>(static_cast<float>(tex_width) * scale);
 	const int scaled_height = static_cast<int>(static_cast<float>(tex_height) * scale);
@@ -4578,7 +4576,7 @@ GSTextureCache::Source* GSTextureCache::CreateMergedSource(GIFRegTEX0 TEX0, GIFR
 		}
 
 		const GSVector4i rect(
-			dst_x, dst_y, std::min(dst_x + page_width, tex_width), std::min(dst_y + page_height, tex_height));
+			dst_x, dst_y, pcsx2_min_i(dst_x + page_width, tex_width), pcsx2_min_i(dst_y + page_height, tex_height));
 
 		if (lmtex_mapped)
 		{
@@ -4665,8 +4663,8 @@ GSTextureCache::Source* GSTextureCache::CreateMergedSource(GIFRegTEX0 TEX0, GIFR
 				if (copy_multiple_pages)
 				{
 					// Min here because we don't want to go off the end of the target.
-					available_pages_x = std::min(available_pages_x, (so.b2a_offset.width() + (psm.pgs.x - 1)) / psm.pgs.x);
-					available_pages_y = std::min(available_pages_y, (so.b2a_offset.height() + (psm.pgs.y - 1)) / psm.pgs.y);
+					available_pages_x = pcsx2_min_i(available_pages_x, (so.b2a_offset.width() + (psm.pgs.x - 1)) / psm.pgs.x);
+					available_pages_y = pcsx2_min_i(available_pages_y, (so.b2a_offset.height() + (psm.pgs.y - 1)) / psm.pgs.y);
 				}
 
 				// We might not even have a full page valid..
@@ -4682,8 +4680,8 @@ GSTextureCache::Source* GSTextureCache::CreateMergedSource(GIFRegTEX0 TEX0, GIFR
 					if (src_y >= src_y_end)
 						break;
 
-					const int wanted_height = std::min(tex_height - dst_y, page_height);
-					const int copy_height = std::min(src_y_end - src_y, wanted_height);
+					const int wanted_height = pcsx2_min_i(tex_height - dst_y, page_height);
+					const int copy_height = pcsx2_min_i(src_y_end - src_y, wanted_height);
 					int src_x = so.b2a_offset.x;
 					int dst_x = page_x * page_width;
 					int row_page = current_copy_page;
@@ -4698,8 +4696,8 @@ GSTextureCache::Source* GSTextureCache::CreateMergedSource(GIFRegTEX0 TEX0, GIFR
 							pages_done[row_page / 8] |= (1u << (row_page % 8));
 
 							// In case a whole page isn't valid.
-							const int wanted_width = std::min(tex_width - dst_x, page_width);
-							const int copy_width = std::min(src_x_end - src_x, wanted_width);
+							const int wanted_width = pcsx2_min_i(tex_width - dst_x, page_width);
+							const int copy_width = pcsx2_min_i(src_x_end - src_x, wanted_width);
 
 							// Preload any missing parts. This will  happen when the valid rect isn't page aligned.
 							if (GSConfig.PreloadFrameWithGSData &&
@@ -4876,7 +4874,7 @@ GSTextureCache::HashCacheEntry* GSTextureCache::LookupHashCache(const GIFRegTEX0
 	const int tw = region.HasX() ? region.GetWidth() : (1 << TEX0.TW);
 	const int th = region.HasY() ? region.GetHeight() : (1 << TEX0.TH);
 	const int tlevels = lod ? ((GSConfig.HWMipmapMode >= GSHWMipmapMode::Enabled) ?
-		  std::min(lod->y - lod->x + 1, GSDevice::GetMipmapLevelsForSize(tw, th)) : -1) : 1;
+		  pcsx2_min_i(lod->y - lod->x + 1, GSDevice::GetMipmapLevelsForSize(tw, th)) : -1) : 1;
 	GSTexture* tex = g_gs_device->CreateTexture(tw, th, tlevels, paltex ? GSTexture::Format::UNorm8 : GSTexture::Format::Color);
 	if (!tex)
 	{
@@ -4904,8 +4902,8 @@ GSTextureCache::HashCacheEntry* GSTextureCache::LookupHashCache(const GIFRegTEX0
 				compute_alpha_minmax ? &mip_alpha_minmax : nullptr);
 			if (compute_alpha_minmax)
 			{
-				alpha_minmax.first = std::min(alpha_minmax.first, mip_alpha_minmax.first);
-				alpha_minmax.second = std::max(alpha_minmax.second, mip_alpha_minmax.second);
+				alpha_minmax.first = pcsx2_min_i(alpha_minmax.first, mip_alpha_minmax.first);
+				alpha_minmax.second = pcsx2_max_i(alpha_minmax.second, mip_alpha_minmax.second);
 			}
 		}
 	}
@@ -4977,8 +4975,7 @@ void GSTextureCache::AgeHashCache()
 		std::sort(s_hash_cache_purge_list.begin(), s_hash_cache_purge_list.end(),
 			[](const auto& lhs, const auto& rhs) { return lhs.second > rhs.second; });
 
-		const u32 entries_to_purge = std::min(static_cast<u32>(m_hash_cache.size() - MAX_HASH_CACHE_SIZE),
-			static_cast<u32>(s_hash_cache_purge_list.size()));
+		const u32 entries_to_purge = pcsx2_min_u(static_cast<u32>(m_hash_cache.size() - MAX_HASH_CACHE_SIZE), static_cast<u32>(s_hash_cache_purge_list.size()));
 		for (u32 i = 0; i < entries_to_purge; i++)
 			RemoveFromHashCache(s_hash_cache_purge_list[i].first);
 	}
@@ -5025,7 +5022,7 @@ GSTexture* GSTextureCache::LookupPaletteSource(u32 CBP, u32 CPSM, u32 CBW, GSVec
 		{
 			// Somewhere within this target, can we find it?
 			const GSVector4i rc(0, 0, size.x, size.y);
-			SurfaceOffset so = ComputeSurfaceOffset(CBP, std::max<u32>(CBW, 0), CPSM, rc, t);
+			SurfaceOffset so = ComputeSurfaceOffset(CBP, pcsx2_max_u(CBW, 0), CPSM, rc, t);
 			if (!so.is_valid)
 				continue;
 
@@ -5479,12 +5476,12 @@ void GSTextureCache::Source::Flush(u32 count, int layer, const GSOffset& off)
 	// For the invalid tex0 case, the region might be larger than TEX0.TW/TH.
 	// Clamp TW/TH to 11, as GS memory loops around 2048,
 	// anything higher than 12 causes a crash when texture mapping isn't supported like in Direct3D11.
-	const GSVector2i tex0_tw_th = GSVector2i(std::min(static_cast<int>(m_TEX0.TW), 11), std::min(static_cast<int>(m_TEX0.TH), 11));
-	const int tw = std::max(region.GetWidth(), 1 << tex0_tw_th.x);
-	const int th = std::max(region.GetHeight(), 1 << tex0_tw_th.y);
+	const GSVector2i tex0_tw_th = GSVector2i(pcsx2_min_i(static_cast<int>(m_TEX0.TW), 11), pcsx2_min_i(static_cast<int>(m_TEX0.TH), 11));
+	const int tw = pcsx2_max_i(region.GetWidth(), 1 << tex0_tw_th.x);
+	const int th = pcsx2_max_i(region.GetHeight(), 1 << tex0_tw_th.y);
 	const GSVector4i tex_r(region.GetRect(tw, th));
 
-	int pitch = std::max(tw, psm.bs.x) * sizeof(u32);
+	int pitch = pcsx2_max_i(tw, psm.bs.x) * sizeof(u32);
 
 	GSLocalMemory& mem = g_gs_renderer->m_mem;
 
@@ -5522,8 +5519,8 @@ void GSTextureCache::Source::Flush(u32 count, int layer, const GSOffset& off)
 		rtx(mem, off, r, s_unswizzle_buffer, pitch, m_TEXA);
 
 		// need to offset if we're a region texture
-		const u8* src = s_unswizzle_buffer + (pitch * static_cast<u32>(std::max(tex_r.top - r.top, 0))) +
-						(static_cast<u32>(std::max(tex_r.left - r.left, 0)) << (m_palette ? 0 : 2));
+		const u8* src = s_unswizzle_buffer + (pitch * static_cast<u32>(pcsx2_max_i(tex_r.top - r.top, 0))) +
+						(static_cast<u32>(pcsx2_max_i(tex_r.left - r.left, 0)) << (m_palette ? 0 : 2));
 		m_texture->Update(rint - tex_r.xyxy(), src, pitch, layer);
 	}
 
@@ -5564,8 +5561,8 @@ void GSTextureCache::Source::PreloadLevel(int level)
 		PreloadTexture(m_TEX0, m_TEXA, m_region.AdjustForMipmap(level), g_gs_renderer->m_mem, m_palette != nullptr,
 			m_texture, level, &mip_alpha_minmax);
 		// The entire alpha is always recalculated
-		m_alpha_minmax.first = std::min(m_alpha_minmax.first, mip_alpha_minmax.first);
-		m_alpha_minmax.second = std::max(m_alpha_minmax.second, mip_alpha_minmax.second);
+		m_alpha_minmax.first = pcsx2_min_i(m_alpha_minmax.first, mip_alpha_minmax.first);
+		m_alpha_minmax.second = pcsx2_max_i(m_alpha_minmax.second, mip_alpha_minmax.second);
 	}
 }
 
@@ -5697,8 +5694,8 @@ void GSTextureCache::Target::Update(bool cannot_scale)
 				g_gs_renderer->m_mem.ReadTexture(off, read_r, s_unswizzle_buffer, pitch, TEXA);
 
 				std::pair<u8, u8> new_alpha_minmax = GSGetRGBA8AlphaMinMax(s_unswizzle_buffer, read_r.width(), read_r.height(), pitch);
-				alpha_minmax.first = std::min(alpha_minmax.first, new_alpha_minmax.first);
-				alpha_minmax.second = std::max(alpha_minmax.second, new_alpha_minmax.second);
+				alpha_minmax.first = pcsx2_min_i(alpha_minmax.first, new_alpha_minmax.first);
+				alpha_minmax.second = pcsx2_max_i(alpha_minmax.second, new_alpha_minmax.second);
 			}
 
 			g_gs_renderer->m_mem.ReadTexture(
@@ -5712,8 +5709,8 @@ void GSTextureCache::Target::Update(bool cannot_scale)
 			if ((m_TEX0.PSM & 0xf) != PSMCT24 && m_dirty[i].rgba.c.a && bpp >= 16)
 			{
 				std::pair<u8, u8> new_alpha_minmax = GSGetRGBA8AlphaMinMax(s_unswizzle_buffer, read_r.width(), read_r.height(), pitch);
-				alpha_minmax.first = std::min(alpha_minmax.first, new_alpha_minmax.first);
-				alpha_minmax.second = std::max(alpha_minmax.second, new_alpha_minmax.second);
+				alpha_minmax.first = pcsx2_min_i(alpha_minmax.first, new_alpha_minmax.first);
+				alpha_minmax.second = pcsx2_max_i(alpha_minmax.second, new_alpha_minmax.second);
 			}
 
 			t->Update(t_r, s_unswizzle_buffer, pitch);
@@ -5772,8 +5769,8 @@ void GSTextureCache::Target::Update(bool cannot_scale)
 	{
 		if (m_dirty.size() != 1 || !total_rect.eq(m_valid))
 		{
-			m_alpha_min = std::min(static_cast<int>(alpha_minmax.first), m_alpha_min);
-			m_alpha_max = std::max(static_cast<int>(alpha_minmax.second), m_alpha_max);
+			m_alpha_min = pcsx2_min_i(static_cast<int>(alpha_minmax.first), m_alpha_min);
+			m_alpha_max = pcsx2_max_i(static_cast<int>(alpha_minmax.second), m_alpha_max);
 		}
 		else
 		{
@@ -6120,8 +6117,8 @@ GSTextureCache::SurfaceOffset GSTextureCache::ComputeSurfaceOffset(const Surface
 	if (a_el.bp >= b_el.bp)
 	{
 		// A starts after B, search <x,y> offset from B to A in B coords.
-		const u32 b_bw = b_psm_s.trbpp > 8 ? std::max(1U, b_el.bw) : std::max(1U, b_el.bw / 2);
-		const int y_page_offset = std::max(b_rect.y, static_cast<int>((((a_el.bp >= b_el.bp) >> 5) / b_bw) * b_psm_s.pgs.y));
+		const u32 b_bw = b_psm_s.trbpp > 8 ? pcsx2_max_i(1U, b_el.bw) : pcsx2_max_i(1U, b_el.bw / 2);
+		const int y_page_offset = pcsx2_max_i(b_rect.y, static_cast<int>((((a_el.bp >= b_el.bp) >> 5) / b_bw) * b_psm_s.pgs.y));
 		for (b2a_offset.y = y_page_offset; b2a_offset.y < b_rect.w; b2a_offset.y += dy)
 		{
 			for (b2a_offset.x = b_rect.x; b2a_offset.x < b_rect.z; b2a_offset.x += dx)
@@ -6479,13 +6476,13 @@ GSTextureCache::SourceRegion GSTextureCache::SourceRegion::AdjustForMipmap(u32 l
 	if (HasX())
 	{
 		const s32 new_minx = GetMinX() >> level;
-		const s32 new_maxx = new_minx + std::max(GetWidth() >> level, 1);
+		const s32 new_maxx = new_minx + pcsx2_max_i(GetWidth() >> level, 1);
 		ret.SetX(new_minx, new_maxx);
 	}
 	if (HasY())
 	{
 		const s32 new_miny = GetMinY() >> level;
-		const s32 new_maxy = new_miny + std::max(GetHeight() >> level, 1);
+		const s32 new_maxy = new_miny + pcsx2_max_i(GetHeight() >> level, 1);
 		ret.SetY(new_miny, new_maxy);
 	}
 	return ret;

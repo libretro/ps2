@@ -972,7 +972,7 @@ bool GSHwHack::OI_SonicUnleashed(GSRendererHW& r, GSTexture* rt, GSTexture* ds, 
 		GSTextureCache::Target* rt_again = g_texture_cache->LookupTarget(Frame, src_size, src->m_scale, GSTextureCache::RenderTarget);
 		if (rt_again->m_unscaled_size.x < src->m_unscaled_size.x || rt_again->m_unscaled_size.y < src->m_unscaled_size.y)
 		{
-			GSVector2i new_size = GSVector2i(std::max(rt_again->m_unscaled_size.x, src->m_unscaled_size.x), std::max(rt_again->m_unscaled_size.y, src->m_unscaled_size.y));
+			GSVector2i new_size = GSVector2i(pcsx2_max_i(rt_again->m_unscaled_size.x, src->m_unscaled_size.x), pcsx2_max_i(rt_again->m_unscaled_size.y, src->m_unscaled_size.y));
 			rt_again->ResizeTexture(new_size.x, new_size.y);
 			rt = rt_again->m_texture;
 			rt_size = new_size * GSVector2i(src->GetScale());
@@ -980,7 +980,7 @@ bool GSHwHack::OI_SonicUnleashed(GSRendererHW& r, GSTexture* rt, GSTexture* ds, 
 		}
 	}
 
-	const GSVector2i copy_size(std::min(rt_size.x, src_size.x), std::min(rt_size.y, src_size.y));
+	const GSVector2i copy_size(pcsx2_min_i(rt_size.x, src_size.x), pcsx2_min_i(rt_size.y, src_size.y));
 
 	const GSVector4 sRect(0.0f, 0.0f, static_cast<float>(copy_size.x) / static_cast<float>(src_size.x), static_cast<float>(copy_size.y) / static_cast<float>(src_size.y));
 	const GSVector4 dRect(0, 0, copy_size.x, copy_size.y);
@@ -1068,7 +1068,7 @@ bool GSHwHack::OI_Battlefield2(GSRendererHW& r, GSTexture* rt, GSTexture* ds, GS
 
 	if (rt && t && RFRAME.Block() == 0 && RTEX0.TBP0 == 0x1000)
 	{
-		const GSVector4i rc(0, 0, std::min(rt->GetWidth(), t->m_texture->GetWidth()), std::min(rt->GetHeight(), t->m_texture->GetHeight()));
+		const GSVector4i rc(0, 0, pcsx2_min_i(rt->GetWidth(), t->m_texture->GetWidth()), pcsx2_min_i(rt->GetHeight(), t->m_texture->GetHeight()));
 		g_gs_device->CopyRect(t->m_texture, rt, rc, 0, 0);
 	}
 
@@ -1289,7 +1289,7 @@ bool GSHwHack::MV_Ico(GSRendererHW& r)
 
 	if (dst->GetUnscaledWidth() < static_cast<int>(RWIDTH) || dst->GetUnscaledHeight() < static_cast<int>(RHEIGHT))
 	{
-		if (!dst->ResizeTexture(std::max(dst->GetUnscaledWidth(), static_cast<int>(RWIDTH)), std::max(dst->GetUnscaledHeight(), static_cast<int>(RHEIGHT))))
+		if (!dst->ResizeTexture(pcsx2_max_i(dst->GetUnscaledWidth(), static_cast<int>(RWIDTH)), pcsx2_max_i(dst->GetUnscaledHeight(), static_cast<int>(RHEIGHT))))
 			return false;
 	}
 

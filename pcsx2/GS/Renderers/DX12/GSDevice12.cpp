@@ -825,8 +825,8 @@ void GSDevice12::LookupNativeFormat(GSTexture::Format format, DXGI_FORMAT* d3d_f
 
 GSTexture* GSDevice12::CreateSurface(GSTexture::Type type, int width, int height, int levels, GSTexture::Format format)
 {
-	const u32 clamped_width = static_cast<u32>(std::clamp<int>(width, 1, D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION));
-	const u32 clamped_height = static_cast<u32>(std::clamp<int>(height, 1, D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION));
+	const u32 clamped_width = static_cast<u32>(pcsx2_clamp_i(width, 1, D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION));
+	const u32 clamped_height = static_cast<u32>(pcsx2_clamp_i(height, 1, D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION));
 
 	DXGI_FORMAT dxgi_format, srv_format, rtv_format, dsv_format;
 	LookupNativeFormat(format, &dxgi_format, &srv_format, &rtv_format, &dsv_format);
@@ -1538,7 +1538,7 @@ bool GSDevice12::GetSampler(D3D12DescriptorHandle* cpu_handle, GSHWDrawConfig::S
 	sd.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 	sd.MinLOD = 0.0f;
 	sd.MaxLOD = (ss.lodclamp || !ss.UseMipmapFiltering()) ? 0.25f : FLT_MAX;
-	sd.MaxAnisotropy = std::clamp<u8>(GSConfig.MaxAnisotropy, 1, 16);
+	sd.MaxAnisotropy = pcsx2_clamp_i(GSConfig.MaxAnisotropy, 1, 16);
 	sd.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
 
 	if (!GetSamplerHeapManager().Allocate(cpu_handle))
@@ -2958,8 +2958,8 @@ void GSDevice12::RenderHW(GSHWDrawConfig& config)
 		config.ps.colclip_hw ? config.drawarea :
                         GSVector4i(Common::AlignDownPow2(config.scissor.left, render_area_alignment),
 							Common::AlignDownPow2(config.scissor.top, render_area_alignment),
-							std::min(Common::AlignUpPow2(config.scissor.right, render_area_alignment), rtsize.x),
-							std::min(Common::AlignUpPow2(config.scissor.bottom, render_area_alignment), rtsize.y)));
+							pcsx2_min_i(Common::AlignUpPow2(config.scissor.right, render_area_alignment), rtsize.x),
+							pcsx2_min_i(Common::AlignUpPow2(config.scissor.bottom, render_area_alignment), rtsize.y)));
 
 	GSTexture12* draw_rt = static_cast<GSTexture12*>(config.rt);
 	GSTexture12* draw_ds = static_cast<GSTexture12*>(config.ds);

@@ -937,7 +937,7 @@ endif
 # depfile from the previous build referring to a header that has since been
 # deleted aborts the build with "No rule to make target" before the cleanup
 # would ever fire. Parse-time removal happens before those files are read.
-BUILD_TAG := $(CC)|$(CXX)|$(platform)|$(arch)|$(IS_ARM64)|$(IS_X86)
+BUILD_TAG := $(CC)|$(CXX)|$(platform)|$(arch)|$(IS_ARM64)|$(IS_X86)|$(HAVE_VULKAN)|$(HAVE_OPENGL)
 
 BUILD_TAG_STATUS := $(shell \
 	if [ ! -f .build-tag ] || [ "`cat .build-tag 2>/dev/null`" != "$(BUILD_TAG)" ]; then \

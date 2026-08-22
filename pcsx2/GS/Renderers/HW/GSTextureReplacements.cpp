@@ -374,7 +374,7 @@ void GSTextureReplacements::Shutdown()
 
 u32 GSTextureReplacements::CalcMipmapLevelsForReplacement(u32 width, u32 height)
 {
-	return static_cast<u32>(std::log2(std::max(width, height))) + 1u;
+	return static_cast<u32>(std::log2(pcsx2_max_i(width, height))) + 1u;
 }
 
 bool GSTextureReplacements::HasAnyReplacementTextures()

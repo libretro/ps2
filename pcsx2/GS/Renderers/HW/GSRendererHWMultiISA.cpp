@@ -224,7 +224,7 @@ bool GSRendererHWFunctions::SwPrimRender(GSRendererHW& hw, bool invalidate_tc, b
 				gd.sel.mmin = (context->TEX1.MMIN & 1) + 1; // 1: round, 2: tri
 				gd.sel.lcm  = context->TEX1.LCM;
 
-				int mxl     = std::min<int>((int)context->TEX1.MXL, 6) << 16;
+				int mxl     = pcsx2_min_i((int)context->TEX1.MXL, 6) << 16;
 				int k       = context->TEX1.K << 12;
 
 				if ((int)vt.m_lod.x >= (int)context->TEX1.MXL)
@@ -243,7 +243,7 @@ bool GSRendererHWFunctions::SwPrimRender(GSRendererHW& hw, bool invalidate_tc, b
 
 				if (gd.sel.lcm)
 				{
-					int lod = std::max<int>(std::min<int>(k, mxl), 0);
+					int lod = pcsx2_max_i(pcsx2_min_i(k, mxl), 0);
 
 					if (gd.sel.mmin == 1)
 						lod = (lod + 0x8000) & 0xffff0000; // rounding
@@ -265,7 +265,7 @@ bool GSRendererHWFunctions::SwPrimRender(GSRendererHW& hw, bool invalidate_tc, b
 				GSVector4 tmin = vt.m_min.t;
 				GSVector4 tmax = vt.m_max.t;
 
-				for (int i = 1, j = std::min<int>((int)context->TEX1.MXL, 6); i <= j; i++)
+				for (int i = 1, j = pcsx2_min_i((int)context->TEX1.MXL, 6); i <= j; i++)
 				{
 					const GIFRegTEX0& MIP_TEX0 = hw.GetTex0Layer(i);
 

@@ -67,13 +67,13 @@ GSTextureReplacements::ReplacementTextureLoader GSTextureReplacements::GetLoader
 
 static u32 GetBlockCount(u32 extent, u32 block_size)
 {
-	return std::max(Common::AlignUp(extent, block_size) / block_size, 1u);
+	return pcsx2_max_i(Common::AlignUp(extent, block_size) / block_size, 1u);
 }
 
 static void CalcBlockMipmapSize(u32 block_size, u32 bytes_per_block, u32 base_width, u32 base_height, u32 mip, u32& width, u32& height, u32& pitch, u32& size)
 {
-	width = std::max<u32>(base_width >> mip, 1u);
-	height = std::max<u32>(base_height >> mip, 1u);
+	width = pcsx2_max_u(base_width >> mip, 1u);
+	height = pcsx2_max_u(base_height >> mip, 1u);
 
 	const u32 blocks_wide = GetBlockCount(width, block_size);
 	const u32 blocks_high = GetBlockCount(height, block_size);

@@ -255,7 +255,7 @@ void GSTextureVK::CopyTextureDataForUpload(void* dst, const void* src, u32 pitch
 {
 	const u32 block_size = GetCompressedBlockSize();
 	const u32 count = (height + (block_size - 1)) / block_size;
-	StringUtil::StrideMemCpy(dst, upload_pitch, src, pitch, std::min(upload_pitch, pitch), count);
+	StringUtil::StrideMemCpy(dst, upload_pitch, src, pitch, pcsx2_min_i(upload_pitch, pitch), count);
 }
 
 VkBuffer GSTextureVK::AllocateUploadStagingBuffer(const void* data, u32 pitch, u32 upload_pitch, u32 height) const
@@ -451,10 +451,10 @@ void GSTextureVK::GenerateMipmap()
 	for (int dst_level = 1; dst_level < m_mipmap_levels; dst_level++)
 	{
 		const int src_level = dst_level - 1;
-		const int src_width = std::max<int>(m_size.x >> src_level, 1);
-		const int src_height = std::max<int>(m_size.y >> src_level, 1);
-		const int dst_width = std::max<int>(m_size.x >> dst_level, 1);
-		const int dst_height = std::max<int>(m_size.y >> dst_level, 1);
+		const int src_width = pcsx2_max_i(m_size.x >> src_level, 1);
+		const int src_height = pcsx2_max_i(m_size.y >> src_level, 1);
+		const int dst_width = pcsx2_max_i(m_size.x >> dst_level, 1);
+		const int dst_height = pcsx2_max_i(m_size.y >> dst_level, 1);
 
 		TransitionSubresourcesToLayout(
 			cmdbuf, src_level, 1, m_layout, Layout::TransferSrc);

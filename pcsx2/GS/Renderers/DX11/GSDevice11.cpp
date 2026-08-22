@@ -489,8 +489,8 @@ GSTexture* GSDevice11::CreateSurface(GSTexture::Type type, int width, int height
 	D3D11_TEXTURE2D_DESC desc = {};
 
 	// Texture limit for D3D10/11 min 1, max 8192 D3D10, max 16384 D3D11.
-	desc.Width = std::clamp(width, 1, m_d3d_texsize);
-	desc.Height = std::clamp(height, 1, m_d3d_texsize);
+	desc.Width = pcsx2_clamp_i(width, 1, m_d3d_texsize);
+	desc.Height = pcsx2_clamp_i(height, 1, m_d3d_texsize);
 	desc.Format = GSTexture11::GetDXGIFormat(format);
 	desc.MipLevels = levels;
 	desc.ArraySize = 1;
@@ -1688,7 +1688,7 @@ void GSDevice11::SetupPS(const PSSelector& sel, const GSHWDrawConfig::PSConstant
 			sd.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
 			sd.MinLOD = 0.0f;
 			sd.MaxLOD = (ssel.lodclamp || !ssel.UseMipmapFiltering()) ? 0.25f : FLT_MAX;
-			sd.MaxAnisotropy = std::clamp(anisotropy, 1, 16);
+			sd.MaxAnisotropy = pcsx2_clamp_i(anisotropy, 1, 16);
 			sd.ComparisonFunc = D3D11_COMPARISON_NEVER;
 
 			m_dev->CreateSamplerState(&sd, &ss0);

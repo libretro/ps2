@@ -39,8 +39,8 @@ static constexpr u32 TEXTURE_UPLOAD_PITCH_ALIGNMENT = 64;
 GSTextureOGL::GSTextureOGL(Type type, int width, int height, int levels, Format format)
 {
 	// OpenGL didn't like dimensions of size 0
-	m_size.x = std::max(1, width);
-	m_size.y = std::max(1, height);
+	m_size.x = pcsx2_max_i(1, width);
+	m_size.y = pcsx2_max_i(1, height);
 	m_format = format;
 	m_type = type;
 	m_texture_id = 0;

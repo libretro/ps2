@@ -199,7 +199,7 @@ enum : u32
 
        __fi void EnsureSyncsWaitedForOffset(u32 offset)
        {
-	       const u32 end = std::min<u32>(GetSyncIndexForOffset(offset) + 1, NUM_SYNC_POINTS);
+	       const u32 end = pcsx2_min_u(GetSyncIndexForOffset(offset) + 1, NUM_SYNC_POINTS);
 	       for (; m_available_block_index < end; m_available_block_index++)
 		       WaitForSync(m_sync_objects[m_available_block_index]);
        }

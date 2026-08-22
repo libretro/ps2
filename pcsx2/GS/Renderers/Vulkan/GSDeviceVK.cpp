@@ -1337,15 +1337,15 @@ bool GSDeviceVK::CreateDeviceAndSwapChain()
 
 	// We need this to be at least 32 byte aligned for AVX2 stores.
 	m_device_properties.limits.minUniformBufferOffsetAlignment =
-		std::max(m_device_properties.limits.minUniformBufferOffsetAlignment, static_cast<VkDeviceSize>(32));
+		pcsx2_max_i(m_device_properties.limits.minUniformBufferOffsetAlignment, static_cast<VkDeviceSize>(32));
 	m_device_properties.limits.minTexelBufferOffsetAlignment =
-		std::max(m_device_properties.limits.minTexelBufferOffsetAlignment, static_cast<VkDeviceSize>(32));
+		pcsx2_max_i(m_device_properties.limits.minTexelBufferOffsetAlignment, static_cast<VkDeviceSize>(32));
 	m_device_properties.limits.optimalBufferCopyOffsetAlignment =
-		std::max(m_device_properties.limits.optimalBufferCopyOffsetAlignment, static_cast<VkDeviceSize>(32));
+		pcsx2_max_i(m_device_properties.limits.optimalBufferCopyOffsetAlignment, static_cast<VkDeviceSize>(32));
 	m_device_properties.limits.optimalBufferCopyRowPitchAlignment =
-		Common::NextPow2(std::max(m_device_properties.limits.optimalBufferCopyRowPitchAlignment, static_cast<VkDeviceSize>(32)));
+		Common::NextPow2(pcsx2_max_i(m_device_properties.limits.optimalBufferCopyRowPitchAlignment, static_cast<VkDeviceSize>(32)));
 	m_device_properties.limits.bufferImageGranularity =
-		std::max(m_device_properties.limits.bufferImageGranularity, static_cast<VkDeviceSize>(32));
+		pcsx2_max_i(m_device_properties.limits.bufferImageGranularity, static_cast<VkDeviceSize>(32));
 
 	AcquireWindow();
 
@@ -1501,8 +1501,8 @@ VkFormat GSDeviceVK::LookupNativeFormat(GSTexture::Format format) const
 GSTexture* GSDeviceVK::CreateSurface(GSTexture::Type type, int width, int height, int levels, GSTexture::Format format)
 {
 	u32 max_img_dim          = GetMaxImageDimension2D();
-	const u32 clamped_width  = static_cast<u32>(std::clamp<int>(width, 1, max_img_dim));
-	const u32 clamped_height = static_cast<u32>(std::clamp<int>(height, 1, max_img_dim));
+	const u32 clamped_width  = static_cast<u32>(pcsx2_clamp_i(width, 1, max_img_dim));
+	const u32 clamped_height = static_cast<u32>(pcsx2_clamp_i(height, 1, max_img_dim));
 
 	std::unique_ptr<GSTexture> tex(GSTextureVK::Create(type, format, clamped_width, clamped_height, levels));
 	if (!tex)
