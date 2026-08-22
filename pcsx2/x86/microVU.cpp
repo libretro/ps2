@@ -228,8 +228,8 @@ u64 mVUrangesHash(microVU* mVU, microProgram* prog)
 
 	for (u32 r = 0; r < prog->ranges->count; r++)
 	{
-		const microRange& range = prog->ranges->data[r];
-		for (int i = range.start / 4; i < range.end / 4; i++)
+		const microRange* range = &prog->ranges->data[r];
+		for (int i = range->start / 4; i < range->end / 4; i++)
 		{
 			hash.v32[0] -= prog->data[i];
 			hash.v32[1] ^= prog->data[i];
@@ -250,10 +250,10 @@ __fi int mVUcmpProg(microVU* mVU, microProgram* prog)
 	{
 		for (u32 r = 0; r < prog->ranges->count; r++)
 		{
-			const microRange& range = prog->ranges->data[r];
-			if (memcmp((u8*)prog->data + range.start,
-			           (u8*)vuRegs[mVU->index].Micro + range.start,
-			           (range.end - range.start)))
+			const microRange* range = &prog->ranges->data[r];
+			if (memcmp((u8*)prog->data + range->start,
+			           (u8*)vuRegs[mVU->index].Micro + range->start,
+			           (range->end - range->start)))
 				return 0;
 		}
 	}
@@ -267,10 +267,10 @@ __fi int mVUcmpProg(microVU* mVU, microProgram* prog)
 _mVUt __fi void* mVUsearchProg(u32 startPC, uptr pState)
 {
 	microVU* mVU = mVUx;
-	microProgramQuick& quick = mVU->prog.quick[vuRegs[mVU->index].start_pc / 8];
+	microProgramQuick* quick = &mVU->prog.quick[vuRegs[mVU->index].start_pc / 8];
 	microProgramList*  list  = mVU->prog.prog [vuRegs[mVU->index].start_pc / 8];
 
-	if (!quick.prog) // If null, we need to search for new program
+	if (!quick->prog) // If null, we need to search for new program
 	{
 		for (u32 i = 0; i < list->count; i++)
 		{
@@ -279,18 +279,18 @@ _mVUt __fi void* mVUsearchProg(u32 startPC, uptr pState)
 
 			if (b)
 			{
-				quick.block = p->block[startPC / 8];
-				quick.prog  = p;
+				quick->block = p->block[startPC / 8];
+				quick->prog  = p;
 				mvu_proglist_erase(list, i);
-				mvu_proglist_push_front(list, quick.prog);
+				mvu_proglist_push_front(list, quick->prog);
 
 				// Sanity check, in case for some reason the program compilation aborted half way through (JALR for example)
-				if (quick.block == NULL)
+				if (quick->block == NULL)
 				{
 					void* entryPoint = mVUblockFetch(mVU, startPC, pState);
 					return entryPoint;
 				}
-				return mVUentryGet(mVU, quick.block, startPC, pState);
+				return mVUentryGet(mVU, quick->block, startPC, pState);
 			}
 		}
 
@@ -299,26 +299,26 @@ _mVUt __fi void* mVUsearchProg(u32 startPC, uptr pState)
 		mVU->prog.isSame  = 1;
 		mVU->prog.cur     = mVUcreateProg(mVU, vuRegs[mVU->index].start_pc/8);
 		void* entryPoint = mVUblockFetch(mVU,  startPC, pState);
-		quick.block      = mVU->prog.cur->block[startPC/8];
-		quick.prog       = mVU->prog.cur;
+		quick->block      = mVU->prog.cur->block[startPC/8];
+		quick->prog       = mVU->prog.cur;
 		mvu_proglist_push_front(list, mVU->prog.cur);
 		return entryPoint;
 	}
 
 	// If list.quick, then we've already found and recompiled the program ;)
 	mVU->prog.isSame = -1;
-	mVU->prog.cur = quick.prog;
+	mVU->prog.cur = quick->prog;
 	// Because the VU's can now run in sections and not whole programs at once
 	// we need to set the current block so it gets the right program back
-	quick.block = mVU->prog.cur->block[startPC / 8];
+	quick->block = mVU->prog.cur->block[startPC / 8];
 
 	// Sanity check, in case for some reason the program compilation aborted half way through
-	if (quick.block == NULL)
+	if (quick->block == NULL)
 	{
 		void* entryPoint = mVUblockFetch(mVU, startPC, pState);
 		return entryPoint;
 	}
-	return mVUentryGet(mVU, quick.block, startPC, pState);
+	return mVUentryGet(mVU, quick->block, startPC, pState);
 }
 
 //------------------------------------------------------------------

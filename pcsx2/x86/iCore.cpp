@@ -400,15 +400,15 @@ int _allocFPACCtoXMMreg(int mode)
 
 void _reallocateXMMreg(int xmmreg, int newtype, int newreg, int newmode, int writeback /*= 1*/)
 {
-	_xmmregs& xr = xmmregs[xmmreg];
+	_xmmregs* xr = &xmmregs[xmmreg];
 	if (writeback)
 		_freeXMMreg(xmmreg);
 
-	xr.inuse  = 1;
-	xr.type   = newtype;
-	xr.reg    = newreg;
-	xr.mode   = newmode;
-	xr.needed = 1;
+	xr->inuse  = 1;
+	xr->type   = newtype;
+	xr->reg    = newreg;
+	xr->mode   = newmode;
+	xr->needed = 1;
 }
 
 // Mark reserved GPR reg as needed. It won't be evicted anymore.

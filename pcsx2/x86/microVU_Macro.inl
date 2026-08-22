@@ -18,7 +18,9 @@
 extern void _vu0WaitMicro(void);
 extern void _vu0FinishMicro(void);
 
-static VURegs& vu0Regs = vuRegs[0];
+/* vuRegs[0] by name; a reference alias at file scope was a C++ way of
+ * writing what the array subscript already says. */
+#define vu0Regs (vuRegs[0])
 
 //------------------------------------------------------------------
 // Macro VU - Helper Macros / Functions

@@ -341,18 +341,18 @@ static void mvuPreloadRegisters(microVU* mVU, u32 endCount)
 				MVU_PRELOAD_VI(info->lOp.VI_read[i].reg);
 		}
 
-		const microVFreg& uvfr = info->uOp.VF_write;
-		if (uvfr.reg != 0 && (!uvfr.x || !uvfr.y || !uvfr.z || !uvfr.w))
+		const microVFreg* uvfr = &info->uOp.VF_write;
+		if (uvfr->reg != 0 && (!uvfr->x || !uvfr->y || !uvfr->z || !uvfr->w))
 		{
 			// not writing entire vector
-			MVU_PRELOAD_VF(uvfr.reg);
+			MVU_PRELOAD_VF(uvfr->reg);
 		}
 
-		const microVFreg& lvfr = info->lOp.VF_write;
-		if (lvfr.reg != 0 && (!lvfr.x || !lvfr.y || !lvfr.z || !lvfr.w))
+		const microVFreg* lvfr = &info->lOp.VF_write;
+		if (lvfr->reg != 0 && (!lvfr->x || !lvfr->y || !lvfr->z || !lvfr->w))
 		{
 			// not writing entire vector
-			MVU_PRELOAD_VF(lvfr.reg);
+			MVU_PRELOAD_VF(lvfr->reg);
 		}
 
 		if (info->lOp.branch)
@@ -670,12 +670,12 @@ _mVUt void* mVUcompileJIT(u32 startPC, uptr ptr)
 		{
 			microVU* mVU = mVUx;
 			microBlock* pBlock = (microBlock*)ptr;
-			microJumpCache& jc = pBlock->jumpCache[startPC / 8];
-			if (jc.prog && jc.prog == mVU->prog.quick[startPC / 8].prog)
-				return jc.x86ptrStart;
+			microJumpCache* jc = &pBlock->jumpCache[startPC / 8];
+			if (jc->prog && jc->prog == mVU->prog.quick[startPC / 8].prog)
+				return jc->x86ptrStart;
 			void* v = mVUblockFetch(mVUx, startPC, (uptr)&pBlock->pStateEnd);
-			jc.prog = mVU->prog.quick[startPC / 8].prog;
-			jc.x86ptrStart = v;
+			jc->prog = mVU->prog.quick[startPC / 8].prog;
+			jc->x86ptrStart = v;
 			return v;
 		}
 		return mVUblockFetch(mVUx, startPC, ptr);
@@ -685,12 +685,12 @@ _mVUt void* mVUcompileJIT(u32 startPC, uptr ptr)
 	{
 		microVU* mVU = mVUx;
 		microBlock* pBlock = (microBlock*)ptr;
-		microJumpCache& jc = pBlock->jumpCache[startPC / 8];
-		if (jc.prog && jc.prog == mVU->prog.quick[startPC / 8].prog)
-			return jc.x86ptrStart;
+		microJumpCache* jc = &pBlock->jumpCache[startPC / 8];
+		if (jc->prog && jc->prog == mVU->prog.quick[startPC / 8].prog)
+			return jc->x86ptrStart;
 		void* v = mVUsearchProg<vuIndex>(startPC, (uptr)&pBlock->pStateEnd);
-		jc.prog = mVU->prog.quick[startPC / 8].prog;
-		jc.x86ptrStart = v;
+		jc->prog = mVU->prog.quick[startPC / 8].prog;
+		jc->x86ptrStart = v;
 		return v;
 	}
 	/* When !doJumpCaching, pBlock param is really a microRegInfo pointer */
