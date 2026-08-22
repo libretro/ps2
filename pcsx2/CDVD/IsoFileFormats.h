@@ -60,7 +60,9 @@ protected:
 
 public:
 	InputIsoFile();
-	virtual ~InputIsoFile();
+	/* Not virtual: nothing derives from InputIsoFile, and the single
+	 * instance is a file-scope object in CDVDisoReader.cpp. */
+	~InputIsoFile();
 
 	isoType GetType() const { return m_type; }
 	uint GetBlockCount() const { return m_blocks; }
