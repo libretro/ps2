@@ -15,6 +15,9 @@
 
 #pragma once
 
+#include <retro_miscellaneous.h>
+#include <string.h>
+
 #include <cstring>
 #include <utility>
 #include <array>
@@ -778,14 +781,17 @@ struct Pcsx2Config
 	// ------------------------------------------------------------------------
 	struct FilenameOptions
 	{
-		std::string Bios;
+		/* A BIOS filename, not a full path -- FullpathToBios joins it under
+		 * EmuFolders::Bios. PATH_MAX_LENGTH is generous for a leaf name and
+		 * matches what the rest of the tree uses. */
+		char Bios[PATH_MAX_LENGTH];
 
 		FilenameOptions();
 		void LoadSave(SettingsWrapper& wrap);
 
 		bool operator==(const FilenameOptions& right) const
 		{
-			return (Bios == right.Bios);
+			return (strcmp(Bios, right.Bios) == 0);
 		}
 
 		bool operator!=(const FilenameOptions& right) const

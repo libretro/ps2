@@ -919,13 +919,15 @@ void Pcsx2Config::GamefixOptions::LoadSave(SettingsWrapper& wrap)
 
 Pcsx2Config::FilenameOptions::FilenameOptions()
 {
+	/* A char array has no default constructor; std::string did. */
+	Bios[0] = '\0';
 }
 
 void Pcsx2Config::FilenameOptions::LoadSave(SettingsWrapper& wrap)
 {
 	SettingsWrapSection("Filenames");
 
-	wrap.Entry(CURRENT_SETTINGS_SECTION, "BIOS", Bios, Bios);
+	wrap.EntryBuf(CURRENT_SETTINGS_SECTION, "BIOS", Bios, sizeof(Bios), Bios);
 }
 
 void Pcsx2Config::FramerateOptions::SanityCheck()
@@ -1031,7 +1033,7 @@ bool Pcsx2Config::MultitapEnabled(uint port) const
 std::string Pcsx2Config::FullpathToBios() const
 {
 	std::string ret;
-	if (!BaseFilenames.Bios.empty())
+	if (BaseFilenames.Bios[0])
 		ret = Path::Combine(EmuFolders::Bios, BaseFilenames.Bios);
 	return ret;
 }

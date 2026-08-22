@@ -13,6 +13,7 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <compat/strl.h>
 #include <utility>
 
 #include "MemorySettingsInterface.h"
@@ -123,6 +124,26 @@ bool MemorySettingsInterface::GetStringValue(const char* section, const char* ke
 		return false;
 
 	*value = iter->second;
+	return true;
+}
+
+bool MemorySettingsInterface::GetStringValueBuf(const char* section, const char* key,
+		char* value, size_t value_size, size_t* out_len) const
+{
+	std::string tmp;
+
+	if (value_size)
+		value[0] = '\0';
+	if (out_len)
+		*out_len = 0;
+
+	if (!GetStringValue(section, key, &tmp))
+		return false;
+
+	if (out_len)
+		*out_len = tmp.size();
+	if (value_size)
+		strlcpy(value, tmp.c_str(), value_size);
 	return true;
 }
 

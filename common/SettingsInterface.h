@@ -32,6 +32,14 @@ public:
 	virtual bool GetBoolValue(const char* section, const char* key, bool* value) const = 0;
 	virtual bool GetStringValue(const char* section, const char* key, std::string* value) const = 0;
 
+	/* Buffer form, for callers that hold a fixed-size field rather than a
+	 * string. Returns false and leaves the buffer empty when the key is
+	 * absent, so a missing key stays distinguishable from an empty value.
+	 * A value longer than the buffer is truncated, and the caller is told
+	 * by out_len, which reports the length the value actually had. */
+	virtual bool GetStringValueBuf(const char* section, const char* key,
+			char* value, size_t value_size, size_t* out_len = NULL) const = 0;
+
 	virtual void SetIntValue(const char* section, const char* key, int value) = 0;
 	virtual void SetUIntValue(const char* section, const char* key, uint value) = 0;
 	virtual void SetFloatValue(const char* section, const char* key, float value) = 0;

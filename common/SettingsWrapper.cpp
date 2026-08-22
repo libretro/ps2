@@ -13,6 +13,7 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <compat/strl.h>
 #include <algorithm>
 
 #include "SettingsWrapper.h"
@@ -74,6 +75,12 @@ void SettingsLoadWrapper::Entry(const char* section, const char* var, std::strin
 {
 	if (!m_si.GetStringValue(section, var, &value) && &value != &default_value)
 		value = default_value;
+}
+
+void SettingsLoadWrapper::EntryBuf(const char* section, const char* var, char* value, size_t value_size, const char* default_value)
+{
+	if (!m_si.GetStringValueBuf(section, var, value, value_size))
+		strlcpy(value, default_value, value_size);
 }
 
 void SettingsLoadWrapper::_EnumEntry(const char* section, const char* var, int& value, const char* const* enumArray, int defvalue)
@@ -147,6 +154,13 @@ void SettingsSaveWrapper::Entry(const char* section, const char* var, float& val
 void SettingsSaveWrapper::Entry(const char* section, const char* var, std::string& value, const std::string& default_value /*= std::string()*/)
 {
 	m_si.SetStringValue(section, var, value.c_str());
+}
+
+void SettingsSaveWrapper::EntryBuf(const char* section, const char* var, char* value, size_t value_size, const char* default_value)
+{
+	(void)value_size;
+	(void)default_value;
+	m_si.SetStringValue(section, var, value);
 }
 
 bool SettingsSaveWrapper::EntryBitBool(const char* section, const char* var, bool value, const bool defvalue /*= false*/)

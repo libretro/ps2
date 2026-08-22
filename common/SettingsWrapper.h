@@ -32,6 +32,9 @@ public:
 	virtual void Entry(const char* section, const char* var, float& value, const float defvalue = 0.0) = 0;
 	virtual void Entry(const char* section, const char* var, std::string& value, const std::string& default_value = std::string()) = 0;
 
+	/* Buffer form: the value lands in a caller-owned array. */
+	virtual void EntryBuf(const char* section, const char* var, char* value, size_t value_size, const char* default_value = "") = 0;
+
 	// This special form of Entry is provided for bitfields, which cannot be passed by reference.
 	virtual bool EntryBitBool(const char* section, const char* var, bool value, const bool defvalue = false) = 0;
 	virtual int EntryBitfield(const char* section, const char* var, int value, const int defvalue = 0) = 0;
@@ -63,6 +66,7 @@ public:
 	bool IsSaving() const override;
 
 	void Entry(const char* section, const char* var, int& value, const int defvalue = 0) override;
+	void EntryBuf(const char* section, const char* var, char* value, size_t value_size, const char* default_value = "") override;
 	void Entry(const char* section, const char* var, uint& value, const uint defvalue = 0) override;
 	void Entry(const char* section, const char* var, bool& value, const bool defvalue = false) override;
 	void Entry(const char* section, const char* var, float& value, const float defvalue = 0.0) override;
@@ -83,6 +87,7 @@ public:
 	bool IsLoading() const override;
 	bool IsSaving() const override;
 
+	void EntryBuf(const char* section, const char* var, char* value, size_t value_size, const char* default_value = "") override;
 	void Entry(const char* section, const char* var, int& value, const int defvalue = 0) override;
 	void Entry(const char* section, const char* var, uint& value, const uint defvalue = 0) override;
 	void Entry(const char* section, const char* var, bool& value, const bool defvalue = false) override;

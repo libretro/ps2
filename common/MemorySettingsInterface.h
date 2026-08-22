@@ -30,6 +30,7 @@ public:
 	bool GetDoubleValue(const char* section, const char* key, double* value) const override;
 	bool GetBoolValue(const char* section, const char* key, bool* value) const override;
 	bool GetStringValue(const char* section, const char* key, std::string* value) const override;
+	bool GetStringValueBuf(const char* section, const char* key, char* value, size_t value_size, size_t* out_len = NULL) const override;
 
 	void SetIntValue(const char* section, const char* key, s32 value) override;
 	void SetUIntValue(const char* section, const char* key, u32 value) override;

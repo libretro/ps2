@@ -279,7 +279,7 @@ bool LoadBIOS(void)
 	{
 		if (!path.empty())
 			Console.Warning("Configured BIOS '%s' does not exist, trying to find an alternative.",
-				EmuConfig.BaseFilenames.Bios.c_str());
+				EmuConfig.BaseFilenames.Bios);
 
 		path = FindBiosImage();
 		if (path.empty())
