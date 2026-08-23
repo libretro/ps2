@@ -177,6 +177,9 @@ SOURCES_C += \
 	$(LRPS2_DIR)/DEV9/ATA/Commands/ATA_CmdSMART.c \
 	$(LRPS2_DIR)/DEV9/ATA/Commands/ATA_SCE.c
 
+SOURCES_C += \
+	$(LRPS2_DIR)/ps2float.c
+
 ifeq ($(HAVE_PCAP), 1)
 SOURCES_CXX += $(LRPS2_DIR)/DEV9/pcap_io.cpp
 endif
