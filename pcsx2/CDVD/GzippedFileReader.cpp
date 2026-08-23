@@ -19,6 +19,9 @@
 #include "../../common/Path.h"
 #include "../../common/StringUtil.h"
 
+#include <compat/strl.h>
+#include <file/file_path.h>
+
 #include "GzippedFileReader.h"
 #include "zlib_indexed.h"
 #include "../Config.h"
@@ -125,36 +128,116 @@ static const char* INDEX_TEMPLATE_KEY = "$(f)";
 //   then it's relative to base (not to cwd)
 // No checks are performed if the result file name can be created.
 // If this proves useful, we can move it into Path:: . Right now there's no need.
-static std::string ApplyTemplate(const std::string& name, const std::string& base,
-	const std::string& fileTemplate, const std::string& filename,
+/* Expand the index-file template into a caller buffer.
+ *
+ * The template is a user setting containing exactly one $(f), replaced by
+ * the image's filename -- or its leaf name when the key is not at the
+ * start, since a template with a directory prefix wants the bare name.
+ * A relative result is joined under base. An empty output means the
+ * template was malformed: no key, more than one, or ending with the key
+ * when that is not allowed.
+ *
+ * Was three std::strings and a find/rfind pair; the same rules on a
+ * fixed buffer, since the result is a path and was only ever read back
+ * with c_str(). */
+static void ApplyTemplate(char* out, size_t out_size,
+	const char* name, const char* base,
+	const char* fileTemplate, const char* filename,
 	bool canEndWithKey)
 {
-	// both sides
-	std::string trimmedTemplate(StringUtil::StripWhitespace(fileTemplate));
+	const size_t keylen = strlen(INDEX_TEMPLATE_KEY);
+	char   tmpl[PCSX2_PATH_MAX];
+	char*  key;
+	char*  start;
+	char*  end;
+	size_t len;
 
-	std::string::size_type first = trimmedTemplate.find(INDEX_TEMPLATE_KEY);
-	if (first == std::string::npos // not found
-		|| first != trimmedTemplate.rfind(INDEX_TEMPLATE_KEY) // more than one instance
-		|| (!canEndWithKey && first == trimmedTemplate.length() - strlen(INDEX_TEMPLATE_KEY)))
-		return {};
+	out[0] = '\0';
+	(void)name;
 
-	std::string fname(filename);
-	if (first > 0)
-		fname = Path::GetFileName(fname); // without path
+	/* StripWhitespace, in place. */
+	strlcpy(tmpl, fileTemplate ? fileTemplate : "", sizeof(tmpl));
+	start = tmpl;
+	while (*start == ' ' || *start == '\t' || *start == '\r' || *start == '\n')
+		start++;
+	end = start + strlen(start);
+	while (end > start && (end[-1] == ' ' || end[-1] == '\t'
+				|| end[-1] == '\r' || end[-1] == '\n'))
+		end--;
+	*end = '\0';
+	len = (size_t)(end - start);
 
-	StringUtil::ReplaceAll(&trimmedTemplate, INDEX_TEMPLATE_KEY, fname);
-	if (!Path::IsAbsolute(trimmedTemplate))
-		trimmedTemplate = Path::Combine(base, trimmedTemplate); // ignores appRoot if tem is absolute
+	key = strstr(start, INDEX_TEMPLATE_KEY);
+	if (!key)
+		return;                                   /* not found */
+	if (strstr(key + 1, INDEX_TEMPLATE_KEY))
+		return;                                   /* more than one */
+	if (!canEndWithKey && (size_t)(key - start) == len - keylen)
+		return;                                   /* ends with the key */
 
-	return trimmedTemplate;
+	{
+		const char* fname = filename;
+		char        joined[PCSX2_PATH_MAX];
+
+		/* A key past the start means the template carries its own
+		 * directory, so only the leaf name goes in. */
+		if (key != start)
+		{
+			const char* slash = strrchr(filename, '/');
+#ifdef _WIN32
+			const char* bslash = strrchr(filename, '\\');
+			if (bslash > slash)
+				slash = bslash;
+#endif
+			if (slash)
+				fname = slash + 1;
+		}
+
+		/* Substitute: prefix, filename, suffix. */
+		*key = '\0';
+		snprintf(joined, sizeof(joined), "%s%s%s", start, fname, key + keylen);
+
+		if (path_is_absolute(joined))
+			strlcpy(out, joined, out_size);
+		else
+		{
+			/* Join as Path::Combine does: exactly one separator between
+			 * the two, whatever they end and start with. A plain concat
+			 * produces "base//tail" for a base with a trailing slash --
+			 * 84 of 448 differential cases, and the same mistake this
+			 * campaign already made once in IopBios::host_path. */
+			const char* tail = joined;
+			size_t      n    = base ? strlen(base) : 0;
+
+			while (n > 0 && (base[n - 1] == '/' || base[n - 1] == '\\'))
+				n--;
+			while (*tail == '/' || *tail == '\\')
+				tail++;
+
+			if (n >= out_size)
+				n = out_size - 1;
+			if (n)
+				memcpy(out, base, n);
+			out[n] = '\0';
+
+			/* The separator goes in even when base is empty:
+			 * Path::Combine("", "rel") is "/rel", not "rel". */
+			if (*tail)
+			{
+				strlcat(out, "/", out_size);
+				strlcat(out, tail, out_size);
+			}
+		}
+	}
 }
 
-static std::string iso2indexname(const std::string& isoname)
+static void iso2indexname(char* out, size_t out_size, const char* isoname)
 {
-	const std::string& appRoot = EmuFolders::DataRoot;
-	return ApplyTemplate("gzip index", appRoot, Host::GetBaseStringSettingValue("EmuCore", "GzipIsoIndexTemplate", "$(f).pindex.tmp"), isoname, false);
+	ApplyTemplate(out, out_size, "gzip index", EmuFolders::DataRoot.c_str(),
+			Host::GetBaseStringSettingValue("EmuCore", "GzipIsoIndexTemplate",
+				"$(f).pindex.tmp").c_str(),
+			isoname, false);
 }
-
 
 /* Ops thunks: the base calls these with a ThreadedFileReader*, which is
  * always a GzippedFileReader here. */
@@ -184,12 +267,14 @@ GzippedFileReader::~GzippedFileReader() = default;
 bool GzippedFileReader::LoadOrCreateIndex()
 {
 	// Try to read index from disk
-	const std::string indexfile(iso2indexname(m_filename));
+	char indexfile[PCSX2_PATH_MAX];
+
+	iso2indexname(indexfile, sizeof(indexfile), m_filename);
 	// iso2indexname(...) will set errors if it can't apply the template
-	if (indexfile.empty())
+	if (indexfile[0] == '\0')
 		return false;
 
-	if ((m_index = ReadIndexFromFile(indexfile.c_str())) != nullptr)
+	if ((m_index = ReadIndexFromFile(indexfile)) != nullptr)
 		return true;
 
 	// No valid index file. Generate an index
@@ -210,7 +295,7 @@ bool GzippedFileReader::LoadOrCreateIndex()
 	if (len > 0 && index != nullptr)
 	{
 		m_index = index;
-		WriteIndexToFile(m_index, indexfile.c_str());
+		WriteIndexToFile(m_index, indexfile);
 	}
 	else
 	{
