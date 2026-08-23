@@ -13,41 +13,22 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#pragma once
+#ifndef __DEV9_HDDCREATE_H__
+#define __DEV9_HDDCREATE_H__
 
-#include <retro_atomic.h>
-#include <chrono>
-#include <string>
+#include <stdint.h>
 
-#include "common/Path.h"
+#include <retro_common_api.h>
 
-class HddCreate
-{
-public:
-	std::string filePath;
-	u64 neededSize;
+RETRO_BEGIN_DECLS
 
-	retro_atomic_int_t errored = RETRO_ATOMIC_INT_INITIALIZER(0);
+/* Create a sparse-where-possible HDD image of size_bytes at path.
+ * Fails if the path already exists. Progress goes to the log; the
+ * class machinery the C++ version had for GUI callbacks and
+ * cancellation folded into the return value, as nothing in the tree
+ * constructs one. Returns 0 on success, -1 on error. */
+int hdd_create(const char* path, uint64_t size_bytes);
 
-private:
-	retro_atomic_int_t canceled = RETRO_ATOMIC_INT_INITIALIZER(0);
+RETRO_END_DECLS
 
-	std::chrono::steady_clock::time_point lastUpdate;
-
-public:
-	HddCreate(){};
-
-	void Start();
-
-	virtual ~HddCreate(){};
-
-protected:
-	virtual void Init(){};
-	virtual void Cleanup(){};
-	virtual void SetFileProgress(u64 currentSize);
-	virtual void SetError();
-	void SetCanceled();
-
-private:
-	void WriteImage(std::string hddPath, u64 fileBytes, u64 zeroSizeBytes);
-};
+#endif /* __DEV9_HDDCREATE_H__ */

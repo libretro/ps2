@@ -45,7 +45,7 @@ bool rx_fifo_can_rx();
 
 typedef struct
 {
-	ATA* ata;
+	ata_state_t* ata;
 
 	s8 dev9R[0x10000];
 	u8 eeprom_state;
@@ -116,14 +116,12 @@ extern dev9Struct dev9;
  */
 
 // clang-format off
-#define SPD_INTR_ATA_FIFO_DATA		(1 << 1)
 #define SPD_INTR_ATA_FIFO_FULL		(1 << 15) //Or Error/underflow/overfolw(?)
 #define SPD_INTR_ATA_FIFO_EMPTY		(1 << 14)
 #define SPD_INTR_ATA_FIFO_OVERFLOW	(SPD_INTR_ATA_FIFO_FULL | SPD_INTR_ATA_FIFO_EMPTY) //by HDD only?
 
 #define SPD_REGBASE			0x10000000
 
-#define ATA_INTR_INTRQ			(1 << 0)
 
 #define SPD_R_REV_1				(SPD_REGBASE + 0x00)
 #define SPD_R_REV_2				(SPD_REGBASE + 0x02)
@@ -562,42 +560,11 @@ typedef struct _smap_bd {
 /* AIF on T10Ks - Not supported yet.  */
 #define ATA_AIF_HDD_BASE	(SPD_REGBASE + 0x4000000 + 0x60)
 
-#define ATA_R_DATA			(ATA_DEV9_HDD_BASE + 0x00)
-#define ATA_R_ERROR			(ATA_DEV9_HDD_BASE + 0x02) //On Read
-#define ATA_R_FEATURE		(ATA_DEV9_HDD_BASE + 0x02) //On Write
-#define ATA_R_NSECTOR		(ATA_DEV9_HDD_BASE + 0x04)
-#define ATA_R_SECTOR		(ATA_DEV9_HDD_BASE + 0x06)
-#define ATA_R_LCYL			(ATA_DEV9_HDD_BASE + 0x08)
-#define ATA_R_HCYL			(ATA_DEV9_HDD_BASE + 0x0a)
-#define ATA_R_SELECT		(ATA_DEV9_HDD_BASE + 0x0c)
-#define ATA_R_STATUS		(ATA_DEV9_HDD_BASE + 0x0e) //On Read
-#define ATA_R_CMD			(ATA_DEV9_HDD_BASE + 0x0e) //On Write
-#define ATA_R_ALT_STATUS	(ATA_DEV9_HDD_BASE + 0x1c) //On Read
-#define ATA_R_CONTROL		(ATA_DEV9_HDD_BASE + 0x1c) //On Write
+/* The register map itself (ATA_R_*, as offsets into this window) and
+ * the status/error bits live in ATA/ATA.h with the device. */
 #define ATA_DEV9_INT		(0x01)
 #define ATA_DEV9_INT_DMA	(0x02) //not sure rly
-#define ATA_DEV9_HDD_END	(ATA_R_CONTROL + 4)
-
-
-/* r_error bits.  */
-#define ATA_ERR_MARK	0x01
-#define ATA_ERR_TRACK0	0x02
-#define ATA_ERR_ABORT	0x04
-#define ATA_ERR_MCR		0x08
-#define ATA_ERR_ID		0x10
-#define ATA_ERR_MC		0x20
-#define ATA_ERR_ECC		0x40
-#define ATA_ERR_ICRC	0x80
-
-/* r_status bits.  */
-#define ATA_STAT_ERR	0x01
-#define ATA_STAT_INDEX	0x02
-#define ATA_STAT_ECC	0x04
-#define ATA_STAT_DRQ	0x08
-#define ATA_STAT_SEEK	0x10
-#define ATA_STAT_WRERR	0x20
-#define ATA_STAT_READY	0x40
-#define ATA_STAT_BUSY	0x80
+#define ATA_DEV9_HDD_END	(ATA_DEV9_HDD_BASE + 0x1c + 4)
 
 /*
  * NAND Flash via Dev9 driver definitions
@@ -674,7 +641,6 @@ s32 DEV9open();
 void DEV9shutdown();
 u32 FLASHread32(u32 addr, int size);
 void FLASHwrite32(u32 addr, u32 value, int size);
-void _DEV9irq(int cause, int cycles);
 int DEV9irqHandler(void);
 void DEV9async(u32 cycles);
 void DEV9writeDMA8Mem(u32* pMem, int size);

@@ -108,7 +108,9 @@ s32 DEV9init()
 	DevCon.WriteLn("DEV9: DEV9init");
 
 	memset(&dev9, 0, sizeof(dev9));
-	dev9.ata = new ATA();
+	dev9.ata = ata_new();
+	if (!dev9.ata)
+		return -1;
 	DevCon.WriteLn("DEV9: DEV9init2");
 
 	DevCon.WriteLn("DEV9: DEV9init3");
@@ -187,7 +189,8 @@ s32 DEV9init()
 void DEV9shutdown()
 {
 	DevCon.WriteLn("DEV9: DEV9shutdown");
-	delete dev9.ata;
+	ata_free(dev9.ata);
+	dev9.ata = nullptr;
 }
 
 s32 DEV9open()
@@ -199,7 +202,7 @@ s32 DEV9open()
 
 	if (EmuConfig.DEV9.HddEnable)
 	{
-		if (dev9.ata->Open(hddPath) != 0)
+		if (ata_open(dev9.ata, hddPath.c_str(), EmuConfig.DEV9.HddSizeSectors) != 0)
 			EmuConfig.DEV9.HddEnable = false;
 	}
 
@@ -214,7 +217,7 @@ void DEV9close()
 {
 	DevCon.WriteLn("DEV9: DEV9close");
 
-	dev9.ata->Close();
+	ata_close(dev9.ata);
 	TermNet();
 	isRunning = false;
 }
@@ -228,7 +231,7 @@ int DEV9irqHandler(void)
 	return 0;
 }
 
-void _DEV9irq(int cause, int cycles)
+extern "C" void _DEV9irq(int cause, int cycles)
 {
 	//DevCon.WriteLn("DEV9: _DEV9irq %x, %x", cause, dev9.irqmask);
 
@@ -238,6 +241,19 @@ void _DEV9irq(int cause, int cycles)
 		dev9Irq(1);
 	else
 		dev9Irq(cycles);
+}
+
+//The ATA device is plain C and cannot poke dev9's members or read
+//dev9.if_ctrl directly, so the two accesses it needs come through
+//these C-linkage hooks.
+extern "C" void dev9_irq_cause_clear(int bits)
+{
+	dev9.irqcause &= (u16)~bits;
+}
+
+extern "C" int dev9_ata_dma_enabled(void)
+{
+	return (dev9.if_ctrl & SPD_IF_ATA_DMAEN) != 0;
 }
 
 //Fakes SPEED FIFO
@@ -374,7 +390,7 @@ u16 DEV9read16(u32 addr)
 	u16 hard;
 	if (addr >= ATA_DEV9_HDD_BASE && addr < ATA_DEV9_HDD_END)
 	{
-		return dev9.ata->Read16(addr);
+		return ata_read16(dev9.ata, addr - ATA_DEV9_HDD_BASE);
 	}
 	if (addr >= SMAP_REGBASE && addr < FLASH_REGBASE)
 	{
@@ -651,7 +667,7 @@ void DEV9write16(u32 addr, u16 value)
 
 	if (addr >= ATA_DEV9_HDD_BASE && addr < ATA_DEV9_HDD_END)
 	{
-		dev9.ata->Write16(addr, value);
+		ata_write16(dev9.ata, addr - ATA_DEV9_HDD_BASE, value);
 		return;
 	}
 	if (addr >= SMAP_REGBASE && addr < FLASH_REGBASE)
@@ -854,7 +870,7 @@ void DEV9write16(u32 addr, u16 value)
 			if ((value & SPD_IF_HDD_RESET) == 0) //Maybe?
 			{
 				//DevCon.WriteLn("DEV9: IF_CTRL HDD Hard Reset");
-				dev9.ata->ATA_HardReset();
+				ata_hard_reset(dev9.ata);
 			}
 			if ((value & SPD_IF_ATA_RESET) != 0)
 			{
@@ -1008,7 +1024,7 @@ void DEV9readDMA8Mem(u32* pMem, int size)
 		{
 			HDDWriteFIFO();
 			IOPReadFIFO(size);
-			dev9.ata->ATAreadDMA8Mem((u8*)pMem, size);
+			ata_read_dma8_mem(dev9.ata, (u8*)pMem, size);
 			FIFOIntr();
 		}
 	}
@@ -1034,7 +1050,7 @@ void DEV9writeDMA8Mem(u32* pMem, int size)
 		{
 			IOPWriteFIFO(size);
 			HDDReadFIFO();
-			dev9.ata->ATAwriteDMA8Mem((u8*)pMem, size);
+			ata_write_dma8_mem(dev9.ata, (u8*)pMem, size);
 			FIFOIntr();
 		}
 	}
@@ -1045,7 +1061,7 @@ void DEV9writeDMA8Mem(u32* pMem, int size)
 void DEV9async(u32 cycles)
 {
 	smap_async(cycles);
-	dev9.ata->Async(cycles);
+	ata_async(dev9.ata, cycles);
 }
 
 void DEV9CheckChanges(const Pcsx2Config& old_config)
@@ -1070,14 +1086,14 @@ void DEV9CheckChanges(const Pcsx2Config& old_config)
 			if (EmuConfig.DEV9.HddFile != old_config.DEV9.HddFile ||
 				EmuConfig.DEV9.HddSizeSectors != old_config.DEV9.HddSizeSectors)
 			{
-				dev9.ata->Close();
-				if (dev9.ata->Open(hddPath) != 0)
+				ata_close(dev9.ata);
+				if (ata_open(dev9.ata, hddPath.c_str(), EmuConfig.DEV9.HddSizeSectors) != 0)
 					EmuConfig.DEV9.HddEnable = false;
 			}
 		}
-		else if (dev9.ata->Open(hddPath) != 0)
+		else if (ata_open(dev9.ata, hddPath.c_str(), EmuConfig.DEV9.HddSizeSectors) != 0)
 			EmuConfig.DEV9.HddEnable = false;
 	}
 	else if (old_config.DEV9.HddEnable)
-		dev9.ata->Close();
+		ata_close(dev9.ata);
 }

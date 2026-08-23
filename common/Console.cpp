@@ -61,3 +61,16 @@ bool IConsoleWriter::Debug(const char* fmt, ...) const
 }
 
 IConsoleWriter Console;
+
+/* The C translation units (DEV9 ATA) cannot name log_cb directly: it
+ * is a C++ global and MSVC would decorate the symbol. This shim gives
+ * them a C-linkage entry into the same logger. Unlike the
+ * IConsoleWriter methods it appends nothing -- C callers put the
+ * newline in the format string. */
+extern "C" void pcsx2_log(int level, const char* fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+	log_cb((retro_log_level)level, "%s", StringUtil::StdStringFromFormatV(fmt, args).c_str());
+	va_end(args);
+}
