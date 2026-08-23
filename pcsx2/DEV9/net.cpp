@@ -124,17 +124,7 @@ void InitNet()
 
 	rx_thread.Start(NetRxThread);
 
-#ifdef _WIN32
-	SetThreadPriority(rx_thread.native_handle(), THREAD_PRIORITY_HIGHEST);
-#elif defined(__POSIX__)
-	int policy = 0;
-	sched_param param;
-
-	pthread_getschedparam(rx_thread.native_handle(), &policy, &param);
-	param.sched_priority = sched_get_priority_max(policy);
-
-	pthread_setschedparam(rx_thread.native_handle(), policy, &param);
-#endif
+	rx_thread.SetHighestPriority();
 }
 
 void ReconfigureLiveNet(const Pcsx2Config& old_config)

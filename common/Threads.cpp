@@ -211,6 +211,21 @@ bool Threading::ThreadHandle::SetAffinity(u64 processor_mask) const
 #endif
 }
 
+bool Threading::ThreadHandle::SetHighestPriority() const
+{
+#if defined(_WIN32)
+	return SetThreadPriority((HANDLE)m_native_handle, THREAD_PRIORITY_HIGHEST) != 0;
+#else
+	int policy = 0;
+	sched_param param;
+
+	if (pthread_getschedparam((pthread_t)m_native_handle, &policy, &param) != 0)
+		return false;
+	param.sched_priority = sched_get_priority_max(policy);
+	return pthread_setschedparam((pthread_t)m_native_handle, policy, &param) == 0;
+#endif
+}
+
 Threading::Thread::Thread() = default;
 
 Threading::Thread::Thread(Thread&& thread)

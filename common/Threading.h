@@ -177,6 +177,10 @@ namespace Threading
 		/// Obviously, only works up to 64 processors.
 		bool SetAffinity(u64 processor_mask) const;
 
+		/// Raises the thread to the highest scheduling priority the
+		/// current policy grants without elevated privileges.
+		bool SetHighestPriority() const;
+
 	protected:
 		void* m_native_handle = nullptr;
 
