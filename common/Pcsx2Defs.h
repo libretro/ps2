@@ -362,6 +362,51 @@
 #define C89_ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
 #endif
 
+#include <compat/strl.h>
+#include <string.h>
+
+/* Join two path fragments with exactly one separator, into a caller
+ * buffer. Matches Path::Combine: any trailing separators on @base and
+ * leading ones on @next are dropped, and exactly one '/' goes between --
+ * including when @base is empty, so ("", "rel") is "/rel" rather than
+ * "rel".
+ *
+ * This exists because it has been open-coded twice during the string
+ * conversion, in IopBios::host_path and in the gzip index template, and
+ * both times the first attempt forgot the trailing separator on base and
+ * produced "root//next". The second one was caught by a differential
+ * against Path::Combine at 84 failures out of 448; the first by the same
+ * kind of check at 13 out of 96. One copy is easier to keep correct than
+ * three.
+ */
+static inline void pcsx2_path_join(char* out, size_t out_size,
+		const char* base, const char* next)
+{
+	size_t n = base ? strlen(base) : 0;
+
+	if (!out || !out_size)
+		return;
+	if (!next)
+		next = "";
+
+	while (n > 0 && (base[n - 1] == '/' || base[n - 1] == '\\'))
+		n--;
+	while (*next == '/' || *next == '\\')
+		next++;
+
+	if (n >= out_size)
+		n = out_size - 1;
+	if (n)
+		memcpy(out, base, n);
+	out[n] = '\0';
+
+	if (*next)
+	{
+		strlcat(out, "/", out_size);
+		strlcat(out, next, out_size);
+	}
+}
+
 /* min/max/clamp without <algorithm>.
  *
  * These are inline functions rather than macros on purpose: a macro

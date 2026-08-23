@@ -200,34 +200,7 @@ static void ApplyTemplate(char* out, size_t out_size,
 		if (path_is_absolute(joined))
 			strlcpy(out, joined, out_size);
 		else
-		{
-			/* Join as Path::Combine does: exactly one separator between
-			 * the two, whatever they end and start with. A plain concat
-			 * produces "base//tail" for a base with a trailing slash --
-			 * 84 of 448 differential cases, and the same mistake this
-			 * campaign already made once in IopBios::host_path. */
-			const char* tail = joined;
-			size_t      n    = base ? strlen(base) : 0;
-
-			while (n > 0 && (base[n - 1] == '/' || base[n - 1] == '\\'))
-				n--;
-			while (*tail == '/' || *tail == '\\')
-				tail++;
-
-			if (n >= out_size)
-				n = out_size - 1;
-			if (n)
-				memcpy(out, base, n);
-			out[n] = '\0';
-
-			/* The separator goes in even when base is empty:
-			 * Path::Combine("", "rel") is "/rel", not "rel". */
-			if (*tail)
-			{
-				strlcat(out, "/", out_size);
-				strlcat(out, tail, out_size);
-			}
-		}
+			pcsx2_path_join(out, out_size, base, joined);
 	}
 }
 

@@ -270,29 +270,7 @@ namespace R3000A
 		if (!strncmp(native, hostRoot, root_len))
 			strlcpy(out, native, out_size);
 		else
-		{
-			/* Join as Path::Combine does: no trailing separator on the
-			 * base, no leading one on the next component, exactly one
-			 * between them. A plain concat produced "root//path" whenever
-			 * the guest path was absolute, and "root/" for an empty one. */
-			size_t n = root_len;
-			const char* tail = native;
-
-			while (n > 0 && hostRoot[n - 1] == FS_OSPATH_SEPARATOR_CHARACTER)
-				n--;
-			while (*tail == FS_OSPATH_SEPARATOR_CHARACTER)
-				tail++;
-
-			if (n >= out_size)
-				n = out_size - 1;
-			memcpy(out, hostRoot, n);
-			out[n] = '\0';
-			if (*tail)
-			{
-				strlcat(out, "/", out_size);
-				strlcat(out, tail, out_size);
-			}
-		}
+			pcsx2_path_join(out, out_size, hostRoot, native);
 
 		/* Double-check that it falls within the directory of the elf.
 		 * Not a real sandbox, but emulators shouldn't be treated as such.
