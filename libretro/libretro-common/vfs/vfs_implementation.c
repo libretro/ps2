@@ -1233,6 +1233,26 @@ typedef struct _RETRO_FILE_ZERO_DATA_INFORMATION
 #endif
 #endif
 
+/* A successful punch changes file content underneath any stdio buffer
+ * the stream carries. A later fseek whose target lands inside the
+ * buffered window is allowed to reuse that buffer without touching the
+ * file (glibc does exactly this), so a read after the punch can serve
+ * pre-punch bytes. Flushing discards the get area on every libc we
+ * target (POSIX.1-2008 semantics for seekable input streams; MSVC
+ * documents the same), and the seek restores the logical position the
+ * flush moved underneath us. */
+static void retro_vfs_file_punch_hole_discard_buffer(
+      libretro_vfs_implementation_file *stream)
+{
+   if (stream->fp)
+   {
+      int64_t pos = retro_vfs_file_tell_impl(stream);
+      fflush(stream->fp);
+      if (pos >= 0)
+         retro_vfs_file_seek_internal(stream, pos, SEEK_SET);
+   }
+}
+
 int retro_vfs_file_punch_hole_impl(libretro_vfs_implementation_file *stream,
       int64_t offset, int64_t len)
 {
@@ -1268,6 +1288,7 @@ int retro_vfs_file_punch_hole_impl(libretro_vfs_implementation_file *stream,
       if (!DeviceIoControl(handle, FSCTL_SET_ZERO_DATA, &zero_info,
                sizeof(zero_info), NULL, 0, &returned, NULL))
          return -1;
+      retro_vfs_file_punch_hole_discard_buffer(stream);
       return 0;
    }
 #elif defined(__APPLE__) && defined(F_PUNCHHOLE)
@@ -1292,6 +1313,7 @@ int retro_vfs_file_punch_hole_impl(libretro_vfs_implementation_file *stream,
 
       if (fcntl(fd, F_PUNCHHOLE, &range) == -1)
          return -1;
+      retro_vfs_file_punch_hole_discard_buffer(stream);
       return 0;
    }
 #elif defined(__linux__) && defined(FALLOC_FL_PUNCH_HOLE)
@@ -1310,6 +1332,7 @@ int retro_vfs_file_punch_hole_impl(libretro_vfs_implementation_file *stream,
       if (fallocate(fd, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
                (off_t)offset, (off_t)len) != 0)
          return -1;
+      retro_vfs_file_punch_hole_discard_buffer(stream);
       return 0;
    }
 #else
