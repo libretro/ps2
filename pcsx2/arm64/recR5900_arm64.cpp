@@ -15,6 +15,7 @@
 // 112). Self-modifying code -> granular per-page (mirror-normalised) invalidation,
 // as Cpu->Clear is called on EE writes.
 
+#include "common/ScanU32.h"
 #include "common/Pcsx2Types.h"
 #include "R5900.h"
 #include "R5900OpcodeTables.h"
@@ -3293,7 +3294,7 @@ namespace {
 		for (u32 pg = ns >> kPageShift; pg <= (ne - 1) >> kPageShift; pg++)
 		{
 			auto& vec = s_page[pg];
-			if (std::find(vec.begin(), vec.end(), pc) == vec.end())
+			if (!ScanContainsU32(vec.data(), vec.size(), pc))
 				vec.push_back(pc);
 			// C.60: a manual page is deliberately left writable -- protecting it
 			// again is what the ping-pong was. Its blocks validate at entry.

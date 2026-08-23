@@ -13,7 +13,6 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <algorithm>
 #include <sstream>
 #include <fstream>
 #include <optional>
@@ -206,12 +205,22 @@ void GameDatabase::parseAndInsert(const char *serial, const ryaml_t *yaml, int n
 				fix.erase(fix.size() - 4);
 				for (GamefixId id = GamefixId_FIRST; id < pxEnumEnd; ++id)
 				{
-					if (fix.compare(EnumToString(id)) == 0 &&
-						std::find(gameEntry.gameFixes.begin(), gameEntry.gameFixes.end(), id) == gameEntry.gameFixes.end())
+					if (fix.compare(EnumToString(id)) == 0)
 					{
-						gameEntry.gameFixes.push_back(id);
-						fixValidated = true;
-						break;
+						const GamefixId* fixes = gameEntry.gameFixes.data();
+						const size_t nfixes = gameEntry.gameFixes.size();
+						size_t fi;
+						for (fi = 0; fi < nfixes; fi++)
+						{
+							if (fixes[fi] == id)
+								break;
+						}
+						if (fi == nfixes)
+						{
+							gameEntry.gameFixes.push_back(id);
+							fixValidated = true;
+							break;
+						}
 					}
 				}
 			}

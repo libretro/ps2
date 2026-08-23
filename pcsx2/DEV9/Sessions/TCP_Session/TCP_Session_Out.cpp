@@ -14,8 +14,9 @@
  */
 
 #include <climits>
+
+#include "common/ScanU32.h"
 #include <retro_atomic.h>
-#include <algorithm>
 
 #include "common/Console.h"
 #include "common/Pcsx2Defs.h"
@@ -445,7 +446,7 @@ namespace Sessions
 			//DevCon.WriteLn("DEV9: TCP: [PS2]Sent Outdated Acknowledgement Number, Got %d Expected %d", tcp->acknowledgementNumber, seqNum);
 
 			//Check if oldSeqNums contains tcp->acknowledgementNumber
-			if (std::find(oldSeqNums.begin(), oldSeqNums.end(), tcp->acknowledgementNumber) == oldSeqNums.end())
+			if (!ScanContainsU32(oldSeqNums.data(), oldSeqNums.size(), tcp->acknowledgementNumber))
 			{
 				Console.Error("DEV9: TCP: [PS2] Sent Unexpected Acknowledgement Number, did not Match Old Numbers, Got %d Expected %d", tcp->acknowledgementNumber, seqNum);
 				return NumCheckResult::Bad;
@@ -466,7 +467,7 @@ namespace Sessions
 			else
 			{
 				//Check if receivedPS2SeqNumbers contains tcp->sequenceNumber
-				if (std::find(receivedPS2SeqNumbers.begin(), receivedPS2SeqNumbers.end(), tcp->sequenceNumber) == receivedPS2SeqNumbers.end())
+				if (!ScanContainsU32(receivedPS2SeqNumbers.data(), receivedPS2SeqNumbers.size(), tcp->sequenceNumber))
 				{
 					Console.Error("DEV9: TCP: [PS2] Sent an Old Seq Number on an Data packet, Got %d Expected %d", tcp->sequenceNumber, expectedSeqNumber);
 					return NumCheckResult::GotOldData;

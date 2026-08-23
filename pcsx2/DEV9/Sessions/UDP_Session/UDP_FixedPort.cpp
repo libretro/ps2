@@ -19,7 +19,6 @@
 #ifdef __POSIX__
 #define SOCKET_ERROR -1
 #include <errno.h>
-#include <algorithm>
 #include <sys/ioctl.h>
 #include <netinet/in.h>
 #endif
@@ -238,10 +237,17 @@ namespace Sessions
 	{
 		Threading::ScopedLock numberlock(connectionSentry);
 
-		auto index = std::find(connections.begin(), connections.end(), sender);
-		if (index != connections.end())
+		UDP_BaseSession* const* conns = connections.data();
+		const size_t nconns = connections.size();
+		size_t ci;
+		for (ci = 0; ci < nconns; ci++)
 		{
-			connections.erase(index);
+			if (conns[ci] == sender)
+				break;
+		}
+		if (ci != nconns)
+		{
+			connections.erase(connections.begin() + ci);
 			if (connections.size() == 0)
 				RaiseEventConnectionClosed();
 		}
