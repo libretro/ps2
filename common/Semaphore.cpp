@@ -35,23 +35,6 @@
 #include <unistd.h> /* sysconf */
 #endif
 
-/* CPU relax hint for the bounded spin in WorkSema::WaitForWork. */
-#if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
-#if defined(_MSC_VER)
-#define WORKSEMA_CPU_RELAX() _mm_pause()
-#else
-#define WORKSEMA_CPU_RELAX() __builtin_ia32_pause()
-#endif
-#elif defined(__aarch64__) || defined(_M_ARM64) || defined(__arm__)
-#if defined(_MSC_VER)
-#define WORKSEMA_CPU_RELAX() __yield()
-#else
-#define WORKSEMA_CPU_RELAX() __asm__ __volatile__("yield" ::: "memory")
-#endif
-#else
-#define WORKSEMA_CPU_RELAX() ((void)0)
-#endif
-
 /* Iterations of the read-only spin a worker performs in STATE_SPINNING
  * before parking on the kernel semaphore.  A notify that lands inside
  * the window is caught with zero syscalls and zero context switches on
@@ -76,7 +59,7 @@ static int32_t worksema_compute_spin_budget(void)
 #endif
 }
 
-static int32_t worksema_spin_budget(void)
+s32 Threading::SpinBudget()
 {
 	static const int32_t budget = worksema_compute_spin_budget();
 	return budget;
@@ -130,7 +113,7 @@ void Threading::WorkSema::WaitForWork()
 	//   doesn't silently resurrect us to STATE_RUNNING_0 and then sleep forever on m_sema.
 	// RUNNING_0: Change state to SPINNING (multi-core) or SLEEPING, wake up thread if WAITING_EMPTY
 	// RUNNING_N: Change state to RUNNING_0 (and preserve WAITING_EMPTY flag)
-	const s32 spin_budget = worksema_spin_budget();
+	const s32 spin_budget = Threading::SpinBudget();
 	const s32 idle_state  = spin_budget ? STATE_SPINNING : STATE_SLEEPING;
 	s32 value;
 	for (;;)
@@ -174,7 +157,7 @@ void Threading::WorkSema::WaitForWork()
 					have_work = true;
 					break;
 				}
-				WORKSEMA_CPU_RELAX();
+				THREADING_CPU_RELAX();
 			}
 			if (!have_work && retro_atomic_cas_int(&m_state, STATE_SPINNING, STATE_SLEEPING))
 				m_sema.Wait();

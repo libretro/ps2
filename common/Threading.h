@@ -247,6 +247,28 @@ namespace Threading
 		void Wait();
 	};
 
+	/// CPU relax hint for bounded spins on this platform.
+#if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
+#if defined(_MSC_VER)
+#define THREADING_CPU_RELAX() _mm_pause()
+#else
+#define THREADING_CPU_RELAX() __builtin_ia32_pause()
+#endif
+#elif defined(__aarch64__) || defined(_M_ARM64) || defined(__arm__)
+#if defined(_MSC_VER)
+#define THREADING_CPU_RELAX() __yield()
+#else
+#define THREADING_CPU_RELAX() __asm__ __volatile__("yield" ::: "memory")
+#endif
+#else
+#define THREADING_CPU_RELAX() ((void)0)
+#endif
+
+	/// Iterations of read-only spinning worth spending to dodge a kernel
+	/// sleep/wake pair; 0 on single-core hosts where spinning only steals
+	/// the producer's timeslice.
+	extern s32 SpinBudget();
+
 	/// A semaphore for notifying a work-processing thread of new work in a (separate) queue
 	///
 	/// Usage:

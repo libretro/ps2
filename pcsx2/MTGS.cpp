@@ -217,8 +217,31 @@ void MTGS::MainLoop(bool flush_all)
 					Gif_Path& path = gifUnit.gifPath[GIF_PATH_1];
 					for (;;)
 					{
-						// Wait for MTVU to push a path1 packet
+						// Wait for MTVU to push a path1 packet.
+						// Spin-try first (except on aarch64, whose
+						// UserspaceSemaphore::Wait is already a
+						// syscall-free WFE park): partial flushes and
+						// short VU1 programs post microseconds apart,
+						// and eating a kernel sleep/wake pair per
+						// packet is the dominant per-program cost when
+						// this thread outruns the worker.  A miss
+						// falls through to the same Wait as before.
+#if !defined(__aarch64__)
+						{
+							s32 spins = Threading::SpinBudget();
+							while (!vu1Thread.semaXGkick.TryWait())
+							{
+								if (--spins <= 0)
+								{
+									vu1Thread.semaXGkick.Wait();
+									break;
+								}
+								THREADING_CPU_RELAX();
+							}
+						}
+#else
 						vu1Thread.semaXGkick.Wait();
+#endif
 						GS_Packet gsPack = path.GetGSPacketMTVU(); // Get vu1 program's xgkick packet(s)
 						if (gsPack.size)
 							GSgifTransfer((u8*)&path.buffer[gsPack.offset], gsPack.size / 16);
