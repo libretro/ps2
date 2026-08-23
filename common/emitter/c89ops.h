@@ -793,6 +793,8 @@ static uintptr_t xe_opaque_uptr(const void *p)
 	E_SSE_R_MEM(xep, 0x00, 0x57, (x), xm_); }; XE_CLOSE(); } while (0)
 #define xe_por_xm(x, addr)    do { XE_OPEN(); { struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
 	E_SSE_R_MEM(xep, 0x66, 0xeb, (x), xm_); }; XE_CLOSE(); } while (0)
+#define xe_pxor_xm(x, addr)    do { XE_OPEN(); { struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	E_SSE_R_MEM(xep, 0x66, 0xef, (x), xm_); }; XE_CLOSE(); } while (0)
 #define xe_minss_xm(x, addr)  do { XE_OPEN(); { struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
 	E_SSE_R_MEM(xep, 0xf3, 0x5d, (x), xm_); }; XE_CLOSE(); } while (0)
 #define xe_maxss_xm(x, addr)  do { XE_OPEN(); { struct e_mem xm_; XE_MEM_ABS(xm_, addr); \

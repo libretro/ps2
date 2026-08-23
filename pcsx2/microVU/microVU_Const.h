@@ -34,6 +34,10 @@ struct mVU_Globals
 	u32   maxvals [4] = __four(0x7f7fffff);
 	u32   exponent[4] = __four(0x7f800000);
 	u32   one     [4] = __four(0x3f800000);
+	u32   addm1   [4] = __four(0x00000001);   /* add/sub operand masking */
+	u32   addm24  [4] = __four(0x00000018);
+	u32   addmall [4] = __four(0xffffffff);
+	u32   addmn25 [4] = __four(0xffffffe7);   /* -25 */
 	u32   Pi4     [4] = __four(0x3f490fdb);
 	u32   T1      [4] = __four(0x3f7ffff5);
 	u32   T2      [4] = __four(0xbeaaa61c);
