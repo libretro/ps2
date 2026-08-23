@@ -204,7 +204,7 @@ void dVifReserve(int idx)
 
 void dVifReset(int idx)
 {
-	nVif[idx].vifBlocks.reset();
+	vif_hash_reset(&nVif[idx].vifBlocks);
 	if (s_vifCode[idx])
 	{
 		nVif[idx].recWritePtr = s_vifCode[idx];
@@ -214,7 +214,7 @@ void dVifReset(int idx)
 
 void dVifRelease(int idx)
 {
-	nVif[idx].vifBlocks.clear();
+	vif_hash_clear(&nVif[idx].vifBlocks);
 	if (s_vifCode[idx])
 	{
 		munmap(s_vifCode[idx], kVifCodeSize);
@@ -228,12 +228,12 @@ VifUnpackNEON_Dynarec::VifUnpackNEON_Dynarec(const nVifStruct& vif_, const nVifB
 	: v(vif_)
 	, vB(vifBlock_)
 {
-	const int wl = vB.wl ? vB.wl : 256; //0 is taken as 256 (KH2)
-	isFill = (vB.cl < wl);
-	usn = (vB.upkType >> 5) & 1;
-	doMask = (vB.upkType >> 4) & 1;
-	doMode = vB.mode & 3;
-	IsAligned = vB.aligned;
+	const int wl = vB.f.wl ? vB.f.wl : 256; //0 is taken as 256 (KH2)
+	isFill = (vB.f.cl < wl);
+	usn = (vB.f.upkType >> 5) & 1;
+	doMask = (vB.f.upkType >> 4) & 1;
+	doMode = vB.f.mode & 3;
+	IsAligned = vB.f.aligned;
 	vCL = 0;
 }
 
@@ -248,7 +248,7 @@ __fi void VifUnpackNEON_Dynarec::SetMasks(int cS) const
 	const vifStruct& vif = MTVU_VifX;
 
 	//This could have ended up copying the row when there was no row to write.1810080
-	u32 m0 = vB.mask; //The actual mask example 0x03020100
+	u32 m0 = vB.f.mask; //The actual mask example 0x03020100
 	u32 m3 = ((m0 & 0xaaaaaaaa) >> 1) & ~m0; //all the upper bits, so our example 0x01010000 & 0xFCFDFEFF = 0x00010000 just the cols (shifted right for maskmerge)
 	u32 m2 = (m0 & 0x55555555) & (~m0 >> 1); // 0x1000100 & 0xFE7EFF7F = 0x00000100 Just the row
 
@@ -273,7 +273,7 @@ __fi void VifUnpackNEON_Dynarec::SetMasks(int cS) const
 void VifUnpackNEON_Dynarec::doMaskWrite(const vixl::aarch64::VRegister& regX) const
 {
 	const int cc = std::min(vCL, 3);
-	u32 m0 = (vB.mask >> (cc * 8)) & 0xff; //The actual mask example 0xE4 (protect, col, row, clear)
+	u32 m0 = (vB.f.mask >> (cc * 8)) & 0xff; //The actual mask example 0xE4 (protect, col, row, clear)
 	u32 m3 = ((m0 & 0xaa) >> 1) & ~m0; //all the upper bits (cols shifted right) cancelling out any write protects 0x10
 	u32 m2 = (m0 & 0x55) & (~m0 >> 1); // all the lower bits (rows)cancelling out any write protects 0x04
 	u32 m4 = (m0 & ~((m3 << 1) | m2)) & 0x55; //  = 0xC0 & 0x55 = 0x40 (for merge mask)
@@ -415,7 +415,7 @@ void VifUnpackNEON_Dynarec::ProcessMasks()
 		return;
 
 	const int cc = std::min(vCL, 3);
-	const u32 full_mask = (vB.mask >> (cc * 8)) & 0xff;
+	const u32 full_mask = (vB.f.mask >> (cc * 8)) & 0xff;
 	const u32 rowcol_mask = ((full_mask >> 1) | full_mask) & 0x55; // Rows or Cols being written instead of data, or protected.
 
 	// Every channel is write protected for this cycle, no need to process anything.
@@ -427,14 +427,14 @@ void VifUnpackNEON_Dynarec::ProcessMasks()
 
 void VifUnpackNEON_Dynarec::CompileRoutine()
 {
-	const int wl = vB.wl ? vB.wl : 256; //0 is taken as 256 (KH2)
-	const int upkNum = vB.upkType & 0xf;
+	const int wl = vB.f.wl ? vB.f.wl : 256; //0 is taken as 256 (KH2)
+	const int upkNum = vB.f.upkType & 0xf;
 	const u8& vift = nVifT[upkNum];
-	const int cycleSize = isFill ? vB.cl : wl;
-	const int blockSize = isFill ? wl : vB.cl;
+	const int cycleSize = isFill ? vB.f.cl : wl;
+	const int blockSize = isFill ? wl : vB.f.cl;
 	const int skipSize = blockSize - cycleSize;
 
-	uint vNum = vB.num ? vB.num : 256;
+	uint vNum = vB.f.num ? vB.f.num : 256;
 	doMode = (upkNum == 0xf) ? 0 : doMode; // V4_5 has no mode feature.
 	UnpkNoOfIterations = 0;
 
@@ -519,9 +519,9 @@ _vifT __fi nVifBlock* dVifCompile(nVifBlock& block, bool isFill)
 	/* Offsets are relative to this port's own VIF code region: arm64 mmaps
 	 * s_vifCode[idx] in dVifReserve and never populates nVifStruct::
 	 * recReserve, which is x86's RecompiledCodeReserve and is NULL here. */
-	block.startOffset = (u32)((u8*)armStartBlock() - s_vifCode[idx]) + 1;
-	block.length = dVifComputeLength(block.cl, block.wl, block.num, isFill);
-	v.vifBlocks.add(block);
+	block.f.startOffset = (u32)((u8*)armStartBlock() - s_vifCode[idx]) + 1;
+	block.f.length = dVifComputeLength(block.f.cl, block.f.wl, block.f.num, isFill);
+	vif_hash_add(&v.vifBlocks, &block);
 
 	VifUnpackNEON_Dynarec(v, block).CompileRoutine();
 
@@ -565,12 +565,12 @@ _vifT __fi void dVifUnpack(const u8* data, int isFill)
 	// values here which cause false recblock cache misses.
 	u32 key0 = doMask ? vifRegs.mask : 0;
 
-	block.hash_key = hash_key;
-	block.key0 = key0;
-	block.key1 = key1;
+	block.k.hash_key = hash_key;
+	block.k.key0 = key0;
+	block.k.key1 = key1;
 
 	// Seach in cache before trying to compile the block
-	nVifBlock* b = v.vifBlocks.find(block);
+	nVifBlock* b = vif_hash_find(&v.vifBlocks, hash_key, (u64)key0 | ((u64)key1 << 32));
 	if (unlikely(b == nullptr))
 		b = dVifCompile<idx>(block, isFill);
 
@@ -581,10 +581,10 @@ _vifT __fi void dVifUnpack(const u8* data, int isFill)
 		u8* startmem = VU.Mem + (vif.tag.addr & (vuMemLimit - 0x10));
 		u8* endmem = VU.Mem + vuMemLimit;
 
-		if (likely((startmem + b->length) <= endmem))
+		if (likely((startmem + b->f.length) <= endmem))
 		{
 			// No wrapping, you can run the fast dynarec
-			((nVifrecCall)(s_vifCode[idx] + (b->startOffset - 1)))((uptr)startmem, (uptr)data);
+			((nVifrecCall)(s_vifCode[idx] + (b->f.startOffset - 1)))((uptr)startmem, (uptr)data);
 		}
 		else
 		{

@@ -34,7 +34,7 @@ void dVifReserve(int idx)
 
 void dVifReset(int idx)
 {
-	nVif[idx].vifBlocks.reset();
+	vif_hash_reset(&nVif[idx].vifBlocks);
 
 	nVif[idx].recReserve->Reset();
 
@@ -43,6 +43,7 @@ void dVifReset(int idx)
 
 void dVifRelease(int idx)
 {
+	vif_hash_clear(&nVif[idx].vifBlocks);
 	if (nVif[idx].recReserve)
 		nVif[idx].recReserve->Reset();
 	delete nVif[idx].recReserve;
@@ -55,12 +56,12 @@ void VifUnpackSSE_InitDynarec(struct VifUnpackSSE* p, const nVifStruct* vif_, co
 	VifUnpackSSE_Init_State(p, VIFUNPACK_DYNAREC);
 	p->v  = vif_;
 	p->vB = vifBlock_;
-	wl = p->vB->wl ? p->vB->wl : 256; /* 0 is taken as 256 (KH2) */
-	p->isFill    = (p->vB->cl < wl);
-	p->usn       = (p->vB->upkType >> 5) & 1;
-	p->doMask    = (p->vB->upkType >> 4) & 1;
-	p->doMode    = p->vB->mode & 3;
-	p->IsAligned = p->vB->aligned;
+	wl = p->vB->f.wl ? p->vB->f.wl : 256; /* 0 is taken as 256 (KH2) */
+	p->isFill    = (p->vB->f.cl < wl);
+	p->usn       = (p->vB->f.upkType >> 5) & 1;
+	p->doMask    = (p->vB->f.upkType >> 4) & 1;
+	p->doMode    = p->vB->f.mode & 3;
+	p->IsAligned = p->vB->f.aligned;
 	p->vCL       = 0;
 }
 
@@ -72,7 +73,7 @@ static void VifUnpackSSE_SetMasks(const struct VifUnpackSSE* p, int cS)
 	const vifStruct& vif = MTVU_VifX;
 
 	//This could have ended up copying the row when there was no row to write.1810080
-	u32 m0 = p->vB->mask; //The actual mask example 0x03020100
+	u32 m0 = p->vB->f.mask; //The actual mask example 0x03020100
 	u32 m3 = ((m0 & 0xaaaaaaaa) >> 1) & ~m0; //all the upper bits, so our example 0x01010000 & 0xFCFDFEFF = 0x00010000 just the cols (shifted right for maskmerge)
 	u32 m2 = (m0 & 0x55555555) & (~m0 >> 1); // 0x1000100 & 0xFE7EFF7F = 0x00000100 Just the row
 
@@ -93,7 +94,7 @@ static void VifUnpackSSE_SetMasks(const struct VifUnpackSSE* p, int cS)
 void VifUnpackSSE_doMaskWrite_Dynarec(const struct VifUnpackSSE* p, int regX)
 {
 	const int cc = C89_MIN(p->vCL, 3);
-	u32 m0 = (p->vB->mask >> (cc * 8)) & 0xff; //The actual mask example 0xE4 (protect, col, row, clear)
+	u32 m0 = (p->vB->f.mask >> (cc * 8)) & 0xff; //The actual mask example 0xE4 (protect, col, row, clear)
 	u32 m3 = ((m0 & 0xaa) >> 1) & ~m0; //all the upper bits (cols shifted right) cancelling out any write protects 0x10
 	u32 m2 = (m0 & 0x55) & (~m0 >> 1); // all the lower bits (rows)cancelling out any write protects 0x04
 	u32 m4 = (m0 & ~((m3 << 1) | m2)) & 0x55; //  = 0xC0 & 0x55 = 0x40 (for merge mask)
@@ -220,7 +221,7 @@ void VifUnpackSSE_ProcessMasks(struct VifUnpackSSE* p)
 		return;
 
 	const int cc = C89_MIN(p->vCL, 3);
-	const u32 full_mask   = (p->vB->mask >> (cc * 8)) & 0xff;
+	const u32 full_mask   = (p->vB->f.mask >> (cc * 8)) & 0xff;
 	const u32 rowcol_mask = ((full_mask >> 1) | full_mask) & 0x55; // Rows or Cols being written instead of data, or protected.
 
 	/* Every channel is write protected for this cycle, no need to process anything. */
@@ -231,14 +232,14 @@ void VifUnpackSSE_ProcessMasks(struct VifUnpackSSE* p)
 
 void VifUnpackSSE_CompileRoutine(struct VifUnpackSSE* p)
 {
-	const int wl        = p->vB->wl ? p->vB->wl : 256; // 0 is taken as 256 (KH2)
-	const int upkNum    = p->vB->upkType & 0xf;
+	const int wl        = p->vB->f.wl ? p->vB->f.wl : 256; // 0 is taken as 256 (KH2)
+	const int upkNum    = p->vB->f.upkType & 0xf;
 	const u8& vift      = nVifT[upkNum];
-	const int cycleSize = p->isFill ? p->vB->cl : wl;
-	const int blockSize = p->isFill ? wl : p->vB->cl;
+	const int cycleSize = p->isFill ? p->vB->f.cl : wl;
+	const int blockSize = p->isFill ? wl : p->vB->f.cl;
 	const int skipSize  = blockSize - cycleSize;
 
-	uint vNum = p->vB->num ? p->vB->num : 256;
+	uint vNum = p->vB->f.num ? p->vB->f.num : 256;
 	p->doMode    = (upkNum == 0xf) ? 0 : p->doMode; // V4_5 has no mode feature.
 
 	// Value passed determines # of col regs we need to load
@@ -320,9 +321,9 @@ _vifT __fi nVifBlock* dVifCompile(nVifBlock* block, int isFill)
 	x86Ptr = (u8*)(v.recWritePtr);
 
 	// +1 bias keeps 0 as the empty-cell sentinel; reserve is 8MB so u32 always fits
-	block->startOffset = (u32)((u8*)x86Ptr - v.recReserve->GetPtr()) + 1;
-	block->length = dVifComputeLength(block->cl, block->wl, block->num, isFill);
-	v.vifBlocks.add(*block);
+	block->f.startOffset = (u32)((u8*)x86Ptr - v.recReserve->GetPtr()) + 1;
+	block->f.length = dVifComputeLength(block->f.cl, block->f.wl, block->f.num, isFill);
+	vif_hash_add(&v.vifBlocks, block);
 
 	{
 		struct VifUnpackSSE vpu;
@@ -361,12 +362,13 @@ _vifT __fi void dVifUnpack(const u8* data, int isFill)
 	// values here which cause false recblock cache misses.
 	u32 key0 = doMask ? vifRegs.mask : 0;
 
-	block.hash_key = hash_key;
-	block.key0 = key0;
-	block.key1 = key1;
+	block.k.hash_key = hash_key;
+	block.k.key0 = key0;
+	block.k.key1 = key1;
 
-	// Seach in cache before trying to compile the block
-	nVifBlock* b = v.vifBlocks.find(block);
+	// Search the cache before trying to compile the block; the packed
+	// key0|key1 word is built from the registers computed above.
+	nVifBlock* b = vif_hash_find(&v.vifBlocks, hash_key, (u64)key0 | ((u64)key1 << 32));
 	if (unlikely(b == NULL))
 		b = dVifCompile<idx>(&block, isFill);
 
@@ -379,8 +381,8 @@ _vifT __fi void dVifUnpack(const u8* data, int isFill)
 		u8* endmem   = VU.Mem + vuMemLimit;
 
 		// No wrapping, you can run the fast dynarec
-		if (likely((startmem + b->length) <= endmem))
-			((nVifrecCall)(v.recReserve->GetPtr() + (b->startOffset - 1)))((uptr)startmem, (uptr)data);
+		if (likely((startmem + b->f.length) <= endmem))
+			((nVifrecCall)(v.recReserve->GetPtr() + (b->f.startOffset - 1)))((uptr)startmem, (uptr)data);
 		else
 			_nVifUnpack(idx, data, vifRegs.mode, isFill);
 	}
