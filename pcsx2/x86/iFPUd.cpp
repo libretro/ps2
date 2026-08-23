@@ -160,7 +160,7 @@ static void ToDouble(int reg)
 // converts really large normal numbers to PS2 signed max
 // converts really small normal numbers to zero (flush)
 // doesn't handle inf/nan/denormal
-static void ToPS2FPU_Full(int reg, int flags, int absreg, int acc, int addsub)
+static void ToPS2FPU_Full(int reg, int flags, int absreg, int acc)
 {
 	if (flags)
 	{
@@ -204,7 +204,6 @@ static void ToPS2FPU_Full(int reg, int flags, int absreg, int acc, int addsub)
 	uint8_t* end3; xe_fwd_jcc8(Jcc_Unconditional, end3);
 
 	xe_fwd_set8(to_underflow);
-	u8* end4 = NULL;
 	if (flags) //set underflow flags if not zero
 	{
 		xe_xorpd_xx(absreg, absreg);
@@ -212,22 +211,14 @@ static void ToPS2FPU_Full(int reg, int flags, int absreg, int acc, int addsub)
 		uint8_t* is_zero; xe_fwd_jcc8(Jcc_Equal, is_zero);
 
 		xe_or32_mi(&fpuRegs.fprc[31], (FPUflagU | FPUflagSU));
-		if (addsub)
-		{
-			//On ADD/SUB, the PS2 simply leaves the mantissa bits as they are (after normalization)
-			//IEEE either clears them (FtZ) or returns the denormalized result.
-			//not thoroughly tested : other operations such as MUL and DIV seem to clear all mantissa bits?
-			xe_movaps_xx(absreg, reg);
-			xe_psllq_xi(reg, 12); //mantissa bits
-			xe_psrlq_xi(reg, 41);
-			xe_psrlq_xi(absreg, 63); //sign bit
-			xe_psllq_xi(absreg, 31);
-			xe_por_xx(reg, absreg);
-			xe_fwd_jcc8(Jcc_Unconditional, end4);
-		}
 
 		xe_fwd_set8(is_zero);
 	}
+	/* Underflowed results flush to signed zero on every op, ADD/SUB
+	 * included: the hardware-derived soft model (ps2float DoAdd) packs
+	 * sign, zero exponent, zero mantissa on underflow, and the old
+	 * keep-the-mantissa special case here measured 0.20% wrong against
+	 * it while the flush measures byte-exact. */
 	xe_cvtsd2ss_xx(reg, reg);
 	xe_andps_xm(reg, s_const.neg); //flush to zero
 
@@ -235,8 +226,6 @@ static void ToPS2FPU_Full(int reg, int flags, int absreg, int acc, int addsub)
 	xe_fwd_set32(end2);
 
 	xe_fwd_set8(end3);
-	if (flags && addsub)
-		xe_fwd_set8(end4);
 }
 
 //sets the maximum (positive or negative) value into regd.
@@ -404,7 +393,7 @@ static void FPU_MUL(int info, int regd, int sreg, int treg, int acc)
 	ToDouble(sreg);
 	ToDouble(treg);
 	xe_mulsd_xx(sreg, treg);
-	ToPS2FPU_Full(sreg, 1, treg, acc, 0);
+	ToPS2FPU_Full(sreg, 1, treg, acc);
 	xe_movss_xx(regd, sreg);
 
 	if (CHECK_FPUMULHACK)
@@ -438,7 +427,7 @@ static void recFPUOp(int info, int regd, int op, int acc)
 
 	recFPUOpEmit(op, sreg, treg);
 
-	ToPS2FPU_Full(sreg, 1, treg, acc, 1);
+	ToPS2FPU_Full(sreg, 1, treg, acc);
 	xe_movss_xx(regd, sreg);
 
 	_freeXMMreg(sreg); _freeXMMreg(treg);
@@ -574,7 +563,7 @@ static void recDIVhelper1(int regd, int regt) // Sets flags
 
 	xe_divsd_xx(regd, regt);
 
-	ToPS2FPU_Full(regd, 0, regt, 0, 0);
+	ToPS2FPU_Full(regd, 0, regt, 0);
 
 	xe_fwd_set32(bjmp32);
 
@@ -661,7 +650,7 @@ static void recMaddsub(int info, int regd, int op, int acc)
 	else
 		xe_addsd_xx(treg, sreg);
 
-	ToPS2FPU_Full(treg, 1, sreg, acc, 1);
+	ToPS2FPU_Full(treg, 1, sreg, acc);
 	xe_fwd_set32(skipall);
 
 	xe_movss_xx(regd, treg);
@@ -860,7 +849,7 @@ void DOUBLE_recSQRT_S_xmm(int info)
 
 	xe_sqrtsd_xx(EEREC_D, EEREC_D);
 
-	ToPS2FPU_Full(EEREC_D, 0, t1reg, 0, 0);
+	ToPS2FPU_Full(EEREC_D, 0, t1reg, 0);
 
 	if (roundmodeFlag == 1)
 		xe_ldmxcsr_m(&EmuConfig.Cpu.FPUFPCR.bitmask);
@@ -920,7 +909,7 @@ static void recRSQRThelper1(int regd, int regt) // Preforms the RSQRT function w
 	xe_sqrtsd_xx(regt, regt);
 	xe_divsd_xx(regd, regt);
 
-	ToPS2FPU_Full(regd, 0, regt, 0, 0);
+	ToPS2FPU_Full(regd, 0, regt, 0);
 	xe_fwd_set32(pjmp32);
 
 	_freeXMMreg(t1reg);
