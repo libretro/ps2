@@ -16,16 +16,11 @@
 #include <retro_atomic.h>
 #include <algorithm>
 #include "../../../common/Threading.h"
-#include "common/FileSystem.h"
 
 #include "ATA.h"
 #include "DEV9/DEV9.h"
 
-#if __POSIX__
-#define INVALID_HANDLE_VALUE -1
-#include <unistd.h>
-#include <fcntl.h>
-#endif
+#include <streams/file_stream.h>
 
 void ATA::IO_Thread()
 {
@@ -74,6 +69,7 @@ void ATA::IO_Thread()
 void ATA::IO_Read()
 {
 	const s64 lba = HDD_GetLBA();
+	u64 pos;
 
 	if (lba == -1)
 	{
@@ -81,9 +77,9 @@ void ATA::IO_Read()
 		abort();
 	}
 
-	const u64 pos = lba * 512;
-	if (FileSystem::FSeek64(hddImage, pos, SEEK_SET) != 0 ||
-		std::fread(readBuffer,  512, nsector, hddImage) != static_cast<size_t>(nsector))
+	pos = (u64)lba * 512;
+	if (filestream_seek(hddImage, (int64_t)pos, RETRO_VFS_SEEK_POSITION_START) < 0 ||
+		filestream_read(hddImage, readBuffer, (int64_t)nsector * 512) != (int64_t)nsector * 512)
 	{
 		Console.Error("DEV9: ATA: File read error");
 		abort();
@@ -97,6 +93,8 @@ void ATA::IO_Read()
 bool ATA::IO_Write()
 {
 	WriteQueueEntry entry;
+	u64 imagePos;
+
 	if (!writeQueue.Dequeue(&entry))
 	{
 		Threading::ScopedLock ioSignallock(ioMutex);
@@ -104,8 +102,8 @@ bool ATA::IO_Write()
 		return false;
 	}
 
-	u64 imagePos = entry.sector * 512;
-	if (FileSystem::FSeek64(hddImage, imagePos, SEEK_SET) != 0)
+	imagePos = entry.sector * 512;
+	if (filestream_seek(hddImage, (int64_t)imagePos, RETRO_VFS_SEEK_POSITION_START) < 0)
 	{
 		Console.Error("DEV9: ATA: File seek error");
 		abort();
@@ -115,23 +113,22 @@ bool ATA::IO_Write()
 		u32 written = 0;
 		while (written != entry.length)
 		{
+			u32 writeSize;
+			bool sparseWrite;
+
 			IO_SparseCacheUpdateLocation(imagePos + written);
 			// Align to sparse block size.
-			u32 writeSize = hddSparseBlockSize - ((imagePos + written) % hddSparseBlockSize);
+			writeSize = (u32)(hddSparseBlockSize - ((imagePos + written) % hddSparseBlockSize));
 			// Limit to size of write.
 			writeSize = std::min(writeSize, entry.length - written);
 
-			bool sparseWrite = IsAllZero(&entry.data[written], writeSize);
+			sparseWrite = IsAllZero(&entry.data[written], writeSize);
 
 			if (sparseWrite)
 			{
 				if (!IO_SparseZero(imagePos + written, writeSize))
 				{
 					Console.Error("DEV9: ATA: File sparse write error");
-
-					// hddNativeHandle is owned by hddImage.
-					// do not close it.
-					hddNativeHandle = INVALID_HANDLE_VALUE;
 
 					hddSparse = false;
 					hddSparseBlock = nullptr;
@@ -149,8 +146,8 @@ bool ATA::IO_Write()
 				if (hddSparseBlockValid)
 					memcpy(&hddSparseBlock[(imagePos + written) - HddSparseStart], &entry.data[written], writeSize);
 
-				if (std::fwrite(&entry.data[written], writeSize, 1, hddImage) != 1 ||
-					std::fflush(hddImage) != 0)
+				if (filestream_write(hddImage, &entry.data[written], (int64_t)writeSize) != (int64_t)writeSize ||
+					filestream_flush(hddImage) != 0)
 				{
 					Console.Error("DEV9: ATA: File write error");
 					abort();
@@ -161,7 +158,8 @@ bool ATA::IO_Write()
 	}
 	else
 	{
-		if (std::fwrite(entry.data, entry.length, 1, hddImage) != 1 || std::fflush(hddImage) != 0)
+		if (filestream_write(hddImage, entry.data, (int64_t)entry.length) != (int64_t)entry.length ||
+			filestream_flush(hddImage) != 0)
 		{
 			Console.Error("DEV9: ATA: File write error");
 			abort();
@@ -178,6 +176,8 @@ void ATA::IO_SparseCacheLoad()
 	// Normally that won't happen as we generate files of exact Gib size.
 	u64 readSize = hddSparseBlockSize;
 	const u64 posEnd = HddSparseStart + hddSparseBlockSize;
+	s64 orgPos;
+
 	if (posEnd > hddImageSize)
 	{
 		readSize = hddSparseBlockSize - (posEnd - hddImageSize);
@@ -186,55 +186,22 @@ void ATA::IO_SparseCacheLoad()
 	}
 
 	// Store file pointer.
-	const s64 orgPos = FileSystem::FTell64(hddImage);
+	orgPos = filestream_tell(hddImage);
 
-	// Flush so that we know what is allocated.
-	std::fflush(hddImage);
-
-#ifdef _WIN32
-	// FlushFileBuffers is required, hddSparseBlock differs from actual file without it.
-	FlushFileBuffers(hddNativeHandle);
-	// Range to be examined (One Sparse block size).
-	FILE_ALLOCATED_RANGE_BUFFER queryRange;
-	queryRange.FileOffset.QuadPart = HddSparseStart;
-	queryRange.Length.QuadPart = hddSparseBlockSize;
-
-	// Allocated areas info.
-	FILE_ALLOCATED_RANGE_BUFFER allocRange;
-	DWORD dwRetBytes;
-	const BOOL ret = DeviceIoControl(hddNativeHandle, FSCTL_QUERY_ALLOCATED_RANGES, &queryRange, sizeof(queryRange), &allocRange, sizeof(allocRange), &dwRetBytes, nullptr);
-
-	if (ret == TRUE && dwRetBytes == 0)
-	{
-		// We are sparse.
-		memset(hddSparseBlock.get(), 0, hddSparseBlockSize);
-		hddSparseBlockValid = true;
-		return;
-	}
-#elif defined(__POSIX__)
-#ifdef SEEK_HOLE
-	// Are we in a hole?
-	off_t ret = lseek(hddNativeHandle, HddSparseStart, SEEK_HOLE);
-	if (ret == (off_t)HddSparseStart)
-	{
-		// Seek to data.
-		ret = lseek(hddNativeHandle, HddSparseStart, SEEK_DATA);
-		if (ret >= (off_t)(HddSparseStart + hddSparseBlockSize))
-		{
-			// We are sparse.
-			memset(hddSparseBlock.get(), 0, hddSparseBlockSize);
-			hddSparseBlockValid = true;
-			return;
-		}
-	}
-#endif
-#endif
+	/* The native-handle code asked the OS whether this block was still
+	 * a hole (FSCTL_QUERY_ALLOCATED_RANGES, SEEK_HOLE) so it could skip
+	 * the read. The VFS has no such query, so the block is always read;
+	 * a hole reads back as zeroes straight out of the page cache, so
+	 * this costs a copy rather than I/O and the cache contents come out
+	 * identical. The flush keeps the read coherent with our own
+	 * buffered writes on whatever backend the VFS resolved to. */
+	filestream_flush(hddImage);
 
 	// Load into cache.
-	if (orgPos == -1 ||
-		FileSystem::FSeek64(hddImage, HddSparseStart, SEEK_SET) != 0 ||
-		std::fread((char*)hddSparseBlock.get(), readSize, 1, hddImage) != 1 ||
-		FileSystem::FSeek64(hddImage, orgPos, SEEK_SET) != 0) // Restore file pointer.
+	if (orgPos < 0 ||
+		filestream_seek(hddImage, (int64_t)HddSparseStart, RETRO_VFS_SEEK_POSITION_START) < 0 ||
+		filestream_read(hddImage, hddSparseBlock.get(), (int64_t)readSize) != (int64_t)readSize ||
+		filestream_seek(hddImage, orgPos, RETRO_VFS_SEEK_POSITION_START) < 0) // Restore file pointer.
 	{
 		Console.Error("DEV9: ATA: File read error");
 		abort();
@@ -267,8 +234,8 @@ bool ATA::IO_SparseZero(u64 byteOffset, u64 byteSize)
 	if (!IsAllZero(hddSparseBlock.get(), hddSparseBlockSize))
 	{
 		//No, do normal write
-		if (std::fwrite((char*)&hddSparseBlock[byteOffset - HddSparseStart], byteSize, 1, hddImage) != 1 ||
-			std::fflush(hddImage) != 0)
+		if (filestream_write(hddImage, &hddSparseBlock[byteOffset - HddSparseStart], (int64_t)byteSize) != (int64_t)byteSize ||
+			filestream_flush(hddImage) != 0)
 		{
 			Console.Error("DEV9: ATA: File write error");
 			abort();
@@ -276,38 +243,16 @@ bool ATA::IO_SparseZero(u64 byteOffset, u64 byteSize)
 		return true;
 	}
 
-	//Yes, try sparse write
-#ifdef _WIN32
-	FILE_ZERO_DATA_INFORMATION sparseRange;
-	sparseRange.FileOffset.QuadPart = HddSparseStart;
-	sparseRange.BeyondFinalZero.QuadPart = HddSparseStart + hddSparseBlockSize;
-	DWORD dwTemp;
-	const BOOL ret = DeviceIoControl(hddNativeHandle, FSCTL_SET_ZERO_DATA, &sparseRange, sizeof(sparseRange), nullptr, 0, &dwTemp, nullptr);
-
-	if (ret == FALSE)
+	/* Yes, try sparse write. filestream_punch_hole carries the whole
+	 * platform matrix the native-handle code open-coded here --
+	 * FSCTL_SET_ZERO_DATA (arming FSCTL_SET_SPARSE itself first),
+	 * fallocate(FALLOC_FL_PUNCH_HOLE), fcntl(F_PUNCHHOLE) -- and
+	 * returns -1 where the backend or filesystem cannot punch at all,
+	 * upon which the caller falls back to plain writes for good. */
+	if (filestream_punch_hole(hddImage, (int64_t)HddSparseStart, (int64_t)hddSparseBlockSize) != 0)
 		return false;
 
-#elif defined(__linux__)
-	const int ret = fallocate(hddNativeHandle, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE, HddSparseStart, hddSparseBlockSize);
-
-	if (ret == -1)
-		return false;
-
-#elif defined(__APPLE__)
-	fpunchhole_t sparseRange{0};
-	sparseRange.fp_offset = HddSparseStart;
-	sparseRange.fp_length = hddSparseBlockSize;
-
-	const int ret = fcntl(hddNativeHandle, F_PUNCHHOLE, &sparseRange);
-
-	if (ret == -1)
-		return false;
-
-#else
-	Console.Error("DEV9: ATA: Hole punching not supported on current OS");
-	return false;
-#endif
-	if (FileSystem::FSeek64(hddImage, byteOffset + byteSize, SEEK_SET) != 0)
+	if (filestream_seek(hddImage, (int64_t)(byteOffset + byteSize), RETRO_VFS_SEEK_POSITION_START) < 0)
 	{
 		Console.Error("DEV9: ATA: File seek error");
 		abort();

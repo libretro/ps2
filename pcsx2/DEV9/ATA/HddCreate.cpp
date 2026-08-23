@@ -16,23 +16,14 @@
 #include <retro_atomic.h>
 #include <algorithm>
 #include "common/Console.h"
-#include "common/FileSystem.h"
 #include "common/StringUtil.h"
 
 #include <file/file_path.h>
+#include <streams/file_stream.h>
 
 #include "HddCreate.h"
 
-#if _WIN32
-#include "common/RedtapeWindows.h"
-#include <winioctl.h>
-#include <io.h>
-#elif defined(__POSIX__)
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#endif
+#define HDD_CREATE_BUFF_SIZE (4 * 1024)
 
 void HddCreate::Start()
 {
@@ -43,8 +34,12 @@ void HddCreate::Start()
 
 void HddCreate::WriteImage(std::string hddPath, u64 fileBytes, u64 zeroSizeBytes)
 {
-	constexpr int buffsize = 4 * 1024;
-	u8 buff[buffsize] = {0}; // 4kb.
+	u8 buff[HDD_CREATE_BUFF_SIZE] = {0}; // 4kb.
+	RFILE* newImage;
+	bool sparseSupported;
+	s32 reqMiB;
+	s32 zeroMiB;
+	s32 iMiB;
 
 	if (path_is_valid(hddPath.c_str()))
 	{
@@ -53,7 +48,8 @@ void HddCreate::WriteImage(std::string hddPath, u64 fileBytes, u64 zeroSizeBytes
 		return;
 	}
 
-	auto newImage = FileSystem::OpenManagedCFile(hddPath.c_str(), "wb");
+	newImage = filestream_open(hddPath.c_str(),
+			RETRO_VFS_FILE_ACCESS_WRITE, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 	if (!newImage)
 	{
 		retro_atomic_store_release_int(&errored, 1);
@@ -61,154 +57,52 @@ void HddCreate::WriteImage(std::string hddPath, u64 fileBytes, u64 zeroSizeBytes
 		return;
 	}
 
-	bool sparseSupported = false;
-#ifdef _WIN32
-	// Handle owned by CFile.
-	HANDLE nativeFile = reinterpret_cast<HANDLE>(_get_osfhandle(_fileno(newImage.get())));
-
-	if (nativeFile == INVALID_HANDLE_VALUE)
-	{
-		Console.Error("DEV9: HddCreate: failed to get handle");
-		newImage.reset();
-		FileSystem::DeleteFilePath(hddPath.c_str());
-		retro_atomic_store_release_int(&errored, 1);
-		SetError();
-		return;
-	}
-
-	// Check if we support sparse files.
-	DWORD dwFlags;
-	if (GetVolumeInformationByHandleW(nativeFile, nullptr, 0, nullptr, nullptr, &dwFlags, nullptr, 0) == FALSE)
-	{
-		Console.Error("DEV9: HddCreate: failed to check sparse");
-		newImage.reset();
-		FileSystem::DeleteFilePath(hddPath.c_str());
-		retro_atomic_store_release_int(&errored, 1);
-		SetError();
-		return;
-	}
-
-	if (dwFlags & FILE_SUPPORTS_SPARSE_FILES)
-	{
-		// Sparse files supported.
-		FILE_SET_SPARSE_BUFFER sparseSetting;
-		sparseSetting.SetSparse = true;
-		FILE_ZERO_DATA_INFORMATION sparseRange;
-		sparseRange.FileOffset.QuadPart = 0;
-		sparseRange.BeyondFinalZero.QuadPart = fileBytes;
-		DWORD dwTemp;
-
-		if ((DeviceIoControl(nativeFile, FSCTL_SET_SPARSE, &sparseSetting, sizeof(sparseSetting), nullptr, 0, &dwTemp, nullptr) == FALSE) ||
-			(DeviceIoControl(nativeFile, FSCTL_SET_ZERO_DATA, &sparseRange, sizeof(sparseRange), nullptr, 0, &dwTemp, nullptr) == FALSE))
-		{
-			Console.Error("DEV9: HddCreate: Failed to set sparse");
-			newImage.reset();
-			FileSystem::DeleteFilePath(hddPath.c_str());
-			retro_atomic_store_release_int(&errored, 1);
-			SetError();
-			return;
-		}
-
-		sparseSupported = true;
-	}
-
 	// Set filesize.
-	LARGE_INTEGER seekStart;
-	seekStart.QuadPart = 0;
-	LARGE_INTEGER seekEnd;
-	seekEnd.QuadPart = fileBytes;
-
-	if ((SetFilePointerEx(nativeFile, seekEnd, nullptr, FILE_BEGIN) == FALSE) ||
-		(SetEndOfFile(nativeFile) == FALSE) ||
-		(SetFilePointerEx(nativeFile, seekStart, nullptr, FILE_BEGIN) == FALSE))
+	if (filestream_truncate(newImage, (int64_t)fileBytes) != 0 ||
+		filestream_seek(newImage, 0, RETRO_VFS_SEEK_POSITION_START) < 0)
 	{
 		Console.Error("DEV9: HddCreate: Failed to set size");
-		newImage.reset();
-		FileSystem::DeleteFilePath(hddPath.c_str());
+		filestream_close(newImage);
+		filestream_delete(hddPath.c_str());
 		retro_atomic_store_release_int(&errored, 1);
 		SetError();
 		return;
 	}
 
-#elif defined(__POSIX__)
-	// Handle owned by CFile.
-	int nativeFile = fileno(newImage.get());
-
-	if (nativeFile == -1)
-	{
-		Console.Error("DEV9: HddCreate: failed to get handle");
-		newImage.reset();
-		FileSystem::DeleteFilePath(hddPath.c_str());
-		retro_atomic_store_release_int(&errored, 1);
-		SetError();
-		return;
-	}
-
-	// Set filesize.
-	if ((ftruncate(nativeFile, fileBytes) == -1) ||
-		(lseek(nativeFile, 0, SEEK_SET) == -1))
-	{
-		Console.Error("DEV9: HddCreate: Failed to set size");
-		newImage.reset();
-		FileSystem::DeleteFilePath(hddPath.c_str());
-		retro_atomic_store_release_int(&errored, 1);
-		SetError();
-		return;
-	}
-
-	// Check the blocks allocated to determine if file is spasre.
-	// Assume that we don't get a false positive from filesystems only supporting ValidDataLength.
-	struct stat fileInfo;
-	if (fstat(nativeFile, &fileInfo) == -1)
-	{
-		Console.Error("DEV9: HddCreate: Failed to check sparse");
-		// Set filesize to zero to avoid potential freeze on close.
-		// Ignore any error, can't do much if this fails anyway.
-		[[maybe_unused]] int i = ftruncate(nativeFile, 0);
-		newImage.reset();
-		FileSystem::DeleteFilePath(hddPath.c_str());
-		retro_atomic_store_release_int(&errored, 1);
-		SetError();
-		return;
-	}
-
-	if (fileInfo.st_blocks != static_cast<s64>(fileBytes / 512))
-	{
-		// Sparse files supported.
-		sparseSupported = true;
-		// File is automatically sparse.
-	}
-#endif
+	/* Whether the file can actually be sparse is answered by trying:
+	 * punching the whole range deallocates whatever the truncate
+	 * allocated (nothing, on filesystems where extension is already a
+	 * hole) and on Windows arms the sparse attribute as a side effect
+	 * of the punch, which is why no explicit FSCTL_SET_SPARSE step
+	 * exists here. -1 means the backend or filesystem cannot punch,
+	 * and the image is written out in full below. */
+	sparseSupported = (filestream_punch_hole(newImage, 0, (int64_t)fileBytes) == 0);
 
 	lastUpdate = std::chrono::steady_clock::now();
 
 	// Round up.
-	const s32 reqMiB = (fileBytes + ((1024 * 1024) - 1)) / (1024 * 1024);
-	const s32 zeroMiB = (zeroSizeBytes + ((1024 * 1024) - 1)) / (1024 * 1024);
+	reqMiB = (s32)((fileBytes + ((1024 * 1024) - 1)) / (1024 * 1024));
+	zeroMiB = (s32)((zeroSizeBytes + ((1024 * 1024) - 1)) / (1024 * 1024));
 
-	s32 iMiB = 0;
+	iMiB = 0;
 	if (sparseSupported)
 		iMiB = reqMiB - zeroMiB;
 
 	for (; iMiB < reqMiB; iMiB++)
 	{
 		// Round down.
-		const s32 req4Kib = std::min<s32>(1024, (fileBytes / 1024) - (u64)iMiB * 1024) / 4;
-		for (s32 i4kb = 0; i4kb < req4Kib; i4kb++)
+		const s32 req4Kib = std::min<s32>(1024, (s32)((fileBytes / 1024) - (u64)iMiB * 1024)) / 4;
+		s32 i4kb;
+
+		for (i4kb = 0; i4kb < req4Kib; i4kb++)
 		{
-			if (std::fwrite(buff, buffsize, 1, newImage.get()) != 1)
+			if (filestream_write(newImage, buff, HDD_CREATE_BUFF_SIZE) != HDD_CREATE_BUFF_SIZE)
 			{
-				std::fflush(newImage.get());
+				filestream_flush(newImage);
 				// Set filesize to zero to avoid potential freeze on close.
-#ifdef _WIN32
-				SetFilePointerEx(nativeFile, seekStart, nullptr, FILE_BEGIN);
-				SetEndOfFile(nativeFile);
-#elif defined(__POSIX__)
-				// Ignore any error, can't do much if this fails anyway.
-				[[maybe_unused]] int i = ftruncate(nativeFile, 0);
-#endif
-				newImage.reset();
-				FileSystem::DeleteFilePath(hddPath.c_str());
+				filestream_truncate(newImage, 0);
+				filestream_close(newImage);
+				filestream_delete(hddPath.c_str());
 				retro_atomic_store_release_int(&errored, 1);
 				SetError();
 				return;
@@ -217,50 +111,52 @@ void HddCreate::WriteImage(std::string hddPath, u64 fileBytes, u64 zeroSizeBytes
 
 		if (req4Kib != 256)
 		{
-			const s32 remainingBytes = fileBytes - (((u64)iMiB) * (1024 * 1024) + req4Kib * 4096);
-			if (std::fwrite(buff, remainingBytes, 1, newImage.get()) != 1)
+			const s32 remainingBytes = (s32)(fileBytes - (((u64)iMiB) * (1024 * 1024) + (u64)req4Kib * 4096));
+			if (filestream_write(newImage, buff, remainingBytes) != remainingBytes)
 			{
-				std::fflush(newImage.get());
+				filestream_flush(newImage);
 				// Set filesize to zero to avoid potential freeze on close.
-#ifdef _WIN32
-				SetFilePointerEx(nativeFile, seekStart, nullptr, FILE_BEGIN);
-				SetEndOfFile(nativeFile);
-#elif defined(__POSIX__)
-				// Ignore any error, can't do much if this fails anyway.
-				[[maybe_unused]] int i = ftruncate(nativeFile, 0);
-#endif
-				newImage.reset();
-				FileSystem::DeleteFilePath(hddPath.c_str());
+				filestream_truncate(newImage, 0);
+				filestream_close(newImage);
+				filestream_delete(hddPath.c_str());
 				retro_atomic_store_release_int(&errored, 1);
 				SetError();
 				return;
 			}
 		}
 
-		const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
-		if (std::chrono::duration_cast<std::chrono::milliseconds>(now - lastUpdate).count() >= 100 || (iMiB + 1) == reqMiB)
 		{
-			lastUpdate = now;
-			SetFileProgress(static_cast<u64>(FileSystem::FTell64(newImage.get())));
+			const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+			if (std::chrono::duration_cast<std::chrono::milliseconds>(now - lastUpdate).count() >= 100 || (iMiB + 1) == reqMiB)
+			{
+				lastUpdate = now;
+				SetFileProgress((u64)filestream_tell(newImage));
+			}
 		}
 		if (retro_atomic_load_acquire_int(&canceled))
 		{
-			std::fflush(newImage.get());
+			filestream_flush(newImage);
 			// Set filesize to zero to avoid potential freeze on close.
-#ifdef _WIN32
-			SetFilePointerEx(nativeFile, seekStart, nullptr, FILE_BEGIN);
-			SetEndOfFile(nativeFile);
-#elif defined(__POSIX__)
-			// Ignore any error, can't do much if this fails anyway.
-			[[maybe_unused]] int i = ftruncate(nativeFile, 0);
-#endif
-			newImage.reset();
-			FileSystem::DeleteFilePath(hddPath.c_str());
+			filestream_truncate(newImage, 0);
+			filestream_close(newImage);
+			filestream_delete(hddPath.c_str());
 			retro_atomic_store_release_int(&errored, 1);
 			SetError();
 			return;
 		}
 	}
+
+	if (filestream_flush(newImage) != 0)
+	{
+		Console.Error("DEV9: HddCreate: Failed to flush");
+		filestream_truncate(newImage, 0);
+		filestream_close(newImage);
+		filestream_delete(hddPath.c_str());
+		retro_atomic_store_release_int(&errored, 1);
+		SetError();
+		return;
+	}
+	filestream_close(newImage);
 }
 
 void HddCreate::SetFileProgress(u64 currentSize)

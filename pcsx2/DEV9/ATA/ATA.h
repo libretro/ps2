@@ -16,11 +16,11 @@
 #pragma once
 
 #include <retro_atomic.h>
+#include <streams/file_stream.h>
+#include <memory>
 #include <string>
 
 #include "../../../common/Threading.h"
-#include "common/FileSystem.h"
-#include "common/RedtapeWindows.h"
 #include "common/Path.h"
 
 #include "DEV9/SimpleQueue.h"
@@ -35,7 +35,7 @@ public:
 private:
 	const bool lba48Supported = false;
 
-	FILE* hddImage = nullptr;
+	RFILE* hddImage = nullptr;
 	u64 hddImageSize;
 
 	bool hddSparse = false;
@@ -43,12 +43,6 @@ private:
 	u64 HddSparseStart;
 	std::unique_ptr<u8[]> hddSparseBlock;
 	bool hddSparseBlockValid = false;
-
-#ifdef _WIN32
-	HANDLE hddNativeHandle = INVALID_HANDLE_VALUE;
-#elif defined(__POSIX__)
-	int hddNativeHandle = -1;
-#endif
 
 	int pioMode;
 	int sdmaMode;
@@ -184,7 +178,7 @@ public:
 	//ATAwritePIO;
 
 private:
-	void InitSparseSupport(const std::string& hddPath);
+	void InitSparseSupport();
 
 	//Info
 	void CreateHDDinfo(u64 sizeSectors);
