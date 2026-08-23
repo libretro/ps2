@@ -43,6 +43,7 @@
 #include "IsoFileFormats.h"
 
 #include "../GS.h" // for gsVideoMode
+#include "../Counters.h" // for UpdateVSyncRate
 #include "../Elfheader.h"
 #include "../ps2/BiosTools.h"
 #include "../Host.h"
@@ -502,11 +503,25 @@ static void ExecutablePathToSerial(char* out, size_t out_size, const char* path)
 	*w = '\0';
 }
 
+/* Re-seed the pre-init counter timing once the disc region is known.
+ * VMManager::Initialize computes the first vsync rate before the CDVD
+ * reset path parses SYSTEM.CNF, so a PAL disc fast-booted on an NTSC
+ * BIOS would otherwise keep the NTSC seed until SetGsCrt.  The rate
+ * change guard inside UpdateVSyncRate makes this a no-op whenever the
+ * seed did not actually move, and once SetGsCrt has run the video mode
+ * is no longer Uninitialized and the seed is irrelevant. */
+static void cdvdRefreshBootTiming(void)
+{
+	if (gsVideoMode == GS_VideoMode::Uninitialized)
+		UpdateVSyncRate(false);
+}
+
 void cdvdReloadElfInfo(std::string elfoverride)
 {
 	std::string elfpath;
 	const u32 disc_type = GetPS2ElfName(elfpath);
 	ExecutablePathToSerial(DiscSerial, sizeof(DiscSerial), elfpath.c_str());
+	cdvdRefreshBootTiming();
 
 	// Use the serial from the disc (if any), and the ELF CRC of the override.
 	if (!elfoverride.empty())
@@ -528,6 +543,7 @@ void cdvdReloadElfInfo(std::string elfoverride)
 	// Recognized and PS2 (BOOT2).  Good job, user.
 	_reloadElfInfo(std::move(elfpath));
 }
+
 
 static void cdvdReadKey(u8, u16, u32 arg2, u8* key)
 {
@@ -2843,11 +2859,26 @@ void cdvdWrite(u8 key, u8 rt)
 //   0 - Invalid or unknown disc.
 //   1 - PS1 CD
 //   2 - PS2 CD
+/* Disc region parsed from SYSTEM.CNF's VMODE line: -1 unknown (no disc
+ * recognized), 0 NTSC, 1 PAL.  Consumed by the counters to seed timing
+ * before SetGsCrt runs; on fast boot the BIOS video-mode init is
+ * skipped, and a PAL game that derives cycle counts from the framerate
+ * before setting its own mode must not compute them against NTSC
+ * defaults. */
+static int s_disc_region = -1;
+
+int cdvdGetDiscRegion(void)
+{
+	return s_disc_region;
+}
+
 int GetPS2ElfName( std::string& name )
 {
 	int retype = 0;
 
 	IsoFile file;
+
+	s_disc_region = -1;
 
 	if (!file.open("SYSTEM.CNF;1"))
 		return 0;
@@ -2887,6 +2918,7 @@ int GetPS2ElfName( std::string& name )
 		{
 			Console.WriteLn("(SYSTEM.CNF) Disc region type = %.*s",
 					static_cast<int>(value.size()), value.data());
+			s_disc_region = (value == "PAL") ? 1 : 0;
 		}
 		else if( key == "VER" )
 		{
@@ -2896,7 +2928,15 @@ int GetPS2ElfName( std::string& name )
 	}
 
 	if( retype == 0 )
+	{
+		s_disc_region = -1;
 		return 0;
+	}
+
+	/* Recognized disc without a VMODE line: NTSC, matching what the
+	 * upstream plumbing does with an absent value. */
+	if (s_disc_region < 0)
+		s_disc_region = 0;
 
 	return retype;
 }

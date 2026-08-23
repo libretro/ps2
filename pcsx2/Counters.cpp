@@ -29,6 +29,8 @@
 
 #include "ps2/HwInternal.h"
 #include "VMManager.h"
+#include "CDVD/CDVD.h"     /* cdvdGetDiscRegion */
+#include "ps2/BiosTools.h" /* BiosRegion */
 
 #ifdef __LIBRETRO__
 extern bool pending_update_av_info;
@@ -223,6 +225,29 @@ void rcntInit(void)
 	cpuRcntSet();
 }
 
+/* Boot-time region used to seed timing while gsVideoMode is still
+ * Uninitialized (SetGsCrt not executed yet).  Fast boot skips the BIOS
+ * video-mode init, so a PAL game that computes cycle counts from the
+ * framerate before setting its own mode would otherwise do so against
+ * NTSC defaults (Spyro: Enter the Dragonfly EU cutscene desync).  Disc
+ * region from SYSTEM.CNF wins; a BIOS from a PAL zone (Europe, Oceania)
+ * is the fallback. */
+#define BIOS_REGION_EUROPE  2
+#define BIOS_REGION_OCEANIA 3
+static bool BootRegionIsPAL(void)
+{
+	const int disc_region = cdvdGetDiscRegion();
+	if (disc_region >= 0)
+		return disc_region != 0;
+	return BiosRegion == BIOS_REGION_EUROPE || BiosRegion == BIOS_REGION_OCEANIA;
+}
+
+/* Pre-init default rates on the milli-hertz grid (see
+ * GetVerticalFrequencyMilliHz): the counters must agree with that
+ * function about what an Uninitialized-mode PAL rate looks like. */
+#define DEFAULT_FRAME_RATE_PAL_MHZ  ((u32)(Pcsx2Config::GSOptions::DEFAULT_FRAME_RATE_PAL * 1000.0f))
+#define DEFAULT_FRAME_RATE_NTSC_MHZ ((u32)(Pcsx2Config::GSOptions::DEFAULT_FRAME_RATE_NTSC * 1000.0f))
+
 static void vSyncInfoCalc(vSyncTimingInfo* info, u32 vertical_mHz, u32 scansPerFrame)
 {
 	// All-integer timing derivation.  The old double math was
@@ -246,7 +271,8 @@ static void vSyncInfoCalc(vSyncTimingInfo* info, u32 vertical_mHz, u32 scansPerF
 	// Dynasty Warriors 3 Xtreme Legends - fake save corruption when loading save
 	// Jak II - random speedups
 	// Shadow of Rome - FMV audio issues
-	const bool ntsc_hblank = gsVideoMode != GS_VideoMode::PAL && gsVideoMode != GS_VideoMode::DVD_PAL;
+	const bool ntsc_hblank = gsVideoMode != GS_VideoMode::PAL && gsVideoMode != GS_VideoMode::DVD_PAL &&
+		(gsVideoMode != GS_VideoMode::Uninitialized || vertical_mHz != DEFAULT_FRAME_RATE_PAL_MHZ);
 	const u64 HalfFrame = Frame / 2;
 	// Scanline counts carried as numerators over 2: the vblank period is
 	// 22.5 (NTSC) / 24.5 (PAL) scanlines, plus 0.5 / 1.5 in progressive
@@ -351,8 +377,12 @@ u32 GetVerticalFrequencyMilliHz(void)
 		case GS_VideoMode::HDTV_720P:
 		case GS_VideoMode::SDTV_576P:
 		case GS_VideoMode::VESA:
-		case GS_VideoMode::Uninitialized: // SetGsCrt hasn't executed yet, give some temporary values.
 			return 60000;
+		case GS_VideoMode::Uninitialized:
+			/* SetGsCrt hasn't executed yet: seed from the boot region so
+			 * pre-init cycle math is computed against the rate the BIOS
+			 * would have programmed. */
+			return BootRegionIsPAL() ? DEFAULT_FRAME_RATE_PAL_MHZ : DEFAULT_FRAME_RATE_NTSC_MHZ;
 		case GS_VideoMode::SDTV_480P:
 		default:
 			// Pass NTSC vertical frequency value when unknown video mode is detected.
@@ -401,8 +431,13 @@ void UpdateVSyncRate(bool force)
 			case GS_VideoMode::HDTV_1080I:
 				total_scanlines = SCANLINES_TOTAL_1080;
 				break;
-			case GS_VideoMode::Unknown:
 			case GS_VideoMode::Uninitialized: // SYSCALL instruction hasn't executed yet, give some temporary values.
+				if (BootRegionIsPAL())
+					total_scanlines = gsIsInterlaced ? SCANLINES_TOTAL_PAL_I : SCANLINES_TOTAL_PAL_NI;
+				else
+					total_scanlines = gsIsInterlaced ? SCANLINES_TOTAL_NTSC_I : SCANLINES_TOTAL_NTSC_NI;
+				break;
+			case GS_VideoMode::Unknown:
 			case GS_VideoMode::NTSC:
 			case GS_VideoMode::DVD_NTSC:
 			default:

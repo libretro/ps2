@@ -171,5 +171,7 @@ extern void cdvdReloadElfInfo(std::string elfoverride = std::string());
 extern s32 cdvdCtrlTrayOpen(void);
 extern s32 cdvdCtrlTrayClose(void);
 int GetPS2ElfName( std::string& name );
+/* -1 unknown, 0 NTSC, 1 PAL; from SYSTEM.CNF VMODE of the last parsed disc. */
+int cdvdGetDiscRegion(void);
 
 extern char DiscSerial[];
