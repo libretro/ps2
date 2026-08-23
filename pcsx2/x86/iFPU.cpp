@@ -779,6 +779,8 @@ static void recMaxMin_int(int info, int ismin)
 	xe_cmovcc64_rr(ismin ? Jcc_Greater : Jcc_Less, XE_AX, XE_DX);
 	fpuEmitSignFold(XE_AX, XE_CX);
 	xe_movd_xr(EEREC_D, XE_AX);
+	/* The interpreter's MAX_S/MIN_S clear O and U. */
+	xe_and32_mi(&fpuRegs.fprc[31], ~(FPUflagO | FPUflagU));
 }
 
 static void recCcond_int(int info, int cond)
