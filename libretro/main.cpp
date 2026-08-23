@@ -396,12 +396,13 @@ static bool is_software_sw_setting(const std::string& s)
  * as-is regardless of the size option. */
 static void dev9_ensure_hdd_image(u32 size_sectors)
 {
-	const std::string path(Path::Combine(EmuFolders::Settings, "DEV9hdd.raw"));
-	if (path_is_valid(path.c_str()))
+	char path[PCSX2_PATH_MAX];
+	pcsx2_path_join(path, sizeof(path), EmuFolders::Settings.c_str(), "DEV9hdd.raw");
+	if (path_is_valid(path))
 		return;
-	log_cb(RETRO_LOG_INFO, "DEV9: creating HDD image '%s'\n", path.c_str());
-	if (hdd_create(path.c_str(), (u64)size_sectors * 512) != 0)
-		log_cb(RETRO_LOG_ERROR, "DEV9: failed to create HDD image '%s'\n", path.c_str());
+	log_cb(RETRO_LOG_INFO, "DEV9: creating HDD image '%s'\n", path);
+	if (hdd_create(path, (u64)size_sectors * 512) != 0)
+		log_cb(RETRO_LOG_ERROR, "DEV9: failed to create HDD image '%s'\n", path);
 }
 
 static void check_variables(bool first_run)
