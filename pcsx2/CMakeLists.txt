@@ -918,7 +918,11 @@ if (APPLE)
 	# MacOS defaults to having a maximum protection of the __DATA segment of rw (non-executable)
 	# We have a bunch of page-sized arrays in bss that we use for jit
 	# Obviously not being able to make those arrays executable would be a problem
-	target_link_options(PCSX2_FLAGS INTERFACE -Wl,-segprot,__DATA,rwx,rw)
+	# -- x86 only: the exec-from-BSS arrays live in x86 code, and arm64 forbids
+	# rwx segments outright (the arm64 recompilers mmap their caches instead).
+	if(NOT CMAKE_OSX_ARCHITECTURES MATCHES "arm64")
+		target_link_options(PCSX2_FLAGS INTERFACE -Wl,-segprot,__DATA,rwx,rw)
+	endif()
 endif()
 
 set_property(GLOBAL PROPERTY PCSX2_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})

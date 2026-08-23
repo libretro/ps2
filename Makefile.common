@@ -85,8 +85,14 @@ endif
 ifeq ($(IS_ARM64), 1)
 	INCFLAGS += -I$(DEPS_DIR)/vixl/src
 	FLAGS    += -D_ARCH_64=1 \
-	            -DVIXL_INCLUDE_TARGET_AARCH64 \
-	            -DVIXL_CODE_BUFFER_MMAP
+	            -DVIXL_INCLUDE_TARGET_AARCH64
+	# The staging buffer grows via mremap() on Linux; Darwin has no mremap,
+	# so it uses VIXL's realloc backend there, same as upstream VIXL on Mac.
+	ifneq (,$(filter osx ios% tvos%,$(platform)))
+		FLAGS += -DVIXL_CODE_BUFFER_MALLOC
+	else
+		FLAGS += -DVIXL_CODE_BUFFER_MMAP
+	endif
 endif
 
 CFLAGS   += $(FLAGS)

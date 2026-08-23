@@ -18,8 +18,16 @@ target_compile_features(vixl PUBLIC cxx_std_17)
 
 target_compile_definitions(vixl PUBLIC
 	VIXL_INCLUDE_TARGET_AARCH64
-	VIXL_CODE_BUFFER_MMAP
 )
+
+# The staging buffer's growth path: mremap() on Linux, plain realloc on
+# platforms without it. Darwin has no mremap, and upstream VIXL builds
+# with the malloc backend there as well.
+if(APPLE)
+	target_compile_definitions(vixl PUBLIC VIXL_CODE_BUFFER_MALLOC)
+else()
+	target_compile_definitions(vixl PUBLIC VIXL_CODE_BUFFER_MMAP)
+endif()
 
 # VIXL is third-party; don't let the core's stricter warnings fail its build.
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")

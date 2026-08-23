@@ -41,8 +41,10 @@
 
 // microVU rec contexts (x86 defines these in microVU.h; on ARM64 they live here,
 // where microRegAlloc is a complete type so microVU's unique_ptr dtor compiles).
-alignas(16) microVU microVU0;
-alignas(16) microVU microVU1;
+/* alignas must be at least the type's own: mVU_Globals inside is alignas(32)
+ * for NEON ldp/stp of q-register pairs, so 16 under-aligns and clang rejects it. */
+alignas(32) microVU microVU0;
+alignas(32) microVU microVU1;
 
 // Whole-program comparison on search (matches the x86 default — off). Cloned here
 // rather than pulled from the x86-coupled microVU_Misc.h. doConstProp lives in aVU.h.
