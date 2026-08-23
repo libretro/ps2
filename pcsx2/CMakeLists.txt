@@ -80,6 +80,7 @@ set(pcsx2Sources
 	FW.cpp
 	FiFo.cpp
 	FPU.cpp
+	ps2float.c
 	Gif.cpp
 	Gif_Unit.cpp
 	GS.cpp
@@ -181,6 +182,7 @@ set(pcsx2Headers
 	Vif_HashBucket.h
 	VirtualMemory.h
 	vtlb.h
+	ps2float.h
 	VUmicro.h
 	VUops.h
 	microVU/microVU_Types.h
