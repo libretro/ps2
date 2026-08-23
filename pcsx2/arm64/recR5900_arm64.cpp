@@ -1165,12 +1165,13 @@ namespace
 		m.Str(w0, MemOperand(xfbase, fd * 4));
 	}
 
-	// funct 0x30 C.F / 0x32 C.EQ / 0x34 C.LT / 0x36 C.LE: compare
-	// fpuDouble-clamped operands (comparePrecision is compiled out, so the
-	// interpreter compares the exact clamped floats) and set/clear the FCR31
-	// C flag (0x00800000). C.F unconditionally clears it. Post-clamp values
-	// are never NaN, so the ordered integer-style conditions (eq/lt/le) after
-	// Fcmp are exact.
+	// funct 0x30 C.F / 0x32 C.EQ / 0x34 C.LT / 0x36 C.LE: the compares are
+	// the interpreter's fpuCompareFull total order - flush denormals to
+	// zero, fold the non-sign bits of negatives, then one signed integer
+	// compare - so no clamps and no host FP. The clamped Fcmp this
+	// replaces collapsed distinct same-signed exponent-255 values, which
+	// are ordinary numbers to the PS2, onto one clamp value and misordered
+	// them. C.F unconditionally clears the C flag (0x00800000).
 	void EmitFpuCmpS(MacroAssembler& m, const Register& xfbase, u32 funct, u32 fs, u32 ft)
 	{
 		if (funct == 0x30) // C.F: clear C only
@@ -1181,12 +1182,20 @@ namespace
 			return;
 		}
 		m.Ldr(w0, MemOperand(xfbase, fs * 4));
-		EmitFpuClampBits(m, w0, w4);
-		m.Fmov(s0, w0);
-		m.Ldr(w0, MemOperand(xfbase, ft * 4));
-		EmitFpuClampBits(m, w0, w4);
-		m.Fmov(s1, w0);
-		m.Fcmp(s0, s1);
+		m.Ldr(w2, MemOperand(xfbase, ft * 4));
+		// flush denormals: exponent field zero -> +0
+		m.Tst(w0, 0x7f800000);
+		m.Csel(w0, wzr, w0, eq);
+		m.Tst(w2, 0x7f800000);
+		m.Csel(w2, wzr, w2, eq);
+		// sign-fold onto two's-complement order
+		m.Asr(w4, w0, 31);
+		m.Lsr(w4, w4, 1);
+		m.Eor(w0, w0, w4);
+		m.Asr(w4, w2, 31);
+		m.Lsr(w4, w4, 1);
+		m.Eor(w2, w2, w4);
+		m.Cmp(w0, w2);
 		m.Cset(w0, funct == 0x32 ? eq : (funct == 0x34 ? lt : le));
 		m.Ldr(w2, MemOperand(xfbase, 252));
 		m.Bic(w2, w2, 0x00800000);
