@@ -385,8 +385,6 @@ struct Pcsx2Config
 
 				bool    EnableEECache    : 1;
 				bool    EnableFastmem    : 1;
-				/* Bit-exact software EE FPU (ps2float.c) */
-				bool    EnableFpuSoftFloat : 1;
 			};
 		};
 
@@ -942,7 +940,6 @@ namespace EmuFolders
 #define CHECK_CACHE (EmuConfig.Cpu.Recompiler.EnableEECache)
 #define CHECK_IOPREC (EmuConfig.Cpu.Recompiler.EnableIOP)
 #define CHECK_FASTMEM (EmuConfig.Cpu.Recompiler.EnableEE && EmuConfig.Cpu.Recompiler.EnableFastmem)
-#define CHECK_FPU_SOFT (EmuConfig.Cpu.Recompiler.EnableFpuSoftFloat)
 
 //------------ SPECIAL GAME FIXES!!! ---------------
 #define CHECK_VUADDSUBHACK (EmuConfig.Gamefixes.VuAddSubHack) // Special Fix for Tri-ace games, they use an encryption algorithm that requires VU addi opcode to be bit-accurate.

@@ -222,7 +222,6 @@ Pcsx2Config::RecompilerOptions::RecompilerOptions()
 
 	EnableEE = true;
 	EnableEECache = false;
-	EnableFpuSoftFloat = false;
 	EnableIOP = true;
 	EnableVU0 = true;
 	EnableVU1 = true;
@@ -301,7 +300,6 @@ void Pcsx2Config::RecompilerOptions::LoadSave(SettingsWrapper& wrap)
 	SettingsWrapBitBool(EnableEE);
 	SettingsWrapBitBool(EnableIOP);
 	SettingsWrapBitBool(EnableEECache);
-	SettingsWrapBitBool(EnableFpuSoftFloat);
 	SettingsWrapBitBool(EnableVU0);
 	SettingsWrapBitBool(EnableVU1);
 	SettingsWrapBitBool(EnableFastmem);

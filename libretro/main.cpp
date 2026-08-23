@@ -1172,13 +1172,6 @@ static void check_variables(bool first_run)
 			setting_hint_language_unlock = 0;
 	}
 
-	var.key = "pcsx2_fpu_softfloat";
-	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-	{
-		bool fpu_soft = !strcmp(var.value, "enabled");
-		s_settings_interface.SetBoolValue("EmuCore/CPU/Recompiler", "EnableFpuSoftFloat", fpu_soft);
-	}
-
 	var.key = "pcsx2_ee_cycle_rate";
 	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 	{
