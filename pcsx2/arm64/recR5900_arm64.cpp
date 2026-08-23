@@ -758,14 +758,12 @@ namespace
 	// sequence; the single-precision path it replaces measured 38.5%
 	// wrong, exponent-255 operands and guard-bit discard both.
 	// Scratch: w0/w2-w7 (+ x aliases), d0/d1.
-	void EmitFpuAddSubExact(MacroAssembler& m, const Register& xfbase, bool issub, u32 dst_off, u32 fs, u32 ft)
+	// Core of the exact pipeline: operands already loaded, a in w0, b in w2.
+	void EmitFpuAddSubExactCore(MacroAssembler& m, const Register& xfbase, bool issub, u32 dst_off)
 	{
 		Label mask_done, big_a, big_b, chk_neg;
 		Label a_zero, a_done, b_zero, b_done;
 		Label zero_res, of, uf, done;
-
-		m.Ldr(w0, MemOperand(xfbase, fs * 4)); // a
-		m.Ldr(w2, MemOperand(xfbase, ft * 4)); // b
 
 		// signed exponent difference
 		m.Ubfx(w3, w0, 23, 8);
@@ -889,12 +887,27 @@ namespace
 		m.Str(w0, MemOperand(xfbase, dst_off));
 	}
 
+	void EmitFpuAddSubExact(MacroAssembler& m, const Register& xfbase, bool issub, u32 dst_off, u32 fs, u32 ft)
+	{
+		m.Ldr(w0, MemOperand(xfbase, fs * 4)); // a
+		m.Ldr(w2, MemOperand(xfbase, ft * 4)); // b
+		EmitFpuAddSubExactCore(m, xfbase, issub, dst_off);
+	}
+
 	// funct 0x1c MADD.S / 0x1d MSUB.S: temp = fpuDouble(Fs)*fpuDouble(Ft);
 	// fd = fpuDouble(ACC) +/- fpuDouble(temp.UL) -- BOTH the intermediate
 	// product and ACC are re-clamped through fpuDouble before the add/sub
 	// (pcsx2/FPU.cpp MADD_S/MSUB_S). Then the usual O|SO / U|SU result check.
 	// There is NO fused multiply-add on the EE -- the product is a rounded
 	// single, so native Fmul + Fadd (not Fmadd) is the exact translation.
+	// The accumulate stage runs the exact double pipeline: ACC enters raw
+	// (the core handles denormals and exponent-255 the way the model does,
+	// where the old fpuDouble clamp destroyed 255-exponent accumulators),
+	// the single-precision product enters fpuDouble-clamped as before. The
+	// remaining divergence from the model is the product itself: the exact
+	// multiply needs the Booth tree, and until then a product that
+	// overflows clamps like the old interpreter instead of forcing the
+	// mul-signed MAX the model's exception ladder produces.
 	void EmitFpuMaddS(MacroAssembler& m, const Register& xfbase, u32 fd, u32 fs, u32 ft, bool sub)
 	{
 		m.Ldr(w0, MemOperand(xfbase, fs * 4));
@@ -904,24 +917,17 @@ namespace
 		EmitFpuClampBits(m, w0, w4);
 		m.Fmov(s1, w0);
 		m.Fmul(s0, s0, s1);
-		m.Fmov(w0, s0);
-		EmitFpuClampBits(m, w0, w4);   // fpuDouble(temp.UL)
-		m.Fmov(s0, w0);
-		m.Ldr(w0, MemOperand(xfbase, kFpuAcc));
-		EmitFpuClampBits(m, w0, w4);   // fpuDouble(ACC.UL)
-		m.Fmov(s1, w0);
-		if (sub) m.Fsub(s0, s1, s0);   // fd = ACC - temp
-		else     m.Fadd(s0, s1, s0);   // fd = ACC + temp
-		m.Fmov(w0, s0);
-		EmitFpuOverflowUnderflow(m, w0, xfbase);
-		m.Str(w0, MemOperand(xfbase, fd * 4));
+		m.Fmov(w2, s0);
+		EmitFpuClampBits(m, w2, w4);   // fpuDouble(temp.UL)
+		m.Ldr(w0, MemOperand(xfbase, kFpuAcc)); // raw ACC: the core handles it
+		EmitFpuAddSubExactCore(m, xfbase, sub, fd * 4);
 	}
 
-	// funct 0x1e MADDA.S / 0x1f MSUBA.S: ACC.f +/-= fpuDouble(Fs)*fpuDouble(Ft).
-	// UNLIKE MADD/MSUB, neither the product nor ACC goes through fpuDouble here
-	// (the interpreter's `+=` reads the raw ACC float and adds the raw IEEE
-	// product) -- a real asymmetry in the ground truth; replicate, don't
-	// "harmonize". Then O|SO / U|SU on the accumulated result.
+	// funct 0x1e MADDA.S / 0x1f MSUBA.S. The old interpreter read raw ACC
+	// and the raw IEEE product here, unlike MADD - that asymmetry died when
+	// the interpreter moved to the soft model, where the A forms are the
+	// same fused chain with the accumulator as destination. Same shape as
+	// EmitFpuMaddS: clamped single product, raw ACC, exact-core accumulate.
 	void EmitFpuMaddaS(MacroAssembler& m, const Register& xfbase, u32 fs, u32 ft, bool sub)
 	{
 		m.Ldr(w0, MemOperand(xfbase, fs * 4));
@@ -931,13 +937,10 @@ namespace
 		EmitFpuClampBits(m, w0, w4);
 		m.Fmov(s1, w0);
 		m.Fmul(s0, s0, s1);
-		m.Ldr(w0, MemOperand(xfbase, kFpuAcc)); // raw ACC, no clamp
-		m.Fmov(s1, w0);
-		if (sub) m.Fsub(s0, s1, s0);
-		else     m.Fadd(s0, s1, s0);
-		m.Fmov(w0, s0);
-		EmitFpuOverflowUnderflow(m, w0, xfbase);
-		m.Str(w0, MemOperand(xfbase, kFpuAcc));
+		m.Fmov(w2, s0);
+		EmitFpuClampBits(m, w2, w4);
+		m.Ldr(w0, MemOperand(xfbase, kFpuAcc));
+		EmitFpuAddSubExactCore(m, xfbase, sub, kFpuAcc);
 	}
 
 	// checkOverflow(wd,0) + checkUnderflow(wd,0): DIV.S/SQRT.S/RSQRT.S pass
