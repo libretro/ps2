@@ -13,6 +13,7 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <algorithm>
 #include <iterator> /* std::begin(), std::end() */
 #include "GLState.h"
 

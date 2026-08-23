@@ -240,11 +240,24 @@ void GameDatabase::parseAndInsert(const char *serial, const ryaml_t *yaml, int n
 			const std::optional<SpeedHack> id = Pcsx2Config::SpeedhackOptions::ParseSpeedHackName(id_view);
 			const std::optional<int> value = StringUtil::FromChars<int>(value_view);
 
-			if (id.has_value() && value.has_value() &&
-				std::none_of(gameEntry.speedHacks.begin(), gameEntry.speedHacks.end(),
-					[&id](const auto& it) { return it.first == id.value(); }))
-				gameEntry.speedHacks.emplace_back(id.value(), value.value());
-			else
+			bool inserted = false;
+			if (id.has_value() && value.has_value())
+			{
+				const std::pair<SpeedHack, int>* hacks = gameEntry.speedHacks.data();
+				const size_t nhacks = gameEntry.speedHacks.size();
+				size_t hi;
+				for (hi = 0; hi < nhacks; hi++)
+				{
+					if (hacks[hi].first == id.value())
+						break;
+				}
+				if (hi == nhacks)
+				{
+					gameEntry.speedHacks.emplace_back(id.value(), value.value());
+					inserted = true;
+				}
+			}
+			if (!inserted)
 				Console.Error("[GameDB] Invalid speedhack: '{%s}', specified for serial: '{%.*s}'. Dropping!", std::string(id_view).c_str(), (int)value_view.size(), value_view.data());
 		}
 	}
