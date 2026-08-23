@@ -733,72 +733,65 @@ void recBC1TL(void)
 //------------------------------------------------------------------
 // C.x.S XMM
 //------------------------------------------------------------------
-void recC_EQ_xmm(int info)
+// Integer ordering emissions: the FPU's MAX/MIN and compares are total
+// orders on the raw sign-magnitude bits (fp_max and fpuCompareFull in
+// the interpreter). Folding the non-sign bits of negatives maps that
+// order onto two's-complement, so one signed compare decides it: no
+// operand clamps, no host FP, and exponent-255 values order correctly,
+// which the clamped comiss/maxss sequences got wrong.
+//------------------------------------------------------------------
+
+// gpr := sign-fold(gpr): negatives get their non-sign bits inverted.
+static void fpuEmitSignFold(int gpr, int scratch)
 {
-	u8 *j8Ptr0, *j8Ptr1;
-	switch (info & (PROCESS_EE_S | PROCESS_EE_T))
-	{
-		case PROCESS_EE_S:
-			{
-				const int regs = fpuCopyToTempForClamp(_Fs_, EEREC_S);
-				fpuFloat3(regs);
+	xe_mov32_rr(scratch, gpr);
+	xe_sar32_ri(scratch, 31);
+	xe_shr32_ri(scratch, 1);
+	xe_xor32_rr(gpr, scratch);
+}
 
-				const int t0reg = _allocTempXMMreg(XMMT_FPS);
-				xe_movss_xm(t0reg, &fpuRegs.fpr[_Ft_]);
-				fpuFloat3(t0reg);
+// gpr := 0 when the exponent field is zero (fpuCompareFull's flush).
+static void fpuEmitDenormFlush(int gpr, int scratch)
+{
+	uint8_t* keep;
+	xe_mov32_rr(scratch, gpr);
+	xe_and32_ri(scratch, 0x7f800000);
+	xe_fwd_jcc8(Jcc_NotZero, keep);
+	xe_xor32_rr(gpr, gpr);
+	xe_fwd_set8(keep);
+}
 
-				xe_ucomiss_xx(regs, t0reg);
+static void fpuLoadRaw(int gpr, int have_reg, int xmmreg, int fpureg)
+{
+	if (have_reg)
+		xe_movd_rx(gpr, xmmreg);
+	else
+		xe_mov32_rm(gpr, &fpuRegs.fpr[fpureg].UL);
+}
 
-				_freeXMMreg(t0reg);
-				fpuFreeIfTemp(regs);
-			}
-			break;
+static void recMaxMin_int(int info, int ismin)
+{
+	fpuLoadRaw(XE_AX, info & PROCESS_EE_S, EEREC_S, _Fs_);
+	fpuLoadRaw(XE_DX, info & PROCESS_EE_T, EEREC_T, _Ft_);
+	fpuEmitSignFold(XE_AX, XE_CX);
+	fpuEmitSignFold(XE_DX, XE_CX);
+	xe_cmp32_rr(XE_AX, XE_DX);
+	xe_cmovcc64_rr(ismin ? Jcc_Greater : Jcc_Less, XE_AX, XE_DX);
+	fpuEmitSignFold(XE_AX, XE_CX);
+	xe_movd_xr(EEREC_D, XE_AX);
+}
 
-		case PROCESS_EE_T:
-			{
-				const int regt = fpuCopyToTempForClamp(_Ft_, EEREC_T);
-				fpuFloat3(regt);
-
-				const int t0reg = _allocTempXMMreg(XMMT_FPS);
-				xe_movss_xm(t0reg, &fpuRegs.fpr[_Fs_]);
-				fpuFloat3(t0reg);
-
-				xe_ucomiss_xx(t0reg, regt);
-
-				_freeXMMreg(t0reg);
-				fpuFreeIfTemp(regt);
-			}
-			break;
-
-		case (PROCESS_EE_S | PROCESS_EE_T):
-			{
-				const int regs = fpuCopyToTempForClamp(_Fs_, EEREC_S);
-				fpuFloat3(regs);
-
-				const int regt = fpuCopyToTempForClamp(_Ft_, EEREC_T);
-				fpuFloat3(regt);
-
-				xe_ucomiss_xx(regs, regt);
-
-				fpuFreeIfTemp(regs);
-				fpuFreeIfTemp(regt);
-			}
-			break;
-
-		default:
-			xe_mov32_rm(XE_AX, &fpuRegs.fpr[_Fs_]);
-			xe_cmp32_rm(XE_AX, &fpuRegs.fpr[_Ft_]);
-
-			xe_fwd_jcc8(Jcc_Zero, j8Ptr0);
-			xe_and32_mi(&fpuRegs.fprc[31], ~FPUflagC);
-			xe_fwd_jcc8(Jcc_Unconditional, j8Ptr1);
-			xe_fwd_set8(j8Ptr0);
-			xe_or32_mi(&fpuRegs.fprc[31], FPUflagC);
-			xe_fwd_set8(j8Ptr1);
-			return;
-	}
-
-	xe_fwd_jcc8(Jcc_Zero, j8Ptr0);
+static void recCcond_int(int info, int cond)
+{
+	uint8_t *j8Ptr0, *j8Ptr1;
+	fpuLoadRaw(XE_AX, info & PROCESS_EE_S, EEREC_S, _Fs_);
+	fpuLoadRaw(XE_DX, info & PROCESS_EE_T, EEREC_T, _Ft_);
+	fpuEmitDenormFlush(XE_AX, XE_CX);
+	fpuEmitDenormFlush(XE_DX, XE_CX);
+	fpuEmitSignFold(XE_AX, XE_CX);
+	fpuEmitSignFold(XE_DX, XE_CX);
+	xe_cmp32_rr(XE_AX, XE_DX);
+	xe_fwd_jcc8(cond, j8Ptr0);
 	xe_and32_mi(&fpuRegs.fprc[31], ~FPUflagC);
 	xe_fwd_jcc8(Jcc_Unconditional, j8Ptr1);
 	xe_fwd_set8(j8Ptr0);
@@ -806,7 +799,13 @@ void recC_EQ_xmm(int info)
 	xe_fwd_set8(j8Ptr1);
 }
 
-FPURECOMPILE_CONSTCODE(C_EQ, XMMINFO_READS | XMMINFO_READT);
+//------------------------------------------------------------------
+void recC_EQ_xmm(int info)
+{
+	recCcond_int(info, Jcc_Equal);
+}
+
+FPURECOMPILE_CONSTCODE_EXACT_SS(C_EQ, XMMINFO_READS | XMMINFO_READT);
 
 void recC_F()
 {
@@ -815,153 +814,17 @@ void recC_F()
 
 void recC_LE_xmm(int info)
 {
-	u8 *j8Ptr0, *j8Ptr1;
-	switch (info & (PROCESS_EE_S | PROCESS_EE_T))
-	{
-		case PROCESS_EE_S:
-		{
-			const int regs = fpuCopyToTempForClamp(_Fs_, EEREC_S);
-			fpuFloat3(regs);
-
-			const int t0reg = _allocTempXMMreg(XMMT_FPS);
-			xe_movss_xm(t0reg, &fpuRegs.fpr[_Ft_]);
-			fpuFloat3(t0reg);
-
-			xe_ucomiss_xx(regs, t0reg);
-
-			_freeXMMreg(t0reg);
-			fpuFreeIfTemp(regs);
-		}
-		break;
-
-		case PROCESS_EE_T:
-		{
-			const int regt = fpuCopyToTempForClamp(_Ft_, EEREC_T);
-			fpuFloat3(regt);
-
-			const int t0reg = _allocTempXMMreg(XMMT_FPS);
-			xe_movss_xm(t0reg, &fpuRegs.fpr[_Fs_]);
-			fpuFloat3(t0reg);
-
-			xe_ucomiss_xx(t0reg, regt);
-
-			_freeXMMreg(t0reg);
-			fpuFreeIfTemp(regt);
-		}
-		break;
-
-		case (PROCESS_EE_S | PROCESS_EE_T):
-		{
-			const int regs = fpuCopyToTempForClamp(_Fs_, EEREC_S);
-			fpuFloat3(regs);
-
-			const int regt = fpuCopyToTempForClamp(_Ft_, EEREC_T);
-			fpuFloat3(regt);
-
-			xe_ucomiss_xx(regs, regt);
-
-			fpuFreeIfTemp(regs);
-			fpuFreeIfTemp(regt);
-		}
-		break;
-
-		default: // Untested and incorrect, but this case is never reached AFAIK (cottonvibes)
-			xe_mov32_rm(XE_AX, &fpuRegs.fpr[_Fs_]);
-			xe_cmp32_rm(XE_AX, &fpuRegs.fpr[_Ft_]);
-
-			xe_fwd_jcc8(Jcc_LessOrEqual, j8Ptr0);
-			xe_and32_mi(&fpuRegs.fprc[31], ~FPUflagC);
-			xe_fwd_jcc8(Jcc_Unconditional, j8Ptr1);
-			xe_fwd_set8(j8Ptr0);
-			xe_or32_mi(&fpuRegs.fprc[31], FPUflagC);
-			xe_fwd_set8(j8Ptr1);
-			return;
-	}
-
-	xe_fwd_jcc8(Jcc_BelowOrEqual, j8Ptr0);
-	xe_and32_mi(&fpuRegs.fprc[31], ~FPUflagC);
-	xe_fwd_jcc8(Jcc_Unconditional, j8Ptr1);
-	xe_fwd_set8(j8Ptr0);
-	xe_or32_mi(&fpuRegs.fprc[31], FPUflagC);
-	xe_fwd_set8(j8Ptr1);
+	recCcond_int(info, Jcc_LessOrEqual);
 }
 
-FPURECOMPILE_CONSTCODE(C_LE, XMMINFO_READS | XMMINFO_READT);
+FPURECOMPILE_CONSTCODE_EXACT_SS(C_LE, XMMINFO_READS | XMMINFO_READT);
 
 void recC_LT_xmm(int info)
 {
-	u8 *j8Ptr0, *j8Ptr1;
-	switch (info & (PROCESS_EE_S | PROCESS_EE_T))
-	{
-		case PROCESS_EE_S:
-		{
-			const int regs = fpuCopyToTempForClamp(_Fs_, EEREC_S);
-			fpuFloat3(regs);
-
-			const int t0reg = _allocTempXMMreg(XMMT_FPS);
-			xe_movss_xm(t0reg, &fpuRegs.fpr[_Ft_]);
-			fpuFloat3(t0reg);
-
-			xe_ucomiss_xx(regs, t0reg);
-
-			_freeXMMreg(t0reg);
-			fpuFreeIfTemp(regs);
-		}
-		break;
-
-		case PROCESS_EE_T:
-		{
-			const int regt = fpuCopyToTempForClamp(_Ft_, EEREC_T);
-			fpuFloat3(regt);
-
-			const int t0reg = _allocTempXMMreg(XMMT_FPS);
-			xe_movss_xm(t0reg, &fpuRegs.fpr[_Fs_]);
-			fpuFloat3(t0reg);
-
-			xe_ucomiss_xx(t0reg, regt);
-
-			_freeXMMreg(t0reg);
-			fpuFreeIfTemp(regt);
-		}
-		break;
-
-		case (PROCESS_EE_S | PROCESS_EE_T):
-		{
-			const int regs = fpuCopyToTempForClamp(_Fs_, EEREC_S);
-			fpuFloat3(regs);
-
-			const int regt = fpuCopyToTempForClamp(_Ft_, EEREC_T);
-			fpuFloat3(regt);
-
-			xe_ucomiss_xx(regs, regt);
-
-			fpuFreeIfTemp(regs);
-			fpuFreeIfTemp(regt);
-		}
-		break;
-
-		default:
-			xe_mov32_rm(XE_AX, &fpuRegs.fpr[_Fs_]);
-			xe_cmp32_rm(XE_AX, &fpuRegs.fpr[_Ft_]);
-
-			xe_fwd_jcc8(Jcc_Less, j8Ptr0);
-			xe_and32_mi(&fpuRegs.fprc[31], ~FPUflagC);
-			xe_fwd_jcc8(Jcc_Unconditional, j8Ptr1);
-			xe_fwd_set8(j8Ptr0);
-			xe_or32_mi(&fpuRegs.fprc[31], FPUflagC);
-			xe_fwd_set8(j8Ptr1);
-			return;
-	}
-
-	xe_fwd_jcc8(Jcc_Below, j8Ptr0);
-	xe_and32_mi(&fpuRegs.fprc[31], ~FPUflagC);
-	xe_fwd_jcc8(Jcc_Unconditional, j8Ptr1);
-	xe_fwd_set8(j8Ptr0);
-	xe_or32_mi(&fpuRegs.fprc[31], FPUflagC);
-	xe_fwd_set8(j8Ptr1);
+	recCcond_int(info, Jcc_Less);
 }
 
-FPURECOMPILE_CONSTCODE(C_LT, XMMINFO_READS | XMMINFO_READT);
+FPURECOMPILE_CONSTCODE_EXACT_SS(C_LT, XMMINFO_READS | XMMINFO_READT);
 //REC_FPUFUNC(C_LT);
 //------------------------------------------------------------------
 
@@ -1347,22 +1210,24 @@ FPURECOMPILE_CONSTCODE_SOFT(MADDA_S, XMMINFO_WRITEACC | XMMINFO_READACC | XMMINF
 //------------------------------------------------------------------
 
 
+
+
 //------------------------------------------------------------------
 // MAX / MIN XMM
 //------------------------------------------------------------------
 void recMAX_S_xmm(int info)
 {
-	recCommutativeOp(info, EEREC_D, 2);
+	recMaxMin_int(info, 0);
 }
 
-FPURECOMPILE_CONSTCODE_SOFT(MAX_S, XMMINFO_WRITED | XMMINFO_READS | XMMINFO_READT);
+FPURECOMPILE_CONSTCODE_EXACT_SS(MAX_S, XMMINFO_WRITED | XMMINFO_READS | XMMINFO_READT);
 
 void recMIN_S_xmm(int info)
 {
-	recCommutativeOp(info, EEREC_D, 3);
+	recMaxMin_int(info, 1);
 }
 
-FPURECOMPILE_CONSTCODE_SOFT(MIN_S, XMMINFO_WRITED | XMMINFO_READS | XMMINFO_READT);
+FPURECOMPILE_CONSTCODE_EXACT_SS(MIN_S, XMMINFO_WRITED | XMMINFO_READS | XMMINFO_READT);
 //------------------------------------------------------------------
 
 
