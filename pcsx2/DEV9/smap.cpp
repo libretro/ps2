@@ -16,7 +16,7 @@
 #ifdef _WIN32
 #include <retro_atomic.h>
 #include "common/RedtapeWindows.h"
-#include <Winioctl.h>
+#include <winioctl.h>
 #endif
 #include "common/Threading.h"
 #include <stdlib.h>

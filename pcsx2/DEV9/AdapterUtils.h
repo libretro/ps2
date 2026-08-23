@@ -28,6 +28,7 @@
 #include <memory>
 #include <string>
 #include <optional>
+#include <vector>
 
 #include "DEV9/PacketReader/MAC_Address.h"
 #include "DEV9/PacketReader/IP/IP_Address.h"

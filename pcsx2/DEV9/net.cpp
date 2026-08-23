@@ -26,7 +26,6 @@
 #include "net.h"
 #include "DEV9.h"
 #ifdef _WIN32
-#include "Win32/tap.h"
 #endif
 #ifdef HAVE_PCAP
 #include "pcap_io.h"
@@ -88,8 +87,9 @@ NetAdapter* GetNetAdapter()
 	{
 #ifdef _WIN32
 		case Pcsx2Config::DEV9Options::NetApi::TAP:
-			na = static_cast<NetAdapter*>(new TAPAdapter());
-			break;
+			/* No TAP implementation is in the tree. */
+			Console.Error("DEV9: TAP backend not present in this core, use the Sockets api");
+			return 0;
 #endif
 		case Pcsx2Config::DEV9Options::NetApi::PCAP_Bridged:
 		case Pcsx2Config::DEV9Options::NetApi::PCAP_Switched:

@@ -14,6 +14,7 @@
  */
 
 #include "common/Pcsx2Defs.h"
+#include "common/Console.h"
 
 #ifdef __POSIX__
 #include <vector>
@@ -23,7 +24,6 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-#include "common/Console.h"
 #include "common/StringUtil.h"
 #include <compat/strl.h>
 
