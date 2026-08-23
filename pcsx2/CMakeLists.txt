@@ -653,10 +653,99 @@ set(pcsx2x86Headers
 	x86/newVif_UnpackSSE.h
 	)
 
-# DEV9 is not part of the libretro core: the sources stay in-tree for
-# upstream diffing, but nothing here compiles them.
-set(pcsx2DEV9Sources)
-set(pcsx2DEV9Headers)
+# DEV9: the SPEED expansion (sockets ethernet + C ATA hard drive).
+# The pcap backend is opt-in behind PCAP: it hard-links libpcap on
+# POSIX, and the Sockets api covers ethernet without any system
+# dependency.
+set(pcsx2DEV9Sources
+	DEV9/AdapterUtils.cpp
+	DEV9/DEV9.cpp
+	DEV9/InternalServers/DHCP_Server.cpp
+	DEV9/InternalServers/DNS_Logger.cpp
+	DEV9/InternalServers/DNS_Server.cpp
+	DEV9/PacketReader/ARP/ARP_Packet.cpp
+	DEV9/PacketReader/ARP/ARP_PacketEditor.cpp
+	DEV9/PacketReader/EthernetFrame.cpp
+	DEV9/PacketReader/EthernetFrameEditor.cpp
+	DEV9/PacketReader/IP/ICMP/ICMP_Packet.cpp
+	DEV9/PacketReader/IP/IP_Options.cpp
+	DEV9/PacketReader/IP/IP_Packet.cpp
+	DEV9/PacketReader/IP/TCP/TCP_Options.cpp
+	DEV9/PacketReader/IP/TCP/TCP_Packet.cpp
+	DEV9/PacketReader/IP/UDP/DHCP/DHCP_Options.cpp
+	DEV9/PacketReader/IP/UDP/DHCP/DHCP_Packet.cpp
+	DEV9/PacketReader/IP/UDP/DNS/DNS_Classes.cpp
+	DEV9/PacketReader/IP/UDP/DNS/DNS_Packet.cpp
+	DEV9/PacketReader/IP/UDP/UDP_Packet.cpp
+	DEV9/Sessions/BaseSession.cpp
+	DEV9/Sessions/ICMP_Session/ICMP_Session.cpp
+	DEV9/Sessions/TCP_Session/TCP_Session.cpp
+	DEV9/Sessions/TCP_Session/TCP_Session_In.cpp
+	DEV9/Sessions/TCP_Session/TCP_Session_Out.cpp
+	DEV9/Sessions/UDP_Session/UDP_FixedPort.cpp
+	DEV9/Sessions/UDP_Session/UDP_Session.cpp
+	DEV9/flash.cpp
+	DEV9/net.cpp
+	DEV9/smap.cpp
+	DEV9/sockets.cpp
+	DEV9/ATA/ATA_Info.c
+	DEV9/ATA/ATA_State.c
+	DEV9/ATA/ATA_Transfer.c
+	DEV9/ATA/Commands/ATA_CmdDMA.c
+	DEV9/ATA/Commands/ATA_CmdExecuteDeviceDiag.c
+	DEV9/ATA/Commands/ATA_CmdNoData.c
+	DEV9/ATA/Commands/ATA_CmdPIOData.c
+	DEV9/ATA/Commands/ATA_CmdSMART.c
+	DEV9/ATA/Commands/ATA_Command.c
+	DEV9/ATA/Commands/ATA_SCE.c
+	DEV9/ATA/HddCreate.c
+)
+set(pcsx2DEV9Headers
+	DEV9/ATA/ATA.h
+	DEV9/ATA/HddCreate.h
+	DEV9/AdapterUtils.h
+	DEV9/DEV9.h
+	DEV9/InternalServers/DHCP_Server.h
+	DEV9/InternalServers/DNS_Logger.h
+	DEV9/InternalServers/DNS_Server.h
+	DEV9/PacketReader/ARP/ARP_Packet.h
+	DEV9/PacketReader/ARP/ARP_PacketEditor.h
+	DEV9/PacketReader/EthernetFrame.h
+	DEV9/PacketReader/EthernetFrameEditor.h
+	DEV9/PacketReader/IP/ICMP/ICMP_Packet.h
+	DEV9/PacketReader/IP/IP_Address.h
+	DEV9/PacketReader/IP/IP_Options.h
+	DEV9/PacketReader/IP/IP_Packet.h
+	DEV9/PacketReader/IP/IP_Payload.h
+	DEV9/PacketReader/IP/TCP/TCP_Options.h
+	DEV9/PacketReader/IP/TCP/TCP_Packet.h
+	DEV9/PacketReader/IP/UDP/DHCP/DHCP_Options.h
+	DEV9/PacketReader/IP/UDP/DHCP/DHCP_Packet.h
+	DEV9/PacketReader/IP/UDP/DNS/DNS_Classes.h
+	DEV9/PacketReader/IP/UDP/DNS/DNS_Enums.h
+	DEV9/PacketReader/IP/UDP/DNS/DNS_Packet.h
+	DEV9/PacketReader/IP/UDP/UDP_Packet.h
+	DEV9/PacketReader/MAC_Address.h
+	DEV9/PacketReader/NetLib.h
+	DEV9/PacketReader/Payload.h
+	DEV9/Sessions/BaseSession.h
+	DEV9/Sessions/ICMP_Session/ICMP_Session.h
+	DEV9/Sessions/TCP_Session/TCP_Session.h
+	DEV9/Sessions/UDP_Session/UDP_BaseSession.h
+	DEV9/Sessions/UDP_Session/UDP_FixedPort.h
+	DEV9/Sessions/UDP_Session/UDP_Session.h
+	DEV9/SimpleQueue.h
+	DEV9/ThreadSafeMap.h
+	DEV9/net.h
+	DEV9/smap.h
+	DEV9/sockets.h
+)
+if(PCAP)
+	list(APPEND pcsx2DEV9Sources DEV9/pcap_io.cpp)
+	list(APPEND pcsx2DEV9Headers DEV9/pcap_io.h)
+	target_compile_definitions(PCSX2_FLAGS INTERFACE HAVE_PCAP)
+	target_link_libraries(PCSX2_FLAGS INTERFACE pcap)
+endif()
 set(pcsx2USBSources
 	USB/libretro-usb/bus.cpp
 	USB/libretro-usb/core.cpp
