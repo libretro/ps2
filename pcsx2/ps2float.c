@@ -127,17 +127,19 @@ static PS2F_INLINE ps2f_csa_t ps2f_csa(ps2f_u32 a, ps2f_u32 b, ps2f_u32 c)
 	return r;
 }
 
-static PS2F_INLINE ps2f_s32 ps2f_quotient_select(ps2f_csa_t current)
+/* Remainder estimate for quotient selection.  Note: decimal point is
+ * between bits 24 and 25. */
+static PS2F_INLINE ps2f_s32 ps2f_quotient_test(ps2f_csa_t current)
 {
-	/* Note: Decimal point is between bits 24 and 25 */
 	ps2f_u32 mask = (1u << 24) - 1; /* Bit 23 needs to be or'd in instead of added */
-	ps2f_s32 test = (ps2f_s32)((((current.sum & ~mask) + current.carry)) | (current.sum & mask));
-	if (test >= (ps2f_s32)(1 << 23)) /* test >= 0.25 */
-		return 1;
-	else if (test < (ps2f_s32)(~0u << 24)) /* test < -0.5 */
-		return -1;
-	else
-		return 0;
+	return (ps2f_s32)((((current.sum & ~mask) + current.carry)) | (current.sum & mask));
+}
+
+/* Branch-free three-way select from the estimate: the remainder is data,
+ * so the old compare chain mispredicted once per divider step. */
+static PS2F_INLINE ps2f_s32 ps2f_quotient_select_test(ps2f_s32 test)
+{
+	return (ps2f_s32)(test >= (ps2f_s32)(1 << 23)) - (ps2f_s32)(test < (ps2f_s32)(~0u << 24));
 }
 
 /****************************************************************
@@ -158,16 +160,20 @@ typedef struct
 
 static PS2F_INLINE ps2f_booth_t ps2f_booth(ps2f_u32 a, ps2f_u32 b, ps2f_u32 bit)
 {
+	/* Identical arithmetic to the reference, expressed with masks instead
+	 * of conditionals: the recode bits come straight from the operand, so
+	 * a branch here is a coin flip per partial product and the eight
+	 * recodes per multiply turned the tree into a mispredict storm. */
 	ps2f_booth_t r;
 	ps2f_u32 test = (bit ? b >> (bit * 2 - 1) : b << 1) & 7u;
-	ps2f_u32 neg;
-	ps2f_u32 pos;
+	ps2f_u32 dbl  = 0u - (ps2f_u32)((test == 3) | (test == 4)); /* x2 for recode +/-2 */
+	ps2f_u32 neg  = 0u - (ps2f_u32)((test - 4u) <= 2u);         /* 4..6 */
+	ps2f_u32 any  = 0u - (ps2f_u32)((test - 1u) <= 5u);         /* 1..6 */
+	ps2f_u32 pos  = 1u << (bit * 2);
 	a <<= (bit * 2);
-	a += (test == 3 || test == 4) ? a : 0;
-	neg = (test >= 4 && test <= 6) ? ~0u : 0;
-	pos = 1u << (bit * 2);
+	a += a & dbl;
 	a ^= (neg & (0u - pos));
-	a &= (test >= 1 && test <= 6) ? ~0u : 0;
+	a &= any;
 	r.data = a;
 	r.negate = neg & pos;
 	return r;
@@ -282,8 +288,8 @@ static PS2F_INLINE int ps2f_subtraction_sign(ps2f_u32 a, ps2f_u32 b)
 
 static ps2f_u64 ps2f_do_add(ps2f_u32 a, ps2f_u32 b)
 {
-	ps2f_u32 self_exponent = ps2f_exponent(a);
-	ps2f_s32 res_exponent = (ps2f_s32)self_exponent - (ps2f_s32)ps2f_exponent(b);
+	ps2f_u32 self_exponent;
+	ps2f_s32 res_exponent;
 	ps2f_u32 sign1;
 	ps2f_u32 sign2;
 	ps2f_s32 self_mantissa;
@@ -294,9 +300,19 @@ static ps2f_u64 ps2f_do_add(ps2f_u32 a, ps2f_u32 b)
 	ps2f_s32 amount;
 	ps2f_s32 msb_index;
 
-	if (res_exponent < 0)
-		return ps2f_do_add(b, a);
-	else if (res_exponent >= 25)
+	/* Order operands by exponent up front instead of recursing: the
+	 * reference's tail call kept this function out of line and made a
+	 * data-driven branch-and-call of half of all additions.  The swap is
+	 * a mask blend - which operand is larger is a coin flip. */
+	{
+		ps2f_u32 m = 0u - (ps2f_u32)(ps2f_exponent(a) < ps2f_exponent(b));
+		ps2f_u32 x = (a & ~m) | (b & m);
+		b = (b & ~m) | (a & m);
+		a = x;
+	}
+	self_exponent = ps2f_exponent(a);
+	res_exponent  = (ps2f_s32)self_exponent - (ps2f_s32)ps2f_exponent(b);
+	if (res_exponent >= 25)
 		return a;
 
 	/* roundingMultiplier = 6.
@@ -340,10 +356,11 @@ static ps2f_u64 ps2f_do_mul(ps2f_u32 a, ps2f_u32 b)
 	ps2f_s32 res_exponent = (ps2f_s32)ps2f_exponent(a) + (ps2f_s32)ps2f_exponent(b) - 127;
 	ps2f_u32 res_mantissa = (ps2f_u32)(ps2f_mul_mantissa(self_mantissa, other_mantissa) >> PS2F_MANTISSA_BITS);
 
-	if (res_mantissa > 0xffffffu)
+	/* Carry-out normalize without a branch: the top bit is operand data. */
 	{
-		res_mantissa >>= 1;
-		res_exponent++;
+		ps2f_u32 carry = res_mantissa >> 24;
+		res_mantissa >>= carry;
+		res_exponent += (ps2f_s32)carry;
 	}
 
 	if (res_exponent > 255)
@@ -481,13 +498,21 @@ ps2f_u64 ps2f_div(ps2f_u32 a, ps2f_u32 b)
 	quotient_bit = 1;
 	for (i = 0; i < 25; i++)
 	{
+		/* quotient_bit is remainder-driven data; every select in this
+		 * body is a mask so the 25 steps carry no branches. */
+		ps2f_u32 m_any = 0u - (ps2f_u32)(quotient_bit != 0);
+		ps2f_u32 m_pos = 0u - (ps2f_u32)(quotient_bit > 0);
 		ps2f_u32 add;
 		ps2f_csa_t csa;
 		quotient = (quotient << 1) + (ps2f_u32)quotient_bit;
-		add = quotient_bit > 0 ? ~bm : quotient_bit < 0 ? bm : 0;
-		current.carry += quotient_bit > 0;
+		add = (bm ^ m_pos) & m_any;
+		current.carry += m_pos & 1u;
 		csa = ps2f_csa(current.sum, current.carry, add);
-		quotient_bit = ps2f_quotient_select(quotient_bit ? csa : current);
+		{
+			ps2f_s32 t_csa = ps2f_quotient_test(csa);
+			ps2f_s32 t_cur = ps2f_quotient_test(current);
+			quotient_bit = ps2f_quotient_select_test((ps2f_s32)(((ps2f_u32)t_csa & m_any) | ((ps2f_u32)t_cur & ~m_any)));
+		}
 		current.sum = csa.sum << 1;
 		current.carry = csa.carry << 1;
 	}
@@ -549,12 +574,18 @@ ps2f_u64 ps2f_sqrt(ps2f_u32 a)
 		ps2f_u32 adjust;
 		ps2f_u32 add;
 		ps2f_csa_t csa;
+		ps2f_u32 m_any = 0u - (ps2f_u32)(quotient_bit != 0);
+		ps2f_u32 m_pos = 0u - (ps2f_u32)(quotient_bit > 0);
 		adjust = quotient + ((ps2f_u32)quotient_bit << (24 - i));
 		quotient += (ps2f_u32)quotient_bit << (25 - i);
-		add = quotient_bit > 0 ? ~adjust : quotient_bit < 0 ? adjust : 0;
-		current.carry += quotient_bit > 0;
+		add = (adjust ^ m_pos) & m_any;
+		current.carry += m_pos & 1u;
 		csa = ps2f_csa(current.sum, current.carry, add);
-		quotient_bit = ps2f_quotient_select(quotient_bit ? csa : current);
+		{
+			ps2f_s32 t_csa = ps2f_quotient_test(csa);
+			ps2f_s32 t_cur = ps2f_quotient_test(current);
+			quotient_bit = ps2f_quotient_select_test((ps2f_s32)(((ps2f_u32)t_csa & m_any) | ((ps2f_u32)t_cur & ~m_any)));
+		}
 		current.sum = csa.sum << 1;
 		current.carry = csa.carry << 1;
 	}
