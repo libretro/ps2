@@ -99,7 +99,7 @@ extern std::vector<IniPatch> Patch;
 // The following LoadPatchesFrom* functions:
 // - do not reset/unload previously loaded patches (use ForgetLoadedPatches() for that)
 // - do not actually patch the emulation memory (that happens at ApplyLoadedPatches(...) )
-extern int  LoadPatchesFromString(const std::string& patches);
+extern int  LoadPatchesFromString(const char* patches);
 extern int  LoadPatchesFromDir(const std::string& crc, const std::string& folder, const char* friendly_name, bool show_error_when_missing);
 extern int  LoadPatchesFromZip(const std::string& crc, const u8* zip_data, size_t zip_data_size);
 

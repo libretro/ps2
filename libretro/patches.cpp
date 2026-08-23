@@ -761,9 +761,9 @@ int lrps2_ingame_patches(const char *serial,
 				/* Patch courtesy: Agrippa */
 				/* Replace NTSC mode with Progressive Scan */
 				if (     game_crc == 0xBC5480A3) /* 1.00 */
-					LoadPatchesFromString(std::string("patch=1,EE,00509E4A,byte,06"));
+					LoadPatchesFromString("patch=1,EE,00509E4A,byte,06");
 				else if (game_crc == 0x3BA95B70) /* 2.00 */
-					LoadPatchesFromString(std::string("patch=1,EE,00509ECA,byte,06"));
+					LoadPatchesFromString("patch=1,EE,00509ECA,byte,06");
 
 				static const char *const patches[] = {
 					/* Rename PAL60/60 Hz with Progressive */

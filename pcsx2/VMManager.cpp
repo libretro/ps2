@@ -347,7 +347,7 @@ void VMManager::LoadPatches(const std::string& serial, u32 crc)
 		if (game)
 		{
 			const std::string* patches = game->findPatch(crc);
-			if (patches && (patch_count = LoadPatchesFromString(*patches)) > 0)
+			if (patches && (patch_count = LoadPatchesFromString(patches->c_str())) > 0)
 			{
 				Console.WriteLn("(GameDB) Patches Loaded: %d", patch_count);
 				message += StringUtil::StdStringFromFormat("%d game patches", patch_count);

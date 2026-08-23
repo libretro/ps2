@@ -666,19 +666,32 @@ static const PatchTextTable cpuCore[] =
 
 // IniFile Functions.
 
-static void inifile_trim(std::string& buffer)
+/* Trim a pnach line in place: leading and trailing whitespace off, and
+ * everything from a "//" onward dropped -- a line that starts with one is
+ * a comment and becomes empty. Was StripWhitespace plus find/erase on a
+ * std::string; the same rules on the caller's buffer, since the line is
+ * read from a stream into a buffer either way. */
+static void inifile_trim(char* buffer)
 {
-	StringUtil::StripWhitespace(&buffer);
-	if (strncmp(buffer.c_str(), "//", 2) == 0)
-	{
-		// comment
-		buffer.clear();
-	}
+	char* start = buffer;
+	char* end;
+	char* comment;
 
-	// check for comments at the end of a line
-	const std::string::size_type pos = buffer.find("//");
-	if (pos != std::string::npos)
-		buffer.erase(pos);
+	while (*start == ' ' || *start == '\t' || *start == '\r' || *start == '\n')
+		start++;
+
+	end = start + strlen(start);
+	while (end > start && (end[-1] == ' ' || end[-1] == '\t'
+				|| end[-1] == '\r' || end[-1] == '\n'))
+		end--;
+	*end = '\0';
+
+	comment = strstr(start, "//");
+	if (comment)
+		*comment = '\0';
+
+	if (start != buffer)
+		memmove(buffer, start, strlen(start) + 1);
 }
 
 static int PatchTableExecute(const std::string_view& lhs, const std::string_view& rhs, const PatchTextTable* Table)
@@ -700,7 +713,7 @@ static int PatchTableExecute(const std::string_view& lhs, const std::string_view
 }
 
 // This routine is for executing the commands of the ini file.
-static void inifile_command(const std::string& cmd)
+static void inifile_command(const char* cmd)
 {
 	std::string_view key, value;
 	StringUtil::ParseAssignmentString(cmd, &key, &value);
@@ -713,17 +726,34 @@ static void inifile_command(const std::string& cmd)
 	/*int code = */ PatchTableExecute(key, value, commands_patch);
 }
 
-int LoadPatchesFromString(const std::string& patches)
+int LoadPatchesFromString(const char* patches)
 {
 	const size_t before = Patch.size();
+	const char*  p      = patches;
 
-	std::istringstream ss(patches);
-	std::string line;
-	while (std::getline(ss, line))
+	/* Walk the buffer a line at a time rather than through an
+	 * istringstream and a std::string per line. A pnach line is bounded
+	 * -- the format is one command per line -- so anything longer than
+	 * the buffer is malformed and gets truncated rather than growing an
+	 * allocation to hold it. */
+	while (p && *p)
 	{
+		char        line[512];
+		const char* nl  = strchr(p, '\n');
+		size_t      len = nl ? (size_t)(nl - p) : strlen(p);
+
+		if (len >= sizeof(line))
+			len = sizeof(line) - 1;
+		memcpy(line, p, len);
+		line[len] = '\0';
+
 		inifile_trim(line);
-		if (!line.empty())
+		if (line[0])
 			inifile_command(line);
+
+		if (!nl)
+			break;
+		p = nl + 1;
 	}
 
 	return static_cast<int>(Patch.size() - before);
@@ -849,7 +879,7 @@ int LoadPatchesFromZip(const std::string& crc, const u8* zip_data, size_t zip_da
 		return 0;
 
 	Console.WriteLn("Loading patch '%s' from archive.", pnach_filename.c_str());
-	return LoadPatchesFromString(pnach_data);
+	return LoadPatchesFromString(pnach_data.c_str());
 }
 
 // This routine loads patches from *.pnach files
@@ -887,7 +917,7 @@ int LoadPatchesFromDir(const std::string& crc, const std::string& folder, const 
 		if (!pnach_data.has_value())
 			continue;
 
-		const int loaded = LoadPatchesFromString(pnach_data.value());
+		const int loaded = LoadPatchesFromString(pnach_data.value().c_str());
 		total_loaded += loaded;
 
 		Console.WriteLn("Loaded %d %s from '%.*s'.",
