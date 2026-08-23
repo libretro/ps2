@@ -260,8 +260,6 @@ set(pcsx2SPU2Headers
 	SPU2/spdif.h
 )
 
-# DEV9 sources
-
 # Host PAD
 set(pcsx2PADSources
 	PAD/PAD.cpp
