@@ -816,7 +816,6 @@ static const char* const tbl_GamefixNames[] =
 	"GIFFIFO",
 	"VIFFIFO",
 	"VIF1Stall",
-	"VuAddSub",
 	"Ibit",
 	"VUSync",
 	"VUOverflow",
@@ -846,7 +845,6 @@ void Pcsx2Config::GamefixOptions::Set(GamefixId id, bool enabled)
 {
 	switch (id)
 	{
-		case Fix_VuAddSub:            VuAddSubHack            = enabled; break;
 		case Fix_FpuMultiply:         FpuMulHack              = enabled; break;
 		case Fix_XGKick:              XgKickHack              = enabled; break;
 		case Fix_EETiming:            EETimingHack            = enabled; break;
@@ -873,7 +871,6 @@ bool Pcsx2Config::GamefixOptions::Get(GamefixId id) const
 {
 	switch (id)
 	{
-		case Fix_VuAddSub:            return VuAddSubHack;
 		case Fix_FpuMultiply:         return FpuMulHack;
 		case Fix_XGKick:              return XgKickHack;
 		case Fix_EETiming:            return EETimingHack;
@@ -901,7 +898,6 @@ void Pcsx2Config::GamefixOptions::LoadSave(SettingsWrapper& wrap)
 {
 	SettingsWrapSection("EmuCore/Gamefixes");
 
-	SettingsWrapBitBool(VuAddSubHack);
 	SettingsWrapBitBool(FpuMulHack);
 	SettingsWrapBitBool(XgKickHack);
 	SettingsWrapBitBool(EETimingHack);

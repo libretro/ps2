@@ -158,7 +158,6 @@ enum GamefixId
 	Fix_GIFFIFO,
 	Fix_VIFFIFO,
 	Fix_VIF1Stall,
-	Fix_VuAddSub,
 	Fix_Ibit,
 	Fix_VUSync,
 	Fix_VUOverflow,
@@ -696,7 +695,6 @@ struct Pcsx2Config
 					GIFFIFOHack    : 1, // Enabled the GIF FIFO (more correct but slower)
 					VIFFIFOHack    : 1, // Pretends to fill the non-existant VIF FIFO Buffer.
 					VIF1StallHack  : 1, // Like above, processes FIFO data before the stall is allowed (to make sure data goes over).
-					VuAddSubHack   : 1, // Tri-ace games, they use an encryption algorithm that requires VU ADDI opcode to be bit-accurate.
 					IbitHack       : 1, // I bit hack. Needed to stop constant VU recompilation in some games
 					VUSyncHack     : 1, // Makes microVU run behind the EE to avoid VU register reading/writing sync issues. Useful for M-Bit games
 					VUOverflowHack : 1, // Tries to simulate overflow flag checks (not really possible on x86 without soft floats)
@@ -948,7 +946,6 @@ namespace EmuFolders
 #define CHECK_FPU_SOFT_REC (EmuConfig.Cpu.Recompiler.EnableFpuSoftFloat)
 
 //------------ SPECIAL GAME FIXES!!! ---------------
-#define CHECK_VUADDSUBHACK (EmuConfig.Gamefixes.VuAddSubHack) // Special Fix for Tri-ace games, they use an encryption algorithm that requires VU addi opcode to be bit-accurate.
 #define CHECK_FPUMULHACK (EmuConfig.Gamefixes.FpuMulHack) // Special Fix for Tales of Destiny hangs.
 #define CHECK_XGKICKHACK (EmuConfig.Gamefixes.XgKickHack) // Special Fix for Erementar Gerad, adds more delay to VU XGkick instructions. Corrects the color of some graphics.
 #define CHECK_EETIMINGHACK (EmuConfig.Gamefixes.EETimingHack) // Fix all scheduled events to happen in 1 cycle.
