@@ -25,6 +25,7 @@
  * width by definition, so the selection and the negative-array-size assert
  * that guarded it are gone with the typedefs. */
 #include <stdint.h>
+#include <stdlib.h> /* abort: unencodable-operand hard failure */
 
 
 /* Fired when a forward jump's 8-bit displacement would not fit. Emitting a
@@ -61,9 +62,18 @@
             EW8((p), (uint8_t)(0x05 | (((reg)&7)<<3))); \
             EW32((p), (uint32_t)(int32_t)rip_); \
         } else { \
+            /* abs32 is sign-extended: only the low/high 2GB are
+             * encodable. A target that fits neither rip-rel nor abs32
+             * cannot be expressed in this operand shape -- the caller
+             * must materialize the address in a register first
+             * (xe_complexaddr*). Truncating here would emit an operand
+             * that reads the wrong page once the image maps high, so
+             * fail at emission instead. */ \
+            if (a_ != (intptr_t)(int32_t)a_) \
+                abort(); \
             EW8((p), (uint8_t)(0x04 | (((reg)&7)<<3))); \
             EW8((p), 0x25); \
-            EW32((p), (uint32_t)(intptr_t)(addr)); \
+            EW32((p), (uint32_t)(int32_t)a_); \
         } } while (0)
 
 

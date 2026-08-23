@@ -411,13 +411,39 @@
  * Reduce with factor 3, which rewrites the operand (base = index) and the
  * dispatcher loaded from the wrong slot; the cpp-mode run aborted before
  * ever reaching the hash dump. */
+/* The disp32-fit test must run at runtime on the loaded image's real
+ * addresses. Written directly on a static's address, the truncation
+ * round-trip is a constant expression, and MSVC folds it to true at
+ * compile time -- the else arm is dead-stripped and the emitted operand
+ * carries only the low four address bytes, which is correct exactly
+ * until ASLR maps the image above 4GB. A volatile round-trip is an
+ * observable access the compiler must perform, so the comparison always
+ * sees the runtime value. Emission-time cost only; the emitted bytes
+ * for the fitting case are unchanged. */
+static uintptr_t xe_opaque_uptr(const void *p)
+{
+	volatile uintptr_t v = (uintptr_t)p;
+	return v;
+}
+
 #define xe_complexaddr(m, tmpreg, baseptr, idxreg) do { \
-	if ((intptr_t)(baseptr) == (intptr_t)(int32_t)(intptr_t)(baseptr)) { \
-		E_MEM(m, (idxreg), E_NOREG, 0, (intptr_t)(baseptr)); \
+	uintptr_t xb_addr_ = xe_opaque_uptr((const void *)(baseptr)); \
+	if ((intptr_t)xb_addr_ == (intptr_t)(int32_t)xb_addr_) { \
+		E_MEM(m, (idxreg), E_NOREG, 0, (intptr_t)xb_addr_); \
 	} else { \
 		do { XE_OPEN(); \
-			struct e_mem xb_; XE_MEM_ABS(xb_, (baseptr)); \
-			E_LEA(xep, 1, 0, (tmpreg), xb_); XE_CLOSE(); } while (0); \
+			/* Materialize the base. LEA rip-rel when the target is \
+			 * reachable from the emission point (in-image statics from \
+			 * the dispatcher buffers); mov r64,imm64 when it is not \
+			 * (block code in a cache mapped far from the image). Both \
+			 * carry the full 64-bit address. */ \
+			intptr_t xrel_ = (intptr_t)xb_addr_ - ((intptr_t)xep + 7); \
+			if (xrel_ == (intptr_t)(int32_t)xrel_) { \
+				struct e_mem xb_; XE_MEM_ABS(xb_, (const void *)xb_addr_); \
+				E_LEA(xep, 1, 0, (tmpreg), xb_); \
+			} else { \
+				E_MOV_RI(xep, 1, 0, (tmpreg), (intptr_t)xb_addr_); \
+			} XE_CLOSE(); } while (0); \
 		E_MEM(m, (idxreg), (tmpreg), 1, 0); \
 	} } while (0)
 
@@ -460,12 +486,23 @@
 
 /* complex address with a scaled index register: offset is idx*scale. */
 #define xe_complexaddr_si(m, tmpreg, baseptr, idxreg, sc) do { \
-	if ((intptr_t)(baseptr) == (intptr_t)(int32_t)(intptr_t)(baseptr)) { \
-		E_MEM(m, E_NOREG, (idxreg), (sc), (intptr_t)(baseptr)); \
+	uintptr_t xb_addr_ = xe_opaque_uptr((const void *)(baseptr)); \
+	if ((intptr_t)xb_addr_ == (intptr_t)(int32_t)xb_addr_) { \
+		E_MEM(m, E_NOREG, (idxreg), (sc), (intptr_t)xb_addr_); \
 	} else { \
 		do { XE_OPEN(); \
-			struct e_mem xb_; XE_MEM_ABS(xb_, (baseptr)); \
-			E_LEA(xep, 1, 0, (tmpreg), xb_); XE_CLOSE(); } while (0); \
+			/* Materialize the base. LEA rip-rel when the target is \
+			 * reachable from the emission point (in-image statics from \
+			 * the dispatcher buffers); mov r64,imm64 when it is not \
+			 * (block code in a cache mapped far from the image). Both \
+			 * carry the full 64-bit address. */ \
+			intptr_t xrel_ = (intptr_t)xb_addr_ - ((intptr_t)xep + 7); \
+			if (xrel_ == (intptr_t)(int32_t)xrel_) { \
+				struct e_mem xb_; XE_MEM_ABS(xb_, (const void *)xb_addr_); \
+				E_LEA(xep, 1, 0, (tmpreg), xb_); \
+			} else { \
+				E_MOV_RI(xep, 1, 0, (tmpreg), (intptr_t)xb_addr_); \
+			} XE_CLOSE(); } while (0); \
 		E_MEM(m, (tmpreg), (idxreg), (sc), 0); \
 	} } while (0)
 
