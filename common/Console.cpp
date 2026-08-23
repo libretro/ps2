@@ -60,7 +60,35 @@ bool IConsoleWriter::Debug(const char* fmt, ...) const
 	return false;
 }
 
+bool IDevConWriter::WriteLn(const char* fmt, ...) const
+{
+	va_list args;
+	va_start(args, fmt);
+	DoLog(RETRO_LOG_DEBUG, fmt, args);
+	va_end(args);
+	return false;
+}
+
+bool IDevConWriter::Error(const char* fmt, ...) const
+{
+	va_list args;
+	va_start(args, fmt);
+	DoLog(RETRO_LOG_ERROR, fmt, args);
+	va_end(args);
+	return false;
+}
+
+bool IDevConWriter::Warning(const char* fmt, ...) const
+{
+	va_list args;
+	va_start(args, fmt);
+	DoLog(RETRO_LOG_WARN, fmt, args);
+	va_end(args);
+	return false;
+}
+
 IConsoleWriter Console;
+IDevConWriter DevCon;
 
 /* The C translation units (DEV9 ATA) cannot name log_cb directly: it
  * is a C++ global and MSVC would decorate the symbol. This shim gives

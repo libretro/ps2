@@ -4,8 +4,9 @@
 // Compatibility shims for code transplanted from armsx2 (isztldav/pcsx2):
 // the libretro fork stripped the upstream assertion/logging/bit-util
 // facilities these files expect. Assertions become no-ops (they are
-// developer sanity checks in the donor tree), DevCon maps to the regular
-// console, and the one Common:: helper used is provided inline.
+// developer sanity checks in the donor tree) and the one Common::
+// helper used is provided inline. DevCon comes from common/Console.h
+// like everywhere else.
 
 #pragma once
 
@@ -25,10 +26,6 @@ static VURegs& VU1 = vuRegs[1];
 #define pxAssertDev(x, msg)   ((void)0)
 #define pxFail(msg)           ((void)0)
 #define pxFailRel(msg)        ((void)0)
-#endif
-
-#ifndef DevCon
-#define DevCon Console
 #endif
 
 #ifndef pxAssumeMsg

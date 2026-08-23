@@ -31,6 +31,12 @@
 //   Warning  -> RETRO_LOG_WARN
 //   Debug    -> RETRO_LOG_DEBUG
 //
+// DevCon is the developer console: the same sink, but WriteLn logs at
+// RETRO_LOG_DEBUG, because DevCon call sites are per-packet and
+// per-transfer chatter that the frontend's log level should gate
+// rather than the build configuration, which is how the donor tree
+// silenced them.
+//
 // All functions return false so logs can be disabled at compile time with the
 // "0 && Console.WriteLn(...)" trick.
 // Upstream PCSX2 colorizes console output; the libretro log has no color
@@ -88,4 +94,20 @@ struct IConsoleWriter
 	bool Warning(ConsoleColors, const char* fmt, Args... args) const { return Warning(fmt, args...); }
 };
 
+struct IDevConWriter
+{
+	bool WriteLn(const char* fmt, ...) const CONSOLE_PRINTF_FMT(2, 3);
+	bool Error(const char* fmt, ...) const CONSOLE_PRINTF_FMT(2, 3);
+	bool Warning(const char* fmt, ...) const CONSOLE_PRINTF_FMT(2, 3);
+
+	// Color-taking overloads: the color is ignored (see ConsoleColors).
+	template <typename... Args>
+	bool WriteLn(ConsoleColors, const char* fmt, Args... args) const { return WriteLn(fmt, args...); }
+	template <typename... Args>
+	bool Error(ConsoleColors, const char* fmt, Args... args) const { return Error(fmt, args...); }
+	template <typename... Args>
+	bool Warning(ConsoleColors, const char* fmt, Args... args) const { return Warning(fmt, args...); }
+};
+
 extern IConsoleWriter Console;
+extern IDevConWriter DevCon;
