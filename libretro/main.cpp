@@ -139,6 +139,7 @@ static u8 setting_round_sprite                 = 0;
 static u8 setting_texture_inside_rt            = 0;
 static u8 setting_ee_cycle_skip                = 0;
 static s8 setting_ee_cycle_rate                = 0;
+static bool setting_fpu_softfloat              = false;
 static s8 setting_hint_language_unlock         = 0;
 s8 setting_hint_widescreen                     = 0;
 static s8 setting_hint_game_enhancements       = 0;
@@ -1170,6 +1171,18 @@ static void check_variables(bool first_run)
 			setting_hint_language_unlock = 1;
 		else
 			setting_hint_language_unlock = 0;
+	}
+
+	var.key = "pcsx2_fpu_softfloat";
+	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+	{
+		const bool fpu_soft = !strcmp(var.value, "enabled");
+		if (fpu_soft != setting_fpu_softfloat)
+		{
+			setting_fpu_softfloat = fpu_soft;
+			updated = true;
+		}
+		s_settings_interface.SetBoolValue("EmuCore/CPU/Recompiler", "EnableFpuSoftFloat", fpu_soft);
 	}
 
 	var.key = "pcsx2_ee_cycle_rate";

@@ -595,6 +595,15 @@ namespace
 		if (rs == 0x10)
 		{
 			const u32 funct = insn & 0x3f;
+			/* Soft-float rec mode: the native S-format arithmetic mirrors the
+			 * old fpuDouble interpreter, not the ps2float model, so those ops
+			 * fall back to the interpreter, which is the model. The pure bit
+			 * moves, the compares (equivalent integer ordering either way)
+			 * and the conversions stay native. */
+			if (CHECK_FPU_SOFT_REC &&
+			    (funct <= 0x04 || funct == 0x16 || (funct >= 0x18 && funct <= 0x1a) ||
+			     (funct >= 0x1c && funct <= 0x1f) || funct == 0x28 || funct == 0x29))
+				return false;
 			return funct == 0x00 || funct == 0x01 || funct == 0x02 || funct == 0x03 ||
 			       funct == 0x04 || funct == 0x05 || funct == 0x06 || funct == 0x07 ||
 			       funct == 0x16 || (funct >= 0x18 && funct <= 0x1a) ||

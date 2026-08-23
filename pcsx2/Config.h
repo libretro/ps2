@@ -385,6 +385,8 @@ struct Pcsx2Config
 
 				bool    EnableEECache    : 1;
 				bool    EnableFastmem    : 1;
+				/* Route recompiled EE FPU arithmetic through ps2float. */
+				bool    EnableFpuSoftFloat : 1;
 			};
 		};
 
@@ -940,6 +942,10 @@ namespace EmuFolders
 #define CHECK_CACHE (EmuConfig.Cpu.Recompiler.EnableEECache)
 #define CHECK_IOPREC (EmuConfig.Cpu.Recompiler.EnableIOP)
 #define CHECK_FASTMEM (EmuConfig.Cpu.Recompiler.EnableEE && EmuConfig.Cpu.Recompiler.EnableFastmem)
+/* Recompilers emit calls to the soft COP1 interpreter ops instead of host
+ * FP sequences; a toggle reaches emitted code through the Cpu-config diff
+ * in CheckForCPUConfigChanges, which clears the execution caches. */
+#define CHECK_FPU_SOFT_REC (EmuConfig.Cpu.Recompiler.EnableFpuSoftFloat)
 
 //------------ SPECIAL GAME FIXES!!! ---------------
 #define CHECK_VUADDSUBHACK (EmuConfig.Gamefixes.VuAddSubHack) // Special Fix for Tri-ace games, they use an encryption algorithm that requires VU addi opcode to be bit-accurate.

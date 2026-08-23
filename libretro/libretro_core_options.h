@@ -603,6 +603,20 @@ struct retro_core_option_v2_definition option_defs_us[] = {
    },
 #endif
    {
+      "pcsx2_fpu_softfloat",
+      "Emulation > EE FPU Soft Float (Recompiler)",
+      "EE FPU Soft Float (Recompiler)",
+      "Route recompiled EE FPU arithmetic through the bit-exact software FPU. Interpreted FPU code is always bit-exact; this extends it to the recompiler at some speed cost. Fixes games whose logic depends on exact console FPU results.",
+      NULL,
+      "emulation",
+      {
+         { "disabled", NULL },
+         { "enabled", NULL },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
       "pcsx2_ee_cycle_rate",
       "Emulation > EE Cycle Rate",
       "EE Cycle Rate",

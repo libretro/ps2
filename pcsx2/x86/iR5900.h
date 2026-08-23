@@ -146,6 +146,23 @@ void eeRecompileCodeRC2(R5900FNPTR constcode, R5900FNPTR_INFO noconstcode, int x
 			eeFPURecompileCode(rec##fn##_xmm, R5900::Interpreter::OpcodeImpl::COP1::fn, xmminfo); \
 	}
 
+/* Arithmetic ops whose SSE sequences diverge from the exact FPU: in soft
+ * mode the block calls the interpreter op, which computes through the
+ * ps2float model. Rec-time decision; toggling resets the caches. */
+#define FPURECOMPILE_CONSTCODE_SOFT(fn, xmminfo) \
+	void rec##fn(void) \
+	{ \
+		if (CHECK_FPU_SOFT_REC) \
+		{ \
+			iFlushCall(FLUSH_INTERPRETER); \
+			xe_fastcall0(R5900::Interpreter::OpcodeImpl::COP1::fn); \
+		} \
+		else if (CHECK_FPU_FULL) \
+			eeFPURecompileCode(DOUBLE_rec##fn##_xmm, R5900::Interpreter::OpcodeImpl::COP1::fn, xmminfo); \
+		else \
+			eeFPURecompileCode(rec##fn##_xmm, R5900::Interpreter::OpcodeImpl::COP1::fn, xmminfo); \
+	}
+
 // rd = rs op rt (all regs need to be in xmm)
 int eeRecompileCodeXMM(int xmminfo);
 void eeFPURecompileCode(R5900FNPTR_INFO xmmcode, R5900FNPTR fpucode, int xmminfo);
