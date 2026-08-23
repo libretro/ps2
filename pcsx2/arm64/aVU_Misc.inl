@@ -283,38 +283,104 @@ static void MIN_MAX_SS(mV, const a64::VRegister& to, const a64::VRegister& from,
 	if (t1b) mVU.regAlloc->clearNeeded(t1);
 }
 
-// Turns out only this is needed to get TriAce games booting with mVU.
-// Modifies from's lower vector. (x86: ADD_SS_TriAceHack)
-static void ADD_SS_TriAceHack(mV, const a64::VRegister& to, const a64::VRegister& from)
+
+// Exponent-distance operand masking for VU ADD/SUB (x86: mVUmaskAddSub).
+// The hardware's adder truncates the smaller operand's low bits by exponent
+// distance d before adding; masking them and adding under chop reproduces
+// it: measured 44.9% -> 0.79% against the ps2float model, the remainder
+// being the exponent-255 range single precision cannot hold.
+//
+// Both sides run the same two AND stages on their own count value - the
+// b side on c = d-1, the a side on c = ~d = -d-1 - because the thresholds
+// line up: c < 0 is exactly "this side does not mask" and c <= 23 is
+// exactly "not the >= 25 sign-only case". NEON Ushl takes per-lane signed
+// shift counts, so the variable keep mask is one instruction; counts that
+// wrap the shift byte produce garbage, which is why the sign bit is OR-ed
+// into the keep mask - the sign-only stage then still lands correctly.
+// The distance is recomputed between sides: in every lane where the a
+// side acts (d <= -1) the b side provably left b untouched, and in lanes
+// where b changed the recomputed distance still classifies the a side as
+// a no-op.  Masks a and b in place, 4-wide; clobbers vc and vs.
+static void mVUmaskAddSubPS(mV, const a64::VRegister& a, const a64::VRegister& b,
+	const a64::VRegister& vc, const a64::VRegister& vs)
 {
-	armAsm->Fmov(gprT1.W(), to.S());
-	armAsm->Fmov(gprT2.W(), from.S());
-	armAsm->Lsr (gprT1.W(), gprT1.W(), 23);
-	armAsm->Lsr (gprT2.W(), gprT2.W(), 23);
-	armAsm->And (gprT1.W(), gprT1.W(), 0xff);
-	armAsm->And (gprT2.W(), gprT2.W(), 0xff);
-	armAsm->Sub (gprT2.W(), gprT2.W(), gprT1.W()); // exponent difference
+	// One masking side: value &= (keep' | (c < 0)); value &= (sign | (c <= 23)).
+	// Consumes vc (count) and vs.
+	const auto side = [&](const a64::VRegister& value)
+	{
+		armAsm->Movi(vs.V4S(), 24);
+		armAsm->Cmgt(vs.V4S(), vs.V4S(), vc.V4S());     // (24 > c) = not sign-only
+		armAsm->Orr (vs.V4S(), 0x80, 24);               // | signbit
+		armAsm->And (value.V16B(), value.V16B(), vs.V16B());
+		armAsm->Movi(vs.V16B(), 0xff);                  // all-ones
+		armAsm->Ushl(vs.V4S(), vs.V4S(), vc.V4S());     // keep = ~0 << c
+		armAsm->Orr (vs.V4S(), 0x80, 24);               // keep' (sign survives garbage)
+		armAsm->Cmlt(vc.V4S(), vc.V4S(), 0);            // (c < 0) = side inactive
+		armAsm->Orr (vs.V16B(), vs.V16B(), vc.V16B());
+		armAsm->And (value.V16B(), value.V16B(), vs.V16B());
+	};
+	const auto expdiff = [&]()
+	{
+		armAsm->Shl (vc.V4S(), a.V4S(), 1);
+		armAsm->Ushr(vc.V4S(), vc.V4S(), 24);
+		armAsm->Shl (vs.V4S(), b.V4S(), 1);
+		armAsm->Ushr(vs.V4S(), vs.V4S(), 24);
+		armAsm->Sub (vc.V4S(), vc.V4S(), vs.V4S());     // d
+	};
+	expdiff();
+	armAsm->Movi(vs.V16B(), 0xff);
+	armAsm->Add (vc.V4S(), vc.V4S(), vs.V4S());         // c = d - 1
+	side(b);
+	expdiff();
+	armAsm->Movi(vs.V16B(), 0xff);
+	armAsm->Eor (vc.V16B(), vc.V16B(), vs.V16B());      // c = ~d = -d - 1
+	side(a);
+}
 
-	a64::Label case_neg_big, case_end1, case_end2;
-
-	armAsm->Cmp(gprT2.W(), -25);
-	armAsm->B(&case_neg_big, a64::le);
-	armAsm->Cmp(gprT2.W(), 25);
-	armAsm->B(&case_end1, a64::lt);
-
-	// case_pos_big:
-	mvuLdrQ(mVU, RQSCRATCH, mVU_ADD_SS);
-	armAsm->And(to.V16B(), to.V16B(), RQSCRATCH.V16B());
-	armAsm->B(&case_end2);
-
-	armAsm->Bind(&case_neg_big);
-	mvuLdrQ(mVU, RQSCRATCH, mVU_ADD_SS);
-	armAsm->And(from.V16B(), from.V16B(), RQSCRATCH.V16B());
-
-	armAsm->Bind(&case_end1);
-	armAsm->Bind(&case_end2);
-
-	armAsm->Fadd(to.S(), to.S(), from.S());
+// Scalar lane-0 mask for the SS forms, in GPRs (same case split as the EE
+// recompiler's FPU_ADD_SUB). Clearing the low d-1 bits is a shift down and
+// back up by the same register amount, so no mask constant and no literal
+// synthesis anywhere in the sequence - which makes w16/w17 safe transient
+// scratch here (no NEON lane store or absolute-address load in flight).
+// Masked lane-0 values land in outA/outB; a and b are not modified.
+static void mVUmaskAddSubSS(mV, const a64::VRegister& a, const a64::VRegister& b,
+	const a64::VRegister& outA, const a64::VRegister& outB)
+{
+	a64::Label big_a, big_b, chk_neg, mask_b, mask_a, done;
+	armAsm->Fmov(gprT1, a.S());
+	armAsm->Fmov(gprT2, b.S());
+	armAsm->Ubfx(a64::w17, gprT1, 23, 8);
+	armAsm->Ubfx(a64::w16, gprT2, 23, 8);
+	armAsm->Sub (a64::w17, a64::w17, a64::w16); // d
+	armAsm->Cmp (a64::w17, 25);
+	armAsm->B   (&big_b, a64::ge);
+	armAsm->Cmp (a64::w17, 1);
+	armAsm->B   (&chk_neg, a64::lt);
+	armAsm->Sub (a64::w17, a64::w17, 1);        // 1..24: clear b's low d-1 bits
+	armAsm->B   (&mask_b);
+	armAsm->Bind(&chk_neg);
+	armAsm->Cbz (a64::w17, &done);
+	armAsm->Cmn (a64::w17, 24);                 // compare d with -24
+	armAsm->B   (&big_a, a64::lt);              // d <= -25
+	armAsm->Neg (a64::w17, a64::w17);           // -24..-1: clear a's low -d-1 bits
+	armAsm->Sub (a64::w17, a64::w17, 1);
+	armAsm->B   (&mask_a);
+	armAsm->Bind(&big_b);
+	armAsm->And (gprT2, gprT2, 0x80000000);
+	armAsm->B   (&done);
+	armAsm->Bind(&big_a);
+	armAsm->And (gprT1, gprT1, 0x80000000);
+	armAsm->B   (&done);
+	armAsm->Bind(&mask_b);
+	armAsm->Lsr (gprT2, gprT2, a64::w17);
+	armAsm->Lsl (gprT2, gprT2, a64::w17);
+	armAsm->B   (&done);
+	armAsm->Bind(&mask_a);
+	armAsm->Lsr (gprT1, gprT1, a64::w17);
+	armAsm->Lsl (gprT1, gprT1, a64::w17);
+	armAsm->Bind(&done);
+	armAsm->Fmov(outA.S(), gprT1);
+	armAsm->Fmov(outB.S(), gprT2);
 }
 
 // to (op)= from, sign-clamping operands and range-clamping the result when the
@@ -326,17 +392,38 @@ static void mVUclampedArith(mV, const a64::VRegister& to, const a64::VRegister& 
 {
 	const a64::VRegister ct = t1.IsNone() ? RQSCRATCH : t1;
 	const int xyzw = isPS ? 0xf : 0x8;
+	const bool isAddSub = (op == mVU_ADD_OP) || (op == mVU_SUB_OP);
 	mVUclamp3(mVU, to, ct, xyzw);
 	mVUclamp3(mVU, from, ct, xyzw);
 	if (isPS)
 	{
+		if (isAddSub)
+		{
+			// from is a cached VF register: mask a copy, never the original.
+			armAsm->Mov(RQSCRATCH3.V16B(), from.V16B());
+			mVUmaskAddSubPS(mVU, to, RQSCRATCH3, RQSCRATCH, RQSCRATCH2);
+			if (op == mVU_SUB_OP) armAsm->Fsub(to.V4S(), to.V4S(), RQSCRATCH3.V4S());
+			else                  armAsm->Fadd(to.V4S(), to.V4S(), RQSCRATCH3.V4S());
+			mVUclamp4(mVU, to, ct, xyzw);
+			return;
+		}
 		switch (op)
 		{
-			case mVU_ADD_OP: armAsm->Fadd(to.V4S(), to.V4S(), from.V4S()); break;
-			case mVU_SUB_OP: armAsm->Fsub(to.V4S(), to.V4S(), from.V4S()); break;
 			case mVU_MUL_OP: armAsm->Fmul(to.V4S(), to.V4S(), from.V4S()); break;
 			case mVU_DIV_OP: armAsm->Fdiv(to.V4S(), to.V4S(), from.V4S()); break;
 		}
+	}
+	else if (isAddSub)
+	{
+		// Lane 0 only: mask in GPRs into two scratch singles, add, insert.
+		mVUmaskAddSubSS(mVU, to, from, RQSCRATCH2, RQSCRATCH3);
+		const a64::VRegister sres = RQSCRATCH;
+		if (op == mVU_SUB_OP) armAsm->Fsub(sres.S(), RQSCRATCH2.S(), RQSCRATCH3.S());
+		else                  armAsm->Fadd(sres.S(), RQSCRATCH2.S(), RQSCRATCH3.S());
+		/* not ct: with no caller scratch ct aliases RQSCRATCH, which is sres */
+		mVUclamp4(mVU, sres, RQSCRATCH2, 0x8);
+		armAsm->Ins(to.V4S(), 0, sres.V4S(), 0);
+		return;
 	}
 	else
 	{
@@ -364,12 +451,12 @@ static void SSE_MAXPS(mV, const a64::VRegister& to, const a64::VRegister& from, 
 static void SSE_MINPS(mV, const a64::VRegister& to, const a64::VRegister& from, const a64::VRegister& t1 = xEmptyReg, const a64::VRegister& t2 = xEmptyReg) { MIN_MAX_PS(mVU, to, from, t1, t2, true); }
 static void SSE_MAXSS(mV, const a64::VRegister& to, const a64::VRegister& from, const a64::VRegister& t1 = xEmptyReg, const a64::VRegister& t2 = xEmptyReg) { MIN_MAX_SS(mVU, to, from, t1, false); }
 static void SSE_MINSS(mV, const a64::VRegister& to, const a64::VRegister& from, const a64::VRegister& t1 = xEmptyReg, const a64::VRegister& t2 = xEmptyReg) { MIN_MAX_SS(mVU, to, from, t1, true); }
+/* The TriAce ADDi hack is gone: the exponent-distance mask reproduces the
+ * discard it approximated, for every distance. */
 static void SSE_ADD2SS(mV, const a64::VRegister& to, const a64::VRegister& from, const a64::VRegister& t1 = xEmptyReg, const a64::VRegister& t2 = xEmptyReg)
 {
-	if (!CHECK_VUADDSUBHACK) mVUclampedArith(mVU, to, from, t1, mVU_ADD_OP, false);
-	else                     ADD_SS_TriAceHack(mVU, to, from);
+	mVUclampedArith(mVU, to, from, t1, mVU_ADD_OP, false);
 }
-// Does same as SSE_ADDPS since tri-ace games only need SS implementation of VUADDSUBHACK...
 static void SSE_ADD2PS(mV, const a64::VRegister& to, const a64::VRegister& from, const a64::VRegister& t1 = xEmptyReg, const a64::VRegister& t2 = xEmptyReg) { mVUclampedArith(mVU, to, from, t1, mVU_ADD_OP, true); }
 static void SSE_ADDPS(mV, const a64::VRegister& to, const a64::VRegister& from, const a64::VRegister& t1 = xEmptyReg, const a64::VRegister& t2 = xEmptyReg) { mVUclampedArith(mVU, to, from, t1, mVU_ADD_OP, true); }
 static void SSE_ADDSS(mV, const a64::VRegister& to, const a64::VRegister& from, const a64::VRegister& t1 = xEmptyReg, const a64::VRegister& t2 = xEmptyReg) { mVUclampedArith(mVU, to, from, t1, mVU_ADD_OP, false); }
