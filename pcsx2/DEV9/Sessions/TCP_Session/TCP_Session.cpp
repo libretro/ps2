@@ -98,7 +98,7 @@ namespace Sessions
 		ret->acknowledgementNumber = expectedSeqNumber;
 		//DevCon.WriteLn("With MyAck: %d", ret->acknowledgementNumber);
 
-		retro_atomic_store_release_int(&ret->windowSize, 2 * maxSegmentSize);
+		ret->windowSize = 2 * maxSegmentSize;
 
 		if (sendTimeStamps)
 		{

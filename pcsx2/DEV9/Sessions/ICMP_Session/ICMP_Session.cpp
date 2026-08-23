@@ -562,7 +562,7 @@ namespace Sessions
 					{
 						Console.Error("DEV9: ICMP: Failed to bind socket. Error: %d", errno);
 						::close(icmpSocket);
-						icmpSocket == -1;
+						icmpSocket = -1;
 						return false;
 					}
 				}
@@ -573,7 +573,7 @@ namespace Sessions
 				{
 					Console.Error("DEV9: ICMP: Failed to setsockopt IP_RECVERR. Error: %d", errno);
 					::close(icmpSocket);
-					icmpSocket == -1;
+					icmpSocket = -1;
 					return false;
 				}
 #endif
@@ -583,7 +583,7 @@ namespace Sessions
 				{
 					Console.Error("DEV9: ICMP: Failed to set TTL. Error: %d", errno);
 					::close(icmpSocket);
-					icmpSocket == -1;
+					icmpSocket = -1;
 					return false;
 				}
 
@@ -597,7 +597,7 @@ namespace Sessions
 					{
 						Console.Error("DEV9: ICMP: Failed to get id. Error: %d", errno);
 						::close(icmpSocket);
-						icmpSocket == -1;
+						icmpSocket = -1;
 						return false;
 					}
 
@@ -633,7 +633,7 @@ namespace Sessions
 				{
 					Console.Error("DEV9: ICMP: Send Error %d", errno);
 					::close(icmpSocket);
-					icmpSocket == -1;
+					icmpSocket = -1;
 					return false;
 				}
 
@@ -687,7 +687,7 @@ namespace Sessions
 				Ping* ping = pings[i];
 				//Remove ping from list and unlock
 				pings.erase(pings.begin() + i);
-				lock.unlock();
+				lock.Unlock();
 
 				//Create return ICMP packet
 				ICMP_Packet* ret = nullptr;
@@ -746,7 +746,7 @@ namespace Sessions
 			}
 		}
 
-		lock.unlock();
+		lock.Unlock();
 		return nullptr;
 	}
 
@@ -871,7 +871,7 @@ namespace Sessions
 				ping->originalPacket = std::make_unique<IP_Packet>(*packet);
 
 				{
-					std::scoped_lock lock(ping_mutex);
+					Threading::ScopedLock lock(ping_mutex);
 					pings.push_back(ping);
 				}
 
@@ -891,7 +891,7 @@ namespace Sessions
 
 	ICMP_Session::~ICMP_Session()
 	{
-		std::scoped_lock lock(ping_mutex);
+		Threading::ScopedLock lock(ping_mutex);
 
 		//Cleanup
 		for (size_t i = 0; i < pings.size(); i++)

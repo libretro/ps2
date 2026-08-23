@@ -122,8 +122,8 @@ void rx_process(NetPacket* pk)
 	//increase frame count
 	Threading::ScopedLock counter_lock(frame_counter_mutex);
 	dev9Ru8(SMAP_R_RXFIFO_FRAME_CNT)++;
-	counter_lock.unlock();
-	reset_lock.unlock();
+	counter_lock.Unlock();
+	reset_lock.Unlock();
 	//spams// emu_printf("Got packet, %d bytes (%d fifo)\n", pk->size,bytes);
 	retro_atomic_store_release_int(&fireIntR, 1);
 	//_DEV9irq(SMAP_INTR_RXEND,0);//now ? or when the fifo is full ? i guess now atm
@@ -549,12 +549,12 @@ void smap_write8(u32 addr, u8 value)
 
 		case SMAP_R_RXFIFO_FRAME_DEC:
 			//DevCon.WriteLn("DEV9: SMAP_R_RXFIFO_FRAME_DEC 8bit write %x", value);
-			counter_lock.lock();
+			counter_lock.Lock();
 			dev9Ru8(addr) = value;
 			{
 				dev9Ru8(SMAP_R_RXFIFO_FRAME_CNT)--;
 			}
-			counter_lock.unlock();
+			counter_lock.Unlock();
 			return;
 
 		case SMAP_R_TXFIFO_CTRL:
@@ -575,15 +575,15 @@ void smap_write8(u32 addr, u8 value)
 			//DevCon.WriteLn("DEV9: SMAP_R_RXFIFO_CTRL 8bit write %x", value);
 			if (value & SMAP_RXFIFO_RESET)
 			{
-				reset_lock.lock(); //lock reset mutex 1st
-				counter_lock.lock();
+				reset_lock.Lock(); //lock reset mutex 1st
+				counter_lock.Lock();
 				dev9.rxbdi = 0;
 				dev9.rxfifo_wr_ptr = 0;
 				dev9Ru8(SMAP_R_RXFIFO_FRAME_CNT) = 0;
 				dev9Ru32(SMAP_R_RXFIFO_RD_PTR) = 0;
 				dev9Ru32(SMAP_R_RXFIFO_SIZE) = 16384;
-				reset_lock.unlock();
-				counter_lock.unlock();
+				reset_lock.Unlock();
+				counter_lock.Unlock();
 			}
 			value &= ~SMAP_RXFIFO_RESET;
 			dev9Ru8(addr) = value;

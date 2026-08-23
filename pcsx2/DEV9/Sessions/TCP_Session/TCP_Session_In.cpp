@@ -209,7 +209,7 @@ namespace Sessions
 
 			ret->SetSYN(true);
 			ret->SetACK(true);
-			retro_atomic_store_release_int(&ret->windowSize, 2 * maxSegmentSize);
+			ret->windowSize = 2 * maxSegmentSize;
 			ret->options.push_back(new TCPopMSS(maxSegmentSize));
 
 			ret->options.push_back(new TCPopNOP());
