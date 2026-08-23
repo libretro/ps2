@@ -40,7 +40,7 @@ struct AvailableMcdInfo
 extern uint FileMcd_GetMtapPort(uint slot);
 extern uint FileMcd_GetMtapSlot(uint slot);
 extern bool FileMcd_IsMultitapSlot(uint slot);
-extern std::string FileMcd_GetDefaultName(uint slot);
+extern void FileMcd_GetDefaultName(char* out, size_t out_size, uint slot);
 
 uint FileMcd_ConvertToSlot(uint port, uint slot);
 void FileMcd_EmuOpen();

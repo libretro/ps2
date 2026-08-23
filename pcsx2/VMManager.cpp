@@ -1128,7 +1128,7 @@ void VMManager::CheckForMemoryCardConfigChanges(const Pcsx2Config& old_config)
 	for (size_t i = 0; i < C89_ARRAY_SIZE(EmuConfig.Mcd); i++)
 	{
 		if (EmuConfig.Mcd[i].Enabled != old_config.Mcd[i].Enabled ||
-			EmuConfig.Mcd[i].Filename != old_config.Mcd[i].Filename)
+			strcmp(EmuConfig.Mcd[i].Filename, old_config.Mcd[i].Filename) != 0)
 		{
 			changed = true;
 			break;
@@ -1151,7 +1151,7 @@ void VMManager::CheckForMemoryCardConfigChanges(const Pcsx2Config& old_config)
 		{
 			const uint index = FileMcd_ConvertToSlot(port, slot);
 			if (EmuConfig.Mcd[index].Enabled != old_config.Mcd[index].Enabled ||
-				EmuConfig.Mcd[index].Filename != old_config.Mcd[index].Filename)
+				strcmp(EmuConfig.Mcd[index].Filename, old_config.Mcd[index].Filename) != 0)
 				AutoEject::Set(port, slot);
 		}
 	}

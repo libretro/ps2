@@ -832,7 +832,7 @@ struct Pcsx2Config
 	//
 	struct McdOptions
 	{
-		std::string Filename; // user-configured location of this memory card
+		char Filename[PCSX2_PATH_MAX]; /* user-configured location of this card */
 		bool Enabled; // memory card enabled (if false, memcard will not show up in-game)
 		MemoryCardType Type; // the memory card implementation that should be used
 	};

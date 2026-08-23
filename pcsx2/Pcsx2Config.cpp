@@ -964,7 +964,7 @@ Pcsx2Config::Pcsx2Config()
 	for (uint slot = 0; slot < 8; ++slot)
 	{
 		Mcd[slot].Enabled = !FileMcd_IsMultitapSlot(slot); // enables main 2 slots
-		Mcd[slot].Filename = FileMcd_GetDefaultName(slot);
+		FileMcd_GetDefaultName(Mcd[slot].Filename, sizeof(Mcd[slot].Filename), slot);
 
 		// Folder memory card is autodetected later.
 		Mcd[slot].Type = MemoryCardType::File;
@@ -1004,7 +1004,7 @@ void Pcsx2Config::LoadSave(SettingsWrapper& wrap)
 	// Per-content memory card
 	if (!libretro_content.empty())
 	{
-		EmuConfig.Mcd[0].Filename = StringUtil::StdStringFromFormat("%s.ps2", libretro_content.c_str());
+		snprintf(EmuConfig.Mcd[0].Filename, sizeof(EmuConfig.Mcd[0].Filename), "%s.ps2", libretro_content.c_str());
 		EmuConfig.Mcd[1].Enabled  = false;
 	}
 }
@@ -1015,8 +1015,8 @@ void Pcsx2Config::LoadSaveMemcards(SettingsWrapper& wrap)
 	{
 		wrap.Entry("MemoryCards", StringUtil::StdStringFromFormat("Slot%u_Enable", slot + 1).c_str(),
 			Mcd[slot].Enabled, Mcd[slot].Enabled);
-		wrap.Entry("MemoryCards", StringUtil::StdStringFromFormat("Slot%u_Filename", slot + 1).c_str(),
-			Mcd[slot].Filename, Mcd[slot].Filename);
+		wrap.EntryBuf("MemoryCards", StringUtil::StdStringFromFormat("Slot%u_Filename", slot + 1).c_str(),
+			Mcd[slot].Filename, sizeof(Mcd[slot].Filename), Mcd[slot].Filename);
 	}
 
 	for (uint slot = 2; slot < 8; ++slot)
@@ -1026,8 +1026,8 @@ void Pcsx2Config::LoadSaveMemcards(SettingsWrapper& wrap)
 
 		wrap.Entry("MemoryCards", StringUtil::StdStringFromFormat("Multitap%u_Slot%u_Enable", mtport, mtslot).c_str(),
 			Mcd[slot].Enabled, Mcd[slot].Enabled);
-		wrap.Entry("MemoryCards", StringUtil::StdStringFromFormat("Multitap%u_Slot%u_Filename", mtport, mtslot).c_str(),
-			Mcd[slot].Filename, Mcd[slot].Filename);
+		wrap.EntryBuf("MemoryCards", StringUtil::StdStringFromFormat("Multitap%u_Slot%u_Filename", mtport, mtslot).c_str(),
+			Mcd[slot].Filename, sizeof(Mcd[slot].Filename), Mcd[slot].Filename);
 	}
 }
 
@@ -1064,7 +1064,7 @@ bool Pcsx2Config::operator==(const Pcsx2Config& right) const
 	for (u32 i = 0; i < sizeof(Mcd) / sizeof(Mcd[0]); i++)
 	{
 		equal &= OpEqu(Mcd[i].Enabled);
-		equal &= OpEqu(Mcd[i].Filename);
+		equal &= (strcmp(Mcd[i].Filename, right.Mcd[i].Filename) == 0);
 	}
 
 	return equal;

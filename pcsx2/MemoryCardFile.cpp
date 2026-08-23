@@ -258,11 +258,15 @@ bool FileMcd_IsMultitapSlot(uint slot)
 	return (slot > 1);
 }
 
-std::string FileMcd_GetDefaultName(uint slot)
+void FileMcd_GetDefaultName(char* out, size_t out_size, uint slot)
 {
 	if (FileMcd_IsMultitapSlot(slot))
-		return StringUtil::StdStringFromFormat("Mcd-Multitap%u-Slot%02u.ps2", FileMcd_GetMtapPort(slot) + 1, FileMcd_GetMtapSlot(slot) + 1);
-	return StringUtil::StdStringFromFormat("Mcd%03u.ps2", slot + 1);
+	{
+		snprintf(out, out_size, "Mcd-Multitap%u-Slot%02u.ps2",
+				FileMcd_GetMtapPort(slot) + 1, FileMcd_GetMtapSlot(slot) + 1);
+		return;
+	}
+	snprintf(out, out_size, "Mcd%03u.ps2", slot + 1);
 }
 
 FileMemoryCard::FileMemoryCard()
@@ -590,7 +594,7 @@ void FileMcd_EmuOpen(void)
 	// detect inserted memory card types
 	for (uint slot = 0; slot < 8; ++slot)
 	{
-		if (EmuConfig.Mcd[slot].Filename.empty())
+		if (EmuConfig.Mcd[slot].Filename[0] == '\0')
 			EmuConfig.Mcd[slot].Type = MemoryCardType::Empty;
 		else if (EmuConfig.Mcd[slot].Enabled)
 			EmuConfig.Mcd[slot].Type = MemoryCardType::File;
