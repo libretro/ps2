@@ -44,6 +44,9 @@
 #    include <fcntl.h>
 #    include <direct.h>
 #    include <windows.h>
+/* FILE_ZERO_DATA_INFORMATION and the FSCTL_* codes used by
+ * retro_vfs_file_punch_hole_impl live here, not in windows.h. */
+#    include <winioctl.h>
 #  endif
 #    include <io.h>
 #else
@@ -1121,6 +1124,30 @@ int retro_vfs_file_punch_hole_impl(libretro_vfs_implementation_file *stream,
 
       if (!DeviceIoControl(handle, FSCTL_SET_ZERO_DATA, &zero_info,
                sizeof(zero_info), NULL, 0, &returned, NULL))
+         return -1;
+      return 0;
+   }
+#elif defined(__APPLE__) && defined(F_PUNCHHOLE)
+   {
+      /* F_PUNCHHOLE is macOS 10.12 and later; older SDKs do not declare
+       * it or fpunchhole_t, so the guard keeps them on the -1 path. */
+      fpunchhole_t range;
+      int          fd = stream->fd;
+
+      if (fd < 0)
+      {
+         if (!stream->fp)
+            return -1;
+         fd = fileno(stream->fp);
+         if (fd < 0)
+            return -1;
+      }
+
+      memset(&range, 0, sizeof(range));
+      range.fp_offset = offset;
+      range.fp_length = len;
+
+      if (fcntl(fd, F_PUNCHHOLE, &range) == -1)
          return -1;
       return 0;
    }
