@@ -2138,7 +2138,10 @@ void retro_init(void)
 		environ_cb(RETRO_ENVIRONMENT_GET_SYSTEM_DIRECTORY, &system_base);
 
 		FileSystem::FindResultsArray results;
-		if (FileSystem::FindFiles(Path::Combine(system_base, "/pcsx2/bios").c_str(), "*", FILESYSTEM_FIND_FILES, &results))
+		char bios_dir[PCSX2_PATH_MAX];
+
+		pcsx2_path_join(bios_dir, sizeof(bios_dir), system_base, "pcsx2/bios");
+		if (FileSystem::FindFiles(bios_dir, "*", FILESYSTEM_FIND_FILES, &results))
 		{
 			u32 version, region;
 			static constexpr u32 MIN_BIOS_SIZE = 4 * _1mb;
@@ -2852,10 +2855,12 @@ void retro_cheat_set(unsigned index, bool enabled, const char* code) { }
 
 std::optional<std::vector<u8>> Host::ReadResourceFile(const char* filename)
 {
-	const std::string path(Path::Combine(EmuFolders::Resources, filename));
-	std::optional<std::vector<u8>> ret(FileSystem::ReadBinaryFile(path.c_str()));
+	char path[PCSX2_PATH_MAX];
+
+	pcsx2_path_join(path, sizeof(path), EmuFolders::Resources.c_str(), filename);
+	std::optional<std::vector<u8>> ret(FileSystem::ReadBinaryFile(path));
 	if (!ret.has_value())
-		log_cb(RETRO_LOG_ERROR, "Failed to read resource file '%s', path '%s'\n", filename, path.c_str());
+		log_cb(RETRO_LOG_ERROR, "Failed to read resource file '%s', path '%s'\n", filename, path);
 	return ret;
 }
 
@@ -2872,20 +2877,24 @@ std::optional<std::string> Host::ReadResourceFileToString(const char* filename)
 	{
 		if (setting_use_external_gameindex)
 		{
-			const std::string path(Path::Combine(EmuFolders::Resources, filename));
-			std::optional<std::string> ext(FileSystem::ReadFileToString(path.c_str()));
+			char path[PCSX2_PATH_MAX];
+
+			pcsx2_path_join(path, sizeof(path), EmuFolders::Resources.c_str(), filename);
+			std::optional<std::string> ext(FileSystem::ReadFileToString(path));
 			if (ext.has_value())
 				return ext;
 			log_cb(RETRO_LOG_INFO,
 				"External GameIndex.yaml not found at '%s', using built-in database.\n",
-				path.c_str());
+				path);
 		}
 		return std::string(reinterpret_cast<const char*>(g_gameDatabaseBuiltin),
 			g_gameDatabaseBuiltinSize);
 	}
 
-	const std::string path(Path::Combine(EmuFolders::Resources, filename));
-	std::optional<std::string> ret(FileSystem::ReadFileToString(path.c_str()));
+	char path[PCSX2_PATH_MAX];
+
+	pcsx2_path_join(path, sizeof(path), EmuFolders::Resources.c_str(), filename);
+	std::optional<std::string> ret(FileSystem::ReadFileToString(path));
 	if (!ret.has_value())
 	{
 		std::string str = std::string(filename) + " is missing, expect bugs.";
@@ -2915,7 +2924,7 @@ std::optional<std::string> Host::ReadResourceFileToString(const char* filename)
 		}
 
 		// OSD messages should be kept pretty short, but let's give the user a bit more info in logs.
-		log_cb(RETRO_LOG_ERROR, "Failed to read resource file to string '%s', path '%s'\n", filename, path.c_str());
+		log_cb(RETRO_LOG_ERROR, "Failed to read resource file to string '%s', path '%s'\n", filename, path);
 		log_cb(RETRO_LOG_WARN, "Please check the docs for more informations: https://docs.libretro.com/library/lrps2/\n");
 	}
 	return ret;
