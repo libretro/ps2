@@ -1036,17 +1036,18 @@ bool Pcsx2Config::MultitapEnabled(uint port) const
 	return (port == 0) ? MultitapPort0_Enabled : MultitapPort1_Enabled;
 }
 
-std::string Pcsx2Config::FullpathToBios() const
+void Pcsx2Config::FullpathToBios(char* out, size_t out_size) const
 {
-	std::string ret;
+	out[0] = '\0';
 	if (BaseFilenames.Bios[0])
-		ret = Path::Combine(EmuFolders::Bios, BaseFilenames.Bios);
-	return ret;
+		pcsx2_path_join(out, out_size, EmuFolders::Bios.c_str(),
+				BaseFilenames.Bios);
 }
 
-std::string Pcsx2Config::FullpathToMcd(uint slot) const
+void Pcsx2Config::FullpathToMcd(char* out, size_t out_size, uint slot) const
 {
-	return Path::Combine(EmuFolders::MemoryCards, Mcd[slot].Filename);
+	pcsx2_path_join(out, out_size, EmuFolders::MemoryCards.c_str(),
+			Mcd[slot].Filename);
 }
 
 bool Pcsx2Config::operator==(const Pcsx2Config& right) const

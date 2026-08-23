@@ -302,10 +302,12 @@ void FileMemoryCard::Open()
 				continue;
 		}
 
-		std::string fname(EmuConfig.FullpathToMcd(slot));
+		char fname[PCSX2_PATH_MAX];
 		bool cont = false;
 
-		if (fname.empty())
+		EmuConfig.FullpathToMcd(fname, sizeof(fname), slot);
+
+		if (fname[0] == '\0')
 			cont = true;
 
 		if (!EmuConfig.Mcd[slot].Enabled)
@@ -317,15 +319,15 @@ void FileMemoryCard::Open()
 		if (cont)
 			continue;
 
-		if (path_get_size(fname.c_str()) <= 0)
+		if (path_get_size(fname) <= 0)
 		{
 			// FIXME : Ideally this should prompt the user for the size of the
 			// memory card file they would like to create, instead of trying to
 			// create one automatically.
 
-			if (!Create(fname.c_str(), 8))
+			if (!Create(fname, 8))
 				Console.Error("Could not create a memory card: \n\n%s\n\n",
-					fname.c_str());
+					fname);
 		}
 
 		// [TODO] : Add memcard size detection and report it to the console log.
@@ -333,18 +335,20 @@ void FileMemoryCard::Open()
 
 		if (StringUtil::EndsWith(fname, ".bin"))
 		{
-			std::string newname(fname + "x");
-			if (!ConvertNoECCtoRAW(fname.c_str(), newname.c_str()))
+			char newname[PCSX2_PATH_MAX];
+
+			snprintf(newname, sizeof(newname), "%sx", fname);
+			if (!ConvertNoECCtoRAW(fname, newname))
 			{
-				FileSystem::DeleteFilePath(newname.c_str());
+				FileSystem::DeleteFilePath(newname);
 				continue;
 			}
 
 			// store the original filename
-			m_file[slot] = FileSystem::OpenFile(newname.c_str(), "r+b");
+			m_file[slot] = FileSystem::OpenFile(newname, "r+b");
 		}
 		else
-			m_file[slot] = FileSystem::OpenFile(fname.c_str(), "r+b");
+			m_file[slot] = FileSystem::OpenFile(fname, "r+b");
 
 		if (m_file[slot]) // Load the whole card into RAM
 		{

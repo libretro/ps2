@@ -274,19 +274,24 @@ static std::string FindBiosImage(void)
 //
 bool LoadBIOS(void)
 {
-	std::string path = EmuConfig.FullpathToBios();
-	if (path.empty() || !path_is_valid(path.c_str()))
+	char path[PCSX2_PATH_MAX];
+
+	EmuConfig.FullpathToBios(path, sizeof(path));
+	if (path[0] == '\0' || !path_is_valid(path))
 	{
-		if (!path.empty())
+		if (path[0])
 			Console.Warning("Configured BIOS '%s' does not exist, trying to find an alternative.",
 				EmuConfig.BaseFilenames.Bios);
 
-		path = FindBiosImage();
-		if (path.empty())
-			return false;
+		{
+			const std::string found(FindBiosImage());
+			if (found.empty())
+				return false;
+			strlcpy(path, found.c_str(), sizeof(path));
+		}
 	}
 
-	RFILE *fp = FileSystem::OpenFile(path.c_str(), "rb");
+	RFILE *fp = FileSystem::OpenFile(path, "rb");
 	if (!fp)
 		return false;
 
@@ -343,10 +348,10 @@ bool IsBIOS(const char* filename, u32& version, char* description, size_t descri
 	return ret;
 }
 
-bool IsBIOSAvailable(const std::string& full_path)
+bool IsBIOSAvailable(const char* full_path)
 {
 	// We can't use EmuConfig here since it may not be loaded yet.
-	if (!full_path.empty() && path_is_valid(full_path.c_str()))
+	if (full_path && full_path[0] && path_is_valid(full_path))
 		return true;
 
 	// No bios configured or the configured name is missing, check for one in the BIOS directory.

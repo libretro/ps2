@@ -891,8 +891,8 @@ struct Pcsx2Config
 	void LoadSave(SettingsWrapper& wrap);
 	void LoadSaveMemcards(SettingsWrapper& wrap);
 
-	std::string FullpathToBios() const;
-	std::string FullpathToMcd(uint slot) const;
+	void FullpathToBios(char* out, size_t out_size) const;
+	void FullpathToMcd(char* out, size_t out_size, uint slot) const;
 
 	bool MultitapEnabled(uint port) const;
 

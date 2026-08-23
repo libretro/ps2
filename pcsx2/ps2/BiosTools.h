@@ -46,5 +46,5 @@ extern char BiosSerial[];
 extern std::string BiosPath;
 extern bool LoadBIOS();
 extern bool IsBIOS(const char* filename, u32& version, char* description, size_t description_size, u32& region, char* zone, size_t zone_size);
-extern bool IsBIOSAvailable(const std::string& full_path);
+extern bool IsBIOSAvailable(const char* full_path);
 

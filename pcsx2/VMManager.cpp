@@ -639,7 +639,10 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 	}
 
 	// early out if we don't have a bios
-	if (!IsBIOSAvailable(EmuConfig.FullpathToBios()))
+	char bios_path[PCSX2_PATH_MAX];
+
+	EmuConfig.FullpathToBios(bios_path, sizeof(bios_path));
+	if (!IsBIOSAvailable(bios_path))
 	{
 		s_vm_thread_handle = {};
 		retro_atomic_store_release_int(&s_state, (int)VMState::Shutdown);
