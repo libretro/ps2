@@ -31,11 +31,11 @@ void ATA::IO_Thread()
 {
 	Threading::ScopedLock ioWaitHandle(ioMutex);
 	ioThreadIdle_bool = false;
-	ioWaitHandle.unlock();
+	ioWaitHandle.Unlock();
 
 	while (true)
 	{
-		ioWaitHandle.lock();
+		ioWaitHandle.Lock();
 		ioThreadIdle_bool = true;
 		ioThreadIdle_cv.Broadcast();
 
@@ -49,7 +49,7 @@ void ATA::IO_Thread()
 		else if (ioWrite)
 			ioType = 1;
 
-		ioWaitHandle.unlock();
+		ioWaitHandle.Unlock();
 
 		//Read or Write
 		if (ioType == 0)
@@ -60,10 +60,10 @@ void ATA::IO_Thread()
 			{
 				if (retro_atomic_load_acquire_int(&ioClose))
 				{
-					ioClose.store(false);
-					ioWaitHandle.lock();
+					retro_atomic_store_release_int(&ioClose, 0);
+					ioWaitHandle.Lock();
 					ioThreadIdle_bool = true;
-					ioWaitHandle.unlock();
+					ioWaitHandle.Unlock();
 					return;
 				}
 			}
@@ -364,7 +364,7 @@ void ATA::HDD_ReadSync(void (ATA::*drqCMD)())
 	//wait until thread waiting
 	while (!ioThreadIdle_bool)
 		ioThreadIdle_cv.Wait(ioMutex);
-	ioWaitHandle.unlock();
+	ioWaitHandle.Unlock();
 
 	nsectorLeft = 0;
 
@@ -372,9 +372,9 @@ void ATA::HDD_ReadSync(void (ATA::*drqCMD)())
 	{
 		if (ioWritePaused)
 		{
-			ioWaitHandle.lock();
+			ioWaitHandle.Lock();
 			ioWrite = true;
-			ioWaitHandle.unlock();
+			ioWaitHandle.Unlock();
 			ioReady.Broadcast();
 		}
 		return;
@@ -392,9 +392,9 @@ void ATA::HDD_ReadSync(void (ATA::*drqCMD)())
 
 	if (ioWritePaused)
 	{
-		ioWaitHandle.lock();
+		ioWaitHandle.Lock();
 		ioWrite = true;
-		ioWaitHandle.unlock();
+		ioWaitHandle.Unlock();
 		ioReady.Broadcast();
 	}
 

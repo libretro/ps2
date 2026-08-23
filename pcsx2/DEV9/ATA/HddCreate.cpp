@@ -15,7 +15,9 @@
 
 #include <retro_atomic.h>
 #include <algorithm>
+#include "common/Console.h"
 #include "common/FileSystem.h"
+#include "common/StringUtil.h"
 
 #include <file/file_path.h>
 
@@ -23,7 +25,6 @@
 
 #if _WIN32
 #include "common/RedtapeWindows.h"
-#include "common/StringUtil.h"
 #include <winioctl.h>
 #include <io.h>
 #elif defined(__POSIX__)
