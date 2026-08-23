@@ -44,9 +44,6 @@
 #    include <fcntl.h>
 #    include <direct.h>
 #    include <windows.h>
-/* FILE_ZERO_DATA_INFORMATION and the FSCTL_* codes used by
- * retro_vfs_file_punch_hole_impl live here, not in windows.h. */
-#    include <winioctl.h>
 #  endif
 #    include <io.h>
 #else
@@ -1090,6 +1087,131 @@ int64_t retro_vfs_file_size_impl(libretro_vfs_implementation_file *stream)
  * filestream_punch_hole for why this is a capability rather than a
  * guarantee: most backends cannot do it, and callers fall back to writing
  * zeroes. Returns 0 on success, -1 otherwise. */
+/* Allocation unit of the filesystem holding this file: the smallest span
+ * retro_vfs_file_punch_hole_impl can actually free. 0 when unknown.
+ *
+ * This exists so a caller never has to reach for the descriptor itself.
+ * PCSX2's ATA backend derived the cluster size by calling
+ * GetFinalPathNameByHandle on a HANDLE it pulled out of a FILE*, which is
+ * the one thing that kept it off the VFS -- the question is about the
+ * filesystem, not the file, and the backend that owns the handle is the
+ * right place to answer it. */
+int64_t retro_vfs_file_get_sparse_granularity_impl(
+      libretro_vfs_implementation_file *stream)
+{
+   if (!stream)
+      return 0;
+
+#if defined(_WIN32) && !defined(_XBOX)
+   {
+      DWORD    sectors_per_cluster = 0;
+      DWORD    bytes_per_sector    = 0;
+      DWORD    tmp1                = 0;
+      DWORD    tmp2                = 0;
+      DWORD    len;
+      HANDLE   handle              = stream->fh;
+      wchar_t *final_path;
+      wchar_t  root[MAX_PATH + 1];
+
+      if (!handle || handle == INVALID_HANDLE_VALUE)
+      {
+         if (!stream->fp)
+            return 0;
+         handle = (HANDLE)_get_osfhandle(_fileno(stream->fp));
+         if (handle == INVALID_HANDLE_VALUE)
+            return 0;
+      }
+
+      /* The volume that matters is the one the file really lives on, so
+       * the path has to be resolved through any junctions first. */
+      len = GetFinalPathNameByHandleW(handle, NULL, 0, FILE_NAME_NORMALIZED);
+      if (len == 0)
+         return 0;
+
+      final_path = (wchar_t*)calloc(len + 1, sizeof(wchar_t));
+      if (!final_path)
+         return 0;
+
+      if (GetFinalPathNameByHandleW(handle, final_path, len,
+               FILE_NAME_NORMALIZED) == 0)
+      {
+         free(final_path);
+         return 0;
+      }
+
+      /* GetVolumePathNameW gives the mount point, which is what
+       * GetDiskFreeSpaceW wants, and unlike splitting the string by hand
+       * it copes with a path mounted on a folder rather than a letter. */
+      if (!GetVolumePathNameW(final_path, root, MAX_PATH))
+      {
+         free(final_path);
+         return 0;
+      }
+      free(final_path);
+
+      if (!GetDiskFreeSpaceW(root, &sectors_per_cluster, &bytes_per_sector,
+               &tmp1, &tmp2))
+         return 0;
+
+      return (int64_t)sectors_per_cluster * (int64_t)bytes_per_sector;
+   }
+#elif !defined(VITA) && !defined(PSP) && !defined(PS2) && !defined(ORBIS) && !defined(GEKKO) && !defined(_3DS)
+   {
+      struct stat st;
+      int         fd = stream->fd;
+
+      if (fd < 0)
+      {
+         if (!stream->fp)
+            return 0;
+         fd = fileno(stream->fp);
+         if (fd < 0)
+            return 0;
+      }
+
+      if (fstat(fd, &st) != 0)
+         return 0;
+      if (st.st_blksize <= 0)
+         return 0;
+
+      return (int64_t)st.st_blksize;
+   }
+#else
+   return 0;
+#endif
+}
+
+#if defined(_WIN32) && !defined(_XBOX)
+/* The pieces of winioctl.h that retro_vfs_file_punch_hole_impl needs,
+ * declared here rather than by including that header.
+ *
+ * winioctl.h defines the storage class GUIDs, and in a unity build --
+ * griffin.c, where this file is compiled alongside the D3D headers that
+ * set INITGUID -- those definitions collide with the ones already emitted
+ * in the same translation unit, which is twenty-odd C2374 "redefinition;
+ * multiple initialization" errors on MSVC. Nothing here needs a GUID.
+ *
+ * The two control codes are the documented CTL_CODE expansions:
+ *   FSCTL_SET_SPARSE    = CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 49, METHOD_BUFFERED, FILE_SPECIAL_ACCESS)
+ *   FSCTL_SET_ZERO_DATA = CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 50, METHOD_BUFFERED, FILE_WRITE_DATA)
+ * Each is guarded, so a translation unit that has already seen
+ * winioctl.h through some other path keeps that header's definitions. */
+#ifndef FSCTL_SET_SPARSE
+#define FSCTL_SET_SPARSE 0x000900c4
+#endif
+#ifndef FSCTL_SET_ZERO_DATA
+#define FSCTL_SET_ZERO_DATA 0x000980c8
+#endif
+#ifndef FILE_ZERO_DATA_INFORMATION_DEFINED
+#define FILE_ZERO_DATA_INFORMATION_DEFINED
+typedef struct _RETRO_FILE_ZERO_DATA_INFORMATION
+{
+   LARGE_INTEGER FileOffset;
+   LARGE_INTEGER BeyondFinalZero;
+} RETRO_FILE_ZERO_DATA_INFORMATION;
+#endif
+#endif
+
 int retro_vfs_file_punch_hole_impl(libretro_vfs_implementation_file *stream,
       int64_t offset, int64_t len)
 {
@@ -1098,7 +1220,7 @@ int retro_vfs_file_punch_hole_impl(libretro_vfs_implementation_file *stream,
 
 #if defined(_WIN32) && !defined(_XBOX)
    {
-      FILE_ZERO_DATA_INFORMATION zero_info;
+      RETRO_FILE_ZERO_DATA_INFORMATION zero_info;
       DWORD                      returned = 0;
       HANDLE                     handle   = stream->fh;
 
