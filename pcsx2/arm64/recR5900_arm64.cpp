@@ -299,7 +299,7 @@ namespace
 	{
 		static int mode = -1;
 		if (mode < 0)
-			mode = (CHECK_FASTMEM && vtlb_private::vtlbdata.fastmem_base != 0) ? 1 : 0;
+			mode = (CHECK_FASTMEM && vtlbdata.fastmem_base != 0) ? 1 : 0;
 		return mode != 0;
 	}
 	inline bool InlineVmapEnabled() { return InlineMemEnabled() && !FastmemMode(); }
@@ -3378,8 +3378,8 @@ namespace {
 			// (FastmemMode() is latched), which is what lets chained blocks
 			// inherit x28 without reloading it.
 			const uint64_t vv = FastmemMode()
-				? reinterpret_cast<uint64_t>(&vtlb_private::vtlbdata.fastmem_base)
-				: reinterpret_cast<uint64_t>(&vtlb_private::vtlbdata.vmap);
+				? reinterpret_cast<uint64_t>(&vtlbdata.fastmem_base)
+				: reinterpret_cast<uint64_t>(&vtlbdata.vmap);
 			vixl::ExactAssemblyScope scope(&masm, 5 * kInstructionSize);
 			masm.movz(vmapbase, vv & 0xffff);
 			masm.movk(vmapbase, (vv >> 16) & 0xffff, 16);

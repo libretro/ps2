@@ -19,7 +19,6 @@
 #include "../iR5900.h"
 #include "common/emitter/c89ops.h"
 
-using namespace vtlb_private;
 // we need enough for a 32-bit jump forwards (5 bytes)
 static const u32 LOADSTORE_PADDING = 5;
 
@@ -45,8 +44,6 @@ static u32 GetAllocatedXMMBitmask(void)
 	return mask;
 }
 
-namespace vtlb_private
-{
 	/* ------------------------------------------------------------------------
 	 * Prepares eax, ecx, and, ebx for Direct or Indirect operations.
 	 * Returns the writeback pointer for ebx (return address from indirect handling)
@@ -164,7 +161,6 @@ namespace vtlb_private
 				break;
 		}
 	}
-} // namespace vtlb_private
 
 // ------------------------------------------------------------------------
 // allocate one page for our naked indirect dispatcher function.
@@ -219,9 +215,9 @@ static void DynGen_HandlerTest(int direct_kind, u32 direct_bits, int direct_sign
 	}
 	uint8_t* to_handler; xe_fwd_jcc8(Jcc_Signed, to_handler);
 	if (direct_kind == DYNGEN_DIRECT_WRITE)
-		vtlb_private::DynGen_DirectWrite(direct_bits);
+		DynGen_DirectWrite(direct_bits);
 	else
-		vtlb_private::DynGen_DirectRead(direct_bits, direct_sign);
+		DynGen_DirectRead(direct_bits, direct_sign);
 	uint8_t* done; xe_fwd_jcc8(Jcc_Unconditional, done);
 	xe_fwd_set8(to_handler);
 	xe_fastcall0(GetIndirectDispatcherPtr(mode, szidx, sign));
@@ -417,10 +413,10 @@ int vtlb_DynGenReadNonQuad(u32 bits, int sign, int xmm, int addr_reg, vtlb_ReadR
 int vtlb_DynGenReadNonQuad_Const(u32 bits, int sign, int xmm, u32 addr_const, vtlb_ReadRegAllocCallback dest_reg_alloc)
 {
 	int x86_dest_reg;
-	const VTLBVirtual vmv = vtlbdata.vmap[addr_const >> VTLB_PAGE_BITS];
-	if (!vmv.isHandler(addr_const))
+	const vtlb_virt_t vmv = vtlbdata.vmap[addr_const >> VTLB_PAGE_BITS];
+	if (!vtlb_virt_is_handler(vmv, addr_const))
 	{
-		const uptr ppf = vmv.assumePtr(addr_const);
+		const uptr ppf = vtlb_virt_ptr(vmv, addr_const);
 		if (!xmm)
 		{
 			x86_dest_reg = dest_reg_alloc ? dest_reg_alloc() : (_freeX86reg(XE_AX), XE_AX);
@@ -452,7 +448,7 @@ int vtlb_DynGenReadNonQuad_Const(u32 bits, int sign, int xmm, u32 addr_const, vt
 	else
 	{
 		// has to: translate, find function, call function
-		u32 paddr = vmv.assumeHandlerGetPAddr(addr_const);
+		u32 paddr = vtlb_virt_paddr(vmv, addr_const);
 
 		int szidx = 0;
 		switch (bits)
@@ -482,7 +478,7 @@ int vtlb_DynGenReadNonQuad_Const(u32 bits, int sign, int xmm, u32 addr_const, vt
 		else
 		{
 			iFlushCall(FLUSH_FULLVTLB);
-			xe_fastcall1_i(vmv.assumeHandlerGetRaw(szidx, 0), paddr);
+			xe_fastcall1_i(vtlb_virt_handler_raw(vmv, szidx, 0), paddr);
 
 			if (!xmm)
 			{
@@ -561,21 +557,21 @@ int vtlb_DynGenReadQuad(u32 bits, int addr_reg, vtlb_ReadRegAllocCallback dest_r
 int vtlb_DynGenReadQuad_Const(u32 bits, u32 addr_const, vtlb_ReadRegAllocCallback dest_reg_alloc)
 {
 	int reg  = dest_reg_alloc ? dest_reg_alloc() : (_freeXMMreg(0), 0);
-	const VTLBVirtual vmv = vtlbdata.vmap[addr_const >> VTLB_PAGE_BITS];
-	if (!vmv.isHandler(addr_const))
+	const vtlb_virt_t vmv = vtlbdata.vmap[addr_const >> VTLB_PAGE_BITS];
+	if (!vtlb_virt_is_handler(vmv, addr_const))
 	{
-		void* ppf = (void*)(vmv.assumePtr(addr_const));
+		void* ppf = (void*)(vtlb_virt_ptr(vmv, addr_const));
 		if (reg >= 0)
 			xe_movaps_xm(reg, ppf);
 	}
 	else
 	{
 		// has to: translate, find function, call function
-		u32 paddr = vmv.assumeHandlerGetPAddr(addr_const);
+		u32 paddr = vtlb_virt_paddr(vmv, addr_const);
 
 		const int szidx = 4;
 		iFlushCall(FLUSH_FULLVTLB);
-		xe_fastcall1_i(vmv.assumeHandlerGetRaw(szidx, 0), paddr);
+		xe_fastcall1_i(vtlb_virt_handler_raw(vmv, szidx, 0), paddr);
 
 		xe_movaps_xx(reg, 0);
 	}
@@ -653,10 +649,10 @@ void vtlb_DynGenWrite(u32 sz, int xmm, int addr_reg, int value_reg)
 // recompiler if the TLB is changed.
 void vtlb_DynGenWrite_Const(u32 bits, int xmm, u32 addr_const, int value_reg)
 {
-	const VTLBVirtual vmv = vtlbdata.vmap[addr_const >> VTLB_PAGE_BITS];
-	if (!vmv.isHandler(addr_const))
+	const vtlb_virt_t vmv = vtlbdata.vmap[addr_const >> VTLB_PAGE_BITS];
+	if (!vtlb_virt_is_handler(vmv, addr_const))
 	{
-		const uptr ppf = vmv.assumePtr(addr_const);
+		const uptr ppf = vtlb_virt_ptr(vmv, addr_const);
 		if (!xmm)
 		{
 			switch (bits)
@@ -699,7 +695,7 @@ void vtlb_DynGenWrite_Const(u32 bits, int xmm, u32 addr_const, int value_reg)
 	else
 	{
 		// has to: translate, find function, call function
-		u32 paddr = vmv.assumeHandlerGetPAddr(addr_const);
+		u32 paddr = vtlb_virt_paddr(vmv, addr_const);
 
 		int szidx = 0;
 		switch (bits)
@@ -749,7 +745,7 @@ void vtlb_DynGenWrite_Const(u32 bits, int xmm, u32 addr_const, int value_reg)
 			xe_mov64_rr(XE_ARG2, value_reg);
 		}
 
-		xe_fastcall0(vmv.assumeHandlerGetRaw(szidx, 1));
+		xe_fastcall0(vtlb_virt_handler_raw(vmv, szidx, 1));
 	}
 }
 

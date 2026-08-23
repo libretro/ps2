@@ -175,101 +175,78 @@ public:
 	void Reset() override;
 };
 
-namespace vtlb_private
+/* vtlb constants and lookup machinery. C89-shaped: the wrapper classes
+ * that used to live in namespace vtlb_private are plain integer typedefs
+ * with inline accessor functions; the packed representation is unchanged.
+ *
+ * A physical entry is a host pointer when non-negative, or a handler ID
+ * in the low byte with the pointer sign bit set. A virtual entry is the
+ * physical entry biased by -vaddr, so entry + vaddr recovers either the
+ * host pointer or the sign-set handler cookie, whose low byte is the
+ * handler ID as long as paddr and vaddr share page alignment. */
+
+#define VTLB_PAGE_BITS     12
+#define VTLB_PAGE_MASK     4095
+#define VTLB_PAGE_SIZE     4096
+
+#define VTLB_PMAP_SZ       (_1mb * 512)
+#define VTLB_PMAP_ITEMS    (VTLB_PMAP_SZ / VTLB_PAGE_SIZE)
+#define VTLB_VMAP_ITEMS    (_4gb / VTLB_PAGE_SIZE)
+
+#define VTLB_HANDLER_ITEMS 128
+
+#define POINTER_SIGN_BIT   (1ULL << (sizeof(uptr) * 8 - 1))
+
+#if defined(_MSC_VER)
+#define VTLB_INLINE __forceinline
+#elif defined(__GNUC__)
+#define VTLB_INLINE __inline__ __attribute__((always_inline))
+#else
+#define VTLB_INLINE
+#endif
+
+typedef sptr vtlb_phys_t; /* host pointer, or (handler | POINTER_SIGN_BIT) */
+typedef uptr vtlb_virt_t; /* physical entry biased by -vaddr */
+
+typedef struct
 {
-	static const uint VTLB_PAGE_BITS     = 12;
-	static const uint VTLB_PAGE_MASK     = 4095;
-	static const uint VTLB_PAGE_SIZE     = 4096;
+	/* first indexer  -- 8/16/32/64/128 bit tables [values 0-4]
+	 * second indexer -- read/write [0 or 1]
+	 * third indexer  -- 128 possible handlers */
+	void* RWFT[5][2][VTLB_HANDLER_ITEMS];
 
-	static const uint VTLB_PMAP_SZ	     = _1mb * 512;
-	static const uint VTLB_PMAP_ITEMS    = VTLB_PMAP_SZ / VTLB_PAGE_SIZE;
-	static const uint VTLB_VMAP_ITEMS    = _4gb / VTLB_PAGE_SIZE;
+	vtlb_phys_t pmap[VTLB_PMAP_ITEMS]; /* 512KB, PS2 physical to x86 physical */
 
-	static const uint VTLB_HANDLER_ITEMS = 128;
+	vtlb_virt_t* vmap; /* 4MB (allocated by vtlb_init), PS2 virtual to x86 physical */
 
-	static const uptr POINTER_SIGN_BIT   = 1ULL << (sizeof(uptr) * 8 - 1);
+	u32* ppmap; /* 4MB (allocated by vtlb_init), PS2 virtual to PS2 physical */
 
-	struct VTLBPhysical
-	{
-	private:
-		sptr value;
-		explicit VTLBPhysical(sptr value): value(value) { }
-	public:
-		VTLBPhysical(): value(0) {}
-		/// Create from a pointer to raw memory
-		static VTLBPhysical fromPointer(void *ptr) { return fromPointer((sptr)ptr); }
-		/// Create from an integer representing a pointer to raw memory
-		static VTLBPhysical fromPointer(sptr ptr);
-		/// Create from a handler and address
-		static VTLBPhysical fromHandler(vtlbHandler handler);
+	uptr fastmem_base;
+} vtlb_map_t;
 
-		/// Get the raw value held by the entry
-		uptr raw() const { return value; }
-		/// Returns whether or not this entry is a handler
-		bool isHandler() const { return value < 0; }
-		/// Assumes the entry is a pointer, giving back its value
-		uptr assumePtr() const { return value; }
-		/// Assumes the entry is a handler, and gets the raw handler ID
-		u8 assumeHandler() const { return value; }
-	};
+alignas(64) extern vtlb_map_t vtlbdata;
 
-	struct VTLBVirtual
-	{
-	private:
-		uptr value;
-		explicit VTLBVirtual(uptr value): value(value) { }
-	public:
-		VTLBVirtual(): value(0) {}
-		VTLBVirtual(VTLBPhysical phys, u32 paddr, u32 vaddr);
-		static VTLBVirtual fromPointer(uptr ptr, u32 vaddr) {
-			return VTLBVirtual(VTLBPhysical::fromPointer(ptr), 0, vaddr);
-		}
+static VTLB_INLINE vtlb_phys_t vtlb_phys_from_ptr(sptr ptr) { return ptr; }
+static VTLB_INLINE vtlb_phys_t vtlb_phys_from_handler(vtlbHandler handler) { return (vtlb_phys_t)(handler | POINTER_SIGN_BIT); }
+static VTLB_INLINE int  vtlb_phys_is_handler(vtlb_phys_t v) { return v < 0; }
+static VTLB_INLINE uptr vtlb_phys_ptr(vtlb_phys_t v) { return (uptr)v; }
 
-		/// Get the raw value held by the entry
-		uptr raw() const { return value; }
-		/// Returns whether or not this entry is a handler
-		bool isHandler(u32 vaddr) const { return (sptr)(value + vaddr) < 0; }
-		/// Assumes the entry is a pointer, giving back its value
-		uptr assumePtr(u32 vaddr) const { return value + vaddr; }
-		/// Assumes the entry is a handler, and gets the raw handler ID
-		u8 assumeHandlerGetID() const { return value; }
-		/// Assumes the entry is a handler, and gets the physical address
-		u32 assumeHandlerGetPAddr(u32 vaddr) const { return (value + vaddr - assumeHandlerGetID()) & ~POINTER_SIGN_BIT; }
-		/// Assumes the entry is a handler, returning it as a void*
-		void *assumeHandlerGetRaw(int index, bool write) const;
-	};
-
-	struct MapData
-	{
-		// first indexer -- 8/16/32/64/128 bit tables [values 0-4]
-		// second indexer -- read/write  [0 or 1]
-		// third indexer -- 128 possible handlers!
-		void* RWFT[5][2][VTLB_HANDLER_ITEMS];
-
-		VTLBPhysical pmap[VTLB_PMAP_ITEMS]; //512KB // PS2 physical to x86 physical
-
-		VTLBVirtual* vmap;                //4MB (allocated by vtlb_init) // PS2 virtual to x86 physical
-
-		u32* ppmap;               //4MB (allocated by vtlb_init) // PS2 virtual to PS2 physical
-
-		uptr fastmem_base;
-
-		MapData()
-		{
-			vmap = NULL;
-			ppmap = NULL;
-			fastmem_base = 0;
-		}
-	};
-
-	alignas(64) extern MapData vtlbdata;
-
-	inline void *VTLBVirtual::assumeHandlerGetRaw(int index, bool write) const
-	{
-		return vtlbdata.RWFT[index][write][assumeHandlerGetID()];
-	}
-
+static VTLB_INLINE vtlb_virt_t vtlb_virt_make(vtlb_phys_t phys, u32 paddr, u32 vaddr)
+{
+	if (vtlb_phys_is_handler(phys))
+		return (vtlb_virt_t)phys + paddr - vaddr;
+	return (vtlb_virt_t)phys - vaddr;
 }
+static VTLB_INLINE vtlb_virt_t vtlb_virt_from_ptr(uptr ptr, u32 vaddr) { return ptr - vaddr; }
+static VTLB_INLINE int  vtlb_virt_is_handler(vtlb_virt_t v, u32 vaddr) { return (sptr)(v + vaddr) < 0; }
+static VTLB_INLINE uptr vtlb_virt_ptr(vtlb_virt_t v, u32 vaddr) { return v + vaddr; }
+static VTLB_INLINE u32  vtlb_virt_id(vtlb_virt_t v) { return (u8)v; }
+static VTLB_INLINE u32  vtlb_virt_paddr(vtlb_virt_t v, u32 vaddr) { return (u32)((v + vaddr - (u8)v) & ~POINTER_SIGN_BIT); }
+static VTLB_INLINE void* vtlb_virt_handler_raw(vtlb_virt_t v, int index, int write)
+{
+	return vtlbdata.RWFT[index][write][(u8)v];
+}
+
 
 enum vtlb_ProtectionMode
 {

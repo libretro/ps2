@@ -107,8 +107,8 @@ static int getFreeCache(u32 mem, int* way)
 {
 	const int setIdx = (mem >> 6) & 0x3F;
 	CacheSet& set    = cache.sets[setIdx];
-	vtlb_private::VTLBVirtual vmv  = vtlb_private::vtlbdata.vmap[mem >> vtlb_private::VTLB_PAGE_BITS];
-	uptr ppf         = vmv.assumePtr(mem);
+	vtlb_virt_t vmv  = vtlbdata.vmap[mem >> VTLB_PAGE_BITS];
+	uptr ppf         = vtlb_virt_ptr(vmv, mem);
 
 	if (!findInCache(set, ppf, way))
 	{
@@ -209,8 +209,8 @@ static void doCacheHitOp(u32 addr, Op op)
 	int way;
 	const int index = (addr >> 6) & 0x3F;
 	CacheSet& set   = cache.sets[index];
-	vtlb_private::VTLBVirtual vmv = vtlb_private::vtlbdata.vmap[addr >> vtlb_private::VTLB_PAGE_BITS];
-	uptr ppf = vmv.assumePtr(addr);
+	vtlb_virt_t vmv = vtlbdata.vmap[addr >> VTLB_PAGE_BITS];
+	uptr ppf = vtlb_virt_ptr(vmv, addr);
 	if (findInCache(set, ppf, &way))
 		op({ cache.sets[index].tags[way], cache.sets[index].data[way], index });
 }

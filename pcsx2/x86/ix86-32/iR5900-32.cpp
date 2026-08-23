@@ -477,7 +477,7 @@ static const void* _DynGen_EnterRecompiledCode(void)
 	xe_sub64_ri(XE_SP, stack_size);
 
 	if (CHECK_FASTMEM)
-		xe_mov64_rm(RFASTMEMBASE, &vtlb_private::vtlbdata.fastmem_base);
+		xe_mov64_rm(RFASTMEMBASE, &vtlbdata.fastmem_base);
 
 	xe_jmp_to(DispatcherReg);
 
