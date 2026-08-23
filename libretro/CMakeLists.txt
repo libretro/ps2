@@ -105,3 +105,29 @@ if(PACKAGE_MODE)
 else(PACKAGE_MODE)
     install(TARGETS pcsx2_libretro DESTINATION ${CMAKE_SOURCE_DIR}/bin)
 endif(PACKAGE_MODE)
+
+# The smoke gate loads the core the moment it links and walks the
+# lifecycle a frontend performs before any content exists: init, the
+# BIOS-less retro_load_game failure path, deinit, unload.  A crash in
+# any of it fails the build, so a broken artifact never reaches the
+# buildbot.  Opt-in because it executes host code: CI turns it on for
+# jobs whose runner natively runs what it just built; cross builds
+# cannot.
+option(LRPS2_SMOKE_GATE "Run the libretro lifecycle smoke gate after linking the core" OFF)
+if(LRPS2_SMOKE_GATE)
+   add_executable(lrps2_smoke ${CMAKE_SOURCE_DIR}/tests/smoke/lrps2_smoke.c)
+   target_include_directories(lrps2_smoke PRIVATE
+      "${CMAKE_SOURCE_DIR}/libretro/libretro-common/include")
+   target_link_libraries(lrps2_smoke PRIVATE ${CMAKE_DL_LIBS})
+   # The CI template builds only the pcsx2_libretro target, so the
+   # harness rides along as its dependency.
+   add_dependencies(pcsx2_libretro lrps2_smoke)
+   # An empty working directory of its own: the BIOS scan must find
+   # nothing, and anything the core writes stays contained.
+   file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/smoke-work")
+   add_custom_command(TARGET pcsx2_libretro POST_BUILD
+      COMMAND lrps2_smoke "$<TARGET_FILE:pcsx2_libretro>"
+      WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/smoke-work"
+      COMMENT "smoke gate: libretro lifecycle against the freshly linked core"
+      VERBATIM)
+endif()

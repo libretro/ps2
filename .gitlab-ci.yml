@@ -73,6 +73,8 @@ libretro-build-windows-x64:
   variables:
     GIT_SUBMODULE_STRATEGY: normal
     EXTRA_PATH: libretro/Release
+    # Native runner: the smoke gate runs what it just built.
+    CORE_ARGS: -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.18 -DLRPS2_SMOKE_GATE=ON
 
 # Linux 64-bit
 libretro-build-linux-x64:
@@ -81,6 +83,8 @@ libretro-build-linux-x64:
     - .core-defs
   variables:
     EXTRA_PATH: bin
+    # Native runner: the smoke gate runs what it just built.
+    CORE_ARGS: -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.18 -DLRPS2_SMOKE_GATE=ON
 
 # Linux 64-bit arm
 libretro-build-linux-aarch64:
