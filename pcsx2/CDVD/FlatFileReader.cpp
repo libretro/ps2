@@ -14,7 +14,28 @@
 
 static constexpr size_t CHUNK_SIZE = 128 * 1024;
 
-FlatFileReader::FlatFileReader() = default;
+/* Ops thunks: the base calls these with a ThreadedFileReader*, which is
+ * always a FlatFileReader here. */
+static ThreadedFileReader::Chunk FlatFileReader_chunk_for_offset(ThreadedFileReader* self, u64 offset)
+{ return static_cast<FlatFileReader*>(self)->ChunkForOffset(offset); }
+static int FlatFileReader_read_chunk(ThreadedFileReader* self, void* dst, s64 chunkID)
+{ return static_cast<FlatFileReader*>(self)->ReadChunk(dst, chunkID); }
+static bool FlatFileReader_open2(ThreadedFileReader* self, const char* filename)
+{ return static_cast<FlatFileReader*>(self)->Open2(filename); }
+static void FlatFileReader_close2(ThreadedFileReader* self)
+{ static_cast<FlatFileReader*>(self)->Close2(); }
+static u32 FlatFileReader_block_count(const ThreadedFileReader* self)
+{ return static_cast<const FlatFileReader*>(self)->GetBlockCount(); }
+
+const ThreadedFileReader::Ops FlatFileReader::s_ops =
+{
+	FlatFileReader_chunk_for_offset, FlatFileReader_read_chunk, FlatFileReader_open2, FlatFileReader_close2, FlatFileReader_block_count
+};
+
+FlatFileReader::FlatFileReader()
+{
+	m_ops = &s_ops;
+}
 
 FlatFileReader::~FlatFileReader()
 {

@@ -23,16 +23,18 @@ class ChdFileReader final : public ThreadedFileReader
 {
 public:
 	ChdFileReader();
-	~ChdFileReader() override;
+	~ChdFileReader();
 
 
-	u32 GetBlockCount() const override;
+	u32 GetBlockCount() const;
 
-protected:
-	bool Open2(const char* fileName) override;
-	Chunk ChunkForOffset(u64 offset) override;
-	int ReadChunk(void* dst, s64 chunkID) override;
-	void Close2() override;
+public:
+	bool Open2(const char* fileName);
+
+	static const Ops s_ops;
+	Chunk ChunkForOffset(u64 offset);
+	int ReadChunk(void* dst, s64 chunkID);
+	void Close2();
 
 private:
 	struct Source

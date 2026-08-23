@@ -30,16 +30,18 @@ class CsoFileReader : public ThreadedFileReader
 
 public:
 	CsoFileReader();
-	~CsoFileReader() override;
+	~CsoFileReader();
 
-	bool Open2(const char* fileName) override;
+	bool Open2(const char* fileName);
 
-	Chunk ChunkForOffset(u64 offset) override;
-	int ReadChunk(void *dst, s64 chunkID) override;
+	static const Ops s_ops;
 
-	void Close2(void) override;
+	Chunk ChunkForOffset(u64 offset);
+	int ReadChunk(void *dst, s64 chunkID);
 
-	uint GetBlockCount(void) const override
+	void Close2(void);
+
+	uint GetBlockCount(void) const
 	{
 		return (m_totalSize - m_dataoffset) / m_blocksize;
 	};

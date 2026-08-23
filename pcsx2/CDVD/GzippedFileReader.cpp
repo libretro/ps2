@@ -156,7 +156,28 @@ static std::string iso2indexname(const std::string& isoname)
 }
 
 
-GzippedFileReader::GzippedFileReader() = default;
+/* Ops thunks: the base calls these with a ThreadedFileReader*, which is
+ * always a GzippedFileReader here. */
+static ThreadedFileReader::Chunk GzippedFileReader_chunk_for_offset(ThreadedFileReader* self, u64 offset)
+{ return static_cast<GzippedFileReader*>(self)->ChunkForOffset(offset); }
+static int GzippedFileReader_read_chunk(ThreadedFileReader* self, void* dst, s64 chunkID)
+{ return static_cast<GzippedFileReader*>(self)->ReadChunk(dst, chunkID); }
+static bool GzippedFileReader_open2(ThreadedFileReader* self, const char* filename)
+{ return static_cast<GzippedFileReader*>(self)->Open2(filename); }
+static void GzippedFileReader_close2(ThreadedFileReader* self)
+{ static_cast<GzippedFileReader*>(self)->Close2(); }
+static u32 GzippedFileReader_block_count(const ThreadedFileReader* self)
+{ return static_cast<const GzippedFileReader*>(self)->GetBlockCount(); }
+
+const ThreadedFileReader::Ops GzippedFileReader::s_ops =
+{
+	GzippedFileReader_chunk_for_offset, GzippedFileReader_read_chunk, GzippedFileReader_open2, GzippedFileReader_close2, GzippedFileReader_block_count
+};
+
+GzippedFileReader::GzippedFileReader()
+{
+	m_ops = &s_ops;
+}
 
 GzippedFileReader::~GzippedFileReader() = default;
 

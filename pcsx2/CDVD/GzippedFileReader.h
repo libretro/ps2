@@ -28,14 +28,16 @@ public:
 	GzippedFileReader();
 	~GzippedFileReader();
 
-	bool Open2(const char* filename) override;
+	bool Open2(const char* filename);
 
-	Chunk ChunkForOffset(u64 offset) override;
-	int ReadChunk(void* dst, s64 chunkID) override;
+	static const Ops s_ops;
 
-	void Close2() override;
+	Chunk ChunkForOffset(u64 offset);
+	int ReadChunk(void* dst, s64 chunkID);
 
-	u32 GetBlockCount() const override;
+	void Close2();
+
+	u32 GetBlockCount() const;
 
 private:
 	static constexpr int GZFILE_SPAN_DEFAULT = (1048576 * 4); /* distance between direct access points when creating a new index */

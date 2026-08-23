@@ -30,7 +30,28 @@ static constexpr size_t FEED_CHUNK = 64 * 1024;
    only spend memory (each extra slot costs a hunk of staging). */
 static constexpr uint32_t CHD_PIPELINE_DEPTH = 4;
 
-ChdFileReader::ChdFileReader() = default;
+/* Ops thunks: the base calls these with a ThreadedFileReader*, which is
+ * always a ChdFileReader here. */
+static ThreadedFileReader::Chunk ChdFileReader_chunk_for_offset(ThreadedFileReader* self, u64 offset)
+{ return static_cast<ChdFileReader*>(self)->ChunkForOffset(offset); }
+static int ChdFileReader_read_chunk(ThreadedFileReader* self, void* dst, s64 chunkID)
+{ return static_cast<ChdFileReader*>(self)->ReadChunk(dst, chunkID); }
+static bool ChdFileReader_open2(ThreadedFileReader* self, const char* filename)
+{ return static_cast<ChdFileReader*>(self)->Open2(filename); }
+static void ChdFileReader_close2(ThreadedFileReader* self)
+{ static_cast<ChdFileReader*>(self)->Close2(); }
+static u32 ChdFileReader_block_count(const ThreadedFileReader* self)
+{ return static_cast<const ChdFileReader*>(self)->GetBlockCount(); }
+
+const ThreadedFileReader::Ops ChdFileReader::s_ops =
+{
+	ChdFileReader_chunk_for_offset, ChdFileReader_read_chunk, ChdFileReader_open2, ChdFileReader_close2, ChdFileReader_block_count
+};
+
+ChdFileReader::ChdFileReader()
+{
+	m_ops = &s_ops;
+}
 
 ChdFileReader::~ChdFileReader()
 {

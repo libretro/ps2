@@ -30,6 +30,27 @@
 class ThreadedFileReader
 {
 	ThreadedFileReader(ThreadedFileReader&&) = delete;
+
+public:
+	struct Chunk
+	{
+		/// Negative block IDs indicate invalid blocks
+		s64 chunkID;
+		u64 offset;
+		u32 length;
+	};
+
+	/* Per-format entry points, as a table rather than a vtable. Public
+	 * because each reader's thunks live at file scope in its own .cpp. */
+	struct Ops
+	{
+		Chunk (*chunk_for_offset)(ThreadedFileReader* self, u64 offset);
+		int   (*read_chunk)(ThreadedFileReader* self, void* dst, s64 chunkID);
+		bool  (*open2)(ThreadedFileReader* self, const char* filename);
+		void  (*close2)(ThreadedFileReader* self);
+		u32   (*block_count)(const ThreadedFileReader* self);
+	};
+
 protected:
 	/* Fixed buffer rather than std::string: a path has a bound, the
 	 * libretro path API this tree already uses works on char*, and the
@@ -39,27 +60,17 @@ protected:
 	u32 m_dataoffset = 0;
 	u32 m_blocksize = 2048;
 
-	struct Chunk
-	{
-		/// Negative block IDs indicate invalid blocks
-		s64 chunkID;
-		u64 offset;
-		u32 length;
-	};
-
 	/// Set nonzero to separate block size of read blocks from m_blocksize
 	/// Requires that chunk size is a multiple of internal block size
 	/// Use to avoid overrunning stack because PCSX2 likes to allocate 2448-byte buffers
 	int m_internalBlockSize = 0;
 
-	/// Get the block containing the given offset
-	virtual Chunk ChunkForOffset(u64 offset) = 0;
-	/// Synchronously read the given block into `dst`
-	virtual int ReadChunk(void* dst, s64 chunkID) = 0;
-	/// AsyncFileReader open but ThreadedFileReader needs prep work first
-	virtual bool Open2(const char* filename) = 0;
-	/// AsyncFileReader close but ThreadedFileReader needs prep work first
-	virtual void Close2() = 0;
+	const Ops* m_ops = nullptr;
+
+	Chunk ChunkForOffset(u64 offset) { return m_ops->chunk_for_offset(this, offset); }
+	int ReadChunk(void* dst, s64 chunkID) { return m_ops->read_chunk(this, dst, chunkID); }
+	bool Open2(const char* filename) { return m_ops->open2(this, filename); }
+	void Close2() { m_ops->close2(this); }
 
 	ThreadedFileReader();
 
@@ -108,9 +119,12 @@ private:
 	bool TryCachedRead(void*& buffer, u64& offset, u32& size);
 
 public:
-	virtual ~ThreadedFileReader();
+	/* Not virtual: nothing deletes a reader through a base pointer that
+	 * does not know the concrete type -- InputIsoFile holds the exact one
+	 * it created. */
+	~ThreadedFileReader();
 
-	virtual u32 GetBlockCount() const = 0;
+	u32 GetBlockCount() const { return m_ops->block_count(this); }
 
 	bool Open(const char* filename);
 	int ReadSync(void* pBuffer, u32 sector, u32 count);

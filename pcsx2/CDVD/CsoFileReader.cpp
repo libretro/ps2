@@ -38,6 +38,24 @@ struct CsoHeader
 
 static const u32 CSO_READ_BUFFER_SIZE = 256 * 1024;
 
+/* Ops thunks: the base calls these with a ThreadedFileReader*, which is
+ * always a CsoFileReader here. */
+static ThreadedFileReader::Chunk CsoFileReader_chunk_for_offset(ThreadedFileReader* self, u64 offset)
+{ return static_cast<CsoFileReader*>(self)->ChunkForOffset(offset); }
+static int CsoFileReader_read_chunk(ThreadedFileReader* self, void* dst, s64 chunkID)
+{ return static_cast<CsoFileReader*>(self)->ReadChunk(dst, chunkID); }
+static bool CsoFileReader_open2(ThreadedFileReader* self, const char* filename)
+{ return static_cast<CsoFileReader*>(self)->Open2(filename); }
+static void CsoFileReader_close2(ThreadedFileReader* self)
+{ static_cast<CsoFileReader*>(self)->Close2(); }
+static u32 CsoFileReader_block_count(const ThreadedFileReader* self)
+{ return static_cast<const CsoFileReader*>(self)->GetBlockCount(); }
+
+const ThreadedFileReader::Ops CsoFileReader::s_ops =
+{
+	CsoFileReader_chunk_for_offset, CsoFileReader_read_chunk, CsoFileReader_open2, CsoFileReader_close2, CsoFileReader_block_count
+};
+
 CsoFileReader::CsoFileReader()
 	: m_frameSize(0),
 	  m_frameShift(0),
@@ -49,6 +67,7 @@ CsoFileReader::CsoFileReader()
 	  m_src(nullptr),
 	  m_inflate(nullptr)
 {
+	m_ops = &s_ops;
 }
 
 CsoFileReader::~CsoFileReader() { }
