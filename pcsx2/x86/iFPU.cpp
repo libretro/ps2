@@ -676,14 +676,14 @@ void recADD_S_xmm(int info)
 	fpuFloat(recCommutativeOp(info, EEREC_D, 0));
 }
 
-FPURECOMPILE_CONSTCODE_SOFT(ADD_S, XMMINFO_WRITED | XMMINFO_READS | XMMINFO_READT);
+FPURECOMPILE_CONSTCODE_EXACT_DBL(ADD_S, XMMINFO_WRITED | XMMINFO_READS | XMMINFO_READT);
 
 void recADDA_S_xmm(int info)
 {
 	fpuFloat(recCommutativeOp(info, EEREC_ACC, 0));
 }
 
-FPURECOMPILE_CONSTCODE_SOFT(ADDA_S, XMMINFO_WRITEACC | XMMINFO_READS | XMMINFO_READT);
+FPURECOMPILE_CONSTCODE_EXACT_DBL(ADDA_S, XMMINFO_WRITEACC | XMMINFO_READS | XMMINFO_READT);
 //------------------------------------------------------------------
 
 //------------------------------------------------------------------
@@ -1663,7 +1663,7 @@ void recSUB_S_xmm(int info)
 	recSUBop(info, EEREC_D);
 }
 
-FPURECOMPILE_CONSTCODE_SOFT(SUB_S, XMMINFO_WRITED | XMMINFO_READS | XMMINFO_READT);
+FPURECOMPILE_CONSTCODE_EXACT_DBL(SUB_S, XMMINFO_WRITED | XMMINFO_READS | XMMINFO_READT);
 
 
 void recSUBA_S_xmm(int info)
@@ -1671,7 +1671,7 @@ void recSUBA_S_xmm(int info)
 	recSUBop(info, EEREC_ACC);
 }
 
-FPURECOMPILE_CONSTCODE_SOFT(SUBA_S, XMMINFO_WRITEACC | XMMINFO_READS | XMMINFO_READT);
+FPURECOMPILE_CONSTCODE_EXACT_DBL(SUBA_S, XMMINFO_WRITEACC | XMMINFO_READS | XMMINFO_READT);
 //------------------------------------------------------------------
 
 

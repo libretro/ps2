@@ -163,6 +163,15 @@ void eeRecompileCodeRC2(R5900FNPTR constcode, R5900FNPTR_INFO noconstcode, int x
 			eeFPURecompileCode(rec##fn##_xmm, R5900::Interpreter::OpcodeImpl::COP1::fn, xmminfo); \
 	}
 
+/* Ops whose double-precision emission is byte-exact against the ps2float
+ * model (currently the ADD/SUB family): always use it, so the fast path
+ * is the accurate path and soft routing has nothing left to fix here. */
+#define FPURECOMPILE_CONSTCODE_EXACT_DBL(fn, xmminfo) \
+	void rec##fn(void) \
+	{ \
+		eeFPURecompileCode(DOUBLE_rec##fn##_xmm, R5900::Interpreter::OpcodeImpl::COP1::fn, xmminfo); \
+	}
+
 // rd = rs op rt (all regs need to be in xmm)
 int eeRecompileCodeXMM(int xmminfo);
 void eeFPURecompileCode(R5900FNPTR_INFO xmmcode, R5900FNPTR fpucode, int xmminfo);
