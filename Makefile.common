@@ -125,8 +125,61 @@ SOURCES_C += \
 SOURCES_CXX += \
 	$(LIBRETRO_DIR)/main.cpp \
 	$(LIBRETRO_DIR)/patches.cpp \
-	$(LIBRETRO_DIR)/DEV9.cpp \
 	$(LIBRETRO_DIR)/USB.cpp
+
+# ============================================================================
+# DEV9 (SPEED expansion: ethernet + ATA hard drive)
+# ============================================================================
+# The pcap backend is opt-in: it hard-links libpcap on POSIX, and the
+# Sockets api covers ethernet without any system dependency.
+SOURCES_CXX += \
+	$(LRPS2_DIR)/DEV9/AdapterUtils.cpp \
+	$(LRPS2_DIR)/DEV9/DEV9.cpp \
+	$(LRPS2_DIR)/DEV9/flash.cpp \
+	$(LRPS2_DIR)/DEV9/net.cpp \
+	$(LRPS2_DIR)/DEV9/smap.cpp \
+	$(LRPS2_DIR)/DEV9/sockets.cpp \
+	$(LRPS2_DIR)/DEV9/InternalServers/DHCP_Server.cpp \
+	$(LRPS2_DIR)/DEV9/InternalServers/DNS_Logger.cpp \
+	$(LRPS2_DIR)/DEV9/InternalServers/DNS_Server.cpp \
+	$(LRPS2_DIR)/DEV9/PacketReader/EthernetFrame.cpp \
+	$(LRPS2_DIR)/DEV9/PacketReader/EthernetFrameEditor.cpp \
+	$(LRPS2_DIR)/DEV9/PacketReader/ARP/ARP_Packet.cpp \
+	$(LRPS2_DIR)/DEV9/PacketReader/ARP/ARP_PacketEditor.cpp \
+	$(LRPS2_DIR)/DEV9/PacketReader/IP/IP_Options.cpp \
+	$(LRPS2_DIR)/DEV9/PacketReader/IP/IP_Packet.cpp \
+	$(LRPS2_DIR)/DEV9/PacketReader/IP/ICMP/ICMP_Packet.cpp \
+	$(LRPS2_DIR)/DEV9/PacketReader/IP/TCP/TCP_Options.cpp \
+	$(LRPS2_DIR)/DEV9/PacketReader/IP/TCP/TCP_Packet.cpp \
+	$(LRPS2_DIR)/DEV9/PacketReader/IP/UDP/UDP_Packet.cpp \
+	$(LRPS2_DIR)/DEV9/PacketReader/IP/UDP/DHCP/DHCP_Options.cpp \
+	$(LRPS2_DIR)/DEV9/PacketReader/IP/UDP/DHCP/DHCP_Packet.cpp \
+	$(LRPS2_DIR)/DEV9/PacketReader/IP/UDP/DNS/DNS_Classes.cpp \
+	$(LRPS2_DIR)/DEV9/PacketReader/IP/UDP/DNS/DNS_Packet.cpp \
+	$(LRPS2_DIR)/DEV9/Sessions/BaseSession.cpp \
+	$(LRPS2_DIR)/DEV9/Sessions/ICMP_Session/ICMP_Session.cpp \
+	$(LRPS2_DIR)/DEV9/Sessions/TCP_Session/TCP_Session.cpp \
+	$(LRPS2_DIR)/DEV9/Sessions/TCP_Session/TCP_Session_In.cpp \
+	$(LRPS2_DIR)/DEV9/Sessions/TCP_Session/TCP_Session_Out.cpp \
+	$(LRPS2_DIR)/DEV9/Sessions/UDP_Session/UDP_FixedPort.cpp \
+	$(LRPS2_DIR)/DEV9/Sessions/UDP_Session/UDP_Session.cpp
+
+SOURCES_C += \
+	$(LRPS2_DIR)/DEV9/ATA/ATA_Info.c \
+	$(LRPS2_DIR)/DEV9/ATA/ATA_State.c \
+	$(LRPS2_DIR)/DEV9/ATA/ATA_Transfer.c \
+	$(LRPS2_DIR)/DEV9/ATA/HddCreate.c \
+	$(LRPS2_DIR)/DEV9/ATA/Commands/ATA_Command.c \
+	$(LRPS2_DIR)/DEV9/ATA/Commands/ATA_CmdDMA.c \
+	$(LRPS2_DIR)/DEV9/ATA/Commands/ATA_CmdExecuteDeviceDiag.c \
+	$(LRPS2_DIR)/DEV9/ATA/Commands/ATA_CmdNoData.c \
+	$(LRPS2_DIR)/DEV9/ATA/Commands/ATA_CmdPIOData.c \
+	$(LRPS2_DIR)/DEV9/ATA/Commands/ATA_CmdSMART.c \
+	$(LRPS2_DIR)/DEV9/ATA/Commands/ATA_SCE.c
+
+ifeq ($(HAVE_PCAP), 1)
+SOURCES_CXX += $(LRPS2_DIR)/DEV9/pcap_io.cpp
+endif
 
 # ============================================================================
 # common

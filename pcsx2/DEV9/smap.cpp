@@ -27,7 +27,6 @@
 
 #include "smap.h"
 #include "net.h"
-#include "pcap_io.h"
 
 bool has_link = true;
 /* Set by the RX thread per received packet, consumed by smap_async on

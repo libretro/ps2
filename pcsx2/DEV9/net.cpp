@@ -28,7 +28,9 @@
 #ifdef _WIN32
 #include "Win32/tap.h"
 #endif
+#ifdef HAVE_PCAP
 #include "pcap_io.h"
+#endif
 #include "sockets.h"
 
 #include "PacketReader/EthernetFrame.h"
@@ -91,8 +93,13 @@ NetAdapter* GetNetAdapter()
 #endif
 		case Pcsx2Config::DEV9Options::NetApi::PCAP_Bridged:
 		case Pcsx2Config::DEV9Options::NetApi::PCAP_Switched:
+#ifdef HAVE_PCAP
 			na = static_cast<NetAdapter*>(new PCAPAdapter());
 			break;
+#else
+			Console.Error("DEV9: PCAP backend not built into this core, use the Sockets api");
+			return 0;
+#endif
 		case Pcsx2Config::DEV9Options::NetApi::Sockets:
 			na = static_cast<NetAdapter*>(new SocketAdapter());
 			break;

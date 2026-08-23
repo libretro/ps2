@@ -5,6 +5,7 @@ GLES = 0
 GLES3 = 0 # HW renderer now supported on GLES3
 HAVE_VULKAN = 1
 HAVE_CHD = 1
+HAVE_PCAP = 0
 HAVE_CDROM = 0
 LINK_STATIC_LIBCPLUSPLUS = 1
 THREADED_RECOMPILER = 1
@@ -556,6 +557,11 @@ C89_EMITTER ?= 1
 # include, silently did nothing, the same trap the C89_EMITTER placement
 # comment above already warns about from the other direction.
 XE_AB ?= 0
+
+ifeq ($(HAVE_PCAP), 1)
+   FLAGS   += -DHAVE_PCAP
+   LDFLAGS += -lpcap
+endif
 
 include Makefile.common
 
