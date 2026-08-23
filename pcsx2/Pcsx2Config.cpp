@@ -111,6 +111,7 @@ namespace EmuFolders
 {
 	std::string AppRoot;
 	std::string DataRoot;
+	std::string Settings;
 	std::string Bios;
 	std::string MemoryCards;
 	std::string Cheats;

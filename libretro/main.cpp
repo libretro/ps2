@@ -2305,6 +2305,9 @@ bool retro_load_game(const struct retro_game_info* game)
 	EmuFolders::AppRoot   = Path::Combine(system_base, "pcsx2");
 	EmuFolders::Resources = Path::Combine(EmuFolders::AppRoot, "resources");
 	EmuFolders::DataRoot  = EmuFolders::AppRoot;
+	/* Settings is where upstream resolves relative data-file paths like
+	 * DEV9's HddFile; a libretro core keeps those in its system subdir. */
+	EmuFolders::Settings  = EmuFolders::AppRoot;
 
 	Host::Internal::SetBaseSettingsLayer(&s_settings_interface);
 

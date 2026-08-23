@@ -912,6 +912,7 @@ namespace EmuFolders
 {
 	extern std::string AppRoot;
 	extern std::string DataRoot;
+	extern std::string Settings;
 	extern std::string Bios;
 	extern std::string MemoryCards;
 	extern std::string Cheats;
