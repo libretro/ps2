@@ -119,9 +119,6 @@ void MTGS::PostVsyncStart()
 	// (Letting the EE run 1-2 frames ahead of the GS was tried and measured: no
 	// change in wall time, because the EE is not actually waiting here.)
 	WaitGS(false);
-
-	// Vsyncs should always start the GS thread, regardless of how little has actually be queued.
-	s_sem_event.NotifyOfWork();
 }
 
 void MTGS::InitAndReadFIFO(u8* mem, u32 qwc)
@@ -269,10 +266,7 @@ void MTGS::MainLoop(bool flush_all)
 			retro_atomic_store_release_int(&s_ReadPos, newringpos);
 
 			if (!flush_all && tag.command == GS_RINGTYPE_VSYNC)
-			{
-				s_sem_event.NotifyOfWork();
 				return;
-			}
 		}
 	}
 

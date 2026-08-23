@@ -31,6 +31,57 @@
 
 #include <stdint.h>
 
+#ifndef _WIN32
+#include <unistd.h> /* sysconf */
+#endif
+
+/* CPU relax hint for the bounded spin in WorkSema::WaitForWork. */
+#if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
+#if defined(_MSC_VER)
+#define WORKSEMA_CPU_RELAX() _mm_pause()
+#else
+#define WORKSEMA_CPU_RELAX() __builtin_ia32_pause()
+#endif
+#elif defined(__aarch64__) || defined(_M_ARM64) || defined(__arm__)
+#if defined(_MSC_VER)
+#define WORKSEMA_CPU_RELAX() __yield()
+#else
+#define WORKSEMA_CPU_RELAX() __asm__ __volatile__("yield" ::: "memory")
+#endif
+#else
+#define WORKSEMA_CPU_RELAX() ((void)0)
+#endif
+
+/* Iterations of the read-only spin a worker performs in STATE_SPINNING
+ * before parking on the kernel semaphore.  A notify that lands inside
+ * the window is caught with zero syscalls and zero context switches on
+ * either side: NotifyOfWork's fetch_add moves SPINNING to RUNNING and
+ * skips the post, and the spinner never blocks.  Sized to a few
+ * microseconds - long enough to bridge the producer's typical
+ * inter-packet gaps, short enough that a miss costs less than the
+ * futex round trip it tried to avoid. */
+#define WORKSEMA_SPIN_COUNT 2000
+
+static int32_t worksema_compute_spin_budget(void)
+{
+	/* Spinning on a single-core host only steals the producer's
+	 * timeslice; the spin always times out there.  Park immediately
+	 * instead - the pre-spin behavior. */
+#if defined(_WIN32)
+	SYSTEM_INFO si;
+	GetSystemInfo(&si);
+	return (si.dwNumberOfProcessors >= 2) ? WORKSEMA_SPIN_COUNT : 0;
+#else
+	return (sysconf(_SC_NPROCESSORS_ONLN) >= 2) ? WORKSEMA_SPIN_COUNT : 0;
+#endif
+}
+
+static int32_t worksema_spin_budget(void)
+{
+	static const int32_t budget = worksema_compute_spin_budget();
+	return budget;
+}
+
 // --------------------------------------------------------------------------------------
 //  Semaphore Implementations
 // --------------------------------------------------------------------------------------
@@ -77,24 +128,60 @@ void Threading::WorkSema::WaitForWork()
 	// SLEEPING, SPINNING: This is the worker thread and it's clearly not asleep or spinning, so these states should be impossible
 	// DEAD (any value < STATE_SPINNING): also impossible if invariants hold, but guard so a stray call after Kill()
 	//   doesn't silently resurrect us to STATE_RUNNING_0 and then sleep forever on m_sema.
-	// RUNNING_0: Change state to SLEEPING, wake up thread if WAITING_EMPTY
+	// RUNNING_0: Change state to SPINNING (multi-core) or SLEEPING, wake up thread if WAITING_EMPTY
 	// RUNNING_N: Change state to RUNNING_0 (and preserve WAITING_EMPTY flag)
+	const s32 spin_budget = worksema_spin_budget();
+	const s32 idle_state  = spin_budget ? STATE_SPINNING : STATE_SLEEPING;
 	s32 value;
 	for (;;)
 	{
+		s32 waiting_empty_cleared;
+		s32 new_state;
 		value = retro_atomic_load_acquire_int(&m_state);
 		if (value < STATE_SPINNING)
 			return;
-		if (retro_atomic_cas_int(&m_state, value, NextStateWaitForWork(value)))
+		/* The empty-waiter flag cannot survive on the (negative) idle
+		 * states; the post below is what consumes it. */
+		waiting_empty_cleared = value & (STATE_FLAG_WAITING_EMPTY - 1);
+		new_state = (waiting_empty_cleared == STATE_RUNNING_0) ? idle_state : (STATE_RUNNING_0 | (value & STATE_FLAG_WAITING_EMPTY));
+		if (retro_atomic_cas_int(&m_state, value, new_state))
 			break;
 	}
 
 	s32 waiting_empty_cleared = value & (STATE_FLAG_WAITING_EMPTY - 1);
 	if (waiting_empty_cleared == STATE_RUNNING_0)
 	{
+		/* Wake any WaitForEmpty sleeper before idling, never after:
+		 * the producer's wakeup must not wait out the spin window. */
 		if (value & STATE_FLAG_WAITING_EMPTY)
 			m_empty_sema.Post();
-		m_sema.Wait();
+
+		if (spin_budget)
+		{
+			/* Read-only spin in STATE_SPINNING.  NotifyOfWork's
+			 * fetch_add moves the state to RUNNING and skips the
+			 * kernel post, so a notify inside this window costs
+			 * neither side a syscall.  On timeout, demote to
+			 * SLEEPING and park; a notify racing the demotion makes
+			 * the CAS fail, and the state it left behind is already
+			 * RUNNING. */
+			s32 spins = spin_budget;
+			bool have_work = false;
+			while (spins-- > 0)
+			{
+				if (retro_atomic_load_acquire_int(&m_state) != STATE_SPINNING)
+				{
+					have_work = true;
+					break;
+				}
+				WORKSEMA_CPU_RELAX();
+			}
+			if (!have_work && retro_atomic_cas_int(&m_state, STATE_SPINNING, STATE_SLEEPING))
+				m_sema.Wait();
+		}
+		else
+			m_sema.Wait();
+
 		// Acknowledge any additional work added between wake up request and getting here
 		retro_atomic_fetch_and_int(&m_state, STATE_FLAG_WAITING_EMPTY);
 	}

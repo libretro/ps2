@@ -273,13 +273,6 @@ namespace Threading
 			STATE_FLAG_WAITING_EMPTY = 1 << 30, ///< Flag to indicate that a thread is sleeping on m_empty_sema (can be applied to any STATE_RUNNING)
 		};
 
-		s32 NextStateWaitForWork(s32 current)
-		{
-			s32 waiting_empty_cleared = current & (STATE_FLAG_WAITING_EMPTY - 1);
-			s32 new_state = (waiting_empty_cleared == STATE_RUNNING_0) ? STATE_SLEEPING : STATE_RUNNING_0;
-			return new_state | (current & STATE_FLAG_WAITING_EMPTY); // Preserve waiting empty flag for RUNNING_N → RUNNING_0
-		}
-
 	public:
 		/// Notify the worker thread that you've added new work to its queue
 		void NotifyOfWork()
