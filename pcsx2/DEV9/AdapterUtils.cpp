@@ -13,6 +13,8 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "common/Pcsx2Defs.h"
+
 #ifdef __POSIX__
 #include <vector>
 #include <fstream>
@@ -21,6 +23,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#include "common/Console.h"
 #include "common/StringUtil.h"
 #include <compat/strl.h>
 

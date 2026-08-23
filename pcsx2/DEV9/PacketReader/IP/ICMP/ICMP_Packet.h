@@ -14,6 +14,8 @@
  */
 
 #pragma once
+
+#include "common/Pcsx2Defs.h"
 #include "DEV9/PacketReader/IP/IP_Packet.h"
 
 namespace PacketReader::IP::ICMP

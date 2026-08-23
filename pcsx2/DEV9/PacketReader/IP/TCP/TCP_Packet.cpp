@@ -13,6 +13,7 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "common/Console.h"
 #include "TCP_Packet.h"
 #include "DEV9/PacketReader/NetLib.h"
 

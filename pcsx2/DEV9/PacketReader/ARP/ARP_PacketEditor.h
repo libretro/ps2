@@ -15,6 +15,8 @@
 
 #pragma once
 
+#include "common/Pcsx2Defs.h"
+
 #include "DEV9/PacketReader/Payload.h"
 
 namespace PacketReader::ARP

@@ -14,6 +14,8 @@
  */
 
 #pragma once
+
+#include "common/Pcsx2Defs.h"
 #include <vector>
 
 #include "DNS_Classes.h"

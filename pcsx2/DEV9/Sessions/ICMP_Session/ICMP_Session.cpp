@@ -13,7 +13,10 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "common/Pcsx2Defs.h"
+
 #ifdef _WIN32
+#include "common/Console.h"
 #include "common/RedtapeWindows.h"
 #include <iphlpapi.h>
 #include <icmpapi.h>
@@ -38,7 +41,7 @@
 #include <unistd.h>
 #endif
 
-#include "../../common/Threading.h"
+#include "../../../../common/Threading.h"
 #include "ICMP_Session.h"
 #include "DEV9/PacketReader/NetLib.h"
 

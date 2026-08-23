@@ -15,6 +15,8 @@
 
 #pragma once
 
+#include "common/Pcsx2Defs.h"
+
 namespace PacketReader::IP::UDP::DNS
 {
 	enum struct DNS_OPCode : u8

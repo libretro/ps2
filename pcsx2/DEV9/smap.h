@@ -14,6 +14,8 @@
  */
 
 #pragma once
+
+#include "common/Pcsx2Defs.h"
 #include "DEV9.h"
 
 u8 smap_read8(u32 addr);

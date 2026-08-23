@@ -17,6 +17,8 @@
 #include <algorithm>
 #include <cctype>
 
+#include "common/Pcsx2Defs.h"
+
 #ifdef _WIN32
 #include <ws2tcpip.h>
 #elif defined(__POSIX__)

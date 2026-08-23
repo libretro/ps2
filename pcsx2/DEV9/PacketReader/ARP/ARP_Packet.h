@@ -14,6 +14,8 @@
  */
 
 #pragma once
+
+#include "common/Pcsx2Defs.h"
 #include <vector>
 
 #include "DEV9/PacketReader/Payload.h"

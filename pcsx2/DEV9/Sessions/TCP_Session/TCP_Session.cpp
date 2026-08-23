@@ -14,6 +14,7 @@
  */
 
 #include <retro_timers.h>
+#include "common/Console.h"
 #include "../../../../common/Threading.h"
 #include "TCP_Session.h"
 

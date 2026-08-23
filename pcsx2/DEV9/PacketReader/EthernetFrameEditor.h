@@ -15,6 +15,8 @@
 
 #pragma once
 
+#include "common/Pcsx2Defs.h"
+
 #include "DEV9/net.h"
 #include "MAC_Address.h"
 #include "Payload.h"

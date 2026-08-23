@@ -15,6 +15,8 @@
 
 #pragma once
 
+#include "common/Pcsx2Defs.h"
+
 namespace PacketReader
 {
 #pragma pack(push, 1)

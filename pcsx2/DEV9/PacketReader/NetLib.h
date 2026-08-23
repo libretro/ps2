@@ -15,6 +15,8 @@
 
 #pragma once
 
+#include "common/Pcsx2Defs.h"
+
 #include "DEV9/PacketReader/MAC_Address.h"
 #include <cstring>
 #include "DEV9/PacketReader/IP/IP_Address.h"

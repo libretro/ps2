@@ -14,6 +14,9 @@
  */
 
 #include <algorithm>
+
+#include "common/Pcsx2Defs.h"
+
 #ifdef __POSIX__
 #include <string>
 #include <vector>

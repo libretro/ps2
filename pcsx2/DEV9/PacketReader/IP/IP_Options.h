@@ -15,6 +15,10 @@
 
 #pragma once
 
+#include <vector>
+
+#include "common/Pcsx2Defs.h"
+
 namespace PacketReader::IP
 {
 	class BaseOption

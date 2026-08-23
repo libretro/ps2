@@ -13,6 +13,9 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "common/Console.h"
+#include "common/Pcsx2Defs.h"
+
 #ifdef __POSIX__
 #define SOCKET_ERROR -1
 #include <errno.h>

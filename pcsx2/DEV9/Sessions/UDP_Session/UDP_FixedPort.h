@@ -14,6 +14,8 @@
  */
 
 #pragma once
+
+#include "common/Pcsx2Defs.h"
 #include <retro_atomic.h>
 #ifdef _WIN32
 #include <winsock2.h>

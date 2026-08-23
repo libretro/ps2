@@ -15,6 +15,8 @@
 
 #pragma once
 
+#include "common/Pcsx2Defs.h"
+
 namespace PacketReader::IP
 {
 	struct IP_Address

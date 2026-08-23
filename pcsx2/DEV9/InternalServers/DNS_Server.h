@@ -14,6 +14,8 @@
  */
 
 #pragma once
+
+#include "common/Pcsx2Defs.h"
 #include <retro_atomic.h>
 #include <unordered_map>
 #include <functional>

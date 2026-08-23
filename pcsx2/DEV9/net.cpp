@@ -15,6 +15,8 @@
 
 #include <retro_atomic.h>
 #include <chrono>
+#include "common/Pcsx2Defs.h"
+
 #if defined(__POSIX__)
 #include <pthread.h>
 #endif

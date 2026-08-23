@@ -15,6 +15,8 @@
 
 #pragma once
 
+#include "common/Pcsx2Defs.h"
+
 #ifdef _WIN32
 #include <winsock2.h>
 #include <iphlpapi.h>
@@ -23,6 +25,7 @@
 #include <ifaddrs.h>
 #endif
 
+#include <memory>
 #include <string>
 #include <optional>
 

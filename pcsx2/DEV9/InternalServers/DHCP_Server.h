@@ -15,6 +15,8 @@
 
 #pragma once
 
+#include "common/Pcsx2Defs.h"
+
 #include <functional>
 
 #include "DEV9/SimpleQueue.h"

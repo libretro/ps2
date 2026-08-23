@@ -15,6 +15,10 @@
 
 #pragma once
 
+#include <vector>
+
+#include "common/Pcsx2Defs.h"
+
 #include "TCP_Options.h"
 #include "DEV9/PacketReader/IP/IP_Packet.h"
 

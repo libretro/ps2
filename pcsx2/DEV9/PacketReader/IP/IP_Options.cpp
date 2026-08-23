@@ -13,6 +13,7 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <vector>
 #include "IP_Options.h"
 #include "DEV9/PacketReader/NetLib.h"
 
