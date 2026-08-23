@@ -23,6 +23,7 @@
 #include "../pcsx2/ps2/BiosTools.h"
 #include "../pcsx2/CDVD/CDVD.h"
 #include "../pcsx2/USB/USB.h"
+#include "../pcsx2/DEV9/ATA/HddCreate.h"
 #include "../pcsx2/MTVU.h"
 #include "../pcsx2/Counters.h"
 #include "../pcsx2/Host.h"
@@ -147,6 +148,9 @@ static s8 setting_trilinear_filtering          = 0;
 static bool setting_hint_nointerlacing         = false;
 static bool setting_pcrtc_antiblur             = false;
 static bool setting_enable_cheats              = false;
+static bool setting_dev9_hdd                   = false;
+static bool setting_dev9_eth                   = false;
+static u32  setting_dev9_hdd_sectors           = 40u * (1024 * 1024 * 1024 / 512);
 static bool setting_enable_hw_hacks            = false;
 static bool setting_auto_flush_software        = false;
 static bool setting_disable_depth_conversion   = false;
@@ -385,6 +389,19 @@ static bool is_software_setting(const std::string& s)
 static bool is_software_sw_setting(const std::string& s)
 {
 	return s == "Software (SW)";
+}
+
+/* The HDD image is created lazily so the option works without any file
+ * management on the user's part; an image that already exists is used
+ * as-is regardless of the size option. */
+static void dev9_ensure_hdd_image(u32 size_sectors)
+{
+	const std::string path(Path::Combine(EmuFolders::Settings, "DEV9hdd.raw"));
+	if (path_is_valid(path.c_str()))
+		return;
+	log_cb(RETRO_LOG_INFO, "DEV9: creating HDD image '%s'\n", path.c_str());
+	if (hdd_create(path.c_str(), (u64)size_sectors * 512) != 0)
+		log_cb(RETRO_LOG_ERROR, "DEV9: failed to create HDD image '%s'\n", path.c_str());
 }
 
 static void check_variables(bool first_run)
@@ -1070,6 +1087,59 @@ static void check_variables(bool first_run)
 				s_settings_interface.SetUIntValue("EmuCore/GS", "filter", setting_texture_filtering);
 				updated = true;
 			}
+		}
+	}
+
+	var.key = "pcsx2_dev9_hdd_size";
+	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+	{
+		u32 gib = 40;
+		if (!strcmp(var.value, "8 GiB"))
+			gib = 8;
+		else if (!strcmp(var.value, "16 GiB"))
+			gib = 16;
+		else if (!strcmp(var.value, "20 GiB"))
+			gib = 20;
+		else if (!strcmp(var.value, "40 GiB"))
+			gib = 40;
+		else if (!strcmp(var.value, "80 GiB"))
+			gib = 80;
+		else if (!strcmp(var.value, "120 GiB"))
+			gib = 120;
+		setting_dev9_hdd_sectors = gib * (1024 * 1024 * 1024 / 512);
+		s_settings_interface.SetUIntValue("DEV9/Hdd", "HddSizeSectors", setting_dev9_hdd_sectors);
+	}
+
+	var.key = "pcsx2_dev9_hdd";
+	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+	{
+		const bool dev9_hdd_prev = setting_dev9_hdd;
+		setting_dev9_hdd = !strcmp(var.value, "enabled");
+
+		if (first_run || setting_dev9_hdd != dev9_hdd_prev)
+		{
+			if (setting_dev9_hdd)
+				dev9_ensure_hdd_image(setting_dev9_hdd_sectors);
+			s_settings_interface.SetBoolValue("DEV9/Hdd", "HddEnable", setting_dev9_hdd);
+			updated = true;
+		}
+	}
+
+	var.key = "pcsx2_dev9_eth";
+	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+	{
+		const bool dev9_eth_prev = setting_dev9_eth;
+		setting_dev9_eth = !strcmp(var.value, "enabled");
+
+		if (first_run || setting_dev9_eth != dev9_eth_prev)
+		{
+			s_settings_interface.SetBoolValue("DEV9/Eth", "EthEnable", setting_dev9_eth);
+			if (setting_dev9_eth)
+			{
+				s_settings_interface.SetStringValue("DEV9/Eth", "EthApi", "Sockets");
+				s_settings_interface.SetStringValue("DEV9/Eth", "EthDevice", "Auto");
+			}
+			updated = true;
 		}
 	}
 

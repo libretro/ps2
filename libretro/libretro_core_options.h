@@ -197,6 +197,52 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       "disabled"
    },
    {
+      "pcsx2_dev9_hdd",
+      "System > HDD (DEV9)",
+      "HDD (DEV9)",
+      "Emulate the SPEED expansion's ATA hard drive. The image lives at 'pcsx2/DEV9hdd.raw' in the frontend system directory and is created on first use at the configured size.",
+      NULL,
+      "system",
+      {
+         { "disabled", NULL },
+         { "enabled", NULL },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
+      "pcsx2_dev9_hdd_size",
+      "System > HDD Size",
+      "HDD Size",
+      "Capacity used when a new HDD image is created. An existing image keeps the size it was created with.",
+      NULL,
+      "system",
+      {
+         { "8 GiB", NULL },
+         { "16 GiB", NULL },
+         { "20 GiB", NULL },
+         { "40 GiB", NULL },
+         { "80 GiB", NULL },
+         { "120 GiB", NULL },
+         { NULL, NULL },
+      },
+      "40 GiB"
+   },
+   {
+      "pcsx2_dev9_eth",
+      "System > Ethernet (DEV9)",
+      "Ethernet (DEV9)",
+      "Emulate the SPEED expansion's ethernet adapter through the Sockets backend: a userspace TCP/UDP stack with an internal DHCP server, needing no host network configuration or privileges.",
+      NULL,
+      "system",
+      {
+         { "disabled", NULL },
+         { "enabled", NULL },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
       "pcsx2_renderer",
       "Video > Renderer",
       "Renderer",
