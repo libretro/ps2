@@ -15,6 +15,8 @@
 
 // Micro VU recompiler! - author: cottonvibes(@gmail.com)
 
+#include <stdio.h>  /* fprintf: dispatcher-cache bound check */
+#include <stdlib.h> /* abort */
 #include <string.h> /* memset */
 
 #include "microVU.h"
@@ -96,6 +98,15 @@ void mVUreset(microVU* mVU, int resetReserve)
 	mVUGenerateWaitMTVU(mVU);
 	mVUGenerateCopyPipelineState(mVU);
 	mVUGenerateCompareState(mVU);
+
+	if ((uptr)(x86Ptr - (u8*)mVU->dispCache) > (uptr)mVUdispCacheSize)
+	{
+		/* Emitted helpers overflowed the dispatcher cache: silent
+		 * corruption of whatever follows. Fail loudly instead. */
+		fprintf(stderr, "microVU%d: dispatcher cache overflow (%u > %u)\n",
+			mVU->index, (u32)(x86Ptr - (u8*)mVU->dispCache), (u32)mVUdispCacheSize);
+		abort();
+	}
 
 	vuRegs[mVU->index].nextBlockCycles = 0;
 	memset(&mVU->prog.lpState, 0, sizeof(mVU->prog.lpState));
