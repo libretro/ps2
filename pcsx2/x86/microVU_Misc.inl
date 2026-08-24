@@ -427,8 +427,8 @@ static void mVUmaskAddSub(mV, int a, int b, int t1, int t2, int t3)
 	xe_pcmpgtd_xx(t3, t1);            // 1 > d  <=>  d <= 0
 	xe_por_xx(t2, t3);
 	xe_pand_xx(b, t2);
-	xe_movaps_xm(t3, mVUglob.addm24);
-	xe_pcmpgtd_xx(t3, t1);            // 24 > d  <=>  d <= 24
+	xe_movaps_xm(t3, mVUglob.addm25);
+	xe_pcmpgtd_xx(t3, t1);            // 25 > d  <=>  d <= 24: distance 24 keeps bit 23
 	xe_por_xm(t3, mVUglob.signbit);
 	xe_pand_xx(b, t3);
 
