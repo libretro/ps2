@@ -251,7 +251,11 @@ static void setupFtReg(microVU& mVU, a64::VRegister& Ft, a64::VRegister& tempFt,
 		// bypassing SSE_MULPS loses no clamps and the raw guest reg is never clamped
 		// in place. x86 SSE cannot express this fold.
 		const bool willClamp = (clampE || ((clampType & cFt) && !clampE && (CHECK_VU_OVERFLOW(mVU.index) || CHECK_VU_SIGN_OVERFLOW(mVU.index))));
-		if (canLaneFold && !willClamp && !_XYZW_SS)
+		/* The raw Fmul bypasses the exact multiplier entirely, so the
+		 * fold must not fire when the exact model is on - found in the
+		 * vf0 parity port: with the option enabled, every folded
+		 * broadcast multiply was a plain host multiply. */
+		if (canLaneFold && !willClamp && !_XYZW_SS && !CHECK_VU_EXACTMUL)
 		{
 			Ft     = mVU.regAlloc->allocReg(_Ft_); // read-only mapping, held until the consumer's Fmul
 			tempFt = xEmptyReg;
@@ -316,7 +320,14 @@ static void mVU_FMACa(microVU& mVU, int recPass, int opCase, int opType, bool is
 		// Lane-fold (bcLane>=0) == Dup + SSE_PS[2] under the no-clamp gate; opType==2
 		// (MUL) is the only foldable FMACa op. vm MUST be the scalar .S() view — vixl's
 		// by-element Fmul keys element size off vm's format; a V4S vm selects fp16.
-		if (bcLane >= 0)   armAsm->Fmul(Fs.V4S(), Fs.V4S(), Ft.S(), bcLane);
+		// vf0 identities first, mirroring the x86 dispatch: add/sub of a
+		// broadcast +0.0 and multiply by a vf0 lane skip their pipelines.
+		if ((opType <= 1) && CHECK_VU_ACC_ADDSUB && (opCase == 2) && (_Ft_ == 0) && (_bc_ != 3))
+			mVUaddSubVF0(mVU, Fs, opType == 1, _XYZW_SS);
+		else if ((opType == 2) && CHECK_VU_EXACTMUL && mVUexactMulVF0(mVU, Fs, opCase, _XYZW_SS))
+		{
+		}
+		else if (bcLane >= 0)   armAsm->Fmul(Fs.V4S(), Fs.V4S(), Ft.S(), bcLane);
 		else if (_XYZW_SS) SSE_SS[opType](mVU, Fs, Ft, xEmptyReg, xEmptyReg);
 		else               SSE_PS[opType](mVU, Fs, Ft, xEmptyReg, xEmptyReg);
 
@@ -366,7 +377,10 @@ static void mVU_FMACb(microVU& mVU, int recPass, int opCase, int opType, microOp
 		if (clampType & cFs)                 mVUclamp2(mVU, Fs, xEmptyReg, _X_Y_Z_W);
 
 		// Step 1: Multiply Fs * Ft (lane-fold when bcLane>=0; see mVU_FMACa).
-		if (bcLane >= 0)   armAsm->Fmul(Fs.V4S(), Fs.V4S(), Ft.S(), bcLane);
+		if (CHECK_VU_EXACTMUL && mVUexactMulVF0(mVU, Fs, opCase, _XYZW_SS))
+		{
+		}
+		else if (bcLane >= 0)   armAsm->Fmul(Fs.V4S(), Fs.V4S(), Ft.S(), bcLane);
 		else if (_XYZW_SS) SSE_SS[2](mVU, Fs, Ft, xEmptyReg, xEmptyReg);
 		else               SSE_PS[2](mVU, Fs, Ft, xEmptyReg, xEmptyReg);
 
@@ -418,7 +432,12 @@ static void mVU_FMACc(microVU& mVU, int recPass, int opCase, microOpcode opEnum,
 		if (clampType & cACC)                mVUclamp2(mVU, ACC, xEmptyReg, _X_Y_Z_W);
 
 		// Step 1: Fs = Fs * Ft (lane-fold when bcLane>=0). Step 2: Fs = Fs + ACC.
-		if (_XYZW_SS) { SSE_SS[2](mVU, Fs, Ft, xEmptyReg, xEmptyReg); SSE_SS[0](mVU, Fs, ACC, tempFt, xEmptyReg); }
+		if (CHECK_VU_EXACTMUL && mVUexactMulVF0(mVU, Fs, opCase, _XYZW_SS))
+		{
+			if (_XYZW_SS) SSE_SS[0](mVU, Fs, ACC, tempFt, xEmptyReg);
+			else          SSE_PS[0](mVU, Fs, ACC, tempFt, xEmptyReg);
+		}
+		else if (_XYZW_SS) { SSE_SS[2](mVU, Fs, Ft, xEmptyReg, xEmptyReg); SSE_SS[0](mVU, Fs, ACC, tempFt, xEmptyReg); }
 		else
 		{
 			if (bcLane >= 0) armAsm->Fmul(Fs.V4S(), Fs.V4S(), Ft.S(), bcLane);
@@ -458,7 +477,12 @@ static void mVU_FMACd(microVU& mVU, int recPass, int opCase, microOpcode opEnum,
 		if (clampType & cACC)                mVUclamp2(mVU, Fd, xEmptyReg, _X_Y_Z_W);
 
 		// Step 1: Fs = Fs * Ft (lane-fold when bcLane>=0). Step 2: Fd = Fd - Fs.
-		if (_XYZW_SS) { SSE_SS[2](mVU, Fs, Ft, xEmptyReg, xEmptyReg); SSE_SS[1](mVU, Fd, Fs, tempFt, xEmptyReg); }
+		if (CHECK_VU_EXACTMUL && mVUexactMulVF0(mVU, Fs, opCase, _XYZW_SS))
+		{
+			if (_XYZW_SS) SSE_SS[1](mVU, Fd, Fs, tempFt, xEmptyReg);
+			else          SSE_PS[1](mVU, Fd, Fs, tempFt, xEmptyReg);
+		}
+		else if (_XYZW_SS) { SSE_SS[2](mVU, Fs, Ft, xEmptyReg, xEmptyReg); SSE_SS[1](mVU, Fd, Fs, tempFt, xEmptyReg); }
 		else
 		{
 			if (bcLane >= 0) armAsm->Fmul(Fs.V4S(), Fs.V4S(), Ft.S(), bcLane);

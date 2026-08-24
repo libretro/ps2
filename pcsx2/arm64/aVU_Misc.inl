@@ -296,6 +296,67 @@ static void MIN_MAX_SS(mV, const a64::VRegister& to, const a64::VRegister& from,
 // Masks a in place and leaves the masked copy of b in vc; b is not
 // modified. vm and vs are scratch, as is v0 (free here, like the
 // scalar path's use of v2 established).
+/* vf0 identities, the aVU twins of the x86 specializations, same
+ * oracle proofs: a broadcast add of +0.0 is the value except zero-
+ * exponent inputs which pack to +0.0 (subtract keeps the sign), and
+ * a multiply by vf0.w is the value under the same zero-exponent
+ * select while the x, y and z lanes give the sign alone. The NEON
+ * forms lean on two tricks: an all-ones compare mask shifted right
+ * once is exactly the magnitude mask the sign-preserving cases
+ * need, and Bic folds the select into one op. Fixed scratch
+ * registers, zero allocator pressure. Broadcast forms only - the
+ * census puts the whole measured class there. */
+static void mVUaddSubVF0(microVU& mVU, const a64::VRegister& reg, bool isSub, bool isSS)
+{
+	const a64::VRegister& T = RQSCRATCH;
+	armAsm->Shl (T.V4S(), reg.V4S(), 1);
+	armAsm->Ushr(T.V4S(), T.V4S(), 24);
+	armAsm->Cmeq(T.V4S(), T.V4S(), 0);
+	if (isSub)
+		armAsm->Ushr(T.V4S(), T.V4S(), 1);
+	if (isSS)
+	{
+		const a64::VRegister& U = RQSCRATCH2;
+		armAsm->Bic(U.V16B(), reg.V16B(), T.V16B());
+		armAsm->Ins(reg.V4S(), 0, U.V4S(), 0);
+	}
+	else
+		armAsm->Bic(reg.V16B(), reg.V16B(), T.V16B());
+}
+
+static bool mVUexactMulVF0(microVU& mVU, const a64::VRegister& reg, int opCase, bool isSS)
+{
+	if (opCase != 2 || _Ft_ != 0)
+		return false;
+	const a64::VRegister& T = RQSCRATCH;
+	if (_bc_ != 3)
+	{
+		armAsm->Movi(T.V4S(), 0x80, a64::LSL, 24);
+		if (isSS)
+		{
+			const a64::VRegister& U = RQSCRATCH2;
+			armAsm->And(U.V16B(), reg.V16B(), T.V16B());
+			armAsm->Ins(reg.V4S(), 0, U.V4S(), 0);
+		}
+		else
+			armAsm->And(reg.V16B(), reg.V16B(), T.V16B());
+		return true;
+	}
+	armAsm->Shl (T.V4S(), reg.V4S(), 1);
+	armAsm->Ushr(T.V4S(), T.V4S(), 24);
+	armAsm->Cmeq(T.V4S(), T.V4S(), 0);
+	armAsm->Ushr(T.V4S(), T.V4S(), 1);
+	if (isSS)
+	{
+		const a64::VRegister& U = RQSCRATCH2;
+		armAsm->Bic(U.V16B(), reg.V16B(), T.V16B());
+		armAsm->Ins(reg.V4S(), 0, U.V4S(), 0);
+	}
+	else
+		armAsm->Bic(reg.V16B(), reg.V16B(), T.V16B());
+	return true;
+}
+
 static void mVUmaskAddSubPS(mV, const a64::VRegister& a, const a64::VRegister& b,
 	const a64::VRegister& vc, const a64::VRegister& vm, const a64::VRegister& vs)
 {
