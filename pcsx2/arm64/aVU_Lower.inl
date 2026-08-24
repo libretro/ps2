@@ -1444,11 +1444,22 @@ mVUop(mVU_ILWR)
 		void* ptr = (void*)(mVU.regs().Mem + offsetSS);
 		if (_Is_)
 		{
-			mVU.regAlloc->moveVIToGPR(gprT1, _Is_);
-			mVUaddrFix(mVU, gprT1q, gprT2q);
+			const std::optional<const void*> optaddr = EmuConfig.Gamefixes.IbitHack ? std::nullopt : mVUoptimizeConstantAddr(mVU, _Is_, 0, offsetSS);
+			if (!optaddr.has_value())
+			{
+				mVU.regAlloc->moveVIToGPR(gprT1, _Is_);
+				mVUaddrFix(mVU, gprT1q, gprT2q);
+			}
 
 			const a64::Register regT = mVU.regAlloc->allocGPR(-1, _It_, mVUlow.backupVI);
-			mvuComplexAddr(gprT2q, ptr, gprT1q);
+			if (optaddr.has_value())
+			{
+				armMoveAddressToReg(gprT2q, optaddr.value());
+			}
+			else
+			{
+				mvuComplexAddr(gprT2q, ptr, gprT1q);
+			}
 			armAsm->Ldrh(regT.W(), a64::MemOperand(gprT2q));
 			mVU.regAlloc->clearNeeded(regT);
 		}
@@ -1527,9 +1538,19 @@ mVUop(mVU_ISWR)
 		bool hasIs = false;
 		if (_Is_)
 		{
-			mVU.regAlloc->moveVIToGPR(gprT1, _Is_);
-			mVUaddrFix(mVU, gprT1q, gprT2q);
-			hasIs = true;
+			const std::optional<const void*> optaddr = EmuConfig.Gamefixes.IbitHack ? std::nullopt : mVUoptimizeConstantAddr(mVU, _Is_, 0, 0);
+			if (optaddr.has_value())
+			{
+				/* The folded address becomes the store base; the lane
+				 * stores below run unchanged on the absolute form. */
+				base = (void*)optaddr.value();
+			}
+			else
+			{
+				mVU.regAlloc->moveVIToGPR(gprT1, _Is_);
+				mVUaddrFix(mVU, gprT1q, gprT2q);
+				hasIs = true;
+			}
 		}
 		const a64::Register regT = mVU.regAlloc->allocGPR(_It_, -1, false, true);
 		const a64::Register baseR = gprT2q;
@@ -1631,20 +1652,31 @@ mVUop(mVU_LQI)
 	{
 		void* ptr = (void*)mVU.regs().Mem;
 		bool hasIs = false;
+		std::optional<const void*> optaddr = std::nullopt;
 		if (_Is_)
 		{
+			/* A const-known address register folds the load to an
+			 * absolute access; the post-increment still runs. */
+			if (!EmuConfig.Gamefixes.IbitHack)
+				optaddr = mVUoptimizeConstantAddr(mVU, _Is_, 0, 0);
 			const a64::Register regS = mVU.regAlloc->allocGPR(_Is_, _Is_, mVUlow.backupVI);
-			armAsm->Sxth(gprT1.W(), regS.W()); // TODO: Confirm
+			if (!optaddr.has_value())
+				armAsm->Sxth(gprT1.W(), regS.W()); // TODO: Confirm
 			armAsm->Add(regS.W(), regS.W(), 1);
 			mVU.regAlloc->clearNeeded(regS);
-			mVUaddrFix(mVU, gprT1q, gprT2q);
-			hasIs = true;
+			if (!optaddr.has_value())
+			{
+				mVUaddrFix(mVU, gprT1q, gprT2q);
+				hasIs = true;
+			}
 		}
 		if (!mVUlow.noWriteVF)
 		{
 			const a64::VRegister Ft = mVU.regAlloc->allocReg(-1, _Ft_, _X_Y_Z_W);
 			const a64::Register base = gprT2q;
-			if (!hasIs)
+			if (optaddr.has_value())
+				armMoveAddressToReg(base, optaddr.value());
+			else if (!hasIs)
 				armMoveAddressToReg(base, ptr);
 			else
 				mvuComplexAddr(base, ptr, gprT1q);
@@ -1736,17 +1768,24 @@ mVUop(mVU_SQI)
 	pass2
 	{
 		void* ptr = (void*)mVU.regs().Mem;
+		std::optional<const void*> optaddr = std::nullopt;
 		if (_It_)
 		{
+			if (!EmuConfig.Gamefixes.IbitHack)
+				optaddr = mVUoptimizeConstantAddr(mVU, _It_, 0, 0);
 			const a64::Register regT = mVU.regAlloc->allocGPR(_It_, _It_, mVUlow.backupVI);
-			armAsm->Uxth(gprT1.W(), regT.W());
+			if (!optaddr.has_value())
+				armAsm->Uxth(gprT1.W(), regT.W());
 			armAsm->Add(regT.W(), regT.W(), 1);
 			mVU.regAlloc->clearNeeded(regT);
-			mVUaddrFix(mVU, gprT1q, gprT2q);
+			if (!optaddr.has_value())
+				mVUaddrFix(mVU, gprT1q, gprT2q);
 		}
 		const a64::VRegister Fs = mVU.regAlloc->allocReg(_Fs_, _XYZW_PS ? -1 : 0, _X_Y_Z_W);
 		const a64::Register base = gprT2q;
-		if (_It_)
+		if (optaddr.has_value())
+			armMoveAddressToReg(base, optaddr.value());
+		else if (_It_)
 			mvuComplexAddr(base, ptr, gprT1q);
 		else
 			armMoveAddressToReg(base, ptr);
