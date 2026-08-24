@@ -52,6 +52,16 @@ static void mVUtrackVIConst(microVU* mVU)
 		else if (l == 0x31 && vicKnown(_Is_) && vicKnown(_It_))   { valid = 1; value = (u16)(vicVal(_Is_) - vicVal(_It_)); }   /* ISUB  */
 		else if (l == 0x34 && vicKnown(_Is_) && vicKnown(_It_))   { valid = 1; value = (u16)(vicVal(_Is_) & vicVal(_It_)); }   /* IAND  */
 		else if (l == 0x35 && vicKnown(_Is_) && vicKnown(_It_))   { valid = 1; value = (u16)(vicVal(_Is_) | vicVal(_It_)); }   /* IOR   */
+		else if (l >= 0x3c && ((mVU->code >> 6) & 0x1f) == 0x0d && vicKnown(wreg))
+		{
+			/* LQI and SQI post-increment their address register, LQD
+			 * and SQD pre-decrement it; a known register stays known
+			 * through the adjustment, which is what lets an unrolled
+			 * streaming chain fold every link to its own absolute
+			 * address. */
+			valid = 1;
+			value = (u16)(vicVal(wreg) + ((l <= 0x3d) ? 1 : -1));
+		}
 	}
 	mVUconstReg[wreg].isValid  = valid;
 	mVUconstReg[wreg].regValue = value;

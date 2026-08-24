@@ -1168,11 +1168,22 @@ mVUop(mVU_ILWR)
 		void* ptr = vuRegs[mVU->index].Mem + offsetSS;
 		if (_Is_)
 		{
-			mVUra_moveVIToGPR(mVU->regAlloc, gprT1, _Is_, 0);
-			mVUaddrFix (mVU, gprT1q);
+			const struct e_memopt optaddr = EmuConfig.Gamefixes.IbitHack ? e_memopt_none() : mVUoptimizeConstantAddr(mVU, _Is_, 0, offsetSS);
+			if (!optaddr.has)
+			{
+				mVUra_moveVIToGPR(mVU->regAlloc, gprT1, _Is_, 0);
+				mVUaddrFix (mVU, gprT1q);
+			}
 
 			const int regT = mVUra_allocGPR(mVU->regAlloc, -1, _It_, mVUlow.backupVI, 0);
-			{ struct e_mem xm; xe_complexaddr_si(xm, gprT2q, ptr, gprT1q, 1); xe_movzx32_rmemg16(regT, xm); }
+			if (optaddr.has)
+			{
+				xe_movzx32_rmemg16(regT, optaddr.m);
+			}
+			else
+			{
+				struct e_mem xm; xe_complexaddr_si(xm, gprT2q, ptr, gprT1q, 1); xe_movzx32_rmemg16(regT, xm);
+			}
 			mVUra_clearNeededGPR(mVU->regAlloc, regT);
 		}
 		else
@@ -1243,9 +1254,20 @@ mVUop(mVU_ISWR)
 		int is = -1;
 		if (_Is_)
 		{
-			mVUra_moveVIToGPR(mVU->regAlloc, gprT1, _Is_, 0);
-			mVUaddrFix(mVU, gprT1q);
-			is = gprT1q;
+			const struct e_memopt optaddr = EmuConfig.Gamefixes.IbitHack ? e_memopt_none() : mVUoptimizeConstantAddr(mVU, _Is_, 0, 0);
+			if (optaddr.has)
+			{
+				/* The helper's absolute form carries the folded address
+				 * in disp; base absorbs it and the store lanes below
+				 * take their existing is-less path. */
+				base = (void*)optaddr.m.disp;
+			}
+			else
+			{
+				mVUra_moveVIToGPR(mVU->regAlloc, gprT1, _Is_, 0);
+				mVUaddrFix(mVU, gprT1q);
+				is = gprT1q;
+			}
 		}
 		const int regT = mVUra_allocGPR(mVU->regAlloc, _It_, -1, 0, 1);
 		if (!(is < 0) && (sptr)base != (s32)(sptr)base)
@@ -1358,19 +1380,28 @@ mVUop(mVU_LQI)
 	{
 		void* ptr = vuRegs[mVU->index].Mem;
 		int is = -1;
+		struct e_memopt optaddr = e_memopt_none();
 		if (_Is_)
 		{
+			/* A const-known address register folds the load to an
+			 * absolute access; the post-increment still runs. */
+			if (!EmuConfig.Gamefixes.IbitHack)
+				optaddr = mVUoptimizeConstantAddr(mVU, _Is_, 0, 0);
 			const int regS = mVUra_allocGPR(mVU->regAlloc, _Is_, _Is_, mVUlow.backupVI, 0);
-			xe_movsx32_rr16(gprT1, regS); // TODO: Confirm
+			if (!optaddr.has)
+				xe_movsx32_rr16(gprT1, regS); // TODO: Confirm
 			xe_inc32_r(regS);
 			mVUra_clearNeededGPR(mVU->regAlloc, regS);
-			mVUaddrFix(mVU, gprT1q);
-			is = gprT1q;
+			if (!optaddr.has)
+			{
+				mVUaddrFix(mVU, gprT1q);
+				is = gprT1q;
+			}
 		}
 		if (!mVUlow.noWriteVF)
 		{
 			const int Ft = mVUra_allocReg(mVU->regAlloc, -1, _Ft_, _X_Y_Z_W, 1);
-			struct e_mem _mp; if ((is < 0)) _mp = e_mem_abs(ptr); else xe_complexaddr_si(_mp, gprT2q, ptr, is, 1);
+			struct e_mem _mp; if (optaddr.has) _mp = optaddr.m; else if ((is < 0)) _mp = e_mem_abs(ptr); else xe_complexaddr_si(_mp, gprT2q, ptr, is, 1);
 			mVUloadReg(Ft, _mp, _X_Y_Z_W);
 			mVUra_clearNeededXMM(mVU->regAlloc, Ft);
 		}
@@ -1446,16 +1477,21 @@ mVUop(mVU_SQI)
 	pass2
 	{
 		void* ptr = vuRegs[mVU->index].Mem;
+		struct e_memopt optaddr = e_memopt_none();
 		if (_It_)
 		{
+			if (!EmuConfig.Gamefixes.IbitHack)
+				optaddr = mVUoptimizeConstantAddr(mVU, _It_, 0, 0);
 			const int regT = mVUra_allocGPR(mVU->regAlloc, _It_, _It_, mVUlow.backupVI, 0);
-			xe_movzx32_rr16(gprT1, regT);
+			if (!optaddr.has)
+				xe_movzx32_rr16(gprT1, regT);
 			xe_inc32_r(regT);
 			mVUra_clearNeededGPR(mVU->regAlloc, regT);
-			mVUaddrFix(mVU, gprT1q);
+			if (!optaddr.has)
+				mVUaddrFix(mVU, gprT1q);
 		}
 		const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, _XYZW_PS ? -1 : 0, _X_Y_Z_W, 1);
-		struct e_mem _mp; if (_It_) xe_complexaddr_si(_mp, gprT2q, ptr, gprT1q, 1); else _mp = e_mem_abs(ptr);
+		struct e_mem _mp; if (optaddr.has) _mp = optaddr.m; else if (_It_) xe_complexaddr_si(_mp, gprT2q, ptr, gprT1q, 1); else _mp = e_mem_abs(ptr);
 		mVUsaveReg(Fs, _mp, _X_Y_Z_W, 1);
 		mVUra_clearNeededXMM(mVU->regAlloc, Fs);
 	}
