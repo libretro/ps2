@@ -997,6 +997,8 @@ static uintptr_t xe_opaque_uptr(const void *p)
 #define xe_vpcmpgtd_xxm(d, s1, addr, L) do { XE_OPEN(); E_VEX_RRM(xep, 0x66, 0x66, (d), (s1), (addr), (L)); XE_CLOSE(); } while (0)
 #define xe_vpand_xxm2(d, s1, addr, L) do { XE_OPEN(); E_VEX_RRM(xep, 0x66, 0xdb, (d), (s1), (addr), (L)); XE_CLOSE(); } while (0)
 #define xe_vpsllvd_xxx(d, s1, s2, L) do { XE_OPEN(); E_VEX38_RRR(xep, 0x66, 0x47, (d), (s1), (s2), (L)); XE_CLOSE(); } while (0)
+/* two-operand 0F38 forms encode vvvv as 1111: src1 of zero yields that */
+#define xe_vpabsd_xx(d, s, L)        do { XE_OPEN(); E_VEX38_RRR(xep, 0x66, 0x1e, (d), 0, (s), (L)); XE_CLOSE(); } while (0)
 #define xe_vpslld_xxi(d, s, i, L)    do { XE_OPEN(); E_VEX_SHIFT_I(xep, 0x66, 6, (d), (s), (i), (L)); XE_CLOSE(); } while (0)
 #define xe_vpsrld_xxi(d, s, i, L)    do { XE_OPEN(); E_VEX_SHIFT_I(xep, 0x66, 2, (d), (s), (i), (L)); XE_CLOSE(); } while (0)
 #define xe_vpsrad_xxi(d, s, i, L)    do { XE_OPEN(); E_VEX_SHIFT_I(xep, 0x66, 4, (d), (s), (i), (L)); XE_CLOSE(); } while (0)

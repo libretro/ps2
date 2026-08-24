@@ -469,11 +469,7 @@ static void mVUmaskAddSubFused(mV, int a, int b, int tD, int tM, int tS)
 	xe_pand_xm(tS, mVUglob.exponent);
 	xe_psrld_xi(tS, 23);
 	xe_psubd_xx(tD, tS);              // d
-	xe_movaps_xx(tM, tD);
-	xe_psrad_xi(tM, 31);
-	xe_movaps_xx(tS, tD);
-	xe_pxor_xx(tS, tM);
-	xe_psubd_xx(tS, tM);
+	xe_pabsd_xx(tS, tD);
 	xe_psubd_xm(tS, mVUglob.addm1);   // c = |d| - 1
 	xe_movaps_xm(tM, mVUglob.addm24);
 	xe_pcmpgtd_xx(tM, tS);            // 24 > c  <=>  |d| <= 24
@@ -517,9 +513,7 @@ static void mVUmaskAddSubFusedAVX(mV, int a, int b, int tD, int tM, int tS)
 	xe_vpslld_xxi(tS, b, 1, 0);
 	xe_vpsrld_xxi(tS, tS, 24, 0);
 	xe_vpsubd_xxx(tD, tD, tS, 0);               // d
-	xe_vpsrad_xxi(tM, tD, 31, 0);
-	xe_vpxor_xxx(tS, tD, tM, 0);
-	xe_vpsubd_xxx(tS, tS, tM, 0);               // |d|
+	xe_vpabsd_xx(tS, tD, 0);
 	xe_vpsubd_xxm(tS, tS, mVUglob.addm1, 0);    // c
 	xe_vpcmpeqd_xxx(tM, tM, tM, 0);
 	xe_vpsllvd_xxx(tM, tM, tS, 0);              // keep
