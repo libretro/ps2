@@ -503,19 +503,34 @@ static void mVUmaskAddSubFused(mV, int a, int b, int tD, int tM, int tS)
 // source is a cached VF register: mask a copy, never the original.
 static void mVUmaskedAddSubOp(mV, int to, int from, bool isPS, bool issub)
 {
-	if (isPS && !clampE)
+	if (!clampE)
 	{
 		/* Default mode: clamp3/clamp4 emit nothing, so the lean fused
-		 * schedule applies - one fewer temp and fewer instructions,
-		 * proven bit-identical by the differential harness. The scalar
-		 * forms keep the original shape while their GPR rework is under
-		 * investigation. */
+		 * schedules apply - proven bit-identical by the emitted-bytes
+		 * differential harness, and free of GPR use entirely: the
+		 * GPR-based scalar rework broke rendering in the wild through a
+		 * mechanism still unidentified, so these paths touch none. */
 		const int tD = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
 		const int tM = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
 		const int tS = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
-		mVUmaskAddSubFused(mVU, to, from, tD, tM, tS);
-		if (issub) xe_subps_xx(to, tD);
-		else       xe_addps_xx(to, tD);
+		if (isPS)
+		{
+			mVUmaskAddSubFused(mVU, to, from, tD, tM, tS);
+			if (issub) xe_subps_xx(to, tD);
+			else       xe_addps_xx(to, tD);
+		}
+		else
+		{
+			/* lane 0 result only: compute on a copy of the destination
+			 * so its upper lanes survive. */
+			const int dst = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+			xe_movaps_xx(dst, to);
+			mVUmaskAddSubFused(mVU, dst, from, tD, tM, tS);
+			if (issub) xe_subss_xx(dst, tD);
+			else       xe_addss_xx(dst, tD);
+			xe_movss_xx(to, dst);
+			mVUra_clearNeededXMM(mVU->regAlloc, dst);
+		}
 		mVUra_clearNeededXMM(mVU->regAlloc, tD);
 		mVUra_clearNeededXMM(mVU->regAlloc, tM);
 		mVUra_clearNeededXMM(mVU->regAlloc, tS);
