@@ -495,6 +495,36 @@ static void mVUmaskAddSubFused(mV, int a, int b, int tD, int tM, int tS)
 	xe_movaps_xx(tD, tM);             // masked b copy
 }
 
+// AVX-512 form: three ternary-logic folds shorten the AVX2 mask from
+// twenty instructions to fifteen. Proven in the emitted-bytes
+// differential against the fused SSE mask - twelve million lanes under
+// chop, denormals-are-zero and flush-to-zero, five register patterns -
+// before any tree consumer existed; landed now that the microcode
+// audit puts real weight on the add/sub mask (Tekken's per-vertex
+// SUBq and the accumulate stages of its MSUB transform chains).
+// Same contract as the other forms.
+static void mVUmaskAddSubFusedAVX512(mV, int a, int b, int tD, int tM, int tS)
+{
+	const int tX = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+	xe_vpslld_xxi(tD, a, 1, 0);
+	xe_vpsrld_xxi(tD, tD, 24, 0);
+	xe_vpslld_xxi(tS, b, 1, 0);
+	xe_vpsrld_xxi(tS, tS, 24, 0);
+	xe_vpsubd_xxx(tD, tD, tS, 0);            // d
+	xe_vpabsd_xx(tS, tD, 0);
+	xe_vpsubd_xxm(tS, tS, mVUglob.addm1, 0); // c
+	xe_vpcmpeqd_xxx(tM, tM, tM, 0);
+	xe_vpsllvd_xxx(tM, tM, tS, 0);           // keep
+	xe_vpcmpgtd_xxm(tS, tS, mVUglob.addm23, 0); // big
+	xe_movaps_xm(tX, mVUglob.signbit);
+	xe_vpternlogd_xxxi(tM, tS, tX, 0xBA);    // M = (keep & ~big) | sign
+	xe_vpcmpgtd_xxm(tS, tD, mVUglob.addmall, 0); // d >= 0
+	xe_vpternlogd_xxxi(a, tM, tS, 0xE0);     // a &= M | ge0
+	xe_vpcmpgtd_xxm(tD, tD, mVUglob.addzero, 0); // pos = d > 0
+	xe_vpternlogd_xxxi(tD, tM, b, 0x8A);     // bcopy = b & (M | ~pos)
+	mVUra_clearNeededXMM(mVU->regAlloc, tX);
+}
+
 // AVX2 form of the fused mask: identical algebra, three-operand
 // encodings and a per-lane variable shift. vpsllvd makes the keep mask
 // directly - counts of 32 and above, including the wrapped negatives of
@@ -544,11 +574,13 @@ static void mVUmaskedAddSubOp(mV, int to, int from, bool isPS, bool issub)
 		const int tD = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
 		const int tM = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
 		const int tS = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+		const bool avx512 = CPU_HAS_AVX512;
 		const bool avx2 = CPU_HAS_AVX2;
 		if (isPS)
 		{
-			if (avx2) mVUmaskAddSubFusedAVX(mVU, to, from, tD, tM, tS);
-			else      mVUmaskAddSubFused(mVU, to, from, tD, tM, tS);
+			if (avx512)    mVUmaskAddSubFusedAVX512(mVU, to, from, tD, tM, tS);
+			else if (avx2) mVUmaskAddSubFusedAVX(mVU, to, from, tD, tM, tS);
+			else           mVUmaskAddSubFused(mVU, to, from, tD, tM, tS);
 			if (issub) xe_subps_xx(to, tD);
 			else       xe_addps_xx(to, tD);
 		}
@@ -558,8 +590,9 @@ static void mVUmaskedAddSubOp(mV, int to, int from, bool isPS, bool issub)
 			 * so its upper lanes survive. */
 			const int dst = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
 			xe_movaps_xx(dst, to);
-			if (avx2) mVUmaskAddSubFusedAVX(mVU, dst, from, tD, tM, tS);
-			else      mVUmaskAddSubFused(mVU, dst, from, tD, tM, tS);
+			if (avx512)    mVUmaskAddSubFusedAVX512(mVU, dst, from, tD, tM, tS);
+			else if (avx2) mVUmaskAddSubFusedAVX(mVU, dst, from, tD, tM, tS);
+			else           mVUmaskAddSubFused(mVU, dst, from, tD, tM, tS);
 			if (issub) xe_subss_xx(dst, tD);
 			else       xe_addss_xx(dst, tD);
 			xe_movss_xx(to, dst);
