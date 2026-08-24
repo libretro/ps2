@@ -39,6 +39,7 @@ struct mVU_Globals
 	u32   addm25  [4] = __four(0x00000019);
 	u32   addm23  [4] = __four(0x00000017);
 	u32   addzero [4] = __four(0x00000000);
+	u32   multz16 [4] = __four(0x0000ffff);
 	u32   addmall [4] = __four(0xffffffff);
 	u32   addmn25 [4] = __four(0xffffffe7);   /* -25 */
 	u32   mulman  [4] = __four(0x007fffff);   /* exact multiply */
