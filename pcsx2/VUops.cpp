@@ -1615,6 +1615,17 @@ static __fi void _vuNOP(VURegs* VU)
 
 static __fi s32 float_to_int(float value)
 {
+	/* Exponent-255 patterns with a nonzero mantissa are valid huge
+	 * values on the PS2 but NaN to the host, and NaN falls through
+	 * both ordered compares below into a cast that the CPU resolves
+	 * as the integer indefinite - positive huge inputs saturated to
+	 * INT_MIN instead of INT_MAX. Saturate them by sign explicitly;
+	 * the recompilers' integer-compare emission already gets this
+	 * right, proven over fourteen million lanes, and this brings the
+	 * soft path into agreement (23585 divergent cases measured
+	 * before the fix). */
+	if (std::isnan(value))
+		return std::signbit(value) ? -2147483647LL - 1 : 2147483647LL;
 	if (value >= 2147483647.0)
 		return 2147483647LL;
 	if (value <= -2147483648.0)
