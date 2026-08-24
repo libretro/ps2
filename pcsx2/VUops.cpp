@@ -1678,10 +1678,10 @@ static __fi void _vuITOF0(VURegs* VU)
 	if (_Ft_ == 0)
 		return;
 
-	if (_X) VU->VF[_Ft_].f.x = (float)VU->VF[_Fs_].SL[0];
-	if (_Y) VU->VF[_Ft_].f.y = (float)VU->VF[_Fs_].SL[1];
-	if (_Z) VU->VF[_Ft_].f.z = (float)VU->VF[_Fs_].SL[2];
-	if (_W) VU->VF[_Ft_].f.w = (float)VU->VF[_Fs_].SL[3];
+	if (_X) VU->VF[_Ft_].f.x = vu_itof_chop(VU->VF[_Fs_].SL[0]);
+	if (_Y) VU->VF[_Ft_].f.y = vu_itof_chop(VU->VF[_Fs_].SL[1]);
+	if (_Z) VU->VF[_Ft_].f.z = vu_itof_chop(VU->VF[_Fs_].SL[2]);
+	if (_W) VU->VF[_Ft_].f.w = vu_itof_chop(VU->VF[_Fs_].SL[3]);
 }
 
 static __fi void _vuITOF4(VURegs* VU)
