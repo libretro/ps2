@@ -135,6 +135,105 @@ and the mem-interpreted JIT (`LRPS2_NO_EE_MEM=1`) baselines; JIT-vs-baseline
 lockstep is verified with per-frame RAM+scratchpad hashes, per-op GPR-hash
 traces, and interrupt/syscall vector logs (see debug toggles below).
 
+## Float accuracy: the ps2float work
+
+The PS2's FPU and VUs are not IEEE-754: no NaN or infinity, a wider effective
+range at the top of the exponent scale, truncating (chop) arithmetic, an adder
+that discards low bits of the smaller operand by exponent distance, and a
+multiplier built from a truncated Booth/carry-save tree whose last-bit
+behaviour differs from a correctly rounded multiply. Upstream approximates
+this with clamping hacks and per-game fixes. This tree models it.
+
+### The model
+
+`pcsx2/ps2float.c/.h` is a C89, dependency-free, bit-exact software model of
+the PS2 float pipeline (add, sub, mul, madd chains, min/max, compares,
+conversions), validated against the reference implementation from PCSX2's own
+research (31.9 million cross-checked cases). Everything below is proven
+against it; "byte-exact" in this section always means byte-exact against this
+model, which is byte-exact against hardware for the covered operations.
+
+### What is exact, where
+
+* **EE FPU (COP1), interpreter:** fully soft, unconditionally.
+* **EE FPU, x86 and arm64 recompilers:** ADD/SUB byte-exact through an
+  extended-range double-precision pipeline; the MUL/MADD family through the
+  same pipeline (near-exact; last-ulp divergences only); MAX/MIN and all
+  compares as integer operations (exact, and faster than the clamped
+  sequences they replaced). A `pcsx2_fpu_softfloat` option routes the
+  remainder through the model for full exactness at interpreter cost.
+* **VU interpreters:** fully soft, unconditionally.
+* **VU recompilers (x86 mVU and arm64 aVU), add/sub:** the hardware adder's
+  exponent-distance operand masking, emitted inline. Reduces mismatch against
+  the model from 44.9 % of random cases to 0.79 % (the remainder is the
+  exponent-255 range single precision cannot represent). This replaced the
+  old VuAddSub gamefix outright; Tri-Ace titles need the option on.
+* **VU recompilers, multiply:** a full emitted model of the truncated Booth
+  tree, byte-exact including the discarded-carry correction, behind a guard
+  that runs the tree only when the correction could matter.
+
+### Options (all runtime, per-game)
+
+| Option | Default | Cost (Tekken Tag, 4K, uncapped) |
+|---|---|---|
+| VU Accurate Add/Sub | on | ~14 fps of ~176 (was ~30 before the optimisation arc) |
+| EE Accurate FPU Arithmetic | on | small |
+| VU Exact Multiply | off | large (~60 fps); the full hardware multiplier is expensive by nature |
+
+### The optimisation arc, and how it is proven
+
+The masking and the multiplier went through several emission generations, each
+required to be bit-identical to the last. The standard that emerged, after an
+early rework passed every review and still broke rendering in the wild: an
+**emitted-bytes differential harness** assembles both generations with the
+real emitter, executes them as machine code under the VU's rounding mode
+(chop, denormals-are-zero, flush-to-zero) across register patterns including
+xmm15 operands, and compares every result lane. Nothing lands on intrinsics
+proofs or code review alone. Under that standard:
+
+* Add/sub mask: two-sided 38-op form -> fused single-keep 33-op form (the
+  algebra proven over 80.7 M lanes; the differential also caught a real
+  distance-24 boundary bug in the shipping version) -> 20-op AVX2 form with
+  per-lane variable shifts -> 15-op AVX-512 ternary-logic form. Dispatched at
+  recompile time by CPU capability; SSE remains the floor.
+* Exact multiply: the slow path became a register-preserving emitted tree
+  stub (no flush at call sites); the guard gained oracle-proven exclusions --
+  zero operands, and any multiplier whose recoded mantissa has sixteen or
+  more trailing zeros (the sharp soundness boundary; fifteen is measurably
+  unsound) -- taking the game-data trip rate from 99.8 % to 51 %. The stub
+  also has an AVX-512 ternary-logic build (a third smaller). vf0-sourced
+  broadcast add/subs (the canonical VU register move) emit as the proven
+  identity instead of mask-plus-add.
+* The emitter grew VEX and minimal EVEX layers (vpsllvd, vpternlogd, blendv,
+  the shift-immediate forms) -- each encoding executed in the differential
+  before any consumer shipped.
+
+### Measured and rejected (this arc)
+
+* A GPR-based scalar masking path: broke rendering through a mechanism that
+  survived three targeted hunts unidentified; the emission paths now use no
+  GPRs at all, and that empirical boundary is the rule.
+* An AVX2 three-operand rebuild of the multiply fast path: proven
+  byte-identical over 24 M executed quads, measured at parity-to-slower --
+  the out-of-order engine absorbs the SSE copies; 22 % fewer bytes bought
+  nothing.
+* Fusing the MADD/MSUB exponent hand-off between multiply and add stages:
+  priced out on paper -- reproducing the pack's overflow/underflow selects in
+  the exponent domain costs more than the extraction it saves.
+* A vf0-multiplier specialisation aimed by a static instruction census:
+  correct after its (real, reverted) form-detection bug, but dynamically
+  cold. Which led to:
+
+### Microcode auditing
+
+Static instruction counts mislead: Tekken Tag's VU1 program text is 61-83 %
+add/sub, but its measured option costs prove execution is multiply-dominated
+-- the per-vertex MSUB transform chains dwarf the per-object move-heavy code.
+The tree carries tooling (developed against a RetroArch save state: RZIP
+decompression, freeze-layout walking, a VU1 disassembler built from the
+interpreter's own opcode tables) to extract and census a game's actual
+microcode before optimising for it.
+
 ## Building
 
 CMake options common to all builds:
