@@ -998,6 +998,19 @@ static uintptr_t xe_opaque_uptr(const void *p)
 #define xe_vpand_xxm2(d, s1, addr, L) do { XE_OPEN(); E_VEX_RRM(xep, 0x66, 0xdb, (d), (s1), (addr), (L)); XE_CLOSE(); } while (0)
 #define xe_vpsllvd_xxx(d, s1, s2, L) do { XE_OPEN(); E_VEX38_RRR(xep, 0x66, 0x47, (d), (s1), (s2), (L)); XE_CLOSE(); } while (0)
 /* two-operand 0F38 forms encode vvvv as 1111: src1 of zero yields that */
+/* ---- EVEX (AVX-512) 128-bit forms, xmm0-15, no masking ----
+ * 62 P0 P1 P2: P0 = ~R ~X ~B ~R' 0 0 mm ; P1 = W ~vvvv 1 pp ;
+ * P2 = z L'L b ~V' aaa. Everything inverted defaults to "off" for the
+ * register range this emitter serves. */
+#define E_EVEX3A(p, regf, vvvv, rm) do { \
+	EW8((p), 0x62); \
+	EW8((p), (uint8_t)(((((regf) & 8) ? 0 : 0x80)) | 0x40 | \
+		((((rm) & 8) ? 0 : 0x20)) | 0x10 | 0x03)); \
+	EW8((p), (uint8_t)(((~(vvvv) & 0xF) << 3) | 0x04 | 0x01)); \
+	EW8((p), 0x08); } while (0)
+#define xe_vpternlogd_xxxi(d, s1, s2, imm) do { XE_OPEN(); \
+	E_EVEX3A(xep, (d), (s1), (s2)); EW8(xep, 0x25); \
+	E_MODRM_RR(xep, (d), (s2)); EW8(xep, (uint8_t)(imm)); XE_CLOSE(); } while (0)
 #define xe_vpabsd_xx(d, s, L)        do { XE_OPEN(); E_VEX38_RRR(xep, 0x66, 0x1e, (d), 0, (s), (L)); XE_CLOSE(); } while (0)
 #define xe_vpslld_xxi(d, s, i, L)    do { XE_OPEN(); E_VEX_SHIFT_I(xep, 0x66, 6, (d), (s), (i), (L)); XE_CLOSE(); } while (0)
 #define xe_vpsrld_xxi(d, s, i, L)    do { XE_OPEN(); E_VEX_SHIFT_I(xep, 0x66, 2, (d), (s), (i), (L)); XE_CLOSE(); } while (0)

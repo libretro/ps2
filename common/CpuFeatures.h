@@ -14,6 +14,7 @@
 #define CPU_HAS_SSE41 ((cpu_features_get() & RETRO_SIMD_SSE4) != 0)
 #define CPU_HAS_AVX   ((cpu_features_get() & RETRO_SIMD_AVX)  != 0)
 #define CPU_HAS_AVX2  ((cpu_features_get() & RETRO_SIMD_AVX2) != 0)
+#define CPU_HAS_AVX512 ((cpu_features_get() & RETRO_SIMD_AVX512) != 0)
 
 /* Either encoding answers for a caller that only needs a fused
  * multiply-add to exist. */
