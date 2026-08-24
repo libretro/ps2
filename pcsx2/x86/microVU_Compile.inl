@@ -23,6 +23,42 @@
 // Execute VU Opcode/Instruction (Upper and Lower)
 //------------------------------------------------------------------
 
+/* Block-local VI constant tracking, rooted at vi00 and immediates.
+ * The storage - constReg[16] - shipped with the IR struct for a vi15
+ * jump experiment that was never enabled; nothing else ever wrote or
+ * read it. The tracker runs in pass two right after each lower op is
+ * emitted, so the op consumed its sources before its own write lands
+ * in the table. Constants derive only from vi00 and instruction
+ * immediates, never from block-entry values, which keeps a compiled
+ * block correct across executions with different entry VIs; any VI
+ * writer outside the whitelist invalidates its destination, with the
+ * written register taken from the analysis rather than re-decoded. */
+static void mVUtrackVIConst(microVU* mVU)
+{
+	const u32 wreg = mVUlow.VI_write.reg;
+	u32 op, valid = 0, value = 0;
+	if (!doViConstProp || !wreg || wreg >= 16)
+		return;
+	#define vicKnown(r) ((r) == 0 || mVUconstReg[r].isValid)
+	#define vicVal(r)   ((r) == 0 ? 0u : mVUconstReg[r].regValue)
+	op = (mVU->code >> 25) & 0x7f;
+	if (op == 0x08 && vicKnown(_Is_))      { valid = 1; value = (u16)(vicVal(_Is_) + _Imm15_); } /* IADDIU */
+	else if (op == 0x09 && vicKnown(_Is_)) { valid = 1; value = (u16)(vicVal(_Is_) - _Imm15_); } /* ISUBIU */
+	else if (op == 0x40)
+	{
+		const u32 l = mVU->code & 0x3f;
+		if      (l == 0x32 && vicKnown(_Is_))                     { valid = 1; value = (u16)(vicVal(_Is_) + _Imm5_); }         /* IADDI */
+		else if (l == 0x30 && vicKnown(_Is_) && vicKnown(_It_))   { valid = 1; value = (u16)(vicVal(_Is_) + vicVal(_It_)); }   /* IADD  */
+		else if (l == 0x31 && vicKnown(_Is_) && vicKnown(_It_))   { valid = 1; value = (u16)(vicVal(_Is_) - vicVal(_It_)); }   /* ISUB  */
+		else if (l == 0x34 && vicKnown(_Is_) && vicKnown(_It_))   { valid = 1; value = (u16)(vicVal(_Is_) & vicVal(_It_)); }   /* IAND  */
+		else if (l == 0x35 && vicKnown(_Is_) && vicKnown(_It_))   { valid = 1; value = (u16)(vicVal(_Is_) | vicVal(_It_)); }   /* IOR   */
+	}
+	mVUconstReg[wreg].isValid  = valid;
+	mVUconstReg[wreg].regValue = value;
+	#undef vicKnown
+	#undef vicVal
+}
+
 #define doUpperOp(mV) \
 	mVUopU(mVU, 1); \
 	mVUdivSet(mVU)
@@ -30,6 +66,7 @@
 #define doLowerOp(mV) \
 	incPC(-1); \
 	mVUopL(mVU, 1); \
+	mVUtrackVIConst(mVU); \
 	incPC(1)
 
 #define flushRegs(mV) if (!doRegAlloc) mVUra_flushAll(mVU->regAlloc, 1);
@@ -70,6 +107,7 @@ void doSwapOp(mV)
 		mVUra_clearNeededXMM(mVU->regAlloc, t1);
 
 		mVUopL(mVU, 1);
+		mVUtrackVIConst(mVU);
 
 		const int t3 = mVUra_allocReg(mVU->regAlloc, mVUlow.VF_write.reg, mVUlow.VF_write.reg, 0xf, 0);
 		xe_xorps_xx(t2, t3); // Swap new and old values of the register
@@ -88,6 +126,7 @@ void doSwapOp(mV)
 	else
 	{
 		mVUopL(mVU, 1);
+		mVUtrackVIConst(mVU);
 		incPC(1);
 		flushRegs(mVU);
 		doUpperOp(mVU);
@@ -520,6 +559,7 @@ void* mVUcompile(microVU* mVU, u32 startPC, uptr pState)
 	mVUtestCycles(mVU, &mFC);         // Update VU Cycles and Exit Early if Necessary
 
 	// Second Pass
+	memset(mVUconstReg, 0, sizeof(mVU->prog.IRinfo.constReg)); /* block entry: no VI constants known */
 	iPC = mVUstartPC;
 	setCode();
 	mVUbranch = 0;

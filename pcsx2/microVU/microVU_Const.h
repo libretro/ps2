@@ -293,6 +293,7 @@ static constexpr bool doBranchInDelaySlot = true; // Set to true to enable evil-
 
 // Constant Propagation
 static constexpr bool doConstProp = false; // Set to true to turn on vi15 const propagation
+static constexpr bool doViConstProp = true; // Block-local VI const propagation into memory-op addressing
 // Enables Constant Propagation for Jumps based on vi15 'link-register'
 // allowing us to know many indirect jump target addresses.
 // Makes GoW a lot slower due to extra recompilation time and extra code-gen!

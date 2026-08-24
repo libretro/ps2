@@ -310,10 +310,15 @@ __fi void mVUaddrFix(mV, int gprReg)
 
 __fi struct e_memopt mVUoptimizeConstantAddr(mV, u32 srcreg, s32 offset, s32 offsetSS_)
 {
-	// if we had const prop for VIs, we could do that here..
-	if (srcreg != 0)
+	/* The comment below asked for VI const prop; the tracker in the
+	 * compile pass now provides it, so a known source register folds
+	 * to an absolute address exactly like vi00 always has. The sum
+	 * and masking replicate the runtime path bit for bit: the VI is
+	 * a zero-extended sixteen-bit value, the offset a sign-extended
+	 * immediate, and the wrap masks are applied to the same sum. */
+	if (srcreg != 0 && !(doViConstProp && srcreg < 16 && mVUconstReg[srcreg].isValid))
 		return e_memopt_none();
-	const s32 addr = 0 + offset;
+	const s32 addr = (s32)(srcreg ? (u32)(u16)mVUconstReg[srcreg].regValue : 0u) + offset;
 	if (isVU1)
 		return e_memopt_of(e_mem_abs(vuRegs[mVU->index].Mem + ((addr & 0x3FFu) << 4) + offsetSS_));
 	if (addr & 0x400)
