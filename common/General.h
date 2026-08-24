@@ -57,6 +57,9 @@ namespace HostSys
 {
 	// Maps a block of memory for use as a recompiled code buffer.
 	// Returns NULL on allocation failure.
+	// A non-null base is a placement request: the mapping is created at
+	// that address or the call fails with no side effects. Existing
+	// mappings are never replaced.
 	extern void* Mmap(void* base, size_t size, const PageProtectionMode mode);
 
 	// Unmaps a block allocated by SysMmap
@@ -67,6 +70,8 @@ namespace HostSys
 	extern std::string GetFileMappingName(const char* prefix);
 	extern void* CreateSharedMemory(const char* name, size_t size);
 	extern void DestroySharedMemory(void* ptr);
+	// A non-null baseaddr is a placement request with the same
+	// honored-or-fail semantics as Mmap above.
 	extern void* MapSharedMemory(void* handle, size_t offset, void* baseaddr, size_t size, const PageProtectionMode mode);
 	extern void UnmapSharedMemory(void* baseaddr, size_t size);
 

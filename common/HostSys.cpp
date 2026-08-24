@@ -389,17 +389,32 @@ void* HostSys::Mmap(void* base, size_t size, const PageProtectionMode mode)
 #else
 	const u32 prot = unix_prot(mode);
 	u32 flags      = MAP_PRIVATE | MAP_ANONYMOUS;
-	if (base)
-		flags |= MAP_FIXED;
 
 #if defined(__APPLE__) && ((defined(_M_ARM64) || defined(__aarch64__)) || defined(__aarch64__))
 	if (mode.m_read && mode.m_exec)
 		flags |= MAP_JIT;
 #endif
 
+	/* A non-null base is a placement request, not a license to replace
+	 * whatever lives at that address. MAP_FIXED maps destructively: on
+	 * Linux it silently unmaps anything already in the range, and XNU
+	 * processes running with virtual-memory guards raise a fatal
+	 * EXC_GUARD (GUARD_TYPE_VIRT_MEMORY / kGUARD_EXC_DEALLOC_GAP) when
+	 * MAP_FIXED touches a range that is not fully allocated, rather
+	 * than returning an error. Pass the base as a plain hint instead -
+	 * a hinted mmap never disturbs existing mappings - and treat a
+	 * result the kernel placed elsewhere as failure. A placement
+	 * request therefore either succeeds at the requested address or
+	 * fails with no side effects, on baseline POSIX semantics alone;
+	 * MAP_FIXED_NOREPLACE is not required. */
 	void* res = mmap(base, size, prot, flags, -1, 0);
 	if (res == MAP_FAILED)
 		return nullptr;
+	if (base && res != base)
+	{
+		munmap(res, size);
+		return nullptr;
+	}
 	return res;
 #endif
 }
@@ -495,10 +510,19 @@ void* HostSys::MapSharedMemory(void* handle, size_t offset, void* baseaddr, size
 	}
 #else
 	const uint prot = unix_prot(mode);
-	const int flags = (baseaddr != nullptr) ? (MAP_SHARED | MAP_FIXED) : MAP_SHARED;
-	void* ptr       = mmap(baseaddr, size, prot, flags, static_cast<int>(reinterpret_cast<intptr_t>(handle)), static_cast<off_t>(offset));
+	/* Hint, never MAP_FIXED - see HostSys::Mmap for why fixed mapping
+	 * at a caller-supplied address is destructive on Linux and fatal
+	 * under XNU virtual-memory guards. A result the kernel placed
+	 * elsewhere is released and reported as failure; the caller falls
+	 * back to an OS-chosen base. */
+	void* ptr       = mmap(baseaddr, size, prot, MAP_SHARED, static_cast<int>(reinterpret_cast<intptr_t>(handle)), static_cast<off_t>(offset));
 	if (ptr == MAP_FAILED)
 		return nullptr;
+	if (baseaddr && ptr != baseaddr)
+	{
+		munmap(ptr, size);
+		return nullptr;
+	}
 #endif
 	return ptr;
 }
