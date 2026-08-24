@@ -220,9 +220,13 @@ proofs or code review alone. Under that standard:
 * Fusing the MADD/MSUB exponent hand-off between multiply and add stages:
   priced out on paper -- reproducing the pack's overflow/underflow selects in
   the exponent domain costs more than the extraction it saves.
-* A vf0-multiplier specialisation aimed by a static instruction census:
-  correct after its (real, reverted) form-detection bug, but dynamically
-  cold. Which led to:
+* A vf0-multiplier specialisation aimed by a static instruction census
+  was reverted as dynamically cold, then re-landed when a dynamic
+  instruction census (one emitted counter per block, execution counts
+  times compile-time mix) showed the class at roughly a tenth of
+  executed multiplies - the static text and the executed histogram
+  disagree on this title by an order of magnitude in both directions.
+  Which led to:
 
 ### Microcode auditing
 

@@ -768,6 +768,67 @@ static void mVUaddSubVF0(mV, int reg, bool isSub, bool isSS)
 }
 
 //------------------------------------------------------------------
+static bool mVUexactMulVF0(mV, int reg, int opCase, bool isSS)
+{
+	bool byOne, mixed = false;
+	/* register form is opCase 1 and the broadcast form is opCase 2;
+	 * cases 3 and 4 are the I and Q forms, whose multiplier is a
+	 * runtime register and whose ft field is not an operand - the
+	 * first landing specialized case 4 on the belief it was the
+	 * broadcast, turning every perspective-division multiply into a
+	 * masked identity and blacking out the scene. */
+	if (!(opCase == 1 || opCase == 2) || (_Ft_ != 0))
+		return false;
+	if (opCase == 2)
+		byOne = (_bc_ == 3);
+	else if (isSS)
+		byOne = ((_X_Y_Z_W & 1) != 0);  // W lane selected
+	else
+		mixed = true;                   // whole {0,0,0,1.0} vector
+	if (!isSS && !mixed && !byOne)
+	{
+		// packed broadcast of +0.0: every lane is the sign alone
+		xe_pand_xm(reg, mVUglob.signbit);
+		return true;
+	}
+	const int T = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+	if (!mixed && !byOne)
+	{
+		// scalar by +0.0: sign alone into lane zero
+		xe_movaps_xx(T, reg);
+		xe_pand_xm(T, mVUglob.signbit);
+		xe_movss_xx(reg, T);
+	}
+	else
+	{
+		// zero-exponent mask; by-one keeps everything else, the mixed
+		// vector keeps only lane w's magnitude
+		xe_movaps_xx(T, reg);
+		xe_pslld_xi(T, 1);
+		xe_psrld_xi(T, 24);
+		xe_pcmpeqd_xm(T, mVUglob.addzero);
+		if (mixed)
+		{
+			const int U = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+			xe_movaps_xm(U, mVUglob.mulkeepw);
+			xe_pandn_xx(T, U);              // ~zexp & keep.w-magnitude
+			xe_por_xm(T, mVUglob.signbit);
+			xe_pand_xx(reg, T);
+			mVUra_clearNeededXMM(mVU->regAlloc, U);
+		}
+		else
+		{
+			xe_pand_xm(T, mVUglob.absclip); // zexp lanes lose magnitude
+			xe_pandn_xx(T, reg);            // value elsewhere
+			if (isSS) xe_movss_xx(reg, T);
+			else      xe_movaps_xx(reg, T);
+		}
+	}
+	mVUra_clearNeededXMM(mVU->regAlloc, T);
+	return true;
+}
+
+//------------------------------------------------------------------
 // AVX2 build of the exact-multiply fast path. Byte-identical results
 // and guard verdicts to the SSE form - twenty-four million executed
 // quads, zero mismatches, in the production register shape - and
