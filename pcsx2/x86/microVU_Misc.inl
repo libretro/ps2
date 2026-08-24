@@ -390,107 +390,189 @@ void MIN_MAX_SS(mV, int to, int from, int t1in, int min)
 // Exponent-distance operand masking for VU ADD/SUB. The hardware's
 // adder truncates the smaller operand's low bits by exponent distance
 // before adding; masking those bits and then doing the IEEE add under
-// the VU's chop rounding reproduces it. Measured against the ps2float
-// model, the plain clamped addps was wrong on 44.9% of random operand
-// pairs and the masked add on 0.79% - the remainder is the
-// exponent-255 range single precision cannot represent. The per-lane
-// variable mask has no SSE2 shift, so 2^(d-1) comes from building the
-// float with exponent field d-1 and truncating it back to integer;
-// the identity against the scalar mask measures zero mismatches over
-// 16.7 million lanes across every exponent distance. Both stages are
-// AND-chains: OR-ing the sign bit into the keep mask makes the
-// distance >= 25 stage safe even where the power construction
-// overflows, so no blend and no extra register.
-// a and b are masked in place; t1..t3 are scratch.
+// the VU's chop rounding reproduces it (44.9% -> 0.79% against the
+// ps2float model; the remainder is the exponent-255 range single
+// precision cannot represent).
+//
+// This is the second-generation emission, rebuilt after measurement
+// showed the first costing about 15% of frame rate: the two per-side
+// AND-chains fuse into one keep mask, because (X|~p) & (Y|~p) is
+// (X&Y)|~p, so keep-and-not-huge is computed once from |d|-1 and each
+// side only pays its own inactivity term; applying the a side first
+// lets the distance register die into the masked from-copy, so the
+// packed form needs three allocator temps instead of five registers
+// of machinery; and the scalar forms leave the vector unit entirely -
+// lane 0 is masked in GPRs with the reference's own case split, low
+// bits cleared by shifting down and back up by CL, which needs no
+// mask constant at all. The fused mask measures identical to the
+// reference mask over 80.7 million lanes across every exponent
+// distance. When extra-overflow clamping is active the emission
+// switches to a copy-first schedule so the mask reads the clamped
+// values, exactly as before.
 //------------------------------------------------------------------
-static void mVUmaskAddSub(mV, int a, int b, int t1, int t2, int t3)
+
+// Fused mask: reads exponents of regs a and b, masks a in place, and
+// leaves the masked copy of b in tD. b itself is not modified.
+// tD holds the exponent distance during the sequence; tM and tS are
+// scratch. Proven identical to the scalar reference mask.
+static void mVUmaskAddSubFused(mV, int a, int b, int tD, int tM, int tS)
 {
-	// t1 = exponent difference d = exp(a) - exp(b), per lane
-	xe_movaps_xx(t1, a);
-	xe_pand_xm(t1, mVUglob.exponent);
-	xe_psrld_xi(t1, 23);
-	xe_movaps_xx(t2, b);
-	xe_pand_xm(t2, mVUglob.exponent);
-	xe_psrld_xi(t2, 23);
-	xe_psubd_xx(t1, t2);
-
-	// ---- b side: b &= (keep' | (d <= 0)) ; b &= (sign | (d <= 24)) ----
-	xe_pcmpeqd_xx(t2, t2);            // -1
-	xe_paddd_xx(t2, t1);              // d - 1
-	xe_pslld_xi(t2, 23);
-	xe_paddd_xm(t2, mVUglob.one);     // float with exponent d-1
-	xe_cvttps2dq_xx(t2, t2);          // 2^(d-1)
-	xe_psubd_xm(t2, mVUglob.addm1);   // low mask
-	xe_pxor_xm(t2, mVUglob.addmall);  // keep = ~low
-	xe_por_xm(t2, mVUglob.signbit);   // keep' (sign always survives)
-	xe_movaps_xm(t3, mVUglob.addm1);
-	xe_pcmpgtd_xx(t3, t1);            // 1 > d  <=>  d <= 0
-	xe_por_xx(t2, t3);
-	xe_pand_xx(b, t2);
-	xe_movaps_xm(t3, mVUglob.addm24);
-	xe_pcmpgtd_xx(t3, t1);            // 24 > d  <=>  d <= 24
-	xe_por_xm(t3, mVUglob.signbit);
-	xe_pand_xx(b, t3);
-
-	// ---- a side, with -d-1 == ~d ----
-	xe_movaps_xx(t2, t1);
-	xe_pxor_xm(t2, mVUglob.addmall);  // ~d = -d - 1
-	xe_pslld_xi(t2, 23);
-	xe_paddd_xm(t2, mVUglob.one);
-	xe_cvttps2dq_xx(t2, t2);
-	xe_psubd_xm(t2, mVUglob.addm1);
-	xe_pxor_xm(t2, mVUglob.addmall);
-	xe_por_xm(t2, mVUglob.signbit);
-	xe_movaps_xx(t3, t1);
-	xe_pcmpgtd_xm(t3, mVUglob.addmall); // d > -1  <=>  d >= 0
-	xe_por_xx(t2, t3);
-	xe_pand_xx(a, t2);
-	xe_movaps_xx(t3, t1);
-	xe_pcmpgtd_xm(t3, mVUglob.addmn25); // d > -25  <=>  d >= -24
-	xe_por_xm(t3, mVUglob.signbit);
-	xe_pand_xx(a, t3);
+	// tD = d
+	xe_movaps_xx(tD, a);
+	xe_pand_xm(tD, mVUglob.exponent);
+	xe_psrld_xi(tD, 23);
+	xe_movaps_xx(tS, b);
+	xe_pand_xm(tS, mVUglob.exponent);
+	xe_psrld_xi(tS, 23);
+	xe_psubd_xx(tD, tS);
+	// tS = c = |d| - 1
+	xe_movaps_xx(tM, tD);
+	xe_psrad_xi(tM, 31);
+	xe_movaps_xx(tS, tD);
+	xe_pxor_xx(tS, tM);
+	xe_psubd_xx(tS, tM);
+	xe_psubd_xm(tS, mVUglob.addm1);
+	// tM = sign | (24 > c), then keep' folds in: M = keep' & tM
+	xe_movaps_xm(tM, mVUglob.addm24);
+	xe_pcmpgtd_xx(tM, tS);
+	xe_por_xm(tM, mVUglob.signbit);
+	xe_pslld_xi(tS, 23);
+	xe_paddd_xm(tS, mVUglob.one);
+	xe_cvttps2dq_xx(tS, tS);
+	xe_psubd_xm(tS, mVUglob.addm1);
+	xe_pxor_xm(tS, mVUglob.addmall);
+	xe_por_xm(tS, mVUglob.signbit);
+	xe_pand_xx(tM, tS);
+	// a &= M | (d >= 0)   (a side first: d survives)
+	xe_movaps_xx(tS, tD);
+	xe_pcmpgtd_xm(tS, mVUglob.addmall);
+	xe_por_xx(tS, tM);
+	xe_pand_xx(a, tS);
+	// masked b copy into tD (d dies into the compare first)
+	xe_movaps_xx(tS, tM);
+	{
+		/* (1 > d) = d <= 0 */
+	}
+	xe_movaps_xx(tM, tD);
+	xe_movaps_xm(tD, mVUglob.addm1);
+	xe_pcmpgtd_xx(tD, tM);
+	xe_por_xx(tD, tS);
+	xe_movaps_xx(tM, b);
+	xe_pand_xx(tM, tD);
+	xe_movaps_xx(tD, tM);
 }
 
-// Masked add/sub. The destination may be masked in place, but the
-// source is a cached VF register: mask a copy, never the original.
+// Scalar lane-0 mask in GPRs: the reference case split, shifts by CL.
+// a arrives in EAX and stays there; b's bits are consumed computing the
+// distance and reloaded from the source register, so `bsrc` must still
+// hold the original value. Both are masked in place; ECX is the
+// distance/shift register.
+static void mVUmaskAddSubScalar(mV, int bsrc)
+{
+	uint8_t *jBigB, *jBigA, *jChk, *jMidA, *jD1, *jD2, *jD3, *jD4;
+	xe_mov32_rr(XE_CX, XE_AX);
+	xe_shr32_ri(XE_CX, 23);
+	xe_and32_ri(XE_CX, 0xff);
+	xe_shr32_ri(XE_DX, 23);
+	xe_and32_ri(XE_DX, 0xff);
+	xe_sub32_rr(XE_CX, XE_DX);      // d
+	xe_movd_rx(XE_DX, bsrc);        // reload b
+	xe_cmp32_ri(XE_CX, 25);
+	xe_fwd_jcc8(Jcc_GreaterOrEqual, jBigB);
+	xe_cmp32_ri(XE_CX, 1);
+	xe_fwd_jcc8(Jcc_Less, jChk);
+	xe_dec32_r(XE_CX);              // 1..24: clear b's low d-1 bits
+	xe_shr32_cl(XE_DX);
+	xe_shl32_cl(XE_DX);
+	xe_fwd_jcc8(Jcc_Unconditional, jD1);
+	xe_fwd_set8(jChk);
+	xe_test32_rr(XE_CX, XE_CX);
+	xe_fwd_jcc8(Jcc_Zero, jD2);
+	xe_cmp32_ri(XE_CX, -24);
+	xe_fwd_jcc8(Jcc_Less, jBigA);
+	xe_neg32_r(XE_CX);              // -24..-1: clear a's low -d-1 bits
+	xe_dec32_r(XE_CX);
+	xe_shr32_cl(XE_AX);
+	xe_shl32_cl(XE_AX);
+	xe_fwd_jcc8(Jcc_Unconditional, jD3);
+	xe_fwd_set8(jBigB);
+	xe_and32_ri(XE_DX, 0x80000000);
+	xe_fwd_jcc8(Jcc_Unconditional, jD4);
+	xe_fwd_set8(jBigA);
+	xe_and32_ri(XE_AX, 0x80000000);
+	xe_fwd_set8(jD1);
+	xe_fwd_set8(jD2);
+	xe_fwd_set8(jD3);
+	xe_fwd_set8(jD4);
+}
+
 static void mVUmaskedAddSubOp(mV, int to, int from, bool isPS, bool issub)
 {
-	const int tF = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
-	const int t1 = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
-	const int t2 = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
-	const int t3 = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
-	int dst = to;
-	if (!isPS)
-	{
-		// addss/subss preserve the upper lanes of the destination:
-		// compute on a copy so the mask stage can't disturb them.
-		dst = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
-		xe_movaps_xx(dst, to);
-	}
-	xe_movaps_xx(tF, from);
-	mVUclamp3(mVU, dst, t1, isPS ? 0xf : 0x8);
-	mVUclamp3(mVU, tF, t1, isPS ? 0xf : 0x8);
-	mVUmaskAddSub(mVU, dst, tF, t1, t2, t3);
+	const bool clampsOn = clampE;
 	if (isPS)
 	{
-		if (issub) xe_subps_xx(dst, tF);
-		else       xe_addps_xx(dst, tF);
+		if (!clampsOn)
+		{
+			// clamp3/clamp4 emit nothing in this mode: lean schedule.
+			const int tD = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+			const int tM = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+			const int tS = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+			mVUmaskAddSubFused(mVU, to, from, tD, tM, tS);
+			if (issub) xe_subps_xx(to, tD);
+			else       xe_addps_xx(to, tD);
+			mVUra_clearNeededXMM(mVU->regAlloc, tD);
+			mVUra_clearNeededXMM(mVU->regAlloc, tM);
+			mVUra_clearNeededXMM(mVU->regAlloc, tS);
+			return;
+		}
+		// clamped mode: copy first so the mask reads clamped values,
+		// preserving the original emission's behavior exactly.
+		const int tF = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+		const int tD = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+		const int tM = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+		const int tS = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+		xe_movaps_xx(tF, from);
+		mVUclamp3(mVU, to, tD, 0xf);
+		mVUclamp3(mVU, tF, tD, 0xf);
+		mVUmaskAddSubFused(mVU, to, tF, tD, tM, tS);
+		if (issub) xe_subps_xx(to, tD);
+		else       xe_addps_xx(to, tD);
+		mVUclamp4(mVU, to, tD, 0xf);
+		mVUra_clearNeededXMM(mVU->regAlloc, tF);
+		mVUra_clearNeededXMM(mVU->regAlloc, tD);
+		mVUra_clearNeededXMM(mVU->regAlloc, tM);
+		mVUra_clearNeededXMM(mVU->regAlloc, tS);
+		return;
+	}
+	// scalar forms: lane 0 in GPRs, two vector temps for the add.
+	const int t1 = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+	const int t2 = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+	if (!clampsOn)
+	{
+		xe_movd_rx(XE_AX, to);
+		xe_movd_rx(XE_DX, from);
+		mVUmaskAddSubScalar(mVU, from);
 	}
 	else
 	{
-		if (issub) xe_subss_xx(dst, tF);
-		else       xe_addss_xx(dst, tF);
+		xe_movaps_xx(t1, to);
+		mVUclamp3(mVU, t1, t2, 0x8);
+		xe_movd_rx(XE_AX, t1);
+		xe_movaps_xx(t1, from);
+		mVUclamp3(mVU, t1, t2, 0x8);
+		xe_movd_rx(XE_DX, t1);
+		/* b reloads from the clamped copy, not the raw source */
+		mVUmaskAddSubScalar(mVU, t1);
 	}
-	mVUclamp4(mVU, dst, t1, isPS ? 0xf : 0x8);
-	if (!isPS)
-	{
-		xe_movss_xx(to, dst);
-		mVUra_clearNeededXMM(mVU->regAlloc, dst);
-	}
-	mVUra_clearNeededXMM(mVU->regAlloc, tF);
+	xe_movd_xr(t1, XE_AX);
+	xe_movd_xr(t2, XE_DX);
+	if (issub) xe_subss_xx(t1, t2);
+	else       xe_addss_xx(t1, t2);
+	if (clampsOn)
+		mVUclamp4(mVU, t1, t2, 0x8);
+	xe_movss_xx(to, t1);
 	mVUra_clearNeededXMM(mVU->regAlloc, t1);
 	mVUra_clearNeededXMM(mVU->regAlloc, t2);
-	mVUra_clearNeededXMM(mVU->regAlloc, t3);
 }
 
 

@@ -237,6 +237,8 @@
 
 /* remaining group2 named-immediate forms */
 #define xe_shl64_ri(reg, imm)  do { XE_OPEN(); E_G2_RI(xep, 1, 4, (reg), (imm)); XE_CLOSE(); } while (0)
+#define xe_shl32_cl(reg)       do { XE_OPEN(); E_G2_RCL(xep, 0, 4, (reg)); XE_CLOSE(); } while (0)
+#define xe_shr32_cl(reg)       do { XE_OPEN(); E_G2_RCL(xep, 0, 5, (reg)); XE_CLOSE(); } while (0)
 #define xe_shr32_ri(reg, imm)  do { XE_OPEN(); E_G2_RI(xep, 0, 5, (reg), (imm)); XE_CLOSE(); } while (0)
 #define xe_shr64_ri(reg, imm)  do { XE_OPEN(); E_G2_RI(xep, 1, 5, (reg), (imm)); XE_CLOSE(); } while (0)
 #define xe_sar64_ri(reg, imm)  do { XE_OPEN(); E_G2_RI(xep, 1, 7, (reg), (imm)); XE_CLOSE(); } while (0)
