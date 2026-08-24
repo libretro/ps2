@@ -256,8 +256,11 @@ static void mVU_FMACa(microVU* mVU, int recPass, int opCase, int opType, int isA
 		if (clampType & cFt) mVUclamp2(mVU, Ft, -1, _X_Y_Z_W, 0);
 		if (clampType & cFs) mVUclamp2(mVU, Fs, -1, _X_Y_Z_W, 0);
 
-		if (_XYZW_SS) SSE_SS[opType](mVU, Fs, Ft, -1, -1);
-		else          SSE_PS[opType](mVU, Fs, Ft, -1, -1);
+		if (opType != 2 || !CHECK_VU_EXACTMUL || !mVUexactMulVF0(mVU, Fs, opCase, _XYZW_SS))
+		{
+			if (_XYZW_SS) SSE_SS[opType](mVU, Fs, Ft, -1, -1);
+			else          SSE_PS[opType](mVU, Fs, Ft, -1, -1);
+		}
 
 		if (isACC)
 		{
@@ -301,8 +304,11 @@ static void mVU_FMACb(microVU* mVU, int recPass, int opCase, int opType, int cla
 		if (clampType & cFt) mVUclamp2(mVU, Ft, -1, _X_Y_Z_W, 0);
 		if (clampType & cFs) mVUclamp2(mVU, Fs, -1, _X_Y_Z_W, 0);
 
-		if (_XYZW_SS) SSE_SS[2](mVU, Fs, Ft, -1, -1);
-		else          SSE_PS[2](mVU, Fs, Ft, -1, -1);
+		if (!CHECK_VU_EXACTMUL || !mVUexactMulVF0(mVU, Fs, opCase, _XYZW_SS))
+		{
+			if (_XYZW_SS) SSE_SS[2](mVU, Fs, Ft, -1, -1);
+			else          SSE_PS[2](mVU, Fs, Ft, -1, -1);
+		}
 
 		if (_XYZW_SS || _X_Y_Z_W == 0xf)
 		{
@@ -349,8 +355,13 @@ static void mVU_FMACc(microVU* mVU, int recPass, int opCase, int clampType)
 		if (clampType & cACC) mVUclamp2(mVU, ACC, -1, _X_Y_Z_W, 0);
 
 
-		if (_XYZW_SS) { SSE_SS[2](mVU, Fs, Ft, -1, -1); SSE_SS[0](mVU, Fs, ACC, tempFt, -1); }
-		else          { SSE_PS[2](mVU, Fs, Ft, -1, -1); SSE_PS[0](mVU, Fs, ACC, tempFt, -1); }
+		if (!CHECK_VU_EXACTMUL || !mVUexactMulVF0(mVU, Fs, opCase, _XYZW_SS))
+		{
+			if (_XYZW_SS) SSE_SS[2](mVU, Fs, Ft, -1, -1);
+			else          SSE_PS[2](mVU, Fs, Ft, -1, -1);
+		}
+		if (_XYZW_SS) SSE_SS[0](mVU, Fs, ACC, tempFt, -1);
+		else          SSE_PS[0](mVU, Fs, ACC, tempFt, -1);
 
 		if (_XYZW_SS2)
 			xe_pshufd_xxi(ACC, ACC, shuffleSS(_X_Y_Z_W));
@@ -380,8 +391,13 @@ static void mVU_FMACd(microVU* mVU, int recPass, int opCase, int clampType)
 		if (clampType & cFs)  mVUclamp2(mVU, Fs, -1, _X_Y_Z_W, 0);
 		if (clampType & cACC) mVUclamp2(mVU, Fd, -1, _X_Y_Z_W, 0);
 
-		if (_XYZW_SS) { SSE_SS[2](mVU, Fs, Ft, -1, -1); SSE_SS[1](mVU, Fd, Fs, tempFt, -1); }
-		else          { SSE_PS[2](mVU, Fs, Ft, -1, -1); SSE_PS[1](mVU, Fd, Fs, tempFt, -1); }
+		if (!CHECK_VU_EXACTMUL || !mVUexactMulVF0(mVU, Fs, opCase, _XYZW_SS))
+		{
+			if (_XYZW_SS) SSE_SS[2](mVU, Fs, Ft, -1, -1);
+			else          SSE_PS[2](mVU, Fs, Ft, -1, -1);
+		}
+		if (_XYZW_SS) SSE_SS[1](mVU, Fd, Fs, tempFt, -1);
+		else          SSE_PS[1](mVU, Fd, Fs, tempFt, -1);
 
 		mVUupdateFlags(mVU, Fd, Fs, tempFt);
 

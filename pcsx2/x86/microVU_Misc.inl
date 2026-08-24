@@ -706,6 +706,76 @@ void SSE_SUBSS(mV, int to, int from, int t1 = -1, int t2 = -1)
 // dst receives the 4-lane exact product of to * from; from is not
 // modified. For the SS forms the caller passes a temp as dst and
 // merges lane 0, so the upper-lane garbage never escapes.
+//------------------------------------------------------------------
+// Rec-time VF00 multiplier specialization. When the multiplier is
+// vf0 - the register form's whole vector or a broadcast lane - the
+// exact product is an oracle-proven identity and the entire pipeline,
+// guard and stub included, is replaced by a handful of masking ops:
+// times 1.0 is the value itself except a zero-exponent input, which
+// packs to a signed zero (thirty million cases plus an exhaustive
+// exponent, sign and edge-mantissa sweep, zero exceptions), and times
+// +0.0 is the sign bit alone (same proof). The canonical vertex
+// transform ends every chain multiplying by vf0.w, so this class is
+// a steady fraction of real mul traffic. In-place on `reg`; scalar
+// forms merge lane zero only, preserving the upper lanes the
+// single-scalar model depends on. Returns false when the operand is
+// not vf0-sourced or the form is Q or I, and the caller emits the
+// full pipeline as before.
+//------------------------------------------------------------------
+static bool mVUexactMulVF0(mV, int reg, int opCase, bool isSS)
+{
+	bool byOne, mixed = false;
+	if (!(opCase == 1 || opCase == 4) || (_Ft_ != 0))
+		return false;
+	if (opCase == 4)
+		byOne = (_bc_ == 3);
+	else if (isSS)
+		byOne = ((_X_Y_Z_W & 1) != 0);  // W lane selected
+	else
+		mixed = true;                   // whole {0,0,0,1.0} vector
+	if (!isSS && !mixed && !byOne)
+	{
+		// packed broadcast of +0.0: every lane is the sign alone
+		xe_pand_xm(reg, mVUglob.signbit);
+		return true;
+	}
+	const int T = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+	if (!mixed && !byOne)
+	{
+		// scalar by +0.0: sign alone into lane zero
+		xe_movaps_xx(T, reg);
+		xe_pand_xm(T, mVUglob.signbit);
+		xe_movss_xx(reg, T);
+	}
+	else
+	{
+		// zero-exponent mask; by-one keeps everything else, the mixed
+		// vector keeps only lane w's magnitude
+		xe_movaps_xx(T, reg);
+		xe_pslld_xi(T, 1);
+		xe_psrld_xi(T, 24);
+		xe_pcmpeqd_xm(T, mVUglob.addzero);
+		if (mixed)
+		{
+			const int U = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+			xe_movaps_xm(U, mVUglob.mulkeepw);
+			xe_pandn_xx(T, U);              // ~zexp & keep.w-magnitude
+			xe_por_xm(T, mVUglob.signbit);
+			xe_pand_xx(reg, T);
+			mVUra_clearNeededXMM(mVU->regAlloc, U);
+		}
+		else
+		{
+			xe_pand_xm(T, mVUglob.absclip); // zexp lanes lose magnitude
+			xe_pandn_xx(T, reg);            // value elsewhere
+			if (isSS) xe_movss_xx(reg, T);
+			else      xe_movaps_xx(reg, T);
+		}
+	}
+	mVUra_clearNeededXMM(mVU->regAlloc, T);
+	return true;
+}
+
 static void mVUexactMulPS(mV, int dst, int to, int from)
 {
 	const int T1 = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
