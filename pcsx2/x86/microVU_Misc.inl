@@ -706,6 +706,37 @@ void SSE_SUBSS(mV, int to, int from, int t1 = -1, int t2 = -1)
 // dst receives the 4-lane exact product of to * from; from is not
 // modified. For the SS forms the caller passes a temp as dst and
 // merges lane 0, so the upper-lane garbage never escapes.
+//------------------------------------------------------------------
+// Rec-time vf0 specialization for the broadcast ADD/SUB forms, the
+// instruction the microcode audit says Tekken's VU1 actually runs:
+// add/sub is 61 to 83 percent of its upper instructions and roughly
+// half of those broadcast a vf0 lane - the canonical register move,
+// spelled as an addition of +0.0. The masked path computes a
+// twenty-instruction mask and a float add to produce, bit for bit,
+// the input; the identity is oracle-proven (thirty million cases
+// plus an exhaustive sweep: x plus +0.0 is x, except zero-exponent
+// inputs which pack to +0.0, negative included; x minus +0.0 the
+// same but keeping the sign) and the emissions below ran as machine
+// code against the fused-mask-plus-add reference over sixteen
+// million lanes under chop, denormals-are-zero and flush-to-zero
+// with zero mismatches. The w lane broadcasts +1.0 and stays on the
+// full path, as do the register, Q and I forms.
+//------------------------------------------------------------------
+static void mVUaddSubVF0(mV, int reg, bool isSub, bool isSS)
+{
+	const int T = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+	xe_movaps_xx(T, reg);
+	xe_pslld_xi(T, 1);
+	xe_psrld_xi(T, 24);
+	xe_pcmpeqd_xm(T, mVUglob.addzero);
+	if (isSub)
+		xe_pand_xm(T, mVUglob.absclip);   // subtraction keeps the sign
+	xe_pandn_xx(T, reg);
+	if (isSS) xe_movss_xx(reg, T);
+	else      xe_movaps_xx(reg, T);
+	mVUra_clearNeededXMM(mVU->regAlloc, T);
+}
+
 static void mVUexactMulPS(mV, int dst, int to, int from)
 {
 	const int T1 = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);

@@ -256,8 +256,13 @@ static void mVU_FMACa(microVU* mVU, int recPass, int opCase, int opType, int isA
 		if (clampType & cFt) mVUclamp2(mVU, Ft, -1, _X_Y_Z_W, 0);
 		if (clampType & cFs) mVUclamp2(mVU, Fs, -1, _X_Y_Z_W, 0);
 
-		if (_XYZW_SS) SSE_SS[opType](mVU, Fs, Ft, -1, -1);
-		else          SSE_PS[opType](mVU, Fs, Ft, -1, -1);
+		/* broadcast add/sub of a vf0 x, y or z lane is an identity;
+		 * opCase 2 is the broadcast form, read from setupFtReg's own
+		 * body this time. */
+		if ((opType <= 1) && CHECK_VU_ACC_ADDSUB && (opCase == 2) && (_Ft_ == 0) && (_bc_ != 3))
+			mVUaddSubVF0(mVU, Fs, opType == 1, _XYZW_SS);
+		else if (_XYZW_SS) SSE_SS[opType](mVU, Fs, Ft, -1, -1);
+		else               SSE_PS[opType](mVU, Fs, Ft, -1, -1);
 
 		if (isACC)
 		{
