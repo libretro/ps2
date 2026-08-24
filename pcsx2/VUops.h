@@ -15,6 +15,7 @@
 
 #pragma once
 #include "VU.h"
+#include "common/MathUtils.h"
 
 #define float_to_int4(x)	((float)x * (1.0f / 0.0625f))
 #define float_to_int12(x)	((float)x * (1.0f / 0.000244140625f))
@@ -42,7 +43,7 @@ static __fi float vu_itof_chop(s32 v)
 		r.u = 0;
 		return r.f;
 	}
-	nl = 31 - __builtin_clz(m);
+	nl = 31 - (int)count_leading_zero((s32)m); /* m != 0 guaranteed above */
 	if (nl <= 23)
 		mant = m << (23 - nl);
 	else
