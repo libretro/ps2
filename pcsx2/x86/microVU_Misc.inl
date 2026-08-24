@@ -725,9 +725,15 @@ void SSE_SUBSS(mV, int to, int from, int t1 = -1, int t2 = -1)
 static bool mVUexactMulVF0(mV, int reg, int opCase, bool isSS)
 {
 	bool byOne, mixed = false;
-	if (!(opCase == 1 || opCase == 4) || (_Ft_ != 0))
+	/* register form is opCase 1 and the broadcast form is opCase 2;
+	 * cases 3 and 4 are the I and Q forms, whose multiplier is a
+	 * runtime register and whose ft field is not an operand - the
+	 * first landing specialized case 4 on the belief it was the
+	 * broadcast, turning every perspective-division multiply into a
+	 * masked identity and blacking out the scene. */
+	if (!(opCase == 1 || opCase == 2) || (_Ft_ != 0))
 		return false;
-	if (opCase == 4)
+	if (opCase == 2)
 		byOne = (_bc_ == 3);
 	else if (isSS)
 		byOne = ((_X_Y_Z_W & 1) != 0);  // W lane selected
