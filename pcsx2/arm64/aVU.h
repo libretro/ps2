@@ -374,6 +374,7 @@ struct microVU
 	alignas(16) u32 clipFlag[4]; // 4 instances of clip   flag (used in execution)
 	alignas(16) u32 vecCTemp[4];      // Backup used in mVUclamp2()                  (x86: xmmCTemp)
 	alignas(16) u32 exactMulBuf[16];      // exact-multiply stub I/O: ma, mb, p01, p23 (x86: same shape)
+	alignas(16) u32 exactDivBuf[4];       // exact div/sqrt/rsqrt I/O: a, b, op-in result-out
 	alignas(16) u32 exactMulSave[16][4];  // stub vector spill area
 	u8* exactMulStub = nullptr;           // emitted tree stub
 	alignas(16) u32 vecBackup[32][4]; // Backup for host vector regs across XGKICK   (x86: xmmBackup[16][4]; sized for NEON v0-v31)

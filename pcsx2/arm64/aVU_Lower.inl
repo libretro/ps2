@@ -167,6 +167,45 @@ static __fi void testNeg(mV, const a64::VRegister& xmmReg, const a64::Register& 
 	armAsm->Bind(&skip);
 }
 
+//------------------------------------------------------------------
+// Exact DIV/SQRT/RSQRT, the arm64 twin of the x86 path: the SRT
+// quotient's final increment is trajectory-dependent with no closed
+// form, so exact Q runs the model's recurrence through a C call.
+// aVU needs no custom thunk - the tree's own backup/restore around
+// armEmitCall is the established full-save idiom - and the model
+// computes the specials and the invalid and zero-divide flags the
+// branchy emissions below otherwise construct by hand.
+//------------------------------------------------------------------
+static void aVUexactDivC(microVU* m)
+{
+	const u32 a = m->exactDivBuf[0];
+	const u32 b = m->exactDivBuf[1];
+	const u32 op = m->exactDivBuf[2];
+	const ps2f_u64 r = (op == 0) ? ps2f_div(a, b)
+	                 : (op == 1) ? ps2f_sqrt(b)
+	                             : ps2f_rsqrt(a, b);
+	m->exactDivBuf[0] = ps2f_raw(r);
+	m->divFlag = (r & PS2F_IV) ? divI : ((r & PS2F_DZ) ? divD : 0);
+}
+
+static void mVUexactDivCall(microVU& mVU, const a64::VRegister& fs, const a64::VRegister& ft, int op, const a64::VRegister& dstReg)
+{
+	if (op != 1)
+	{
+		armAsm->Umov(gprT1.W(), fs.V4S(), 0);
+		mvuStr32(mVU, &mVU.exactDivBuf[0], gprT1);
+	}
+	armAsm->Umov(gprT1.W(), ft.V4S(), 0);
+	mvuStr32(mVU, &mVU.exactDivBuf[1], gprT1);
+	mvuStrImm32(mVU, &mVU.exactDivBuf[2], op, gprT1);
+	mVUbackupRegs(mVU, true, true);
+	armAsm->Mov(RWARG1, reinterpret_cast<uintptr_t>(&mVU));
+	armEmitCall(reinterpret_cast<const void*>(&aVUexactDivC));
+	mVUrestoreRegs(mVU, true, true);
+	mvuLdr32(mVU, gprT1, &mVU.exactDivBuf[0]);
+	armAsm->Ins(dstReg.V4S(), 0, gprT1.W());
+}
+
 mVUop(mVU_DIV)
 {
 	pass1 { mVUanalyzeFDIV(mVU, _Fs_, _Fsf_, _Ft_, _Ftf_, 7); }
@@ -178,6 +217,13 @@ mVUop(mVU_DIV)
 		const a64::VRegister Fs = mVU.regAlloc->allocReg(_Fs_, 0, (1 << (3 - _Fsf_)));
 		const a64::VRegister t1 = mVU.regAlloc->allocReg();
 
+		if (CHECK_VU_EXACTDIV)
+		{
+			mVUexactDivCall(mVU, Fs, Ft, 0, Fs);
+			goto div_write;
+		}
+
+		{
 		a64::Label cjmp, ajmp, bjmp, djmp;
 		testZero(Ft, t1, gprT1); // Test if Ft is zero
 		armAsm->B(&cjmp, a64::eq); // Skip if not zero
@@ -202,7 +248,9 @@ mVUop(mVU_DIV)
 			SSE_DIVSS(mVU, Fs, Ft);
 			mVUclamp1(mVU, Fs, t1, 8, true);
 		armAsm->Bind(&djmp);
+		}
 
+div_write:
 		writeQreg(Fs, mVUinfo.writeQ);
 
 		if (mVU.cop2)
@@ -227,6 +275,12 @@ mVUop(mVU_SQRT)
 	{
 		const a64::VRegister Ft = mVU.regAlloc->allocReg(_Ft_, 0, (1 << (3 - _Ftf_)));
 
+		if (CHECK_VU_EXACTDIV)
+		{
+			mVUexactDivCall(mVU, Ft, Ft, 1, Ft);
+			goto sqrt_write;
+		}
+
 		mvuStrImm32(mVU, &mVU.divFlag, 0, gprT1); // Clear I/D flags
 		testNeg(mVU, Ft, gprT1); // Check for negative sqrt
 
@@ -239,6 +293,8 @@ mVUop(mVU_SQRT)
 			armAsm->Fminnm(Ft.S(), Ft.S(), RQSCRATCH.S());
 		}
 		armAsm->Fsqrt(Ft.S(), Ft.S());
+
+sqrt_write:
 		writeQreg(Ft, mVUinfo.writeQ);
 
 		if (mVU.cop2)
@@ -263,11 +319,18 @@ mVUop(mVU_RSQRT)
 		const a64::VRegister Ft = mVU.regAlloc->allocReg(_Ft_, 0, (1 << (3 - _Ftf_)));
 		const a64::VRegister t1 = mVU.regAlloc->allocReg();
 
+		if (CHECK_VU_EXACTDIV)
+		{
+			mVUexactDivCall(mVU, Fs, Ft, 2, Fs);
+			goto rsqrt_write;
+		}
+
 		mvuStrImm32(mVU, &mVU.divFlag, 0, gprT1); // Clear I/D flags
 		testNeg(mVU, Ft, gprT1); // Check for negative sqrt
 
 		armAsm->Fsqrt(Ft.S(), Ft.S());
 
+		{
 		a64::Label ajmp, bjmp, cjmp, djmp;
 		testZero(Ft, t1, gprT1); // Test if Ft is zero
 		armAsm->B(&ajmp, a64::eq); // Skip if not zero
@@ -290,7 +353,9 @@ mVUop(mVU_RSQRT)
 			SSE_DIVSS(mVU, Fs, Ft);
 			mVUclamp1(mVU, Fs, t1, 8, true);
 		armAsm->Bind(&djmp);
+		}
 
+rsqrt_write:
 		writeQreg(Fs, mVUinfo.writeQ);
 
 		if (mVU.cop2)
