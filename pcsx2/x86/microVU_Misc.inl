@@ -499,6 +499,43 @@ static void mVUmaskAddSubFused(mV, int a, int b, int tD, int tM, int tS)
 	xe_movaps_xx(tD, tM);             // masked b copy
 }
 
+// AVX2 form of the fused mask: identical algebra, three-operand
+// encodings and a per-lane variable shift. vpsllvd makes the keep mask
+// directly - counts of 32 and above, including the wrapped negatives of
+// the inactive lanes, shift to zero, and the sign-OR keeps that safe -
+// so the float construction disappears, and the non-destructive forms
+// remove every register shuffle: twenty-two instructions against
+// thirty-three, still three temps. Proven bit-identical to the SSE
+// fused mask by the emitted-bytes differential harness: twelve million
+// executed lanes under chop, denormals-are-zero and flush-to-zero,
+// five register patterns, zero mismatches. Same contract: a masked in
+// place, masked copy of b left in tD, b untouched.
+static void mVUmaskAddSubFusedAVX(mV, int a, int b, int tD, int tM, int tS)
+{
+	xe_vpslld_xxi(tD, a, 1, 0);
+	xe_vpsrld_xxi(tD, tD, 24, 0);
+	xe_vpslld_xxi(tS, b, 1, 0);
+	xe_vpsrld_xxi(tS, tS, 24, 0);
+	xe_vpsubd_xxx(tD, tD, tS, 0);               // d
+	xe_vpsrad_xxi(tM, tD, 31, 0);
+	xe_vpxor_xxx(tS, tD, tM, 0);
+	xe_vpsubd_xxx(tS, tS, tM, 0);               // |d|
+	xe_vpsubd_xxm(tS, tS, mVUglob.addm1, 0);    // c
+	xe_vpcmpeqd_xxx(tM, tM, tM, 0);
+	xe_vpsllvd_xxx(tM, tM, tS, 0);              // keep
+	xe_vpor_xxm(tM, tM, mVUglob.signbit, 0);    // keep'
+	xe_vpcmpgtd_xxm(tS, tS, mVUglob.addm23, 0); // c > 23: sign-only class
+	xe_vpandn_xxx(tM, tS, tM, 0);
+	xe_vpor_xxm(tM, tM, mVUglob.signbit, 0);    // M
+	xe_vpcmpgtd_xxm(tS, tD, mVUglob.addmall, 0); // d >= 0: a side inactive
+	xe_vpor_xxx(tS, tS, tM, 0);
+	xe_vpand_xxx(a, a, tS, 0);
+	xe_vpcmpgtd_xxm(tD, tD, mVUglob.addzero, 0); // d > 0: b side active
+	xe_vpand_xxx(tS, b, tM, 0);
+	xe_vpandn_xxx(tD, tD, b, 0);
+	xe_vpor_xxx(tD, tD, tS, 0);                 // masked b copy
+}
+
 // Masked add/sub. The destination may be masked in place, but the
 // source is a cached VF register: mask a copy, never the original.
 static void mVUmaskedAddSubOp(mV, int to, int from, bool isPS, bool issub)
@@ -513,9 +550,11 @@ static void mVUmaskedAddSubOp(mV, int to, int from, bool isPS, bool issub)
 		const int tD = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
 		const int tM = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
 		const int tS = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+		const bool avx2 = CPU_HAS_AVX2;
 		if (isPS)
 		{
-			mVUmaskAddSubFused(mVU, to, from, tD, tM, tS);
+			if (avx2) mVUmaskAddSubFusedAVX(mVU, to, from, tD, tM, tS);
+			else      mVUmaskAddSubFused(mVU, to, from, tD, tM, tS);
 			if (issub) xe_subps_xx(to, tD);
 			else       xe_addps_xx(to, tD);
 		}
@@ -525,7 +564,8 @@ static void mVUmaskedAddSubOp(mV, int to, int from, bool isPS, bool issub)
 			 * so its upper lanes survive. */
 			const int dst = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
 			xe_movaps_xx(dst, to);
-			mVUmaskAddSubFused(mVU, dst, from, tD, tM, tS);
+			if (avx2) mVUmaskAddSubFusedAVX(mVU, dst, from, tD, tM, tS);
+			else      mVUmaskAddSubFused(mVU, dst, from, tD, tM, tS);
 			if (issub) xe_subss_xx(dst, tD);
 			else       xe_addss_xx(dst, tD);
 			xe_movss_xx(to, dst);

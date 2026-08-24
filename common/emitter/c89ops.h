@@ -971,6 +971,35 @@ static uintptr_t xe_opaque_uptr(const void *p)
 #define xe_vmovups_memxg(m, x, L) do { XE_OPEN(); E_VEX_RRMEM(xep, 0x00, 0x11, (x), E_NOREG, (m), (L)); XE_CLOSE(); } while (0)
 #define xe_vpcmpeqd_xxmemg(d, s1, m, L) do { XE_OPEN(); E_VEX_RRMEM(xep, 0x66, 0x76, (d), (s1), (m), (L)); XE_CLOSE(); } while (0)
 #define xe_vpand_xxx(d, s1, s2, L) do { XE_OPEN(); E_VEX_RRR(xep, 0x66, 0xdb, (d), (s1), (s2), (L)); XE_CLOSE(); } while (0)
+/* Additions for the AVX2 add/sub mask, riding the same E_VEX core.
+ * vpsllvd lives in the 0F38 map, which needs the 3-byte form always;
+ * the shift-by-immediate group puts the destination in vvvv. */
+#define E_VEX38_RRR(p, pre, opcode, dst, src1, src2, ymm) do { \
+	uint8_t nv38_ = (uint8_t)((~(src1) & 0xF) << 3); \
+	EW8((p), 0xC4); \
+	EW8((p), (uint8_t)((((((dst) & 0x0F) > 7) ? 0x00 : 0x80)) | 0x40 | \
+		(((((src2) & 0x0F) > 7) ? 0x00 : 0x20)) | 0x02)); \
+	EW8((p), (uint8_t)(nv38_ | ((ymm) ? 4 : 0) | E_VEX_PP(pre))); \
+	EW8((p), (uint8_t)(opcode)); \
+	E_MODRM_RR((p), (dst), (src2)); } while (0)
+#define E_VEX_SHIFT_I(p, pre, grp, dst, src, imm, ymm) do { \
+	E_VEX((p), (pre), 0x72, (grp), (dst), (ymm), \
+	      0, ((((src) & 0x0F) > 7) ? 1 : 0)); \
+	E_MODRM_RR((p), (grp), (src)); EW8((p), (uint8_t)(imm)); } while (0)
+#define xe_vpandn_xxx(d, s1, s2, L)  do { XE_OPEN(); E_VEX_RRR(xep, 0x66, 0xdf, (d), (s1), (s2), (L)); XE_CLOSE(); } while (0)
+#define xe_vpor_xxx(d, s1, s2, L)    do { XE_OPEN(); E_VEX_RRR(xep, 0x66, 0xeb, (d), (s1), (s2), (L)); XE_CLOSE(); } while (0)
+#define xe_vpor_xxm(d, s1, addr, L)  do { XE_OPEN(); E_VEX_RRM(xep, 0x66, 0xeb, (d), (s1), (addr), (L)); XE_CLOSE(); } while (0)
+#define xe_vpxor_xxx(d, s1, s2, L)   do { XE_OPEN(); E_VEX_RRR(xep, 0x66, 0xef, (d), (s1), (s2), (L)); XE_CLOSE(); } while (0)
+#define xe_vpsubd_xxx(d, s1, s2, L)  do { XE_OPEN(); E_VEX_RRR(xep, 0x66, 0xfa, (d), (s1), (s2), (L)); XE_CLOSE(); } while (0)
+#define xe_vpsubd_xxm(d, s1, addr, L) do { XE_OPEN(); E_VEX_RRM(xep, 0x66, 0xfa, (d), (s1), (addr), (L)); XE_CLOSE(); } while (0)
+#define xe_vpcmpeqd_xxx(d, s1, s2, L) do { XE_OPEN(); E_VEX_RRR(xep, 0x66, 0x76, (d), (s1), (s2), (L)); XE_CLOSE(); } while (0)
+#define xe_vpcmpgtd_xxx(d, s1, s2, L) do { XE_OPEN(); E_VEX_RRR(xep, 0x66, 0x66, (d), (s1), (s2), (L)); XE_CLOSE(); } while (0)
+#define xe_vpcmpgtd_xxm(d, s1, addr, L) do { XE_OPEN(); E_VEX_RRM(xep, 0x66, 0x66, (d), (s1), (addr), (L)); XE_CLOSE(); } while (0)
+#define xe_vpand_xxm2(d, s1, addr, L) do { XE_OPEN(); E_VEX_RRM(xep, 0x66, 0xdb, (d), (s1), (addr), (L)); XE_CLOSE(); } while (0)
+#define xe_vpsllvd_xxx(d, s1, s2, L) do { XE_OPEN(); E_VEX38_RRR(xep, 0x66, 0x47, (d), (s1), (s2), (L)); XE_CLOSE(); } while (0)
+#define xe_vpslld_xxi(d, s, i, L)    do { XE_OPEN(); E_VEX_SHIFT_I(xep, 0x66, 6, (d), (s), (i), (L)); XE_CLOSE(); } while (0)
+#define xe_vpsrld_xxi(d, s, i, L)    do { XE_OPEN(); E_VEX_SHIFT_I(xep, 0x66, 2, (d), (s), (i), (L)); XE_CLOSE(); } while (0)
+#define xe_vpsrad_xxi(d, s, i, L)    do { XE_OPEN(); E_VEX_SHIFT_I(xep, 0x66, 4, (d), (s), (i), (L)); XE_CLOSE(); } while (0)
 #define xe_vpmovmskb_rx(gpr, x, L) do { XE_OPEN();  \
 	{ E_VEX(xep, 0x66, 0xd7, (gpr), E_NOREG, (L), 0, ((((x) & 0x0F) > 7) ? 1 : 0)); \
 	  E_MODRM_RR(xep, (gpr), (x)); }; XE_CLOSE(); } while (0)

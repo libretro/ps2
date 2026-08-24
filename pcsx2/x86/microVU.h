@@ -17,6 +17,7 @@
 
 #include <string.h> /* memset/memcpy */
 #include "ps2float.h"
+#include "common/CpuFeatures.h"
 
 #include "Common.h"
 #include "VU.h"
