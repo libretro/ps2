@@ -224,6 +224,8 @@ Pcsx2Config::RecompilerOptions::RecompilerOptions()
 	EnableEECache = false;
 	EnableFpuSoftFloat = false;
 	EnableVuExactMul = false;
+	EnableVuAccurateAddSub = true;
+	EnableFpuAccurateArith = true;
 	EnableIOP = true;
 	EnableVU0 = true;
 	EnableVU1 = true;
@@ -304,6 +306,8 @@ void Pcsx2Config::RecompilerOptions::LoadSave(SettingsWrapper& wrap)
 	SettingsWrapBitBool(EnableEECache);
 	SettingsWrapBitBool(EnableFpuSoftFloat);
 	SettingsWrapBitBool(EnableVuExactMul);
+	SettingsWrapBitBool(EnableVuAccurateAddSub);
+	SettingsWrapBitBool(EnableFpuAccurateArith);
 	SettingsWrapBitBool(EnableVU0);
 	SettingsWrapBitBool(EnableVU1);
 	SettingsWrapBitBool(EnableFastmem);

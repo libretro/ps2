@@ -522,27 +522,57 @@ void SSE_MINSS(mV, int to, int from, int t1 = -1, int t2 = -1)
  * the discard the hack approximated, for every distance. */
 void SSE_ADD2SS(mV, int to, int from, int t1 = -1, int t2 = -1)
 {
-	mVUmaskedAddSubOp(mVU, to, from, false, false);
+	if (CHECK_VU_ACC_ADDSUB)
+	{
+		mVUmaskedAddSubOp(mVU, to, from, false, false);
+		return;
+	}
+	clampOp(xe_addss_xx, 0);
 }
 void SSE_ADD2PS(mV, int to, int from, int t1 = -1, int t2 = -1)
 {
-	mVUmaskedAddSubOp(mVU, to, from, true, false);
+	if (CHECK_VU_ACC_ADDSUB)
+	{
+		mVUmaskedAddSubOp(mVU, to, from, true, false);
+		return;
+	}
+	clampOp(xe_addps_xx, 1);
 }
 void SSE_ADDPS(mV, int to, int from, int t1 = -1, int t2 = -1)
 {
-	mVUmaskedAddSubOp(mVU, to, from, true, false);
+	if (CHECK_VU_ACC_ADDSUB)
+	{
+		mVUmaskedAddSubOp(mVU, to, from, true, false);
+		return;
+	}
+	clampOp(xe_addps_xx, 1);
 }
 void SSE_ADDSS(mV, int to, int from, int t1 = -1, int t2 = -1)
 {
-	mVUmaskedAddSubOp(mVU, to, from, false, false);
+	if (CHECK_VU_ACC_ADDSUB)
+	{
+		mVUmaskedAddSubOp(mVU, to, from, false, false);
+		return;
+	}
+	clampOp(xe_addss_xx, 0);
 }
 void SSE_SUBPS(mV, int to, int from, int t1 = -1, int t2 = -1)
 {
-	mVUmaskedAddSubOp(mVU, to, from, true, true);
+	if (CHECK_VU_ACC_ADDSUB)
+	{
+		mVUmaskedAddSubOp(mVU, to, from, true, true);
+		return;
+	}
+	clampOp(xe_subps_xx, 1);
 }
 void SSE_SUBSS(mV, int to, int from, int t1 = -1, int t2 = -1)
 {
-	mVUmaskedAddSubOp(mVU, to, from, false, true);
+	if (CHECK_VU_ACC_ADDSUB)
+	{
+		mVUmaskedAddSubOp(mVU, to, from, false, true);
+		return;
+	}
+	clampOp(xe_subss_xx, 0);
 }
 
 //------------------------------------------------------------------

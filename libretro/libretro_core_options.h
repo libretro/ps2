@@ -603,6 +603,34 @@ struct retro_core_option_v2_definition option_defs_us[] = {
    },
 #endif
    {
+      "pcsx2_vu_accurate_addsub",
+      "Emulation > VU Accurate Add/Sub",
+      "VU Accurate Add/Sub",
+      "Model the VU adder's exponent-distance truncation. This is the correctness fix that replaced the old VuAddSub gamefix, so Tri-Ace games (Star Ocean 3, Radiata Stories, Valkyrie Profile 2) need it on. Costs speed on VU-heavy games.",
+      NULL,
+      "emulation",
+      {
+         { "enabled", NULL },
+         { "disabled", NULL },
+         { NULL, NULL },
+      },
+      "enabled"
+   },
+   {
+      "pcsx2_ee_accurate_fpu",
+      "Emulation > EE Accurate FPU Arithmetic",
+      "EE Accurate FPU Arithmetic",
+      "Run EE FPU add, sub, mul and the fused chains through the extended-range double pipeline: exact add/sub against the hardware model, near-exact multiplies, and correct handling of the huge values the PS2 allows. Some speed cost.",
+      NULL,
+      "emulation",
+      {
+         { "enabled", NULL },
+         { "disabled", NULL },
+         { NULL, NULL },
+      },
+      "enabled"
+   },
+   {
       "pcsx2_vu_exact_mul",
       "Emulation > VU Exact Multiply",
       "VU Exact Multiply",

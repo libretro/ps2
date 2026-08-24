@@ -397,7 +397,7 @@ static void mVUclampedArith(mV, const a64::VRegister& to, const a64::VRegister& 
 	mVUclamp3(mVU, from, ct, xyzw);
 	if (isPS)
 	{
-		if (isAddSub)
+		if (isAddSub && CHECK_VU_ACC_ADDSUB)
 		{
 			// from is a cached VF register: mask a copy, never the original.
 			armAsm->Mov(RQSCRATCH3.V16B(), from.V16B());
@@ -409,11 +409,13 @@ static void mVUclampedArith(mV, const a64::VRegister& to, const a64::VRegister& 
 		}
 		switch (op)
 		{
+			case mVU_ADD_OP: armAsm->Fadd(to.V4S(), to.V4S(), from.V4S()); break;
+			case mVU_SUB_OP: armAsm->Fsub(to.V4S(), to.V4S(), from.V4S()); break;
 			case mVU_MUL_OP: armAsm->Fmul(to.V4S(), to.V4S(), from.V4S()); break;
 			case mVU_DIV_OP: armAsm->Fdiv(to.V4S(), to.V4S(), from.V4S()); break;
 		}
 	}
-	else if (isAddSub)
+	else if (isAddSub && CHECK_VU_ACC_ADDSUB)
 	{
 		// Lane 0 only: mask in GPRs into two scratch singles, add, insert.
 		mVUmaskAddSubSS(mVU, to, from, RQSCRATCH2, RQSCRATCH3);

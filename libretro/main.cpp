@@ -141,6 +141,8 @@ static u8 setting_ee_cycle_skip                = 0;
 static s8 setting_ee_cycle_rate                = 0;
 static bool setting_fpu_softfloat              = false;
 static bool setting_vu_exact_mul               = false;
+static bool setting_vu_accurate_addsub         = true;
+static bool setting_ee_accurate_fpu            = true;
 static s8 setting_hint_language_unlock         = 0;
 s8 setting_hint_widescreen                     = 0;
 static s8 setting_hint_game_enhancements       = 0;
@@ -1172,6 +1174,30 @@ static void check_variables(bool first_run)
 			setting_hint_language_unlock = 1;
 		else
 			setting_hint_language_unlock = 0;
+	}
+
+	var.key = "pcsx2_vu_accurate_addsub";
+	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+	{
+		const bool vu_addsub = !strcmp(var.value, "enabled");
+		if (vu_addsub != setting_vu_accurate_addsub)
+		{
+			setting_vu_accurate_addsub = vu_addsub;
+			updated = true;
+		}
+		s_settings_interface.SetBoolValue("EmuCore/CPU/Recompiler", "EnableVuAccurateAddSub", vu_addsub);
+	}
+
+	var.key = "pcsx2_ee_accurate_fpu";
+	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+	{
+		const bool ee_acc = !strcmp(var.value, "enabled");
+		if (ee_acc != setting_ee_accurate_fpu)
+		{
+			setting_ee_accurate_fpu = ee_acc;
+			updated = true;
+		}
+		s_settings_interface.SetBoolValue("EmuCore/CPU/Recompiler", "EnableFpuAccurateArith", ee_acc);
 	}
 
 	var.key = "pcsx2_vu_exact_mul";
