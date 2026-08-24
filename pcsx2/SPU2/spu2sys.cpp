@@ -274,6 +274,7 @@ __fi void TimeUpdate(u64 cClocks)
 						vc.ADSR.Phase   = PHASE_ATTACK;
 						vc.ADSR.Counter = 0;
 						vc.ADSR.Value   = 0;
+						ADSR_UpdateCache(vc.ADSR);
 
 						vc.SCurrent     = 28;
 						vc.LoopMode     = 0;
