@@ -108,16 +108,14 @@ static void CDVD_INT(int eCycle)
 // test (which will cause the exception to be handled).
 static void cdvdSetIrq(uint id)
 {
-	/* Unconditional: the IOP INTC stat is an OR-latch, so re-asserting an
-	 * already-pending line is a no-op there - a "rising edge only" guard
-	 * here cannot prevent any spurious IRQ, it can only lose wakeups.
-	 * The lost-wakeup case is real: with IntrStat's completion bit still
-	 * set (driver not yet acked - e.g. restored that way from a savestate,
-	 * or a second completion landing during a masked section), the guard
-	 * swallowed the interrupt and CDVDMAN slept forever on a read that
-	 * had completed. */
-	iopIntcIrq(2);
-	psxSetNextBranchDelta(20);
+	/* Only assert the IOP interrupt on a rising edge of IntrStat; if the bit
+	 * is already set the interrupt line is still pending and re-issuing would
+	 * be a spurious double IRQ. */
+	if (!(cdvd.IntrStat & id))
+	{
+		iopIntcIrq(2);
+		psxSetNextBranchDelta(20);
+	}
 
 	cdvd.IntrStat       |= id;
 	cdvd.AbortRequested  = false;

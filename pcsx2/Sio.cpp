@@ -363,10 +363,10 @@ void Sio2::FullReset()
 
 void Sio2::Interrupt()
 {
-	/* Unconditional, same reasoning as cdvdSetIrq: the IOP INTC stat is an
-	 * OR-latch, so re-raising a pending line is a no-op there and a rising-
-	 * edge guard can only lose wakeups when iStat is latched unacked. */
-	iopIntcIrq(17);
+	/* Only raise the IOP interrupt on a rising edge; if iStat already has a
+	 * pending interrupt, re-issuing would be a spurious double IRQ. */
+	if (!iStat)
+		iopIntcIrq(17);
 
 	iStat |= 1;
 }
