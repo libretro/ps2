@@ -462,7 +462,144 @@ static void SSE_ADDPS(mV, const a64::VRegister& to, const a64::VRegister& from, 
 static void SSE_ADDSS(mV, const a64::VRegister& to, const a64::VRegister& from, const a64::VRegister& t1 = xEmptyReg, const a64::VRegister& t2 = xEmptyReg) { mVUclampedArith(mVU, to, from, t1, mVU_ADD_OP, false); }
 static void SSE_SUBPS(mV, const a64::VRegister& to, const a64::VRegister& from, const a64::VRegister& t1 = xEmptyReg, const a64::VRegister& t2 = xEmptyReg) { mVUclampedArith(mVU, to, from, t1, mVU_SUB_OP, true); }
 static void SSE_SUBSS(mV, const a64::VRegister& to, const a64::VRegister& from, const a64::VRegister& t1 = xEmptyReg, const a64::VRegister& t2 = xEmptyReg) { mVUclampedArith(mVU, to, from, t1, mVU_SUB_OP, false); }
-static void SSE_MULPS(mV, const a64::VRegister& to, const a64::VRegister& from, const a64::VRegister& t1 = xEmptyReg, const a64::VRegister& t2 = xEmptyReg) { mVUclampedArith(mVU, to, from, t1, mVU_MUL_OP, true); }
-static void SSE_MULSS(mV, const a64::VRegister& to, const a64::VRegister& from, const a64::VRegister& t1 = xEmptyReg, const a64::VRegister& t2 = xEmptyReg) { mVUclampedArith(mVU, to, from, t1, mVU_MUL_OP, false); }
+
+//------------------------------------------------------------------
+// Hardware-exact multiply (x86: mVUexactMulPS). Same architecture:
+// the Booth correction can reach the kept mantissa only when the
+// product's bits 22:15 are all zero - about one lane in 256 - so the
+// fast path is the widening products, that guard, and a chop-pack;
+// a tripped guard drops the quad to the scalar soft model through
+// the per-VU buffer. NEON compresses the x86 sequence considerably:
+// Umull pairs make the products, Xtn narrows the low words for a
+// constant-free guard (shift up, compare against zero), Shrn extracts
+// the mantissas, the carry-normalize is one per-lane Ushl by negated
+// counts, and Bic with immediates does the field masking.
+// Scratch: v0, v1, q29-q31; from is not modified; dst may equal to.
+//------------------------------------------------------------------
+static void mVUexactMulSlowC(microVU& mVU)
+{
+	u32* b = mVU.exactMulBuf;
+	int i;
+	for (i = 0; i < 4; i++)
+		b[8 + i] = (u32)ps2f_raw(ps2f_mul(b[i], b[4 + i]));
+}
+static void mVUexactMulSlow0() { mVUexactMulSlowC(microVU0); }
+static void mVUexactMulSlow1() { mVUexactMulSlowC(microVU1); }
+
+static void mVUexactMulPS(mV, const a64::VRegister& dst, const a64::VRegister& to, const a64::VRegister& from)
+{
+	const a64::VRegister vA = a64::v0;
+	const a64::VRegister vB = a64::v1;
+	const a64::VRegister vC = RQSCRATCH;
+	const a64::VRegister vD = RQSCRATCH2;
+	const a64::VRegister vE = RQSCRATCH3;
+	u32* buf = mVU.exactMulBuf;
+	a64::Label slow, done;
+
+	// raw operands for the slow path
+	armAsm->Str(to, armAbsMemOperand(RSCRATCHADDR, &buf[0], 128));
+	armAsm->Str(from, armAbsMemOperand(RSCRATCHADDR, &buf[4], 128));
+
+	// mantissas with implicit bit: vA = ma, vB = mb
+	armAsm->Movi(vC.V4S(), 0x80, a64::LSL, 16);   // implicit
+	armAsm->Movi(vD.V4S(), 1);
+	armAsm->Sub (vD.V4S(), vC.V4S(), vD.V4S());   // mantissa mask
+	armAsm->And (vA.V16B(), to.V16B(), vD.V16B());
+	armAsm->Orr (vA.V16B(), vA.V16B(), vC.V16B());
+	armAsm->And (vB.V16B(), from.V16B(), vD.V16B());
+	armAsm->Orr (vB.V16B(), vB.V16B(), vC.V16B());
+
+	// products: vC = p01 (lanes 0,1), vA = p23
+	armAsm->Umull (vC.V2D(), vA.V2S(), vB.V2S());
+	armAsm->Umull2(vA.V2D(), vA.V4S(), vB.V4S());
+
+	// guard: low words narrowed, bits 22:15 tested constant-free
+	armAsm->Xtn (vB.V2S(), vC.V2D());
+	armAsm->Xtn2(vB.V4S(), vA.V2D());
+	armAsm->Ushr(vB.V4S(), vB.V4S(), 15);
+	armAsm->Shl (vB.V4S(), vB.V4S(), 24);
+	armAsm->Cmeq(vB.V4S(), vB.V4S(), 0);
+	armAsm->Umaxv(a64::s2, vB.V4S());             // v2 low used transiently
+	armAsm->Fmov(gprT1, a64::s2);
+	armAsm->Cbnz(gprT1, &slow);
+
+	// ---- fast path ----
+	// rm merged: (p >> 23) narrowed into 4S
+	armAsm->Shrn (vB.V2S(), vC.V2D(), 23);
+	armAsm->Shrn2(vB.V4S(), vA.V2D(), 23);
+	// carry-normalize with a per-lane negative shift
+	armAsm->Ushr(vC.V4S(), vB.V4S(), 24);         // carry
+	armAsm->Neg (vD.V4S(), vC.V4S());
+	armAsm->Ushl(vB.V4S(), vB.V4S(), vD.V4S());
+	// e = expA + expB - 127 + carry
+	armAsm->Shl (vD.V4S(), to.V4S(), 1);
+	armAsm->Ushr(vD.V4S(), vD.V4S(), 24);
+	armAsm->Add (vD.V4S(), vD.V4S(), vC.V4S());
+	armAsm->Shl (vC.V4S(), from.V4S(), 1);
+	armAsm->Ushr(vC.V4S(), vC.V4S(), 24);
+	armAsm->Add (vD.V4S(), vD.V4S(), vC.V4S());
+	armAsm->Movi(vC.V4S(), 127);
+	armAsm->Sub (vD.V4S(), vD.V4S(), vC.V4S());   // e
+	// sign
+	armAsm->Eor (vE.V16B(), to.V16B(), from.V16B());
+	armAsm->Ushr(vE.V4S(), vE.V4S(), 31);
+	armAsm->Shl (vE.V4S(), vE.V4S(), 31);         // sign
+	// normal result in vA
+	armAsm->Bic (vB.V4S(), 0xff, 24);            // rm &= 0x007fffff
+	armAsm->Bic (vB.V4S(), 0x80, 16);
+	armAsm->Shl (vA.V4S(), vD.V4S(), 23);
+	armAsm->Orr (vA.V16B(), vA.V16B(), vB.V16B());
+	armAsm->Orr (vA.V16B(), vA.V16B(), vE.V16B());
+	// overflow: e > 255 -> sign | 0x7fffffff
+	armAsm->Movi(vC.V4S(), 255);
+	armAsm->Cmgt(vC.V4S(), vD.V4S(), vC.V4S());   // mo
+	armAsm->Mvni(vB.V4S(), 0x80, a64::LSL, 24);   // 0x7fffffff
+	armAsm->Orr (vB.V16B(), vB.V16B(), vE.V16B());
+	armAsm->Bsl (vC.V16B(), vB.V16B(), vA.V16B()); // mo ? clamp : normal
+	// underflow (e < 1) or a zero-exponent operand -> sign
+	armAsm->Cmlt(vD.V4S(), vD.V4S(), 0);          // e <= 0
+	armAsm->Shl (vB.V4S(), to.V4S(), 1);
+	armAsm->Ushr(vB.V4S(), vB.V4S(), 24);
+	armAsm->Cmeq(vB.V4S(), vB.V4S(), 0);
+	armAsm->Orr (vD.V16B(), vD.V16B(), vB.V16B());
+	armAsm->Shl (vB.V4S(), from.V4S(), 1);
+	armAsm->Ushr(vB.V4S(), vB.V4S(), 24);
+	armAsm->Cmeq(vB.V4S(), vB.V4S(), 0);
+	armAsm->Orr (vD.V16B(), vD.V16B(), vB.V16B());
+	armAsm->Bsl (vD.V16B(), vE.V16B(), vC.V16B()); // mzu ? sign : selected
+	armAsm->Mov (dst.V16B(), vD.V16B());
+	armAsm->B   (&done);
+
+	// ---- slow path ----
+	armAsm->Bind(&slow);
+	mVUbackupRegs(mVU, true, true);
+	armEmitCall(reinterpret_cast<const void*>(&mVU == &microVU1 ? mVUexactMulSlow1 : mVUexactMulSlow0));
+	mVUrestoreRegs(mVU, true, true);
+	armAsm->Ldr(dst, armAbsMemOperand(RSCRATCHADDR, &buf[8], 128));
+	armAsm->Bind(&done);
+}
+
+static void SSE_MULPS(mV, const a64::VRegister& to, const a64::VRegister& from, const a64::VRegister& t1 = xEmptyReg, const a64::VRegister& t2 = xEmptyReg)
+{
+	if (CHECK_VU_EXACTMUL)
+	{
+		mVUexactMulPS(mVU, to, to, from);
+		return;
+	}
+	mVUclampedArith(mVU, to, from, t1, mVU_MUL_OP, true);
+}
+static void SSE_MULSS(mV, const a64::VRegister& to, const a64::VRegister& from, const a64::VRegister& t1 = xEmptyReg, const a64::VRegister& t2 = xEmptyReg)
+{
+	if (CHECK_VU_EXACTMUL)
+	{
+		/* lane 0 through the same pipeline into a scratch, then insert:
+		 * the upper lanes of the destination must survive. v2 is free
+		 * here alongside the pipeline's own scratch. */
+		mVUexactMulPS(mVU, a64::v2, to, from);
+		armAsm->Ins(to.V4S(), 0, a64::v2.V4S(), 0);
+		return;
+	}
+	mVUclampedArith(mVU, to, from, t1, mVU_MUL_OP, false);
+}
 static void SSE_DIVPS(mV, const a64::VRegister& to, const a64::VRegister& from, const a64::VRegister& t1 = xEmptyReg, const a64::VRegister& t2 = xEmptyReg) { mVUclampedArith(mVU, to, from, t1, mVU_DIV_OP, true); }
 static void SSE_DIVSS(mV, const a64::VRegister& to, const a64::VRegister& from, const a64::VRegister& t1 = xEmptyReg, const a64::VRegister& t2 = xEmptyReg) { mVUclampedArith(mVU, to, from, t1, mVU_DIV_OP, false); }

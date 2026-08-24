@@ -9,6 +9,7 @@
 // This is the ARM64 counterpart to pcsx2/x86/microVU.h + microVU_IR.h. Per the
 // Phase 7 strategy (PROGRESS.md / [[arm64-microvu-architecture]]) microVU is
 // *parallel-cloned* into pcsx2/arm64/ rather than #included from x86/ — the x86
+#include "ps2float.h"
 // headers fuse the arch-neutral structs together with x86emitter types and the
 // x86 `microRegAlloc` in the same files, so they cannot be compiled on ARM64.
 //
@@ -355,6 +356,7 @@ struct microVU
 	alignas(16) u32 macFlag [4]; // 4 instances of mac    flag (used in execution)
 	alignas(16) u32 clipFlag[4]; // 4 instances of clip   flag (used in execution)
 	alignas(16) u32 vecCTemp[4];      // Backup used in mVUclamp2()                  (x86: xmmCTemp)
+	alignas(16) u32 exactMulBuf[12];  // exact-multiply slow path: a[4], b[4], dst[4] (x86: same)
 	alignas(16) u32 vecBackup[32][4]; // Backup for host vector regs across XGKICK   (x86: xmmBackup[16][4]; sized for NEON v0-v31)
 
 	// C.75: block-local copies of the emitter constant tables (filled in
