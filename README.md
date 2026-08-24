@@ -208,7 +208,29 @@ proofs or code review alone. Under that standard:
   the shift-immediate forms) -- each encoding executed in the differential
   before any consumer shipped.
 
-### Measured and rejected (this arc)
+#
+### The EE approximation ceiling, measured
+
+The EE FPU ladder ends at softfloat for a reason that is now
+quantified rather than assumed. Against the ps2float model on thirty
+million random operand pairs: the recompiled divide under host
+nearest rounding is already exact for 81.7 percent of operands, with
+every miss exactly one ulp; the model itself is the truncated
+quotient or the truncated quotient plus one, nothing else, with the
+plus-one carrying no closed form (the predicate search's best simple
+classifier reached 78.1 percent - host rounding already beats
+anything cheaper than the recurrence). A truncation-corrected divide
+was designed and measured at 61.8 percent before a line was emitted:
+it would have been a twenty-point regression. Square root has the
+same structure from the other side - the model is never above host
+nearest, 73.8 percent exact as emitted, 76.2 under truncation, the
+remainder being its own trajectory class. Multiplies sit at 99.94
+percent in the double tier and adds are exact. The conclusion these
+numbers force: the approximate tiers are at their practical ceiling,
+every remaining bit of EE exactness costs the recurrence, and that
+is precisely what the softfloat option is.
+
+## Measured and rejected (this arc)
 
 * A GPR-based scalar masking path: broke rendering through a mechanism that
   survived three targeted hunts unidentified; the emission paths now use no
