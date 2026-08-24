@@ -41,10 +41,42 @@ __ri void doUpperOp(mV)
 	mVUopU(mVU, 1);
 	mVUdivSet(mVU);
 }
+/* Block-local VI constant tracking, the arm64 twin of the x86
+ * tracker: rooted at vi00 and immediates only, so compiled blocks
+ * stay correct across executions with different entry registers;
+ * any VI writer outside the whitelist invalidates its destination
+ * via the analysis field. Runs right after each lower op emits. */
+static void mVUtrackVIConst(microVU& mVU)
+{
+	const u32 wreg = mVUlow.VI_write.reg;
+	u32 op, valid = 0, value = 0;
+	if (!doViConstProp || !wreg || wreg >= 16)
+		return;
+	#define vicKnown(r) ((r) == 0 || mVUconstReg[r].isValid)
+	#define vicVal(r)   ((r) == 0 ? 0u : mVUconstReg[r].regValue)
+	op = (mVU.code >> 25) & 0x7f;
+	if (op == 0x08 && vicKnown(_Is_))      { valid = 1; value = (u16)(vicVal(_Is_) + _Imm15_); } /* IADDIU */
+	else if (op == 0x09 && vicKnown(_Is_)) { valid = 1; value = (u16)(vicVal(_Is_) - _Imm15_); } /* ISUBIU */
+	else if (op == 0x40)
+	{
+		const u32 l = mVU.code & 0x3f;
+		if      (l == 0x32 && vicKnown(_Is_))                   { valid = 1; value = (u16)(vicVal(_Is_) + _Imm5_); }       /* IADDI */
+		else if (l == 0x30 && vicKnown(_Is_) && vicKnown(_It_)) { valid = 1; value = (u16)(vicVal(_Is_) + vicVal(_It_)); } /* IADD  */
+		else if (l == 0x31 && vicKnown(_Is_) && vicKnown(_It_)) { valid = 1; value = (u16)(vicVal(_Is_) - vicVal(_It_)); } /* ISUB  */
+		else if (l == 0x34 && vicKnown(_Is_) && vicKnown(_It_)) { valid = 1; value = (u16)(vicVal(_Is_) & vicVal(_It_)); } /* IAND  */
+		else if (l == 0x35 && vicKnown(_Is_) && vicKnown(_It_)) { valid = 1; value = (u16)(vicVal(_Is_) | vicVal(_It_)); } /* IOR   */
+	}
+	mVUconstReg[wreg].isValid  = valid;
+	mVUconstReg[wreg].regValue = value;
+	#undef vicKnown
+	#undef vicVal
+}
+
 __ri void doLowerOp(mV)
 {
 	incPC(-1);
 	mVUopL(mVU, 1);
+	mVUtrackVIConst(mVU);
 	incPC(1);
 }
 __ri void flushRegs(mV)
@@ -94,6 +126,7 @@ void doSwapOp(mV)
 		mVU.regAlloc->clearNeeded(t1);
 
 		mVUopL(mVU, 1);
+		mVUtrackVIConst(mVU);
 
 		const a64::VRegister t3 = mVU.regAlloc->allocReg(mVUlow.VF_write.reg, mVUlow.VF_write.reg, 0xf, false);
 		armAsm->Eor(t2.V16B(), t2.V16B(), t3.V16B()); // Swap new and old values of the register
@@ -112,6 +145,7 @@ void doSwapOp(mV)
 	else
 	{
 		mVUopL(mVU, 1);
+		mVUtrackVIConst(mVU);
 		incPC(1);
 		flushRegs(mVU);
 		doUpperOp(mVU);
@@ -552,6 +586,7 @@ void* mVUcompile(microVU& mVU, u32 startPC, uptr pState)
 	mVUtestCycles(mVU, mFC);         // Update VU Cycles and Exit Early if Necessary
 
 	// Second Pass
+	memset(mVUconstReg, 0, sizeof(mVU.prog.IRinfo.constReg)); /* block entry: no VI constants known */
 	iPC = mVUstartPC;
 	setCode();
 	mVUbranch = 0;

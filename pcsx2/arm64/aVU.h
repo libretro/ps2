@@ -308,6 +308,7 @@ static const uint mVUcacheSafeZone =  3; // Safe-Zone for program recompilation 
 
 // Const-prop of the vi15 register is off by default (matches the x86 rec).
 static constexpr bool doConstProp = false;
+static constexpr bool doViConstProp = true; // Block-local VI const propagation into memory-op addressing
 
 // C.75: emit-constant table (defined here so microVU can embed a copy; the
 // canonical instance mVUglob lives in aVU_Misc.h).

@@ -192,11 +192,15 @@ __fi void mVUaddrFix(mV, const a64::Register& gprReg, const a64::Register& tmpRe
 // the caller via armMoveAddressToReg". std::nullopt ⇒ must compute at runtime.
 __fi std::optional<const void*> mVUoptimizeConstantAddr(mV, u32 srcreg, s32 offset, s32 offsetSS_)
 {
-	// if we had const prop for VIs, we could do that here..
-	if (srcreg != 0)
+	/* VI const prop, as the old comment here requested: a known
+	 * source register folds to an absolute address exactly like vi00
+	 * always has, replicating the runtime sum and masking bit for
+	 * bit - zero-extended sixteen-bit register plus sign-extended
+	 * immediate under the same wrap. */
+	if (srcreg != 0 && !(doViConstProp && srcreg < 16 && mVUconstReg[srcreg].isValid))
 		return std::nullopt;
 
-	const s32 addr = 0 + offset;
+	const s32 addr = (s32)(srcreg ? (u32)(u16)mVUconstReg[srcreg].regValue : 0u) + offset;
 	if (isVU1)
 	{
 		return (const void*)(mVU.regs().Mem + ((addr & 0x3FFu) << 4) + offsetSS_);
