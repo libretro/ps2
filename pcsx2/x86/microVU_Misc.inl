@@ -557,8 +557,6 @@ void SSE_SUBSS(mV, int to, int from, int t1 = -1, int t2 = -1)
 // the guard firing on 1.55% of random quads and the fast path
 // costing about 9ns per quad in the C model of this sequence.
 //------------------------------------------------------------------
-static void mVUexactMulSlow0() { u32* b = microVU0.exactMulBuf; int i; for (i = 0; i < 4; i++) b[8+i] = (u32)ps2f_raw(ps2f_mul(b[i], b[4+i])); }
-static void mVUexactMulSlow1() { u32* b = microVU1.exactMulBuf; int i; for (i = 0; i < 4; i++) b[8+i] = (u32)ps2f_raw(ps2f_mul(b[i], b[4+i])); }
 
 // dst receives the 4-lane exact product of to * from; from is not
 // modified. For the SS forms the caller passes a temp as dst and
@@ -574,10 +572,7 @@ static void mVUexactMulPS(mV, int dst, int to, int from)
 	const int T7 = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
 	u32* buf = mVU->exactMulBuf;
 	uint8_t *jSlow, *jDone;
-
-	// raw operands for the slow path
-	xe_movaps_mx(&buf[0], to);
-	xe_movaps_mx(&buf[4], from);
+	u8* packStart;
 
 	// T1 = zero-operand mask (either exponent field zero)
 	xe_pxor_xx(T7, T7);
@@ -599,6 +594,9 @@ static void mVUexactMulPS(mV, int dst, int to, int from)
 	xe_movaps_xx(T4, from);
 	xe_pand_xm(T4, mVUglob.mulman);
 	xe_por_xm(T4, mVUglob.mulimp);
+	// mantissas for the tree stub's slow path
+	xe_movaps_mx(&buf[0], T3);
+	xe_movaps_mx(&buf[4], T4);
 	// T5 = biased result exponent
 	xe_movaps_xx(T5, to);
 	xe_pand_xm(T5, mVUglob.exponent);
@@ -624,10 +622,17 @@ static void mVUexactMulPS(mV, int dst, int to, int from)
 	xe_por_xx(T3, T4);
 	xe_pxor_xx(T4, T4);
 	xe_pcmpeqd_xx(T3, T4);
-	xe_movmskps_rx(XE_AX, T3);
+	/* zero-operand lanes are decided by the final select whatever the
+	 * product says, so they must not trip the guard: with the implicit
+	 * bit forced on, 0.0 times anything zeroes the guard field, and
+	 * game data is full of zeros. */
+	xe_movaps_xx(T4, T1);
+	xe_pandn_xx(T4, T3);
+	xe_movmskps_rx(XE_AX, T4);
 	xe_test32_rr(XE_AX, XE_AX);
 	xe_fwd_jcc32(Jcc_NotZero, jSlow);
-	// ---- fast path ----
+	// ---- shared pack (fast path falls in; slow path jumps back) ----
+	packStart = x86Ptr;
 	// rm = (corrected==full) >> 23, merged into epi32 lanes
 	xe_movaps_xx(T3, T6);
 	xe_psrlq_xi(T3, 23);
@@ -670,12 +675,16 @@ static void mVUexactMulPS(mV, int dst, int to, int from)
 	xe_por_xx(T3, T2);
 	xe_movaps_xx(dst, T3);
 	xe_fwd_jcc32(Jcc_Unconditional, jDone);
-	// ---- slow path: the scalar soft model on the spilled operands ----
+	// ---- slow path: hand the products to the tree stub, take the
+	// corrected ones back, and rejoin the pack above. The stub saves
+	// every register itself, so nothing here needs a flush. ----
 	xe_fwd_set32(jSlow);
-	mVUbackupRegs(mVU, 1, 1);
-	xe_fastcall0(mVU == &microVU1 ? mVUexactMulSlow1 : mVUexactMulSlow0);
-	mVUrestoreRegs(mVU, 1, 1);
-	xe_movaps_xm(dst, &buf[8]);
+	xe_movaps_mx(&buf[8], T6);
+	xe_movaps_mx(&buf[12], T7);
+	xe_call_ptr(mVU->exactMulStub);
+	xe_movaps_xm(T6, &buf[8]);
+	xe_movaps_xm(T7, &buf[12]);
+	xe_jmp_to(packStart);
 	xe_fwd_set32(jDone);
 
 	mVUra_clearNeededXMM(mVU->regAlloc, T1);

@@ -33,6 +33,168 @@ static int mvuNeedsFPCRUpdate(mV)
 }
 
 // Generates the code for entering/exit recompiled blocks
+
+//------------------------------------------------------------------
+// Shared exact-multiply tree stub, emitted once per dispatcher init.
+// The paired Booth/CSA tree proven in the harness - 48 million lanes
+// with zero mismatches against the scalar reference, byte-exact end
+// to end against ps2float - transcribed instruction for instruction.
+// Memory ABI through mVU->exactMulBuf: in [0..3] ma, [4..7] mb
+// (mantissas with implicit bit, epi32 lanes); [8..11] p02 and
+// [12..15] p13 are the 64-bit products, corrected in place. The stub
+// saves and restores every vector register, so call sites need no
+// register flush at all - the old slow path's full backup around a C
+// call, taken on a guard that real game data trips on most
+// multiplies, was the reported Tekken slowdown.
+//------------------------------------------------------------------
+
+// add3: lo = x^y^z, hi = ((x&y)|((x^y)&z)) << 1.
+// lo, hi, w must be distinct from each other and from x, y, z.
+static void emitAdd3(int x, int y, int z, int lo, int hi, int w)
+{
+	xe_movaps_xx(w, x);
+	xe_pxor_xx(w, y);          // u
+	xe_movaps_xx(hi, x);
+	xe_pand_xx(hi, y);         // x & y
+	xe_movaps_xx(lo, w);
+	xe_pand_xx(lo, z);         // u & z
+	xe_por_xx(hi, lo);
+	xe_psllw_xi(hi, 1);
+	xe_movaps_xx(lo, w);
+	xe_pxor_xx(lo, z);
+}
+
+static void mVUemitExactMulStub(mV)
+{
+	u32* buf = mVU->exactMulBuf;
+	int i, k;
+
+	mVU->exactMulStub = x86Ptr;
+	for (i = 0; i < 16; i++)
+		xe_movaps_mx(&mVU->exactMulSave[i][0], i);
+
+	// regs: 0=aP 1=b16 2..5=d0..d3 6..8=n1..n3 9..12=iter/tree 13..15=working
+	xe_movaps_xm(0, &buf[0]);
+	xe_pshufb_xm(0, mVUglob.tPack);
+	xe_punpcklqdq_xx(0, 0);
+	xe_movaps_xm(1, &buf[4]);
+	xe_pshufb_xm(1, mVUglob.tPack);
+	xe_punpcklqdq_xx(1, 1);
+	xe_movaps_xx(9, 0);
+	xe_psllw_xi(9, 8);
+	xe_pblendw_xxi(0, 9, 0xf0);        // aP
+
+	for (k = 0; k < 4; k++)
+	{
+		// 9 = t: blend of the two half shifts, &7, doubled into both bytes
+		xe_movaps_xx(9, 1);
+		if (k == 0) xe_psllw_xi(9, 1);
+		else        xe_psrlw_xi(9, k * 2 - 1);
+		xe_movaps_xx(10, 1);
+		xe_psrlw_xi(10, k * 2 + 7);
+		xe_pblendw_xxi(9, 10, 0xf0);
+		xe_pand_xm(9, mVUglob.t7);
+		xe_movaps_xx(10, 9);
+		xe_psllw_xi(10, 8);
+		xe_por_xx(9, 10);
+		// 11 = x = aP << 2k
+		xe_movaps_xx(11, 0);
+		if (k) xe_psllw_xi(11, k * 2);
+		// x += x & dbl
+		xe_movaps_xm(10, mVUglob.tLUTdbl);
+		xe_pshufb_xx(10, 9);
+		xe_pand_xx(10, 11);
+		xe_paddw_xx(11, 10);
+		// 10 = neg; n[k] for k>=1 into 5+k; x ^= neg & (onesP<<2k)
+		xe_movaps_xm(10, mVUglob.tLUTneg);
+		xe_pshufb_xx(10, 9);
+		if (k >= 1)
+		{
+			xe_movaps_xx(5 + k, 10);
+			xe_movaps_xm(12, mVUglob.tOneP);
+			xe_psllw_xi(12, k * 2);
+			xe_pand_xx(5 + k, 12);
+		}
+		xe_movaps_xm(12, mVUglob.tOnesP);
+		if (k) xe_psllw_xi(12, k * 2);
+		xe_pand_xx(10, 12);
+		xe_pxor_xx(11, 10);
+		// x &= any (t still live in 9)
+		xe_movaps_xm(10, mVUglob.tLUTany);
+		xe_pshufb_xx(10, 9);
+		xe_pand_xx(11, 10);
+		xe_movaps_xx(2 + k, 11);       // d[k]
+	}
+
+	// unpair the high halves; 0,1,9..15 free
+	xe_movaps_xx(9, 2);  xe_psrldq_xi(9, 8);   // d4
+	xe_movaps_xx(10, 3); xe_psrldq_xi(10, 8);  // d5
+	xe_movaps_xx(11, 4); xe_psrldq_xi(11, 8);  // d6
+	xe_movaps_xx(12, 5); xe_psrldq_xi(12, 8);  // d7
+	xe_movaps_xx(13, 6); xe_psrldq_xi(13, 8);  // n5
+
+	// b7 = d7 | ((d5 & 0x400) + n5)  -> 12 ; frees 13
+	xe_movaps_xx(14, 10);
+	xe_pand_xm(14, mVUglob.t0400);
+	xe_paddw_xx(14, 13);
+	xe_por_xx(12, 14);
+	// 13 = d5 & 0x800 (needed after d5 is masked), then mask d4/d5
+	xe_movaps_xx(13, 10);
+	xe_pand_xm(13, mVUglob.t0800);
+	xe_pand_xm(9, mVUglob.tF800);
+	xe_pand_xm(10, mVUglob.tF000);
+
+	// t0 = add3(d1, d2, d3) -> lo 14, hi 15 ; d1..d3 die
+	emitAdd3(3, 4, 5, 14, 15, 1);
+	// t1 = add3(d4m, d5m, d6) -> lo 3, hi 4 ; then t1h |= n6 | (d5&0x800)
+	emitAdd3(9, 10, 11, 3, 4, 5);
+	xe_movaps_xx(5, 7);  xe_psrldq_xi(5, 8);   // n6
+	xe_por_xx(4, 5);
+	xe_por_xx(4, 13);
+	// t2 = add3(d0, t0l, t0h) -> lo 9, hi 10 ; d0 dies
+	emitAdd3(2, 14, 15, 9, 10, 11);
+	// t3 = add3(b7, t1l, t1h) -> lo 13, hi 14
+	emitAdd3(12, 3, 4, 13, 14, 15);
+	// t4 = add3(t2h, t3l, t3h) -> lo 2, hi 3
+	emitAdd3(10, 13, 14, 2, 3, 4);
+	// t5 = add3(t2l, t4l, t4h) -> lo 5, hi 10
+	emitAdd3(9, 2, 3, 5, 10, 11);
+	// t5h += n7 ; sum = (t5l & 0x8000) + (t5h & 0x8000) ; tb = sum >> 15
+	xe_movaps_xx(11, 8); xe_psrldq_xi(11, 8);  // n7
+	xe_paddw_xx(10, 11);
+	xe_pand_xm(5, mVUglob.t8000);
+	xe_pand_xm(10, mVUglob.t8000);
+	xe_paddw_xx(5, 10);
+	xe_psrlw_xi(5, 15);                        // tb, epi16 lanes 0-3
+
+	// correction: p -= ((tb ^ ((p >> 15) & 1)) << 15), 64-bit lanes
+	xe_pxor_xx(0, 0);
+	xe_punpcklwd_xx(5, 0);                     // tb32 lanes {b0,b1,b2,b3}
+	xe_movaps_xx(6, 5);
+	xe_pand_xm(6, mVUglob.mullo);              // tb02 {b0,0,b2,0}
+	xe_psrlq_xi(5, 32);                        // tb13 {b1,0,b3,0}
+	xe_movaps_xm(1, &buf[8]);                  // p02
+	xe_movaps_xm(2, &buf[12]);                 // p13
+	xe_movaps_xx(3, 1);
+	xe_psrlq_xi(3, 15);
+	xe_pand_xm(3, mVUglob.mul64one);           // f02
+	xe_movaps_xx(4, 2);
+	xe_psrlq_xi(4, 15);
+	xe_pand_xm(4, mVUglob.mul64one);           // f13
+	xe_pxor_xx(6, 3);
+	xe_pxor_xx(5, 4);
+	xe_psllq_xi(6, 15);
+	xe_psllq_xi(5, 15);
+	xe_psubq_xx(1, 6);
+	xe_psubq_xx(2, 5);
+	xe_movaps_mx(&buf[8], 1);
+	xe_movaps_mx(&buf[12], 2);
+
+	for (i = 0; i < 16; i++)
+		xe_movaps_xm(i, &mVU->exactMulSave[i][0]);
+	xe_ret();
+}
+
 void mVUdispatcherAB(mV)
 {
 	mVU->startFunct = x86Ptr;

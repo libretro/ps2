@@ -223,7 +223,7 @@ Pcsx2Config::RecompilerOptions::RecompilerOptions()
 	EnableEE = true;
 	EnableEECache = false;
 	EnableFpuSoftFloat = false;
-	EnableVuExactMul = true;
+	EnableVuExactMul = false;
 	EnableIOP = true;
 	EnableVU0 = true;
 	EnableVU1 = true;

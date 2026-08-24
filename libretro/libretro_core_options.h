@@ -606,15 +606,15 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       "pcsx2_vu_exact_mul",
       "Emulation > VU Exact Multiply",
       "VU Exact Multiply",
-      "Bit-exact hardware model of the VU multiplier. The full model runs only on the rare products it can affect, so the cost is small; disable only if a weak device needs the speed back.",
+      "Bit-exact hardware model of the VU multiplier. Real game data trips the full model on most multiplies - zeros, ones and quantized values dominate - so expect a real speed cost on VU-heavy games.",
       NULL,
       "emulation",
       {
-         { "enabled", NULL },
          { "disabled", NULL },
+         { "enabled", NULL },
          { NULL, NULL },
       },
-      "enabled"
+      "disabled"
    },
    {
       "pcsx2_fpu_softfloat",

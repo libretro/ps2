@@ -92,6 +92,7 @@ void mVUreset(microVU* mVU, int resetReserve)
 	x86Ptr = (u8*)(mVU->dispCache);
 	mVUdispatcherAB(mVU);
 	mVUdispatcherCD(mVU);
+	mVUemitExactMulStub(mVU);
 	mVUGenerateWaitMTVU(mVU);
 	mVUGenerateCopyPipelineState(mVU);
 	mVUGenerateCompareState(mVU);

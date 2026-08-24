@@ -45,6 +45,20 @@ struct mVU_Globals
 	u32   mul1    [4] = __four(1);
 	u32   mulg    [4] = {0x007f8000, 0, 0x007f8000, 0};
 	u32   mullo   [4] = {0xffffffff, 0, 0xffffffff, 0};
+	u32   mul64one[4] = {1, 0, 1, 0};
+	/* exact-multiply tree stub */
+	u32   tPack   [4] = {0x05040100, 0x0d0c0908, 0x80808080, 0x80808080};
+	u32   tLUTdbl [4] = {0xff000000, 0x000000ff, 0xff000000, 0x000000ff};
+	u32   tLUTneg [4] = {0x00000000, 0x00ffffff, 0x00000000, 0x00ffffff};
+	u32   tLUTany [4] = {0xffffff00, 0x00ffffff, 0xffffff00, 0x00ffffff};
+	u32   t7      [4] = __four(0x00070007);
+	u32   tOnesP  [4] = {0xffffffff, 0xffffffff, 0xff00ff00, 0xff00ff00};
+	u32   tOneP   [4] = {0x00010001, 0x00010001, 0x01000100, 0x01000100};
+	u32   tF800   [4] = __four(0xf800f800);
+	u32   tF000   [4] = __four(0xf000f000);
+	u32   t0800   [4] = __four(0x08000800);
+	u32   t0400   [4] = __four(0x04000400);
+	u32   t8000   [4] = __four(0x80008000);
 	u32   Pi4     [4] = __four(0x3f490fdb);
 	u32   T1      [4] = __four(0x3f7ffff5);
 	u32   T2      [4] = __four(0xbeaaa61c);
