@@ -386,6 +386,8 @@ struct Pcsx2Config
 				bool    EnableFastmem    : 1;
 				/* Route recompiled EE FPU arithmetic through ps2float. */
 				bool    EnableFpuSoftFloat : 1;
+				/* Hardware-exact VU multiply in the VU recompilers. */
+				bool    EnableVuExactMul : 1;
 			};
 		};
 
@@ -944,6 +946,7 @@ namespace EmuFolders
  * FP sequences; a toggle reaches emitted code through the Cpu-config diff
  * in CheckForCPUConfigChanges, which clears the execution caches. */
 #define CHECK_FPU_SOFT_REC (EmuConfig.Cpu.Recompiler.EnableFpuSoftFloat)
+#define CHECK_VU_EXACTMUL (EmuConfig.Cpu.Recompiler.EnableVuExactMul)
 
 //------------ SPECIAL GAME FIXES!!! ---------------
 #define CHECK_FPUMULHACK (EmuConfig.Gamefixes.FpuMulHack) // Special Fix for Tales of Destiny hangs.

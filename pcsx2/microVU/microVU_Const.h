@@ -38,6 +38,13 @@ struct mVU_Globals
 	u32   addm24  [4] = __four(0x00000018);
 	u32   addmall [4] = __four(0xffffffff);
 	u32   addmn25 [4] = __four(0xffffffe7);   /* -25 */
+	u32   mulman  [4] = __four(0x007fffff);   /* exact multiply */
+	u32   mulimp  [4] = __four(0x00800000);
+	u32   mul127  [4] = __four(127);
+	u32   mul255  [4] = __four(255);
+	u32   mul1    [4] = __four(1);
+	u32   mulg    [4] = {0x007f8000, 0, 0x007f8000, 0};
+	u32   mullo   [4] = {0xffffffff, 0, 0xffffffff, 0};
 	u32   Pi4     [4] = __four(0x3f490fdb);
 	u32   T1      [4] = __four(0x3f7ffff5);
 	u32   T2      [4] = __four(0xbeaaa61c);

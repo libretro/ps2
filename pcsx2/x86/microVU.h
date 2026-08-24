@@ -16,6 +16,7 @@
 #pragma once
 
 #include <string.h> /* memset/memcpy */
+#include "ps2float.h"
 
 #include "Common.h"
 #include "VU.h"
@@ -35,6 +36,7 @@ struct microVU
 {
 
 	alignas(16) u32 statFlag[4]; // 4 instances of status flag (backup for xgkick)
+	alignas(16) u32 exactMulBuf[12]; // exact-multiply slow path: a[4], b[4], dst[4]
 	alignas(16) u32 macFlag [4]; // 4 instances of mac    flag (used in execution)
 	alignas(16) u32 clipFlag[4]; // 4 instances of clip   flag (used in execution)
 	alignas(16) u32 xmmCTemp[4];     // Backup used in mVUclamp2()

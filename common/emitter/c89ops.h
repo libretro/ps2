@@ -953,6 +953,8 @@ static uintptr_t xe_opaque_uptr(const void *p)
 	E_SSE_R_MEM(xep, 0x00, 0x59, (x), xm_); }; XE_CLOSE(); } while (0)
 #define xe_pcmpgtd_xm(x, addr) do { XE_OPEN(); { struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
 	E_SSE_R_MEM(xep, 0x66, 0x66, (x), xm_); }; XE_CLOSE(); } while (0)
+#define xe_pcmpeqd_xm(x, addr) do { XE_OPEN(); { struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	E_SSE_R_MEM(xep, 0x66, 0x76, (x), xm_); }; XE_CLOSE(); } while (0)
 #define xe_cvttps2dq_xx(d, s2) do { XE_OPEN(); E_SSE_RR(xep, 0xf3, 0x5b, (d), (s2)); XE_CLOSE(); } while (0)
 #define xe_pblendw_xxi(d, s2, i) do { XE_OPEN(); E_SSE_RRI(xep, 0x66, 0x0e3a, (d), (s2), (i)); XE_CLOSE(); } while (0)
 #define xe_packsswb_xx(d, s2) do { XE_OPEN(); E_SSE_RR(xep, 0x66, 0x63, (d), (s2)); XE_CLOSE(); } while (0)
