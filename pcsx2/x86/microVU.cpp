@@ -362,13 +362,29 @@ _mVUt __fi void* mVUsearchProg(u32 startPC, uptr pState)
 		return slot->entry;
 	}
 	{
-		void* entry = mVUsearchProgUncached<vuIndex>(startPC, pState);
-		microProgram* p = mVU->prog.quick[idx].prog;
-		if (p)
+		/* The query state must be captured before the search runs:
+		 * lpState - which pState aliases on the execute path - is a
+		 * live variable, overwritten by nested compiles during the
+		 * call and by emitted state saves at section exits. The
+		 * original fill snapshotted it afterwards, so a nested
+		 * compile poisoned the stored key and a later query whose
+		 * live state matched the poisoned value received an entry
+		 * resolved for a different state - wrong-state execution,
+		 * a hang on any title that sync-loops on VU results. The
+		 * fill also requires the quick index and the block PC to
+		 * agree, captured on both sides of the call, since the
+		 * entry depends on both. */
+		microRegInfo queryState;
+		void* entry;
+		microProgram* p;
+		memcpy(&queryState, (void*)pState, sizeof(microRegInfo));
+		entry = mVUsearchProgUncached<vuIndex>(startPC, pState);
+		p = mVU->prog.quick[idx].prog;
+		if (p && vuRegs[mVU->index].start_pc / 8 == idx && vuRegs[mVU->index].start_pc == startPC)
 		{
 			slot->prog  = p;
 			slot->entry = entry;
-			memcpy(&slot->state, (void*)pState, sizeof(microRegInfo));
+			memcpy(&slot->state, &queryState, sizeof(microRegInfo));
 		}
 		return entry;
 	}
