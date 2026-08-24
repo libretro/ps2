@@ -20,6 +20,7 @@
 #include <string.h> /* memset */
 
 #include "microVU.h"
+#include "ps2float.h"
 
 #include "../../common/AlignedMalloc.h"
 
@@ -96,6 +97,7 @@ void mVUreset(microVU* mVU, int resetReserve)
 	mVUdispatcherCD(mVU);
 	if (CPU_HAS_AVX512) mVUemitExactMulStubAVX512(mVU);
 	else                mVUemitExactMulStub(mVU);
+	mVUemitExactDivStub(mVU);
 	mVUGenerateWaitMTVU(mVU);
 	mVUGenerateCopyPipelineState(mVU);
 	mVUGenerateCompareState(mVU);

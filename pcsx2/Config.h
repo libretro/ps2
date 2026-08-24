@@ -388,6 +388,7 @@ struct Pcsx2Config
 				bool    EnableFpuSoftFloat : 1;
 				/* Hardware-exact VU multiply in the VU recompilers. */
 				bool    EnableVuExactMul : 1;
+				bool    EnableVuExactDiv : 1;
 				/* Exponent-distance operand masking for VU ADD/SUB. */
 				bool    EnableVuAccurateAddSub : 1;
 				/* EE FPU add/sub/mul family through the double pipeline. */
@@ -951,6 +952,7 @@ namespace EmuFolders
  * in CheckForCPUConfigChanges, which clears the execution caches. */
 #define CHECK_FPU_SOFT_REC (EmuConfig.Cpu.Recompiler.EnableFpuSoftFloat)
 #define CHECK_VU_EXACTMUL (EmuConfig.Cpu.Recompiler.EnableVuExactMul)
+#define CHECK_VU_EXACTDIV (EmuConfig.Cpu.Recompiler.EnableVuExactDiv)
 #define CHECK_VU_ACC_ADDSUB (EmuConfig.Cpu.Recompiler.EnableVuAccurateAddSub)
 #define CHECK_FPU_ACC_ARITH (EmuConfig.Cpu.Recompiler.EnableFpuAccurateArith)
 

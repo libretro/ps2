@@ -140,6 +140,7 @@ static u8 setting_texture_inside_rt            = 0;
 static u8 setting_ee_cycle_skip                = 0;
 static s8 setting_ee_cycle_rate                = 0;
 static bool setting_fpu_softfloat              = false;
+static bool setting_vu_exact_div = false;
 static bool setting_vu_exact_mul               = false;
 static bool setting_vu_accurate_addsub         = true;
 static bool setting_ee_accurate_fpu            = true;
@@ -1210,6 +1211,18 @@ static void check_variables(bool first_run)
 			updated = true;
 		}
 		s_settings_interface.SetBoolValue("EmuCore/CPU/Recompiler", "EnableVuExactMul", vu_exact);
+	}
+
+	var.key = "pcsx2_vu_exact_div";
+	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+	{
+		const bool vu_exact = !strcmp(var.value, "enabled");
+		if (vu_exact != setting_vu_exact_div)
+		{
+			setting_vu_exact_div = vu_exact;
+			updated = true;
+		}
+		s_settings_interface.SetBoolValue("EmuCore/CPU/Recompiler", "EnableVuExactDiv", vu_exact);
 	}
 
 	var.key = "pcsx2_fpu_softfloat";

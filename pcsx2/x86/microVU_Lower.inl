@@ -54,6 +54,16 @@ mVUop(mVU_DIV)
 		const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, 0, (1 << (3 - _Fsf_)), 1);
 		const int t1 = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
 
+		if (CHECK_VU_EXACTDIV)
+		{
+			xe_movss_mx(&mVU->exactDivBuf[0], Fs);
+			xe_movss_mx(&mVU->exactDivBuf[1], Ft);
+			xe_mov32_mi(&mVU->exactDivBuf[2], 0);
+			xe_call_ptr(mVU->exactDivStub);
+			xe_movss_xm(Fs, &mVU->exactDivBuf[0]);
+			goto div_write;
+		}
+
 		testZero(Ft, t1, gprT1); // Test if Ft is zero
 		uint8_t* cjmp; xe_fwd_jcc8(Jcc_Zero, cjmp); // Skip if not zero
 
@@ -79,6 +89,7 @@ mVUop(mVU_DIV)
 
 		xe_fwd_set8(djmp);
 
+div_write:
 		writeQreg(Fs, mVUinfo.writeQ);
 
 		if (mVU->cop2)
@@ -100,6 +111,15 @@ mVUop(mVU_SQRT)
 	{
 		const int Ft = mVUra_allocReg(mVU->regAlloc, _Ft_, 0, (1 << (3 - _Ftf_)), 1);
 
+		if (CHECK_VU_EXACTDIV)
+		{
+			xe_movss_mx(&mVU->exactDivBuf[1], Ft);
+			xe_mov32_mi(&mVU->exactDivBuf[2], 1);
+			xe_call_ptr(mVU->exactDivStub);
+			xe_movss_xm(Ft, &mVU->exactDivBuf[0]);
+			goto sqrt_write;
+		}
+
 		xe_mov32_mi(&mVU->divFlag, 0); /* Clear I/D flags */
 		testNeg(mVU, Ft, gprT1); /* Check for negative sqrt */
 		
@@ -107,6 +127,8 @@ mVUop(mVU_SQRT)
 		if (CHECK_VU_OVERFLOW(mVU->index)) 
 			xe_minss_xm(Ft, mVUglob.maxvals);
 		xe_sqrtss_xx(Ft, Ft);
+
+sqrt_write:
 
 		writeQreg(Ft, mVUinfo.writeQ);
 
@@ -128,6 +150,16 @@ mVUop(mVU_RSQRT)
 		const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, 0, (1 << (3 - _Fsf_)), 1);
 		const int Ft = mVUra_allocReg(mVU->regAlloc, _Ft_, 0, (1 << (3 - _Ftf_)), 1);
 		const int t1 = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+
+		if (CHECK_VU_EXACTDIV)
+		{
+			xe_movss_mx(&mVU->exactDivBuf[0], Fs);
+			xe_movss_mx(&mVU->exactDivBuf[1], Ft);
+			xe_mov32_mi(&mVU->exactDivBuf[2], 2);
+			xe_call_ptr(mVU->exactDivStub);
+			xe_movss_xm(Fs, &mVU->exactDivBuf[0]);
+			goto div_write;
+		}
 
 		xe_mov32_mi(&mVU->divFlag, 0); // Clear I/D flags
 		testNeg(mVU, Ft, gprT1); // Check for negative sqrt
@@ -153,6 +185,7 @@ mVUop(mVU_RSQRT)
 			mVUclamp1(mVU, Fs, t1, 8, 1);
 		xe_fwd_set8(djmp);
 
+div_write:
 		writeQreg(Fs, mVUinfo.writeQ);
 
 		if (mVU->cop2)

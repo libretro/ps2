@@ -40,6 +40,9 @@ struct microVU
 	alignas(16) u32 exactMulBuf[16];      // exact-multiply stub I/O: ma, mb, p02, p13
 	alignas(16) u32 exactMulSave[16][4];  // stub xmm spill area (all of xmm0-15)
 	u8* exactMulStub;                     // emitted tree stub (in dispCache)
+	alignas(16) u32 exactDivBuf[4];       // exact div/sqrt/rsqrt I/O: a, b, op-in result-out
+	alignas(16) u32 exactDivSave[16][4];  // div stub xmm spill area
+	u8* exactDivStub;                     // emitted call thunk (in dispCache)
 	alignas(16) u32 macFlag [4]; // 4 instances of mac    flag (used in execution)
 	alignas(16) u32 clipFlag[4]; // 4 instances of clip   flag (used in execution)
 	alignas(16) u32 xmmCTemp[4];     // Backup used in mVUclamp2()

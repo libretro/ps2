@@ -306,6 +306,47 @@ static void mVUemitExactMulStub(mV)
 	xe_ret();
 }
 
+//------------------------------------------------------------------
+// Exact DIV/SQRT/RSQRT: the SRT quotient's final +1 has no closed
+// form - it depends on the carry-save remainder trajectory, proven
+// by a four-thousand-bin overlap analysis - so exact Q means running
+// the model's recurrence. The microcode audit shows Q-producing
+// instructions are per-batch cold (zero in Tekken Tag's entire
+// cached program set), so a register-preserving thunk around a C
+// call costs nothing where it runs: all sixteen xmm saved, block
+// state lives in callee-saved GPRs already, and call sites need no
+// flush. Flags are derived from the model's own IV/DZ bits.
+//------------------------------------------------------------------
+static void mVUexactDivC(microVU* mVU)
+{
+	const u32 a = mVU->exactDivBuf[0];
+	const u32 b = mVU->exactDivBuf[1];
+	const u32 op = mVU->exactDivBuf[2];
+	const ps2f_u64 r = (op == 0) ? ps2f_div(a, b)
+	                 : (op == 1) ? ps2f_sqrt(b)
+	                             : ps2f_rsqrt(a, b);
+	mVU->exactDivBuf[0] = ps2f_raw(r);
+	mVU->divFlag = (r & PS2F_IV) ? divI : ((r & PS2F_DZ) ? divD : 0);
+}
+static void mVUexactDivVU0() { mVUexactDivC(&microVU0); }
+static void mVUexactDivVU1() { mVUexactDivC(&microVU1); }
+
+static void mVUemitExactDivStub(mV)
+{
+	int i;
+	mVU->exactDivStub = x86Ptr;
+	for (i = 0; i < 16; i++) xe_movaps_mx(&mVU->exactDivSave[i][0], i);
+	{
+		int m_offset;
+		SCOPED_STACK_FRAME_BEGIN(m_offset);
+		if (!isVU1) xe_fastcall0(mVUexactDivVU0);
+		else        xe_fastcall0(mVUexactDivVU1);
+		SCOPED_STACK_FRAME_END(m_offset);
+	}
+	for (i = 0; i < 16; i++) xe_movaps_xm(i, &mVU->exactDivSave[i][0]);
+	xe_ret();
+}
+
 void mVUdispatcherAB(mV)
 {
 	mVU->startFunct = x86Ptr;

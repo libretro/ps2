@@ -645,6 +645,20 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       "disabled"
    },
    {
+      "pcsx2_vu_exact_div",
+      "Emulation > VU Exact Divide",
+      "VU Exact Divide",
+      "Bit-exact hardware model of the VU divider. Real game data trips the full model on most divides - zeros, ones and quantized values dominate - so expect a real speed cost on VU-heavy games.",
+      NULL,
+      "emulation",
+      {
+         { "disabled", NULL },
+         { "enabled", NULL },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
       "pcsx2_fpu_softfloat",
       "Emulation > EE FPU Soft Float (Recompiler)",
       "EE FPU Soft Float (Recompiler)",
