@@ -57,6 +57,7 @@ void mVUinit(microVU* mVU, uint vuIndex)
 	mVU->dispCache    = NULL;
 	mVU->startFunct   = NULL;
 	mVU->exitFunct    = NULL;
+	mVU->mscalMemo    = (microMscalMemo*)calloc(mVU->progSize / 2, sizeof(microMscalMemo));
 
 	mVUreserveCache(mVU);
 
@@ -123,6 +124,7 @@ void mVUreset(microVU* mVU, int resetReserve)
 
 	// Setup Dynarec Cache Limits for Each Program
 	u8* z = mVU->cache;
+	memset(mVU->mscalMemo, 0, (mVU->progSize / 2) * sizeof(microMscalMemo)); /* dispatch cache resets: every memoized entry pointer dies */
 	mVU->prog.codeStart = z;
 	mVU->prog.codePtr   = z;
 	mVU->prog.codeEnd   = z + ((mVU->cacheSize - mVUcacheSafeZone) * _1mb);
@@ -167,6 +169,8 @@ void mVUclose(microVU* mVU)
 		mvu_proglist_delete(mVU->prog.prog[i]);
 		mVU->prog.prog[i] = NULL;
 	}
+	free(mVU->mscalMemo);
+	mVU->mscalMemo = NULL;
 }
 
 // Clears Block Data in specified range
@@ -279,7 +283,7 @@ __fi int mVUcmpProg(microVU* mVU, microProgram* prog)
 }
 
 // Searches for Cached Micro Program and sets prog.cur to it (returns entry-point to program)
-_mVUt __fi void* mVUsearchProg(u32 startPC, uptr pState)
+_mVUt __fi void* mVUsearchProgUncached(u32 startPC, uptr pState)
 {
 	microVU* mVU = mVUx;
 	microProgramQuick* quick = &mVU->prog.quick[vuRegs[mVU->index].start_pc / 8];
@@ -334,6 +338,40 @@ _mVUt __fi void* mVUsearchProg(u32 startPC, uptr pState)
 		return entryPoint;
 	}
 	return mVUentryGet(mVU, quick->block, startPC, pState);
+}
+
+/* The census priced this path: hundreds of thousands of program
+ * invocations a second on microprogram-spraying titles, each paying
+ * the search plus the block-manager state walk to resolve an answer
+ * that rarely changes. The memo resolves a repeat invocation in one
+ * pointer compare and one emitted state compare, replicating the
+ * quick-hit path's side effects exactly; any miss - program change,
+ * state change, cleared quick - falls through to the full search and
+ * refills. Entries die with the dispatch cache at reset. */
+_mVUt __fi void* mVUsearchProg(u32 startPC, uptr pState)
+{
+	microVU* mVU = mVUx;
+	const u32 idx = vuRegs[mVU->index].start_pc / 8;
+	microMscalMemo* slot = &mVU->mscalMemo[idx];
+	if (slot->prog && slot->prog == mVU->prog.quick[idx].prog
+	 && ((u32(*)(void*, void*))mVU->compareStateF)((void*)pState, &slot->state) == 0)
+	{
+		mVU->prog.isSame = -1;
+		mVU->prog.cur = slot->prog;
+		mVU->prog.quick[idx].block = slot->prog->block[startPC / 8];
+		return slot->entry;
+	}
+	{
+		void* entry = mVUsearchProgUncached<vuIndex>(startPC, pState);
+		microProgram* p = mVU->prog.quick[idx].prog;
+		if (p)
+		{
+			slot->prog  = p;
+			slot->entry = entry;
+			memcpy(&slot->state, (void*)pState, sizeof(microRegInfo));
+		}
+		return entry;
+	}
 }
 
 //------------------------------------------------------------------

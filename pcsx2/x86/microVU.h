@@ -33,6 +33,19 @@
 
 #include "../microVU/microVU_Structs.h"
 
+/* One slot per startPC: the last (program, pipeline-state) resolved at
+ * that PC and the block entry it produced. Program identity is checked
+ * against the live quick table - the same trick as the jump cache, which
+ * also absorbs mVUclear for free since a clear nulls every quick pointer -
+ * and the state by the emitted full-state comparator, which is strictly
+ * conservative against the simple search's partial matching. */
+struct microMscalMemo
+{
+	microProgram* prog;
+	void* entry;
+	microRegInfo state;
+};
+
 struct microVU
 {
 
@@ -67,6 +80,7 @@ struct microVU
 	u8* startFunctXG; // Function Ptr to the recompiler dispatcher (xgkick resume)
 	u8* exitFunctXG;  // Function Ptr to the recompiler dispatcher (xgkick exit)
 	u8* compareStateF;// Function Ptr to search which compares all state.
+	struct microMscalMemo* mscalMemo; // Per-startPC (prog, state) -> entry memo for program invocations
 	u8* waitMTVU;     // Ptr to function to save registers/sync VU1 thread
 	u8* copyPLState;  // Ptr to function to copy pipeline state into microVU
 	u8* resumePtrXG;  // Ptr to recompiled code position to resume xgkick
