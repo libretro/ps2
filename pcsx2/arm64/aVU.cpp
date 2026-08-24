@@ -533,6 +533,7 @@ void mVUinit(microVU& mVU, uint vuIndex)
 	mVU.vuMemSize    = (mVU.index ? 0x4000 : 0x1000);
 	mVU.microMemSize = (mVU.index ? 0x4000 : 0x1000);
 	mVU.progSize     = (mVU.index ? 0x4000 : 0x1000) / 4;
+	mVU.mscalMemo    = (microMscalMemoA*)calloc(mVU.progSize / 2, sizeof(microMscalMemoA));
 	mVU.progMemMask  =  mVU.progSize-1;
 	// The libretro fork has no fixed HostMemoryMap code arena; give each VU a
 	// dedicated RWX mmap (same 64 MB budget as upstream's mVU0/1recSize).
@@ -612,6 +613,8 @@ void mVUclose(microVU& mVU)
 		}
 		safe_delete(mVU.prog.prog[i]);
 	}
+	free(mVU.mscalMemo);
+	mVU.mscalMemo = nullptr;
 }
 
 // Clears Block Data in specified range
@@ -759,7 +762,7 @@ static bool mVUcmpProg(microVU& mVU, microProgram& prog)
 
 // Searches for Cached Micro Program and sets prog.cur to it (returns entry-point to program)
 template <int vuIndex>
-void* mVUsearchProg(u32 startPC, uptr pState)
+void* mVUsearchProgUncached(u32 startPC, uptr pState)
 {
 	microVU& mVU = (vuIndex ? microVU1 : microVU0);
 	microProgramQuick& quick = mVU.prog.quick[mVU.regs().start_pc / 8];
@@ -814,6 +817,44 @@ void* mVUsearchProg(u32 startPC, uptr pState)
 		return entryPoint;
 	}
 	return mVUentryGet(mVU, quick.block, startPC, pState);
+}
+
+/* The invocation memo, arm64 twin: same keying as x86 after its trial
+ * by fire - live quick pointer, section PC, and the query state
+ * snapshotted before the search since lpState is a live variable the
+ * search itself can overwrite. The compare uses the C++ state compare
+ * rather than the emitted one, which also keeps Apple Silicon's
+ * MAP_JIT write-protect sessions out of the picture entirely. The hit
+ * replicates the quick path's side effects exactly. */
+template <int vuIndex>
+void* mVUsearchProg(u32 startPC, uptr pState)
+{
+	microVU& mVU = (vuIndex ? microVU1 : microVU0);
+	const u32 idx = mVU.regs().start_pc / 8;
+	microMscalMemoA* slot = &mVU.mscalMemo[idx];
+	if (slot->prog && slot->prog == mVU.prog.quick[idx].prog
+	 && slot->startPC == startPC
+	 && mVU.compareState((microRegInfo*)pState, &slot->state) == 0)
+	{
+		mVU.prog.isSame = -1;
+		mVU.prog.cur = slot->prog;
+		mVU.prog.quick[idx].block = slot->prog->block[startPC / 8];
+		return slot->entry;
+	}
+	{
+		microRegInfo queryState;
+		std::memcpy(&queryState, (void*)pState, sizeof(microRegInfo));
+		void* entry = mVUsearchProgUncached<vuIndex>(startPC, pState);
+		microProgram* p = mVU.prog.quick[idx].prog;
+		if (p && mVU.regs().start_pc / 8 == idx)
+		{
+			slot->prog    = p;
+			slot->entry   = entry;
+			slot->startPC = startPC;
+			std::memcpy(&slot->state, &queryState, sizeof(microRegInfo));
+		}
+		return entry;
+	}
 }
 
 // Force both template instantiations to compile (the x86 rec instantiates these
@@ -1361,6 +1402,7 @@ static void mVUgenerateDispatchers(microVU& mVU)
 	mVUGenerateCopyPipelineState(mVU);
 	mVUGenerateCompareState(mVU);
 
+	std::memset(mVU.mscalMemo, 0, (mVU.progSize / 2) * sizeof(microMscalMemoA)); /* code region rebuilt: every memoized entry dies */
 	u8* const end = armEndBlock();
 	mVU.prog.codeStart = mVU.prog.codePtr =
 		reinterpret_cast<u8*>((reinterpret_cast<uintptr_t>(end) + 15u) & ~uintptr_t(15));

@@ -368,6 +368,21 @@ struct mVU_Globals
 };
 
 
+/* One slot per program start_pc: the last (program, section PC, entry
+ * state) resolved there and the block entry it produced. The section PC
+ * is part of the key from day one on this side: programs run in
+ * sections, re-entering mid-program at a later PC while start_pc keeps
+ * the base, which is the false-hit the x86 memo shipped and a real
+ * title convicted. Program identity checks against the live quick
+ * table, which mVUclear nulls wholesale. */
+struct microMscalMemoA
+{
+	microProgram* prog;
+	void* entry;
+	u32 startPC;
+	microRegInfo state;
+};
+
 struct microVU
 {
 	alignas(16) u32 statFlag[4]; // 4 instances of status flag (backup for xgkick)
@@ -423,6 +438,7 @@ struct microVU
 	u8* startFunctXG; // Function Ptr to the recompiler dispatcher (xgkick resume)
 	u8* exitFunctXG;  // Function Ptr to the recompiler dispatcher (xgkick exit)
 	u8* compareStateF;// Function Ptr to search which compares all state.
+	struct microMscalMemoA* mscalMemo; // Per-startPC (prog, section PC, state) -> entry memo
 	u8* waitMTVU;     // Ptr to function to save registers/sync VU1 thread
 	u8* copyPLState;  // Ptr to function to copy pipeline state into microVU
 	u8* resumePtrXG;  // Ptr to recompiled code position to resume xgkick
