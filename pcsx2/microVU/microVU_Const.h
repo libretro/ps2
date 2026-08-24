@@ -62,6 +62,12 @@ struct mVU_Globals
 	u32   t0800   [4] = __four(0x08000800);
 	u32   t0400   [4] = __four(0x04000400);
 	u32   t8000   [4] = __four(0x80008000);
+	u32   tOnesP1 [4] = {0xfffcfffc, 0xfffcfffc, 0xfc00fc00, 0xfc00fc00};
+	u32   tOnesP2 [4] = {0xfff0fff0, 0xfff0fff0, 0xf000f000, 0xf000f000};
+	u32   tOnesP3 [4] = {0xffc0ffc0, 0xffc0ffc0, 0xc000c000, 0xc000c000};
+	u32   tOneP1  [4] = {0x00040004, 0x00040004, 0x04000400, 0x04000400};
+	u32   tOneP2  [4] = {0x00100010, 0x00100010, 0x10001000, 0x10001000};
+	u32   tOneP3  [4] = {0x00400040, 0x00400040, 0x40004000, 0x40004000};
 	u32   Pi4     [4] = __four(0x3f490fdb);
 	u32   T1      [4] = __four(0x3f7ffff5);
 	u32   T2      [4] = __four(0xbeaaa61c);

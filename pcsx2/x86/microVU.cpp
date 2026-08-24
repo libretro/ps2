@@ -94,7 +94,8 @@ void mVUreset(microVU* mVU, int resetReserve)
 	x86Ptr = (u8*)(mVU->dispCache);
 	mVUdispatcherAB(mVU);
 	mVUdispatcherCD(mVU);
-	mVUemitExactMulStub(mVU);
+	if (CPU_HAS_AVX512) mVUemitExactMulStubAVX512(mVU);
+	else                mVUemitExactMulStub(mVU);
 	mVUGenerateWaitMTVU(mVU);
 	mVUGenerateCopyPipelineState(mVU);
 	mVUGenerateCompareState(mVU);

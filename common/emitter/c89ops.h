@@ -998,6 +998,35 @@ static uintptr_t xe_opaque_uptr(const void *p)
 #define xe_vpand_xxm2(d, s1, addr, L) do { XE_OPEN(); E_VEX_RRM(xep, 0x66, 0xdb, (d), (s1), (addr), (L)); XE_CLOSE(); } while (0)
 #define xe_vpsllvd_xxx(d, s1, s2, L) do { XE_OPEN(); E_VEX38_RRR(xep, 0x66, 0x47, (d), (s1), (s2), (L)); XE_CLOSE(); } while (0)
 /* two-operand 0F38 forms encode vvvv as 1111: src1 of zero yields that */
+/* VEX word (epi16) forms for the AVX-512 exact-multiply tree */
+#define E_VEX_SHIFT_I16(p, pre, grp, dst, src, imm, ymm) do { \
+	E_VEX((p), (pre), 0x71, (grp), (dst), (ymm), \
+	      0, ((((src) & 0x0F) > 7) ? 1 : 0)); \
+	E_MODRM_RR((p), (grp), (src)); EW8((p), (uint8_t)(imm)); } while (0)
+#define xe_vpsllw_xxi(d, s, i, L)  do { XE_OPEN(); E_VEX_SHIFT_I16(xep, 0x66, 6, (d), (s), (i), (L)); XE_CLOSE(); } while (0)
+#define xe_vpsrlw_xxi(d, s, i, L)  do { XE_OPEN(); E_VEX_SHIFT_I16(xep, 0x66, 2, (d), (s), (i), (L)); XE_CLOSE(); } while (0)
+#define E_VEX_SHIFT_I_DQ(p, pre, grp, dst, src, imm, ymm) do { \
+	E_VEX((p), (pre), 0x73, (grp), (dst), (ymm), \
+	      0, ((((src) & 0x0F) > 7) ? 1 : 0)); \
+	E_MODRM_RR((p), (grp), (src)); EW8((p), (uint8_t)(imm)); } while (0)
+#define xe_vpsrldq_xxi(d, s, i, L) do { XE_OPEN(); E_VEX_SHIFT_I_DQ(xep, 0x66, 3, (d), (s), (i), (L)); XE_CLOSE(); } while (0)
+#define xe_vpsrlq_xxi(d, s, i, L)  do { XE_OPEN(); E_VEX_SHIFT_I_DQ(xep, 0x66, 2, (d), (s), (i), (L)); XE_CLOSE(); } while (0)
+#define xe_vpsllq_xxi(d, s, i, L)  do { XE_OPEN(); E_VEX_SHIFT_I_DQ(xep, 0x66, 6, (d), (s), (i), (L)); XE_CLOSE(); } while (0)
+#define xe_vpaddw_xxx(d, s1, s2, L)  do { XE_OPEN(); E_VEX_RRR(xep, 0x66, 0xfd, (d), (s1), (s2), (L)); XE_CLOSE(); } while (0)
+#define xe_vpsubq_xxx(d, s1, s2, L)  do { XE_OPEN(); E_VEX_RRR(xep, 0x66, 0xfb, (d), (s1), (s2), (L)); XE_CLOSE(); } while (0)
+#define xe_vpand_xxmem(d, s1, addr, L) xe_vpand_xxm2((d), (s1), (addr), (L))
+#define xe_vpunpcklwd_xxx(d, s1, s2, L) do { XE_OPEN(); E_VEX_RRR(xep, 0x66, 0x61, (d), (s1), (s2), (L)); XE_CLOSE(); } while (0)
+#define xe_vpshufb_xxx(d, s1, s2, L) do { XE_OPEN(); E_VEX38_RRR(xep, 0x66, 0x00, (d), (s1), (s2), (L)); XE_CLOSE(); } while (0)
+/* VEX 0F3A map with immediate (vpblendw) */
+#define E_VEX3A_RRI(p, pre, opcode, dst, src1, src2, imm, ymm) do { \
+	uint8_t nv3a_ = (uint8_t)((~(src1) & 0xF) << 3); \
+	EW8((p), 0xC4); \
+	EW8((p), (uint8_t)((((((dst) & 0x0F) > 7) ? 0x00 : 0x80)) | 0x40 | \
+		(((((src2) & 0x0F) > 7) ? 0x00 : 0x20)) | 0x03)); \
+	EW8((p), (uint8_t)(nv3a_ | ((ymm) ? 4 : 0) | E_VEX_PP(pre))); \
+	EW8((p), (uint8_t)(opcode)); \
+	E_MODRM_RR((p), (dst), (src2)); EW8((p), (uint8_t)(imm)); } while (0)
+#define xe_vpblendw_xxxi(d, s1, s2, i, L) do { XE_OPEN(); E_VEX3A_RRI(xep, 0x66, 0x0e, (d), (s1), (s2), (i), (L)); XE_CLOSE(); } while (0)
 /* ---- EVEX (AVX-512) 128-bit forms, xmm0-15, no masking ----
  * 62 P0 P1 P2: P0 = ~R ~X ~B ~R' 0 0 mm ; P1 = W ~vvvv 1 pp ;
  * P2 = z L'L b ~V' aaa. Everything inverted defaults to "off" for the
@@ -1011,6 +1040,9 @@ static uintptr_t xe_opaque_uptr(const void *p)
 #define xe_vpternlogd_xxxi(d, s1, s2, imm) do { XE_OPEN(); \
 	E_EVEX3A(xep, (d), (s1), (s2)); EW8(xep, 0x25); \
 	E_MODRM_RR(xep, (d), (s2)); EW8(xep, (uint8_t)(imm)); XE_CLOSE(); } while (0)
+#define xe_vpternlogd_xxmi(d, s1, addr, imm) do { XE_OPEN(); \
+	E_EVEX3A(xep, (d), (s1), 0); EW8(xep, 0x25); \
+	E_MODRM_ABS(xep, (d), (addr), 1); EW8(xep, (uint8_t)(imm)); XE_CLOSE(); } while (0)
 #define xe_vpabsd_xx(d, s, L)        do { XE_OPEN(); E_VEX38_RRR(xep, 0x66, 0x1e, (d), 0, (s), (L)); XE_CLOSE(); } while (0)
 #define xe_vpslld_xxi(d, s, i, L)    do { XE_OPEN(); E_VEX_SHIFT_I(xep, 0x66, 6, (d), (s), (i), (L)); XE_CLOSE(); } while (0)
 #define xe_vpsrld_xxi(d, s, i, L)    do { XE_OPEN(); E_VEX_SHIFT_I(xep, 0x66, 2, (d), (s), (i), (L)); XE_CLOSE(); } while (0)
