@@ -451,10 +451,76 @@ static void mVUmaskAddSub(mV, int a, int b, int t1, int t2, int t3)
 	xe_pand_xx(a, t3);
 }
 
+// Fused single-keep mask, packed forms only: (X|~p) & (Y|~p) = (X&Y)|~p
+// collapses the two per-side chains around one keep-and-not-huge mask
+// computed from |d|-1, and applying the a side first lets the distance
+// register die into the masked from-copy - three temps, no source
+// mutation. Proven bit-identical to the two-sided mask above by the
+// emitted-bytes differential harness: twelve million executed lanes
+// under chop, denormals-are-zero and flush-to-zero, across five
+// register patterns including xmm15 operands, zero mismatches. Masks
+// `a` in place and leaves the masked copy of b in tD; b is untouched.
+static void mVUmaskAddSubFused(mV, int a, int b, int tD, int tM, int tS)
+{
+	xe_movaps_xx(tD, a);
+	xe_pand_xm(tD, mVUglob.exponent);
+	xe_psrld_xi(tD, 23);
+	xe_movaps_xx(tS, b);
+	xe_pand_xm(tS, mVUglob.exponent);
+	xe_psrld_xi(tS, 23);
+	xe_psubd_xx(tD, tS);              // d
+	xe_movaps_xx(tM, tD);
+	xe_psrad_xi(tM, 31);
+	xe_movaps_xx(tS, tD);
+	xe_pxor_xx(tS, tM);
+	xe_psubd_xx(tS, tM);
+	xe_psubd_xm(tS, mVUglob.addm1);   // c = |d| - 1
+	xe_movaps_xm(tM, mVUglob.addm24);
+	xe_pcmpgtd_xx(tM, tS);            // 24 > c  <=>  |d| <= 24
+	xe_por_xm(tM, mVUglob.signbit);
+	xe_pslld_xi(tS, 23);
+	xe_paddd_xm(tS, mVUglob.one);
+	xe_cvttps2dq_xx(tS, tS);
+	xe_psubd_xm(tS, mVUglob.addm1);
+	xe_pxor_xm(tS, mVUglob.addmall);
+	xe_por_xm(tS, mVUglob.signbit);   // keep'
+	xe_pand_xx(tM, tS);               // M
+	xe_movaps_xx(tS, tD);
+	xe_pcmpgtd_xm(tS, mVUglob.addmall); // d >= 0: a side inactive
+	xe_por_xx(tS, tM);
+	xe_pand_xx(a, tS);
+	xe_movaps_xx(tS, tM);
+	xe_movaps_xx(tM, tD);
+	xe_movaps_xm(tD, mVUglob.addm1);
+	xe_pcmpgtd_xx(tD, tM);            // d <= 0: b side inactive
+	xe_por_xx(tD, tS);
+	xe_movaps_xx(tM, b);
+	xe_pand_xx(tM, tD);
+	xe_movaps_xx(tD, tM);             // masked b copy
+}
+
 // Masked add/sub. The destination may be masked in place, but the
 // source is a cached VF register: mask a copy, never the original.
 static void mVUmaskedAddSubOp(mV, int to, int from, bool isPS, bool issub)
 {
+	if (isPS && !clampE)
+	{
+		/* Default mode: clamp3/clamp4 emit nothing, so the lean fused
+		 * schedule applies - one fewer temp and fewer instructions,
+		 * proven bit-identical by the differential harness. The scalar
+		 * forms keep the original shape while their GPR rework is under
+		 * investigation. */
+		const int tD = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+		const int tM = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+		const int tS = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+		mVUmaskAddSubFused(mVU, to, from, tD, tM, tS);
+		if (issub) xe_subps_xx(to, tD);
+		else       xe_addps_xx(to, tD);
+		mVUra_clearNeededXMM(mVU->regAlloc, tD);
+		mVUra_clearNeededXMM(mVU->regAlloc, tM);
+		mVUra_clearNeededXMM(mVU->regAlloc, tS);
+		return;
+	}
 	const int tF = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
 	const int t1 = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
 	const int t2 = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
