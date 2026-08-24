@@ -476,15 +476,6 @@ static void SSE_SUBSS(mV, const a64::VRegister& to, const a64::VRegister& from, 
 // counts, and Bic with immediates does the field masking.
 // Scratch: v0, v1, q29-q31; from is not modified; dst may equal to.
 //------------------------------------------------------------------
-static void mVUexactMulSlowC(microVU& mVU)
-{
-	u32* b = mVU.exactMulBuf;
-	int i;
-	for (i = 0; i < 4; i++)
-		b[8 + i] = (u32)ps2f_raw(ps2f_mul(b[i], b[4 + i]));
-}
-static void mVUexactMulSlow0() { mVUexactMulSlowC(microVU0); }
-static void mVUexactMulSlow1() { mVUexactMulSlowC(microVU1); }
 
 static void mVUexactMulPS(mV, const a64::VRegister& dst, const a64::VRegister& to, const a64::VRegister& from)
 {
@@ -494,11 +485,7 @@ static void mVUexactMulPS(mV, const a64::VRegister& dst, const a64::VRegister& t
 	const a64::VRegister vD = RQSCRATCH2;
 	const a64::VRegister vE = RQSCRATCH3;
 	u32* buf = mVU.exactMulBuf;
-	a64::Label slow, done;
-
-	// raw operands for the slow path
-	armAsm->Str(to, armAbsMemOperand(RSCRATCHADDR, &buf[0], 128));
-	armAsm->Str(from, armAbsMemOperand(RSCRATCHADDR, &buf[4], 128));
+	a64::Label slow, pack, done;
 
 	// mantissas with implicit bit: vA = ma, vB = mb
 	armAsm->Movi(vC.V4S(), 0x80, a64::LSL, 16);   // implicit
@@ -508,6 +495,9 @@ static void mVUexactMulPS(mV, const a64::VRegister& dst, const a64::VRegister& t
 	armAsm->Orr (vA.V16B(), vA.V16B(), vC.V16B());
 	armAsm->And (vB.V16B(), from.V16B(), vD.V16B());
 	armAsm->Orr (vB.V16B(), vB.V16B(), vC.V16B());
+	// mantissas for the tree stub's slow path
+	armAsm->Str(vA, armAbsMemOperand(RSCRATCHADDR, &buf[0], 128));
+	armAsm->Str(vB, armAbsMemOperand(RSCRATCHADDR, &buf[4], 128));
 
 	// products: vC = p01 (lanes 0,1), vA = p23
 	armAsm->Umull (vC.V2D(), vA.V2S(), vB.V2S());
@@ -519,11 +509,23 @@ static void mVUexactMulPS(mV, const a64::VRegister& dst, const a64::VRegister& t
 	armAsm->Ushr(vB.V4S(), vB.V4S(), 15);
 	armAsm->Shl (vB.V4S(), vB.V4S(), 24);
 	armAsm->Cmeq(vB.V4S(), vB.V4S(), 0);
+	/* zero-operand lanes are decided by the final select whatever the
+	 * product says; with the implicit bit forced on, 0.0 times anything
+	 * zeroes the guard field, and game data is full of zeros. */
+	armAsm->Shl (vD.V4S(), to.V4S(), 1);
+	armAsm->Ushr(vD.V4S(), vD.V4S(), 24);
+	armAsm->Cmeq(vD.V4S(), vD.V4S(), 0);
+	armAsm->Shl (vE.V4S(), from.V4S(), 1);
+	armAsm->Ushr(vE.V4S(), vE.V4S(), 24);
+	armAsm->Cmeq(vE.V4S(), vE.V4S(), 0);
+	armAsm->Orr (vD.V16B(), vD.V16B(), vE.V16B());
+	armAsm->Bic (vB.V16B(), vB.V16B(), vD.V16B());
 	armAsm->Umaxv(a64::s2, vB.V4S());             // v2 low used transiently
 	armAsm->Fmov(gprT1, a64::s2);
 	armAsm->Cbnz(gprT1, &slow);
 
-	// ---- fast path ----
+	// ---- shared pack (fast path falls in; slow path branches back) ----
+	armAsm->Bind(&pack);
 	// rm merged: (p >> 23) narrowed into 4S
 	armAsm->Shrn (vB.V2S(), vC.V2D(), 23);
 	armAsm->Shrn2(vB.V4S(), vA.V2D(), 23);
@@ -570,12 +572,16 @@ static void mVUexactMulPS(mV, const a64::VRegister& dst, const a64::VRegister& t
 	armAsm->Mov (dst.V16B(), vD.V16B());
 	armAsm->B   (&done);
 
-	// ---- slow path ----
+	// ---- slow path: hand the products to the tree stub, take the
+	// corrected ones back, and rejoin the pack. The stub saves every
+	// vector register itself, so nothing here needs a flush. ----
 	armAsm->Bind(&slow);
-	mVUbackupRegs(mVU, true, true);
-	armEmitCall(reinterpret_cast<const void*>(&mVU == &microVU1 ? mVUexactMulSlow1 : mVUexactMulSlow0));
-	mVUrestoreRegs(mVU, true, true);
-	armAsm->Ldr(dst, armAbsMemOperand(RSCRATCHADDR, &buf[8], 128));
+	armAsm->Str(vC, armAbsMemOperand(RSCRATCHADDR, &buf[8], 128));
+	armAsm->Str(vA, armAbsMemOperand(RSCRATCHADDR, &buf[12], 128));
+	armEmitCall(reinterpret_cast<const void*>(mVU.exactMulStub));
+	armAsm->Ldr(vC, armAbsMemOperand(RSCRATCHADDR, &buf[8], 128));
+	armAsm->Ldr(vA, armAbsMemOperand(RSCRATCHADDR, &buf[12], 128));
+	armAsm->B(&pack);
 	armAsm->Bind(&done);
 }
 

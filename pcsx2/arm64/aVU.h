@@ -315,6 +315,23 @@ struct mVU_Globals
 {
 #define __four(val) { val, val, val, val }
 	u32   absclip [4] = __four(0x7fffffff);
+	/* exact-multiply tree stub */
+	u32   tPackCnt[4] = {0, 0, 0x00080008, 0x00080008};              /* aP high-half <<8 */
+	u32   tCnt0   [4] = {0x00010001, 0x00010001, 0xfff9fff9, 0xfff9fff9};
+	u32   tCnt1   [4] = {0xffffffff, 0xffffffff, 0xfff7fff7, 0xfff7fff7};
+	u32   tCnt2   [4] = {0xfffdfffd, 0xfffdfffd, 0xfff5fff5, 0xfff5fff5};
+	u32   tCnt3   [4] = {0xfffbfffb, 0xfffbfffb, 0xfff3fff3, 0xfff3fff3};
+	u32   tLUTdbl [4] = {0xff000000, 0x000000ff, 0xff000000, 0x000000ff};
+	u32   tLUTneg [4] = {0x00000000, 0x00ffffff, 0x00000000, 0x00ffffff};
+	u32   tLUTany [4] = {0xffffff00, 0x00ffffff, 0xffffff00, 0x00ffffff};
+	u32   tOnesP  [4] = {0xffffffff, 0xffffffff, 0xff00ff00, 0xff00ff00};
+	u32   tOneP   [4] = {0x00010001, 0x00010001, 0x01000100, 0x01000100};
+	u32   tF800   [4] = __four(0xf800f800);
+	u32   tF000   [4] = __four(0xf000f000);
+	u32   t0800   [4] = __four(0x08000800);
+	u32   t0400   [4] = __four(0x04000400);
+	u32   t8000   [4] = __four(0x80008000);
+	u32   t64one  [4] = {1, 0, 1, 0};
 	u32   signbit [4] = __four(0x80000000);
 	u32   minvals [4] = __four(0xff7fffff);
 	u32   maxvals [4] = __four(0x7f7fffff);
@@ -356,7 +373,9 @@ struct microVU
 	alignas(16) u32 macFlag [4]; // 4 instances of mac    flag (used in execution)
 	alignas(16) u32 clipFlag[4]; // 4 instances of clip   flag (used in execution)
 	alignas(16) u32 vecCTemp[4];      // Backup used in mVUclamp2()                  (x86: xmmCTemp)
-	alignas(16) u32 exactMulBuf[12];  // exact-multiply slow path: a[4], b[4], dst[4] (x86: same)
+	alignas(16) u32 exactMulBuf[16];      // exact-multiply stub I/O: ma, mb, p01, p23 (x86: same shape)
+	alignas(16) u32 exactMulSave[16][4];  // stub vector spill area
+	u8* exactMulStub = nullptr;           // emitted tree stub
 	alignas(16) u32 vecBackup[32][4]; // Backup for host vector regs across XGKICK   (x86: xmmBackup[16][4]; sized for NEON v0-v31)
 
 	// C.75: block-local copies of the emitter constant tables (filled in

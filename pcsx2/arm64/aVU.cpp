@@ -60,6 +60,8 @@ typedef void (*mVUrecCallXG)(void);
 
 // --- dispatcher + helper-thunk codegen (task 7.2d) ----------------------------
 // These emit into the already-open armAsm (mVUgenerateDispatchers opens it).
+
+
 static void mVUdispatcherAB(microVU& mVU);
 static void mVUdispatcherCD(microVU& mVU);
 static void mVUGenerateWaitMTVU(microVU& mVU);
@@ -950,6 +952,152 @@ bool SaveStateBase::vuJITFreeze()
 //------------------------------------------------------------------
 // Dispatcher / helper-thunk code generation (task 7.2d)
 //------------------------------------------------------------------
+// Shared exact-multiply tree stub (x86: mVUemitExactMulStub). The
+// harness-proven paired Booth/CSA tree, transcribed for NEON. Memory
+// ABI through mVU.exactMulBuf: in [0..3] ma, [4..7] mb (epi32 lanes,
+// implicit bit set); [8..11] p01 and [12..15] p23 are the Umull-pair
+// products, corrected in place. Saves and restores every vector
+// register it touches, so call sites need no flush. NEON shortens
+// the x86 stub: one per-lane Ushl with a count vector replaces each
+// iteration's shift-shift-blend, Tbl is the mask lookup, two
+// immediate Bics are the & 7, and Ext does the unpairing.
+//------------------------------------------------------------------
+static void emitAdd3(const a64::VRegister& x, const a64::VRegister& y, const a64::VRegister& z,
+	const a64::VRegister& lo, const a64::VRegister& hi, const a64::VRegister& w1, const a64::VRegister& w2)
+{
+	armAsm->Eor(w1.V16B(), x.V16B(), y.V16B());        // u
+	armAsm->And(w2.V16B(), x.V16B(), y.V16B());
+	armAsm->And(hi.V16B(), w1.V16B(), z.V16B());       // u & z
+	armAsm->Orr(hi.V16B(), hi.V16B(), w2.V16B());
+	armAsm->Shl(hi.V8H(), hi.V8H(), 1);
+	armAsm->Eor(lo.V16B(), w1.V16B(), z.V16B());
+}
+
+static void mVUemitExactMulStub(microVU& mVU)
+{
+	u32* buf = mVU.exactMulBuf;
+	int i, k;
+	const u32* cnts[4] = {&mVU.glob.tCnt0[0], &mVU.glob.tCnt1[0], &mVU.glob.tCnt2[0], &mVU.glob.tCnt3[0]};
+
+	mVU.exactMulStub = armGetCurrentCodePointer();
+	for (i = 0; i < 16; i++)
+		mvuStrQ(mVU, &mVU.exactMulSave[i][0], a64::VRegister(i, 128));
+
+	// v0 = aP, v1 = b16: load, narrow to 4H, duplicate, pre-shift high half
+	mvuLdrQ(mVU, a64::v0, &buf[0]);
+	armAsm->Xtn(a64::v0.V4H(), a64::v0.V4S());
+	armAsm->Ins(a64::v0.V2D(), 1, a64::v0.V2D(), 0);
+	mvuLdrQ(mVU, a64::v14, &mVU.glob.tPackCnt[0]);
+	armAsm->Ushl(a64::v0.V8H(), a64::v0.V8H(), a64::v14.V8H());
+	mvuLdrQ(mVU, a64::v1, &buf[4]);
+	armAsm->Xtn(a64::v1.V4H(), a64::v1.V4S());
+	armAsm->Ins(a64::v1.V2D(), 1, a64::v1.V2D(), 0);
+
+	// LUT tables resident
+	mvuLdrQ(mVU, a64::v9,  &mVU.glob.tLUTdbl[0]);
+	mvuLdrQ(mVU, a64::v10, &mVU.glob.tLUTneg[0]);
+	mvuLdrQ(mVU, a64::v11, &mVU.glob.tLUTany[0]);
+
+	// booth loop; regs: v0 aP, v1 b16, v2-5 d0-3, v6-8 n1-3, v13 x, v14 t, v15 work
+	for (k = 0; k < 4; k++)
+	{
+		const a64::VRegister dk = a64::VRegister(2 + k, 128);
+		mvuLdrQ(mVU, a64::v15, cnts[k]);
+		armAsm->Ushl(a64::v14.V8H(), a64::v1.V8H(), a64::v15.V8H());
+		armAsm->Bic(a64::v14.V8H(), 0xf8, 0);
+		armAsm->Bic(a64::v14.V8H(), 0xff, 8);          // t = shifted & 7
+		armAsm->Shl(a64::v15.V8H(), a64::v14.V8H(), 8);
+		armAsm->Orr(a64::v14.V16B(), a64::v14.V16B(), a64::v15.V16B()); // both bytes
+		if (k) armAsm->Shl(a64::v13.V8H(), a64::v0.V8H(), k * 2);
+		else   armAsm->Mov(a64::v13.V16B(), a64::v0.V16B());            // x = aP << 2k
+		armAsm->Tbl(a64::v15.V16B(), a64::v9.V16B(), a64::v14.V16B());  // dbl
+		armAsm->And(a64::v15.V16B(), a64::v15.V16B(), a64::v13.V16B());
+		armAsm->Add(a64::v13.V8H(), a64::v13.V8H(), a64::v15.V8H());
+		armAsm->Tbl(a64::v15.V16B(), a64::v10.V16B(), a64::v14.V16B()); // neg
+		if (k >= 1)
+		{
+			const a64::VRegister nk = a64::VRegister(5 + k, 128);
+			mvuLdrQ(mVU, dk, &mVU.glob.tOneP[0]);
+			armAsm->Shl(dk.V8H(), dk.V8H(), k * 2);
+			armAsm->And(nk.V16B(), a64::v15.V16B(), dk.V16B());        // n[k]
+		}
+		mvuLdrQ(mVU, dk, &mVU.glob.tOnesP[0]);
+		if (k) armAsm->Shl(dk.V8H(), dk.V8H(), k * 2);
+		armAsm->And(dk.V16B(), a64::v15.V16B(), dk.V16B());
+		armAsm->Eor(a64::v13.V16B(), a64::v13.V16B(), dk.V16B());      // x ^= neg & (onesP<<2k)
+		armAsm->Tbl(a64::v15.V16B(), a64::v11.V16B(), a64::v14.V16B()); // any
+		armAsm->And(dk.V16B(), a64::v13.V16B(), a64::v15.V16B());       // d[k]
+	}
+
+	// unpair; v0, v1, v9-15 free now
+	armAsm->Ext(a64::v9.V16B(),  a64::v2.V16B(), a64::v2.V16B(), 8);   // d4
+	armAsm->Ext(a64::v10.V16B(), a64::v3.V16B(), a64::v3.V16B(), 8);   // d5
+	armAsm->Ext(a64::v11.V16B(), a64::v4.V16B(), a64::v4.V16B(), 8);   // d6
+	armAsm->Ext(a64::v12.V16B(), a64::v5.V16B(), a64::v5.V16B(), 8);   // d7
+	armAsm->Ext(a64::v13.V16B(), a64::v6.V16B(), a64::v6.V16B(), 8);   // n5
+
+	// b7 into v12 ; then d5&0x800 into v13 ; mask d4/d5
+	mvuLdrQ(mVU, a64::v14, &mVU.glob.t0400[0]);
+	armAsm->And(a64::v14.V16B(), a64::v10.V16B(), a64::v14.V16B());
+	armAsm->Add(a64::v14.V8H(), a64::v14.V8H(), a64::v13.V8H());
+	armAsm->Orr(a64::v12.V16B(), a64::v12.V16B(), a64::v14.V16B());
+	mvuLdrQ(mVU, a64::v13, &mVU.glob.t0800[0]);
+	armAsm->And(a64::v13.V16B(), a64::v10.V16B(), a64::v13.V16B());
+	mvuLdrQ(mVU, a64::v14, &mVU.glob.tF800[0]);
+	armAsm->And(a64::v9.V16B(), a64::v9.V16B(), a64::v14.V16B());
+	mvuLdrQ(mVU, a64::v14, &mVU.glob.tF000[0]);
+	armAsm->And(a64::v10.V16B(), a64::v10.V16B(), a64::v14.V16B());
+
+	// t0 = add3(d1,d2,d3) -> lo v14, hi v15 (w: v1, v0)
+	emitAdd3(a64::v3, a64::v4, a64::v5, a64::v14, a64::v15, a64::v1, a64::v0);
+	// t1 = add3(d4m,d5m,d6) -> lo v3, hi v4 ; then |= n6 | (d5&0x800)
+	emitAdd3(a64::v9, a64::v10, a64::v11, a64::v3, a64::v4, a64::v5, a64::v0);
+	armAsm->Ext(a64::v5.V16B(), a64::v7.V16B(), a64::v7.V16B(), 8);    // n6
+	armAsm->Orr(a64::v4.V16B(), a64::v4.V16B(), a64::v5.V16B());
+	armAsm->Orr(a64::v4.V16B(), a64::v4.V16B(), a64::v13.V16B());
+	// t2 = add3(d0,t0l,t0h) -> lo v9, hi v10
+	emitAdd3(a64::v2, a64::v14, a64::v15, a64::v9, a64::v10, a64::v11, a64::v0);
+	// t3 = add3(b7,t1l,t1h) -> lo v13, hi v14
+	emitAdd3(a64::v12, a64::v3, a64::v4, a64::v13, a64::v14, a64::v15, a64::v0);
+	// t4 = add3(t2h,t3l,t3h) -> lo v2, hi v3
+	emitAdd3(a64::v10, a64::v13, a64::v14, a64::v2, a64::v3, a64::v4, a64::v0);
+	// t5 = add3(t2l,t4l,t4h) -> lo v5, hi v10
+	emitAdd3(a64::v9, a64::v2, a64::v3, a64::v5, a64::v10, a64::v11, a64::v0);
+	// t5h += n7 ; sum ; tb
+	armAsm->Ext(a64::v11.V16B(), a64::v8.V16B(), a64::v8.V16B(), 8);   // n7
+	armAsm->Add(a64::v10.V8H(), a64::v10.V8H(), a64::v11.V8H());
+	mvuLdrQ(mVU, a64::v11, &mVU.glob.t8000[0]);
+	armAsm->And(a64::v5.V16B(), a64::v5.V16B(), a64::v11.V16B());
+	armAsm->And(a64::v10.V16B(), a64::v10.V16B(), a64::v11.V16B());
+	armAsm->Add(a64::v5.V8H(), a64::v5.V8H(), a64::v10.V8H());
+	armAsm->Ushr(a64::v5.V8H(), a64::v5.V8H(), 15);                    // tb 4H lanes 0-3
+
+	// correction: p -= ((tb ^ ((p >> 15) & 1)) << 15) per 64-bit lane
+	armAsm->Uxtl(a64::v5.V4S(), a64::v5.V4H());                        // {b0,b1,b2,b3}
+	armAsm->Uxtl (a64::v6.V2D(), a64::v5.V2S());                       // {b0,b1}
+	armAsm->Uxtl2(a64::v7.V2D(), a64::v5.V4S());                       // {b2,b3}
+	mvuLdrQ(mVU, a64::v1, &buf[8]);
+	mvuLdrQ(mVU, a64::v2, &buf[12]);
+	mvuLdrQ(mVU, a64::v8, &mVU.glob.t64one[0]);
+	armAsm->Ushr(a64::v3.V2D(), a64::v1.V2D(), 15);
+	armAsm->And(a64::v3.V16B(), a64::v3.V16B(), a64::v8.V16B());
+	armAsm->Ushr(a64::v4.V2D(), a64::v2.V2D(), 15);
+	armAsm->And(a64::v4.V16B(), a64::v4.V16B(), a64::v8.V16B());
+	armAsm->Eor(a64::v6.V16B(), a64::v6.V16B(), a64::v3.V16B());
+	armAsm->Eor(a64::v7.V16B(), a64::v7.V16B(), a64::v4.V16B());
+	armAsm->Shl(a64::v6.V2D(), a64::v6.V2D(), 15);
+	armAsm->Shl(a64::v7.V2D(), a64::v7.V2D(), 15);
+	armAsm->Sub(a64::v1.V2D(), a64::v1.V2D(), a64::v6.V2D());
+	armAsm->Sub(a64::v2.V2D(), a64::v2.V2D(), a64::v7.V2D());
+	mvuStrQ(mVU, &buf[8], a64::v1);
+	mvuStrQ(mVU, &buf[12], a64::v2);
+
+	for (i = 0; i < 16; i++)
+		mvuLdrQ(mVU, a64::VRegister(i, 128), &mVU.exactMulSave[i][0]);
+	armAsm->Ret();
+}
+
+//------------------------------------------------------------------
 // ARM64 port of microVU_Execute.inl 23-315. This pins the final ARM64 microVU
 // ABI. All five generators below emit into the armAsm opened by
 // mVUgenerateDispatchers (one MacroAssembler session for the whole dispatcher
@@ -1208,6 +1356,7 @@ static void mVUgenerateDispatchers(microVU& mVU)
 
 	mVUdispatcherAB(mVU);
 	mVUdispatcherCD(mVU);
+	mVUemitExactMulStub(mVU);
 	mVUGenerateWaitMTVU(mVU);
 	mVUGenerateCopyPipelineState(mVU);
 	mVUGenerateCompareState(mVU);
