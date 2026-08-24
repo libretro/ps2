@@ -505,7 +505,6 @@ static void mVUmaskAddSubFused(mV, int a, int b, int tD, int tM, int tS)
 // Same contract as the other forms.
 static void mVUmaskAddSubFusedAVX512(mV, int a, int b, int tD, int tM, int tS)
 {
-	const int tX = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
 	xe_vpslld_xxi(tD, a, 1, 0);
 	xe_vpsrld_xxi(tD, tD, 24, 0);
 	xe_vpslld_xxi(tS, b, 1, 0);
@@ -516,13 +515,11 @@ static void mVUmaskAddSubFusedAVX512(mV, int a, int b, int tD, int tM, int tS)
 	xe_vpcmpeqd_xxx(tM, tM, tM, 0);
 	xe_vpsllvd_xxx(tM, tM, tS, 0);           // keep
 	xe_vpcmpgtd_xxm(tS, tS, mVUglob.addm23, 0); // big
-	xe_movaps_xm(tX, mVUglob.signbit);
-	xe_vpternlogd_xxxi(tM, tS, tX, 0xBA);    // M = (keep & ~big) | sign
+	xe_vpternlogd_xxmi(tM, tS, mVUglob.signbit, 0xBA); // M = (keep & ~big) | sign
 	xe_vpcmpgtd_xxm(tS, tD, mVUglob.addmall, 0); // d >= 0
 	xe_vpternlogd_xxxi(a, tM, tS, 0xE0);     // a &= M | ge0
 	xe_vpcmpgtd_xxm(tD, tD, mVUglob.addzero, 0); // pos = d > 0
 	xe_vpternlogd_xxxi(tD, tM, b, 0x8A);     // bcopy = b & (M | ~pos)
-	mVUra_clearNeededXMM(mVU->regAlloc, tX);
 }
 
 // AVX2 form of the fused mask: identical algebra, three-operand
