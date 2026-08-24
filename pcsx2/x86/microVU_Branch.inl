@@ -327,19 +327,33 @@ void normJumpCompile(mV, microFlagCycles* mFC, int isEvilJump)
 	 * Win64 ARG1 is RCX, so gprT2q would collide with the index. */
 	if (doJumpCaching && !isEvilJump && !mVUup.eBit)
 	{
+		/* The census convicted the first version of this probe: the
+		 * jump-cache element is twenty-four bytes, not sixteen, so
+		 * the scale-two indexing read garbage, every probe missed,
+		 * and the whole patch fell safe into the slow path as a
+		 * silent no-op. The asserts below make any future layout
+		 * drift a build failure instead. Twenty-four is not a SIB
+		 * scale, so the index is computed: three registers total,
+		 * with the raw PC retiring into the quick lookup before its
+		 * register is reused as the far-base scratch. */
+		static_assert(sizeof(microJumpCache) == 24, "probe stride");
+		static_assert(sizeof(microProgramQuick) == 16, "probe stride");
 		struct e_mem m;
 		uint8_t *pj1, *pj2;
 		xe_mov32_rm(XE_ARG1, &mVU->branch);
 		xe_mov32_mr(&vuRegs[mVU->index].start_pc, XE_ARG1);
-		xe_complexaddr_si(m, XE_DX, mVUpBlock->jumpCache, XE_ARG1, 2);
-		xe_mov64_rmem(gprT1q, m);                 // jc->prog
-		xe_test64_rr(gprT1q, gprT1q);
-		xe_fwd_jcc32(Jcc_Zero, pj1);
 		xe_complexaddr_si(m, XE_DX, (u8*)&mVU->prog.quick[0] + 8, XE_ARG1, 2);
-		xe_mov64_rmem(XE_DX, m);                  // quick->prog
-		xe_cmp64_rr(gprT1q, XE_DX);
+		xe_mov64_rmem(gprT1q, m);                 // quick->prog
+		xe_mov64_rr(XE_DX, XE_ARG1);
+		xe_shl64_ri(XE_DX, 1);
+		xe_add64_rr(XE_DX, XE_ARG1);              // idx = startPC*3 (stride 24 over startPC/8)
+		xe_complexaddr_si(m, XE_ARG1, mVUpBlock->jumpCache, XE_DX, 1);
+		xe_mov64_rmem(XE_ARG1, m);                // jc->prog
+		xe_test64_rr(XE_ARG1, XE_ARG1);
+		xe_fwd_jcc32(Jcc_Zero, pj1);
+		xe_cmp64_rr(XE_ARG1, gprT1q);
 		xe_fwd_jcc32(Jcc_NotEqual, pj2);
-		xe_complexaddr_si(m, XE_DX, (u8*)mVUpBlock->jumpCache + 8, XE_ARG1, 2);
+		xe_complexaddr_si(m, XE_ARG1, (u8*)mVUpBlock->jumpCache + 8, XE_DX, 1);
 		xe_mov64_rmem(gprT1q, m);                 // jc->x86ptrStart
 		xe_jmp_r(gprT1q);
 		xe_fwd_set32(pj1);
