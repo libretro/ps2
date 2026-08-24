@@ -354,6 +354,7 @@ _mVUt __fi void* mVUsearchProg(u32 startPC, uptr pState)
 	const u32 idx = vuRegs[mVU->index].start_pc / 8;
 	microMscalMemo* slot = &mVU->mscalMemo[idx];
 	if (slot->prog && slot->prog == mVU->prog.quick[idx].prog
+	 && slot->startPC == startPC
 	 && ((u32(*)(void*, void*))mVU->compareStateF)((void*)pState, &slot->state) == 0)
 	{
 		mVU->prog.isSame = -1;
@@ -380,10 +381,11 @@ _mVUt __fi void* mVUsearchProg(u32 startPC, uptr pState)
 		memcpy(&queryState, (void*)pState, sizeof(microRegInfo));
 		entry = mVUsearchProgUncached<vuIndex>(startPC, pState);
 		p = mVU->prog.quick[idx].prog;
-		if (p && vuRegs[mVU->index].start_pc / 8 == idx && vuRegs[mVU->index].start_pc == startPC)
+		if (p && vuRegs[mVU->index].start_pc / 8 == idx)
 		{
-			slot->prog  = p;
-			slot->entry = entry;
+			slot->prog    = p;
+			slot->entry   = entry;
+			slot->startPC = startPC;
 			memcpy(&slot->state, &queryState, sizeof(microRegInfo));
 		}
 		return entry;

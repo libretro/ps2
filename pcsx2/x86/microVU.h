@@ -43,6 +43,9 @@ struct microMscalMemo
 {
 	microProgram* prog;
 	void* entry;
+	u32 startPC;      /* the section PC: programs run in sections, so the
+	                   * same start_pc slot serves multiple entry PCs and
+	                   * the entry depends on which one */
 	microRegInfo state;
 };
 
