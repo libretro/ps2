@@ -171,6 +171,24 @@ void eeRecompileCodeRC2(R5900FNPTR constcode, R5900FNPTR_INFO noconstcode, int x
 		eeFPURecompileCode(rec##fn##_xmm, R5900::Interpreter::OpcodeImpl::COP1::fn, xmminfo); \
 	}
 
+/* Ops where the double-precision emission is the best host approximation
+ * of the model but not exact (the multiply family: 0.062% for MUL and
+ * 0.14% for the fused chains against 6.1% and 17% for single precision,
+ * the residue being the Booth discarded-carry class): always use it, and
+ * keep the soft fallback for exactness. Divide and square root stay on
+ * single precision - measured, the double pipeline is not closer there. */
+#define FPURECOMPILE_CONSTCODE_SOFT_DBL(fn, xmminfo) \
+	void rec##fn(void) \
+	{ \
+		if (CHECK_FPU_SOFT_REC) \
+		{ \
+			iFlushCall(FLUSH_INTERPRETER); \
+			xe_fastcall0(R5900::Interpreter::OpcodeImpl::COP1::fn); \
+		} \
+		else \
+			eeFPURecompileCode(DOUBLE_rec##fn##_xmm, R5900::Interpreter::OpcodeImpl::COP1::fn, xmminfo); \
+	}
+
 /* Ops whose double-precision emission is byte-exact against the ps2float
  * model (currently the ADD/SUB family): always use it, so the fast path
  * is the accurate path and soft routing has nothing left to fix here. */
