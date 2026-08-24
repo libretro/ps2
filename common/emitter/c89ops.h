@@ -1026,6 +1026,14 @@ static uintptr_t xe_opaque_uptr(const void *p)
 	EW8((p), (uint8_t)(nv3a_ | ((ymm) ? 4 : 0) | E_VEX_PP(pre))); \
 	EW8((p), (uint8_t)(opcode)); \
 	E_MODRM_RR((p), (dst), (src2)); EW8((p), (uint8_t)(imm)); } while (0)
+#define xe_vpcmpeqd_xxm(d, s1, addr, L) do { XE_OPEN(); E_VEX_RRM(xep, 0x66, 0x76, (d), (s1), (addr), (L)); XE_CLOSE(); } while (0)
+#define xe_vpmuludq_xxx(d, s1, s2, L) do { XE_OPEN(); E_VEX_RRR(xep, 0x66, 0xf4, (d), (s1), (s2), (L)); XE_CLOSE(); } while (0)
+#define xe_vpaddd_xxx(d, s1, s2, L)  do { XE_OPEN(); E_VEX_RRR(xep, 0x66, 0xfe, (d), (s1), (s2), (L)); XE_CLOSE(); } while (0)
+#define xe_vpor_xxmem(d, s1, addr, L) xe_vpor_xxm((d), (s1), (addr), (L))
+/* vblendvps: VEX 0F3A 4A, fourth register operand in the immediate's
+ * high nibble; per-lane select on the mask register's sign bit. */
+#define xe_vblendvps_xxxx(d, s1, s2, mask, L) do { XE_OPEN(); \
+	E_VEX3A_RRI(xep, 0x66, 0x4a, (d), (s1), (s2), (uint8_t)((mask) << 4), (L)); XE_CLOSE(); } while (0)
 #define xe_vpblendw_xxxi(d, s1, s2, i, L) do { XE_OPEN(); E_VEX3A_RRI(xep, 0x66, 0x0e, (d), (s1), (s2), (i), (L)); XE_CLOSE(); } while (0)
 /* ---- EVEX (AVX-512) 128-bit forms, xmm0-15, no masking ----
  * 62 P0 P1 P2: P0 = ~R ~X ~B ~R' 0 0 mm ; P1 = W ~vvvv 1 pp ;
