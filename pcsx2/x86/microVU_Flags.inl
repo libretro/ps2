@@ -292,18 +292,31 @@ __fi void mVUsetupFlags(mV, microFlagCycles* mFC)
 	{
 		int bMac[4];
 		sortFlag(mFC->xMac, bMac, mFC->cycles);
-		xe_movaps_xm(xmmT1, mVU->macFlag);
-		xe_shufps_xxi(xmmT1, xmmT1, shuffleMac);
-		xe_movaps_mx(mVU->macFlag, xmmT1);
+		/* The rotation is a load, shuffle and store through memory at
+		 * every block exit; when the sorted instances land in order
+		 * the computed shuffle is the identity and the whole triple
+		 * is a semantic no-op, so skip emitting it. On a census-
+		 * measured dispatch-bound title the exit ceremony runs over
+		 * fifty million times a second, which is what makes a three-
+		 * instruction elision worth having. */
+		if (shuffleMac != 0xE4)
+		{
+			xe_movaps_xm(xmmT1, mVU->macFlag);
+			xe_shufps_xxi(xmmT1, xmmT1, shuffleMac);
+			xe_movaps_mx(mVU->macFlag, xmmT1);
+		}
 	}
 
 	if (doCFlagInsts && __Clip)
 	{
 		int bClip[4];
 		sortFlag(mFC->xClip, bClip, mFC->cycles);
-		xe_movaps_xm(xmmT2, mVU->clipFlag);
-		xe_shufps_xxi(xmmT2, xmmT2, shuffleClip);
-		xe_movaps_mx(mVU->clipFlag, xmmT2);
+		if (shuffleClip != 0xE4)
+		{
+			xe_movaps_xm(xmmT2, mVU->clipFlag);
+			xe_shufps_xxi(xmmT2, xmmT2, shuffleClip);
+			xe_movaps_mx(mVU->clipFlag, xmmT2);
+		}
 	}
 }
 
