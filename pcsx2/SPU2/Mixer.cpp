@@ -351,10 +351,23 @@ static __forceinline StereoOut32 MixVoice(V_Core& thiscore, V_Voice& vc, uint co
 	voiceOut.Left  = 0;
 	voiceOut.Right = 0;
 
-	// Stopped voices: advance pitch + NextA for IRQ tracking only.
-	// Skip VolumeSlide and sample decode — output is zero regardless.
+	// Stopped voices: advance pitch + NextA for IRQ tracking only, and
+	// keep the volume slides running. A sweep programmed on a stopped
+	// voice must still make progress: games fade by starting a VOLL/VOLR
+	// slide and polling VOLXL/VOLXR (via sceSdGetParam) until it reaches
+	// the target, and they do this on silent voices too. Freezing the
+	// slide here left VOLX stuck at its starting value forever, which
+	// wedged Onimusha 2's stream-handoff fade-wait on the IOP: the file
+	// server thread never came back, every disc RPC queued behind it,
+	// and triggered cutscenes hung the game on their first frame.
+	// Sample decode is still skipped - output is zero regardless.
 	if (vc.ADSR.Phase == PHASE_STOPPED)
 	{
+		if (vc.Volume.Left.Enable)
+			V_VolumeSlide_Update(vc.Volume.Left);
+		if (vc.Volume.Right.Enable)
+			V_VolumeSlide_Update(vc.Volume.Right);
+
 		UpdatePitch(vc, coreidx, voiceidx);
 		while (vc.SP >= 0)
 			GetNextDataDummy(thiscore, vc, voiceidx);
