@@ -134,6 +134,23 @@ int mVUIsReservedCOP2(int hostreg)
 	void recV##f(void) \
 	{ \
 		int _mode = (mode); \
+		/* VU0 soft float, macro mode. Micro programs route to the exact
+		 * interpreter at the provider level, but COP2 macro ops are
+		 * recompiled inline here and were the documented gap in the
+		 * option. Same closure as the EE FPU soft path and the
+		 * CALLMS/CALLMSR macros below: flush and call the interpreter
+		 * op, which computes through the ps2float model. The
+		 * Reliquary fork closes this gap with generated soft JIT
+		 * sequences; this is the same coverage in this codebase's
+		 * call-out shape, replaceable by emission later without
+		 * changing behaviour. */ \
+		if (CHECK_VU_SOFT_REC(0)) \
+		{ \
+			iFlushCall(FLUSH_FOR_POSSIBLE_MICRO_EXEC); \
+			{ const u32 sbc_ = scaleblockcycles_clear(); xe_add64_mi(&cpuRegs.cycle, sbc_); } \
+			recCall(V##f); \
+			return; \
+		} \
 		setupMacroOp(_mode, opName); \
 		if (_mode & 4) \
 		{ \
@@ -174,6 +191,11 @@ int mVUIsReservedCOP2(int hostreg)
 0x10 writes status/mac
 0x100 requires x86 regs
 */
+
+/* CLIP's interpreter op carries the encoding's .w suffix (VCLIPw is the
+ * only form; there is no bare VCLIP), so the soft call-out needs the
+ * alias. Every other f token here has a same-named V interpreter op. */
+#define VCLIP VCLIPw
 
 REC_COP2_mVU0(ABS,    "ABS",    0x0);
 REC_COP2_mVU0(ITOF0,  "ITOF0",  0x0);
