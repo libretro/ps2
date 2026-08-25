@@ -1,0 +1,15 @@
+=== recompiled-sequence exactness vs ps2float (structured 176x176 + 2M random each)
+op (as emitted)        diffs / cases
+VU/EE ADD  (clamp+ss)     115629 / 2030976 (5.6933%)   first: a=00000000 b=7f800000 hard=7f7fffff model=7f800000
+VU/EE SUB  (clamp+ss)     116155 / 2030976 (5.7192%)   first: a=00000000 b=7f800000 hard=ff7fffff model=ff800000
+VU/EE MUL  (clamp+ss)    1020920 / 2030976 (50.2675%)   first: a=00800000 b=3f800002 hard=00800002 model=00800001
+VU/EE DIV  (clamp+ss)     538785 / 2030976 (26.5284%)   first: a=00000000 b=00000000 hard=7f7fffff model=7fffffff
+VU SQRT    (abs+ss)       537680 / 2030976 (26.4740%)   first: a=01000002 b=00000000 hard=203504f5 model=203504f4
+VU RSQRT   (div+ss)       736108 / 2030976 (36.2441%)   first: a=00000000 b=00000000 hard=7f7fffff model=7fffffff
+MADD acc=0 (2x ss)       1020175 / 2030976 (50.2308%)   first: a=00800000 b=3f800002 hard=00800002 model=00800001
+--- exact-by-construction tiers (integer ordering; EE-proven):
+MAX (int ordering)             0 / 2030976 (0.0000%)
+MIN (int ordering)             0 / 2030976 (0.0000%)
+--- candidates: double pipeline with PS2 truncation (the EE DOUBLE construction):
+cand ADD (double)              0 / 2030976 (0.0000%)
+cand SUB (double)              0 / 2030976 (0.0000%)
