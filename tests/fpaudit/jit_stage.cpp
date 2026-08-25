@@ -19,6 +19,8 @@
 #include <stdint.h>
 #include <string.h>
 #include <sys/mman.h>
+#include <xmmintrin.h>
+#include <pmmintrin.h>
 
 #include "../../pcsx2/ps2float.h"
 
@@ -27,8 +29,8 @@ typedef uint64_t u64;
 
 /* Bring in the C89 emitter core standalone. */
 #include "common/Pcsx2Defs.h"
-/* The macros write through the shared cursor symbol. */
-u8* x86Ptr;
+#include "emitter/x86types.h"
+/* x86types.h declares the thread-local cursor; define it here. */
 #include "emitter/c89ops.h"
 
 alignas(16) static u32 glob_signbit[4] = {0x80000000u,0x80000000u,0x80000000u,0x80000000u};
@@ -47,8 +49,11 @@ alignas(16) static u32 io_r[4];
 
 typedef void (*stage_fn)(void);
 
+alignas(16) static u32 glob_kfd[4] = {0xfdu,0xfdu,0xfdu,0xfdu};
+
 static stage_fn emit_stage(uint8_t* buf, int issub)
 {
+	uint8_t* to_fast_done;
 	x86Ptr = (u8*)buf;
 	/* prologue: X=xmm0 <- io_a, Y=xmm1 <- io_b */
 	xe_movaps_xm(0, io_a);
@@ -56,6 +61,23 @@ static stage_fn emit_stage(uint8_t* buf, int issub)
 
 	if (issub)
 		xe_pxor_xm(1, glob_signbit);
+
+	/* --- fast path + detector, mirroring the shipped emission: masked
+	 * chop addps, exponent detector, ptest, branch to the exact stage.
+	 * X=0 Y=1 save=xmm8 det=xmm9 scratch=xmm10 --- */
+	xe_movaps_xx(8, 0);
+	xe_addps_xx(0, 1);
+	xe_movaps_xx(9, 8);  xe_pslld_xi(9, 1);  xe_psrld_xi(9, 24);
+	xe_pcmpeqd_xm(9, glob_kff);
+	xe_movaps_xx(10, 1); xe_pslld_xi(10, 1); xe_psrld_xi(10, 24);
+	xe_pcmpeqd_xm(10, glob_kff);
+	xe_por_xx(9, 10);
+	xe_movaps_xx(10, 0); xe_pslld_xi(10, 1); xe_psrld_xi(10, 24);
+	xe_pcmpgtd_xm(10, glob_kfd);
+	xe_por_xx(9, 10);
+	xe_ptest_xx(9, 9);
+	xe_fwd_jcc32(Jcc_Zero, to_fast_done);
+	xe_movaps_xx(0, 8);
 
 	/* --- stage body: X=0 Y=1 tA=2 tB=3 tC=4 tQ=5 tE=6 tZ=7 --- */
 	xe_movaps_xx(6, 0); xe_psrld_xi(6, 23); xe_pand_xm(6, glob_kff);
@@ -103,6 +125,7 @@ static stage_fn emit_stage(uint8_t* buf, int issub)
 	xe_pandn_xx(3, 7); xe_por_xx(3, 6);
 	xe_movaps_xx(0, 3);
 	/* --- end stage body --- */
+	xe_fwd_set32(to_fast_done);
 
 	xe_movaps_mx(io_r, 0);
 	xe_ret();
@@ -143,6 +166,14 @@ int main(void)
 	u32 ex[6]; int have_ex = 0;
 
 	if (code == MAP_FAILED) { fprintf(stderr, "mmap failed\n"); return 1; }
+
+	/* The recompiler's MXCSR: chop rounding, DAZ, FTZ. Under the host
+	 * default the harness measured the round-to-nearest class (94070
+	 * diffs) instead of the emission -- the fourth environment lesson
+	 * this audit has taught. */
+	_MM_SET_ROUNDING_MODE(_MM_ROUND_TOWARD_ZERO);
+	_MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
+	_MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
 	f_add = emit_stage(code, 0);
 	f_sub = emit_stage(code + 4096, 1);
 	gen_inputs();

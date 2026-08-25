@@ -48,6 +48,7 @@ struct mVU_Globals
 	u32   xamantm [4] = __four(0x007fffff);   /* single mantissa mask    */
 	u32   xadblhm [4] = __four(0x000fffff);   /* double mantissa hi mask */
 	u32   xak7ff  [4] = __four(0x000007ff);   /* double exponent mask    */
+	u32   xakfd   [4] = __four(0x000000fd);   /* detector: exp > 0xFD    */
 	u32   multz16 [4] = __four(0x0000ffff);
 	u32   mulkeepw[4] = {0, 0, 0, 0x7fffffff};
 	u32   addmall [4] = __four(0xffffffff);

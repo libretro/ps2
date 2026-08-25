@@ -576,15 +576,16 @@ static void mVUmaskAddSubFusedAVX(mV, int a, int b, int tD, int tM, int tS)
  * and mant = (hi&fffff)<<3 | lo>>29 -- the >>29 IS the hardware adder's
  * truncation of the surviving guard bit. Integer SSE2 end to end; the
  * PS2's exponent-255 values never exist as IEEE singles here. */
-static void mVUexactAddSubStage(mV, int X, int Y, bool issub)
+/* All six temps come pre-allocated by the caller, BEFORE any branch is
+ * emitted: mVUra_allocReg can evict a cached guest register, and the
+ * eviction writeback it emits would land inside the skipped region --
+ * the allocator's bookkeeping then disagrees with the fast path's
+ * runtime reality, which corrupted the first wired build broadly from
+ * frame 3. Allocation is an emit-time act; it must not sit under a
+ * runtime-conditional path. */
+static void mVUexactAddSubStage(mV, int X, int Y, bool issub,
+	int tA, int tB, int tC, int tQ, int tE, int tZ)
 {
-	const int tA = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
-	const int tB = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
-	const int tC = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
-	const int tQ = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
-	const int tE = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
-	const int tZ = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
-
 	if (issub)
 		xe_pxor_xm(Y, mVUglob.signbit);
 
@@ -636,13 +637,6 @@ static void mVUexactAddSubStage(mV, int X, int Y, bool issub)
 	xe_movaps_xx(tE, tC); xe_por_xm(tE, mVUglob.absclip); xe_pand_xx(tE, tB);
 	xe_pandn_xx(tB, tZ); xe_por_xx(tB, tE);                              /* sat->s|max */
 	xe_movaps_xx(X, tB);
-
-	mVUra_clearNeededXMM(mVU->regAlloc, tA);
-	mVUra_clearNeededXMM(mVU->regAlloc, tB);
-	mVUra_clearNeededXMM(mVU->regAlloc, tC);
-	mVUra_clearNeededXMM(mVU->regAlloc, tQ);
-	mVUra_clearNeededXMM(mVU->regAlloc, tE);
-	mVUra_clearNeededXMM(mVU->regAlloc, tZ);
 }
 
 static void mVUmaskedAddSubOp(mV, int to, int from, bool isPS, bool issub)
@@ -659,23 +653,67 @@ static void mVUmaskedAddSubOp(mV, int to, int from, bool isPS, bool issub)
 		const int tS = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
 		const bool avx512 = CPU_HAS_AVX512;
 		const bool avx2 = CPU_HAS_AVX2;
-		if (isPS)
-		{
-			if (avx512)    mVUmaskAddSubFusedAVX512(mVU, to, from, tD, tM, tS);
-			else if (avx2) mVUmaskAddSubFusedAVX(mVU, to, from, tD, tM, tS);
-			else           mVUmaskAddSubFused(mVU, to, from, tD, tM, tS);
-			mVUexactAddSubStage(mVU, to, tD, issub);
-		}
-		else
-		{
-			/* lane 0 result only: compute on a copy of the destination
-			 * so its upper lanes survive. */
-			const int dst = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+		const int dst = isPS ? to : mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+		/* Fast path first: the VU MXCSR rounds toward zero (ChopZero is
+		 * the default control register), so masked addps already IS the
+		 * hardware adder's truncation for every lane whose exponents
+		 * stay out of the top octave -- 98.95% of uniform random and
+		 * effectively all game content (fpaudit ACC CHOP rows). The
+		 * detector below routes only exponent-255 operands and
+		 * saturating results through the exact stage; its coverage of
+		 * every residual divergence is the composite rows' 0/2.03M.
+		 * Subtraction folds into one sign flip on the masked copy so
+		 * both paths are pure adds. GPRs stay untouched (see the note
+		 * above); the branch test is ptest, so hosts below SSE4.1 take
+		 * the exact stage unconditionally instead. */
+		if (!isPS)
 			xe_movaps_xx(dst, to);
-			if (avx512)    mVUmaskAddSubFusedAVX512(mVU, dst, from, tD, tM, tS);
-			else if (avx2) mVUmaskAddSubFusedAVX(mVU, dst, from, tD, tM, tS);
-			else           mVUmaskAddSubFused(mVU, dst, from, tD, tM, tS);
-			mVUexactAddSubStage(mVU, dst, tD, issub);
+		if (avx512)    mVUmaskAddSubFusedAVX512(mVU, dst, from, tD, tM, tS);
+		else if (avx2) mVUmaskAddSubFusedAVX(mVU, dst, from, tD, tM, tS);
+		else           mVUmaskAddSubFused(mVU, dst, from, tD, tM, tS);
+		if (issub)
+			xe_pxor_xm(tD, mVUglob.signbit);
+		{
+			/* every allocation this construction will ever need, hoisted
+			 * above the branch -- see the note on mVUexactAddSubStage */
+			const int sA = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+			const int sB = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+			const int sC = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+			const int sQ = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+			const int sE = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+			const int sZ = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+			if (CPU_HAS_SSE41)
+			{
+				uint8_t* to_fast_done;
+				xe_movaps_xx(tS, dst);            /* masked a, for the slow path */
+				xe_addps_xx(dst, tD);             /* chop add: the 99% result    */
+				xe_movaps_xx(tM, tS); xe_pslld_xi(tM, 1); xe_psrld_xi(tM, 24);
+				xe_pcmpeqd_xm(tM, mVUglob.xakff); /* opA exp == 0xFF */
+				xe_movaps_xx(sA, tD); xe_pslld_xi(sA, 1); xe_psrld_xi(sA, 24);
+				xe_pcmpeqd_xm(sA, mVUglob.xakff); /* opB exp == 0xFF */
+				xe_por_xx(tM, sA);
+				xe_movaps_xx(sA, dst); xe_pslld_xi(sA, 1); xe_psrld_xi(sA, 24);
+				xe_pcmpgtd_xm(sA, mVUglob.xakfd); /* res exp >= 0xFE */
+				xe_por_xx(tM, sA);
+				xe_ptest_xx(tM, tM);
+				xe_fwd_jcc32(Jcc_Zero, to_fast_done);
+				xe_movaps_xx(dst, tS);            /* restore masked a */
+				mVUexactAddSubStage(mVU, dst, tD, false, sA, sB, sC, sQ, sE, sZ);
+				xe_fwd_set32(to_fast_done);
+			}
+			else
+			{
+				mVUexactAddSubStage(mVU, dst, tD, false, sA, sB, sC, sQ, sE, sZ);
+			}
+			mVUra_clearNeededXMM(mVU->regAlloc, sA);
+			mVUra_clearNeededXMM(mVU->regAlloc, sB);
+			mVUra_clearNeededXMM(mVU->regAlloc, sC);
+			mVUra_clearNeededXMM(mVU->regAlloc, sQ);
+			mVUra_clearNeededXMM(mVU->regAlloc, sE);
+			mVUra_clearNeededXMM(mVU->regAlloc, sZ);
+		}
+		if (!isPS)
+		{
 			xe_movss_xx(to, dst);
 			mVUra_clearNeededXMM(mVU->regAlloc, dst);
 		}

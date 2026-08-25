@@ -258,6 +258,69 @@ static u32 emit_encdec_addsub(u32 a, u32 b, int negate_b)
 static u32 emit_add(u32 a, u32 b) { return emit_encdec_addsub(a, b, 0); }
 static u32 emit_sub(u32 a, u32 b) { return emit_encdec_addsub(a, b, 1); }
 
+
+/* Chop-mode rows: the VU MXCSR's real rounding is round-toward-zero
+ * (DEFAULT_..._CONTROL_REGISTER, ChopZero), which the earlier rows
+ * missed by auditing under round-to-nearest. Under chop, minss/maxss
+ * are unchanged, and the add itself truncates -- the hardware adder's
+ * own rounding. */
+static u32 chop_f_to_bits_add(u32 a, u32 b)
+{
+	/* single add with round-toward-zero, computed exactly then chopped */
+	double s = (double)bits_to_f(a) + (double)bits_to_f(b);
+	float r;
+	if (s != s) return 0x7fffffffu; /* not reachable: inputs are finite */
+	r = (float)s;
+	if ((double)r != s && fabs((double)r) > fabs(s))
+	{
+		u32 rb = f_to_bits(r) - 1;
+		r = bits_to_f(rb);
+	}
+	return f_to_bits(r);
+}
+static u32 hard_accadd_chop(u32 a, u32 b)
+{
+	u32 ma, mb;
+	mask_smaller(a, b, &ma, &mb);
+	{
+		/* DAZ on input, FTZ on output, chop rounding */
+		u32 ca = clamp1(ma), cb = clamp1(mb), r;
+		if (((ca >> 23) & 0xff) == 0) ca &= 0x80000000u;
+		if (((cb >> 23) & 0xff) == 0) cb &= 0x80000000u;
+		r = chop_f_to_bits_add(ca, cb);
+		if (((r >> 23) & 0xff) == 0) r &= 0x80000000u;
+		return clamp1(r);
+	}
+}
+static u32 hard_accsub_chop(u32 a, u32 b) { return hard_accadd_chop(a, b ^ 0x80000000u); }
+
+
+/* Detector: does exponent inspection cover every case where mask+chop
+ * misses the model? Per lane: any operand exponent 0xFF (the octave
+ * hardfloat clamps away), or the chop result's exponent 0xFE (clamp
+ * saturation and near-overflow) or 0xFF. False positives only cost a
+ * trip through the exact stage; a false negative would ship a wrong
+ * pixel, so the covered/uncovered split is the whole test. */
+static int addsub_detector(u32 a, u32 b, u32 chopres)
+{
+	u32 ea = (a >> 23) & 0xffu, eb = (b >> 23) & 0xffu, er = (chopres >> 23) & 0xffu;
+	return (ea == 0xffu) || (eb == 0xffu) || (er >= 0xfeu);
+}
+static u32 composite_add(u32 a, u32 b)
+{
+	u32 fast = hard_accadd_chop(a, b);
+	if (addsub_detector(a, b, fast))
+		return emit_add(a, b);
+	return fast;
+}
+static u32 composite_sub(u32 a, u32 b)
+{
+	u32 fast = hard_accsub_chop(a, b);
+	if (addsub_detector(a, b ^ 0x80000000u, fast))
+		return emit_sub(a, b);
+	return fast;
+}
+
 /* Input space: every exponent boundary crossed with mantissa patterns,
  * then a deterministic xorshift sweep. */
 static u32 inputs[512];
@@ -357,10 +420,14 @@ int main(void)
 	printf("--- default tier as emitted (VuAccurateAddSub on):\n");
 	row2("ACC ADD (mask+RN ss) ", hard_accadd, ps2f_add);
 	row2("ACC SUB (mask+RN ss) ", hard_accsub, ps2f_sub);
+	row2("ACC ADD (mask+CHOP)  ", hard_accadd_chop, ps2f_add);
+	row2("ACC SUB (mask+CHOP)  ", hard_accsub_chop, ps2f_sub);
 	printf("--- candidates: double pipeline with PS2 truncation (the EE DOUBLE construction):\n");
 	row2("cand ADD (double)    ", cand_add, ps2f_add);
 	row2("cand SUB (double)    ", cand_sub, ps2f_sub);
 	row2("emit ADD (bit-built) ", emit_add, ps2f_add);
 	row2("emit SUB (bit-built) ", emit_sub, ps2f_sub);
+	row2("composite ADD (fast) ", composite_add, ps2f_add);
+	row2("composite SUB (fast) ", composite_sub, ps2f_sub);
 	return 0;
 }

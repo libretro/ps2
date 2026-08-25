@@ -17,7 +17,7 @@
 #include <pmmintrin.h>
 
 #include "common/Pcsx2Defs.h"
-u8* x86Ptr;
+#include "emitter/x86types.h"
 #include "emitter/c89ops.h"
 
 typedef uint32_t u32;
@@ -37,6 +37,7 @@ G4(glob_addm24,  0x00000018u);
 G4(glob_addmall, 0xffffffffu);
 G4(glob_maxvals, 0x7f7fffffu);
 G4(glob_minvals, 0xff7fffffu);
+G4(glob_kfd,     0x000000fdu);
 
 alignas(16) static u32 io_a[4] = {0x3f800000u, 0x40490fdbu, 0xc2c80000u, 0x00800001u};
 alignas(16) static u32 io_b[4] = {0x3f000000u, 0xc0490fdbu, 0x42c80000u, 0x80800002u};
@@ -44,7 +45,7 @@ alignas(16) static u32 io_r[4];
 
 typedef void (*bench_fn)(void);
 
-enum { PATH_OFF, PATH_MASK_RN, PATH_MASK_EXACT };
+enum { PATH_OFF, PATH_MASK_RN, PATH_MASK_EXACT, PATH_COMPOSITE };
 
 static void emit_exact_stage(void)
 {
@@ -159,6 +160,28 @@ static bench_fn emit_bench(uint8_t* buf, int path, int inner)
 				xe_movaps_xx(1, 2);
 				emit_exact_stage();
 				break;
+			case PATH_COMPOSITE:
+			{
+				uint8_t* fastdone;
+				emit_fused_mask();
+				xe_movaps_xx(1, 2);
+				xe_movaps_xx(8, 0);
+				xe_addps_xx(0, 1);
+				xe_movaps_xx(9, 8);  xe_pslld_xi(9, 1);  xe_psrld_xi(9, 24);
+				xe_pcmpeqd_xm(9, glob_kff);
+				xe_movaps_xx(10, 1); xe_pslld_xi(10, 1); xe_psrld_xi(10, 24);
+				xe_pcmpeqd_xm(10, glob_kff);
+				xe_por_xx(9, 10);
+				xe_movaps_xx(10, 0); xe_pslld_xi(10, 1); xe_psrld_xi(10, 24);
+				xe_pcmpgtd_xm(10, glob_kfd);
+				xe_por_xx(9, 10);
+				xe_ptest_xx(9, 9);
+				xe_fwd_jcc32(Jcc_Zero, fastdone);
+				xe_movaps_xx(0, 8);
+				emit_exact_stage();
+				xe_fwd_set32(fastdone);
+				break;
+			}
 		}
 		/* feed the result back so the chain is dependent like real code */
 		xe_pand_xm(0, glob_absclip);
@@ -184,8 +207,8 @@ int main(void)
 {
 	const int   inner = 256;
 	const long  calls = 200000; /* 51.2M sequence executions per path */
-	const char* names[3] = {"off  (clamp+addps)   ", "old  (mask+RN addps) ", "new  (mask+exact)    "};
-	double secs[3];
+	const char* names[4] = {"off  (clamp+addps)   ", "old  (mask+RN addps) ", "always-exact stage   ", "comp (mask+detector) "};
+	double secs[4];
 	int p;
 	uint8_t* buf = (uint8_t*)mmap(0, 1 << 20, PROT_READ|PROT_WRITE|PROT_EXEC,
 	                              MAP_PRIVATE|MAP_ANONYMOUS|MAP_32BIT, -1, 0);
@@ -194,14 +217,14 @@ int main(void)
 	/* the float-1.0 constant the mask's cvttps2dq trick needs */
 	glob_one[0] = glob_one[1] = glob_one[2] = glob_one[3] = 1;
 
-	for (p = 0; p < 3; p++)
+	for (p = 0; p < 4; p++)
 	{
 		bench_fn f = emit_bench(buf + (p << 16), p, inner);
 		secs[p] = bench(f, calls);
 	}
 	printf("throughput, %ld x %d dependent sequence executions per path:\n",
 	       calls, inner);
-	for (p = 0; p < 3; p++)
+	for (p = 0; p < 4; p++)
 		printf("  %s %7.3f s   %6.2f ns/op   x%.2f vs off\n",
 		       names[p], secs[p], secs[p] / (double)(calls * (long)inner) * 1e9,
 		       secs[p] / secs[0]);
