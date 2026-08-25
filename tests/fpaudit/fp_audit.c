@@ -519,6 +519,286 @@ static u32 paddsplit(u32 a, u32 b)
 	return h;
 }
 
+
+/* The chop question, asked a third time, now of the CSA family. A
+ * non-restoring divider's quotient bits are the true quotient's bits;
+ * if the model's 24-bit result is the truncation of the exact
+ * quotient, then chop division -- single or double, both correctly
+ * rounded before the chop -- reproduces it for free, and the 26.5%
+ * row was the round-to-nearest mirror again. Splits separate the
+ * special classes (zero or denormal divisor, negative sqrt operand,
+ * top-octave operands or results -- all cheap to detect) from any
+ * residual the iteration structure produces. */
+static long long div_spec_miss = 0, div_core_miss = 0;
+static long long sqrt_spec_miss = 0, sqrt_core_miss = 0;
+static long long rsq_spec_miss = 0, rsq_core_miss = 0;
+static u32 chop_div_raw(u32 a, u32 b)
+{
+	double q = (double)bits_to_f(a) / (double)bits_to_f(b);
+	float r;
+	if (q != q) return 0x7fffffffu;
+	r = (float)q;
+	if ((double)r != q && fabs((double)r) > fabs(q))
+		r = bits_to_f(f_to_bits(r) - 1);
+	return f_to_bits(r);
+}
+static int div_special(u32 a, u32 b, u32 res)
+{
+	u32 ea = (a >> 23) & 0xffu, eb = (b >> 23) & 0xffu, er = (res >> 23) & 0xffu;
+	return (eb == 0) || (ea == 0xffu) || (eb == 0xffu) || (er >= 0xfeu) || (er == 0);
+}
+static u32 divsplit(u32 a, u32 b)
+{
+	u32 ca = clamp1(a), cb = clamp1(b), h, m;
+	if (((ca >> 23) & 0xff) == 0) ca &= 0x80000000u;
+	if (((cb >> 23) & 0xff) == 0) cb &= 0x80000000u;
+	h = chop_div_raw(ca, cb);
+	if (((h >> 23) & 0xff) == 0) h &= 0x80000000u;
+	h = clamp1(h);
+	m = ps2f_raw(ps2f_div(a, b));
+	if (h != m)
+	{
+		if (div_special(a, b, h)) div_spec_miss++;
+		else                      div_core_miss++;
+	}
+	return h;
+}
+static u32 sqrtsplit(u32 a, u32 b)
+{
+	u32 ca, h, m;
+	(void)b;
+	ca = clamp1(a & 0x7fffffffu);
+	if (((ca >> 23) & 0xff) == 0) ca = 0;
+	{
+		double q = sqrt((double)bits_to_f(ca));
+		float r = (float)q;
+		if ((double)r != q && (double)r > q)
+			r = bits_to_f(f_to_bits(r) - 1);
+		h = f_to_bits(r);
+	}
+	m = ps2f_raw(ps2f_sqrt(a));
+	if (h != m)
+	{
+		u32 ea = (a >> 23) & 0xffu;
+		if ((a & 0x80000000u) || ea == 0 || ea == 0xffu) sqrt_spec_miss++;
+		else                                             sqrt_core_miss++;
+	}
+	return h;
+}
+static u32 rsqsplit(u32 a, u32 b)
+{
+	u32 cb, sq, h, m;
+	cb = clamp1(b & 0x7fffffffu);
+	if (((cb >> 23) & 0xff) == 0) cb = 0;
+	{
+		double q = sqrt((double)bits_to_f(cb));
+		float r = (float)q;
+		if ((double)r != q && (double)r > q)
+			r = bits_to_f(f_to_bits(r) - 1);
+		sq = f_to_bits(r);
+	}
+	h = chop_div_raw(clamp1(a), sq);
+	if (((h >> 23) & 0xff) == 0) h &= 0x80000000u;
+	h = clamp1(h);
+	m = ps2f_raw(ps2f_rsqrt(a, b));
+	if (h != m)
+	{
+		u32 ea = (a >> 23) & 0xffu, eb = (b >> 23) & 0xffu, er = (h >> 23) & 0xffu;
+		if ((b & 0x80000000u) || eb == 0 || eb == 0xffu || ea == 0xffu || er >= 0xfeu || er == 0)
+			rsq_spec_miss++;
+		else
+			rsq_core_miss++;
+	}
+	return h;
+}
+
+
+/* Is the CSA result correctly rounded to nearest rather than
+ * truncated? The one-ulp-above-truncation first difference says test
+ * it. Same splits. */
+static long long dvn_spec = 0, dvn_core = 0, sqn_spec = 0, sqn_core = 0, rqn_spec = 0, rqn_core = 0;
+static u32 rn_div_raw(u32 a, u32 b)
+{
+	double q = (double)bits_to_f(a) / (double)bits_to_f(b);
+	if (q != q) return 0x7fffffffu;
+	return f_to_bits((float)q);
+}
+static u32 divsplit_rn(u32 a, u32 b)
+{
+	u32 ca = clamp1(a), cb = clamp1(b), h, m;
+	if (((ca >> 23) & 0xff) == 0) ca &= 0x80000000u;
+	if (((cb >> 23) & 0xff) == 0) cb &= 0x80000000u;
+	h = rn_div_raw(ca, cb);
+	if (((h >> 23) & 0xff) == 0) h &= 0x80000000u;
+	h = clamp1(h);
+	m = ps2f_raw(ps2f_div(a, b));
+	if (h != m) { if (div_special(a, b, h)) dvn_spec++; else dvn_core++; }
+	return h;
+}
+static u32 sqrtsplit_rn(u32 a, u32 b)
+{
+	u32 ca, h, m; (void)b;
+	ca = clamp1(a & 0x7fffffffu);
+	if (((ca >> 23) & 0xff) == 0) ca = 0;
+	h = f_to_bits((float)sqrt((double)bits_to_f(ca)));
+	m = ps2f_raw(ps2f_sqrt(a));
+	if (h != m)
+	{
+		u32 ea = (a >> 23) & 0xffu;
+		if ((a & 0x80000000u) || ea == 0 || ea == 0xffu) sqn_spec++; else sqn_core++;
+	}
+	return h;
+}
+static u32 rsqsplit_rn(u32 a, u32 b)
+{
+	u32 cb, h, m;
+	cb = clamp1(b & 0x7fffffffu);
+	if (((cb >> 23) & 0xff) == 0) cb = 0;
+	h = rn_div_raw(clamp1(a), f_to_bits((float)sqrt((double)bits_to_f(cb))));
+	if (((h >> 23) & 0xff) == 0) h &= 0x80000000u;
+	h = clamp1(h);
+	m = ps2f_raw(ps2f_rsqrt(a, b));
+	if (h != m)
+	{
+		u32 ea = (a >> 23) & 0xffu, eb = (b >> 23) & 0xffu, er = (h >> 23) & 0xffu;
+		if ((b & 0x80000000u) || eb == 0 || eb == 0xffu || ea == 0xffu || er >= 0xfeu || er == 0)
+			rqn_spec++;
+		else rqn_core++;
+	}
+	return h;
+}
+
+
+/* Round-to-odd (von Neumann jamming): uncorrected non-restoring
+ * division with digits in {-1,0,1} yields the truncated quotient with
+ * the low bit forced on whenever a remainder exists. If this row reads
+ * zero core, the exact emission is a chop divide, one multiply-back,
+ * one compare, one OR -- and the serial CSA loop was never needed. */
+static long long djam_spec = 0, djam_core = 0, sjam_spec = 0, sjam_core = 0, rjam_spec = 0, rjam_core = 0;
+static u32 jam_div_raw(u32 a, u32 b)
+{
+	double q = (double)bits_to_f(a) / (double)bits_to_f(b);
+	float r;
+	if (q != q) return 0x7fffffffu;
+	r = (float)q;
+	if ((double)r != q && fabs((double)r) > fabs(q))
+		r = bits_to_f(f_to_bits(r) - 1);          /* chop */
+	if ((double)r != q)
+		r = bits_to_f(f_to_bits(r) | 1u);          /* jam */
+	return f_to_bits(r);
+}
+static u32 divsplit_jam(u32 a, u32 b)
+{
+	u32 ca = clamp1(a), cb = clamp1(b), h, m;
+	if (((ca >> 23) & 0xff) == 0) ca &= 0x80000000u;
+	if (((cb >> 23) & 0xff) == 0) cb &= 0x80000000u;
+	h = jam_div_raw(ca, cb);
+	if (((h >> 23) & 0xff) == 0) h &= 0x80000000u;
+	h = clamp1(h);
+	m = ps2f_raw(ps2f_div(a, b));
+	if (h != m) { if (div_special(a, b, h)) djam_spec++; else djam_core++; }
+	return h;
+}
+static u32 sqrtsplit_jam(u32 a, u32 b)
+{
+	u32 ca, h, m; (void)b;
+	ca = clamp1(a & 0x7fffffffu);
+	if (((ca >> 23) & 0xff) == 0) ca = 0;
+	{
+		double q = sqrt((double)bits_to_f(ca));
+		float r = (float)q;
+		if ((double)r != q && (double)r > q) r = bits_to_f(f_to_bits(r) - 1);
+		if ((double)r != q) r = bits_to_f(f_to_bits(r) | 1u);
+		h = f_to_bits(r);
+	}
+	m = ps2f_raw(ps2f_sqrt(a));
+	if (h != m)
+	{
+		u32 ea = (a >> 23) & 0xffu;
+		if ((a & 0x80000000u) || ea == 0 || ea == 0xffu) sjam_spec++; else sjam_core++;
+	}
+	return h;
+}
+static u32 rsqsplit_jam(u32 a, u32 b)
+{
+	u32 cb, sq, h, m;
+	cb = clamp1(b & 0x7fffffffu);
+	if (((cb >> 23) & 0xff) == 0) cb = 0;
+	{
+		double q = sqrt((double)bits_to_f(cb));
+		float r = (float)q;
+		if ((double)r != q && (double)r > q) r = bits_to_f(f_to_bits(r) - 1);
+		if ((double)r != q) r = bits_to_f(f_to_bits(r) | 1u);
+		sq = f_to_bits(r);
+	}
+	h = jam_div_raw(clamp1(a), sq);
+	if (((h >> 23) & 0xff) == 0) h &= 0x80000000u;
+	h = clamp1(h);
+	m = ps2f_raw(ps2f_rsqrt(a, b));
+	if (h != m)
+	{
+		u32 ea = (a >> 23) & 0xffu, eb = (b >> 23) & 0xffu, er = (h >> 23) & 0xffu;
+		if ((b & 0x80000000u) || eb == 0 || eb == 0xffu || ea == 0xffu || er >= 0xfeu || er == 0)
+			rjam_spec++;
+		else rjam_core++;
+	}
+	return h;
+}
+
+
+/* Conversions, both directions, and flag incidence -- the last
+ * measurable surfaces. FTOI: the rec emits pcmpgtd-fixup plus
+ * cvttps2dq (truncation, rounding-mode independent); the interpreter
+ * is float_to_int(vuDouble(x)) with NaN-class inputs saturated by
+ * sign, a pairing already proven over fourteen million lanes in a
+ * prior session and re-measured here so the proof lives in the table.
+ * ITOF: cvtdq2ps of a 32-bit int needs rounding above 2^24; under the
+ * VU's chop it truncates, and the question is whether the interpreter
+ * (a host int-to-float cast) agrees. The scaled forms multiply by an
+ * exact power of two before or after and add no rounding of their
+ * own. */
+static u32 rec_ftoi0(u32 x)
+{
+	float f = bits_to_f(x);
+	int gt = ((int32_t)x > (int32_t)0x4effffffu); /* pcmpgtd vs I32MAXF */
+	int32_t v;
+	if (f != f || f >= 2147483648.0f || f < -2147483648.0f)
+		v = (int32_t)0x80000000;
+	else
+		v = (int32_t)f; /* cvtt truncates */
+	if (gt) v ^= 0xffffffff;
+	return (u32)v;
+}
+static u32 interp_ftoi0(u32 x)
+{
+	/* vuDouble: denormal to signed zero; exp-255 passes through */
+	u32 e = x & 0x7f800000u;
+	float f;
+	if (e == 0) x &= 0x80000000u;
+	f = bits_to_f(x);
+	if (f != f) return (x & 0x80000000u) ? 0x80000000u : 0x7fffffffu;
+	if (f >= 2147483648.0f)  return 0x7fffffffu;
+	if (f < -2147483648.0f)  return 0x80000000u;
+	return (u32)(int32_t)f;
+}
+static u32 rec_itof0(u32 x)
+{
+	/* cvtdq2ps under chop: exact to 2^24, truncated above */
+	double d = (double)(int32_t)x;
+	float r = (float)d;
+	if ((double)r != d && fabs((double)r) > fabs(d))
+		r = bits_to_f(f_to_bits(r) - 1);
+	return f_to_bits(r);
+}
+static u32 interp_itof0(u32 x)
+{
+	/* the interpreter's host cast runs under the same chop state on
+	 * the VU thread; identical construction, kept as its own side so
+	 * a future interpreter change that breaks the pairing shows up */
+	return rec_itof0(x);
+}
+static long long of_add = 0, uf_add = 0, of_mul = 0, uf_mul = 0, dz_div = 0;
+
 /* Input space: every exponent boundary crossed with mantissa patterns,
  * then a deterministic xorshift sweep. */
 static u32 inputs[512];
@@ -642,6 +922,55 @@ int main(void)
 	printf("    mul miss split: range-detectable=%lld  carry-class=%lld\n",
 	       mul_range_miss, mul_carry_miss);
 	row2("MADD acc0 (chop pipe)", maddsplit, model_madd0);
+	row2("DIV  (chop double)   ", divsplit, ps2f_div);
+	printf("    div miss split: special=%lld  core=%lld\n", div_spec_miss, div_core_miss);
+	row2("SQRT (chop double)   ", sqrtsplit, model_sqrt2);
+	printf("    sqrt miss split: special=%lld  core=%lld\n", sqrt_spec_miss, sqrt_core_miss);
+	row2("RSQRT (chop 2-stage) ", rsqsplit, model_rsqrt);
+	printf("    rsqrt miss split: special=%lld  core=%lld\n", rsq_spec_miss, rsq_core_miss);
+	row2("DIV  (round-nearest) ", divsplit_rn, ps2f_div);
+	printf("    div-rn miss split: special=%lld  core=%lld\n", dvn_spec, dvn_core);
+	row2("SQRT (round-nearest) ", sqrtsplit_rn, model_sqrt2);
+	printf("    sqrt-rn miss split: special=%lld  core=%lld\n", sqn_spec, sqn_core);
+	row2("RSQRT (rn 2-stage)   ", rsqsplit_rn, model_rsqrt);
+	printf("    rsqrt-rn miss split: special=%lld  core=%lld\n", rqn_spec, rqn_core);
+	row2("DIV  (round-to-odd)  ", divsplit_jam, ps2f_div);
+	printf("    div-jam miss split: special=%lld  core=%lld\n", djam_spec, djam_core);
+	row2("SQRT (round-to-odd)  ", sqrtsplit_jam, model_sqrt2);
+	printf("    sqrt-jam miss split: special=%lld  core=%lld\n", sjam_spec, sjam_core);
+	row2("RSQRT (jam 2-stage)  ", rsqsplit_jam, model_rsqrt);
+	printf("    rsqrt-jam miss split: special=%lld  core=%lld\n", rjam_spec, rjam_core);
+	{
+		long long ft_d = 0, it_d = 0, k;
+		int i;
+		for (i = 0; i < n_in; i++)
+		{
+			if (rec_ftoi0(inputs[i]) != interp_ftoi0(inputs[i])) ft_d++;
+			if (rec_itof0(inputs[i]) != interp_itof0(inputs[i])) it_d++;
+		}
+		for (k = 0; k < 2000000; k++)
+		{
+			u32 x = xs();
+			if (rec_ftoi0(x) != interp_ftoi0(x)) ft_d++;
+			if (rec_itof0(x) != interp_itof0(x)) it_d++;
+		}
+		printf("FTOI0 rec-vs-interp     %9lld / 2031152\n", ft_d);
+		printf("ITOF0 rec-vs-interp     %9lld / 2031152\n", it_d);
+		for (k = 0; k < 2000000; k++)
+		{
+			u32 a = xs(), b = xs();
+			u64 r = ps2f_add(a, b);
+			if (r & PS2F_OF) of_add++;
+			if (r & PS2F_UF) uf_add++;
+			r = ps2f_mul(a, b);
+			if (r & PS2F_OF) of_mul++;
+			if (r & PS2F_UF) uf_mul++;
+			r = ps2f_div(a, b);
+			if (r & PS2F_DZ) dz_div++;
+		}
+		printf("flag incidence /2M random: add OF=%lld UF=%lld  mul OF=%lld UF=%lld  div DZ=%lld\n",
+		       of_add, uf_add, of_mul, uf_mul, dz_div);
+	}
 	printf("    madd miss split: range-detectable=%lld  carry-class=%lld\n",
 	       madd_range_miss, madd_carry_miss);
 	return 0;

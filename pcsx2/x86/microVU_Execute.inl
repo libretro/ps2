@@ -175,6 +175,16 @@ static void mVUemitExactMulStubAVX512(mV)
 	xe_ret();
 }
 
+/* Unlike the exact-divide thunk, the multiply stubs contain no C call:
+ * both variants are pure emitted SIMD trees that save and restore all
+ * sixteen xmm registers, touch no GPR and never move rsp, so they are
+ * ABI-inert by construction and need none of the divide thunk's
+ * caller-saved/shadow-space treatment. Recorded here because a
+ * previous commit wrongly warned that they shared the vulnerable
+ * mechanism; an audit shows the divide thunk was the only mid-block C
+ * call in the recompiler -- every other emitted fastcall sits in the
+ * block-exit paths of microVU_Branch.inl, where register state is
+ * being torn down under the long-established upstream discipline. */
 static void mVUemitExactMulStub(mV)
 {
 	u32* buf = mVU->exactMulBuf;
