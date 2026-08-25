@@ -35,4 +35,22 @@ ADD plain (clamp+CHOP)    291108 / 2030976 (14.3334%)   first: a=00000000 b=7f80
 MUL (clamp+CHOP)          277111 / 2030976 (13.6442%)   first: a=00800000 b=3f800002 hard=00800002 model=00800001
     mul miss split: range-detectable=273762  carry-class=3349
 MADD acc0 (chop pipe)     277209 / 2030976 (13.6491%)   first: a=00800000 b=3f800002 hard=00800002 model=00800001
+DIV  (chop double)        840515 / 2030976 (41.3848%)   first: a=00000000 b=00000000 hard=7f7fffff model=7fffffff
+    div miss split: special=274488  core=566027
+SQRT (chop double)        488768 / 2030976 (24.0657%)   first: a=00800002 b=00000000 hard=20000000 model=20000001
+    sqrt miss split: special=249739  core=239029
+RSQRT (chop 2-stage)      930862 / 2030976 (45.8332%)   first: a=00000000 b=00000000 hard=7f7fffff model=7fffffff
+    rsqrt miss split: special=542180  core=388682
+DIV  (round-nearest)      538677 / 2030976 (26.5231%)   first: a=00000000 b=00000000 hard=7f7fffff model=7fffffff
+    div-rn miss split: special=273470  core=265207
+SQRT (round-nearest)      536773 / 2030976 (26.4293%)   first: a=01000002 b=00000000 hard=203504f5 model=203504f4
+    sqrt-rn miss split: special=274267  core=262506
+RSQRT (rn 2-stage)        734939 / 2030976 (36.1865%)   first: a=00000000 b=00000000 hard=7f7fffff model=7fffffff
+    rsqrt-rn miss split: special=444437  core=290502
+DIV  (round-to-odd)       964915 / 2030976 (47.5099%)   first: a=00000000 b=00000000 hard=7f7fffff model=7fffffff
+    div-jam miss split: special=274030  core=690885
+SQRT (round-to-odd)      1059488 / 2030976 (52.1664%)   first: a=00800001 b=00000000 hard=20000001 model=20000000
+    sqrt-jam miss split: special=534958  core=524530
+RSQRT (jam 2-stage)      1193165 / 2030976 (58.7484%)   first: a=00000000 b=00000000 hard=7f7fffff model=7fffffff
+    rsqrt-jam miss split: special=673076  core=520089
     madd miss split: range-detectable=273833  carry-class=3376

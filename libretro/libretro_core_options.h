@@ -648,15 +648,15 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       "pcsx2_vu_exact_div",
       "Emulation > VU Exact Divide",
       "VU Exact Divide",
-      "Bit-exact hardware model of the VU divider. Real game data trips the full model on most divides - zeros, ones and quantized values dominate - so expect a real speed cost on VU-heavy games.",
+      "Bit-exact hardware model of the VU divider, on by default: DIV, SQRT and RSQRT are rare, latency-hidden scalar ops and the exact stub measures at no fps cost. Disable only when chasing a performance regression on very divide-heavy titles.",
       NULL,
       "emulation",
       {
-         { "disabled", NULL },
          { "enabled", NULL },
+         { "disabled", NULL },
          { NULL, NULL },
       },
-      "disabled"
+      "enabled"
    },
    {
       "pcsx2_fpu_softfloat",
