@@ -57,6 +57,16 @@ struct microVU
 	alignas(16) u32 exactMulSave[16][4];  // stub xmm spill area (all of xmm0-15)
 	u8* exactMulStub;                     // emitted tree stub (in dispCache)
 	alignas(16) u32 exactDivBuf[4];       // exact div/sqrt/rsqrt I/O: a, b, op-in result-out
+	/* Recompile-time mask elision. FMACa raises the one-shot flag when
+	 * the current op's operands are provably exponent-equal per lane
+	 * (register-form Fs == Ft), the SSE_ADD/SUB wrapper consumes it,
+	 * skips the mask stage (a no-op on equal exponents), and keeps the
+	 * detector -- equal operands can still saturate. The counters
+	 * report how much of real content the static proof covers; they
+	 * print with the JIT hash dump. */
+	bool addsubMaskNoop;
+	u32  addsubRecTotal;
+	u32  addsubRecElided;
 	alignas(16) u32 exactDivSave[16][4];  // div stub xmm spill area
 	u8* exactDivStub;                     // emitted call thunk (in dispCache)
 	alignas(16) u32 macFlag [4]; // 4 instances of mac    flag (used in execution)

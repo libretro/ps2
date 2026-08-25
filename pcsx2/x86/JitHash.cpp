@@ -58,6 +58,8 @@ namespace
 } // namespace
 
 
+extern "C" void mvu_addsub_counters(u32* out4);
+
 JITHASH_EXPORT void pcsx2_jithash_dump(void)
 {
 	const char* env = getenv("PCSX2_JITHASH");
@@ -83,6 +85,12 @@ JITHASH_EXPORT void pcsx2_jithash_dump(void)
 		}
 		fprintf(stderr, "[JITHASH] %-12s %016llx nz=%llu\n",
 			r.name, (unsigned long long)h, (unsigned long long)nz);
+	}
+	{
+		u32 c[4];
+		mvu_addsub_counters(c);
+		fprintf(stderr, "[ADDSUB] mVU0 elided %u/%u  mVU1 elided %u/%u\n",
+			c[0], c[1], c[2], c[3]);
 	}
 	fflush(stderr);
 }

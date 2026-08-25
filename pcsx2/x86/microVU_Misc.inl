@@ -691,11 +691,25 @@ static void mVUmaskedAddSubOp(mV, int to, int from, bool isPS, bool issub)
 		const int sQ = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
 		const int sE = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
 		const int sZ = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+		const bool elide = mVU->addsubMaskNoop;
+		mVU->addsubMaskNoop = false;
+		mVU->addsubRecTotal++;
+		if (elide)
+			mVU->addsubRecElided++;
 		if (!isPS)
 			xe_movaps_xx(dst, to);
-		if (avx512)    mVUmaskAddSubFusedAVX512(mVU, dst, from, tD, tM, tS, sB);
-		else if (avx2) mVUmaskAddSubFusedAVX(mVU, dst, from, tD, tM, tS, sB);
-		else           mVUmaskAddSubFused(mVU, dst, from, tD, tM, tS);
+		if (elide)
+		{
+			/* proven exponent-equal operands: the mask is a no-op. Copy
+			 * the source (the contract keeps cached VF registers
+			 * unmasked, and here unmodified) and let the detector guard
+			 * saturation as usual. Operand exp-255 still needs testing,
+			 * so the SSE-shaped detector runs on AVX hosts too. */
+			xe_movaps_xx(tD, from);
+		}
+		else if (avx512) mVUmaskAddSubFusedAVX512(mVU, dst, from, tD, tM, tS, sB);
+		else if (avx2)   mVUmaskAddSubFusedAVX(mVU, dst, from, tD, tM, tS, sB);
+		else             mVUmaskAddSubFused(mVU, dst, from, tD, tM, tS);
 		if (issub)
 			xe_pxor_xm(tD, mVUglob.signbit);
 		{
@@ -704,7 +718,7 @@ static void mVUmaskedAddSubOp(mV, int to, int from, bool isPS, bool issub)
 				uint8_t* to_fast_done;
 				xe_movaps_xx(tS, dst);            /* masked a, for the slow path */
 				xe_addps_xx(dst, tD);             /* chop add: the 99% result    */
-				if (avx512 || avx2)
+				if ((avx512 || avx2) && !elide)
 				{
 					/* operand exp-255 flag already sits in sB, folded
 					 * into the mask stage while the exponent fields
