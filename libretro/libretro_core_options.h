@@ -606,7 +606,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       "pcsx2_vu_accurate_addsub",
       "Emulation > VU Accurate Add/Sub",
       "VU Accurate Add/Sub",
-      "Model the VU adder's exponent-distance truncation. This is the correctness fix that replaced the old VuAddSub gamefix, so Tri-Ace games (Star Ocean 3, Radiata Stories, Valkyrie Profile 2) need it on. Costs speed on VU-heavy games.",
+      "Model the VU adder's exponent-distance truncation on every add and subtract. The Tri-Ace games that require this behaviour (Star Ocean 3, Radiata Stories, Valkyrie Profile 2) get it automatically per title via the game database even when this is disabled; enable it globally only when chasing accuracy in other titles. Costs speed on VU-heavy games.",
       NULL,
       "emulation",
       {

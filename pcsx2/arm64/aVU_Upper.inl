@@ -322,7 +322,7 @@ static void mVU_FMACa(microVU& mVU, int recPass, int opCase, int opType, bool is
 		// by-element Fmul keys element size off vm's format; a V4S vm selects fp16.
 		// vf0 identities first, mirroring the x86 dispatch: add/sub of a
 		// broadcast +0.0 and multiply by a vf0 lane skip their pipelines.
-		if ((opType <= 1) && CHECK_VU_ACC_ADDSUB && (opCase == 2) && (_Ft_ == 0) && (_bc_ != 3))
+		if ((opType <= 1) && (CHECK_VU_ACC_ADDSUB || CHECK_VUADDSUBHACK) && (opCase == 2) && (_Ft_ == 0) && (_bc_ != 3))
 			mVUaddSubVF0(mVU, Fs, opType == 1, _XYZW_SS);
 		else if ((opType == 2) && CHECK_VU_EXACTMUL && mVUexactMulVF0(mVU, Fs, opCase, _XYZW_SS))
 		{

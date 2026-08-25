@@ -226,7 +226,7 @@ Pcsx2Config::RecompilerOptions::RecompilerOptions()
 	EnableVu0SoftFloat = false;
 	EnableVu1SoftFloat = false;
 	EnableVuExactMul = false;
-	EnableVuAccurateAddSub = true;
+	EnableVuAccurateAddSub = false;
 	EnableFpuAccurateArith = true;
 	EnableIOP = true;
 	EnableVU0 = true;
@@ -832,6 +832,7 @@ static const char* const tbl_GamefixNames[] =
 	"XGKick",
 	"BlitInternalFPS",
 	"FullVU0Sync",
+	"VuAddSub",
 };
 
 const char* EnumToString(GamefixId id)
@@ -872,6 +873,7 @@ void Pcsx2Config::GamefixOptions::Set(GamefixId id, bool enabled)
 		case Fix_VUOverflow:          VUOverflowHack          = enabled; break;
 		case Fix_BlitInternalFPS:     BlitInternalFPSHack     = enabled; break;
 		case Fix_FullVU0Sync:         FullVU0SyncHack         = enabled; break;
+		case Fix_VuAddSub:            VuAddSubHack            = enabled; break;
 		default:
 					      break;
 	}
@@ -898,6 +900,7 @@ bool Pcsx2Config::GamefixOptions::Get(GamefixId id) const
 		case Fix_VUOverflow:          return VUOverflowHack;
 		case Fix_BlitInternalFPS:     return BlitInternalFPSHack;
 		case Fix_FullVU0Sync:         return FullVU0SyncHack;
+		case Fix_VuAddSub:            return VuAddSubHack;
 		default:
 					      break;
 	}

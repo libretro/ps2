@@ -259,7 +259,7 @@ static void mVU_FMACa(microVU* mVU, int recPass, int opCase, int opType, int isA
 		/* broadcast add/sub of a vf0 x, y or z lane is an identity;
 		 * opCase 2 is the broadcast form, read from setupFtReg's own
 		 * body this time. */
-		if ((opType <= 1) && CHECK_VU_ACC_ADDSUB && (opCase == 2) && (_Ft_ == 0) && (_bc_ != 3))
+		if ((opType <= 1) && (CHECK_VU_ACC_ADDSUB || CHECK_VUADDSUBHACK) && (opCase == 2) && (_Ft_ == 0) && (_bc_ != 3))
 			mVUaddSubVF0(mVU, Fs, opType == 1, _XYZW_SS);
 		else if (opType != 2 || !CHECK_VU_EXACTMUL || !mVUexactMulVF0(mVU, Fs, opCase, _XYZW_SS))
 		{

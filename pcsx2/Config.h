@@ -164,6 +164,7 @@ enum GamefixId
 	Fix_XGKick,
 	Fix_BlitInternalFPS,
 	Fix_FullVU0Sync,
+	Fix_VuAddSub,
 
 	GamefixId_COUNT
 };
@@ -716,7 +717,16 @@ struct Pcsx2Config
 					VUOverflowHack : 1, // Tries to simulate overflow flag checks (not really possible on x86 without soft floats)
 					XgKickHack     : 1, // Erementar Gerad, adds more delay to VU XGkick instructions. Corrects the color of some graphics, but breaks Tri-ace games and others.
 					BlitInternalFPSHack : 1, // Disables privileged register write-based FPS detection.
-					FullVU0SyncHack     : 1; // Forces tight VU0 sync on every COP2 instruction.
+					FullVU0SyncHack     : 1, // Forces tight VU0 sync on every COP2 instruction.
+					/* Tri-Ace add/sub: per-title trigger for the masked
+					 * accurate add/sub path when the global option is
+					 * off. GameDB carries VuAddSubHack on the Star
+					 * Ocean 3 / Radiata Stories / Valkyrie Profile 2
+					 * family; the emission takes the union with the
+					 * global option, so turning the option on covers
+					 * these titles identically and the hack adds
+					 * nothing. */
+					VuAddSubHack        : 1;
 			};
 		};
 
@@ -987,6 +997,7 @@ namespace EmuFolders
 #define CHECK_GIFFIFOHACK (EmuConfig.Gamefixes.GIFFIFOHack) // Enabled the GIF FIFO (more correct but slower)
 #define CHECK_VUOVERFLOWHACK (EmuConfig.Gamefixes.VUOverflowHack) // Special Fix for Superman Returns, they check for overflows on PS2 floats which we can't do without soft floats.
 #define CHECK_FULLVU0SYNCHACK (EmuConfig.Gamefixes.FullVU0SyncHack)
+#define CHECK_VUADDSUBHACK (EmuConfig.Gamefixes.VuAddSubHack)
 
 //------------ Advanced Options!!! ---------------
 #define CHECK_VU_OVERFLOW(vunum) (((vunum) == 0) ? EmuConfig.Cpu.Recompiler.vu0Overflow : EmuConfig.Cpu.Recompiler.vu1Overflow)

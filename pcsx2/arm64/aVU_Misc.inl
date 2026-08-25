@@ -402,7 +402,7 @@ static void mVUclampedArith(mV, const a64::VRegister& to, const a64::VRegister& 
 	mVUclamp3(mVU, from, ct, xyzw);
 	if (isPS)
 	{
-		if (isAddSub && CHECK_VU_ACC_ADDSUB)
+		if (isAddSub && (CHECK_VU_ACC_ADDSUB || CHECK_VUADDSUBHACK))
 		{
 			// the fused mask leaves the masked copy in RQSCRATCH and
 			// never touches the cached source register.
@@ -420,7 +420,7 @@ static void mVUclampedArith(mV, const a64::VRegister& to, const a64::VRegister& 
 			case mVU_DIV_OP: armAsm->Fdiv(to.V4S(), to.V4S(), from.V4S()); break;
 		}
 	}
-	else if (isAddSub && CHECK_VU_ACC_ADDSUB)
+	else if (isAddSub && (CHECK_VU_ACC_ADDSUB || CHECK_VUADDSUBHACK))
 	{
 		// Lane 0 result only, through the same fused vector mask: compute
 		// on a copy of the destination so its upper lanes survive. No
