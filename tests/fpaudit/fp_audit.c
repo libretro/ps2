@@ -423,6 +423,102 @@ static u32 rep0_sub(u32 a, u32 b) { return repair_addsub(a, b, 1, 0); }
 static u32 rep1_add(u32 a, u32 b) { return repair_addsub(a, b, 0, 1); }
 static u32 rep1_sub(u32 a, u32 b) { return repair_addsub(a, b, 1, 1); }
 
+
+/* MUL under the real rounding mode. Chop of an IEEE multiply truncates
+ * the EXACT 48-bit product; the PS2 multiplier truncates partial
+ * products and loses their carries, so chop can only sit at or one ulp
+ * above the model. If the miss collapses the way add/sub's did, the
+ * default path is already near-exact and only the exponent-range class
+ * needs a detector. The split row counts how much of the miss is
+ * range-visible (an operand or the true result in the top octave or
+ * flushed) versus the carry class no cheap detector can see. */
+static u32 chop_mul_raw(u32 a, u32 b)
+{
+	double p = (double)bits_to_f(a) * (double)bits_to_f(b);
+	float r = (float)p;
+	if ((double)r != p && fabs((double)p) < fabs((double)r))
+		r = bits_to_f(f_to_bits(r) - 1);
+	return f_to_bits(r);
+}
+static u32 hard_mul_chop(u32 a, u32 b)
+{
+	u32 ca = clamp_sp(a), cb = clamp_sp(b), r;
+	if (((ca >> 23) & 0xff) == 0) ca &= 0x80000000u;
+	if (((cb >> 23) & 0xff) == 0) cb &= 0x80000000u;
+	r = chop_mul_raw(ca, cb);
+	if (((r >> 23) & 0xff) == 0) r &= 0x80000000u;
+	return clamp1(r);
+}
+static int mul_range_detector(u32 a, u32 b)
+{
+	u32 ea = (a >> 23) & 0xffu, eb = (b >> 23) & 0xffu;
+	int esum;
+	if (ea == 0xffu || eb == 0xffu) return 1;
+	if (ea == 0 || eb == 0) return 0;          /* exact zero: no risk */
+	esum = (int)ea + (int)eb - 127;
+	return (esum >= 0xfe) || (esum <= 0);
+}
+static long long mul_carry_miss = 0, mul_range_miss = 0;
+static u32 mulsplit_add(u32 a, u32 b)
+{
+	u32 h = hard_mul_chop(a, b);
+	u32 m = ps2f_raw(ps2f_mul(a, b));
+	if (h != m)
+	{
+		if (mul_range_detector(a, b)) mul_range_miss++;
+		else                          mul_carry_miss++;
+	}
+	return h;
+}
+
+
+/* MADD as the pipeline composes it: chop multiply into the masked chop
+ * add (hardware MADD is a multiply feeding the same adder, not a fused
+ * op). In-range misses should be the union of the two carry classes. */
+static long long madd_carry_miss = 0, madd_range_miss = 0;
+static u32 maddsplit(u32 s_, u32 t_)
+{
+	u32 p = hard_mul_chop(s_, t_);
+	u32 h = hard_accadd_chop(0, p);
+	u32 m = ps2f_raw(ps2f_madd(0, s_, t_, 0));
+	if (h != m)
+	{
+		u32 er = (p >> 23) & 0xffu;
+		if (mul_range_detector(s_, t_) || er >= 0xfeu) madd_range_miss++;
+		else                                           madd_carry_miss++;
+	}
+	return h;
+}
+
+
+/* The actual shipping default: plain clamp + chop add, no mask. The
+ * split separates range-visible misses from the mask class (the
+ * sub-threshold bits the hardware discards and plain chop keeps) --
+ * the mask class IS the Tri-Ace behaviour, sized on random input. */
+static long long padd_mask_miss = 0, padd_range_miss = 0;
+static u32 plain_chop_addsub(u32 a, u32 b, int neg)
+{
+	u32 ca, cb, r;
+	if (neg) b ^= 0x80000000u;
+	ca = clamp1(a); cb = clamp1(b);
+	if (((ca >> 23) & 0xff) == 0) ca &= 0x80000000u;
+	if (((cb >> 23) & 0xff) == 0) cb &= 0x80000000u;
+	r = chop_add_raw(ca, cb);
+	if (((r >> 23) & 0xff) == 0) r &= 0x80000000u;
+	return clamp1(r);
+}
+static u32 paddsplit(u32 a, u32 b)
+{
+	u32 h = plain_chop_addsub(a, b, 0);
+	u32 m = ps2f_raw(ps2f_add(a, b));
+	if (h != m)
+	{
+		if (addsub_detector(a, b, h)) padd_range_miss++;
+		else                          padd_mask_miss++;
+	}
+	return h;
+}
+
 /* Input space: every exponent boundary crossed with mantissa patterns,
  * then a deterministic xorshift sweep. */
 static u32 inputs[512];
@@ -539,5 +635,14 @@ int main(void)
 	row2("repair0 SUB (re-add) ", rep0_sub, ps2f_sub);
 	row2("repair1 ADD (1-ulp)  ", rep1_add, ps2f_add);
 	row2("repair1 SUB (1-ulp)  ", rep1_sub, ps2f_sub);
+	row2("ADD plain (clamp+CHOP)", paddsplit, ps2f_add);
+	printf("    add miss split: range-detectable=%lld  mask-class=%lld\n",
+	       padd_range_miss, padd_mask_miss);
+	row2("MUL (clamp+CHOP)     ", mulsplit_add, ps2f_mul);
+	printf("    mul miss split: range-detectable=%lld  carry-class=%lld\n",
+	       mul_range_miss, mul_carry_miss);
+	row2("MADD acc0 (chop pipe)", maddsplit, model_madd0);
+	printf("    madd miss split: range-detectable=%lld  carry-class=%lld\n",
+	       madd_range_miss, madd_carry_miss);
 	return 0;
 }
