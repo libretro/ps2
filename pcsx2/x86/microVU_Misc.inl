@@ -508,12 +508,18 @@ static void mVUmaskAddSubFused(mV, int a, int b, int tD, int tM, int tS)
 // audit puts real weight on the add/sub mask (Tekken's per-vertex
 // SUBq and the accumulate stages of its MSUB transform chains).
 // Same contract as the other forms.
-static void mVUmaskAddSubFusedAVX512(mV, int a, int b, int tD, int tM, int tS)
+static void mVUmaskAddSubFusedAVX512(mV, int a, int b, int tD, int tM, int tS, int tF = -1)
 {
 	xe_vpslld_xxi(tD, a, 1, 0);
 	xe_vpsrld_xxi(tD, tD, 24, 0);
 	xe_vpslld_xxi(tS, b, 1, 0);
 	xe_vpsrld_xxi(tS, tS, 24, 0);
+	if (tF >= 0)
+	{
+		xe_vpcmpeqd_xxm(tF, tD, mVUglob.xakff, 0);
+		xe_vpcmpeqd_xxm(tM, tS, mVUglob.xakff, 0);
+		xe_vpor_xxx(tF, tF, tM, 0);
+	}
 	xe_vpsubd_xxx(tD, tD, tS, 0);            // d
 	xe_vpabsd_xx(tS, tD, 0);
 	xe_vpsubd_xxm(tS, tS, mVUglob.addm1, 0); // c
@@ -538,12 +544,21 @@ static void mVUmaskAddSubFusedAVX512(mV, int a, int b, int tD, int tM, int tS)
 // executed lanes under chop, denormals-are-zero and flush-to-zero,
 // five register patterns, zero mismatches. Same contract: a masked in
 // place, masked copy of b left in tD, b untouched.
-static void mVUmaskAddSubFusedAVX(mV, int a, int b, int tD, int tM, int tS)
+/* tF, when not -1, receives the operand exponent-255 flag per lane --
+ * computed here for free while both exponent fields are still live,
+ * instead of re-extracting them in the caller's detector. */
+static void mVUmaskAddSubFusedAVX(mV, int a, int b, int tD, int tM, int tS, int tF = -1)
 {
 	xe_vpslld_xxi(tD, a, 1, 0);
 	xe_vpsrld_xxi(tD, tD, 24, 0);
 	xe_vpslld_xxi(tS, b, 1, 0);
 	xe_vpsrld_xxi(tS, tS, 24, 0);
+	if (tF >= 0)
+	{
+		xe_vpcmpeqd_xxm(tF, tD, mVUglob.xakff, 0);
+		xe_vpcmpeqd_xxm(tM, tS, mVUglob.xakff, 0);
+		xe_vpor_xxx(tF, tF, tM, 0);
+	}
 	xe_vpsubd_xxx(tD, tD, tS, 0);               // d
 	xe_vpabsd_xx(tS, tD, 0);
 	xe_vpsubd_xxm(tS, tS, mVUglob.addm1, 0);    // c
@@ -666,32 +681,44 @@ static void mVUmaskedAddSubOp(mV, int to, int from, bool isPS, bool issub)
 		 * both paths are pure adds. GPRs stay untouched (see the note
 		 * above); the branch test is ptest, so hosts below SSE4.1 take
 		 * the exact stage unconditionally instead. */
+		/* every allocation this construction will ever need, hoisted
+		 * above the branch (see the note on mVUexactAddSubStage) and
+		 * above the mask stage, which folds the operand exp-255 flag
+		 * into sB on AVX hosts while the exponent fields are live */
+		const int sA = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+		const int sB = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+		const int sC = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+		const int sQ = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+		const int sE = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+		const int sZ = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
 		if (!isPS)
 			xe_movaps_xx(dst, to);
-		if (avx512)    mVUmaskAddSubFusedAVX512(mVU, dst, from, tD, tM, tS);
-		else if (avx2) mVUmaskAddSubFusedAVX(mVU, dst, from, tD, tM, tS);
+		if (avx512)    mVUmaskAddSubFusedAVX512(mVU, dst, from, tD, tM, tS, sB);
+		else if (avx2) mVUmaskAddSubFusedAVX(mVU, dst, from, tD, tM, tS, sB);
 		else           mVUmaskAddSubFused(mVU, dst, from, tD, tM, tS);
 		if (issub)
 			xe_pxor_xm(tD, mVUglob.signbit);
 		{
-			/* every allocation this construction will ever need, hoisted
-			 * above the branch -- see the note on mVUexactAddSubStage */
-			const int sA = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
-			const int sB = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
-			const int sC = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
-			const int sQ = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
-			const int sE = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
-			const int sZ = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
 			if (CPU_HAS_SSE41)
 			{
 				uint8_t* to_fast_done;
 				xe_movaps_xx(tS, dst);            /* masked a, for the slow path */
 				xe_addps_xx(dst, tD);             /* chop add: the 99% result    */
-				xe_movaps_xx(tM, tS); xe_pslld_xi(tM, 1); xe_psrld_xi(tM, 24);
-				xe_pcmpeqd_xm(tM, mVUglob.xakff); /* opA exp == 0xFF */
-				xe_movaps_xx(sA, tD); xe_pslld_xi(sA, 1); xe_psrld_xi(sA, 24);
-				xe_pcmpeqd_xm(sA, mVUglob.xakff); /* opB exp == 0xFF */
-				xe_por_xx(tM, sA);
+				if (avx512 || avx2)
+				{
+					/* operand exp-255 flag already sits in sB, folded
+					 * into the mask stage while the exponent fields
+					 * were live; only the result test remains */
+					xe_movaps_xx(tM, sB);
+				}
+				else
+				{
+					xe_movaps_xx(tM, tS); xe_pslld_xi(tM, 1); xe_psrld_xi(tM, 24);
+					xe_pcmpeqd_xm(tM, mVUglob.xakff); /* opA exp == 0xFF */
+					xe_movaps_xx(sA, tD); xe_pslld_xi(sA, 1); xe_psrld_xi(sA, 24);
+					xe_pcmpeqd_xm(sA, mVUglob.xakff); /* opB exp == 0xFF */
+					xe_por_xx(tM, sA);
+				}
 				xe_movaps_xx(sA, dst); xe_pslld_xi(sA, 1); xe_psrld_xi(sA, 24);
 				xe_pcmpgtd_xm(sA, mVUglob.xakfd); /* res exp >= 0xFE */
 				xe_por_xx(tM, sA);

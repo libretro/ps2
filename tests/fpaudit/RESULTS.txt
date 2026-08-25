@@ -22,3 +22,11 @@ emit ADD (bit-built)           0 / 2030976 (0.0000%)
 emit SUB (bit-built)           0 / 2030976 (0.0000%)
 composite ADD (fast)           0 / 2030976 (0.0000%)
 composite SUB (fast)           0 / 2030976 (0.0000%)
+velt ADD (no mask)        528491 / 2030976 (26.0215%)   first: a=00000000 b=017fffff hard=017ffffe model=017fffff
+velt SUB (no mask)        527699 / 2030976 (25.9825%)   first: a=00000000 b=017fffff hard=817ffffe model=817fffff
+velt+detector ADD         496596 / 2030976 (24.4511%)   first: a=00000000 b=017fffff hard=017ffffe model=017fffff
+velt+detector SUB         497996 / 2030976 (24.5200%)   first: a=00000000 b=017fffff hard=817ffffe model=817fffff
+repair0 ADD (re-add)      291409 / 2030976 (14.3482%)   first: a=00000000 b=7f800000 hard=7f7fffff model=7f800000
+repair0 SUB (re-add)      291433 / 2030976 (14.3494%)   first: a=00000000 b=7f800000 hard=ff7fffff model=ff800000
+repair1 ADD (1-ulp)      1350223 / 2030976 (66.4815%)   first: a=00000000 b=7f800000 hard=7f7fffff model=7f800000
+repair1 SUB (1-ulp)      1350114 / 2030976 (66.4761%)   first: a=00000000 b=7f800000 hard=ff7fffff model=ff800000
