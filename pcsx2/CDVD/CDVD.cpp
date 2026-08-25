@@ -1106,6 +1106,32 @@ __fi void cdvdSectorReady(void)
 // inlined due to being referenced in only one place.
 __fi void cdvdReadInterrupt(void)
 {
+	// A read command whose last sector has already been transferred only owes
+	// the guest its completion interrupt.  Raise it on its own, slightly after
+	// the DMA finished, and leave every hardware flag in the finished state.
+	// Launch-era cdvdman watches the DMA counters to track transfer progress
+	// and only treats the command-complete interrupt as final once the data
+	// has visibly arrived.  On hardware the DMA always ends comfortably ahead
+	// of the completion interrupt; delivering both in the same instant lets a
+	// thread that sampled the counters mid-poll conclude that nothing was
+	// transferred, and the driver never issues another command.
+	if (cdvd.Reading && cdvd.SectorCnt <= 0)
+	{
+		cdvd.Reading = 0;
+		// Setting the data ready flag fixes a black screen loading issue in
+		// Street Fighter EX3 (NTSC-J version).
+		cdvdSetIrq((1 << Irq_CommandComplete));
+		cdvdUpdateReady(CDVD_DRIVE_READY);
+		if (cdvd.nextSectorsBuffered < 16)
+		{
+			cdvdUpdateStatus(CDVD_STATUS_READ);
+		}
+		else
+		{
+			cdvdUpdateStatus(CDVD_STATUS_PAUSE);
+		}
+		return;
+	}
 	cdvdUpdateReady(CDVD_DRIVE_BUSY);
 	cdvdUpdateStatus(CDVD_STATUS_READ);
 	cdvd.WaitingDMA = false;
@@ -1198,20 +1224,10 @@ __fi void cdvdReadInterrupt(void)
 
 		if (--cdvd.SectorCnt <= 0)
 		{
-			// Setting the data ready flag fixes a black screen loading issue in
-			// Street Fighter EX3 (NTSC-J version).
-			cdvdSetIrq((1 << Irq_CommandComplete));
-			cdvdUpdateReady(CDVD_DRIVE_READY);
-
-			cdvd.Reading = 0;
-			if (cdvd.nextSectorsBuffered < 16)
-			{
-				cdvdUpdateStatus(CDVD_STATUS_READ);
-			}
-			else
-			{
-				cdvdUpdateStatus(CDVD_STATUS_PAUSE);
-			}
+			// The sector data has just landed via DMA.  Let the completion
+			// interrupt arrive on its own a moment later, the way the real
+			// drive orders things (see the note at the top of this function).
+			CDVDREAD_INT(1024);
 			// Timing issues on command end
 			// Star Ocean (1.1 Japan) expects the DMA to end and interrupt at least 128 or more cycles before the CDVD command ends.
 			// However the time required seems to increase slowly, so delaying the end of the command is not the solution.
