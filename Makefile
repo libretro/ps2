@@ -774,8 +774,8 @@ ifeq ($(DEBUG), 1)
       CFLAGS   += -Od -Zi -DDEBUG -D_DEBUG
       CXXFLAGS += -Od -Zi -DDEBUG -D_DEBUG
    else
-      CFLAGS   += -O0 -g -DDEBUG -MMD
-      CXXFLAGS += -O0 -g -DDEBUG -MMD
+      CFLAGS   += -O0 -g -DDEBUG -MMD -fno-strict-aliasing
+      CXXFLAGS += -O0 -g -DDEBUG -MMD -fno-strict-aliasing
    endif
 else
    ifneq (,$(findstring msvc,$(platform)))
@@ -790,8 +790,14 @@ else
       CFLAGS   += -O2 -DNDEBUG
       CXXFLAGS += -O2 -DNDEBUG
    else
-      CFLAGS   += -O3 -DNDEBUG -MMD
-      CXXFLAGS += -O3 -DNDEBUG -MMD
+      # The emulator aliases hardware memory through casts on nearly every
+      # page; cmake has always built it with -fno-strict-aliasing
+      # (pcsx2/CMakeLists.txt).  Without it, GCC's type-based alias analysis
+      # miscompiles the core - newer GCC ever more eagerly - which is why
+      # Makefile builds broke launch-era CDVD boots that the cmake builds
+      # of the very same commit ran fine.
+      CFLAGS   += -O3 -DNDEBUG -MMD -fno-strict-aliasing
+      CXXFLAGS += -O3 -DNDEBUG -MMD -fno-strict-aliasing
    endif
 endif
 
