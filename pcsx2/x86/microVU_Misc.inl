@@ -564,6 +564,87 @@ static void mVUmaskAddSubFusedAVX(mV, int a, int b, int tD, int tM, int tS)
 
 // Masked add/sub. The destination may be masked in place, but the
 // source is a cached VF register: mask a copy, never the original.
+
+/* Exact add/sub result stage, replacing the round-to-nearest addps after
+ * the fused mask stage when VuAccurateAddSub is on. Consumes the masked
+ * operands (X in place, Y = the mask stage's output register), leaves the
+ * PS2-exact sum in X. Bit formulas proven by tests/fpaudit emit rows:
+ * encode hi = sign | (e+896)<<20 | mant>>3, lo = bits<<29, lanes with
+ * e==0 collapse to signed zero; one addpd per double pair (exact: the
+ * masked operands carry at most 25 significant bits); decode es =
+ * field-896 with flush at es<=0, saturate at es>255 to sign|0x7fffffff,
+ * and mant = (hi&fffff)<<3 | lo>>29 -- the >>29 IS the hardware adder's
+ * truncation of the surviving guard bit. Integer SSE2 end to end; the
+ * PS2's exponent-255 values never exist as IEEE singles here. */
+static void mVUexactAddSubStage(mV, int X, int Y, bool issub)
+{
+	const int tA = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+	const int tB = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+	const int tC = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+	const int tQ = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+	const int tE = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+	const int tZ = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+
+	if (issub)
+		xe_pxor_xm(Y, mVUglob.signbit);
+
+	/* encode X -> A01(tA), A23(tC) */
+	xe_movaps_xx(tE, X); xe_psrld_xi(tE, 23); xe_pand_xm(tE, mVUglob.xakff);
+	xe_movaps_xx(tZ, tE); xe_pcmpeqd_xm(tZ, mVUglob.addzero);
+	xe_movaps_xx(tB, X); xe_pand_xm(tB, mVUglob.xamantm); xe_psrld_xi(tB, 3);
+	xe_paddd_xm(tE, mVUglob.xak896); xe_pslld_xi(tE, 20); xe_por_xx(tB, tE);
+	xe_movaps_xx(tA, X); xe_pslld_xi(tA, 29);
+	/* zero-lane collapse: hi keeps only the sign, lo clears */
+	xe_movaps_xx(tE, tZ); xe_pandn_xx(tE, tB); xe_movaps_xx(tB, tE);
+	xe_movaps_xx(tE, X); xe_pand_xm(tE, mVUglob.signbit); xe_por_xx(tB, tE);
+	xe_movaps_xx(tE, tZ); xe_pandn_xx(tE, tA); xe_movaps_xx(tA, tE);
+	xe_movaps_xx(tC, tA);
+	xe_punpckldq_xx(tA, tB);
+	xe_punpckhdq_xx(tC, tB);
+
+	/* encode Y -> B01(tB), B23(tE) */
+	xe_movaps_xx(tE, Y); xe_psrld_xi(tE, 23); xe_pand_xm(tE, mVUglob.xakff);
+	xe_movaps_xx(tZ, tE); xe_pcmpeqd_xm(tZ, mVUglob.addzero);
+	xe_movaps_xx(tQ, Y); xe_pand_xm(tQ, mVUglob.xamantm); xe_psrld_xi(tQ, 3);
+	xe_paddd_xm(tE, mVUglob.xak896); xe_pslld_xi(tE, 20); xe_por_xx(tQ, tE);
+	xe_movaps_xx(tB, Y); xe_pslld_xi(tB, 29);
+	xe_movaps_xx(tE, tZ); xe_pandn_xx(tE, tQ); xe_movaps_xx(tQ, tE);
+	xe_movaps_xx(tE, Y); xe_pand_xm(tE, mVUglob.signbit); xe_por_xx(tQ, tE);
+	xe_movaps_xx(tE, tZ); xe_pandn_xx(tE, tB); xe_movaps_xx(tB, tE);
+	xe_movaps_xx(tE, tB);
+	xe_punpckldq_xx(tB, tQ);
+	xe_punpckhdq_xx(tE, tQ);
+
+	xe_addpd_xx(tA, tB);
+	xe_addpd_xx(tC, tE);
+
+	/* decode: hiV(tB) = odd dwords, loV(tA) = even dwords */
+	xe_movaps_xx(tB, tA);
+	xe_shufps_xxi(tB, tC, 0xDD);
+	xe_shufps_xxi(tA, tC, 0x88);
+
+	xe_movaps_xx(tC, tB); xe_pand_xm(tC, mVUglob.signbit);              /* s   */
+	xe_movaps_xx(tQ, tB); xe_psrld_xi(tQ, 20); xe_pand_xm(tQ, mVUglob.xak7ff);
+	xe_psubd_xm(tQ, mVUglob.xak896);                                     /* es  */
+	xe_pand_xm(tB, mVUglob.xadblhm); xe_pslld_xi(tB, 3);
+	xe_psrld_xi(tA, 29); xe_por_xx(tB, tA);                              /* man */
+	xe_movaps_xx(tA, tQ); xe_pslld_xi(tA, 23); xe_por_xx(tA, tB); xe_por_xx(tA, tC);
+	xe_movaps_xm(tE, mVUglob.addm1); xe_pcmpgtd_xx(tE, tQ);             /* es<=0  */
+	xe_movaps_xx(tB, tQ); xe_pcmpgtd_xm(tB, mVUglob.xakff);             /* es>255 */
+	xe_movaps_xx(tZ, tE); xe_pandn_xx(tZ, tA);
+	xe_pand_xx(tE, tC); xe_por_xx(tZ, tE);                               /* flush->s */
+	xe_movaps_xx(tE, tC); xe_por_xm(tE, mVUglob.absclip); xe_pand_xx(tE, tB);
+	xe_pandn_xx(tB, tZ); xe_por_xx(tB, tE);                              /* sat->s|max */
+	xe_movaps_xx(X, tB);
+
+	mVUra_clearNeededXMM(mVU->regAlloc, tA);
+	mVUra_clearNeededXMM(mVU->regAlloc, tB);
+	mVUra_clearNeededXMM(mVU->regAlloc, tC);
+	mVUra_clearNeededXMM(mVU->regAlloc, tQ);
+	mVUra_clearNeededXMM(mVU->regAlloc, tE);
+	mVUra_clearNeededXMM(mVU->regAlloc, tZ);
+}
+
 static void mVUmaskedAddSubOp(mV, int to, int from, bool isPS, bool issub)
 {
 	if (!clampE)
@@ -583,8 +664,7 @@ static void mVUmaskedAddSubOp(mV, int to, int from, bool isPS, bool issub)
 			if (avx512)    mVUmaskAddSubFusedAVX512(mVU, to, from, tD, tM, tS);
 			else if (avx2) mVUmaskAddSubFusedAVX(mVU, to, from, tD, tM, tS);
 			else           mVUmaskAddSubFused(mVU, to, from, tD, tM, tS);
-			if (issub) xe_subps_xx(to, tD);
-			else       xe_addps_xx(to, tD);
+			mVUexactAddSubStage(mVU, to, tD, issub);
 		}
 		else
 		{
@@ -595,8 +675,7 @@ static void mVUmaskedAddSubOp(mV, int to, int from, bool isPS, bool issub)
 			if (avx512)    mVUmaskAddSubFusedAVX512(mVU, dst, from, tD, tM, tS);
 			else if (avx2) mVUmaskAddSubFusedAVX(mVU, dst, from, tD, tM, tS);
 			else           mVUmaskAddSubFused(mVU, dst, from, tD, tM, tS);
-			if (issub) xe_subss_xx(dst, tD);
-			else       xe_addss_xx(dst, tD);
+			mVUexactAddSubStage(mVU, dst, tD, issub);
 			xe_movss_xx(to, dst);
 			mVUra_clearNeededXMM(mVU->regAlloc, dst);
 		}

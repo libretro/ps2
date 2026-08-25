@@ -1233,6 +1233,7 @@ static uintptr_t xe_opaque_uptr(const void *p)
 
 
 #define xe_addps_xx(d, s) do { XE_OPEN(); E_SSE_RR(xep, 0x00, 0x58, (d), (s)); XE_CLOSE(); } while (0)
+#define xe_addpd_xx(d, s) do { XE_OPEN(); E_SSE_RR(xep, 0x66, 0x58, (d), (s)); XE_CLOSE(); } while (0)
 #define xe_subps_xx(d, s) do { XE_OPEN(); E_SSE_RR(xep, 0x00, 0x5c, (d), (s)); XE_CLOSE(); } while (0)
 #define xe_mulps_xx(d, s) do { XE_OPEN(); E_SSE_RR(xep, 0x00, 0x59, (d), (s)); XE_CLOSE(); } while (0)
 #define xe_divps_xx(d, s) do { XE_OPEN(); E_SSE_RR(xep, 0x00, 0x5e, (d), (s)); XE_CLOSE(); } while (0)

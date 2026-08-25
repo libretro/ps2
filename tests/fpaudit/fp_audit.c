@@ -182,10 +182,15 @@ static u32 cand_sub(u32 a, u32 b) { return cand_dbl_addsub(a, b, 1); }
  * host's rounding disagree, plus the clamped exponent-255 range. */
 static u32 mask_smaller(u32 a, u32 b, u32* pa, u32* pb)
 {
+	/* 1..24: mask the smaller's raw low bits by distance-1 (one guard
+	 * bit survives). 25 and beyond: the smaller is discarded entirely --
+	 * the adder has no path for it, and the emitted mask stage's
+	 * 24-window compare wipes the operand. The first mirror lacked the
+	 * discard and the emit row measured 9.4% for that one rule. */
 	u32 ea = (a >> 23) & 0xff, eb = (b >> 23) & 0xff;
 	int d = (int)ea - (int)eb;
-	if (d > 0 && d < 25)       b &= 0xffffffffu << (d - 1);
-	else if (d < 0 && d > -25) a &= 0xffffffffu << (-d - 1);
+	if (d > 0)      b = (d < 25) ? (b & (0xffffffffu << (d - 1)))  : (b & 0x80000000u);
+	else if (d < 0) a = (-d < 25) ? (a & (0xffffffffu << (-d - 1))) : (a & 0x80000000u);
 	*pa = a; *pb = b;
 	return 0;
 }
@@ -210,6 +215,48 @@ static u32 hard_accsub(u32 a, u32 b) { return hard_accadd(a, b ^ 0x80000000u); }
  * exponent<<52, mantissa<<29), one addpd, then extract the fields back
  * -- where the mantissa's >>29 truncates the guard bit exactly as the
  * hardware adder does, no rounding mode involved. */
+
+
+/* The emission-shaped mirror: exactly the bit formulas the SSE sequence
+ * will use, so a typo here fails the row before it fails a game. Encode
+ * each masked operand's PS2 bits into IEEE double BITS with integer
+ * math (never through a single), one exact double add, decode the
+ * fields back with the mantissa shift truncating the guard bit. */
+static u32 emit_encdec_addsub(u32 a, u32 b, int negate_b)
+{
+	u32 ma, mb, hiA, loA, hiB, loB, hiR, loR, sr, mant;
+	u32 ea, eb;
+	int es;
+	uint64_t dA, dB;
+	double xA, xB, xS;
+
+	if (negate_b) b ^= 0x80000000u;
+	mask_smaller(a, b, &ma, &mb);
+	ea = (ma >> 23) & 0xffu; eb = (mb >> 23) & 0xffu;
+
+	hiA = ma & 0x80000000u;
+	if (ea != 0) hiA |= ((ea + 896u) << 20) | ((ma & 0x007fffffu) >> 3);
+	loA = (ea != 0) ? (ma << 29) : 0;
+	hiB = mb & 0x80000000u;
+	if (eb != 0) hiB |= ((eb + 896u) << 20) | ((mb & 0x007fffffu) >> 3);
+	loB = (eb != 0) ? (mb << 29) : 0;
+
+	dA = ((uint64_t)hiA << 32) | loA;
+	dB = ((uint64_t)hiB << 32) | loB;
+	memcpy(&xA, &dA, 8); memcpy(&xB, &dB, 8);
+	xS = xA + xB;
+	memcpy(&dA, &xS, 8);
+	hiR = (u32)(dA >> 32); loR = (u32)dA;
+
+	sr   = hiR & 0x80000000u;
+	es   = (int)((hiR >> 20) & 0x7ffu) - 896;
+	mant = ((hiR & 0x000fffffu) << 3) | (loR >> 29);
+	if (es <= 0)   return sr;
+	if (es > 255)  return sr | 0x7fffffffu;
+	return sr | ((u32)es << 23) | mant;
+}
+static u32 emit_add(u32 a, u32 b) { return emit_encdec_addsub(a, b, 0); }
+static u32 emit_sub(u32 a, u32 b) { return emit_encdec_addsub(a, b, 1); }
 
 /* Input space: every exponent boundary crossed with mantissa patterns,
  * then a deterministic xorshift sweep. */
@@ -313,5 +360,7 @@ int main(void)
 	printf("--- candidates: double pipeline with PS2 truncation (the EE DOUBLE construction):\n");
 	row2("cand ADD (double)    ", cand_add, ps2f_add);
 	row2("cand SUB (double)    ", cand_sub, ps2f_sub);
+	row2("emit ADD (bit-built) ", emit_add, ps2f_add);
+	row2("emit SUB (bit-built) ", emit_sub, ps2f_sub);
 	return 0;
 }

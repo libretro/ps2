@@ -39,6 +39,15 @@ struct mVU_Globals
 	u32   addm25  [4] = __four(0x00000019);
 	u32   addm23  [4] = __four(0x00000017);
 	u32   addzero [4] = __four(0x00000000);
+	/* Exact add/sub bit pipeline: PS2 bits -> IEEE double BITS by integer
+	 * construction (never through a single, which cannot hold the PS2's
+	 * exponent-255 octave), addpd, fields back out. Proven bit-exact
+	 * against ps2float by tests/fpaudit (emit ADD/SUB rows, 0/2.03M). */
+	u32   xakff   [4] = __four(0x000000ff);   /* exponent field mask     */
+	u32   xak896  [4] = __four(0x00000380);   /* single->double rebias   */
+	u32   xamantm [4] = __four(0x007fffff);   /* single mantissa mask    */
+	u32   xadblhm [4] = __four(0x000fffff);   /* double mantissa hi mask */
+	u32   xak7ff  [4] = __four(0x000007ff);   /* double exponent mask    */
 	u32   multz16 [4] = __four(0x0000ffff);
 	u32   mulkeepw[4] = {0, 0, 0, 0x7fffffff};
 	u32   addmall [4] = __four(0xffffffff);
