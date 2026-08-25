@@ -174,6 +174,43 @@ static u32 cand_dbl_addsub(u32 a, u32 b, int negate_b)
 static u32 cand_add(u32 a, u32 b) { return cand_dbl_addsub(a, b, 0); }
 static u32 cand_sub(u32 a, u32 b) { return cand_dbl_addsub(a, b, 1); }
 
+
+/* The default tier actually emitted (VuAccurateAddSub, on by default):
+ * mask the smaller operand's raw low bits by exponent-distance minus one
+ * (mVUmaskAddSubFused), clamp, then IEEE round-to-nearest addss. Differs
+ * from the model only where the model's truncating normalize and the
+ * host's rounding disagree, plus the clamped exponent-255 range. */
+static u32 mask_smaller(u32 a, u32 b, u32* pa, u32* pb)
+{
+	u32 ea = (a >> 23) & 0xff, eb = (b >> 23) & 0xff;
+	int d = (int)ea - (int)eb;
+	if (d > 0 && d < 25)       b &= 0xffffffffu << (d - 1);
+	else if (d < 0 && d > -25) a &= 0xffffffffu << (-d - 1);
+	*pa = a; *pb = b;
+	return 0;
+}
+static u32 hard_accadd(u32 a, u32 b)
+{
+	u32 ma, mb;
+	mask_smaller(a, b, &ma, &mb);
+	return clamp1(f_to_bits(bits_to_f(clamp1(ma)) + bits_to_f(clamp1(mb))));
+}
+static u32 hard_accsub(u32 a, u32 b) { return hard_accadd(a, b ^ 0x80000000u); }
+
+/* No fixup middle path exists, and the row that proved it is gone for a
+ * structural reason worth recording: IEEE single precision cannot
+ * represent the PS2's exponent-255 range at all (those encodings are
+ * Inf/NaN to the host), so any construction whose intermediate values
+ * are IEEE singles -- including cvtps2pd, which reads 0x7f800000+ as
+ * infinity and drops the mantissa -- loses that range before the
+ * arithmetic starts. The measured 5.6% default-tier miss is dominated by
+ * exactly this, not by rounding. The only exact emission is the full
+ * construction in cand_dbl_addsub below, whose SSE shape is integer
+ * ops end to end: build the double BITS directly (sign<<63, biased
+ * exponent<<52, mantissa<<29), one addpd, then extract the fields back
+ * -- where the mantissa's >>29 truncates the guard bit exactly as the
+ * hardware adder does, no rounding mode involved. */
+
 /* Input space: every exponent boundary crossed with mantissa patterns,
  * then a deterministic xorshift sweep. */
 static u32 inputs[512];
@@ -270,6 +307,9 @@ int main(void)
 	printf("--- exact-by-construction tiers (integer ordering; EE-proven):\n");
 	row2("MAX (int ordering)   ", hard_max, model_max);
 	row2("MIN (int ordering)   ", hard_min, model_min);
+	printf("--- default tier as emitted (VuAccurateAddSub on):\n");
+	row2("ACC ADD (mask+RN ss) ", hard_accadd, ps2f_add);
+	row2("ACC SUB (mask+RN ss) ", hard_accsub, ps2f_sub);
 	printf("--- candidates: double pipeline with PS2 truncation (the EE DOUBLE construction):\n");
 	row2("cand ADD (double)    ", cand_add, ps2f_add);
 	row2("cand SUB (double)    ", cand_sub, ps2f_sub);

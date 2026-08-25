@@ -10,6 +10,9 @@ MADD acc=0 (2x ss)       1020175 / 2030976 (50.2308%)   first: a=00800000 b=3f80
 --- exact-by-construction tiers (integer ordering; EE-proven):
 MAX (int ordering)             0 / 2030976 (0.0000%)
 MIN (int ordering)             0 / 2030976 (0.0000%)
+--- default tier as emitted (VuAccurateAddSub on):
+ACC ADD (mask+RN ss)      113520 / 2030976 (5.5894%)   first: a=00000000 b=7f800000 hard=7f7fffff model=7f800000
+ACC SUB (mask+RN ss)      113801 / 2030976 (5.6033%)   first: a=00000000 b=7f800000 hard=ff7fffff model=ff800000
 --- candidates: double pipeline with PS2 truncation (the EE DOUBLE construction):
 cand ADD (double)              0 / 2030976 (0.0000%)
 cand SUB (double)              0 / 2030976 (0.0000%)
