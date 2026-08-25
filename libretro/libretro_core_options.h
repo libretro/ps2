@@ -614,7 +614,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
          { "disabled", NULL },
          { NULL, NULL },
       },
-      "enabled"
+      "disabled"
    },
    {
       "pcsx2_ee_accurate_fpu",
@@ -628,7 +628,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
          { "disabled", NULL },
          { NULL, NULL },
       },
-      "enabled"
+      "disabled"
    },
    {
       "pcsx2_vu_exact_mul",
