@@ -237,10 +237,10 @@ static void LoadIrx(const std::string& filename, u8* dest, size_t maxSize)
 
 static std::string FindBiosImage(void)
 {
-	Console.WriteLn("Searching for a BIOS image in '%s'...", EmuFolders::Bios.c_str());
+	Console.WriteLn("Searching for a BIOS image in '%s'...", EmuFolders::Bios);
 
 	FileSystem::FindResultsArray results;
-	if (!FileSystem::FindFiles(EmuFolders::Bios.c_str(), "*", FILESYSTEM_FIND_FILES, &results))
+	if (!FileSystem::FindFiles(EmuFolders::Bios, "*", FILESYSTEM_FIND_FILES, &results))
 		return std::string();
 
 	u32 version, region;

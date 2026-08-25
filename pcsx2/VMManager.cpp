@@ -942,23 +942,33 @@ void VMManager::UpdateCPUImplementations()
 	CpuVU0 = &vucpu_interp_vu0;
 	CpuVU1 = &vucpu_interp_vu1;
 
+	/* Soft float per unit: the interpreter computes every VU float op
+	 * through the ps2float model, so "soft" for a unit means keeping that
+	 * unit on the interpreter even when its recompiler is enabled. Same
+	 * routing on both architectures. A per-op soft dispatch inside
+	 * microVU can replace this later without changing the option. */
+	if (CHECK_VU_SOFT_REC(0) && EmuConfig.Cpu.Recompiler.EnableVU0)
+		Console.WriteLn("VU0 soft float: micro programs on the exact interpreter (macro-mode COP2 is not covered).");
+	if (CHECK_VU_SOFT_REC(1) && EmuConfig.Cpu.Recompiler.EnableVU1)
+		Console.WriteLn("VU1 soft float: running on the exact interpreter.");
+
 #ifdef ARCH_ARM64
 	// C.30-1: microVU0 runs VU0 micro programs natively (macro-mode COP2
 	// stays on the C.29-1 inline interpreter calls until C.30-2).
-	if (EmuConfig.Cpu.Recompiler.EnableVU0)
+	if (EmuConfig.Cpu.Recompiler.EnableVU0 && !CHECK_VU_SOFT_REC(0))
 		CpuVU0 = &vucpu_rec_vu0;
 #endif
 
 #ifndef ARCH_ARM64
-	if (EmuConfig.Cpu.Recompiler.EnableVU0)
+	if (EmuConfig.Cpu.Recompiler.EnableVU0 && !CHECK_VU_SOFT_REC(0))
 		CpuVU0 = &vucpu_rec_vu0;
 
-	if (EmuConfig.Cpu.Recompiler.EnableVU1)
+	if (EmuConfig.Cpu.Recompiler.EnableVU1 && !CHECK_VU_SOFT_REC(1))
 		CpuVU1 = &vucpu_rec_vu1;
 #else
 	// C.28-4: microVU1 (the armsx2 transplant, native VU codegen) is the VU1
 	// provider -- verified register-exact against the interpreter.
-	if (EmuConfig.Cpu.Recompiler.EnableVU1)
+	if (EmuConfig.Cpu.Recompiler.EnableVU1 && !CHECK_VU_SOFT_REC(1))
 	{
 		CpuVU1 = &vucpu_rec_vu1;
 		Console.WriteLn("arm64 VU1 rec: microVU1 (native codegen) is the default provider.");

@@ -386,6 +386,15 @@ struct Pcsx2Config
 				bool    EnableFastmem    : 1;
 				/* Route recompiled EE FPU arithmetic through ps2float. */
 				bool    EnableFpuSoftFloat : 1;
+				/* Per-unit VU soft float, audit-shaped: the bit keeps that
+				 * unit on the interpreter, whose float ops already compute
+				 * through the ps2float model (VUops.cpp), instead of the
+				 * SSE recompiler. Exactness first; a per-op recompiler
+				 * dispatch can replace the routing later without touching
+				 * this surface. VU0 macro mode (COP2 through the EE rec)
+				 * is NOT covered by the VU0 bit -- micro programs only. */
+				bool    EnableVu0SoftFloat : 1;
+				bool    EnableVu1SoftFloat : 1;
 				/* Hardware-exact VU multiply in the VU recompilers. */
 				bool    EnableVuExactMul : 1;
 				bool    EnableVuExactDiv : 1;
@@ -917,17 +926,20 @@ extern Pcsx2Config EmuConfig;
 
 namespace EmuFolders
 {
-	extern std::string AppRoot;
-	extern std::string DataRoot;
-	extern std::string Settings;
-	extern std::string Bios;
-	extern std::string MemoryCards;
-	extern std::string Cheats;
-	extern std::string CheatsWS;
-	extern std::string CheatsNI;
-	extern std::string Resources;
-	extern std::string Cache;
-	extern std::string Textures;
+	/* Fixed buffers rather than std::string: these are paths, they are
+	 * read back as characters everywhere, and Path::Combine and
+	 * string_view both accept a char array without allocating. */
+	extern char AppRoot[PCSX2_PATH_MAX];
+	extern char DataRoot[PCSX2_PATH_MAX];
+	extern char Settings[PCSX2_PATH_MAX];
+	extern char Bios[PCSX2_PATH_MAX];
+	extern char MemoryCards[PCSX2_PATH_MAX];
+	extern char Cheats[PCSX2_PATH_MAX];
+	extern char CheatsWS[PCSX2_PATH_MAX];
+	extern char CheatsNI[PCSX2_PATH_MAX];
+	extern char Resources[PCSX2_PATH_MAX];
+	extern char Cache[PCSX2_PATH_MAX];
+	extern char Textures[PCSX2_PATH_MAX];
 
 	// Assumes that AppRoot and DataRoot have been initialized.
 	void SetDefaults(SettingsInterface& si);
@@ -941,7 +953,12 @@ namespace EmuFolders
 
 // ------------ CPU / Recompiler Options ---------------
 
-#define THREAD_VU1 (EmuConfig.Cpu.Recompiler.EnableVU1 && EmuConfig.Speedhacks.vuThread)
+/* MTVU runs VU1 through the recompiler on its worker, so it must stand
+ * down when VU1 soft float wants the exact interpreter -- otherwise the
+ * soft option silently does nothing while MTVU is on, which is how it
+ * first shipped here: the provider log line printed, the fps did not
+ * move, and only the missing interpreter cost gave it away. */
+#define THREAD_VU1 (EmuConfig.Cpu.Recompiler.EnableVU1 && EmuConfig.Speedhacks.vuThread && !EmuConfig.Cpu.Recompiler.EnableVu1SoftFloat)
 #define INSTANT_VU1 (EmuConfig.Speedhacks.vu1Instant)
 #define CHECK_EEREC (EmuConfig.Cpu.Recompiler.EnableEE)
 #define CHECK_CACHE (EmuConfig.Cpu.Recompiler.EnableEECache)
@@ -951,6 +968,7 @@ namespace EmuFolders
  * FP sequences; a toggle reaches emitted code through the Cpu-config diff
  * in CheckForCPUConfigChanges, which clears the execution caches. */
 #define CHECK_FPU_SOFT_REC (EmuConfig.Cpu.Recompiler.EnableFpuSoftFloat)
+#define CHECK_VU_SOFT_REC(vunum) (((vunum) == 0) ? EmuConfig.Cpu.Recompiler.EnableVu0SoftFloat : EmuConfig.Cpu.Recompiler.EnableVu1SoftFloat)
 #define CHECK_VU_EXACTMUL (EmuConfig.Cpu.Recompiler.EnableVuExactMul)
 #define CHECK_VU_EXACTDIV (EmuConfig.Cpu.Recompiler.EnableVuExactDiv)
 #define CHECK_VU_ACC_ADDSUB (EmuConfig.Cpu.Recompiler.EnableVuAccurateAddSub)

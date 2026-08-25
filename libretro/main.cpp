@@ -140,6 +140,8 @@ static u8 setting_texture_inside_rt            = 0;
 static u8 setting_ee_cycle_skip                = 0;
 static s8 setting_ee_cycle_rate                = 0;
 static bool setting_fpu_softfloat              = false;
+static bool setting_vu0_softfloat              = false;
+static bool setting_vu1_softfloat              = false;
 static bool setting_vu_exact_div = false;
 static bool setting_vu_exact_mul               = false;
 static bool setting_vu_accurate_addsub         = true;
@@ -402,7 +404,7 @@ static bool is_software_sw_setting(const std::string& s)
 static void dev9_ensure_hdd_image(u32 size_sectors)
 {
 	char path[PCSX2_PATH_MAX];
-	pcsx2_path_join(path, sizeof(path), EmuFolders::Settings.c_str(), "DEV9hdd.raw");
+	pcsx2_path_join(path, sizeof(path), EmuFolders::Settings, "DEV9hdd.raw");
 	if (path_is_valid(path))
 		return;
 	log_cb(RETRO_LOG_INFO, "DEV9: creating HDD image '%s'\n", path);
@@ -1235,6 +1237,30 @@ static void check_variables(bool first_run)
 			updated = true;
 		}
 		s_settings_interface.SetBoolValue("EmuCore/CPU/Recompiler", "EnableFpuSoftFloat", fpu_soft);
+	}
+
+	var.key = "pcsx2_vu0_softfloat";
+	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+	{
+		const bool vu0_soft = !strcmp(var.value, "enabled");
+		if (vu0_soft != setting_vu0_softfloat)
+		{
+			setting_vu0_softfloat = vu0_soft;
+			updated = true;
+		}
+		s_settings_interface.SetBoolValue("EmuCore/CPU/Recompiler", "EnableVu0SoftFloat", vu0_soft);
+	}
+
+	var.key = "pcsx2_vu1_softfloat";
+	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+	{
+		const bool vu1_soft = !strcmp(var.value, "enabled");
+		if (vu1_soft != setting_vu1_softfloat)
+		{
+			setting_vu1_softfloat = vu1_soft;
+			updated = true;
+		}
+		s_settings_interface.SetBoolValue("EmuCore/CPU/Recompiler", "EnableVu1SoftFloat", vu1_soft);
 	}
 
 	var.key = "pcsx2_ee_cycle_rate";
@@ -2441,12 +2467,16 @@ bool retro_load_game(const struct retro_game_info* game)
 	environ_cb(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &format);
 	environ_cb(RETRO_ENVIRONMENT_GET_SYSTEM_DIRECTORY, &system_base);
 
-	EmuFolders::AppRoot   = Path::Combine(system_base, "pcsx2");
-	EmuFolders::Resources = Path::Combine(EmuFolders::AppRoot, "resources");
-	EmuFolders::DataRoot  = EmuFolders::AppRoot;
+	pcsx2_path_join(EmuFolders::AppRoot, sizeof(EmuFolders::AppRoot),
+			system_base, "pcsx2");
+	pcsx2_path_join(EmuFolders::Resources, sizeof(EmuFolders::Resources),
+			EmuFolders::AppRoot, "resources");
+	strlcpy(EmuFolders::DataRoot, EmuFolders::AppRoot,
+			sizeof(EmuFolders::DataRoot));
 	/* Settings is where upstream resolves relative data-file paths like
 	 * DEV9's HddFile; a libretro core keeps those in its system subdir. */
-	EmuFolders::Settings  = EmuFolders::AppRoot;
+	strlcpy(EmuFolders::Settings, EmuFolders::AppRoot,
+			sizeof(EmuFolders::Settings));
 
 	Host::Internal::SetBaseSettingsLayer(&s_settings_interface);
 
@@ -2464,7 +2494,7 @@ bool retro_load_game(const struct retro_game_info* game)
 
 	if (setting_bios.empty())
 	{
-		log_cb(RETRO_LOG_ERROR, "Could not find any valid PS2 BIOS File in %s\n", EmuFolders::Bios.c_str());
+		log_cb(RETRO_LOG_ERROR, "Could not find any valid PS2 BIOS File in %s\n", EmuFolders::Bios);
 		libretro_teardown_cpu_thread();
 		return false;
 	}
@@ -2993,7 +3023,7 @@ std::optional<std::vector<u8>> Host::ReadResourceFile(const char* filename)
 {
 	char path[PCSX2_PATH_MAX];
 
-	pcsx2_path_join(path, sizeof(path), EmuFolders::Resources.c_str(), filename);
+	pcsx2_path_join(path, sizeof(path), EmuFolders::Resources, filename);
 	std::optional<std::vector<u8>> ret(FileSystem::ReadBinaryFile(path));
 	if (!ret.has_value())
 		log_cb(RETRO_LOG_ERROR, "Failed to read resource file '%s', path '%s'\n", filename, path);
@@ -3015,7 +3045,7 @@ std::optional<std::string> Host::ReadResourceFileToString(const char* filename)
 		{
 			char path[PCSX2_PATH_MAX];
 
-			pcsx2_path_join(path, sizeof(path), EmuFolders::Resources.c_str(), filename);
+			pcsx2_path_join(path, sizeof(path), EmuFolders::Resources, filename);
 			std::optional<std::string> ext(FileSystem::ReadFileToString(path));
 			if (ext.has_value())
 				return ext;
@@ -3029,7 +3059,7 @@ std::optional<std::string> Host::ReadResourceFileToString(const char* filename)
 
 	char path[PCSX2_PATH_MAX];
 
-	pcsx2_path_join(path, sizeof(path), EmuFolders::Resources.c_str(), filename);
+	pcsx2_path_join(path, sizeof(path), EmuFolders::Resources, filename);
 	std::optional<std::string> ret(FileSystem::ReadFileToString(path));
 	if (!ret.has_value())
 	{

@@ -206,7 +206,7 @@ static void ApplyTemplate(char* out, size_t out_size,
 
 static void iso2indexname(char* out, size_t out_size, const char* isoname)
 {
-	ApplyTemplate(out, out_size, "gzip index", EmuFolders::DataRoot.c_str(),
+	ApplyTemplate(out, out_size, "gzip index", EmuFolders::DataRoot,
 			Host::GetBaseStringSettingValue("EmuCore", "GzipIsoIndexTemplate",
 				"$(f).pindex.tmp").c_str(),
 			isoname, false);

@@ -109,17 +109,17 @@ float SettingInfo::FloatStepValue() const
 
 namespace EmuFolders
 {
-	std::string AppRoot;
-	std::string DataRoot;
-	std::string Settings;
-	std::string Bios;
-	std::string MemoryCards;
-	std::string Cheats;
-	std::string CheatsWS;
-	std::string CheatsNI;
-	std::string Resources;
-	std::string Cache;
-	std::string Textures;
+	char AppRoot[PCSX2_PATH_MAX];
+	char DataRoot[PCSX2_PATH_MAX];
+	char Settings[PCSX2_PATH_MAX];
+	char Bios[PCSX2_PATH_MAX];
+	char MemoryCards[PCSX2_PATH_MAX];
+	char Cheats[PCSX2_PATH_MAX];
+	char CheatsWS[PCSX2_PATH_MAX];
+	char CheatsNI[PCSX2_PATH_MAX];
+	char Resources[PCSX2_PATH_MAX];
+	char Cache[PCSX2_PATH_MAX];
+	char Textures[PCSX2_PATH_MAX];
 } // namespace EmuFolders
 
 const char* const s_speed_hack_names[] =
@@ -223,6 +223,8 @@ Pcsx2Config::RecompilerOptions::RecompilerOptions()
 	EnableEE = true;
 	EnableEECache = false;
 	EnableFpuSoftFloat = false;
+	EnableVu0SoftFloat = false;
+	EnableVu1SoftFloat = false;
 	EnableVuExactMul = false;
 	EnableVuAccurateAddSub = true;
 	EnableFpuAccurateArith = true;
@@ -305,6 +307,8 @@ void Pcsx2Config::RecompilerOptions::LoadSave(SettingsWrapper& wrap)
 	SettingsWrapBitBool(EnableIOP);
 	SettingsWrapBitBool(EnableEECache);
 	SettingsWrapBitBool(EnableFpuSoftFloat);
+	SettingsWrapBitBool(EnableVu0SoftFloat);
+	SettingsWrapBitBool(EnableVu1SoftFloat);
 	SettingsWrapBitBool(EnableVuExactMul);
 	SettingsWrapBitBool(EnableVuAccurateAddSub);
 	SettingsWrapBitBool(EnableFpuAccurateArith);
@@ -1045,13 +1049,13 @@ void Pcsx2Config::FullpathToBios(char* out, size_t out_size) const
 {
 	out[0] = '\0';
 	if (BaseFilenames.Bios[0])
-		pcsx2_path_join(out, out_size, EmuFolders::Bios.c_str(),
+		pcsx2_path_join(out, out_size, EmuFolders::Bios,
 				BaseFilenames.Bios);
 }
 
 void Pcsx2Config::FullpathToMcd(char* out, size_t out_size, uint slot) const
 {
-	pcsx2_path_join(out, out_size, EmuFolders::MemoryCards.c_str(),
+	pcsx2_path_join(out, out_size, EmuFolders::MemoryCards,
 			Mcd[slot].Filename);
 }
 
@@ -1099,39 +1103,45 @@ void EmuFolders::SetDefaults(SettingsInterface& si)
 	si.SetStringValue("Folders", "Textures", "textures");
 }
 
-static std::string LoadPathFromSettings(SettingsInterface& si, const std::string& root, const char* name, const char* def)
+static void LoadPathFromSettings(char* out, size_t out_size,
+	SettingsInterface& si, const char* root, const char* name, const char* def)
 {
-	std::string value = si.GetStringValue("Folders", name, def);
-	if (!Path::IsAbsolute(value))
-		value = Path::Combine(root, value);
-	return value;
+	char value[PCSX2_PATH_MAX];
+
+	if (!si.GetStringValueBuf("Folders", name, value, sizeof(value)))
+		strlcpy(value, def, sizeof(value));
+
+	if (path_is_absolute(value))
+		strlcpy(out, value, out_size);
+	else
+		pcsx2_path_join(out, out_size, root, value);
 }
 
 void EmuFolders::LoadConfig(SettingsInterface& si)
 {
-	Bios        = LoadPathFromSettings(si, DataRoot, "Bios", "bios");
-	MemoryCards = LoadPathFromSettings(si, DataRoot, "MemoryCards", "memcards");
-	Cheats      = LoadPathFromSettings(si, DataRoot, "Cheats", "cheats");
-	CheatsWS    = LoadPathFromSettings(si, DataRoot, "CheatsWS", "cheats_ws");
-	CheatsNI    = LoadPathFromSettings(si, DataRoot, "CheatsNI", "cheats_ni");
-	Cache       = LoadPathFromSettings(si, DataRoot, "Cache", "cache");
-	Textures    = LoadPathFromSettings(si, DataRoot, "Textures", "textures");
+	LoadPathFromSettings(Bios, sizeof(Bios), si, DataRoot, "Bios", "bios");
+	LoadPathFromSettings(MemoryCards, sizeof(MemoryCards), si, DataRoot, "MemoryCards", "memcards");
+	LoadPathFromSettings(Cheats, sizeof(Cheats), si, DataRoot, "Cheats", "cheats");
+	LoadPathFromSettings(CheatsWS, sizeof(CheatsWS), si, DataRoot, "CheatsWS", "cheats_ws");
+	LoadPathFromSettings(CheatsNI, sizeof(CheatsNI), si, DataRoot, "CheatsNI", "cheats_ni");
+	LoadPathFromSettings(Cache, sizeof(Cache), si, DataRoot, "Cache", "cache");
+	LoadPathFromSettings(Textures, sizeof(Textures), si, DataRoot, "Textures", "textures");
 }
 
 void EmuFolders::EnsureFoldersExist()
 {
-	if (!path_is_valid(Bios.c_str()))
-		path_mkdir(Bios.c_str());
-	if (!path_is_valid(MemoryCards.c_str()))
-		path_mkdir(MemoryCards.c_str());
-	if (!path_is_valid(Cheats.c_str()))
-		path_mkdir(Cheats.c_str());
-	if (!path_is_valid(CheatsWS.c_str()))
-		path_mkdir(CheatsWS.c_str());
-	if (!path_is_valid(CheatsNI.c_str()))
-		path_mkdir(CheatsNI.c_str());
-	if (!path_is_valid(Cache.c_str()))
-		path_mkdir(Cache.c_str());
-	if (!path_is_valid(Textures.c_str()))
-		path_mkdir(Textures.c_str());
+	if (!path_is_valid(Bios))
+		path_mkdir(Bios);
+	if (!path_is_valid(MemoryCards))
+		path_mkdir(MemoryCards);
+	if (!path_is_valid(Cheats))
+		path_mkdir(Cheats);
+	if (!path_is_valid(CheatsWS))
+		path_mkdir(CheatsWS);
+	if (!path_is_valid(CheatsNI))
+		path_mkdir(CheatsNI);
+	if (!path_is_valid(Cache))
+		path_mkdir(Cache);
+	if (!path_is_valid(Textures))
+		path_mkdir(Textures);
 }
