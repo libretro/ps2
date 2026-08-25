@@ -57,6 +57,8 @@ struct microVU
 	alignas(16) u32 exactMulSave[16][4];  // stub xmm spill area (all of xmm0-15)
 	u8* exactMulStub;                     // emitted tree stub (in dispCache)
 	alignas(16) u32 exactDivBuf[4];       // exact div/sqrt/rsqrt I/O: a, b, op-in result-out
+	alignas(16) u64 exactDivGprSave[10];  // caller-saved GPR union of SysV and Win64, plus the entry rsp
+	u32 exactDivMxcsr;                    // MXCSR across the stub's C call
 	/* Recompile-time mask elision. FMACa raises the one-shot flag when
 	 * the current op's operands are provably exponent-equal per lane
 	 * (register-form Fs == Ft), the SSE_ADD/SUB wrapper consumes it,

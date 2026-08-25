@@ -331,18 +331,34 @@ static void mVUexactDivC(microVU* mVU)
 static void mVUexactDivVU0() { mVUexactDivC(&microVU0); }
 static void mVUexactDivVU1() { mVUexactDivC(&microVU1); }
 
+/* The thunk assumes nothing about the ABI of the code around it.
+ * Field reports on Windows showed geometry corruption and crashes
+ * with the earlier frame-macro version, which trusted two things this
+ * one does not: that block state only lives in registers the C ABI
+ * preserves, and that SCOPED_STACK_FRAME's entry-parity arithmetic
+ * holds when entered from JIT block context. Now every caller-saved
+ * GPR of BOTH ABIs (the SysV set is the superset) is saved to memory,
+ * MXCSR round-trips the call, and the C call runs on a private
+ * 16-aligned stack with the Win64 32-byte shadow area allocated
+ * explicitly -- harmless on SysV, mandatory on Windows. Callee-saved
+ * registers are left to the C contract itself, the one assumption a
+ * conforming compiler cannot break. */
 static void mVUemitExactDivStub(mV)
 {
+	static const int caller_saved[9] = { 0, 1, 2, 6, 7, 8, 9, 10, 11 };
 	int i;
 	mVU->exactDivStub = x86Ptr;
 	for (i = 0; i < 16; i++) xe_movaps_mx(&mVU->exactDivSave[i][0], i);
-	{
-		int m_offset;
-		SCOPED_STACK_FRAME_BEGIN(m_offset);
-		if (!isVU1) xe_fastcall0(mVUexactDivVU0);
-		else        xe_fastcall0(mVUexactDivVU1);
-		SCOPED_STACK_FRAME_END(m_offset);
-	}
+	for (i = 0; i < 9; i++)  xe_mov64_mr(&mVU->exactDivGprSave[i], caller_saved[i]);
+	xe_stmxcsr_m(&mVU->exactDivMxcsr);
+	xe_mov64_mr(&mVU->exactDivGprSave[9], XE_SP);
+	xe_and64_ri(XE_SP, -16);
+	xe_sub64_ri(XE_SP, 32);   /* Win64 shadow space; rsp is 0 mod 16 at the call */
+	if (!isVU1) xe_fastcall0(mVUexactDivVU0);
+	else        xe_fastcall0(mVUexactDivVU1);
+	xe_mov64_rm(XE_SP, &mVU->exactDivGprSave[9]);
+	xe_ldmxcsr_m(&mVU->exactDivMxcsr);
+	for (i = 0; i < 9; i++)  xe_mov64_rm(caller_saved[i], &mVU->exactDivGprSave[i]);
 	for (i = 0; i < 16; i++) xe_movaps_xm(i, &mVU->exactDivSave[i][0]);
 	xe_ret();
 }

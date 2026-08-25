@@ -648,7 +648,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       "pcsx2_vu_exact_div",
       "Emulation > VU Exact Divide",
       "VU Exact Divide",
-      "Bit-exact hardware model of the VU divider. Real game data trips the full model on most divides - zeros, ones and quantized values dominate - so expect a real speed cost on VU-heavy games.",
+      "Bit-exact hardware model of the VU divider (DIV, SQRT, RSQRT). Runs hot in-game - around 150 thousand calls per frame in Tekken Tag - through a register-preserving call into the model; this build hardens that call against the ABI-level faults reported on Windows (geometry corruption, crashes). Needs re-validation on Windows before any default change; values verified bit-stable over 138 million in-game calls on Linux.",
       NULL,
       "emulation",
       {

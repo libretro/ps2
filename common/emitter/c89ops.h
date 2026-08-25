@@ -778,6 +778,11 @@ static uintptr_t xe_opaque_uptr(const void *p)
 	{ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
 	  E_REX_MEM(xep, 0, 2, xm_); EW8(xep, 0x0f); EW8(xep, 0xae); \
 	  E_MODRM_MEM(xep, 2, xm_, 0); }; XE_CLOSE(); } while (0)
+/* stmxcsr [mem]: 0f ae /3 -- the store mirror of ldmxcsr. */
+#define xe_stmxcsr_m(addr) do { XE_OPEN();  \
+	{ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	  E_REX_MEM(xep, 0, 3, xm_); EW8(xep, 0x0f); EW8(xep, 0xae); \
+	  E_MODRM_MEM(xep, 3, xm_, 0); }; XE_CLOSE(); } while (0)
 #define xe_ucomiss_xm(xmm, addr) do { XE_OPEN();  \
 	{ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
 	  E_SSE_R_MEM(xep, 0x00, 0x2e, (xmm), xm_); }; XE_CLOSE(); } while (0)
