@@ -24,7 +24,8 @@
  * damaged wrapper, or a serialize-format mismatch on this build), which a
  * bisect driver should classify as skip rather than bad.
  *
- * Build: gcc -O2 -o headless_jithash headless_jithash.c -ldl -lz
+ * Build (Linux):   gcc -O2 -o headless_jithash headless_jithash.c -ldl -lz -lpthread
+ * Build (MINGW64): gcc -O2 -o headless_jithash.exe headless_jithash.c -lz
  */
 #define _GNU_SOURCE
 #include <stdio.h>
@@ -32,11 +33,23 @@
 #include <string.h>
 #include <stdarg.h>
 #include <stdint.h>
-#include <dlfcn.h>
 #include <time.h>
-#include <unistd.h>
-#include <signal.h>
 #include <zlib.h>
+
+#ifdef _WIN32
+#include <windows.h>
+#include <process.h>
+#define HJH_HANDLE HMODULE
+#define hjh_dlopen(p)   LoadLibraryA(p)
+#define hjh_dlsym(h, s) ((void*)GetProcAddress((h), (s)))
+#else
+#include <dlfcn.h>
+#include <unistd.h>
+#include <pthread.h>
+#define HJH_HANDLE void*
+#define hjh_dlopen(p)   dlopen((p), RTLD_NOW)
+#define hjh_dlsym(h, s) dlsym((h), (s))
+#endif
 
 /* ---- the slice of libretro.h we need ---- */
 #define RETRO_ENVIRONMENT_SET_ROTATION            1
@@ -92,17 +105,59 @@ static void core_log(int level, const char* fmt, ...)
     va_end(ap);
 }
 
-/* Watchdog: a retro_run that never returns is a host-side deadlock. The
- * handler has to stay async-signal-safe, so a bare write and _exit. */
+/* Watchdog: a retro_run that never returns is a host-side deadlock. A
+ * monitor thread compares a deadline the main loop pushes forward before
+ * every core call; SIGALRM does not exist on Windows, and a plain thread
+ * with a coarse tick is portable and needs no signal-safety care. The
+ * deadline is a volatile time_t at one-second granularity: a torn read
+ * on an exotic target costs at worst one spurious 500 ms tick, and the
+ * next tick reads the settled value. */
 static int g_wd = 0;
+static volatile time_t g_wd_deadline = 0;
 
-static void wd_fire(int sig)
+#ifdef _WIN32
+static DWORD WINAPI wd_thread(LPVOID arg)
+#else
+static void* wd_thread(void* arg)
+#endif
 {
-    static const char msg[] = "[WATCHDOG] retro_run did not return\n";
-    ssize_t n = write(2, msg, sizeof(msg) - 1);
-    (void)sig;
-    (void)n;
-    _exit(124);
+    (void)arg;
+    for (;;)
+    {
+#ifdef _WIN32
+        Sleep(500);
+#else
+        struct timespec ts;
+        ts.tv_sec  = 0;
+        ts.tv_nsec = 500000000L;
+        nanosleep(&ts, NULL);
+#endif
+        if (g_wd_deadline != 0 && time(NULL) > g_wd_deadline)
+        {
+            fprintf(stderr, "[WATCHDOG] retro_run did not return\n");
+            fflush(stderr);
+            _exit(124);
+        }
+    }
+}
+
+static void wd_start(void)
+{
+#ifdef _WIN32
+    HANDLE t = CreateThread(NULL, 0, wd_thread, NULL, 0, NULL);
+    if (t)
+        CloseHandle(t);
+#else
+    pthread_t t;
+    if (pthread_create(&t, NULL, wd_thread, NULL) == 0)
+        pthread_detach(t);
+#endif
+}
+
+static void wd_arm(void)
+{
+    if (g_wd > 0)
+        g_wd_deadline = time(NULL) + g_wd;
 }
 
 /* Stall watch state; armed by main once an external state is in, so an
@@ -439,13 +494,21 @@ static int16_t input_state_cb(unsigned a, unsigned b, unsigned c, unsigned d)
 
 static double now(void)
 {
+#ifdef _WIN32
+    /* Not every MinGW flavor links clock_gettime; QPC is always there. */
+    LARGE_INTEGER f, c;
+    QueryPerformanceFrequency(&f);
+    QueryPerformanceCounter(&c);
+    return (double)c.QuadPart / (double)f.QuadPart;
+#else
     struct timespec t; clock_gettime(CLOCK_MONOTONIC, &t);
     return t.tv_sec + t.tv_nsec / 1e9;
+#endif
 }
 
 int main(int argc, char** argv)
 {
-    void* h;
+    HJH_HANDLE h;
     void (*p_set_environment)(int(*)(unsigned, void*));
     void (*p_set_video_refresh)(void(*)(const void*, unsigned, unsigned, size_t));
     void (*p_set_audio_sample)(void(*)(int16_t, int16_t));
@@ -474,17 +537,21 @@ int main(int argc, char** argv)
         const char* e = getenv("PS2_WATCHDOG");
         g_wd = e ? atoi(e) : 0;
         if (g_wd > 0)
-            signal(SIGALRM, wd_fire);
+            wd_start();
     }
     {
         const char* e = getenv("PS2_STALL");
         g_stall_limit = (e && atoi(e) > 0) ? atoi(e) : 0;
     }
 
-    h = dlopen(argv[1], RTLD_NOW);
+    h = hjh_dlopen(argv[1]);
+#ifdef _WIN32
+    if (!h) { fprintf(stderr, "LoadLibrary failed: error %lu\n", (unsigned long)GetLastError()); return 3; }
+#else
     if (!h) { fprintf(stderr, "dlopen: %s\n", dlerror()); return 3; }
+#endif
 
-#define SYM(v, n) do { *(void**)(&v) = dlsym(h, n); \
+#define SYM(v, n) do { *(void**)(&v) = hjh_dlsym(h, n); \
     if (!v) { fprintf(stderr, "missing %s\n", n); return 4; } } while (0)
     SYM(p_set_environment,        "retro_set_environment");
     SYM(p_set_video_refresh,      "retro_set_video_refresh");
@@ -527,16 +594,14 @@ int main(int argc, char** argv)
         size_t ss_size = 0;
 
         for (i = 0; i < frames; i++) {
-            if (g_wd > 0)
-                alarm((unsigned)g_wd);
+            wd_arm();
             p_run();
             if ((i % 20) == 0)
                 { fprintf(stderr, "[headless] frame %d  (%.1f s)\n", i, now() - t0); fflush(stderr); }
 
             if (ls_at >= 0 && i == ls_at)
             {
-                if (g_wd > 0)
-                    alarm((unsigned)g_wd);
+                wd_arm();
                 if (!load_external_state(ls_env, p_unserialize))
                     _exit(65);
                 g_stall_armed = 1;
@@ -567,8 +632,7 @@ int main(int argc, char** argv)
                 fprintf(stderr, "[SAVESTATE] reloaded, replaying %d frames\n", frames - ss_at - 1);
                 for (i = ss_at + 1; i < frames; i++)
                 {
-                    if (g_wd > 0)
-                        alarm((unsigned)g_wd);
+                    wd_arm();
                     p_run();
                 }
             }
@@ -582,8 +646,7 @@ int main(int argc, char** argv)
      * post-N hash streams have to match: a savestate that restores an
      * incomplete machine shows up as diverging pixels rather than as a
      * crash, and nothing in this harness tested serialize at all before. */
-    if (g_wd > 0)
-        alarm(0);
+    g_wd_deadline = 0;
     t1 = now();
     fprintf(stderr, "[headless] %d frames in %.2f s (%.2f fps)\n",
             frames, t1 - t0, frames / (t1 - t0));
@@ -592,7 +655,7 @@ int main(int argc, char** argv)
      * PCSX2_JITHASH env var asks for it), print the per-cache hashes at a
      * deterministic point -- right after the frame loop, before teardown. */
     {
-        void (*p_jithash)(void) = (void (*)(void))dlsym(h, "pcsx2_jithash_dump");
+        void (*p_jithash)(void) = (void (*)(void))hjh_dlsym(h, "pcsx2_jithash_dump");
         if (p_jithash)
             p_jithash();
     }
@@ -607,7 +670,7 @@ int main(int argc, char** argv)
         _exit(0);
     }
     {
-        void (*p_unload)(void) = (void (*)(void))dlsym(h, "retro_unload_game");
+        void (*p_unload)(void) = (void (*)(void))hjh_dlsym(h, "retro_unload_game");
         double a_ = now();
         if (p_unload) p_unload();
         fprintf(stderr, "[phase] retro_unload_game %.3f s\n", now() - a_);
