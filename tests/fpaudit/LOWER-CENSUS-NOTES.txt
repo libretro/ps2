@@ -14,18 +14,28 @@ Weak rows (recorded, not claimed):
   coverage is trivial). Memory seeding is a rig extension for the
   next battery.
 
-Open anomaly -- Q pipeline (DIV SQRT RSQRT):
-  400/400 divergent with wrong-SCALE results: the interpreter's
-  quotient exponent matches the encoded fsf/ftf lane pair; the
-  recompiler's does not match those operands, i.e. the engines
-  select different lanes for the same instruction word. Whether the
-  battery's encoding, the rig's Q readback timing, or a real
-  decode disagreement is at fault is exactly what a lane-identified
-  single-case probe (distinct exponent per lane) resolves; queued
-  first for next session. The exactdiv column tracked default
-  byte-for-byte in this battery, which is a second wire-check to
-  run once the lane question is settled -- no conclusion is drawn
-  from either Q row until the probe lands.
+Q pipeline -- RESOLVED (this commit):
+  The "lane-selection anomaly" was a rig readback artifact: the
+  recompiler retires committed Q into VI[REG_Q] (microVU_Branch
+  block-end flush), not the q field the readback compared, so the
+  Q column was seed-vs-computed. The lane-identified probe (distinct
+  exponent per lane, 16 fsf/ftf combos) then showed 16/16 bit-exact
+  agreement -- no decode disagreement exists. The exec export now
+  mirrors the recompiler's committed VI[REG_Q]/VI[REG_P] into the
+  q/p fields so the readback slots are engine-agnostic.
+
+  Real Q census (400 cases): default DIV 183, SQRT 106, RSQRT 184
+  divergent -- one-ulp chop-vs-model plus overflow clamp-vs-saturate,
+  the classes exact divide exists for; wire proven live (183/400
+  def-vs-exactdiv rec deltas). Under exactdiv: DIV 0, SQRT 0,
+  RSQRT 7 -- and the RSQRT residual was an ORACLE bug: every case
+  was ft = -0, where the interpreter's hand-coded zero-denominator
+  path XORed both signs while the hardware-verified model, the
+  exact stub, and the recompiler's default emission all agree the
+  sqrt stage strips the denominator sign (saturation by numerator
+  sign alone). With the interpreter corrected: DIV 0, SQRT 0,
+  RSQRT 0 -- the exact-divide option is bit-exact for the entire
+  Q pipeline, its first accuracy verification.
 
 Rig lessons banked this battery:
   - The q field sits at regs_io offset 656 (after the 16-byte ACC at

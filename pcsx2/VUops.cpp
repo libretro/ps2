@@ -1787,18 +1787,27 @@ static __fi void _vuRSQRT(VURegs* VU)
 
 	if ((ft & PS2F_MAX_FLOATING_POINT_VALUE) == 0)
 	{
+		/* RSQRT's denominator passes through the sqrt stage, which
+		 * strips its sign (ps2f_rsqrt packs sign 0 before the sqrt),
+		 * so a zero denominator saturates by the NUMERATOR's sign
+		 * alone -- unlike DIV, whose zero rule XORs both signs. The
+		 * hand-coded XOR here disagreed with the hardware-verified
+		 * model, the exact stub, and the recompiler's default path
+		 * (three-way consensus); found by the per-op differential
+		 * rig as the only exactdiv RSQRT residual (7/400, every
+		 * case ft = -0). */
 		VU->statusflag |= 0x20;
 
 		if ((fs & PS2F_MAX_FLOATING_POINT_VALUE) != 0)
 		{
-			if ((ft ^ fs) & 0x80000000)
+			if (fs & 0x80000000)
 				VU->q.UL = PS2F_MIN_FLOATING_POINT_VALUE;
 			else
 				VU->q.UL = PS2F_MAX_FLOATING_POINT_VALUE;
 		}
 		else
 		{
-			if ((ft ^ fs) & 0x80000000)
+			if (fs & 0x80000000)
 				VU->q.UL = 0x80000000;
 			else
 				VU->q.UL = 0;

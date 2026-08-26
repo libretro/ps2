@@ -173,6 +173,15 @@ void ps2_audit_vu_exec(int unit, int use_interp, unsigned char* regs_io, unsigne
 	if (getenv("PS2_AUDIT_TRACE"))
 		fprintf(stderr, "[ATRACE] after: vf3=%08x tpc=%d stat=%x\n",
 			vu->VF[3].UL[0], vu->VI[REG_TPC].UL, vuRegs[0].VI[REG_VPU_STAT].UL);
+	/* The recompiler retires committed Q/P into VI[REG_Q]/VI[REG_P]
+	 * at block end (microVU_Branch flush); the interpreter maintains
+	 * the q/p fields. Mirror the recompiler's committed values into
+	 * the fields so the readback's q/p slots are engine-agnostic. */
+	if (!use_interp)
+	{
+		vu->q.UL = vu->VI[REG_Q].UL;
+		vu->p.UL = vu->VI[REG_P].UL;
+	}
 	p = regs_io;
 	for (i = 0; i < 32; i++) { memcpy(p, &vu->VF[i], 16); p += 16; }
 	for (i = 0; i < 32; i++) { memcpy(p, &vu->VI[i].UL, 4); p += 4; }
