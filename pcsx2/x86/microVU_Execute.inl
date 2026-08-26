@@ -327,51 +327,11 @@ static void mVUemitExactMulStub(mV)
 // state lives in callee-saved GPRs already, and call sites need no
 // flush. Flags are derived from the model's own IV/DZ bits.
 //------------------------------------------------------------------
-static void mVUexactDivC(microVU* mVU)
-{
-	const u32 a = mVU->exactDivBuf[0];
-	const u32 b = mVU->exactDivBuf[1];
-	const u32 op = mVU->exactDivBuf[2];
-	const ps2f_u64 r = (op == 0) ? ps2f_div(a, b)
-	                 : (op == 1) ? ps2f_sqrt(b)
-	                             : ps2f_rsqrt(a, b);
-	mVU->exactDivBuf[0] = ps2f_raw(r);
-	mVU->divFlag = (r & PS2F_IV) ? divI : ((r & PS2F_DZ) ? divD : 0);
-}
-static void mVUexactDivVU0() { mVUexactDivC(&microVU0); }
-static void mVUexactDivVU1() { mVUexactDivC(&microVU1); }
 
-/* The thunk assumes nothing about the ABI of the code around it.
- * Field reports on Windows showed geometry corruption and crashes
- * with the earlier frame-macro version, which trusted two things this
- * one does not: that block state only lives in registers the C ABI
- * preserves, and that SCOPED_STACK_FRAME's entry-parity arithmetic
- * holds when entered from JIT block context. Now every caller-saved
- * GPR of BOTH ABIs (the SysV set is the superset) is saved to memory,
- * MXCSR round-trips the call, and the C call runs on a private
- * 16-aligned stack with the Win64 32-byte shadow area allocated
- * explicitly -- harmless on SysV, mandatory on Windows. Callee-saved
- * registers are left to the C contract itself, the one assumption a
- * conforming compiler cannot break. */
-static void mVUemitExactDivStub(mV)
-{
-	static const int caller_saved[9] = { 0, 1, 2, 6, 7, 8, 9, 10, 11 };
-	int i;
-	mVU->exactDivStub = x86Ptr;
-	for (i = 0; i < 16; i++) xe_movaps_mx(&mVU->exactDivSave[i][0], i);
-	for (i = 0; i < 9; i++)  xe_mov64_mr(&mVU->exactDivGprSave[i], caller_saved[i]);
-	xe_stmxcsr_m(&mVU->exactDivMxcsr);
-	xe_mov64_mr(&mVU->exactDivGprSave[9], XE_SP);
-	xe_and64_ri(XE_SP, -16);
-	xe_sub64_ri(XE_SP, 32);   /* Win64 shadow space; rsp is 0 mod 16 at the call */
-	if (!isVU1) xe_fastcall0(mVUexactDivVU0);
-	else        xe_fastcall0(mVUexactDivVU1);
-	xe_mov64_rm(XE_SP, &mVU->exactDivGprSave[9]);
-	xe_ldmxcsr_m(&mVU->exactDivMxcsr);
-	for (i = 0; i < 9; i++)  xe_mov64_rm(caller_saved[i], &mVU->exactDivGprSave[i]);
-	for (i = 0; i < 16; i++) xe_movaps_xm(i, &mVU->exactDivSave[i][0]);
-	xe_ret();
-}
+/* The old all-sixteen-register exactdiv thunk is gone: the call
+ * sites use the field-proven mVUbackupRegs(onlyNeeded) idiom, saving
+ * only the allocator's cached caller-saved registers with the same
+ * stack and shadow-space discipline the XGKICK C calls rely on. */
 
 void mVUdispatcherAB(mV)
 {

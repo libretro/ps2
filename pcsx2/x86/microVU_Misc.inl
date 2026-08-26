@@ -139,6 +139,20 @@ void mVUmergeRegs(int dest, int src, int xyzw, int modXYZW)
 //------------------------------------------------------------------
 
 // Backup Volatile Regs (EAX, ECX, EDX, MM0~7, XMM0~7, are all volatile according to 32bit Win/Linux ABI)
+static void mVUexactDivC(microVU* mVU)
+{
+	const u32 a = mVU->exactDivBuf[0];
+	const u32 b = mVU->exactDivBuf[1];
+	const u32 op = mVU->exactDivBuf[2];
+	const ps2f_u64 r = (op == 0) ? ps2f_div(a, b)
+	                 : (op == 1) ? ps2f_sqrt(b)
+	                             : ps2f_rsqrt(a, b);
+	mVU->exactDivBuf[0] = ps2f_raw(r);
+	mVU->divFlag = (r & PS2F_IV) ? divI : ((r & PS2F_DZ) ? divD : 0);
+}
+static void mVUexactDivVU0() { mVUexactDivC(&microVU0); }
+static void mVUexactDivVU1() { mVUexactDivC(&microVU1); }
+
 __fi void mVUbackupRegs(microVU* mVU, int toMemory, int onlyNeeded)
 {
 	if (toMemory)

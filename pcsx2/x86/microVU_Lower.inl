@@ -56,10 +56,22 @@ mVUop(mVU_DIV)
 
 		if (CHECK_VU_EXACTDIV)
 		{
+			/* Field-proven XGKICK idiom: save only the allocator's
+			 * cached caller-saved registers around the C call, with
+			 * backupRegs' own stack and shadow-space discipline.
+			 * Replaces the all-sixteen-xmm thunk whose insurance cost
+			 * was the bulk of exactdiv's measured frame-level price.
+			 * MXCSR round-trips as before -- cheap insurance, ps2f is
+			 * integer-only. */
 			xe_movss_mx(&mVU->exactDivBuf[0], Fs);
 			xe_movss_mx(&mVU->exactDivBuf[1], Ft);
 			xe_mov32_mi(&mVU->exactDivBuf[2], 0);
-			xe_call_ptr(mVU->exactDivStub);
+			xe_stmxcsr_m(&mVU->exactDivMxcsr);
+			mVUbackupRegs(mVU, 1, 1);
+			if (!isVU1) xe_fastcall0(mVUexactDivVU0);
+			else        xe_fastcall0(mVUexactDivVU1);
+			mVUrestoreRegs(mVU, 1, 1);
+			xe_ldmxcsr_m(&mVU->exactDivMxcsr);
 			xe_movss_xm(Fs, &mVU->exactDivBuf[0]);
 			goto div_write;
 		}
@@ -115,7 +127,12 @@ mVUop(mVU_SQRT)
 		{
 			xe_movss_mx(&mVU->exactDivBuf[1], Ft);
 			xe_mov32_mi(&mVU->exactDivBuf[2], 1);
-			xe_call_ptr(mVU->exactDivStub);
+			xe_stmxcsr_m(&mVU->exactDivMxcsr);
+			mVUbackupRegs(mVU, 1, 1);
+			if (!isVU1) xe_fastcall0(mVUexactDivVU0);
+			else        xe_fastcall0(mVUexactDivVU1);
+			mVUrestoreRegs(mVU, 1, 1);
+			xe_ldmxcsr_m(&mVU->exactDivMxcsr);
 			xe_movss_xm(Ft, &mVU->exactDivBuf[0]);
 			goto sqrt_write;
 		}
@@ -156,7 +173,12 @@ mVUop(mVU_RSQRT)
 			xe_movss_mx(&mVU->exactDivBuf[0], Fs);
 			xe_movss_mx(&mVU->exactDivBuf[1], Ft);
 			xe_mov32_mi(&mVU->exactDivBuf[2], 2);
-			xe_call_ptr(mVU->exactDivStub);
+			xe_stmxcsr_m(&mVU->exactDivMxcsr);
+			mVUbackupRegs(mVU, 1, 1);
+			if (!isVU1) xe_fastcall0(mVUexactDivVU0);
+			else        xe_fastcall0(mVUexactDivVU1);
+			mVUrestoreRegs(mVU, 1, 1);
+			xe_ldmxcsr_m(&mVU->exactDivMxcsr);
 			xe_movss_xm(Fs, &mVU->exactDivBuf[0]);
 			goto div_write;
 		}

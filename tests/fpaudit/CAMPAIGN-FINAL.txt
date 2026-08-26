@@ -100,3 +100,25 @@ macro is deleted; the config bit and the "VUOverflow" GameDB name
 remain parsed-and-ignored, marked deprecated, so every existing
 GameDB file and user config stays valid. x86 build and the arm64
 cross syntax gate on the including TU both clean.
+
+ExactDiv overhead investigation (the banked optimization target,
+resolved): the all-sixteen-xmm ABI-paranoid thunk was replaced by
+the field-proven XGKICK idiom -- mVUbackupRegs(onlyNeeded) saves
+only the allocator's cached caller-saved registers with the same
+stack and shadow-space discipline, MXCSR round-trip kept as cheap
+insurance -- and the stub machinery deleted. Correctness gates:
+DIV, SQRT, RSQRT all 0/400 under exactdiv on the lower battery;
+default emission untouched by construction (all changes inside the
+option gate). Measured gain: about two percent of frame throughput
+(best-of-three 13.65 to 13.91).
+
+Why only two: a call-counter probe measured 87,000 Q-ops per frame
+on the Tekken workload -- roughly 126ns per call post-optimization
+against an 11ms/frame deficit -- so the cost is frequency times the
+serial digit-recurrence chain, whose SSE lane form was already
+tried in an earlier arc and measured slower while bit-exact. The
+seventeen percent is algorithm-bound at fighting-game Q frequency,
+not overhead-bound: ExactDiv's opt-in verdict is confirmed rather
+than reopened, and the remaining theoretical headroom (zeroing all
+call overhead) is bounded near eight percent for anyone who wants
+to chase inlining the digit chain into emitted code.

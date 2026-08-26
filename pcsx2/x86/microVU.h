@@ -57,7 +57,6 @@ struct microVU
 	alignas(16) u32 exactMulSave[16][4];  // stub xmm spill area (all of xmm0-15)
 	u8* exactMulStub;                     // emitted tree stub (in dispCache)
 	alignas(16) u32 exactDivBuf[4];       // exact div/sqrt/rsqrt I/O: a, b, op-in result-out
-	alignas(16) u64 exactDivGprSave[10];  // caller-saved GPR union of SysV and Win64, plus the entry rsp
 	u32 exactDivMxcsr;                    // MXCSR across the stub's C call
 	/* Recompile-time mask elision. FMACa raises the one-shot flag when
 	 * the current op's operands are provably exponent-equal per lane
@@ -71,8 +70,6 @@ struct microVU
 	bool ovfUseEventMask;                 // flag block should read the composite's saturation-EVENT mask (accurate add/sub)
 	u32  addsubRecTotal;
 	u32  addsubRecElided;
-	alignas(16) u32 exactDivSave[16][4];  // div stub xmm spill area
-	u8* exactDivStub;                     // emitted call thunk (in dispCache)
 	alignas(16) u32 macFlag [4]; // 4 instances of mac    flag (used in execution)
 	alignas(16) u32 clipFlag[4]; // 4 instances of clip   flag (used in execution)
 	alignas(16) u32 xmmCTemp[4];     // Backup used in mVUclamp2()
