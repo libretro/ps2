@@ -565,6 +565,11 @@ endif
 
 include Makefile.common
 
+# GameDatabaseBuiltin.cpp is generated from the shipped GameIndex.yaml at
+# build time (tools/gen_gamedb_builtin.sh, POSIX shell + od + awk only).
+pcsx2/GameDatabaseBuiltin.cpp: bin/resources/GameIndex.yaml tools/gen_gamedb_builtin.sh
+	sh tools/gen_gamedb_builtin.sh bin/resources/GameIndex.yaml $@
+
 # The multi-ISA block below uses $(eval) to generate explicit per-tier object
 # rules. In make, the first explicit target seen becomes the default goal if
 # none is set yet -- so a generated rule like GSBlock.sse4.o would otherwise

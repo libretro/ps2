@@ -22865,8 +22865,6 @@ SLES-53744:
 SLES-53746:
   name: "Superman Returns"
   region: "PAL-E"
-  gameFixes:
-    - VUOverflowHack # Fixes SPS.
   gsHWFixes:
     halfPixelOffset: 2 # Fixes depth line.
 SLES-53747:
@@ -24626,29 +24624,21 @@ SLES-54347:
 SLES-54348:
   name: "Superman Returns"
   region: "PAL-F"
-  gameFixes:
-    - VUOverflowHack # Fixes SPS.
   gsHWFixes:
     halfPixelOffset: 2 # Fixes depth line.
 SLES-54349:
   name: "Superman Returns"
   region: "PAL-I"
-  gameFixes:
-    - VUOverflowHack # Fixes SPS.
   gsHWFixes:
     halfPixelOffset: 2 # Fixes depth line.
 SLES-54350:
   name: "Superman Returns"
   region: "PAL-G"
-  gameFixes:
-    - VUOverflowHack # Fixes SPS.
   gsHWFixes:
     halfPixelOffset: 2 # Fixes depth line.
 SLES-54351:
   name: "Superman Returns"
   region: "PAL-S"
-  gameFixes:
-    - VUOverflowHack # Fixes SPS.
   gsHWFixes:
     halfPixelOffset: 2 # Fixes depth line.
 SLES-54354:
@@ -30812,8 +30802,6 @@ SLKA-25366:
 SLKA-25367:
   name: "Superman Returns"
   region: "NTSC-K"
-  gameFixes:
-    - VUOverflowHack # Fixes SPS.
   gsHWFixes:
     halfPixelOffset: 2 # Fixes depth line.
 SLKA-25368:
@@ -59889,8 +59877,6 @@ SLUS-21434:
   name: "Superman Returns - The Video Game"
   region: "NTSC-U"
   compat: 4
-  gameFixes:
-    - VUOverflowHack # Fixes SPS.
   gsHWFixes:
     halfPixelOffset: 2 # Fixes depth line.
 SLUS-21435:

@@ -130,3 +130,4 @@ tests/emitter/exhaustive
 tests/emitter/sse_exhaustive
 tests/emitter/newbind
 tests/emitter/*.o
+pcsx2/GameDatabaseBuiltin.cpp
