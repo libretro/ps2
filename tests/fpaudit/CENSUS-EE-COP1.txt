@@ -161,6 +161,22 @@ BC1 investigation, session 4 (the live watch) -- RESOLVED:
   representation note, with the recompiler the more
   hardware-faithful side.
 
+CTC1 round-trip probe result -- the note UPGRADES to a real
+divergence: CTC1 stores its operand RAW on BOTH engines (FCR31
+memory identical across 400 cases, arbitrary bits included), which
+makes every probed state game-reachable, and CFC1 readback then
+diverges on 399/400 of them. The recompiler constructs the
+architectural readout (hardwired 0x01000001 -- the EE's fixed
+rounding mode and FS -- plus flag bits remapped to architectural
+positions); the interpreter returns the raw stored word. Example:
+CTC1(0xFFFFFFFF) reads back 0x0183C079 on the recompiler and
+0xFFFFFFFF on the interpreter. Which side matches silicon decides
+the fix direction (teach the interpreter to construct, or the
+recompiler to return raw), and that is a two-minute hardware
+capture: CTC1 a handful of garbage patterns on a real EE and read
+them back with CFC1. Queued for hardware time alongside the EFU
+captures; no fix lands blind.
+
 CVT.S.W -- CLOSED (this commit): the convert gains an MXCSR
 round-to-nearest window under either accuracy option (the EE JIT's
 global chop rounding was leaving the recompiled convert one ulp low
