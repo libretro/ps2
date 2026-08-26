@@ -96,3 +96,30 @@ Rig lessons banked this battery:
     differ from q_in) exposed. That check is now part of the
     standard battery integrity set alongside files-must-differ and
     known-answer splits.
+
+Fused/composite front, adversarial re-census (session findings, no
+code change shipped):
+- The clampE-branch hypothesis for the old fused residual is
+  DEPRIORITIZED by measurement: routing the accurate option through
+  the exact stage in clampE mode changed nothing on any measured
+  row (old and new binaries byte-agree across the battery), i.e.
+  clampE is not set in the measured contexts. The candidate edit
+  was reverted rather than shipped unproven.
+- The adversarial operand mix (25% FMAX-class, 10% raw exp-255
+  register values -- 0x7F800000 / 0x7FFFFFFF patterns as direct
+  VF/ACC inputs, a class the earlier 1600-case distribution barely
+  sampled) opens two characterized fronts:
+  1. Plain SUB diverges 205/400 while plain ADD is 0/400 on the
+     SAME distribution under both accuracy options. The composite
+     folds subtraction into a sign flip on the masked copy; that
+     fold mishandles an operand class addition survives. This is
+     the sharper lead: one code path, an A/B contrast on identical
+     inputs, and the exact stage's own subtract semantics to read
+     against the ps2f model.
+  2. Fused MADD/MSUB at 115-122/400 with raw exp-255 register
+     operands -- the old 15-16/1600 was this class undersampled
+     through product-generated saturation only.
+- Next session: anatomy peek on the SUB divergents (operand
+  patterns vs results, oracle sanity per rule 10), then the sign
+  fold read. Distribution note for all future FMAC batteries: raw
+  exp-255 register operands are mandatory, not optional.
