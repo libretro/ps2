@@ -1,0 +1,39 @@
+VU upper-op census v2: Q-forms plumbed, flags architecturally observed
+=====================================================================
+Rig: audit exports with flag-instance seeding and Q/P representation
+mirroring (this commit); v3 program shape: op, four NOP pairs for
+FMAC flag latency, then FSAND vi4,0xFFF and FMAND vi5,vi6 so status
+and MAC are read the way a program reads them -- the flag hack then
+has to compute them, and lazy sync questions disappear because the
+observation is architectural on both engines. 600 cases per op, 12%
+special-value mix, VU1, default recompiler vs ps2float interpreter.
+
+op       value lanes /2400   status /600   mac /600
+ADD             968                5            5
+SUB            1025                1            1
+MUL             423              266          266
+MADD            436              276          284
+OPMSUB          833              317          471
+MULq            368              199          199
+ADDq            994                1            1
+
+Findings:
+- Q-form rows are live (the v1 near-zero rows were the documented
+  plumbing artifact): MULq and ADDq diverge at their family scale.
+- Add-family flags are near-exact in default mode: the divergence
+  that remains is in the handful of special-value cases.
+- Multiply-family flags diverge on a third to half of observed
+  cases. First decoded example: rec status 0x082 vs oracle 0x28A;
+  the missing 0x208 is the O/U sticky pair -- the recompiled
+  multiply path does not model mul overflow/underflow flag setting,
+  which the old fpaudit flag-incidence rows (mul OF/UF ~12% of ops)
+  predicted and this measures through real engines end to end.
+- OPMSUB MAC divergence (471) exceeds its status divergence (317)
+  and both exceed the plain-mul scale; the deep dive stays queued.
+
+Campaign criteria (maintainer): accuracy against the oracle first;
+performance improvement without accuracy loss; bit-exactness ideal,
+equal-or-better accepted where exactness is prohibitively expensive.
+Next: OPMSUB decomposition; multiply flag-model options costed
+against those criteria; per-op throughput columns (default vs
+accurate paths) from timed exec batches; lower table; EFU; EE COP1.

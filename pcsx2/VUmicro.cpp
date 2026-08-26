@@ -125,6 +125,24 @@ void ps2_audit_vu_exec(int unit, int use_interp, unsigned char* regs_io, unsigne
 	memcpy(&vu->ACC, p, 16); p += 16;
 	memcpy(&vu->q.UL, p, 4); p += 4;
 	memcpy(&vu->p.UL, p, 4); p += 4;
+	/* The recompiled dispatcher loads its flag pipeline from the
+	 * micro_* instance arrays, not from VI; seed every instance from
+	 * the case's VI values so both engines start from the same
+	 * architectural flags. Q/P likewise have pending copies. */
+	for (i = 0; i < 4; i++)
+	{
+		vu->micro_statusflags[i] = vu->VI[REG_STATUS_FLAG].UL;
+		vu->micro_macflags[i]    = vu->VI[REG_MAC_FLAG].UL;
+		vu->micro_clipflags[i]   = vu->VI[REG_CLIP_FLAG].UL;
+	}
+	vu->pending_q = vu->q.UL;
+	vu->pending_p = vu->p.UL;
+	/* Q/P live in two representations; the dispatcher loads VI[REG_Q]
+	 * and VI[REG_P], the interpreter reads the q/p fields. The case's
+	 * q/p fields are authoritative: mirror them so both engines see
+	 * the same seed. */
+	vu->VI[REG_Q].UL = vu->q.UL;
+	vu->VI[REG_P].UL = vu->p.UL;
 	vu->VI[REG_TPC].UL = 0;
 	vu->cycle = cpuRegs.cycle;
 	cpu->SetStartPC(0);
