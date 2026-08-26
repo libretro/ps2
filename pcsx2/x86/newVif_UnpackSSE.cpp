@@ -320,11 +320,22 @@ void VifUnpackSSE_xUnpack(const struct VifUnpackSSE* p, int upknum)
 
 static void VifUnpackSSE_doMaskWrite_Simple(const struct VifUnpackSSE* p, int regX)
 {
-	xe_movaps_xmemg(7, p->dstIndirect);
+	/* The mask rows are module statics, and this routine is emitted into
+	 * the code arena, which the OS may map beyond rip and abs32 range of
+	 * the image - the layout Windows produces. Mirror the reference
+	 * doMaskWrite: materialize the row address far-safely once (rax is
+	 * the reference's scratch here too), then walk the planes by their
+	 * 64-byte stride through the same operand. */
+	struct e_mem xm_;
 	int offX = C89_MIN(p->curCycle, 3);
-	xe_pand_xm(regX, nVifMask[0][offX]);
-	xe_pand_xm(7, nVifMask[1][offX]);
-	xe_por_xm(regX, nVifMask[2][offX]);
+
+	xe_movaps_xmemg(7, p->dstIndirect);
+	xe_complexaddr(xm_, 0 /* rax */, &nVifMask[0][offX], E_NOREG);
+	xe_pand_xmem(regX, xm_);
+	xm_.disp += sizeof(nVifMask[0]) / 4; /* -> nVifMask[1][offX] */
+	xe_pand_xmem(7, xm_);
+	xm_.disp += sizeof(nVifMask[0]) / 4; /* -> nVifMask[2][offX] */
+	xe_por_xmem(regX, xm_);
 	xe_por_xx(regX, 7);
 	xe_movaps_memxg(p->dstIndirect, regX);
 }

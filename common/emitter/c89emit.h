@@ -412,6 +412,15 @@ static struct e_mem e_mem_abs(const void* addr)
             } \
         } else { \
             if ((m).base == E_NOREG) { \
+                /* [index*scale + disp32]: the displacement field is 32 bits \
+                 * and sign-extended. A displacement that does not survive \
+                 * the round-trip cannot be expressed in this operand shape; \
+                 * truncating would index the table at the wrong page once \
+                 * the address maps far, which is exactly the layout Windows \
+                 * produces. Same discipline as E_MODRM_ABS: the caller must \
+                 * materialize the base (xe_complexaddr_si) first. */ \
+                if ((intptr_t)(m).disp != (intptr_t)(int32_t)(m).disp) \
+                    abort(); \
                 EW8((p), (uint8_t)((0 << 6) | (((reg)&7) << 3) | 4)); \
                 EW8((p), (uint8_t)(((m).scale << 6) | (((m).index) << 3) | 5)); \
                 EW32((p), (uint32_t)(int32_t)(m).disp); \

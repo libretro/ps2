@@ -716,6 +716,12 @@ static uintptr_t xe_opaque_uptr(const void *p)
 #define xe_pand_xm(xmm, addr)  do { XE_OPEN();  \
 	{ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
 	  E_SSE_R_MEM(xep, 0x66, 0xdb, (xmm), xm_); }; XE_CLOSE(); } while (0)
+/* pand/por through an e_mem operand (far-safe mask-table rows) */
+#define xe_pand_xmem(xmm, m) do { XE_OPEN();  \
+	E_SSE_R_MEM(xep, 0x66, 0xdb, (xmm), (m)); XE_CLOSE(); } while (0)
+#define xe_por_xmem(xmm, m) do { XE_OPEN();  \
+	E_SSE_R_MEM(xep, 0x66, 0xeb, (xmm), (m)); XE_CLOSE(); } while (0)
+
 /* movdqa/movdqu through a register-based address (the QFSRV shifter) */
 #define xe_movdqu_xmem(xmm, m) do { XE_OPEN();  \
 	E_SSE_R_MEM(xep, 0xf3, 0x6f, (xmm), (m)); XE_CLOSE(); } while (0)
