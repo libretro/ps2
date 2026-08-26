@@ -7,6 +7,24 @@
  *
  * Not a general frontend: it answers only the environment calls this core
  * makes during boot, and refuses hardware rendering.
+ *
+ * PS2_LOADSTATE=<file> feeds a savestate produced elsewhere into
+ * retro_unserialize after PS2_LOADSTATE_AT frames (default 3). The file may
+ * be the raw serialize payload, a RASTATE container, or the RZIP-compressed
+ * RASTATE RetroArch writes to disk (.stateN); the wrappers are peeled here,
+ * so a fixture saved by a real frontend is usable unmodified. Needs -lz.
+ *
+ * PS2_WATCHDOG=<seconds> bounds every retro_run call and the state load: a
+ * call that never returns is a host-side deadlock and exits 124.
+ * PS2_STALL=<frames> arms after the external state load and exits 66 once
+ * that many consecutive frames render bit-identical pixels: a guest-side
+ * softlock renders as a still image while retro_run keeps returning. The
+ * two codes split a reported hang into its two families from one
+ * unattended run; exit 65 means the state itself was unusable (unreadable,
+ * damaged wrapper, or a serialize-format mismatch on this build), which a
+ * bisect driver should classify as skip rather than bad.
+ *
+ * Build: gcc -O2 -o headless_jithash headless_jithash.c -ldl -lz
  */
 #define _GNU_SOURCE
 #include <stdio.h>
@@ -17,6 +35,8 @@
 #include <dlfcn.h>
 #include <time.h>
 #include <unistd.h>
+#include <signal.h>
+#include <zlib.h>
 
 /* ---- the slice of libretro.h we need ---- */
 #define RETRO_ENVIRONMENT_SET_ROTATION            1
@@ -70,6 +90,191 @@ static void core_log(int level, const char* fmt, ...)
     va_start(ap, fmt);
     vfprintf(stderr, fmt, ap);
     va_end(ap);
+}
+
+/* Watchdog: a retro_run that never returns is a host-side deadlock. The
+ * handler has to stay async-signal-safe, so a bare write and _exit. */
+static int g_wd = 0;
+
+static void wd_fire(int sig)
+{
+    static const char msg[] = "[WATCHDOG] retro_run did not return\n";
+    ssize_t n = write(2, msg, sizeof(msg) - 1);
+    (void)sig;
+    (void)n;
+    _exit(124);
+}
+
+/* Stall watch state; armed by main once an external state is in, so an
+ * idle boot screen before the load cannot trip it. */
+static int g_stall_limit = 0;
+static int g_stall_armed = 0;
+static int g_stall_have  = 0;
+static int g_stall_run   = 0;
+static unsigned long long g_stall_last = 0;
+
+/* 16bpp unless the core asked for XRGB8888; the harness accepts either,
+ * so hash the row bytes the core actually handed over. */
+static unsigned long long fb_fnv(const unsigned char* d, unsigned w, unsigned h, size_t p)
+{
+    unsigned long long hsh = 1469598103934665603ULL;
+    const unsigned char* row = d;
+    unsigned y, x, bytes;
+
+    bytes = (unsigned)(p / (w ? w : 1));
+    for (y = 0; y < h; y++, row += p)
+        for (x = 0; x < w * bytes; x++)
+        {
+            hsh ^= row[x];
+            hsh *= 1099511628211ULL;
+        }
+    return hsh;
+}
+
+static unsigned long le32(const unsigned char* p)
+{
+    return (unsigned long)p[0]
+        | ((unsigned long)p[1] << 8)
+        | ((unsigned long)p[2] << 16)
+        | ((unsigned long)p[3] << 24);
+}
+
+static unsigned char* read_whole_file(const char* path, size_t* out_size)
+{
+    FILE* f = fopen(path, "rb");
+    long sz;
+    unsigned char* buf;
+
+    if (!f)
+        return NULL;
+    if (fseek(f, 0, SEEK_END) != 0 || (sz = ftell(f)) < 0 || fseek(f, 0, SEEK_SET) != 0)
+    {
+        fclose(f);
+        return NULL;
+    }
+    buf = (unsigned char*)malloc(sz ? (size_t)sz : 1);
+    if (!buf || fread(buf, 1, (size_t)sz, f) != (size_t)sz)
+    {
+        free(buf);
+        fclose(f);
+        return NULL;
+    }
+    fclose(f);
+    *out_size = (size_t)sz;
+    return buf;
+}
+
+/* RetroArch's on-disk savestate compression: "#RZIPv\1#", u32 chunk size,
+ * u64 uncompressed total, then chunks of u32 compressed size followed by
+ * one zlib stream each. */
+static unsigned char* rzip_unwrap(const unsigned char* in, size_t in_size, size_t* out_size)
+{
+    unsigned long long total;
+    unsigned char* out;
+    size_t off = 20;
+    size_t wr  = 0;
+
+    if (in_size < 20)
+        return NULL;
+    total = (unsigned long long)le32(in + 12)
+        | ((unsigned long long)le32(in + 16) << 32);
+    if (total == 0 || total > (1ULL << 31))
+        return NULL;                   /* refuse absurd sizes */
+    out = (unsigned char*)malloc((size_t)total);
+    if (!out)
+        return NULL;
+    while (off + 4 <= in_size && wr < total)
+    {
+        unsigned long csize = le32(in + off);
+        uLongf dst = (uLongf)(total - wr);
+        off += 4;
+        if (csize == 0 || csize > in_size - off)
+            break;
+        if (uncompress(out + wr, &dst, in + off, csize) != Z_OK)
+            break;
+        wr  += (size_t)dst;
+        off += csize;
+    }
+    if (wr != total)
+    {
+        free(out);
+        return NULL;
+    }
+    *out_size = (size_t)total;
+    return out;
+}
+
+/* RASTATE v1: "RASTATE" + a version byte, then 8-byte-aligned blocks of
+ * 4-byte id + u32 size + payload; the serialize payload lives in "MEM ". */
+static const unsigned char* rastate_find_mem(const unsigned char* in, size_t in_size, size_t* out_size)
+{
+    size_t off = 8;
+
+    while (off + 8 <= in_size)
+    {
+        unsigned long bsz = le32(in + off + 4);
+        if (bsz > in_size - (off + 8))
+            return NULL;
+        if (memcmp(in + off, "MEM ", 4) == 0)
+        {
+            *out_size = (size_t)bsz;
+            return in + off + 8;
+        }
+        off += 8 + (size_t)bsz;
+        off  = (off + 7) & ~(size_t)7;
+    }
+    return NULL;
+}
+
+/* Read, unwrap, and feed an external state. Returns 1 on success; any
+ * failure means the state is unusable on this build and the caller exits
+ * 65 so a bisect driver can classify it as skip rather than bad. */
+static int load_external_state(const char* path, int (*unser)(const void*, size_t))
+{
+    size_t fsz = 0, bsz = 0, msz = 0;
+    unsigned char* fbuf = read_whole_file(path, &fsz);
+    unsigned char* zbuf = NULL;
+    const unsigned char* base;
+    const unsigned char* mem;
+    int ok;
+
+    if (!fbuf)
+    {
+        fprintf(stderr, "[LOADSTATE] cannot read %s\n", path);
+        return 0;
+    }
+    base = fbuf;
+    bsz  = fsz;
+    if (fsz >= 6 && memcmp(fbuf, "#RZIPv", 6) == 0)
+    {
+        zbuf = rzip_unwrap(fbuf, fsz, &bsz);
+        if (!zbuf)
+        {
+            fprintf(stderr, "[LOADSTATE] RZIP unwrap failed\n");
+            free(fbuf);
+            return 0;
+        }
+        base = zbuf;
+    }
+    mem = base;
+    msz = bsz;
+    if (bsz >= 7 && memcmp(base, "RASTATE", 7) == 0)
+    {
+        mem = rastate_find_mem(base, bsz, &msz);
+        if (!mem)
+        {
+            fprintf(stderr, "[LOADSTATE] RASTATE has no MEM block\n");
+            free(zbuf);
+            free(fbuf);
+            return 0;
+        }
+    }
+    ok = unser(mem, msz);
+    fprintf(stderr, "[LOADSTATE] %s: %zu bytes -> unserialize %s\n",
+            path, msz, ok ? "ok" : "FAILED");
+    free(zbuf);
+    free(fbuf);
+    return ok ? 1 : 0;
 }
 
 /* Core options we force. Everything else falls through to the core default. */
@@ -136,9 +341,7 @@ static int env_cb(unsigned cmd, void* data)
 static void video_cb(const void* d, unsigned w, unsigned h, size_t p)
 {
     static long fbn = 0, every = -1;
-    unsigned long long hsh = 1469598103934665603ULL;
-    const unsigned char* row;
-    unsigned y, x, bytes;
+    unsigned long long hsh;
 
     if (every < 0)
     {
@@ -146,6 +349,36 @@ static void video_cb(const void* d, unsigned w, unsigned h, size_t p)
         every = (e && e[0] != '0') ? (atoi(e) > 0 ? atoi(e) : 1) : 0;
     }
     fbn++;
+
+    /* Stall watch runs ahead of the print gating so it sees every frame,
+     * counted or not. A duped frame is identical by definition. */
+    if (g_stall_limit > 0 && g_stall_armed)
+    {
+        int same;
+        if (!d)
+            same = 1;
+        else
+        {
+            unsigned long long sh = fb_fnv((const unsigned char*)d, w, h, p);
+            same         = (g_stall_have && sh == g_stall_last);
+            g_stall_last = sh;
+            g_stall_have = 1;
+        }
+        if (same)
+        {
+            g_stall_run++;
+            if (g_stall_run >= g_stall_limit)
+            {
+                fprintf(stderr, "[STALL] framebuffer static for %d consecutive frames\n",
+                        g_stall_run);
+                fflush(stderr);
+                _exit(66);
+            }
+        }
+        else
+            g_stall_run = 0;
+    }
+
     if (!every || (fbn % every) != 0)
         return;
 
@@ -158,16 +391,7 @@ static void video_cb(const void* d, unsigned w, unsigned h, size_t p)
         return;
     }
 
-    /* 16bpp unless the core asked for XRGB8888; the harness accepts either,
-     * so hash the row bytes the core actually handed over. */
-    bytes = (unsigned)(p / (w ? w : 1));
-    row = (const unsigned char*)d;
-    for (y = 0; y < h; y++, row += p)
-        for (x = 0; x < w * bytes; x++)
-        {
-            hsh ^= row[x];
-            hsh *= 1099511628211ULL;
-        }
+    hsh = fb_fnv((const unsigned char*)d, w, h, p);
     fprintf(stderr, "[FBHASH] %ld %ux%u %016llx\n", fbn, w, h, hsh);
 }
 /* Audio oracle.
@@ -246,6 +470,16 @@ int main(int argc, char** argv)
     frames = atoi(argv[3]);
     snprintf(g_sysdir, sizeof(g_sysdir), "%s", argc > 4 ? argv[4] : ".");
     g_quiet = getenv("QUIET") != NULL;
+    {
+        const char* e = getenv("PS2_WATCHDOG");
+        g_wd = e ? atoi(e) : 0;
+        if (g_wd > 0)
+            signal(SIGALRM, wd_fire);
+    }
+    {
+        const char* e = getenv("PS2_STALL");
+        g_stall_limit = (e && atoi(e) > 0) ? atoi(e) : 0;
+    }
 
     h = dlopen(argv[1], RTLD_NOW);
     if (!h) { fprintf(stderr, "dlopen: %s\n", dlerror()); return 3; }
@@ -284,15 +518,29 @@ int main(int argc, char** argv)
 
     t0 = now();
     {
-        const char* ss_env = getenv("PS2_SAVESTATE");
-        const int   ss_at  = ss_env ? atoi(ss_env) : -1;
+        const char* ss_env    = getenv("PS2_SAVESTATE");
+        const int   ss_at     = ss_env ? atoi(ss_env) : -1;
+        const char* ls_env    = getenv("PS2_LOADSTATE");
+        const char* ls_at_env = getenv("PS2_LOADSTATE_AT");
+        const int   ls_at     = ls_env ? (ls_at_env ? atoi(ls_at_env) : 3) : -1;
         void*  ss_buf  = NULL;
         size_t ss_size = 0;
 
         for (i = 0; i < frames; i++) {
+            if (g_wd > 0)
+                alarm((unsigned)g_wd);
             p_run();
             if ((i % 20) == 0)
                 { fprintf(stderr, "[headless] frame %d  (%.1f s)\n", i, now() - t0); fflush(stderr); }
+
+            if (ls_at >= 0 && i == ls_at)
+            {
+                if (g_wd > 0)
+                    alarm((unsigned)g_wd);
+                if (!load_external_state(ls_env, p_unserialize))
+                    _exit(65);
+                g_stall_armed = 1;
+            }
 
             if (ss_at >= 0 && i == ss_at && p_serialize_size) {
                 ss_size = p_serialize_size();
@@ -318,7 +566,11 @@ int main(int argc, char** argv)
                  * and look for the tail as a substring of the head. */
                 fprintf(stderr, "[SAVESTATE] reloaded, replaying %d frames\n", frames - ss_at - 1);
                 for (i = ss_at + 1; i < frames; i++)
+                {
+                    if (g_wd > 0)
+                        alarm((unsigned)g_wd);
                     p_run();
+                }
             }
             free(ss_buf);
         }
@@ -330,6 +582,8 @@ int main(int argc, char** argv)
      * post-N hash streams have to match: a savestate that restores an
      * incomplete machine shows up as diverging pixels rather than as a
      * crash, and nothing in this harness tested serialize at all before. */
+    if (g_wd > 0)
+        alarm(0);
     t1 = now();
     fprintf(stderr, "[headless] %d frames in %.2f s (%.2f fps)\n",
             frames, t1 - t0, frames / (t1 - t0));
