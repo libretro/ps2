@@ -123,3 +123,19 @@ code change shipped):
   patterns vs results, oracle sanity per rule 10), then the sign
   fold read. Distribution note for all future FMAC batteries: raw
   exp-255 register operands are mandatory, not optional.
+
+SUB/ADD asymmetry -- CLOSED (follow-up to the elide commit): the
+anatomy peek showed every divergent SUB lane carrying a raw exp-255
+operand, the oracle arithmetically correct by inspection, and the
+recompiler's results all clamp signatures (several with the wrong
+sign). The source is mundane: mVU_SUB carries Kingdom Hearts-era
+input clamp flags (cFs|cFt) that mVU_ADD does not, and those clamps
+flattened exp-255 operands before the accurate composite's detector
+could route them -- ADD's exactness on the same distribution
+through the same composite is the proof raw operands are handled.
+The fix extends the exactmul elide: under the accurate add/sub
+option, add/sub input clamps are elided. SUB: 205/400 to 0/400; ADD
+and MUL hold at zero; default rig outputs byte-identical; 300
+frames of Tekken under the option pixel-identical. MADD/MSUB
+(115-122/400) remain open -- their clamps live in the fused FMAC
+bodies and get the same per-site treatment next session.
