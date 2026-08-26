@@ -98,7 +98,16 @@ static void mVUupdateFlags(mV, int reg, int regT1in = -1, int regT2in = -1, int 
 	 * oracle sets O on exactly these cases (fpaudit flag census:
 	 * every adversarial flag divergence was the O bit alone, with
 	 * rec-O identically zero in every non-hack mode). */
-	if (sFLAG.doFlag && (CHECK_VUOVERFLOWHACK || CHECK_VU_ACC_ADDSUB || CHECK_VU_EXACTMUL) && mVU->ovfDetectOK)
+	/* Overflow detection is unconditional (mul-family scoped by
+	 * ovfDetectOK): default recompilation never set O at all -- the
+	 * flag census proved rec-O identically zero outside the old
+	 * gamefix -- while the class-gated threshold detector matches
+	 * the hardware model to 1-in-400 adversarial and the block
+	 * measures free on frame throughput (three-rep workload, dead
+	 * even). The VuOverflowHack GameDB entries are hereby harmless
+	 * no-ops; the exact pattern/event machinery still upgrades the
+	 * detector under the accuracy options. */
+	if (sFLAG.doFlag && mVU->ovfDetectOK)
 	{
 		alignas(16) static const u32 sse4_compvals[2][4] = {
 			{0x7f7fffff, 0x7f7fffff, 0x7f7fffff, 0x7f7fffff}, //1111

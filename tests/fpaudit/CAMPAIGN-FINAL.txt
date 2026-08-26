@@ -74,3 +74,17 @@ Finding banked with the numbers: ExactDiv's 17% cost cannot be
 per-Q-op (Q ops are a small fraction of the stream) -- it is
 per-block or thunk overhead, which makes it a concrete future
 optimization target that could change its verdict.
+
+Overflow-detection promotion (question 2, maintainer-approved):
+the detect block's config gates are dropped -- overflow flags are
+now set in every mode, mul-family scoped by the class gate, with
+the threshold detector in default mode and the exact pattern/event
+machinery under the accuracy options. Deciding measurements: the
+block is free on frame throughput (three reps, dead even), and the
+old-vs-new default diff is EXACTLY the O-bit columns -- 1,874
+adversarial rows gain O bits, zero rows change anything else, and
+300 frames of default pixels are identical. Default-mode flag
+accuracy vs the oracle moves from always-wrong (rec-O identically
+zero) to MUL 9/400 and fused 125-139/400 adversarial (from
+370-379). The VuOverflowHack GameDB entries are harmless no-ops
+from this commit; the config plumbing stays intact.
