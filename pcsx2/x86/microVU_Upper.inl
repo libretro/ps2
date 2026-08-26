@@ -403,8 +403,10 @@ static void mVU_FMACb(microVU* mVU, int recPass, int opCase, int opType, int cla
 
 		if (_XYZW_SS || _X_Y_Z_W == 0xf)
 		{
+			int fovPat; const int fovMask = mVUfusedOvfPre(mVU, Fs, &fovPat, opType == 1);
 			if (_XYZW_SS) SSE_SS[opType](mVU, ACC, Fs, tempFt, -1);
 			else          SSE_PS[opType](mVU, ACC, Fs, tempFt, -1);
+			mVUfusedOvfPost(mVU, ACC, fovMask, fovPat);
 			mVUupdateFlags(mVU, ACC, Fs, tempFt);
 			if (_XYZW_SS && _X_Y_Z_W != 8)
 				xe_pshufd_xxi(ACC, ACC, shuffleSS(_X_Y_Z_W));
@@ -412,8 +414,10 @@ static void mVU_FMACb(microVU* mVU, int recPass, int opCase, int opType, int cla
 		else
 		{
 			const int tempACC = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+			int fovPat; const int fovMask = mVUfusedOvfPre(mVU, Fs, &fovPat, opType == 1);
 			xe_movaps_xx(tempACC, ACC);
 			SSE_PS[opType](mVU, tempACC, Fs, tempFt, -1);
+			mVUfusedOvfPost(mVU, tempACC, fovMask, fovPat);
 			mVUmergeRegs(ACC, tempACC, _X_Y_Z_W, 0);
 			mVUupdateFlags(mVU, ACC, Fs, tempFt);
 			mVUra_clearNeededXMM(mVU->regAlloc, tempACC);

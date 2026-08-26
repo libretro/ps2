@@ -193,3 +193,16 @@ wired -- same helper, its ACC dual-path insert next session, with
 MADDA/MSUBA rows added to the adversarial battery. Flag-side OF
 forcing for blended lanes is ledgered with the flag residuals, not
 silently claimed.
+
+FMACb (MADDA/MSUBA) -- wired and closed (this commit): the same
+detect-and-blend helper inserted around both of the body's add
+paths (the direct-ACC full-mask path and the tempACC masked-merge
+path, the blend applied before the merge so partial-dest writes
+stay correct). MADDA 169-to-0 and MSUBA 169-to-0 on the adversarial
+distribution with ACC as the compared surface; MADD/MSUB control
+rows held at zero; default byte-identical; 300 frames under both
+options pixel-identical. THE FUSED FAMILY IS COMPLETE: every
+measured VU FMAC op -- ADD SUB MUL MADD MSUB MADDA MSUBA -- is
+bit-exact under exactmul plus accurate add/sub on the adversarial
+distribution, raw exp-255 operands and saturating products
+included.
