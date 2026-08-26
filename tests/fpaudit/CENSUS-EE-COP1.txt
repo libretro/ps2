@@ -1,0 +1,51 @@
+EE COP1 census 1: 16 ops x 400 cases x {default, soft, accurate}
+================================================================
+Rig: EE audit exports with harness-thread fault-filter registration
+(the thread-affinity blocker resolved to one RegisterFaultHandlerThread
+call -- the fault machinery services registered threads regardless of
+which one). Scratch block at 16MB through the memory system, actual
+recompiled block vs bounded-stepped interpreter (ps2f-based oracle,
+confirmed by the FMAX known-answer split: rec clamp 7f7fffff vs
+oracle saturation 7fffffff). Columns: fd /400, ACC /400, FCR31 /400.
+
+op        default          FpuSoftFloat     FpuAccurateArith
+ADD.S      28/  0/  0        28/  0/  0        0/  0/  0
+SUB.S      23/  0/  0        23/  0/  0        0/  0/  0
+MUL.S      68/  0/102         0/  0/  0        6/  0/  0
+DIV.S     104/  0/ 93         0/  0/  0      104/  0/ 93
+SQRT.S    100/  0/  0         0/  0/  0      100/  0/  0
+ABS.S       7/  0/  0         7/  0/  0        7/  0/  0
+MOV.S       0/  0/  0         0/  0/  0        0/  0/  0
+NEG.S      15/  0/  0        15/  0/  0       15/  0/  0
+RSQRT.S   206/  0/221         0/  0/  0      206/  0/221
+ADDA.S      0/ 17/  0         0/ 17/  0        0/  0/  0
+MULA.S      0/ 85/105         0/  0/  0        0/ 11/  0
+MADD.S     72/  0/ 52         0/  0/  0        3/  0/ 44
+MSUB.S     72/  0/ 53         0/  0/  0        4/  0/ 43
+MAX.S       0/  0/  0         0/  0/  0        0/  0/  0
+MIN.S       0/  0/  0         0/  0/  0        0/  0/  0
+CVT.W       0/  0/  0         0/  0/  0        0/  0/  0
+
+Findings:
+- The two options are COMPLEMENTARY, not overlapping: soft float
+  closes the multiply/divide/sqrt/rsqrt/fused family (values and
+  flags) but does not route add/sub/abs/neg; accurate arithmetic
+  closes add/sub (and mostly mul/fused values) but leaves the
+  divide family untouched. Neither alone blankets the FPU; both
+  together would, except for the orphan below.
+- ORPHAN DIVERGENCE, uncovered by every option: ABS.S and NEG.S.
+  Hardware treats them as pure sign-bit operations; the oracle
+  passes bit patterns through. The recompiler clamps their results
+  (denormal -> 0, exp-255 -> FLT_MAX), destroying round-trippable
+  bit patterns. Candidate fix: exempt ABS/NEG from result clamping
+  as pure bitops -- with the recorded caveat that the EE clamp
+  discipline may rely on those clamps to keep exp-255 out of
+  downstream host arithmetic, so the change needs the interaction
+  audit (which ops input-clamp) before it lands, same gates as the
+  VU clamp elision.
+- MAX/MIN/MOV/CVT.W bit-exact in every config, mirroring the VU
+  comparison-family result.
+- Default-mode scales mirror the VU: add/sub at the small clamp/
+  special class, divide family largest, flags concentrated on
+  multiply/divide (the VU's O/U sticky story again -- the class
+  gate precedent applies if promotion is ever wanted here).

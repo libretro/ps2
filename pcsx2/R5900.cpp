@@ -696,10 +696,17 @@ extern "C" void ps2_audit_ee_stepn(unsigned n); /* Interpreter.cpp */
 extern "C" __attribute__((visibility("default")))
 void ps2_audit_ee_prep(const unsigned* words, unsigned nwords)
 {
+	/* The EE memory system's fault machinery (fastmem, vtlb page
+	 * protection) only services faults from threads registered with
+	 * the fault filter; unregistered threads' faults abort. The
+	 * audit runs on the harness thread, so register for the scope
+	 * of every export that can fault. */
 	unsigned i;
+	HostSys::RegisterFaultHandlerThread();
 	for (i = 0; i < nwords; i++)
 		memWrite32(PS2_AUDIT_EE_SCRATCH + i * 4, words[i]);
 	Cpu->Clear(PS2_AUDIT_EE_SCRATCH, nwords);
+	HostSys::UnregisterFaultHandlerThread();
 }
 
 extern "C" __attribute__((visibility("default")))
@@ -707,6 +714,7 @@ void ps2_audit_ee_exec(int use_interp, unsigned char* regs_io, unsigned ninstr)
 {
 	unsigned char* p = regs_io;
 	const u32 old_pc = cpuRegs.pc;
+	HostSys::RegisterFaultHandlerThread();
 	const u32 old_cycle_target = cpuRegs.nextEventCycle;
 	int i;
 	for (i = 0; i < 32; i++) { memcpy(&fpuRegs.fpr[i].UL, p, 4); p += 4; }
@@ -734,4 +742,5 @@ void ps2_audit_ee_exec(int use_interp, unsigned char* regs_io, unsigned ninstr)
 	memcpy(p, &fpuRegs.ACC.UL, 4); p += 4;
 	memcpy(p, &fpuRegs.fprc[31], 4); p += 4;
 	memcpy(p, &fpuRegs.ACCflag, 4); p += 4;
+	HostSys::UnregisterFaultHandlerThread();
 }
