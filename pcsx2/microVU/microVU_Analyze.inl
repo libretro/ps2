@@ -162,9 +162,20 @@ __ri void analyzeVIreg2(mV, int xReg, microVIreg& viWrite, int aCycles)
 	{ \
 		mVUregsTemp.xgkick = x; \
 	}
+/* The const tracker is micro-program compilation state: micro blocks
+ * specialize on VI values recorded here. COP2 macro ops run through
+ * the same analysis functions but execute outside any micro program,
+ * so a macro op recording a constant poisons the next micro
+ * compilation with a value the program never computed. Star Ocean 3
+ * is the field case: its COP2 IADDI chains taught the tracker stale
+ * VI constants, micro blocks specialized on them, and the scene
+ * geometry collapsed -- bisected to macro IADDI on an in-game
+ * savestate, with the pollution isolated to this single write: the
+ * rest of the analysis is mode-agnostic liveness and stall modeling
+ * and runs unchanged. Macro mode therefore never records constants. */
 #define setConstReg(x, v) \
 	{ \
-		if (x) \
+		if ((x) && !mVU->cop2) \
 		{ \
 			mVUconstReg[x].isValid = 1; \
 			mVUconstReg[x].regValue = v; \

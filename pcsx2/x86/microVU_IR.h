@@ -710,7 +710,21 @@ void mVUra_clearGPR(struct microRegAlloc* r, int regId)
 		if (r->regAllocCOP2)
 		{
 			if (x86regs[regId].inuse && x86regs[regId].type == X86TYPE_VIREG)
+			{
+				/* This is the EE allocator stealing a register mid
+				 * macro-op (mVUFreeCOP2GPR). A dirty VI value here has
+				 * nowhere else to live: the writeback-suppressed free
+				 * below discards it, leaving stale memory for the next
+				 * reader. Instrumented on the Star Ocean 3 in-game
+				 * fixture this path never fired with a dirty value, so
+				 * it is hardening against a latent hazard rather than
+				 * a fix for an observed one: write back first, and the
+				 * suppression below then only skips the redundant
+				 * EE-side store. */
+				if ((clear->dirty || (x86regs[regId].mode & MODE_WRITE)) && clear->VIreg > 0 && clear->VIreg < 16)
+					xe_mov16_mr(&::vuRegs[r->index].VI[clear->VIreg], regId);
 				_freeX86regWithoutWriteback(regId);
+			}
 		}
 
 		clear->VIreg = -1;
@@ -824,8 +838,27 @@ int mVUra_allocGPR(struct microRegAlloc* r, int viLoadReg, int viWriteReg, int b
 							// kill any allocations of viWriteReg
 							mVUra_unbindAnyVIAllocations(r, viWriteReg, &backup);
 
+							/* The count bump above protects the loadReg
+							 * from the mVU allocator's own stealing --
+							 * but in COP2 mode findFreeGPR routes to
+							 * _allocX86reg, the EE allocator, which
+							 * ignores mVU counts entirely and could hand
+							 * back the very host register caching the
+							 * load operand, turning the copy below into
+							 * a self-move that destroys the load reg's
+							 * cache entry. Not observed in the field
+							 * (hardening, no measured effect on the
+							 * Star Ocean 3 fixture): the EE allocator
+							 * honours its own needed flag, so pin the
+							 * load host across the allocation. */
+							const int pin_needed = r->regAllocCOP2 ? x86regs[i].needed : 0;
+							if (r->regAllocCOP2)
+								x86regs[i].needed = 1;
+
 							// allocate a new register for writing to
 							int x = mVUra_findFreeGPR(r, viWriteReg);
+							if (r->regAllocCOP2)
+								x86regs[i].needed = pin_needed;
 							const int gprX = x;
 
 							mVUra_writeBackRegGPR(r, gprX, 1);
