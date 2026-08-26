@@ -1,4 +1,17 @@
 # All flags, libraries, etc, that are shared between PCSX2 compilation files
+# GameDatabaseBuiltin.cpp is generated from the shipped GameIndex.yaml at
+# build time (tools/gen_gamedb_builtin.sh, POSIX shell + od + awk only),
+# mirroring the static-Makefile rule.
+add_custom_command(
+	OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/GameDatabaseBuiltin.cpp
+	COMMAND sh ${CMAKE_SOURCE_DIR}/tools/gen_gamedb_builtin.sh
+		${CMAKE_SOURCE_DIR}/bin/resources/GameIndex.yaml
+		${CMAKE_CURRENT_BINARY_DIR}/GameDatabaseBuiltin.cpp
+	DEPENDS ${CMAKE_SOURCE_DIR}/bin/resources/GameIndex.yaml
+	        ${CMAKE_SOURCE_DIR}/tools/gen_gamedb_builtin.sh
+	COMMENT "Generating GameDatabaseBuiltin.cpp from GameIndex.yaml"
+	VERBATIM)
+
 add_library(PCSX2_FLAGS INTERFACE)
 
 if(DISABLE_ADVANCE_SIMD OR LTO_PCSX2_CORE)
@@ -75,7 +88,7 @@ set(pcsx2Sources
 	Counters.cpp
 	Dmac.cpp
 	GameDatabase.cpp
-	GameDatabaseBuiltin.cpp
+	${CMAKE_CURRENT_BINARY_DIR}/GameDatabaseBuiltin.cpp
 	Elfheader.cpp
 	FW.cpp
 	FiFo.cpp
