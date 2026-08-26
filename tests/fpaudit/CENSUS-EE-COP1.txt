@@ -55,3 +55,27 @@ Findings:
   special class, divide family largest, flags concentrated on
   multiply/divide (the VU's O/U sticky story again -- the class
   gate precedent applies if promotion is ever wanted here).
+
+Battery 2 (converts, compares, branches, moves, memory):
+  Exact in every config: C.EQ C.LT C.LE C.F (FCR31 C bit included),
+  MTC1 MFC1 (GPR travel added to the rig for these), and the
+  SWC1->LWC1 memory round-trip (394/400 verified nonzero
+  round-trips through EE RAM).
+
+  CVT.S.W -- REAL uncovered divergence, 162/400 under every config:
+  the recompiler's int-to-float conversion is consistently one ulp
+  low on integers needing more than 24 bits of mantissa (chop where
+  the hardware-verified model rounds to nearest). No accuracy
+  option routes the convert. Fix candidate: round-nearest rounding
+  for the conversion only (an MXCSR flip or arithmetic fixup around
+  cvtsi), gated the usual way and priced.
+
+  BC1T/BC1F -- OPEN, rig-entangled: the first run exposed a rig
+  limitation (the pre-armed exit fired at the first block boundary,
+  truncating multi-block branch programs; fixed with a cycle-budget
+  arming that this commit carries), and the rerun shows the rec
+  taking BC1T unconditionally in sampled cases even where both
+  engines agree the FCR31 C bit is clear. Next probe is designed:
+  seeded C with no in-program compare isolates the branch's
+  condition evaluation from any compare-to-branch hazard modeling.
+  No verdict until it lands.

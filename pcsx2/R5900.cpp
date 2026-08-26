@@ -721,6 +721,10 @@ void ps2_audit_ee_exec(int use_interp, unsigned char* regs_io, unsigned ninstr)
 	memcpy(&fpuRegs.ACC.UL, p, 4); p += 4;
 	memcpy(&fpuRegs.fprc[31], p, 4); p += 4;
 	memcpy(&fpuRegs.ACCflag, p, 4); p += 4;
+	/* Four GPRs (r8..r11, 64-bit views) travel with the case so
+	 * memory ops have seedable bases and branch batteries have
+	 * integer marker targets. */
+	for (i = 8; i < 12; i++) { memcpy(&cpuRegs.GPR.r[i].UD[0], p, 8); p += 8; }
 	cpuRegs.pc = PS2_AUDIT_EE_SCRATCH;
 	if (use_interp)
 	{
@@ -730,8 +734,12 @@ void ps2_audit_ee_exec(int use_interp, unsigned char* regs_io, unsigned ninstr)
 	{
 		const u32 host_csr = _mm_getcsr();
 		_mm_setcsr(EmuConfig.Cpu.FPUFPCR.bitmask);
+		/* The exit fires at the first block-boundary event test at or
+		 * beyond nextEventCycle; multi-block programs (branches jump
+		 * between blocks with event tests in between) need a cycle
+		 * budget covering the whole path, not the first block. */
 		Cpu->ExitExecution();
-		cpuRegs.nextEventCycle = cpuRegs.cycle + 1;
+		cpuRegs.nextEventCycle = cpuRegs.cycle + ninstr * 2 + 64;
 		Cpu->Execute();
 		_mm_setcsr(host_csr);
 	}
@@ -742,5 +750,6 @@ void ps2_audit_ee_exec(int use_interp, unsigned char* regs_io, unsigned ninstr)
 	memcpy(p, &fpuRegs.ACC.UL, 4); p += 4;
 	memcpy(p, &fpuRegs.fprc[31], 4); p += 4;
 	memcpy(p, &fpuRegs.ACCflag, 4); p += 4;
+	for (i = 8; i < 12; i++) { memcpy(p, &cpuRegs.GPR.r[i].UD[0], 8); p += 8; }
 	HostSys::UnregisterFaultHandlerThread();
 }
