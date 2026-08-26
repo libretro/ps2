@@ -46,8 +46,25 @@ Battery 2 -- flag ops, R ops, branches: ARCHITECTURALLY EXACT
     path's sticky handling); every flag READ (FSAND FSEQ FSOR FCGET
     results) agrees, so the difference is invisible to programs.
 
-Lower table still open: XTOP/XITOP/XGKICK (VIF-coupled), JR/JALR
-(register-target jumps need address-valid case shaping).
+Battery 3 -- register jumps and VIF reads:
+  JR and JALR exact (0/400 each) with landing-pattern verification
+  across four target pairs: every pattern shows the branch delay
+  slot executing before the landing point, identically in both
+  engines (e.g. target pair 4 yields markers 1,0,0,1 -- the
+  delay-slot marker plus the landing tail), and JALR's link write
+  agrees. XTOP/XITOP agree structurally (both engines read the same
+  vif top/itop globals) but coverage is thin: the values were zero
+  at both the boot and in-game sample points, so the address/masking
+  of the read is unexercised; recorded as weak rows, semantic risk
+  minimal. XGKICK is out of rig scope -- its effect is a GIF-path
+  side transfer, which needs GIF capture comparison, not register
+  diffing.
+
+LOWER TABLE STATUS: complete. Integer ALU, immediate ALU, moves,
+memory family (seeded), Q pipeline (exact under exactdiv, oracle
+fixed), R ops, flag ops, branches with delay-slot verification, and
+register jumps -- all architecturally exact. Remaining VU items are
+the weak-coverage notes above and XGKICK's out-of-scope transfer.
 
 Q pipeline -- RESOLVED (this commit):
   The "lane-selection anomaly" was a rig readback artifact: the
