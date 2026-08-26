@@ -189,3 +189,33 @@ void ps2_audit_vu_exec(int unit, int use_interp, unsigned char* regs_io, unsigne
 	memcpy(p, &vu->q.UL, 4); p += 4;
 	memcpy(p, &vu->p.UL, 4); p += 4;
 }
+
+/* Fill VU data memory with deterministic pseudorandom bytes so
+ * memory-op batteries load varied data (both engines see the same
+ * fill), and hash it after a run so stores are verifiable without
+ * shipping the whole memory image through the rig. */
+extern "C" __attribute__((visibility("default")))
+void ps2_audit_vu_memfill(int unit, unsigned seed)
+{
+	VURegs* vu = &vuRegs[unit];
+	const unsigned n = unit ? VU1_MEMSIZE : VU0_MEMSIZE;
+	unsigned x = seed ? seed : 0x9E3779B9u;
+	unsigned i;
+	for (i = 0; i < n; i += 4)
+	{
+		x ^= x << 13; x ^= x >> 17; x ^= x << 5;
+		memcpy(vu->Mem + i, &x, 4);
+	}
+}
+
+extern "C" __attribute__((visibility("default")))
+unsigned ps2_audit_vu_memhash(int unit)
+{
+	VURegs* vu = &vuRegs[unit];
+	const unsigned n = unit ? VU1_MEMSIZE : VU0_MEMSIZE;
+	unsigned h = 2166136261u;
+	unsigned i;
+	for (i = 0; i < n; i++)
+		h = (h ^ vu->Mem[i]) * 16777619u;
+	return h;
+}

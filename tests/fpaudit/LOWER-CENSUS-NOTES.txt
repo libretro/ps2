@@ -8,11 +8,22 @@ Verified exact (all state, both configs):
   MOVE MR32 MTIR MFIR       -- register moves exact (MTIR effect
     confirmed, 371/400 nonzero results)
 
-Weak rows (recorded, not claimed):
-  LQI SQI ran against all-zero VU memory (the rig does not seed data
-  memory; both engines read the same zeros, so agreement is real but
-  coverage is trivial). Memory seeding is a rig extension for the
-  next battery.
+Memory family -- VERIFIED EXACT (memory-seeded battery):
+  LQ SQ ILW ISW LQI SQI LQD SQD ILWR ISWR, 400 cases each against
+  per-case deterministic pseudorandom VU data memory
+  (ps2_audit_vu_memfill), with full-state register comparison AND a
+  post-run memory hash (ps2_audit_vu_memhash) per engine. All rows
+  bit-identical on both. Executed-effect held throughout: loads
+  carried nonzero varied data in 400/400, stores changed the memory
+  hash away from the pure-fill baseline in 400/400 (the check that
+  distinguishes agreeing stores from agreeing inaction), ILW landed
+  nonzero VI results in 400/400. The battery-1 LQI/SQI weak rows are
+  superseded at full strength.
+
+Lower table still open: branches and jumps (need control-flow
+program shapes), the FC*/FS*/FM* flag-op family beyond the two the
+rig uses as observers, R-register ops (RINIT RGET RNEXT RXOR),
+IADDIU/ISUBIU, XTOP/XITOP/XGKICK (VIF-coupled).
 
 Q pipeline -- RESOLVED (this commit):
   The "lane-selection anomaly" was a rig readback artifact: the
