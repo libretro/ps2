@@ -139,3 +139,33 @@ and MUL hold at zero; default rig outputs byte-identical; 300
 frames of Tekken under the option pixel-identical. MADD/MSUB
 (115-122/400) remain open -- their clamps live in the fused FMAC
 bodies and get the same per-site treatment next session.
+
+Fused front, the decomposition probe -- mechanism NAILED, design
+work scoped (no code shipped this session; a candidate cACC-clamp
+elide measured as a no-op in every tested context and was reverted
+per the standing rule):
+- Decomposed MUL-then-ADD over the identical operands and dataflow:
+  0/400 -- the standalone composites are exact on everything the
+  fused ops see, saturated products included.
+- Fused MADD on the same cases: 158/400. And the decisive third
+  number: the decomposed ORACLE disagrees with the fused ORACLE on
+  exactly those 158 cases. The interpreter's MADD is not
+  mul-then-add: the hardware model's fused datapath hands the adder
+  the pre-saturation wide product (exponent above 255 preserved
+  into the add), where the recompiler's fused path -- and any
+  decomposition -- adds the saturated float. On saturating products
+  the two semantics differ, and the recompiler currently implements
+  decomposition semantics.
+- The closing work is therefore a design item with an exact spec:
+  the fused composite's mul stage must hand its add stage the
+  pre-saturation exponent/mantissa (the exact stage already
+  computes wide intermediates internally; the hand-off must bypass
+  the float-format saturation between stages). Verification target:
+  fused rows to 0/400 on the adversarial distribution, plain rows
+  held at zero, default byte-identical, pixels identical.
+- Prerequisite before any emission work, per rule 10: confirm the
+  oracle's fused-vs-decomposed split against hardware expectations
+  (the ps2f suite's MADD lineage), since this is now the load-
+  bearing semantic claim. One hardware capture -- FMAX*FMAX MADD
+  -FMAX on silicon -- settles it alongside the queued CFC1 and EFU
+  items.
