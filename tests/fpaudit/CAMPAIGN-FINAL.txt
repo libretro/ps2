@@ -1,0 +1,50 @@
+fpaudit campaign: final regression and state of the ground
+==========================================================
+Full-battery regression of every surviving spec against the final
+tree (all accuracy options on for their respective processors):
+
+  VU: fused adversarial, MADDA battery, flag battery, decomposition
+      probe, lower batteries 2/3, memory battery, original lower and
+      upper censuses -- 13 batteries, 67,600 case-rows total.
+  EE: arithmetic census, battery 2 (converts/compares/branches/
+      moves/memory), CVT full-range, CTC1 round-trip.
+
+  GENUINE DIVERGENCE: ZERO ROWS.
+
+Three non-zero raw counts, each attributed and understood:
+- Lower batteries re-compared with raw VI16/17/18 included show the
+  known representation classes (rec status-instance round-trip
+  stickies, R storage format) -- architecture-equal, proven via
+  observed reads in their original arcs; the regression comparator
+  was stricter than the verdict methodology.
+- OPMSUB at 600/600 traced to the SPEC, not the recompiler era
+  (identical on the pre-fused binary): the census encoded dest=0xF
+  on an xyz-only outer-product op. The interpreter ignores the
+  architecturally invalid w bit; the recompiler honors it and
+  computes the lane. Undefined-encoding divergence -- assemblers
+  cannot emit it -- recorded, not fixed.
+
+The measured state this closes over:
+- VU values: all FMAC (ADD SUB MUL MADD MSUB MADDA MSUBA),
+  comparisons, i-forms, full lower table, Q pipeline -- bit-exact
+  under EnableVuAccurateAddSub + EnableVuExactMul (+ExactDiv for Q)
+  on the adversarial distribution, raw exp-255 operands and
+  saturating products included, with the hardware fused-MAC
+  overflow rule implemented from the model's source.
+- VU flags: status and mac at zero across the measured family via
+  the saturation-event export; the O-detect block now exists
+  outside the overflow gamefix.
+- EE: soft-float and accurate-arith complementary and fully
+  mapped; ABS/NEG and CVT.S.W closed under the options; compares,
+  moves, memory, branches exact; per-op prices complete
+  (accurate: +2ns-class on add/mul; soft: 131-156ns divide family).
+- Prices, VU: accurate addsub 5-8ns/op, exactmul 9-10ns/op,
+  defaults 0.2-2ns.
+
+Open items, none rig-side:
+- Hardware minutes: CFC1 garbage round-trip (decides interp-vs-rec
+  readout construction); FMAX*FMAX MADD capture (confirms the
+  model's fused rule); EFU sweeps by census tier.
+- Maintainer decisions: option promotion/defaults, the overflow-
+  hack fusion question, savestate treatment of the representation
+  classes.
