@@ -83,9 +83,12 @@ void mVUreset(microVU* mVU, int resetReserve)
 			CpuVU1->Execute(vu1RunCycles);
 		vuRegs[0].VI[REG_VPU_STAT].UL &= ~0x100;
 	}
-	// Restore reserve to uncommitted state
-	if (resetReserve)
-		/* code reserves have no reset state */
+	/* Code reserves have no reset state since the reserve rework; the
+	 * parameter stays for the call sites. The comment that used to sit
+	 * under the old condition had swallowed the first MemProtect field
+	 * as the if body, leaving mode.m_read uninitialized on the
+	 * resetReserve == 0 path (the mid-game cache-full reset). */
+	(void)resetReserve;
 
 	mode.m_read  = 1;
 	mode.m_write = 1;
