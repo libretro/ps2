@@ -91,7 +91,14 @@ static void mVUupdateFlags(mV, int reg, int regT1in = -1, int regT2in = -1, int 
 	 * through absorbing additions legitimately (ADD: 2 -> 173, all
 	 * false fires). The detector therefore only runs where its
 	 * signature holds; callers mark multiply-involved ops. */
-	if (sFLAG.doFlag && CHECK_VUOVERFLOWHACK && mVU->ovfDetectOK)
+	/* Overflow detection historically existed only for the overflow
+	 * gamefix; under the accuracy options the results carry genuine
+	 * exp-255 patterns (the exact composites' saturation), the
+	 * cmpnltps detector fires on them via unordered-true, and the
+	 * oracle sets O on exactly these cases (fpaudit flag census:
+	 * every adversarial flag divergence was the O bit alone, with
+	 * rec-O identically zero in every non-hack mode). */
+	if (sFLAG.doFlag && (CHECK_VUOVERFLOWHACK || CHECK_VU_ACC_ADDSUB || CHECK_VU_EXACTMUL) && mVU->ovfDetectOK)
 	{
 		alignas(16) static const u32 sse4_compvals[2][4] = {
 			{0x7f7fffff, 0x7f7fffff, 0x7f7fffff, 0x7f7fffff}, //1111
@@ -100,7 +107,15 @@ static void mVUupdateFlags(mV, int reg, int regT1in = -1, int regT2in = -1, int 
 		//Calculate overflow
 		xe_movaps_xx(regT1, regT2);
 		xe_andps_xm(regT1, &sse4_compvals[1][0]); // Remove sign flags (we don't care)
-		xe_cmpnltps_xm(regT1, &sse4_compvals[0][0]); // Compare if T1 == FLT_MAX
+		if (CHECK_VU_ACC_ADDSUB || CHECK_VU_EXACTMUL)
+			/* Exact composites: FLT_MAX is a legitimate value and true
+			 * overflow is exactly the all-ones exp-255 pattern, so the
+			 * detector is an integer equality, not a float threshold
+			 * (the threshold form fired on every legitimate FMAX add:
+			 * fpaudit, ADD 34-to-358 regression before this). */
+			xe_pcmpeqd_xm(regT1, &sse4_compvals[1][0]);
+		else
+			xe_cmpnltps_xm(regT1, &sse4_compvals[0][0]); // Compare if T1 == FLT_MAX
 		xe_movmskps_rx(gprT2, regT1); // Grab sign bits  for equal results
 		xe_and32_ri(gprT2, AND_XYZW); // Grab "Is FLT_MAX" bits from the previous calculation
 		uint8_t* oJMP; xe_fwd_jcc32(Jcc_Zero, oJMP);
@@ -291,6 +306,16 @@ static void mVU_FMACa(microVU* mVU, int recPass, int opCase, int opType, int isA
 		/* provable mask no-op: register-form add/sub with Fs == Ft has
 		 * per-lane exponent distance zero on every computed lane */
 		mVU->addsubMaskNoop = ((opType <= 1) && (opCase == 1) && (_Fs_ == _Ft_));
+		/* Mul-family only: for multiplies the all-ones result pattern
+		 * is equivalent to a genuine overflow event (exp-255 inputs
+		 * yield exp-255-with-mantissa products, never all-ones), so
+		 * the pattern detector is exact there. Add/sub results can be
+		 * all-ones by PASS-THROUGH of an exp-255 operand with no
+		 * overflow event, so the value proxy over-fires (fpaudit: ADD
+		 * 34 missing-O became 141 mixed under the extension) --
+		 * closing add/sub O needs the composite's internal
+		 * saturation-event mask exported to the flag block, ledgered
+		 * as the flag front's remaining design item. */
 		mVU->ovfDetectOK = (opType == 2);
 
 		if ((opType <= 1) && (CHECK_VU_ACC_ADDSUB || CHECK_VUADDSUBHACK) && (opCase == 2) && (_Ft_ == 0) && (_bc_ != 3))

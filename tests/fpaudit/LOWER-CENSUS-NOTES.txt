@@ -235,3 +235,33 @@ observed under exactmul+accurate-addsub):
   Games reading flags at this operand density are rare; the values
   campaign's exactness stands regardless. This is the ledger the
   fused commits pointed to, now with numbers and a mechanism split.
+
+O-flag closure, session 2 (this commit): the mechanism behind
+rec-O-equals-zero was one gate -- the entire overflow-detect block
+was emitted only under the overflow GAMEFIX (CHECK_VUOVERFLOWHACK),
+so no non-hack mode ever detected overflow; the class-gate arc's
+working numbers were measured with the hack on. The detect block
+now also emits under either accuracy option, with the detector
+itself split by mode: the historical float threshold (result >=
+FLT_MAX, correct when clamps make FLT_MAX stand for overflow) in
+hack mode, and an integer equality against the all-ones exp-255
+pattern under the accuracy options, where FLT_MAX is a legitimate
+value (the threshold form spuriously fired on every legitimate FMAX
+add: 34-to-358 before the split).
+
+Scope, measured honestly: the value-pattern proxy is EXACT for the
+mul family -- exp-255 inputs yield exp-255-with-mantissa products,
+never all-ones, so all-ones equals a genuine overflow event -- and
+MUL closes 370-to-0/0. It over-fires on add/sub, whose results can
+be all-ones by pass-through of an exp-255 operand with no overflow
+event (an ovfDetectOK extension to add/sub was measured, made ADD
+worse, and was reverted). Final adversarial columns: MUL 0/0, fused
+status 3-5 and mac 36-41 (from ~377 across the board), ADD 34/34
+unchanged. Default emission byte-identical, 300 frames under both
+options pixel-identical.
+
+Remaining design item, precisely specified: add/sub (and the fused
+residual's mac lanes) need the EVENT, not the value -- the exact
+composite's internal es>255 saturation mask exported from the add
+stage to the flag block. That export is the flag front's last
+rig-side item.
