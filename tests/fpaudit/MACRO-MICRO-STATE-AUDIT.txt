@@ -1,0 +1,63 @@
+Macro/micro shared-state audit of the VU recompiler ops
+=======================================================
+Scope: every state surface written by analysis (pass 1) or consulted
+by emission (pass 2) that is shared between COP2 macro mode and
+micro-program compilation, in light of the Star Ocean 3 regression
+(macro IADDI's setConstReg poisoning micro const tracking).
+
+Method: enumeration of all 117 REC_COP2_mVU0 ops and their mode
+flags; per-surface lifecycle tracing; JIT-hash toggle proofs where
+applicable. Ops run pass 1 only when mode bit 4 is set; pass 4
+(needExactMatch) is never invoked from macro mode.
+
+Surface                    Lifecycle                       Verdict
+-------------------------  ------------------------------  --------
+mVUinfo (info[curPC])      memset per macro op (setup) and safe
+                           per micro instruction
+                           (startLoop)
+mVUregsTemp                memset per micro instruction    safe
+                           (startLoop); macro writes never
+                           consumed
+mVUregs (pipeline state,   wholesale memcpy from pState at safe
+block cache key)           every micro block compile
+                           (microVU_Compile.inl:276);
+                           analysis only reads it (stalls)
+mVUconstReg, write side    was written by macro IADDI via  FIXED
+                           setConstReg -> stale micro      (45d5dca0e)
+                           specialization (Star Ocean 3);
+                           now cop2-guarded; slots 1-14
+                           also wiped at micro compile
+                           init, vi15 seeding gated by
+                           doConstProp (off)
+mVUconstReg, read side     micro leaves the tracker        FIXED
+                           populated at block end; macro   (this
+                           LQI/LQD/SQI/SQD/ILWR/ISWR share commit)
+                           mVUoptimizeConstantAddr and
+                           folded addresses from stale
+                           micro constants; fold now
+                           refused in cop2 (vi00 fold
+                           retained -- true constant in
+                           every mode)
+needExactMatch (pass 4)    pass 4 never runs in macro mode safe
+branch state / constJump   no branch ops in the macro      safe
+                           table
+xgkick timer               XGKICK is not a macro op        safe
+addsubMaskNoop and         set and consumed within a       safe
+addsub counters            single op's emission
+regAlloc                   reset at macro-op and           safe*
+                           micro-block granularity;
+                           *the cop2 dual-bookkeeping with
+                           _allocX86reg remains a
+                           documented latent-hazard area
+                           (two inert hardenings landed in
+                           45d5dca0e)
+
+Option wiring (all seven float-campaign toggles) separately proven
+live by differing mVU/EE JIT hashes per option state after the
+EnableVuExactDiv wrap fix (a0c5a343e); every explicitly-disabled
+state hashes identical to the untouched default.
+
+EE side: the EE recompiler's EEINST analysis is single-mode and not
+exposed to this class. The EE<->macro shared surface is the COP2
+glue (CTC2/CFC2/QMTC2/QMFC2 sync and the VIREG dual-allocation),
+covered by the hardenings and latent-hazard notes above.

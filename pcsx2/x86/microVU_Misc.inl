@@ -316,7 +316,17 @@ __fi struct e_memopt mVUoptimizeConstantAddr(mV, u32 srcreg, s32 offset, s32 off
 	 * and masking replicate the runtime path bit for bit: the VI is
 	 * a zero-extended sixteen-bit value, the offset a sign-extended
 	 * immediate, and the wrap masks are applied to the same sum. */
-	if (srcreg != 0 && !(doViConstProp && srcreg < 16 && mVUconstReg[srcreg].isValid))
+	/* COP2 macro mode never consults the tracker: mVUconstReg is
+	 * micro-program compile state, wiped at each micro compile's start
+	 * but left populated at its end, so a macro LQI/SQI/LQD/SQD/ILWR/
+	 * ISWR compiling after a micro block would fold its address to a
+	 * constant from that block's compile-time tracking -- a value with
+	 * no relation to the EE-visible VI the macro op actually reads.
+	 * This is the read-side mirror of the setConstReg cop2 guard (the
+	 * Star Ocean 3 write-side fix); both directions of macro/micro
+	 * tracker sharing are now closed. The vi00 fold (srcreg == 0) is a
+	 * true constant in every mode and stays. */
+	if (srcreg != 0 && (mVU->cop2 || !(doViConstProp && srcreg < 16 && mVUconstReg[srcreg].isValid)))
 		return e_memopt_none();
 	const s32 addr = (s32)(srcreg ? (u32)(u16)mVUconstReg[srcreg].regValue : 0u) + offset;
 	if (isVU1)
