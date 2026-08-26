@@ -1,0 +1,95 @@
+Hardware capture requests: three tests, load-and-read
+=====================================================
+Everything below wants RAW BITS back (hex), never printed floats.
+Any homebrew vehicle works (ps2autotests-style EE ELF for test 1;
+tests 2-3 need VU access -- either VU0 macro mode via COP2 from the
+EE, or a VU1 microprogram with results SQ'd to memory). Total
+silicon time for the deciding subsets: well under ten minutes.
+
+-----------------------------------------------------------------
+TEST 1 -- EE CFC1 readout construction          (~2 min, EE only)
+-----------------------------------------------------------------
+Question it decides: after CTC1 stores an arbitrary word to FCR31,
+does CFC1 return the raw word (current interpreter) or a
+constructed architectural readout with hardwired bits 0x01000001
+and remapped flags (current recompiler)?
+
+For each P in:
+  00000000  00800000  0001FFFF  FFFFFFFF  01000001  0083C078
+run:  ctc1 P -> $31 ; 4x nop ; cfc1 $31 -> out ; record out.
+
+Decision table:
+  out == P for all six            -> interpreter is right; the
+                                     recompiler's CFC1 gets a
+                                     raw-readout fix.
+  out(0)==01000001 and
+  out(FFFFFFFF)==0183C079         -> recompiler is right; the
+                                     interpreter learns to
+                                     construct. (These two values
+                                     are the rec's exact outputs.)
+  anything else                   -> both wrong; send all six
+                                     outputs and the mapping gets
+                                     derived from them.
+
+-----------------------------------------------------------------
+TEST 2 -- fused-MAC overflow rule               (~3 min, VU)
+-----------------------------------------------------------------
+Question it decides: confirms (or refutes) the model rule the
+shipped MADD/MSUB emission now implements -- mul-stage overflow
+forces the sign-selected ALL-ONES pattern regardless of the add.
+
+Case A (the deciding case):
+  VF1 = 7F7FFFFF in every lane   (FMAX)
+  VF2 = 7F7FFFFF in every lane
+  ACC = FF7FFFFF in every lane   (-FMAX; seed via e.g. loading
+        VF4=FF7FFFFF then MULAw ACC,VF4,VF0 -- VF0.w is 1.0)
+  MADD VF3, VF1, VF2  -> record VF3 (any lane).
+    model + shipped emission predict: 7FFFFFFF
+    decomposition semantics would predict: an FMAX-class e254
+    arithmetic value (7F7FFFFFF-neighborhood)
+  MSUB VF3, VF1, VF2 (same seeds) -> record VF3.
+    model predicts: FFFFFFFF
+
+Case B (the two-class distinction the O-flag detector relies on):
+  VF1 = 7F800000 (exp-255, mantissa 0), VF2 = 3F800000 (1.0),
+  ACC = 00000000; MADD VF3, VF1, VF2 -> record VF3.
+    model predicts an exp-255 value with a COMPUTED mantissa
+    (7F800000-class), NOT all-ones, and no overflow event.
+
+If convenient, also FSAND a register after each case and record it
+(status flags); not required for the value decision.
+
+Decision: Case A matching the model closes rule-10 on the shipped
+fused emission. Case A matching decomposition instead means the
+model itself is wrong on silicon -- send the exact bits and both
+the emission and the model get revisited together.
+
+-----------------------------------------------------------------
+TEST 3 -- EFU truth vectors               (~5 min for the subset)
+-----------------------------------------------------------------
+Question it decides: ground truth for the ops where interp and rec
+disagree structurally and no model exists. Priority order from the
+divergence census (pay here first):
+  tier 1: ESADD ERSADD ELENG ERLENG ESUM, EATAN EATANxy EATANxz
+  tier 2: ERSQRT ERCPR ESIN
+  tier 3: EEXP        (ESQRT is 1-ulp; lowest value)
+
+For each tier-1 op, run these eight input vectors (x,y,z,w lanes;
+reductions consume xyz(w), atan family per their operand rules) and
+record the P register bits after the op's full stall count:
+  v1: 3F800000 40000000 40400000 3F800000
+  v2: 7F7FFFFF 3F800000 00800000 3F800000
+  v3: BF800000 C0000000 40400000 3F800000
+  v4: 00000001 00000001 00000001 3F800000
+  v5: 5F000000 5F000000 5F000000 3F800000
+  v6: 322BCC77 B22BCC77 40490FDB 3F800000
+  v7: 7F7FFFFF FF7FFFFF 7F7FFFFF 3F800000
+  v8: 3DCCCCCD 3E4CCCCD 3E99999A 3F800000
+Same eight vectors for tier 2/3 ops if minutes allow; more vectors
+are trivially generated on request once the first eight calibrate
+which classes matter.
+
+-----------------------------------------------------------------
+Promotion questions need no captures -- the accuracy and price
+tables are consolidated in CAMPAIGN-FINAL.txt; those are decisions,
+not measurements.
