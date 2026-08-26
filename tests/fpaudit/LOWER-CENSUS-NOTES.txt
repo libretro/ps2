@@ -20,10 +20,34 @@ Memory family -- VERIFIED EXACT (memory-seeded battery):
   nonzero VI results in 400/400. The battery-1 LQI/SQI weak rows are
   superseded at full strength.
 
-Lower table still open: branches and jumps (need control-flow
-program shapes), the FC*/FS*/FM* flag-op family beyond the two the
-rig uses as observers, R-register ops (RINIT RGET RNEXT RXOR),
-IADDIU/ISUBIU, XTOP/XITOP/XGKICK (VIF-coupled).
+Battery 2 -- flag ops, R ops, branches: ARCHITECTURALLY EXACT
+  24 ops x 400 cases: IADDIU ISUBIU, RINIT RGET RNEXT RXOR, FSEQ
+  FSSET FSOR FMEQ FMOR FCEQ FCAND FCOR FCSET FCGET, IBEQ IBNE IBLTZ
+  IBGTZ IBLEZ IBGEZ B BAL. Branch takenness exercised both paths
+  (146-275 taken per row, marker-instruction discrimination) and
+  every observable result -- VF, VI results, branch markers, flag-op
+  outputs -- is bit-identical between engines.
+
+  Rig fix banked: the recompiler's status-flag instances hold an
+  internal layout, and seeding them with the raw architectural
+  value mangled the block-end normalize; the exec export now seeds
+  through the same denormalization the core applies to CFC2-written
+  status (mVUallocSFLAGd's mapping). Before the fix this manufactured
+  phantom divergence in every op; after it, flag-reader RESULTS are
+  exact.
+
+  Representation notes (architecture-equal, recorded for savestate
+  fidelity review, not correctness findings):
+  - R register: interpreter stores hardware format
+    (0x3F800000|mantissa), recompiler stores the bare 23-bit
+    mantissa and re-ors on RGET; RGET results are identical.
+  - Raw VI[REG_STATUS] after a recompiled block that never computed
+    flags differs from the seed in single sticky bits (the rec exit
+    path's sticky handling); every flag READ (FSAND FSEQ FSOR FCGET
+    results) agrees, so the difference is invisible to programs.
+
+Lower table still open: XTOP/XITOP/XGKICK (VIF-coupled), JR/JALR
+(register-target jumps need address-valid case shaping).
 
 Q pipeline -- RESOLVED (this commit):
   The "lane-selection anomaly" was a rig readback artifact: the

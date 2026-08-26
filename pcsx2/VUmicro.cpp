@@ -129,11 +129,21 @@ void ps2_audit_vu_exec(int unit, int use_interp, unsigned char* regs_io, unsigne
 	 * micro_* instance arrays, not from VI; seed every instance from
 	 * the case's VI values so both engines start from the same
 	 * architectural flags. Q/P likewise have pending copies. */
-	for (i = 0; i < 4; i++)
 	{
-		vu->micro_statusflags[i] = vu->VI[REG_STATUS_FLAG].UL;
-		vu->micro_macflags[i]    = vu->VI[REG_MAC_FLAG].UL;
-		vu->micro_clipflags[i]   = vu->VI[REG_CLIP_FLAG].UL;
+		/* The status instances hold the recompiler's internal flag
+		 * layout, not the architectural 12-bit register; seed them
+		 * through the same denormalization the core applies when a
+		 * CFC2-written status enters a block (mVUallocSFLAGd), or
+		 * the block-end normalize mangles the seed. MAC and clip
+		 * instances store the architectural value directly. */
+		const u32 sf = vu->VI[REG_STATUS_FLAG].UL;
+		const u32 inst = ((sf >> 3) & 0x18) | ((sf << 11) & 0x1800) | ((sf << 14) & 0x3CF0000);
+		for (i = 0; i < 4; i++)
+		{
+			vu->micro_statusflags[i] = inst;
+			vu->micro_macflags[i]    = vu->VI[REG_MAC_FLAG].UL;
+			vu->micro_clipflags[i]   = vu->VI[REG_CLIP_FLAG].UL;
+		}
 	}
 	/* The interpreter's flag reads go through its internal pipeline
 	 * latches, not VI; seed them too or FSAND observes whatever the
