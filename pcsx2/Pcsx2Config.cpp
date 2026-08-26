@@ -228,7 +228,12 @@ Pcsx2Config::RecompilerOptions::RecompilerOptions()
 	EnableVuExactMul = false;
 	EnableVuExactDiv = false;
 	EnableVuAccurateAddSub = false;
-	EnableFpuAccurateArith = false;
+	/* Default-on per the fpaudit price tables: closes EE add/sub
+	 * exactly and gates the ABS/NEG and CVT.S.W accuracy fixes, at a
+	 * per-op cost of about two nanoseconds that measures within run
+	 * noise on real game frame throughput (three-rep Tekken
+	 * workload). The divide family stays on FpuSoftFloat, opt-in. */
+	EnableFpuAccurateArith = true;
 	EnableIOP = true;
 	EnableVU0 = true;
 	EnableVU1 = true;

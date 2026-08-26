@@ -620,7 +620,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       "pcsx2_ee_accurate_fpu",
       "Emulation > EE Accurate FPU Arithmetic",
       "EE Accurate FPU Arithmetic",
-      "Run EE FPU add, sub, mul and the fused chains through the extended-range double pipeline: exact add/sub against the hardware model, near-exact multiplies, and correct handling of the huge values the PS2 allows. Some speed cost.",
+      "Run EE FPU add, sub, mul and the fused chains through the extended-range double pipeline: exact add/sub against the hardware model, near-exact multiplies, correct handling of the huge values the PS2 allows, exact integer conversion, and pure-bitop ABS/NEG. Measured free at workload level (within run noise on frame throughput); enabled by default.",
       NULL,
       "emulation",
       {
@@ -628,7 +628,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
          { "disabled", NULL },
          { NULL, NULL },
       },
-      "disabled"
+      "enabled"
    },
    {
       "pcsx2_vu_exact_mul",

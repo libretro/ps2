@@ -48,3 +48,29 @@ Open items, none rig-side:
 - Maintainer decisions: option promotion/defaults, the overflow-
   hack fusion question, savestate treatment of the representation
   classes.
+
+Default-accuracy decision (maintainer policy: as accurate as
+possible without losing the current performance budget), measured
+on real game workload (Tekken, 300-600 frame runs, best-of-three,
+host-bound so relative deltas are the signal; base best 16.43):
+
+  EE FpuAccurateArith   best 16.92  -- WITHIN NOISE (beats base's
+                                       best) -> PROMOTED TO DEFAULT
+  VU AccurateAddSub     best 15.72  -- about -4%, at the noise
+                                       edge  -> stays opt-in
+  VU ExactMul           ~13.5       -- about -18%  -> stays opt-in
+  VU ExactDiv           best 13.71  -- about -17% robust across all
+                                       reps -> stays opt-in
+  all four together     10.39       -- about -37%; the max-accuracy
+                                       preset territory
+
+The promotion flips three sites together (Pcsx2Config default,
+libretro core-option default string, and the core's cached setting
+initial) so config and frontend agree. New-default rig outputs are
+byte-identical to old accurate-mode outputs, and new-default frame
+throughput lands at the top of the baseline range.
+
+Finding banked with the numbers: ExactDiv's 17% cost cannot be
+per-Q-op (Q ops are a small fraction of the stream) -- it is
+per-block or thunk overhead, which makes it a concrete future
+optimization target that could change its verdict.
