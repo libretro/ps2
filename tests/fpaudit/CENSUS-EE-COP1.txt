@@ -33,16 +33,22 @@ Findings:
   closes add/sub (and mostly mul/fused values) but leaves the
   divide family untouched. Neither alone blankets the FPU; both
   together would, except for the orphan below.
-- ORPHAN DIVERGENCE, uncovered by every option: ABS.S and NEG.S.
-  Hardware treats them as pure sign-bit operations; the oracle
-  passes bit patterns through. The recompiler clamps their results
-  (denormal -> 0, exp-255 -> FLT_MAX), destroying round-trippable
-  bit patterns. Candidate fix: exempt ABS/NEG from result clamping
-  as pure bitops -- with the recorded caveat that the EE clamp
-  discipline may rely on those clamps to keep exp-255 out of
-  downstream host arithmetic, so the change needs the interaction
-  audit (which ops input-clamp) before it lands, same gates as the
-  VU clamp elision.
+- ORPHAN DIVERGENCE -- CLOSED (this commit): ABS.S and NEG.S.
+  Hardware treats them as pure sign-bit operations; the recompiler
+  clamped their results (denormal -> 0, exp-255 -> FLT_MAX). The
+  interaction audit found the precise gate structure: op >= 2
+  consumers (multiply and beyond) ALWAYS input-clamp their
+  operands, so the ABS/NEG result clamps only guard downstream
+  host ADD/SUB, the one consumer class that does not input-clamp
+  by default. Under either accuracy option the add path handles
+  raw operands, so the clamps are elided exactly there: ABS and
+  NEG go to 0/400 under both soft float and accurate arithmetic,
+  and default behaviour is proven unchanged by byte-identical
+  default rig outputs and 300 frames of identical Tekken pixels
+  (cross-binary JIT-hash comparison is recorded as an INVALID
+  scoping proof -- JIT bytes embed C-callee addresses, so any
+  rebuild perturbs hashes globally; within-binary toggle proofs
+  remain sound).
 - MAX/MIN/MOV/CVT.W bit-exact in every config, mirroring the VU
   comparison-family result.
 - Default-mode scales mirror the VU: add/sub at the small clamp/

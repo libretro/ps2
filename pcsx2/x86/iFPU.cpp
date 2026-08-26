@@ -373,7 +373,15 @@ void recABS_S_xmm(int info)
 	xe_andps_xm(EEREC_D, &s_pos[0]);
 	//xAND(ptr32[&fpuRegs.fprc[31]], ~(FPUflagO|FPUflagU)); // Clear O and U flags
 
-	if (CHECK_FPU_OVERFLOW) // Only need to do positive clamp, since EEREC_D is positive
+	/* Hardware ABS is a pure sign-bit operation; this clamp exists
+	 * only to keep exp-255 patterns out of downstream HOST adds,
+	 * which are the one consumer class that does not input-clamp by
+	 * default (op >= 2 always clamps its operands). When an accuracy
+	 * option covers the add path -- soft float or accurate
+	 * arithmetic -- every consumer handles raw operands and the
+	 * clamp only destroys round-trippable bit patterns (EE census:
+	 * ABS/NEG were the orphan divergence no option closed). */
+	if (CHECK_FPU_OVERFLOW && !CHECK_FPU_SOFT_REC && !CHECK_FPU_ACC_ARITH)
 		xe_minss_xm(EEREC_D, &g_maxvals[0]);
 }
 
@@ -1458,7 +1466,11 @@ void recNEG_S_xmm(int info)
 
 	// Always preserve sign. Using float clamping here would result in
 	// +inf to become +fMax instead of -fMax, which is definitely wrong.
-	fpuFloat3(EEREC_D);
+	/* Same reasoning as ABS: hardware NEG is a pure sign-bit flip and
+	 * the clamp only guards downstream host adds; under either
+	 * accuracy option every consumer handles raw operands. */
+	if (!CHECK_FPU_SOFT_REC && !CHECK_FPU_ACC_ARITH)
+		fpuFloat3(EEREC_D);
 }
 
 FPURECOMPILE_CONSTCODE(NEG_S, XMMINFO_WRITED | XMMINFO_READS);
