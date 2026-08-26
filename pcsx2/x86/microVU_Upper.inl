@@ -260,8 +260,19 @@ static void mVU_FMACa(microVU* mVU, int recPass, int opCase, int opType, int isA
 			Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, _Fd_, _X_Y_Z_W, 1);
 		}
 
-		if (clampType & cFt) mVUclamp2(mVU, Ft, -1, _X_Y_Z_W, 0);
-		if (clampType & cFs) mVUclamp2(mVU, Fs, -1, _X_Y_Z_W, 0);
+		/* The multiply-family operand clamps exist because a host
+		 * multiply of an exponent-255 operand propagates infinities;
+		 * the exact multiplier has no such failure by construction,
+		 * and the clamp only destroys information there (closure
+		 * census: every Fd-form residual against the oracle carried
+		 * an exp-255 operand flattened by this clamp). Elide them on
+		 * the exact path; SUB-family clamps are untouched, they are
+		 * not this option's domain. */
+		{
+			const int elide = (opType == 2) && CHECK_VU_EXACTMUL;
+			if ((clampType & cFt) && !elide) mVUclamp2(mVU, Ft, -1, _X_Y_Z_W, 0);
+			if ((clampType & cFs) && !elide) mVUclamp2(mVU, Fs, -1, _X_Y_Z_W, 0);
+		}
 
 		/* broadcast add/sub of a vf0 x, y or z lane is an identity;
 		 * opCase 2 is the broadcast form, read from setupFtReg's own
@@ -319,8 +330,8 @@ static void mVU_FMACb(microVU* mVU, int recPass, int opCase, int opType, int cla
 		if (_XYZW_SS2)
 			xe_pshufd_xxi(ACC, ACC, shuffleSS(_X_Y_Z_W));
 
-		if (clampType & cFt) mVUclamp2(mVU, Ft, -1, _X_Y_Z_W, 0);
-		if (clampType & cFs) mVUclamp2(mVU, Fs, -1, _X_Y_Z_W, 0);
+		if ((clampType & cFt) && !CHECK_VU_EXACTMUL) mVUclamp2(mVU, Ft, -1, _X_Y_Z_W, 0);
+		if ((clampType & cFs) && !CHECK_VU_EXACTMUL) mVUclamp2(mVU, Fs, -1, _X_Y_Z_W, 0);
 
 		if (!CHECK_VU_EXACTMUL || !mVUexactMulVF0(mVU, Fs, opCase, _XYZW_SS))
 		{
@@ -369,8 +380,8 @@ static void mVU_FMACc(microVU* mVU, int recPass, int opCase, int clampType)
 		if (_XYZW_SS2)
 			xe_pshufd_xxi(ACC, ACC, shuffleSS(_X_Y_Z_W));
 
-		if (clampType & cFt)  mVUclamp2(mVU, Ft,  -1, _X_Y_Z_W, 0);
-		if (clampType & cFs)  mVUclamp2(mVU, Fs,  -1, _X_Y_Z_W, 0);
+		if ((clampType & cFt) && !CHECK_VU_EXACTMUL)  mVUclamp2(mVU, Ft,  -1, _X_Y_Z_W, 0);
+		if ((clampType & cFs) && !CHECK_VU_EXACTMUL)  mVUclamp2(mVU, Fs,  -1, _X_Y_Z_W, 0);
 		if (clampType & cACC) mVUclamp2(mVU, ACC, -1, _X_Y_Z_W, 0);
 
 
@@ -407,8 +418,8 @@ static void mVU_FMACd(microVU* mVU, int recPass, int opCase, int clampType)
 		Fs = mVUra_allocReg(mVU->regAlloc, _Fs_,  0, _X_Y_Z_W, 1);
 		Fd = mVUra_allocReg(mVU->regAlloc, 32, _Fd_, _X_Y_Z_W, 1);
 
-		if (clampType & cFt)  mVUclamp2(mVU, Ft, -1, _X_Y_Z_W, 0);
-		if (clampType & cFs)  mVUclamp2(mVU, Fs, -1, _X_Y_Z_W, 0);
+		if ((clampType & cFt) && !CHECK_VU_EXACTMUL)  mVUclamp2(mVU, Ft, -1, _X_Y_Z_W, 0);
+		if ((clampType & cFs) && !CHECK_VU_EXACTMUL)  mVUclamp2(mVU, Fs, -1, _X_Y_Z_W, 0);
 		if (clampType & cACC) mVUclamp2(mVU, Fd, -1, _X_Y_Z_W, 0);
 
 		if (!CHECK_VU_EXACTMUL || !mVUexactMulVF0(mVU, Fs, opCase, _XYZW_SS))

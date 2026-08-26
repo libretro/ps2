@@ -32,9 +32,22 @@ Findings:
   The multiply flag gap remains the class-gated detector's territory
   (see the overflow-hack commit).
 
-Candidate (queued, needs emission change + game gates + pricing):
-under CHECK_VU_EXACTMUL, elide the cFs/cFt operand clamps on
-multiply-family ops. The clamps exist because a host multiply of
-exp-255 propagates infinities; the exact path has no such failure
-by construction, so the clamp only destroys information there.
-Expected: Fd-form residuals to zero, plus the clamp cost back.
+Clamp elision (landed in this commit): under CHECK_VU_EXACTMUL the
+cFs/cFt operand clamps on multiply-stage operands are elided (the
+exact path has no infinity-propagation failure, so the clamp only
+destroyed information there). Measured: MUL/MULx/MULi/MULq residuals
+28/22/47/15 -> ALL ZERO -- plain multiplies are bit-exact against
+the oracle under exactmul. Default emission proven byte-identical
+via JIT hash (option off = zero effect).
+
+Fused-residual attribution CORRECTED: plain MADD carries no operand
+clamps (clampType 0), so the earlier blanket clamp attribution
+overreached for the fused family. Case anatomy under both accurate
+options shows every fused residual is an overflow-saturation
+intermediate: the mul stage overflows, the oracle saturates the
+product (exp-255 all-ones), and the composite add stage's INTERNAL
+operand clamps (the global clampE layer) flatten that saturated
+product to FLT_MAX before adding -- e.g. finite*FMAX + (-FMAX):
+oracle 7fffffff, rec 7f7fffff. Next candidate, queued with the same
+gate requirements: elide the composite add's internal operand
+clamps when both accurate options own their stages.
