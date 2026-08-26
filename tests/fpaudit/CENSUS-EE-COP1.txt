@@ -195,6 +195,27 @@ EE per-op pricing, session 1 (partial -- rig TODO captured):
   The missing prices (DIV/SQRT/MADD across configs, soft MUL) fill
   in next pricing session.
 
+EE per-op pricing, session 2 -- TABLE COMPLETE (one-program-per-spec
+workaround, warm program + op per spec, 54/54 runs clean):
+
+  op      default   soft    accurate     (ns per recompiled op)
+  ADD.S     5.5      5.5      7.7
+  MUL.S     4.2     30.8      6.0
+  DIV.S     8.0    131.2      8.2
+  SQRT.S    7.2    156.2      7.0
+  MADD.S    7.2     39.2     16.5
+
+  The prices cross-validate the accuracy census: cost lands exactly
+  where routing does. Soft-add equals default (soft does not route
+  add/sub); accurate-div and accurate-sqrt equal default (accurate
+  does not route the divide family). Structure for the promotion
+  math: accurate arithmetic is nearly free (+1.8 to +2.2ns on
+  add/mul, +9.3 on fused) and closes add/sub exactly; soft float is
+  the heavy hammer (divide family at 131-156ns, multiply at 31ns)
+  and closes everything it routes, flags included. Maximum accuracy
+  (both options) prices each op at whichever option owns it.
+
+
 
 CVT.S.W -- CLOSED (this commit): the convert gains an MXCSR
 round-to-nearest window under either accuracy option (the EE JIT's
