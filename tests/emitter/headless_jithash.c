@@ -335,7 +335,19 @@ static int load_external_state(const char* path, int (*unser)(const void*, size_
 /* Core options we force. Everything else falls through to the core default. */
 static const char* opt_get(const char* key)
 {
+    const char* e;
+
+    /* The renderer stays forced to software: hardware rendering cannot
+     * work here regardless of what the environment says. */
     if (!strcmp(key, "pcsx2_renderer"))       return "Software (SW)";
+
+    /* An environment variable named exactly like the option key wins,
+     * so any core option can be pinned per run without a rebuild:
+     *   pcsx2_fpu_softfloat=enabled ./headless_jithash core game N dir */
+    e = getenv(key);
+    if (e && e[0])
+        return e;
+
     if (!strcmp(key, "pcsx2_fastboot"))       return getenv("FASTBOOT") ? "enabled" : "disabled";
     if (!strcmp(key, "pcsx2_fastcdvd"))       return "enabled";
     if (!strcmp(key, "pcsx2_bios"))           return getenv("PS2_BIOS");
