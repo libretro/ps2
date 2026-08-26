@@ -413,7 +413,15 @@ static __fi void mVUfusedOvfPost(mV, int dst, int mask, int pat)
 		extern u32 s_vuAddSubOvfEvent[4];
 		const int t = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
 		xe_movaps_xm(t, &s_vuAddSubOvfEvent[0]);
+		/* The spill is stored in the reversed convention the flag
+		 * block's movmsk/shl path expects; the blend mask is in
+		 * architectural order, so reverse it for the OR (and restore
+		 * -- the value blend still needs it). Unreversed, blend
+		 * lanes landed mirrored in the mac nibble (fpaudit: fused-
+		 * only both-direction per-lane O flips while ADD was exact). */
+		xe_pshufd_xxi(mask, mask, 0x1B);
 		xe_por_xx(t, mask);
+		xe_pshufd_xxi(mask, mask, 0x1B);
 		xe_movaps_mx(&s_vuAddSubOvfEvent[0], t);
 		mVUra_clearNeededXMM(mVU->regAlloc, t);
 	}

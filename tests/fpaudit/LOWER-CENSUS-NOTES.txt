@@ -280,5 +280,24 @@ The fused mac remainder survives the lane fix that closed ADD, so
 its mechanism is in the fused flag composition itself (the
 blend-OR interaction or mac_finish's per-lane flag replacement
 semantics), not the spill -- post-fix anatomy examples are in the
-transcript, next session's first peek. Default emission
+transcript, next session's first peek. RESOLVED (this commit): the
+correlation peek plus the oracle's mac-update source located it as
+one more lane-order seam -- the spill is stored in the reversed
+convention the flag block's movmsk/shl path expects (which is why
+ADD closed), while the fused blend-OR contributed its mul-overflow
+mask in architectural order, landing blend lanes mirrored in the
+mac nibble. Reversing the mask for the OR (and restoring it for the
+value blend) closes everything:
+
+  FLAG FRONT FINAL: status 0 and mac 0 across ADD, MUL, MADD,
+  MSUB, MADDA, MSUBA on the adversarial distribution -- the front
+  that opened at 34-379 divergent cases per op ends at zero
+  everywhere. Default emission byte-identical; 300 frames under
+  both options pixel-identical.
+
+With this, the campaign has no open rig-side items: VU values
+exact, VU flags exact, EE table complete, both processors priced.
+What remains is hardware minutes (CFC1 round-trip, fused-MADD
+confirmation, EFU sweeps) and the maintainer's promotion
+decisions. Default emission
 byte-identical; 300 frames under both options pixel-identical.
