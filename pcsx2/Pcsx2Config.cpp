@@ -226,9 +226,9 @@ Pcsx2Config::RecompilerOptions::RecompilerOptions()
 	EnableVu0SoftFloat = false;
 	EnableVu1SoftFloat = false;
 	EnableVuExactMul = false;
-	EnableVuExactDiv = false;
+	EnableVuExactDiv = true;
 	EnableVuAccurateAddSub = false;
-	EnableFpuAccurateArith = true;
+	EnableFpuAccurateArith = false;
 	EnableIOP = true;
 	EnableVU0 = true;
 	EnableVU1 = true;
