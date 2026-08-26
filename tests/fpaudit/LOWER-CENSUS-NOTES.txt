@@ -1,0 +1,36 @@
+Lower-table census, battery 1: integer/move exact; Q-pipeline anomaly open
+==========================================================================
+14 lower ops x 400 cases x {default, exactdiv}, full-state diff.
+
+Verified exact (all state, both configs):
+  IADD ISUB IADDI IAND IOR  -- the integer ALU is bit-exact between
+    engines (executed-effect confirmed: results land in VI)
+  MOVE MR32 MTIR MFIR       -- register moves exact (MTIR effect
+    confirmed, 371/400 nonzero results)
+
+Weak rows (recorded, not claimed):
+  LQI SQI ran against all-zero VU memory (the rig does not seed data
+  memory; both engines read the same zeros, so agreement is real but
+  coverage is trivial). Memory seeding is a rig extension for the
+  next battery.
+
+Open anomaly -- Q pipeline (DIV SQRT RSQRT):
+  400/400 divergent with wrong-SCALE results: the interpreter's
+  quotient exponent matches the encoded fsf/ftf lane pair; the
+  recompiler's does not match those operands, i.e. the engines
+  select different lanes for the same instruction word. Whether the
+  battery's encoding, the rig's Q readback timing, or a real
+  decode disagreement is at fault is exactly what a lane-identified
+  single-case probe (distinct exponent per lane) resolves; queued
+  first for next session. The exactdiv column tracked default
+  byte-for-byte in this battery, which is a second wire-check to
+  run once the lane question is settled -- no conclusion is drawn
+  from either Q row until the probe lands.
+
+Rig lessons banked this battery:
+  - The q field sits at regs_io offset 656 (after the 16-byte ACC at
+    640); the first analysis read 644 -- inside ACC -- and produced
+    an all-zero Q column that the executed-effect check (q_out must
+    differ from q_in) exposed. That check is now part of the
+    standard battery integrity set alongside files-must-differ and
+    known-answer splits.
