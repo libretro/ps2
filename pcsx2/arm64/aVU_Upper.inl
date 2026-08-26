@@ -109,7 +109,13 @@ static void mVUupdateFlags(mV, const a64::VRegister& reg, const a64::VRegister& 
 	//-------------------------Overflow Flags-----------------------------------
 	// We can't really do this because of the limited range of host floats and the value MIGHT
 	// genuinely be FLT_MAX, so this remains a gamefix (Superman Returns) until soft-float.
-	if (sFLAG.doFlag && CHECK_VUOVERFLOWHACK)
+	/* Class-gated as on x86 (see microVU_Upper.inl): the FLT_MAX
+	 * result signature is a near-exact overflow proxy for multiply
+	 * family finals and wrong by construction for adds, where
+	 * FLT_MAX passes through absorbing additions legitimately.
+	 * Measured on the per-op differential rig against the ps2float
+	 * oracle; numbers in the x86 commit. */
+	if (sFLAG.doFlag && CHECK_VUOVERFLOWHACK && mVU.ovfDetectOK)
 	{
 		a64::Label oJMP;
 		// Calculate overflow
@@ -300,6 +306,7 @@ static void mVU_FMACa(microVU& mVU, int recPass, int opCase, int opType, bool is
 
 		a64::VRegister Fs, Ft, ACC, tempFt;
 		int bcLane = -1;
+		mVU.ovfDetectOK = (opType == 2);
 		setupFtReg(mVU, Ft, tempFt, opCase, clampType, bcLane, opType == 2);
 
 		if (isACC)
@@ -365,6 +372,7 @@ static void mVU_FMACb(microVU& mVU, int recPass, int opCase, int opType, microOp
 	{
 		a64::VRegister Fs, Ft, ACC, tempFt;
 		int bcLane = -1;
+		mVU.ovfDetectOK = true;
 		setupFtReg(mVU, Ft, tempFt, opCase, clampType, bcLane, true);
 
 		Fs = mVU.regAlloc->allocReg(_Fs_, 0, _X_Y_Z_W);
@@ -421,6 +429,7 @@ static void mVU_FMACc(microVU& mVU, int recPass, int opCase, microOpcode opEnum,
 		int bcLane = -1;
 		setupFtReg(mVU, Ft, tempFt, opCase, clampType, bcLane, true);
 
+		mVU.ovfDetectOK = true;
 		ACC = mVU.regAlloc->allocReg(32);
 		Fs = mVU.regAlloc->allocReg(_Fs_, _Fd_, _X_Y_Z_W);
 
@@ -469,6 +478,7 @@ static void mVU_FMACd(microVU& mVU, int recPass, int opCase, microOpcode opEnum,
 		int bcLane = -1;
 		setupFtReg(mVU, Ft, tempFt, opCase, clampType, bcLane, true);
 
+		mVU.ovfDetectOK = true;
 		Fs = mVU.regAlloc->allocReg(_Fs_,  0, _X_Y_Z_W);
 		Fd = mVU.regAlloc->allocReg(32, _Fd_, _X_Y_Z_W);
 
@@ -528,6 +538,7 @@ mVUop(mVU_OPMULA)
 	pass1 { mVUanalyzeFMAC1(mVU, 0, _Fs_, _Ft_); }
 	pass2
 	{
+		mVU.ovfDetectOK = true;
 		const a64::VRegister Ft = mVU.regAlloc->allocReg(_Ft_, 0, _X_Y_Z_W);
 		const a64::VRegister Fs = mVU.regAlloc->allocReg(_Fs_, 32, _X_Y_Z_W);
 
@@ -554,6 +565,7 @@ mVUop(mVU_OPMSUB)
 	pass1 { mVUanalyzeFMAC1(mVU, _Fd_, _Fs_, _Ft_); }
 	pass2
 	{
+		mVU.ovfDetectOK = true;
 		const a64::VRegister Ft = mVU.regAlloc->allocReg(_Ft_, 0, 0xf);
 		const a64::VRegister Fs = mVU.regAlloc->allocReg(_Fs_, 0, 0xf);
 		const a64::VRegister ACC = mVU.regAlloc->allocReg(32, _Fd_, _X_Y_Z_W);

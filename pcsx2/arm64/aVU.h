@@ -430,6 +430,7 @@ struct microVU
 	microProgManager               prog;     // Micro Program Data
 	microProfiler                  profiler; // Opcode Profiler
 	std::unique_ptr<microRegAlloc> regAlloc; // Reg Alloc Class
+	bool ovfDetectOK = false;             // overflow-hack detector valid for the current op (multiply-family finals)
 	std::FILE*                     logFile;  // Log File Pointer
 
 	u8* cache;        // Dynarec Cache Start (where we will start writing the recompiled code to)
