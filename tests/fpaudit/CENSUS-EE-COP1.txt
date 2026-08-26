@@ -102,3 +102,30 @@ BC1 investigation, session 2 (isolation and bisection):
   compiled bytes of the three-nop block (the rig supplies the exact
   program and a fresh reset) and read what the emission actually
   does between the compare's FCR31 write and the branch's test.
+
+BC1 investigation, session 3 (the byte dump):
+- Instrument landed: ps2_audit_ee_blockptr(pc) resolves the compiled
+  block through PC_GETBLOCK, and the harness dumps it immediately
+  after the recompiler pass (the interpreter pass's prep Reset wipes
+  the cache, which cost one misfire; a stale duplicate harness hook
+  overwriting the good dump cost another -- both are why the dump
+  fires exactly once, after the rec pass).
+- The three-nop reproducer's compiled block is in
+  BC1-BLOCKDUMP.txt, and IT READS CORRECT in every particular:
+  the compare loads fpr[0]/fpr[1] from the right addresses,
+  denorm-flushes, sign-folds, compares, and clears/sets the C bit
+  at fprc[31]; the swapped delay slot (r10:=1) is hoisted before
+  the test; the branch reloads fprc[31] fresh, tests 0x800000, and
+  je's rel32 resolves to the fall path whose pc:=0x01000018 is the
+  correct post-swap fall address, with the taken path's
+  pc:=0x0100001C equally correct; the fall path even chains inline
+  into the compiled fall block (r10:=2, r11:=1, then the jump's
+  pc:=0x01000000). Static reading exonerates the emission.
+- The contradiction -- a correct block whose execution takes
+  wrongly with a clear C bit, while the end-state FCR31 reads 0 --
+  therefore lives in runtime effects the dump cannot see: entry at
+  an unexpected pc, state mutation between test and effect, or an
+  instrumentation offset lie not yet caught by the rig's integrity
+  checks. Next session is a live watch: hardware watchpoints on
+  fprc[31] and the r10 slot across the block's execution, which
+  will show the actual order and values of every write.
