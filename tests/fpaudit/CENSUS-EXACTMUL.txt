@@ -1,0 +1,40 @@
+Exact-multiply accuracy closure vs the interpreter oracle
+=========================================================
+Rig: per-op differential harness, 400 cases per op, 12% special mix,
+REG_I and latches seeded. Columns: value lanes /1600 (ACC lanes for
+A-forms), status /400, MAC /400.
+
+op        default          exactmul         exactmul+addsub
+MUL       284/190/190       28/190/190       28/190/190
+MULx      299/147/147       22/147/147       22/147/147
+MULi      328/158/158       47/158/158       47/158/158
+MULq      233/121/121       15/121/121       15/121/121
+MADD      709/195/204      443/195/195       16/195/195
+MSUB      738/205/214      706/204/204       16/204/204
+OPMSUB    523/152/158      500/149/150       15/148/148
+OPMULA    235/157/167        0/153/153        0/153/153
+MULA      326/217/222        0/214/214        0/214/214
+
+Findings:
+- The ACC-target multiplies close to ZERO under exactmul: the exact
+  multiplier is bit-exact against the oracle where it receives raw
+  operands.
+- The Fd-target residuals (15-47 per 1600, ~1-3%) are entirely the
+  mandatory per-title operand clamps (TOTA/DoM/Ice Age on MUL forms,
+  KH on SUB forms): every residual case carries an exponent-255
+  operand that the pre-clamp flattens to FLT_MAX before the exact
+  multiply, while the oracle computes the raw PS2 semantics (exp-255
+  is a valid huge number there). The 7f800000 cases sit exactly one
+  ulp under their raw results.
+- Both accurate options together take the fused family to ~1%
+  (MADD/MSUB/OPMSUB 15-16 per 1600), same clamp attribution.
+- Flags are untouched by exactmul, by design: it is a value path.
+  The multiply flag gap remains the class-gated detector's territory
+  (see the overflow-hack commit).
+
+Candidate (queued, needs emission change + game gates + pricing):
+under CHECK_VU_EXACTMUL, elide the cFs/cFt operand clamps on
+multiply-family ops. The clamps exist because a host multiply of
+exp-255 propagates infinities; the exact path has no such failure
+by construction, so the clamp only destroys information there.
+Expected: Fd-form residuals to zero, plus the clamp cost back.
