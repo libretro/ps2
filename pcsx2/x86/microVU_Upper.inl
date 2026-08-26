@@ -105,6 +105,17 @@ static void mVUupdateFlags(mV, int reg, int regT1in = -1, int regT2in = -1, int 
 			{0x7fffffff, 0x7fffffff, 0x7fffffff, 0x7fffffff}, //1111
 		};
 		//Calculate overflow
+		if (mVU->ovfUseEventMask)
+		{
+			/* Accurate add/sub: the composite exports its per-lane
+			 * saturation EVENT (value proxies over-fire on
+			 * pass-through all-ones operands); the fused blends OR
+			 * their mul-overflow lanes into the same spill. */
+			extern u32 s_vuAddSubOvfEvent[4];
+			xe_movaps_xm(regT1, &s_vuAddSubOvfEvent[0]);
+		}
+		else
+		{
 		xe_movaps_xx(regT1, regT2);
 		xe_andps_xm(regT1, &sse4_compvals[1][0]); // Remove sign flags (we don't care)
 		if (CHECK_VU_ACC_ADDSUB || CHECK_VU_EXACTMUL)
@@ -116,6 +127,7 @@ static void mVUupdateFlags(mV, int reg, int regT1in = -1, int regT2in = -1, int 
 			xe_pcmpeqd_xm(regT1, &sse4_compvals[1][0]);
 		else
 			xe_cmpnltps_xm(regT1, &sse4_compvals[0][0]); // Compare if T1 == FLT_MAX
+		}
 		xe_movmskps_rx(gprT2, regT1); // Grab sign bits  for equal results
 		xe_and32_ri(gprT2, AND_XYZW); // Grab "Is FLT_MAX" bits from the previous calculation
 		uint8_t* oJMP; xe_fwd_jcc32(Jcc_Zero, oJMP);
@@ -316,7 +328,8 @@ static void mVU_FMACa(microVU* mVU, int recPass, int opCase, int opType, int isA
 		 * closing add/sub O needs the composite's internal
 		 * saturation-event mask exported to the flag block, ledgered
 		 * as the flag front's remaining design item. */
-		mVU->ovfDetectOK = (opType == 2);
+		mVU->ovfDetectOK = (opType == 2) || ((opType <= 1) && CHECK_VU_ACC_ADDSUB);
+		mVU->ovfUseEventMask = ((opType <= 1) && CHECK_VU_ACC_ADDSUB);
 
 		if ((opType <= 1) && (CHECK_VU_ACC_ADDSUB || CHECK_VUADDSUBHACK) && (opCase == 2) && (_Ft_ == 0) && (_bc_ != 3))
 			mVUaddSubVF0(mVU, Fs, opType == 1, _XYZW_SS);
@@ -393,6 +406,17 @@ static __fi void mVUfusedOvfPost(mV, int dst, int mask, int pat)
 {
 	if (mask < 0)
 		return;
+	{
+		/* mac_finish sets O on mul-overflow lanes regardless of the
+		 * add; fold them into the composite's event spill so the
+		 * flag block sees the union. */
+		extern u32 s_vuAddSubOvfEvent[4];
+		const int t = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+		xe_movaps_xm(t, &s_vuAddSubOvfEvent[0]);
+		xe_por_xx(t, mask);
+		xe_movaps_mx(&s_vuAddSubOvfEvent[0], t);
+		mVUra_clearNeededXMM(mVU->regAlloc, t);
+	}
 	xe_pand_xx(pat, mask);                    /* pattern on ovf lanes */
 	xe_pandn_xx(mask, dst);                   /* mask = ~mask & dst   */
 	xe_por_xx(mask, pat);
@@ -408,6 +432,7 @@ static void mVU_FMACb(microVU* mVU, int recPass, int opCase, int opType, int cla
 	pass2
 	{
 		mVU->ovfDetectOK = true;
+		mVU->ovfUseEventMask = (CHECK_VU_ACC_ADDSUB && CHECK_VU_EXACTMUL);
 		int Fs, Ft, ACC, tempFt;
 		setupFtReg(mVU, &Ft, &tempFt, opCase, clampType);
 
@@ -462,6 +487,7 @@ static void mVU_FMACc(microVU* mVU, int recPass, int opCase, int clampType)
 	pass2
 	{
 		mVU->ovfDetectOK = true;
+		mVU->ovfUseEventMask = (CHECK_VU_ACC_ADDSUB && CHECK_VU_EXACTMUL);
 		int Fs, Ft, ACC, tempFt;
 		setupFtReg(mVU, &Ft, &tempFt, opCase, clampType);
 
@@ -507,6 +533,7 @@ static void mVU_FMACd(microVU* mVU, int recPass, int opCase, int clampType)
 	pass2
 	{
 		mVU->ovfDetectOK = true;
+		mVU->ovfUseEventMask = (CHECK_VU_ACC_ADDSUB && CHECK_VU_EXACTMUL);
 		int Fs, Ft, Fd, tempFt;
 		setupFtReg(mVU, &Ft, &tempFt, opCase, clampType);
 
@@ -559,6 +586,7 @@ mVUop(mVU_OPMULA)
 	pass2
 	{
 		mVU->ovfDetectOK = true;
+		mVU->ovfUseEventMask = (CHECK_VU_ACC_ADDSUB && CHECK_VU_EXACTMUL);
 		const int Ft = mVUra_allocReg(mVU->regAlloc, _Ft_, 0, _X_Y_Z_W, 1);
 		const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, 32, _X_Y_Z_W, 1);
 
@@ -579,6 +607,7 @@ mVUop(mVU_OPMSUB)
 	pass2
 	{
 		mVU->ovfDetectOK = true;
+		mVU->ovfUseEventMask = (CHECK_VU_ACC_ADDSUB && CHECK_VU_EXACTMUL);
 		const int Ft = mVUra_allocReg(mVU->regAlloc, _Ft_, 0, 0xf, 1);
 		const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, 0, 0xf, 1);
 		const int ACC = mVUra_allocReg(mVU->regAlloc, 32, _Fd_, _X_Y_Z_W, 1);

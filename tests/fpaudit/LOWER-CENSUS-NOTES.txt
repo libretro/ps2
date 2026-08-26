@@ -265,3 +265,20 @@ residual's mac lanes) need the EVENT, not the value -- the exact
 composite's internal es>255 saturation mask exported from the add
 stage to the flag block. That export is the flag front's last
 rig-side item.
+
+Event-mask export -- LANDED (this commit): the exact add stage
+spills its per-lane es>255 saturation event (in architectural lane
+order -- the stage's internal order is reversed at the computation
+point, caught when the mac O nibble read back bit-reversed while
+the order-blind status OR was already exact), every non-exact path
+zeroes the spill first, the fused blends OR their mul-overflow
+lanes into it, and the flag block reads the event instead of any
+value proxy for accurate add/sub. Adversarial columns after:
+  status: ZERO across all six ops (from 34-379).
+  mac:    ADD 0, MUL 0; fused 291-312 remain.
+The fused mac remainder survives the lane fix that closed ADD, so
+its mechanism is in the fused flag composition itself (the
+blend-OR interaction or mac_finish's per-lane flag replacement
+semantics), not the spill -- post-fix anatomy examples are in the
+transcript, next session's first peek. Default emission
+byte-identical; 300 frames under both options pixel-identical.

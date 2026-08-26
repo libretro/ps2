@@ -608,6 +608,9 @@ static void mVUmaskAddSubFusedAVX(mV, int a, int b, int tD, int tM, int tS, int 
  * runtime reality, which corrupted the first wired build broadly from
  * frame 3. Allocation is an emit-time act; it must not sit under a
  * runtime-conditional path. */
+alignas(16) u32 s_vuAddSubOvfEvent[4];
+alignas(16) static const u32 s_vuZeroQuad[4] = {0, 0, 0, 0};
+
 static void mVUexactAddSubStage(mV, int X, int Y, bool issub,
 	int tA, int tB, int tC, int tQ, int tE, int tZ)
 {
@@ -657,6 +660,17 @@ static void mVUexactAddSubStage(mV, int X, int Y, bool issub,
 	xe_movaps_xx(tA, tQ); xe_pslld_xi(tA, 23); xe_por_xx(tA, tB); xe_por_xx(tA, tC);
 	xe_movaps_xm(tE, mVUglob.addm1); xe_pcmpgtd_xx(tE, tQ);             /* es<=0  */
 	xe_movaps_xx(tB, tQ); xe_pcmpgtd_xm(tB, mVUglob.xakff);             /* es>255 */
+	/* Export the saturation EVENT per lane for the flag block:
+	 * result-value proxies over-fire on pass-through all-ones
+	 * operands (fpaudit), so overflow flags for accurate add/sub
+	 * come from this mask, spilled here where it exists. The stage's
+	 * internal lane order is reversed relative to the mac-nibble
+	 * convention at this point (fpaudit: the mac O nibble read back
+	 * bit-reversed), so the spill shuffles to architectural order
+	 * and restores. */
+	xe_pshufd_xxi(tB, tB, 0x1B);
+	xe_movaps_mx(&s_vuAddSubOvfEvent[0], tB);
+	xe_pshufd_xxi(tB, tB, 0x1B);
 	xe_movaps_xx(tZ, tE); xe_pandn_xx(tZ, tA);
 	xe_pand_xx(tE, tC); xe_por_xx(tZ, tE);                               /* flush->s */
 	xe_movaps_xx(tE, tC); xe_por_xm(tE, mVUglob.absclip); xe_pand_xx(tE, tB);
@@ -666,6 +680,15 @@ static void mVUexactAddSubStage(mV, int X, int Y, bool issub,
 
 static void mVUmaskedAddSubOp(mV, int to, int from, bool isPS, bool issub)
 {
+	/* No-event default for every path that skips the exact stage:
+	 * the flag block reads this spill unconditionally for accurate
+	 * add/sub, so stale events must be impossible. */
+	{
+		const int zt = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+		xe_movaps_xm(zt, &s_vuZeroQuad[0]);
+		xe_movaps_mx(&s_vuAddSubOvfEvent[0], zt);
+		mVUra_clearNeededXMM(mVU->regAlloc, zt);
+	}
 	if (!clampE)
 	{
 		/* Default mode: clamp3/clamp4 emit nothing, so the lean fused

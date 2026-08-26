@@ -68,6 +68,7 @@ struct microVU
 	 * print with the JIT hash dump. */
 	bool addsubMaskNoop;
 	bool ovfDetectOK;                     // overflow-hack detector valid for the current op (multiply-family finals)
+	bool ovfUseEventMask;                 // flag block should read the composite's saturation-EVENT mask (accurate add/sub)
 	u32  addsubRecTotal;
 	u32  addsubRecElided;
 	alignas(16) u32 exactDivSave[16][4];  // div stub xmm spill area
