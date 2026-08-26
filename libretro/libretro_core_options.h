@@ -720,6 +720,20 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       "100% (Normal Speed)"
    },
    {
+      "pcsx2_fastmem",
+      "Emulation > Fastmem (Restart)",
+      "Fastmem (Restart)",
+      "Backs guest memory accesses with a direct 4GB mapping and patches out the ones that fault. Disable to route every access through the software memory handlers - slower, but takes the fastmem fault/backpatch machinery out of the picture entirely, which is useful when hunting a hang.",
+      NULL,
+      "emulation",
+      {
+         { "enabled", NULL },
+         { "disabled", NULL },
+         { NULL, NULL },
+      },
+      "enabled"
+   },
+   {
       "pcsx2_mtvu",
       "Emulation > MTVU (Multi-Threaded VU1) (Restart)",
       "MTVU (Multi-Threaded VU1) (Restart)",
