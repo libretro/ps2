@@ -1,0 +1,53 @@
+In-game option validation sweep
+===============================
+
+Why this exists: the exact-divide field failure proved that a gate over
+code that never runs is not a gate. The menu-boot fixture parks on a
+static screen and never executes a hot divide; every float-path option
+had until then been pixel-gated only there. This sweep re-validates
+each option on a gameplay fixture where its path actually fires.
+
+Fixture: Tekken Tag Tournament (USA), maintainer-provided in-game
+savestate (RetroArch RASTATE container around RZIP zlib chunks; the
+headless harness unwraps both and retro_unserializes the MEM payload
+at frame 3). Roughly 154,000 VU1 divide ops per frame; 344 mVU0 and
+894 mVU1 add/sub sites compiled, against 62 and 82 on the menu
+fixture. SW renderer, FNV-1a per-frame framebuffer row hashes.
+
+Gate per option: rc == 0 across the run; bit-identical hash streams
+across paired runs (determinism); engagement proven by divergence
+from the default stream or an emission/call counter, never assumed.
+
+Results (aligned-defaults build, 2f4b17f02):
+
+  option                        rc  deterministic  engagement
+  ---------------------------------------------------------------
+  default (aligned)             0   yes (pair)     n/a; 897 frames
+  VU Accurate Add/Sub on        0   yes (pair)     897/897 differ
+  VU Exact Mul on               0   yes (pair)     897/897 differ
+  VU0 Soft Float on             0   single run     447/447 differ
+  VU1 Soft Float on             0   single run     447/447 differ
+  EE FPU Soft Float on          0   yes (pair)     284/447 differ
+  VU Exact Divide               0   yes (pair)     0 diff vs off; the
+                                                   engagement proof is
+                                                   the call counter:
+                                                   138M calls in 897
+                                                   frames, values
+                                                   bit-identical to
+                                                   the plain divider
+                                                   on this content
+
+Elision counters in-game: mVU0 1/344, mVU1 8/894 -- the Fs==Ft
+doubling idiom exists in real content at about one percent.
+
+Methodology note: attributing a default-change delta by keying options
+back to their old values does not work. A delivered variable that
+differs from a static fires the settings-update path, which a static
+default never does, so a keyed run is not binary-comparable to a
+static-default run even at equal option values. Per-static builds are
+the only clean isolation.
+
+Reproduction recipe: PS2_LOADSTATE=<raw MEM payload> on the headless
+harness, PCSX2_FBHASH=1, option keys PS2_VU_ADDSUB / PS2_VU_EXACTMUL /
+PS2_VU0_SOFT / PS2_VU1_SOFT / PS2_FPU_SOFT / PS2_EE_ACC /
+PS2_VU_EXACTDIV, each 0/1-valued.
