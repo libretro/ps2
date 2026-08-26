@@ -1,0 +1,37 @@
+EFU divergence census: recompiler vs interpreter, 13 sites, no oracle
+====================================================================
+The EFU has no hardware-verified truth model, so unlike the FMAC and
+Q censuses this quantifies DISAGREEMENT between the two engines, not
+error against hardware. 400 cases per site, executed-effect
+confirmed on every row (P pipeline readback normalized alongside Q).
+"max dist" is the crude same-sign magnitude distance in raw-bit
+space (a mantissa is 0x7FFFFF; 1e9-scale means sign or exponent
+disagreement).
+
+site      differ /400   max dist        tier
+ESQRT          83              1        near-agreement (one ulp)
+EEXP          337             20        near-agreement
+ERSQRT        211        8388607        mantissa-scale
+ERCPR         210        8388607        mantissa-scale
+ESIN          346        8388608        mantissa-scale (boundary)
+ESADD         391     2087018409        structural
+ERSADD        387     1911999125        structural
+ELENG         391     1602224127        structural
+ERLENG        392     1257070360        structural
+ESUM          374     1137448281        structural
+EATANxy       400     1070141401        structural
+EATANxz       400     1070141401        structural
+EATAN         400     1068953638        structural
+
+Reading:
+- The structural tier (the sum-of-squares reductions and the whole
+  atan family) disagrees at sign/exponent scale on nearly every
+  case: at least one engine is far from hardware there, and these
+  are the sites where a hardware truth model would pay first.
+- The near-agreement tier (ESQRT one ulp; EEXP within ~20) says
+  both implementations converge on the same approximation for
+  those; hardware verification is low priority.
+- No verdicts: without hardware captures neither engine is the
+  oracle for the EFU. The campaign's truth-model acquisition for
+  these thirteen sites is the standing prerequisite for turning
+  this table into a correctness census.
