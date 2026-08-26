@@ -160,3 +160,14 @@ BC1 investigation, session 4 (the live watch) -- RESOLVED:
   way) is the queued round-trip probe; until then this is a
   representation note, with the recompiler the more
   hardware-faithful side.
+
+CVT.S.W -- CLOSED (this commit): the convert gains an MXCSR
+round-to-nearest window under either accuracy option (the EE JIT's
+global chop rounding was leaving the recompiled convert one ulp low
+on integers wider than 24 bits). Full-range 32-bit int census:
+181/400 divergent under default, 0/400 under either option. Default
+emission proven unchanged by byte-identical rig outputs. Price:
+unmeasurable against run noise at 400k executions (alternated
+min-of-three wall timing, delta below the ~10ms noise floor);
+structurally one stmxcsr and two ldmxcsr per convert, paid only
+under the options that already carry the accuracy costs.

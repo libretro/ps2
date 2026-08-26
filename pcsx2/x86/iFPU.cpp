@@ -842,8 +842,37 @@ FPURECOMPILE_CONSTCODE_EXACT_SS(C_LT, XMMINFO_READS | XMMINFO_READT);
 //------------------------------------------------------------------
 // CVT.x XMM
 //------------------------------------------------------------------
+/* MXCSR window for the accurate convert: hardware CVT.S.W rounds to
+ * nearest, but the EE JIT's global MXCSR is chop, leaving the
+ * recompiled convert one ulp low on integers wider than 24 bits of
+ * mantissa (census: 162/400, untouched by either accuracy option).
+ * Under either option, flip rounding to nearest for the convert
+ * only. The nearest-mode value is computed at emission time from
+ * the configured FPCR with the RC field cleared. */
+alignas(16) static u32 s_cvt_mxcsr_saved;
+alignas(16) static u32 s_cvt_mxcsr_nearest;
+
+static __fi int cvt_accurate(void) { return CHECK_FPU_SOFT_REC || CHECK_FPU_ACC_ARITH; }
+
+static __fi void cvt_round_open(void)
+{
+	if (!cvt_accurate())
+		return;
+	xe_mov32_mi(&s_cvt_mxcsr_nearest, EmuConfig.Cpu.FPUFPCR.bitmask & ~0x6000u);
+	xe_stmxcsr_m(&s_cvt_mxcsr_saved);
+	xe_ldmxcsr_m(&s_cvt_mxcsr_nearest);
+}
+
+static __fi void cvt_round_close(void)
+{
+	if (!cvt_accurate())
+		return;
+	xe_ldmxcsr_m(&s_cvt_mxcsr_saved);
+}
+
 void recCVT_S_xmm(int info)
 {
+	cvt_round_open();
 	if (info & PROCESS_EE_D)
 	{
 		if (info & PROCESS_EE_S)
@@ -858,6 +887,7 @@ void recCVT_S_xmm(int info)
 		xe_movss_mx(&fpuRegs.fpr[_Fd_], temp);
 		_freeXMMreg(temp);
 	}
+	cvt_round_close();
 }
 
 void recCVT_S(void)
