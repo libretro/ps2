@@ -169,3 +169,27 @@ per the standing rule):
   bearing semantic claim. One hardware capture -- FMAX*FMAX MADD
   -FMAX on silicon -- settles it alongside the queued CFC1 and EFU
   items.
+
+Fused MAC overflow rule -- IMPLEMENTED AND CLOSED (this commit):
+the model's own source supplied the exact semantics ahead of the
+hardware capture (ps2f_mac_finish: mul-stage overflow forces the
+sign-selected all-ones saturation pattern regardless of the add;
+MADD's pattern sign follows the product, MSUB's is flipped), which
+derisks proceeding since the model is the hardware-verified suite's
+encoding; the silicon capture stays queued as confirmation. The
+emission is a per-lane detect-and-blend around the fused add,
+active under exactmul+accurate-addsub: the exact mul already leaves
+true overflow as the all-ones pattern in the product register, so
+detection is a magnitude compare (|prod| == 0x7FFFFFFF) -- the
+first, broader exponent-field detector wrongly captured exp-255
+products with computed mantissas, which come from exp-255 INPUTS,
+carry no overflow in the model, and flow into the add normally
+(residual 3-5/400 with that detector, anatomy on record). With the
+pattern detector: MADD 115-to-0, MSUB 122-to-0 on the adversarial
+distribution, the decomposition probe's MADD row also zero, plain
+rows held at zero, default rig outputs byte-identical, 300 frames
+under both options pixel-identical. FMACb (MADDA/MSUBA) is not yet
+wired -- same helper, its ACC dual-path insert next session, with
+MADDA/MSUBA rows added to the adversarial battery. Flag-side OF
+forcing for blended lanes is ledgered with the flag residuals, not
+silently claimed.

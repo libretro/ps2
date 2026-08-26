@@ -325,6 +325,57 @@ static void mVU_FMACa(microVU* mVU, int recPass, int opCase, int opType, int isA
 	}
 }
 
+
+/* Hardware fused-MAC overflow rule (ps2f_mac_finish): when the mul
+ * stage overflows, the fused result is the sign-selected all-ones
+ * saturation pattern regardless of the add -- distinct from adding
+ * the saturated float, which yields FMAX arithmetic (fpaudit
+ * decomposition probe: the two semantics split on 158/400
+ * adversarial cases). Under exactmul the product register already
+ * holds the exp-255 saturation pattern, so detection is a per-lane
+ * exponent compare on the product and the fix is a post-add blend.
+ * Active only when both accuracy options own their stages. MADD's
+ * pattern sign follows the product's; MSUB's is flipped
+ * (round_to_max = sign(product) there). Flags are the flag
+ * campaign's ledger, not this blend's. */
+static __fi int mVUfusedOvfPre(mV, int prod, int* patOut, bool msub)
+{
+	int mask, pat;
+	if (!(CHECK_VU_EXACTMUL && CHECK_VU_ACC_ADDSUB))
+		return -1;
+	mask = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+	pat  = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+	/* True mul-stage overflow saturates to the all-ones pattern
+	 * (sign|0x7FFFFFFF -- plain-MUL rows prove the exact mul emits
+	 * exactly this); exp-255 products with a computed mantissa come
+	 * from exp-255 INPUTS, carry no overflow in the model, and flow
+	 * into the add normally, so the detector matches the full
+	 * magnitude pattern, not the exponent field. */
+	xe_movaps_xm(pat, mVUglob.absclip);
+	xe_movaps_xx(mask, prod);
+	xe_pand_xx(mask, pat);
+	xe_pcmpeqd_xx(mask, pat);                 /* |prod| == 0x7FFFFFFF */
+	xe_movaps_xx(pat, prod);
+	xe_pand_xm(pat, mVUglob.signbit);
+	if (msub)
+		xe_pxor_xm(pat, mVUglob.signbit);
+	xe_por_xm(pat, mVUglob.absclip);          /* sign | 0x7FFFFFFF */
+	*patOut = pat;
+	return mask;
+}
+
+static __fi void mVUfusedOvfPost(mV, int dst, int mask, int pat)
+{
+	if (mask < 0)
+		return;
+	xe_pand_xx(pat, mask);                    /* pattern on ovf lanes */
+	xe_pandn_xx(mask, dst);                   /* mask = ~mask & dst   */
+	xe_por_xx(mask, pat);
+	xe_movaps_xx(dst, mask);
+	mVUra_clearNeededXMM(mVU->regAlloc, mask);
+	mVUra_clearNeededXMM(mVU->regAlloc, pat);
+}
+
 // MADDA/MSUBA Opcodes
 static void mVU_FMACb(microVU* mVU, int recPass, int opCase, int opType, int clampType)
 {
@@ -401,8 +452,12 @@ static void mVU_FMACc(microVU* mVU, int recPass, int opCase, int clampType)
 			if (_XYZW_SS) SSE_SS[2](mVU, Fs, Ft, -1, -1);
 			else          SSE_PS[2](mVU, Fs, Ft, -1, -1);
 		}
-		if (_XYZW_SS) SSE_SS[0](mVU, Fs, ACC, tempFt, -1);
-		else          SSE_PS[0](mVU, Fs, ACC, tempFt, -1);
+		{
+			int fovPat; const int fovMask = mVUfusedOvfPre(mVU, Fs, &fovPat, false);
+			if (_XYZW_SS) SSE_SS[0](mVU, Fs, ACC, tempFt, -1);
+			else          SSE_PS[0](mVU, Fs, ACC, tempFt, -1);
+			mVUfusedOvfPost(mVU, Fs, fovMask, fovPat);
+		}
 
 		if (_XYZW_SS2)
 			xe_pshufd_xxi(ACC, ACC, shuffleSS(_X_Y_Z_W));
@@ -438,8 +493,12 @@ static void mVU_FMACd(microVU* mVU, int recPass, int opCase, int clampType)
 			if (_XYZW_SS) SSE_SS[2](mVU, Fs, Ft, -1, -1);
 			else          SSE_PS[2](mVU, Fs, Ft, -1, -1);
 		}
-		if (_XYZW_SS) SSE_SS[1](mVU, Fd, Fs, tempFt, -1);
-		else          SSE_PS[1](mVU, Fd, Fs, tempFt, -1);
+		{
+			int fovPat; const int fovMask = mVUfusedOvfPre(mVU, Fs, &fovPat, true);
+			if (_XYZW_SS) SSE_SS[1](mVU, Fd, Fs, tempFt, -1);
+			else          SSE_PS[1](mVU, Fd, Fs, tempFt, -1);
+			mVUfusedOvfPost(mVU, Fd, fovMask, fovPat);
+		}
 
 		mVUupdateFlags(mVU, Fd, Fs, tempFt);
 
