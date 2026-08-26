@@ -1,14 +1,18 @@
 # All flags, libraries, etc, that are shared between PCSX2 compilation files
 # GameDatabaseBuiltin.cpp is generated from the shipped GameIndex.yaml at
-# build time (tools/gen_gamedb_builtin.sh, POSIX shell + od + awk only),
-# mirroring the static-Makefile rule.
+# build time. Driven through CMake's own script mode rather than the shell
+# version in tools/gen_gamedb_builtin.sh: the MSVC Windows runner has no sh,
+# where the shell rule failed with "'sh' is not recognized as an internal or
+# external command". The .sh stays for the static-Makefile rule, which is
+# POSIX-only anyway - keep the two in sync.
 add_custom_command(
 	OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/GameDatabaseBuiltin.cpp
-	COMMAND sh ${CMAKE_SOURCE_DIR}/tools/gen_gamedb_builtin.sh
-		${CMAKE_SOURCE_DIR}/bin/resources/GameIndex.yaml
-		${CMAKE_CURRENT_BINARY_DIR}/GameDatabaseBuiltin.cpp
+	COMMAND ${CMAKE_COMMAND}
+		-DYAML=${CMAKE_SOURCE_DIR}/bin/resources/GameIndex.yaml
+		-DOUT=${CMAKE_CURRENT_BINARY_DIR}/GameDatabaseBuiltin.cpp
+		-P ${CMAKE_SOURCE_DIR}/tools/gen_gamedb_builtin.cmake
 	DEPENDS ${CMAKE_SOURCE_DIR}/bin/resources/GameIndex.yaml
-	        ${CMAKE_SOURCE_DIR}/tools/gen_gamedb_builtin.sh
+	        ${CMAKE_SOURCE_DIR}/tools/gen_gamedb_builtin.cmake
 	COMMENT "Generating GameDatabaseBuiltin.cpp from GameIndex.yaml"
 	VERBATIM)
 

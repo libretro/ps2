@@ -1,6 +1,8 @@
 #!/bin/sh
 # Generate GameDatabaseBuiltin.cpp from bin/resources/GameIndex.yaml.
 # POSIX shell + od + awk only -- no new build dependencies.
+# Used by the static Makefile. The CMake build drives gen_gamedb_builtin.cmake
+# instead, because the MSVC Windows runner has no sh; keep the two in sync.
 # Usage: gen_gamedb_builtin.sh <yaml> <out.cpp>
 set -e
 YAML="$1"; OUT="$2"
