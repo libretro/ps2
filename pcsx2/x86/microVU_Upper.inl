@@ -269,7 +269,18 @@ static void mVU_FMACa(microVU* mVU, int recPass, int opCase, int opType, int isA
 		 * the exact path; SUB-family clamps are untouched, they are
 		 * not this option's domain. */
 		{
-			const int elide = (opType == 2) && CHECK_VU_EXACTMUL;
+			/* Input clamps are elided where an accuracy option's exact
+			 * implementation subsumes them: exactmul owns multiply
+			 * operands, and the accurate add/sub composite implements
+			 * the hardware adder outright, exponent-255 operands
+			 * included -- ADD (which carries no clamp flags) is exact
+			 * on raw exp-255 register operands through the same
+			 * composite, while SUB's Kingdom Hearts-era input clamps
+			 * were flattening those operands before the composite's
+			 * detector saw them (fpaudit: 205/400 divergent lanes, all
+			 * with an exp-255 operand, several with the wrong sign). */
+			const int elide = ((opType == 2) && CHECK_VU_EXACTMUL)
+			               || ((opType <= 1) && CHECK_VU_ACC_ADDSUB);
 			if ((clampType & cFt) && !elide) mVUclamp2(mVU, Ft, -1, _X_Y_Z_W, 0);
 			if ((clampType & cFs) && !elide) mVUclamp2(mVU, Fs, -1, _X_Y_Z_W, 0);
 		}
