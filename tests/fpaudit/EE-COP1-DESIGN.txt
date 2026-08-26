@@ -1,0 +1,66 @@
+EE COP1 differential rig: design notes before the build
+=======================================================
+Goal: the VU rig pattern on the EE FPU -- tiny MIPS/COP1 sequences
+through the actual recompiler and the actual interpreter, full COP1
+state (FPR[32], ACC, FCR31 flags) diffed per case, prep/exec split
+for operand grids.
+
+Interface facts (surveyed this session):
+- R5900cpu providers (intCpu/recCpu) expose Reserve/Shutdown/Reset/
+  Execute/ExitExecution/CancelInstruction/Clear. Execute() runs
+  open-loop until a break is signaled through the event system;
+  there is NO bounded-run or single-block primitive on either
+  provider, unlike the VU side's Execute(cycles).
+- The normal frame loop exits Execute via scheduled events (vsync),
+  i.e. the exit is event-driven, not program-driven.
+
+Candidate exit mechanisms, ranked:
+1. Event-scheduled exit: before Execute, schedule a synthetic event
+   at now+K cycles whose handler calls ExitExecution. K sized to
+   cover the sequence (a COP1 op plus padding). Risks: interaction
+   with real pending events (vblank, DMA) from the live VM state --
+   the audit runs after boot frames, so the event queue is not
+   empty; the rig must either drain/park other events or tolerate
+   them re-entering (they mutate COP0 timers, not COP1 state, so
+   tolerance may be fine but must be PROVEN with the standard
+   integrity checks, not assumed).
+2. In-band exit instruction: end the scratch sequence with an op
+   whose handler the rig can observe/exit on. BREAK/SYSCALL raise
+   exceptions into BIOS vectors (state contamination); a store to a
+   hardware register with a harness-visible side effect has no
+   clean hook. Ranked below the event mechanism.
+3. Interpreter-stepped oracle with rec-block runner: drive the
+   oracle via the interpreter's per-instruction dispatch (bounded
+   trivially) and only the rec through mechanism 1. Halves the
+   exit problem but makes the two engines run under different
+   harness shapes -- acceptable only if the rec side's shape is
+   itself validated against the interpreter run under the SAME
+   shape first.
+
+Scratch code placement: EE RAM through the VTLB (a fixed physical
+scratch page well away from BIOS/kernel areas), written via the
+core's memory write path so both engines fetch identically;
+Cpu->Clear on the range before each rec prep, mirroring the VU
+prep's cache discipline.
+
+State surface for the diff: FPR[0..31].UL, ACC, FCR31 (flags: C,
+I/D/O/U and their sticky forms). fpuRegs is the container; the EE
+FPU has no MAC/clip analog, so the regs_io layout is smaller than
+the VU's. MXCSR discipline transfers directly: the EE FPU rec has
+its own FPCR (EmuConfig.Cpu.FPUFPCR / FPUDivFPCR) and the direct
+entry must force it exactly as the VU rig learned to.
+
+Integrity set (mandatory before any battery is believed, all
+inherited from the VU campaign): files-must-differ across engines
+on a known-divergence case; executed-effect (target FPR must change
+from seed); a known-answer split (FMAX-class add under default EE
+clamp vs the soft path); and the seeded-state round-trip checks for
+FCR31, which likely has its own internal-representation traps like
+the VU status instances did.
+
+Options under audit once the rig lands: EnableFpuSoftFloat and
+EnableFpuAccurateArith (both emission-proven live in the config
+audit), against the interpreter oracle -- whose own arithmetic
+(ps2f-based vs legacy float) must be verified FIRST, since the VU
+campaign found one oracle bug and the EE interpreter's COP1 lineage
+is older code.
