@@ -79,3 +79,26 @@ Battery 2 (converts, compares, branches, moves, memory):
   seeded C with no in-program compare isolates the branch's
   condition evaluation from any compare-to-branch hazard modeling.
   No verdict until it lands.
+
+BC1 investigation, session 2 (isolation and bisection):
+- The branch itself is EXACT: seeded-C probes with no in-program
+  compare follow the C bit perfectly in both directions.
+- Minimal reproducer captured, ordering- and reset-independent
+  (the rig gained a per-program Cpu->Reset in prep, matching the VU
+  discipline -- correct hardening, but it did not change this):
+  C.LT with a false result, exactly THREE nops, then BC1T -- the
+  recompiler takes the branch regardless of the C bit, while SIX
+  nops between compare and branch are correct. Single-case spec at
+  tests/fpaudit reproduction instructions: operands 2.0 vs 1.0
+  (C=0), markers on r10/r11.
+- One confound remains open: an otherwise-identical program whose
+  fall-through instruction uses a different register behaved
+  correctly in one (pre-reset) run; whether that was stale-state
+  luck is unresolved.
+- A second thread from the same session: the recompiler's CFC1 of
+  FCR31 in a branch delay slot returned 0x01000001 where the seeded
+  and interpreter-read value was 0 -- recorded, uninvestigated.
+- Next step is definitive rather than inferential: dump the
+  compiled bytes of the three-nop block (the rig supplies the exact
+  program and a fresh reset) and read what the emission actually
+  does between the compare's FCR31 write and the branch's test.

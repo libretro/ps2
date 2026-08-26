@@ -703,6 +703,11 @@ void ps2_audit_ee_prep(const unsigned* words, unsigned nwords)
 	 * of every export that can fault. */
 	unsigned i;
 	HostSys::RegisterFaultHandlerThread();
+	/* Same discipline as the VU prep: full recompiler reset per
+	 * program, so no block-cache or branch state leaks between audit
+	 * programs (its absence produced ordering-dependent takenness on
+	 * branch batteries). */
+	Cpu->Reset();
 	for (i = 0; i < nwords; i++)
 		memWrite32(PS2_AUDIT_EE_SCRATCH + i * 4, words[i]);
 	Cpu->Clear(PS2_AUDIT_EE_SCRATCH, nwords);
