@@ -801,3 +801,13 @@ R5900cpu recCpu =
 	eeJitClear_arm64
 };
 #endif
+
+/* Bounded interpreter stepping for the EE COP1 audit rig (design in
+ * tests/fpaudit/EE-COP1-DESIGN.txt): the oracle half needs no event
+ * machinery, just execI a fixed instruction count. */
+extern "C" __attribute__((visibility("default")))
+void ps2_audit_ee_stepn(unsigned n)
+{
+	while (n--)
+		execI();
+}

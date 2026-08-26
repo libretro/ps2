@@ -15,6 +15,7 @@
 
 
 #include <retro_atomic.h>
+#include <xmmintrin.h>
 #include <cstring> /* memset */
 #include <compat/strl.h>
 
@@ -674,4 +675,63 @@ void eeloadHook2(void)
 	// Save argc and argv as incoming arguments for EELOAD function which calls ExecPS2()
 	cpuRegs.GPR.n.a0.SD[0] = argc;
 	cpuRegs.GPR.n.a1.UD[0] = block_start;
+}
+
+/* --------------------------------------------------------------------------
+ * EE COP1 audit exports (fpaudit differential rig, EE front).
+ * Design: tests/fpaudit/EE-COP1-DESIGN.txt. The scratch program lives
+ * in high EE RAM, written through the memory system so both engines
+ * fetch identically. The recompiler runs it via the public provider
+ * interface with the exit pre-armed (ExitExecution sets the flag;
+ * a near nextEventCycle forces the first block boundary to test it),
+ * so the block executes once and the fastjmp returns Execute. The
+ * interpreter is stepped a bounded instruction count through its own
+ * export (Interpreter.cpp). regs_io layout:
+ *   fpr[0..31] 4 bytes each | ACC 4 | FCR31 4 | ACCflag 4  (= 140)
+ * -------------------------------------------------------------------------- */
+#define PS2_AUDIT_EE_SCRATCH 0x01000000u
+
+extern "C" void ps2_audit_ee_stepn(unsigned n); /* Interpreter.cpp */
+
+extern "C" __attribute__((visibility("default")))
+void ps2_audit_ee_prep(const unsigned* words, unsigned nwords)
+{
+	unsigned i;
+	for (i = 0; i < nwords; i++)
+		memWrite32(PS2_AUDIT_EE_SCRATCH + i * 4, words[i]);
+	Cpu->Clear(PS2_AUDIT_EE_SCRATCH, nwords);
+}
+
+extern "C" __attribute__((visibility("default")))
+void ps2_audit_ee_exec(int use_interp, unsigned char* regs_io, unsigned ninstr)
+{
+	unsigned char* p = regs_io;
+	const u32 old_pc = cpuRegs.pc;
+	const u32 old_cycle_target = cpuRegs.nextEventCycle;
+	int i;
+	for (i = 0; i < 32; i++) { memcpy(&fpuRegs.fpr[i].UL, p, 4); p += 4; }
+	memcpy(&fpuRegs.ACC.UL, p, 4); p += 4;
+	memcpy(&fpuRegs.fprc[31], p, 4); p += 4;
+	memcpy(&fpuRegs.ACCflag, p, 4); p += 4;
+	cpuRegs.pc = PS2_AUDIT_EE_SCRATCH;
+	if (use_interp)
+	{
+		ps2_audit_ee_stepn(ninstr);
+	}
+	else
+	{
+		const u32 host_csr = _mm_getcsr();
+		_mm_setcsr(EmuConfig.Cpu.FPUFPCR.bitmask);
+		Cpu->ExitExecution();
+		cpuRegs.nextEventCycle = cpuRegs.cycle + 1;
+		Cpu->Execute();
+		_mm_setcsr(host_csr);
+	}
+	cpuRegs.pc = old_pc;
+	cpuRegs.nextEventCycle = old_cycle_target;
+	p = regs_io;
+	for (i = 0; i < 32; i++) { memcpy(p, &fpuRegs.fpr[i].UL, 4); p += 4; }
+	memcpy(p, &fpuRegs.ACC.UL, 4); p += 4;
+	memcpy(p, &fpuRegs.fprc[31], 4); p += 4;
+	memcpy(p, &fpuRegs.ACCflag, 4); p += 4;
 }

@@ -64,3 +64,23 @@ audit), against the interpreter oracle -- whose own arithmetic
 (ps2f-based vs legacy float) must be verified FIRST, since the VU
 campaign found one oracle bug and the EE interpreter's COP1 lineage
 is older code.
+
+Build session 1 findings (exports landed, execution blocked):
+- ps2_audit_ee_prep/exec/stepn exist and export; the harness EE mode
+  parses the shared spec format with the unit field repurposed as
+  the interpreter instruction count.
+- The thread-affinity risk materialized exactly where predicted, one
+  layer earlier than expected: not at Execute() but at prep's first
+  vtlb_memWrite32 -- SysPageFaultSignalFilter ABORTS on a fault
+  raised from the harness thread (backtrace on record), because the
+  EE memory system's fault handling is thread-aware in a way the VU
+  rig never touched (vuRegs are plain statics; EE RAM is vtlb-mapped
+  with fault-driven machinery). Confirmed address-independent
+  (0x01F00000 and 0x01000000 fault identically).
+- Resolution for build session 2: run the audit ON the VM thread.
+  Cleanest shape: a core-side pump (ps2_audit_ee_pump) called from
+  the VM thread's frame path when the audit env is set, doing the
+  prep/exec loop there; the harness only stages the spec and reads
+  the results. This also retires the Execute()-re-entry risk for
+  free, since recExecute then runs on its home thread with its own
+  fastjmp/fastmem context.
