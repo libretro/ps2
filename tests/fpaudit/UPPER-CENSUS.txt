@@ -1,0 +1,36 @@
+VU upper-op divergence census v1: default recompiler vs ps2float interpreter
+============================================================================
+Rig: ps2_audit_vu_prep/exec exports (fb5bc4f33), actual JIT vs actual
+interpreter, VU1, 600 cases per op, exponent-distance-weighted random
+operands with a 12% special-value mix (zeros, FMAX, inf/NaN patterns,
+denormal minimum). Lanes diverging out of 2400 per op; ACC column was
+0/2400 for every op. Campaign criteria per the maintainer: accuracy
+against the interpreter oracle first, then performance improvement
+without accuracy loss; bit-exactness ideal, equal-or-better accepted
+where exactness is prohibitively expensive.
+
+Comparison family (exact by construction):
+  MAXx/y/z/w MINIx/y/z/w MAXi MINIi MAX MINI       0
+Add/sub family (chop-of-sum vs discard-then-add; the accurate
+add/sub composite covers this class -- separately proven bit-exact
+against this oracle, 0/19072 lanes across two batteries):
+  ADDx 853  ADDy 835  ADDz 833  ADDw 805  ADD 639  ADDi 959
+  SUBx 970  SUBy 961  SUBz 980  SUBw 960  SUB 730  SUBi 1079
+Multiply family (chop-mul vs ps2f rounding; EXACTMUL territory):
+  MULx 316  MULy 302  MULz 281  MULw 282  MUL 414  MULi 128
+Fused family (mul stage + add stage compounding):
+  MADDx 1006 MADDy 1029 MADDz 1046 MADDw 990  MADD 992  MADDi 1088
+  MSUBx 1040 MSUBy 1030 MSUBz 972  MSUBw 955  MSUB 976  MSUBi 1104
+Outer product:
+  OPMSUB 1354   <- highest in the table; flagged for a deep dive to
+                   separate compounded rounding from anything extra.
+
+Known rig gaps in this census (results excluded from conclusions):
+- Q-form ops (MULq ADDq MADDq SUBq MSUBq): the recompiled dispatcher
+  reads Q from VI[REG_Q], the exec layout seeds the q field; the
+  near-zero divergence of these rows is an artifact of both engines
+  possibly seeing different or zero Q. Plumbing fix queued.
+- Flags: the flag hack elides status/mac computation for programs
+  that never read flags, so rec flag output is stale zeros here.
+  v2 programs will consume flags (FSAND/FMAND after the op) so the
+  columns measure flags as architecturally observable.
