@@ -206,3 +206,32 @@ measured VU FMAC op -- ADD SUB MUL MADD MSUB MADDA MSUBA -- is
 bit-exact under exactmul plus accurate add/sub on the adversarial
 distribution, raw exp-255 operands and saturating products
 included.
+
+Flag front, adversarial opening census (values are done; this is
+the flags ledger's first adversarial measurement, FSAND/FMAND
+observed under exactmul+accurate-addsub):
+  status/mac divergence per 400: ADD 34, MUL 370, MADD 375,
+  MSUB 377, MADDA 377, MSUBA 379.
+  The anatomy is singular: EVERY divergent case differs in the O
+  bit alone -- status bit 3, its sticky bit 9, and the mac O
+  nibble; Z/S/U columns are exact throughout. The recompiler
+  under-reports overflow the oracle sets.
+  Two distinct mechanisms, both with designed probes:
+  1. ADD/SUB: overflow detection is structurally disabled -- the
+     class gate (ovfDetectOK) enables the detect block for the
+     mul family only, a correct default-mode economy; under the
+     accurate option the composite produces genuine exp-255
+     results whose O the detect block would need to see. Probe:
+     extend ovfDetectOK to add/sub under CHECK_VU_ACC_ADDSUB and
+     check whether the existing cmpnltps detector (unordered-true
+     on the exp-255 pattern) already suffices.
+  2. MUL and the fused family: ovfDetectOK is true there, yet O is
+     missed at adversarial density under exactmul. Probe: the same
+     spec in default mode -- if default MUL sets O on these cases
+     (the class-gate arc's numbers say its detector works), the
+     exactmul path specifically loses or bypasses the detection,
+     and the emission read starts at the exact composite's
+     interaction with mVUupdateFlags.
+  Games reading flags at this operand density are rare; the values
+  campaign's exactness stands regardless. This is the ledger the
+  fused commits pointed to, now with numbers and a mechanism split.
