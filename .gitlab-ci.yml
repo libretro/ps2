@@ -30,6 +30,11 @@ include:
   - project: 'libretro-infrastructure/ci-templates'
     file: '/linux-cmake.yml'
 
+  ################################## CELLULAR ################################
+  # Android
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/android-cmake.yml'
+
 # Stages for building
 stages:
   - build-prepare
@@ -112,3 +117,22 @@ libretro-build-osx-arm64:
     - .core-defs
   variables:
     EXTRA_PATH: libretro
+
+################################### CELLULAR #################################
+# Android ARMv8a
+# EXTRA_PATH matches the Linux jobs: the top-level CMakeLists redirects the
+# library output to bin/ under `UNIX AND NOT APPLE`, which Android satisfies.
+android-arm64-v8a:
+  extends:
+    - .libretro-android-cmake-arm64-v8a
+    - .core-defs
+  variables:
+    EXTRA_PATH: bin
+
+# Android 64-bit x86
+android-x86_64:
+  extends:
+    - .libretro-android-cmake-x86_64
+    - .core-defs
+  variables:
+    EXTRA_PATH: bin
