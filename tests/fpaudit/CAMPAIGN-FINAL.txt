@@ -88,3 +88,15 @@ accuracy vs the oracle moves from always-wrong (rec-O identically
 zero) to MUL 9/400 and fused 125-139/400 adversarial (from
 370-379). The VuOverflowHack GameDB entries are harmless no-ops
 from this commit; the config plumbing stays intact.
+
+VuOverflowHack retirement (follow-up to the promotion): the arm64
+detect block still gated on the flag -- the promotion commit had
+not mirrored -- so the mirror lands first (arm64 carries the
+threshold detector; the exact pattern/event machinery under the
+accuracy options is x86-only, recorded on the arm64 accuracy-parity
+ledger alongside the fused blends). With both recompilers
+unconditional, CHECK_VUOVERFLOWHACK has zero consumers and the
+macro is deleted; the config bit and the "VUOverflow" GameDB name
+remain parsed-and-ignored, marked deprecated, so every existing
+GameDB file and user config stays valid. x86 build and the arm64
+cross syntax gate on the including TU both clean.

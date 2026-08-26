@@ -115,7 +115,11 @@ static void mVUupdateFlags(mV, const a64::VRegister& reg, const a64::VRegister& 
 	 * FLT_MAX passes through absorbing additions legitimately.
 	 * Measured on the per-op differential rig against the ps2float
 	 * oracle; numbers in the x86 commit. */
-	if (sFLAG.doFlag && CHECK_VUOVERFLOWHACK && mVU.ovfDetectOK)
+	/* Mirrors the x86 promotion: overflow detection unconditional,
+	 * mul-family scoped. arm64 carries the threshold detector only;
+	 * the exact pattern/event machinery under the accuracy options
+	 * is x86-only for now (arm64 accuracy-parity ledger). */
+	if (sFLAG.doFlag && mVU.ovfDetectOK)
 	{
 		a64::Label oJMP;
 		// Calculate overflow

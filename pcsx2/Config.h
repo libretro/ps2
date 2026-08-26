@@ -714,7 +714,7 @@ struct Pcsx2Config
 					VIF1StallHack  : 1, // Like above, processes FIFO data before the stall is allowed (to make sure data goes over).
 					IbitHack       : 1, // I bit hack. Needed to stop constant VU recompilation in some games
 					VUSyncHack     : 1, // Makes microVU run behind the EE to avoid VU register reading/writing sync issues. Useful for M-Bit games
-					VUOverflowHack : 1, // Tries to simulate overflow flag checks (not really possible on x86 without soft floats)
+					VUOverflowHack : 1, // DEPRECATED no-op: overflow detection is now unconditional; kept so GameDB/config files parse
 					XgKickHack     : 1, // Erementar Gerad, adds more delay to VU XGkick instructions. Corrects the color of some graphics, but breaks Tri-ace games and others.
 					BlitInternalFPSHack : 1, // Disables privileged register write-based FPS detection.
 					FullVU0SyncHack     : 1, // Forces tight VU0 sync on every COP2 instruction.
@@ -995,7 +995,10 @@ namespace EmuFolders
 #define CHECK_VIFFIFOHACK (EmuConfig.Gamefixes.VIFFIFOHack) // Pretends to fill the non-existant VIF FIFO Buffer.
 #define CHECK_VIF1STALLHACK (EmuConfig.Gamefixes.VIF1StallHack) // Like above, processes FIFO data before the stall is allowed (to make sure data goes over).
 #define CHECK_GIFFIFOHACK (EmuConfig.Gamefixes.GIFFIFOHack) // Enabled the GIF FIFO (more correct but slower)
-#define CHECK_VUOVERFLOWHACK (EmuConfig.Gamefixes.VUOverflowHack) // Special Fix for Superman Returns, they check for overflows on PS2 floats which we can't do without soft floats.
+/* CHECK_VUOVERFLOWHACK removed: overflow detection is unconditional
+ * on both recompilers (fpaudit promotion). The VUOverflowHack config
+ * bit and the "VUOverflow" GameDB name remain parsed-and-ignored so
+ * existing GameDB files and user configs stay valid. */
 #define CHECK_FULLVU0SYNCHACK (EmuConfig.Gamefixes.FullVU0SyncHack)
 #define CHECK_VUADDSUBHACK (EmuConfig.Gamefixes.VuAddSubHack)
 
