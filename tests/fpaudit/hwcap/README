@@ -1,0 +1,25 @@
+What to do, exactly:
+
+1. Build:   cd tests/fpaudit/hwcap && make        (needs $PS2SDK)
+2. Run on a real console with any homebrew loader:
+              ps2client execee host:hwcap.elf     (ps2link)
+            or copy hwcap.elf to USB and launch via uLaunchELF.
+3. Copy every line starting with [HW] (ps2link echoes printf to the
+   host; via uLE, photograph the screen -- the lines are short).
+4. Paste those lines back to me verbatim. That is the entire task.
+
+Caveats I could not verify without silicon, marked in main.c:
+- Test 3's VU1 kick (CMSAR1 ctc2) and the register-file window are
+  the standard direct method but loaders differ in leaving VU1 in a
+  kickable state; if T3 hangs or reads zeros, tell me which loader
+  you used and I will re-cut it through the VIF path instead. T1
+  and T2 have no such dependency -- if only those two come back,
+  that already settles the CFC1 and fused-MADD questions.
+- The WAITP/MFP encodings in main.c are from my tables; your
+  assembler view of them is authoritative -- if the build's
+  disassembly disagrees, trust the manual and adjust, or send me
+  the complaint and I patch the constants.
+
+If you have no console access at all: HARDWARE-CAPTURES.txt one
+directory up is written to be handed to anyone in the community who
+runs captures -- it needs no context from this repo.
