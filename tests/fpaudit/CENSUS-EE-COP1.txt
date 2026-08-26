@@ -177,6 +177,25 @@ capture: CTC1 a handful of garbage patterns on a real EE and read
 them back with CFC1. Queued for hardware time alongside the EFU
 captures; no fix lands blind.
 
+EE per-op pricing, session 1 (partial -- rig TODO captured):
+  Method transferred from the VU: 200x-unrolled programs, 2000
+  cases, per-program rec-pass wall timing (the harness gained an
+  [EETIME] line), NOP baseline subtracted, alternated min-of-three,
+  with a warmup program absorbing the first-program compile/warm
+  cost that initially produced negative prices.
+  Prices that landed before the crash (ns per recompiled op):
+    ADD.S   default 6.0   soft 6.0   accurate 8.25
+    MUL.S   default 4.5              accurate 6.75
+  Rig TODO, characterized: multi-program specs of 200-op programs
+  abort deterministically at the fifth program switch, in every
+  config -- reset-churn in the per-prep Cpu->Reset() from the audit
+  thread, count-dependent, not op-dependent (a 200-DIV single
+  program runs and prices fine at 0.038s/2000 cases). Workaround
+  for the remaining rows: one program per spec, one run per op.
+  The missing prices (DIV/SQRT/MADD across configs, soft MUL) fill
+  in next pricing session.
+
+
 CVT.S.W -- CLOSED (this commit): the convert gains an MXCSR
 round-to-nearest window under either accuracy option (the EE JIT's
 global chop rounding was leaving the recompiled convert one ulp low
