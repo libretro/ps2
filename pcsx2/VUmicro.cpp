@@ -135,6 +135,13 @@ void ps2_audit_vu_exec(int unit, int use_interp, unsigned char* regs_io, unsigne
 		vu->micro_macflags[i]    = vu->VI[REG_MAC_FLAG].UL;
 		vu->micro_clipflags[i]   = vu->VI[REG_CLIP_FLAG].UL;
 	}
+	/* The interpreter's flag reads go through its internal pipeline
+	 * latches, not VI; seed them too or FSAND observes whatever the
+	 * last real program left there (found as a constant stale status
+	 * on ops that correctly write no flags). */
+	vu->statusflag = vu->VI[REG_STATUS_FLAG].UL;
+	vu->macflag    = vu->VI[REG_MAC_FLAG].UL;
+	vu->clipflag   = vu->VI[REG_CLIP_FLAG].UL;
 	vu->pending_q = vu->q.UL;
 	vu->pending_p = vu->p.UL;
 	/* Q/P live in two representations; the dispatcher loads VI[REG_Q]

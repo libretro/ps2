@@ -1,0 +1,35 @@
+VU upper-op census v3: full corrected table, 79 ops, 400 cases each
+===================================================================
+Rig at this commit: flag-instance AND interpreter pipeline-latch
+seeding (the interpreter retires its internal status/mac latches
+into VI over subsequent cycles, so unseeded latches surfaced BIOS
+leftovers as a constant on ops that correctly write no flags);
+architectural flag observation via FSAND/FMAND after four NOP pairs
+of FMAC latency; Q/P mirrored; OPMSUB/OPMULA at their proper xyz
+dest; OPMULA at its real FD_10 slot. Columns per op: result-VF
+lanes /1600, ACC lanes /1600, status /400, MAC /400, default
+recompiler vs ps2float interpreter oracle.
+
+Fully exact (values and flags, zero divergence):
+  MAX MAXx MAXy MAXz MAXw MAXi MINI MINIx MINIy MINIz MINIw MINIi
+The comparison family is bit-exact end to end, flags included.
+
+Family structure, everything consistent with per-stage rounding
+semantics and no per-op anomalies:
+  add/sub forms: values 599-750, flags 0-8 (near-exact flags)
+  multiply forms: values 250-317, flags 118-217 (overflow flag gap;
+    the class-gated FLT_MAX detector closes this to ~1-3 where its
+    signature holds -- see 468444833)
+  fused forms: values 679-735, flags 131-217 (two-stage compound)
+  ACC-target forms: ACC divergence at family scale, VF untouched
+  OPMSUB 522 / OPMULA 220: fully explained by stage compounding
+    once encoded with the correct xyz dest (the v1 outlier was an
+    invalid dest=0xF encoding artifact, itself a recorded
+    engine-disagreement on undefined dest bits)
+
+Not yet meaningful (rig gap, queued): MULi ADDi MAXi MINIi ADDAi
+SUBAi MADDAi MSUBAi rows ran with the I register unseeded (zero),
+so the i-form "exact" entries are trivial; REG_I seeding lands in
+the next rig revision and those rows rerun.
+
+Perf columns (default vs accurate paths per op) remain queued.
