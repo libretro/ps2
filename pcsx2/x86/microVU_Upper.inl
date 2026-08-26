@@ -84,9 +84,16 @@ static void mVUupdateFlags(mV, int reg, int regT1in = -1, int regT2in = -1, int 
 	// We can't really do this because of the limited range of x86 and the value MIGHT genuinely be FLT_MAX (x86)
 	// so this will need to remain as a gamefix for the one game that needs it (Superman Returns)
 	// until some sort of soft float implementation.
-	if (sFLAG.doFlag && CHECK_VUOVERFLOWHACK)
+	/* The FMAX-result signature is a near-exact overflow proxy for
+	 * multiply-family finals (differential rig, 600-case batteries:
+	 * MUL status divergence 285 -> 1 against the ps2float oracle,
+	 * false positives 1) but is wrong for adds, where FMAX passes
+	 * through absorbing additions legitimately (ADD: 2 -> 173, all
+	 * false fires). The detector therefore only runs where its
+	 * signature holds; callers mark multiply-involved ops. */
+	if (sFLAG.doFlag && CHECK_VUOVERFLOWHACK && mVU->ovfDetectOK)
 	{
-		alignas(16) const u32 sse4_compvals[2][4] = {
+		alignas(16) static const u32 sse4_compvals[2][4] = {
 			{0x7f7fffff, 0x7f7fffff, 0x7f7fffff, 0x7f7fffff}, //1111
 			{0x7fffffff, 0x7fffffff, 0x7fffffff, 0x7fffffff}, //1111
 		};
@@ -262,6 +269,7 @@ static void mVU_FMACa(microVU* mVU, int recPass, int opCase, int opType, int isA
 		/* provable mask no-op: register-form add/sub with Fs == Ft has
 		 * per-lane exponent distance zero on every computed lane */
 		mVU->addsubMaskNoop = ((opType <= 1) && (opCase == 1) && (_Fs_ == _Ft_));
+		mVU->ovfDetectOK = (opType == 2);
 
 		if ((opType <= 1) && (CHECK_VU_ACC_ADDSUB || CHECK_VUADDSUBHACK) && (opCase == 2) && (_Ft_ == 0) && (_bc_ != 3))
 			mVUaddSubVF0(mVU, Fs, opType == 1, _XYZW_SS);
@@ -301,6 +309,7 @@ static void mVU_FMACb(microVU* mVU, int recPass, int opCase, int opType, int cla
 	pass1 { setupPass1(mVU, opCase, 1, 0); }
 	pass2
 	{
+		mVU->ovfDetectOK = true;
 		int Fs, Ft, ACC, tempFt;
 		setupFtReg(mVU, &Ft, &tempFt, opCase, clampType);
 
@@ -350,6 +359,7 @@ static void mVU_FMACc(microVU* mVU, int recPass, int opCase, int clampType)
 	pass1 { setupPass1(mVU, opCase, 0, 0); }
 	pass2
 	{
+		mVU->ovfDetectOK = true;
 		int Fs, Ft, ACC, tempFt;
 		setupFtReg(mVU, &Ft, &tempFt, opCase, clampType);
 
@@ -390,6 +400,7 @@ static void mVU_FMACd(microVU* mVU, int recPass, int opCase, int clampType)
 	pass1 { setupPass1(mVU, opCase, 0, 0); }
 	pass2
 	{
+		mVU->ovfDetectOK = true;
 		int Fs, Ft, Fd, tempFt;
 		setupFtReg(mVU, &Ft, &tempFt, opCase, clampType);
 
@@ -437,6 +448,7 @@ mVUop(mVU_OPMULA)
 	pass1 { mVUanalyzeFMAC1(mVU, 0, _Fs_, _Ft_); }
 	pass2
 	{
+		mVU->ovfDetectOK = true;
 		const int Ft = mVUra_allocReg(mVU->regAlloc, _Ft_, 0, _X_Y_Z_W, 1);
 		const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, 32, _X_Y_Z_W, 1);
 
@@ -456,6 +468,7 @@ mVUop(mVU_OPMSUB)
 	pass1 { mVUanalyzeFMAC1(mVU, _Fd_, _Fs_, _Ft_); }
 	pass2
 	{
+		mVU->ovfDetectOK = true;
 		const int Ft = mVUra_allocReg(mVU->regAlloc, _Ft_, 0, 0xf, 1);
 		const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, 0, 0xf, 1);
 		const int ACC = mVUra_allocReg(mVU->regAlloc, 32, _Fd_, _X_Y_Z_W, 1);

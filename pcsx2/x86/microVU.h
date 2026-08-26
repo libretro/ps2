@@ -67,6 +67,7 @@ struct microVU
 	 * report how much of real content the static proof covers; they
 	 * print with the JIT hash dump. */
 	bool addsubMaskNoop;
+	bool ovfDetectOK;                     // overflow-hack detector valid for the current op (multiply-family finals)
 	u32  addsubRecTotal;
 	u32  addsubRecElided;
 	alignas(16) u32 exactDivSave[16][4];  // div stub xmm spill area

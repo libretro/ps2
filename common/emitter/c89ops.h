@@ -952,8 +952,18 @@ static uintptr_t xe_opaque_uptr(const void *p)
  * gt-compare against memory, the float<->int packed converts, the clip
  * pack/blend/movmsk trio, and movmskps into any gpr. */
 #define xe_cmpeqps_xx(d, s2)  do { XE_OPEN(); E_SSE_RRI(xep, 0x00, 0xc2, (d), (s2), 0); XE_CLOSE(); } while (0)
+/* CMPPS carries a trailing predicate immediate; the RIP-relative
+ * displacement must be computed against the end of the FULL
+ * instruction, immediate included. The hand-rolled E_SSE_R_MEM +
+ * EW8 form computed it one byte short, so the emitted compare read
+ * its constant off by one -- a misaligned packed load that faults.
+ * Dormant since the c89 migration because this was the only imm8
+ * SSE memory-form call site, first executed by the VUOverflowHack
+ * flag block (Superman Returns). E_SSE_R_MEMI threads the immediate
+ * through E_MODRM_MEM's after-bytes parameter, which exists for
+ * exactly this. */
 #define xe_cmpnltps_xm(x, addr) do { XE_OPEN(); { struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
-	E_SSE_R_MEM(xep, 0x00, 0xc2, (x), xm_); EW8(xep, 5); }; XE_CLOSE(); } while (0)
+	E_SSE_R_MEMI(xep, 0x00, 0xc2, (x), xm_, 5); }; XE_CLOSE(); } while (0)
 #define xe_mulps_xm(x, addr)  do { XE_OPEN(); { struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
 	E_SSE_R_MEM(xep, 0x00, 0x59, (x), xm_); }; XE_CLOSE(); } while (0)
 #define xe_pshufb_xx(d, s2) do { XE_OPEN(); E_SSE_RR(xep, 0x66, 0x0038, (d), (s2)); XE_CLOSE(); } while (0)
