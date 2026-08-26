@@ -135,6 +135,7 @@ namespace VMManager
 	// Set from the pcsx2_mtvu core option (libretro); read at boot by the arm64
 	// MTVU hardware-default hook. Replaces the LRPS2_MTVU/LRPS2_NO_MTVU env bridge.
 	extern bool g_MtvuMenuDefault;
+	extern bool g_FastmemMenuDefault;
 } // namespace VMManager
 
 

@@ -289,6 +289,15 @@ void VMManager::LoadSettings()
 		/* TODO/FIXME - implement */
 	}
 
+	/* Ground truth for the run's memory mode: CHECK_FASTMEM compiles
+	 * against exactly this value. Printed here, after the settings layer
+	 * has landed in EmuConfig, so a log line is proof of mode - the
+	 * option plumbing above it has already been wrong twice in ways only
+	 * a consumption-point line would have caught. */
+	Console.WriteLn(EmuConfig.Cpu.Recompiler.EnableFastmem
+		? "Fastmem: enabled (pcsx2_fastmem)."
+		: "Fastmem: DISABLED (pcsx2_fastmem) - all accesses take the software memory handlers.");
+
 	if (HasValidVM())
 		ApplyGameFixes();
 }
@@ -1222,6 +1231,7 @@ void VMManager::ApplySettings()
 }
 
 bool VMManager::g_MtvuMenuDefault = true;
+bool VMManager::g_FastmemMenuDefault = true;
 
 void VMManager::SetDefaultSettings(SettingsInterface& si)
 {
@@ -1335,6 +1345,13 @@ static void SetMTVUAndAffinityControlDefault(SettingsInterface& si)
 	// in small interleaved slices instead (upstream's non-instant scheduling).
 	Console.WriteLn("  Instant VU1 enabled (microVU1 native provider).");
 	si.SetBoolValue("EmuCore/Speedhacks", "vu1Instant", true);
+	/* Fastmem follows the same shape as MTVU: this default-setter can run
+	 * again on a settings reset after check_variables(true) has consumed
+	 * the option, so the option's value has to ride a VMManager global to
+	 * survive it. The truthful "which mode is this run in" line lives in
+	 * LoadSettings, printed from the config the recompilers actually
+	 * read - never from here, where the global may not be fed yet. */
+	si.SetBoolValue("EmuCore/CPU/Recompiler", "EnableFastmem", VMManager::g_FastmemMenuDefault);
 }
 
 #else

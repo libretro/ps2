@@ -1318,11 +1318,18 @@ static void check_variables(bool first_run)
 		/* Fastmem was the one core subsystem with no toggle: every
 		 * config a user can build still runs it, which makes a bug in
 		 * the fastmem/backpatch path invisible to option-space
-		 * bisection. Restart-scoped like MTVU: the mapping area is
-		 * built at VM init. */
+		 * bisection. Restart-scoped like MTVU, and like MTVU the value
+		 * must ride a VMManager default: the hardware-dependent
+		 * default setter can run again on a later settings reset and
+		 * wipe a bare SetBoolValue made here before the recompilers
+		 * ever read it. */
 		var.key = "pcsx2_fastmem";
 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-			s_settings_interface.SetBoolValue("EmuCore/CPU/Recompiler", "EnableFastmem", !strcmp(var.value, "enabled"));
+		{
+			const bool fastmem_on = !strcmp(var.value, "enabled");
+			s_settings_interface.SetBoolValue("EmuCore/CPU/Recompiler", "EnableFastmem", fastmem_on);
+			VMManager::g_FastmemMenuDefault = fastmem_on;
+		}
 	}
 
 	var.key = "pcsx2_widescreen_hint";
