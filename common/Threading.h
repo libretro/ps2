@@ -244,6 +244,9 @@ namespace Threading
 		KernelSemaphore();
 		~KernelSemaphore();
 		void Post();
+		/// Wait with a timeout.  Returns true if the semaphore was
+		/// acquired, false on timeout.
+		bool WaitFor(u32 timeout_ms);
 		void Wait();
 	};
 
@@ -314,6 +317,13 @@ namespace Threading
 		bool CheckForWork();
 		/// Wait for work to be added to the queue
 		void WaitForWork();
+		/// Like WaitForWork, but parks for at most timeout_ms.  Returns
+		/// false on timeout with the state restored to RUNNING_0, so the
+		/// caller can bail out and try again later; the SLEEPING ->
+		/// parked-on-sema invariant that WaitForEmpty relies on is never
+		/// violated by the early exit.  For consumers that must not block
+		/// unboundedly (the libretro frontend thread).
+		bool WaitForWorkTimed(u32 timeout_ms);
 		/// Wait for the worker thread to finish processing all entries in the queue or die
 		/// Returns false if the thread is dead
 		bool WaitForEmpty();

@@ -153,7 +153,7 @@ void MTGS::TryOpenGS(void)
 	retro_atomic_store_release_int(&s_open_flag, true);
 }
 
-void MTGS::MainLoop(bool flush_all)
+bool MTGS::MainLoop(bool flush_all)
 {
 
 	// Threading info: run in MTGS thread
@@ -170,11 +170,16 @@ void MTGS::MainLoop(bool flush_all)
 		if (flush_all)
 		{
 			if(!s_sem_event.CheckForWork())
-				return;
+				return true;
 		}
 		else
 		{
-			s_sem_event.WaitForWork();
+			/* The frontend thread must never park unboundedly: a wedged
+			 * producer degrades to duped frames with a live frontend,
+			 * never a frozen process.  100ms only fires when the EE has
+			 * genuinely stopped delivering vsyncs. */
+			if (!s_sem_event.WaitForWorkTimed(100))
+				return false;
 		}
 
 		if (!retro_atomic_load_acquire_int(&s_open_flag))
@@ -289,7 +294,7 @@ void MTGS::MainLoop(bool flush_all)
 			retro_atomic_store_release_int(&s_ReadPos, newringpos);
 
 			if (!flush_all && tag.command == GS_RINGTYPE_VSYNC)
-				return;
+				return true;
 		}
 	}
 
@@ -300,6 +305,7 @@ void MTGS::MainLoop(bool flush_all)
 	 * with pending packets, so this path is strictly safer now. */
 	vu1Thread.semaP1Progress.Post();
 	s_sem_event.Kill();
+	return true;
 }
 
 void MTGS::CloseGS(void)

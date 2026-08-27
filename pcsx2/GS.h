@@ -310,7 +310,10 @@ namespace MTGS
 	void PostVsyncStart();
 	void InitAndReadFIFO(u8* mem, u32 qwc);
 
-	void MainLoop(bool flush_all);
+	/* Returns false only when the bounded libretro-thread wait timed
+	 * out before a vsync was consumed; flush_all callers always get
+	 * true. */
+	bool MainLoop(bool flush_all);
 
 	void GameChanged();
 	void ApplySettings();

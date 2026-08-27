@@ -69,6 +69,34 @@ s32 Threading::SpinBudget()
 //  Semaphore Implementations
 // --------------------------------------------------------------------------------------
 
+bool Threading::KernelSemaphore::WaitFor(u32 timeout_ms)
+{
+#if defined(_WIN32)
+	return WaitForSingleObject(m_sema, timeout_ms) == WAIT_OBJECT_0;
+#elif defined(__APPLE__)
+	mach_timespec_t ts;
+	ts.tv_sec  = timeout_ms / 1000;
+	ts.tv_nsec = (timeout_ms % 1000) * 1000000;
+	return semaphore_timedwait(m_sema, ts) == KERN_SUCCESS;
+#else
+	struct timespec ts;
+	clock_gettime(CLOCK_REALTIME, &ts);
+	ts.tv_sec  += timeout_ms / 1000;
+	ts.tv_nsec += (long)(timeout_ms % 1000) * 1000000L;
+	if (ts.tv_nsec >= 1000000000L)
+	{
+		ts.tv_sec++;
+		ts.tv_nsec -= 1000000000L;
+	}
+	while (sem_timedwait(&m_sema, &ts) == -1)
+	{
+		if (errno != EINTR)
+			return false;
+	}
+	return true;
+#endif
+}
+
 bool Threading::WorkSema::CheckForWork()
 {
 	/* Load-then-attempt: cas_int is strong with no expected-out
@@ -182,6 +210,51 @@ bool Threading::WorkSema::WaitForEmpty()
 	}
 	m_empty_sema.Wait();
 	return !(retro_atomic_load_acquire_int(&m_state) < STATE_SPINNING);
+}
+
+bool Threading::WorkSema::WaitForWorkTimed(u32 timeout_ms)
+{
+	/* Same state walk as WaitForWork, minus the spin phase (a frontend
+	 * thread must park cheaply, not burn a core), plus a bounded sleep.
+	 * On timeout the state is CASed from SLEEPING back to RUNNING_0
+	 * before returning, so no thread is ever recorded as parked while
+	 * running off - the invariant WaitForEmpty depends on.  If a notify
+	 * wins that CAS it has already posted m_sema; the stray count makes
+	 * one future wait return early, which the state machine absorbs the
+	 * same way it absorbs any spurious wake. */
+	s32 value;
+	for (;;)
+	{
+		s32 waiting_empty_cleared;
+		s32 new_state;
+		value = retro_atomic_load_acquire_int(&m_state);
+		if (value < STATE_SPINNING)
+			return true;
+		waiting_empty_cleared = value & (STATE_FLAG_WAITING_EMPTY - 1);
+		new_state = (waiting_empty_cleared == STATE_RUNNING_0) ? STATE_SLEEPING : (STATE_RUNNING_0 | (value & STATE_FLAG_WAITING_EMPTY));
+		if (retro_atomic_cas_int(&m_state, value, new_state))
+			break;
+	}
+
+	if ((value & (STATE_FLAG_WAITING_EMPTY - 1)) == STATE_RUNNING_0)
+	{
+		/* Wake any WaitForEmpty sleeper before parking, exactly as
+		 * WaitForWork does. */
+		if (value & STATE_FLAG_WAITING_EMPTY)
+			m_empty_sema.Post();
+
+		if (!m_sema.WaitFor(timeout_ms))
+		{
+			if (retro_atomic_cas_int(&m_state, STATE_SLEEPING, STATE_RUNNING_0))
+				return false;
+			/* A notify raced the timeout: state is RUNNING and a sema
+			 * post is in flight.  Treat it as a wake. */
+		}
+	}
+
+	/* Acknowledge any additional work added between wake up request and getting here */
+	retro_atomic_fetch_and_int(&m_state, STATE_FLAG_WAITING_EMPTY);
+	return true;
 }
 
 void Threading::WorkSema::Kill()
