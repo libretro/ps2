@@ -1673,6 +1673,94 @@ namespace
 		s_rc.Invalidate(rd); // 128-bit write bypasses StoreGpr
 	}
 
+	// The parallel multiplies that only write: PMULTW and PMULTUW (MMI2 0x0c,
+	// MMI3 0x0c) and PMULTH (MMI2 0x1c). The multiply-accumulate forms are a
+	// different problem -- they read HI/LO back -- and stay with the
+	// interpreter.
+	//
+	// PMULTW multiplies words 0 and 2 signed into 64-bit products; PMULTUW is
+	// the same unsigned. Both split the product into LO and HI as two
+	// sign-extended halves and, when rd is written, put the whole 64-bit
+	// product in the matching lane of rd.
+	//
+	// PMULTH multiplies all eight halfword pairs into 32-bit products and
+	// scatters them: products 0,1,4,5 to LO words 0,1,2,3 and products
+	// 2,3,6,7 to HI words 0,1,2,3. rd, when written, takes products 0,2,4,6.
+	// Every product is computed before anything is stored, so rd aliasing rs
+	// or rt behaves as the interpreter does.
+	enum { MM_NONE, MM_PMULTW, MM_PMULTUW, MM_PMULTH };
+	int MmiMulAction(u32 insn)
+	{
+		const u32 funct = insn & 0x3f, sub = (insn >> 6) & 0x1f;
+		if (funct == 0x09 && sub == 0x0c) return MM_PMULTW;  // MMI2
+		if (funct == 0x09 && sub == 0x1c) return MM_PMULTH;  // MMI2
+		if (funct == 0x29 && sub == 0x0c) return MM_PMULTUW; // MMI3
+		return MM_NONE;
+	}
+
+	void EmitMmiMul(MacroAssembler& m, const Register& gpr, u32 insn)
+	{
+		const int act = MmiMulAction(insn);
+		const u32 rd = (insn >> 11) & 31, rs = (insn >> 21) & 31, rt = (insn >> 16) & 31;
+		int i;
+
+		s_rc.FlushReg(m, gpr, rs);
+		s_rc.FlushReg(m, gpr, rt);
+
+		if (act == MM_PMULTH)
+		{
+			// Products 0,1,4,5 land in LO words 0,1,2,3 and products 2,3,6,7
+			// in HI words 0,1,2,3. Each is stored as it is computed; only
+			// LO/HI are touched in this pass, so rd aliasing rs or rt cannot
+			// disturb a source that has not been read yet.
+			static const int kToLo[8] = { 1, 1, 0, 0, 1, 1, 0, 0 };
+			static const int kWord[8] = { 0, 1, 0, 1, 2, 3, 2, 3 };
+
+			for (i = 0; i < 8; i++)
+			{
+				m.Ldrsh(w0, MemOperand(gpr, rs * 16 + (u32)(i * 2)));
+				m.Ldrsh(w1, MemOperand(gpr, rt * 16 + (u32)(i * 2)));
+				m.Mul(w2, w0, w1);
+				m.Str(w2, MemOperand(gpr,
+					(kToLo[i] ? kLO : kHI) + (u32)(kWord[i] * 4)));
+			}
+			if (rd)
+			{
+				// rd takes LO word 0, HI word 0, LO word 2, HI word 2, read
+				// back after every product is in place exactly as the
+				// interpreter assigns them.
+				m.Ldr(w0, MemOperand(gpr, kLO + 0));
+				m.Ldr(w1, MemOperand(gpr, kHI + 0));
+				m.Ldr(w2, MemOperand(gpr, kLO + 8));
+				m.Ldr(w3, MemOperand(gpr, kHI + 8));
+				m.Str(w0, MemOperand(gpr, rd * 16 + 0));
+				m.Str(w1, MemOperand(gpr, rd * 16 + 4));
+				m.Str(w2, MemOperand(gpr, rd * 16 + 8));
+				m.Str(w3, MemOperand(gpr, rd * 16 + 12));
+				s_rc.Invalidate(rd);
+			}
+			return;
+		}
+
+		for (i = 0; i < 2; i++)
+		{
+			const u32 word = (u32)(i * 2);
+			const u32 lane = (u32)(i * 8);
+			m.Ldr(w0, MemOperand(gpr, rs * 16 + word * 4));
+			m.Ldr(w1, MemOperand(gpr, rt * 16 + word * 4));
+			if (act == MM_PMULTW) m.Smull(x2, w0, w1);
+			else                  m.Umull(x2, w0, w1);
+			m.Sxtw(x3, w2);                      // LO = sign-extended low half
+			m.Lsr(x4, x2, 32); m.Sxtw(x4, w4);   // HI = sign-extended high half
+			m.Str(x3, MemOperand(gpr, kLO + lane));
+			m.Str(x4, MemOperand(gpr, kHI + lane));
+			if (rd)
+				m.Str(x2, MemOperand(gpr, rd * 16 + lane)); // whole product
+		}
+		if (rd)
+			s_rc.Invalidate(rd);
+	}
+
 	// The parallel divides: PDIVW (MMI2 sub 0x0d) and PDIVBW (MMI3 sub 0x1d)
 	// signed, PDIVUW (MMI3 sub 0x0d) unsigned. Two 32-bit lanes each except
 	// PDIVBW, which has four. Without these a block containing one runs
@@ -3002,6 +3090,7 @@ namespace {
 				if (MmiHiLoAction(insn)) { EmitMmiHiLo(m, gpr, insn); return true; } // C.79
 				if (MmiDivAction(insn)) { EmitMmiDiv(m, gpr, insn); return true; }
 				if (MmiPermAction(insn)) { EmitMmiPerm(m, gpr, insn); return true; }
+				if (MmiMulAction(insn)) { EmitMmiMul(m, gpr, insn); return true; }
 				// PCPYH: broadcast halfword 0 of each 64-bit half of rt across
 				// that half. Scalar: (u16)half * 0x0001000100010001.
 				if (IsPcpyh(insn))
@@ -3312,7 +3401,8 @@ namespace {
 			if (f == 0x04)             // PLZCW (C.63)
 				return true;
 			return MmiSupported(insn) || MmiHiLoAction(insn) || IsPcpyh(insn) || // C.79
-				MmiDivAction(insn) || MmiPermAction(insn) || IsQfsrv(insn);
+				MmiDivAction(insn) || MmiPermAction(insn) ||
+				MmiMulAction(insn) || IsQfsrv(insn);
 		}
 		if (op == 0x01) // REGIMM: MTSAB/MTSAH only (branches handled elsewhere)
 		{
