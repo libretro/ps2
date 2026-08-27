@@ -17,6 +17,14 @@ elseif(Linux)
 	find_library(libdl NAMES dl)
 	find_library(librt NAMES rt)
 	set(LIBC_LIBRARIES ${librt} ${libdl} ${libm})
+elseif(ANDROID)
+	# bionic folds the realtime (clock_*, timer_*, aio_*) and dynamic loader
+	# entry points straight into libc: there is no librt and no libdl to find.
+	# Searching for them anyway leaves the literal librt-NOTFOUND in
+	# LIBC_LIBRARIES, which reaches the link interface of the `common` and
+	# `PCSX2` targets and aborts the NDK lanes at generate time with
+	# "variables are used in this project, but they are set to NOTFOUND".
+	set(LIBC_LIBRARIES ${libm})
 else()
 	# FreeBSD doesn't have libdl
 	find_library(librt NAMES rt)
