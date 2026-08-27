@@ -316,7 +316,11 @@ void recMFC0()
 		xe_mov64_mr(&cpuRegs.cycle, XE_CX); // update cycles
 		xe_mov64_rr(XE_AX, XE_CX);
 		xe_sub64_rm(XE_AX, &cpuRegs.lastCOP0Cycle);
-		xe_add64_mr(&cpuRegs.CP0.n.Count, XE_AX);
+		/* Count is u32 and EntryHi is the field directly after it in
+		 * CP0regs, so a 64-bit add here is an eight-byte read-modify-write
+		 * spanning both: any carry out of Count lands in EntryHi's ASID.
+		 * The elapsed delta is a 32-bit quantity, so add it as one. */
+		xe_add32_mr(&cpuRegs.CP0.n.Count, XE_AX);
 		xe_mov64_mr(&cpuRegs.lastCOP0Cycle, XE_CX);
 
 		if (!_Rt_)
