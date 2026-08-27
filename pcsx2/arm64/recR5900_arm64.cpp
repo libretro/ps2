@@ -1673,6 +1673,106 @@ namespace
 		s_rc.Invalidate(rd); // 128-bit write bypasses StoreGpr
 	}
 
+	// The word-lane multiply-accumulates: PMADDW (MMI2 0x00), PMSUBW
+	// (MMI2 0x04) and PMADDUW (MMI3 0x00). Unlike the PMULT forms these read
+	// HI and LO back and combine with what is already there.
+	//
+	// PMADDW and PMSUBW carry two hardware quirks that MMI.cpp reproduces and
+	// so does this. The high half is not a shift but a division by
+	// 0xffffffff, which is off by one from >> 32 on the real part; and for
+	// lane 0 only, PMADDW adds 0x70000000 when rt's low 31 bits are all zero
+	// or all one and rs differs from rt. Both are emitted literally -- the
+	// division as a real SDIV, since getting it merely close is the kind of
+	// thing that produces wrong pixels a long way from here.
+	enum { MA_NONE, MA_PMADDW, MA_PMSUBW, MA_PMADDUW };
+	int MmiMaccAction(u32 insn)
+	{
+		const u32 funct = insn & 0x3f, sub = (insn >> 6) & 0x1f;
+		if (funct == 0x09 && sub == 0x00) return MA_PMADDW;  // MMI2
+		if (funct == 0x09 && sub == 0x04) return MA_PMSUBW;  // MMI2
+		if (funct == 0x29 && sub == 0x00) return MA_PMADDUW; // MMI3
+		return MA_NONE;
+	}
+
+	void EmitMmiMacc(MacroAssembler& m, const Register& gpr, u32 insn)
+	{
+		const int  act  = MmiMaccAction(insn);
+		const u32  rd   = (insn >> 11) & 31, rs = (insn >> 21) & 31, rt = (insn >> 16) & 31;
+		const bool madd = (act == MA_PMADDW);
+		int        i;
+
+		s_rc.FlushReg(m, gpr, rs);
+		s_rc.FlushReg(m, gpr, rt);
+
+		for (i = 0; i < 2; i++)
+		{
+			const u32 ss   = (u32)(i * 2);      // source word
+			const u32 lane = (u32)(i * 8);      // destination 64-bit lane
+
+			if (act == MA_PMADDUW)
+			{
+				// tempu = (LO.UL[ss] | HI.UL[ss] << 32) + rs.UL[ss] * rt.UL[ss]
+				m.Ldr(w0, MemOperand(gpr, rs * 16 + ss * 4));
+				m.Ldr(w1, MemOperand(gpr, rt * 16 + ss * 4));
+				m.Umull(x2, w0, w1);
+				m.Ldr(w3, MemOperand(gpr, kLO + ss * 4));
+				m.Ldr(w4, MemOperand(gpr, kHI + ss * 4));
+				m.Orr(x3, x3, Operand(x4, LSL, 32));
+				m.Add(x2, x2, x3);
+				m.Sxtw(x5, w2);                     // LO = sign-extended low
+				m.Lsr(x6, x2, 32); m.Sxtw(x6, w6);  // HI = sign-extended high
+				m.Str(x5, MemOperand(gpr, kLO + lane));
+				m.Str(x6, MemOperand(gpr, kHI + lane));
+				if (rd)
+					m.Str(x2, MemOperand(gpr, rd * 16 + lane)); // rd = whole sum
+				continue;
+			}
+
+			m.Ldrsw(x0, MemOperand(gpr, rs * 16 + ss * 4));
+			m.Ldrsw(x1, MemOperand(gpr, rt * 16 + ss * 4));
+			m.Mul(x2, x0, x1);                       // temp
+			m.Ldrsw(x3, MemOperand(gpr, kHI + ss * 4));
+			m.Lsl(x3, x3, 32);                       // HI.SL[ss] << 32
+			if (madd) m.Add(x4, x2, x3);             // temp2 = temp + that
+			else      m.Sub(x4, x3, x2);             // temp2 = that - temp
+
+			if (madd && ss == 0)
+			{
+				Label add70, skip;
+				m.And(w5, w1, 0x7fffffff);
+				m.Cbz(w5, &add70);                   // low 31 bits all zero
+				m.Mov(w6, 0x7fffffff);
+				m.Cmp(w5, w6);
+				m.B(&skip, ne);                      // ...or all one
+				m.Bind(&add70);
+				m.Cmp(w0, w1);
+				m.B(&skip, eq);                      // and rs != rt
+				m.Add(x4, x4, 0x70000000);
+				m.Bind(&skip);
+			}
+
+			m.Mov(x6, 4294967295);
+			m.Sdiv(x4, x4, x6);
+			m.Sxtw(x4, w4);                          // HI = (s32)temp2
+
+			m.Ldr(w7, MemOperand(gpr, kLO + ss * 4));
+			if (madd) m.Add(w7, w2, w7);             // LO = (s32)temp + LO.SL[ss]
+			else      m.Sub(w7, w7, w2);             // LO = LO.SL[ss] - (s32)temp
+			m.Sxtw(x7, w7);
+
+			m.Str(x7, MemOperand(gpr, kLO + lane));
+			m.Str(x4, MemOperand(gpr, kHI + lane));
+			if (rd)
+			{
+				// rd word dd*2 takes LO's low word, dd*2+1 takes HI's.
+				m.Str(w7, MemOperand(gpr, rd * 16 + lane));
+				m.Str(w4, MemOperand(gpr, rd * 16 + lane + 4));
+			}
+		}
+		if (rd)
+			s_rc.Invalidate(rd);
+	}
+
 	// The parallel multiplies that only write: PMULTW and PMULTUW (MMI2 0x0c,
 	// MMI3 0x0c) and PMULTH (MMI2 0x1c). The multiply-accumulate forms are a
 	// different problem -- they read HI/LO back -- and stay with the
@@ -3091,6 +3191,7 @@ namespace {
 				if (MmiDivAction(insn)) { EmitMmiDiv(m, gpr, insn); return true; }
 				if (MmiPermAction(insn)) { EmitMmiPerm(m, gpr, insn); return true; }
 				if (MmiMulAction(insn)) { EmitMmiMul(m, gpr, insn); return true; }
+				if (MmiMaccAction(insn)) { EmitMmiMacc(m, gpr, insn); return true; }
 				// PCPYH: broadcast halfword 0 of each 64-bit half of rt across
 				// that half. Scalar: (u16)half * 0x0001000100010001.
 				if (IsPcpyh(insn))
@@ -3402,7 +3503,7 @@ namespace {
 				return true;
 			return MmiSupported(insn) || MmiHiLoAction(insn) || IsPcpyh(insn) || // C.79
 				MmiDivAction(insn) || MmiPermAction(insn) ||
-				MmiMulAction(insn) || IsQfsrv(insn);
+				MmiMulAction(insn) || MmiMaccAction(insn) || IsQfsrv(insn);
 		}
 		if (op == 0x01) // REGIMM: MTSAB/MTSAH only (branches handled elsewhere)
 		{
