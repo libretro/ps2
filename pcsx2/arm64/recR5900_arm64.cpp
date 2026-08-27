@@ -1501,7 +1501,8 @@ namespace
 		return HL_NONE;
 	}
 
-	// Element permutes and the saturating absolutes.
+	// Element permutes, the saturating absolutes, the variable word shifts,
+	// PADSBH and PEXT5.
 	//
 	// The permutes are pure data movement: each destination element is one
 	// source element, so they are emitted as word or halfword loads followed
@@ -1512,17 +1513,22 @@ namespace
 	// PABSW/PABSH are the saturating absolute value, clamping 0x80000000 to
 	// 0x7fffffff and 0x8000 to 0x7fff, which is precisely what SQABS does.
 	enum { MP_NONE, MP_PEXEW, MP_PEXCW, MP_PROT3W, MP_PEXEH, MP_PEXCH,
-	       MP_PINTH, MP_PINTEH, MP_PABSW, MP_PABSH };
+	       MP_PINTH, MP_PINTEH, MP_PABSW, MP_PABSH, MP_PEXT5, MP_PADSBH,
+	       MP_PSLLVW, MP_PSRLVW, MP_PSRAVW };
 	int MmiPermAction(u32 insn)
 	{
 		const u32 funct = insn & 0x3f, sub = (insn >> 6) & 0x1f;
+		if (funct == 0x08 && sub == 0x1e) return MP_PEXT5; // MMI0
 		if (funct == 0x28) // MMI1
 		{
 			if (sub == 0x01) return MP_PABSW;
+			if (sub == 0x04) return MP_PADSBH;
 			if (sub == 0x05) return MP_PABSH;
 		}
 		if (funct == 0x09) // MMI2
 		{
+			if (sub == 0x02) return MP_PSLLVW;
+			if (sub == 0x03) return MP_PSRLVW;
 			if (sub == 0x0a) return MP_PINTH;
 			if (sub == 0x1a) return MP_PEXEH;
 			if (sub == 0x1e) return MP_PEXEW;
@@ -1530,6 +1536,7 @@ namespace
 		}
 		if (funct == 0x29) // MMI3
 		{
+			if (sub == 0x03) return MP_PSRAVW;
 			if (sub == 0x0a) return MP_PINTEH;
 			if (sub == 0x1a) return MP_PEXCH;
 			if (sub == 0x1e) return MP_PEXCW;
@@ -1545,6 +1552,69 @@ namespace
 
 		if (!rd)
 			return;
+
+		// PSLLVW/PSRLVW/PSRAVW shift words 0 and 2 of rt by the low five bits
+		// of the matching word of rs, each 32-bit result sign-extended into a
+		// 64-bit lane of rd. A 32-bit variable shift on AArch64 already takes
+		// its amount modulo 32, but the mask is emitted anyway so the code
+		// says what the interpreter says.
+		if (act == MP_PSLLVW || act == MP_PSRLVW || act == MP_PSRAVW)
+		{
+			s_rc.FlushReg(m, gpr, rs);
+			s_rc.FlushReg(m, gpr, rt);
+			for (i = 0; i < 2; i++)
+			{
+				const u32 word = (u32)(i * 2);
+				m.Ldr(w0, MemOperand(gpr, rt * 16 + word * 4));
+				m.Ldr(w1, MemOperand(gpr, rs * 16 + word * 4));
+				m.And(w1, w1, 0x1f);
+				if      (act == MP_PSLLVW) m.Lsl(w2, w0, w1);
+				else if (act == MP_PSRLVW) m.Lsr(w2, w0, w1);
+				else                       m.Asr(w2, w0, w1);
+				m.Sxtw(x2, w2);
+				m.Str(x2, MemOperand(gpr, rd * 16 + (u32)(i * 8)));
+			}
+			s_rc.Invalidate(rd);
+			return;
+		}
+
+		// PADSBH subtracts in the lower four halfwords and adds in the upper
+		// four, both wrapping (the saturating forms are PSUBSH/PADDSH).
+		if (act == MP_PADSBH)
+		{
+			s_rc.FlushReg(m, gpr, rs);
+			s_rc.FlushReg(m, gpr, rt);
+			LoadQ(m, q1, gpr, rs);
+			LoadQ(m, q2, gpr, rt);
+			m.Sub(v3.V8H(), v1.V8H(), v2.V8H());
+			m.Add(v4.V8H(), v1.V8H(), v2.V8H());
+			m.Ins(v3.V2D(), 1, v4.V2D(), 1); // keep sub low, add high
+			m.Str(q3, MemOperand(gpr, rd * 16));
+			s_rc.Invalidate(rd);
+			return;
+		}
+
+		// PEXT5 is the inverse of PPAC5 above: unpack RGB1555 out of each
+		// word, the same four fields shifted the other way.
+		if (act == MP_PEXT5)
+		{
+			s_rc.FlushReg(m, gpr, rt);
+			LoadQ(m, q1, gpr, rt);
+			m.Movi(v4.V4S(), 0x1f);
+			m.Shl(v5.V4S(), v4.V4S(), 5);   // 0x3e0
+			m.Shl(v6.V4S(), v4.V4S(), 10);  // 0x7c00
+			m.Movi(v7.V4S(), 0x80, LSL, 8); // 0x8000
+			m.And(v0.V16B(), v1.V16B(), v4.V16B()); m.Shl(v0.V4S(), v0.V4S(), 3);
+			m.And(v2.V16B(), v1.V16B(), v5.V16B()); m.Shl(v2.V4S(), v2.V4S(), 6);
+			m.Orr(v0.V16B(), v0.V16B(), v2.V16B());
+			m.And(v2.V16B(), v1.V16B(), v6.V16B()); m.Shl(v2.V4S(), v2.V4S(), 9);
+			m.Orr(v0.V16B(), v0.V16B(), v2.V16B());
+			m.And(v2.V16B(), v1.V16B(), v7.V16B()); m.Shl(v2.V4S(), v2.V4S(), 16);
+			m.Orr(v0.V16B(), v0.V16B(), v2.V16B());
+			m.Str(q0, MemOperand(gpr, rd * 16));
+			s_rc.Invalidate(rd);
+			return;
+		}
 
 		if (act == MP_PABSW || act == MP_PABSH)
 		{
