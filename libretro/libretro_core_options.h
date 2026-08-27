@@ -720,6 +720,20 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       "100% (Normal Speed)"
    },
    {
+      "pcsx2_ee_cpu",
+      "Emulation > EE CPU Provider (Restart)",
+      "EE CPU Provider (Restart)",
+      "Selects what executes Emotion Engine code. Recompiler is the normal choice. Interpreter runs the EE in plain C: far too slow for play, but it takes the EE recompiler out of the picture entirely, so a hang that survives it is not a codegen bug. Selecting Interpreter also disables Fastmem, which only applies to the recompiler.",
+      NULL,
+      "emulation",
+      {
+         { "Recompiler", NULL },
+         { "Interpreter", NULL },
+         { NULL, NULL },
+      },
+      "Recompiler"
+   },
+   {
       "pcsx2_fastmem",
       "Emulation > Fastmem (Restart)",
       "Fastmem (Restart)",

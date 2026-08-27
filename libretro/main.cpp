@@ -1330,6 +1330,26 @@ static void check_variables(bool first_run)
 			s_settings_interface.SetBoolValue("EmuCore/CPU/Recompiler", "EnableFastmem", fastmem_on);
 			VMManager::g_FastmemMenuDefault = fastmem_on;
 		}
+
+		/* EE CPU provider. The interpreter is far slower than the
+		 * recompiler and is not meant for play; it is here so that a
+		 * misbehaviour can be attributed to (or cleared of) the EE
+		 * recompiler in one run, without a special build. Restart-scoped
+		 * because VMManager binds the provider once in
+		 * UpdateCPUImplementations. Fastmem is a recompiler-only path, so
+		 * selecting the interpreter turns it off as well rather than
+		 * leaving a live setting the provider cannot honour. */
+		var.key = "pcsx2_ee_cpu";
+		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+		{
+			const bool ee_interpreter = !strcmp(var.value, "Interpreter");
+			s_settings_interface.SetBoolValue("EmuCore/CPU/Recompiler", "EnableEE", !ee_interpreter);
+			if (ee_interpreter)
+			{
+				s_settings_interface.SetBoolValue("EmuCore/CPU/Recompiler", "EnableFastmem", false);
+				VMManager::g_FastmemMenuDefault = false;
+			}
+		}
 	}
 
 	var.key = "pcsx2_widescreen_hint";
