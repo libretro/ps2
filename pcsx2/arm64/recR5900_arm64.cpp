@@ -1501,6 +1501,89 @@ namespace
 		return HL_NONE;
 	}
 
+	// PDIVW (MMI2 sub 0x0d) and PDIVBW (MMI3 sub 0x1d): the signed parallel
+	// divides, two 32-bit lanes for PDIVW and four for PDIVBW. Without these
+	// a block containing one runs entirely on the interpreter.
+	//
+	// Both mirror MMI.cpp _PDIVW/_PDIVBW, including the two results the EE
+	// defines where hardware division would otherwise misbehave: INT_MIN / -1
+	// gives INT_MIN remainder 0, and division by zero gives a quotient of
+	// (dividend < 0) ? 1 : -1 with the dividend as the remainder. SDIV traps
+	// on neither case, but it answers 0 and INT_MIN, so the guards are still
+	// needed to match.
+	//
+	// PDIVW divides word ss of rs by word ss of rt for ss = 0 and 2, writing
+	// the sign-extended results to the two 64-bit lanes of LO and HI. PDIVBW
+	// divides each of the four words of rs by halfword 0 of rt -- one signed
+	// divisor shared by every lane -- writing four 32-bit lanes.
+	enum { MD_NONE, MD_PDIVW, MD_PDIVBW };
+	int MmiDivAction(u32 insn)
+	{
+		const u32 funct = insn & 0x3f, sub = (insn >> 6) & 0x1f;
+		if (funct == 0x09 && sub == 0x0d) return MD_PDIVW;  // MMI2
+		if (funct == 0x29 && sub == 0x1d) return MD_PDIVBW; // MMI3
+		return MD_NONE;
+	}
+
+	void EmitMmiDiv(MacroAssembler& m, const Register& gpr, u32 insn)
+	{
+		const int  act   = MmiDivAction(insn);
+		const u32  rs    = (insn >> 21) & 31, rt = (insn >> 16) & 31;
+		const bool bw    = (act == MD_PDIVBW);
+		const int  lanes = bw ? 4 : 2;
+		int        i;
+
+		// Both operands are read straight out of memory, so any cached low
+		// half has to be in memory first (as PCPYH and PPAC5 do above).
+		s_rc.FlushReg(m, gpr, rs);
+		s_rc.FlushReg(m, gpr, rt);
+
+		// PDIVBW's divisor is halfword 0 of rt, sign-extended once and reused
+		// by every lane. Reading it signed also makes the -1 test below work
+		// on the same register the division uses.
+		if (bw)
+			m.Ldrsh(w1, MemOperand(gpr, rt * 16));
+
+		for (i = 0; i < lanes; i++)
+		{
+			Label zero, normal, store;
+			const int word = bw ? i : i * 2;                 // word index within rs
+			const u32 loo  = kLO + (u32)(bw ? i * 4 : i * 8);
+			const u32 hio  = kHI + (u32)(bw ? i * 4 : i * 8);
+
+			m.Ldr(w0, MemOperand(gpr, rs * 16 + word * 4));
+			if (!bw)
+				m.Ldr(w1, MemOperand(gpr, rt * 16 + word * 4));
+
+			m.Cbz(w1, &zero);                                       // divisor == 0
+			m.Mov(w5, 0x80000000); m.Cmp(w0, w5); m.B(&normal, ne); // dividend == INT_MIN
+			m.Cmn(w1, 1); m.B(&normal, ne);                         // && divisor == -1
+			m.Mov(w2, 0x80000000); m.Mov(w3, wzr); m.B(&store);     // -> INT_MIN rem 0
+
+			m.Bind(&normal);
+			m.Sdiv(w2, w0, w1); m.Msub(w3, w2, w1, w0);             // q, rem = rs - q*rt
+			m.B(&store);
+
+			m.Bind(&zero);
+			m.Mov(w6, 1); m.Mov(w7, -1); m.Cmp(w0, 0);
+			m.Csel(w2, w6, w7, lt);                                 // q = (rs < 0) ? 1 : -1
+			m.Mov(w3, w0);                                          // rem = rs
+
+			m.Bind(&store);
+			if (bw)
+			{
+				m.Str(w2, MemOperand(gpr, loo));
+				m.Str(w3, MemOperand(gpr, hio));
+			}
+			else
+			{
+				m.Sxtw(x2, w2); m.Sxtw(x3, w3);
+				m.Str(x2, MemOperand(gpr, loo));
+				m.Str(x3, MemOperand(gpr, hio));
+			}
+		}
+	}
+
 	void EmitMmiHiLo(MacroAssembler& m, const Register& gpr, u32 insn)
 	{
 		const int act = MmiHiLoAction(insn);
@@ -2725,6 +2808,7 @@ namespace {
 				}
 				if (MmiSupported(insn)) { EmitMmi(m, gpr, insn); return true; }
 				if (MmiHiLoAction(insn)) { EmitMmiHiLo(m, gpr, insn); return true; } // C.79
+				if (MmiDivAction(insn)) { EmitMmiDiv(m, gpr, insn); return true; }
 				// PCPYH: broadcast halfword 0 of each 64-bit half of rt across
 				// that half. Scalar: (u16)half * 0x0001000100010001.
 				if (IsPcpyh(insn))
@@ -3035,7 +3119,7 @@ namespace {
 			if (f == 0x04)             // PLZCW (C.63)
 				return true;
 			return MmiSupported(insn) || MmiHiLoAction(insn) || IsPcpyh(insn) || // C.79
-				IsQfsrv(insn);
+				MmiDivAction(insn) || IsQfsrv(insn);
 		}
 		if (op == 0x01) // REGIMM: MTSAB/MTSAH only (branches handled elsewhere)
 		{
