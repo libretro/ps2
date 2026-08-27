@@ -94,7 +94,16 @@ bool SimpleQueue<T>::IsQueueEmpty()
 template <class T>
 SimpleQueue<T>::~SimpleQueue()
 {
-	if (head != nullptr)
+	/* head is retro_atomic_ptr_t, i.e. a void* under every backend. Reading
+	 * it through the accessor and typing the result is what keeps `delete`
+	 * off a void* -- deleting one is undefined and calls no destructor,
+	 * which is what -Wdelete-incomplete was pointing at. Dequeue() only
+	 * moves tail, so after the drain below head still names the same
+	 * sentinel node this loaded. */
+	SimpleQueueEntry* sentinel =
+		(SimpleQueueEntry*)retro_atomic_load_acquire_ptr(&head);
+
+	if (sentinel != nullptr)
 	{
 		if (!IsQueueEmpty())
 		{
@@ -106,8 +115,8 @@ SimpleQueue<T>::~SimpleQueue()
 				Dequeue(&entry);
 		}
 
-		delete head;
-		head = nullptr;
+		delete sentinel;
+		retro_atomic_store_release_ptr(&head, nullptr);
 		tail = nullptr;
 	}
 }
