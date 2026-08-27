@@ -1673,6 +1673,103 @@ namespace
 		s_rc.Invalidate(rd); // 128-bit write bypasses StoreGpr
 	}
 
+	// The halfword multiply-accumulates: PMADDH (MMI2 0x10), PHMADH (0x11),
+	// PMSUBH (0x14) and PHMSBH (0x15).
+	//
+	// PMADDH and PMSUBH accumulate eight halfword products into HI and LO on
+	// the same scatter PMULTH uses: products 0,1,4,5 to LO words 0..3 and
+	// 2,3,6,7 to HI words 0..3, each added to or subtracted from what is
+	// already in that word.
+	//
+	// PHMADH and PHMSBH are horizontal and do not accumulate at all. For each
+	// pair they compute the product of the upper halfword, then add or
+	// subtract the product of the lower one, writing the combined value to
+	// the even word and the upper product alone to the odd word. PHMSBH
+	// stores that second value complemented -- undocumented, but what the
+	// hardware does and what MMI.cpp reproduces.
+	//
+	// All four then fill rd, when written, from LO word 0, HI word 0, LO word
+	// 2 and HI word 2, read back after the products are in place, exactly as
+	// the interpreter assigns them.
+	enum { MH_NONE, MH_PMADDH, MH_PMSUBH, MH_PHMADH, MH_PHMSBH };
+	int MmiHmaccAction(u32 insn)
+	{
+		const u32 funct = insn & 0x3f, sub = (insn >> 6) & 0x1f;
+		if (funct != 0x09) // all four are MMI2
+			return MH_NONE;
+		if (sub == 0x10) return MH_PMADDH;
+		if (sub == 0x11) return MH_PHMADH;
+		if (sub == 0x14) return MH_PMSUBH;
+		if (sub == 0x15) return MH_PHMSBH;
+		return MH_NONE;
+	}
+
+	void EmitMmiHmacc(MacroAssembler& m, const Register& gpr, u32 insn)
+	{
+		const int  act  = MmiHmaccAction(insn);
+		const u32  rd   = (insn >> 11) & 31, rs = (insn >> 21) & 31, rt = (insn >> 16) & 31;
+		const bool add  = (act == MH_PMADDH || act == MH_PHMADH);
+		const bool horiz = (act == MH_PHMADH || act == MH_PHMSBH);
+		int        i;
+
+		s_rc.FlushReg(m, gpr, rs);
+		s_rc.FlushReg(m, gpr, rt);
+
+		if (!horiz)
+		{
+			static const int kToLo[8] = { 1, 1, 0, 0, 1, 1, 0, 0 };
+			static const int kWord[8] = { 0, 1, 0, 1, 2, 3, 2, 3 };
+			for (i = 0; i < 8; i++)
+			{
+				const u32 dest = (kToLo[i] ? kLO : kHI) + (u32)(kWord[i] * 4);
+				m.Ldrsh(w0, MemOperand(gpr, rs * 16 + (u32)(i * 2)));
+				m.Ldrsh(w1, MemOperand(gpr, rt * 16 + (u32)(i * 2)));
+				m.Mul(w2, w0, w1);
+				m.Ldr(w3, MemOperand(gpr, dest));
+				if (add) m.Add(w2, w3, w2);
+				else     m.Sub(w2, w3, w2);
+				m.Str(w2, MemOperand(gpr, dest));
+			}
+		}
+		else
+		{
+			// (destination, halfword) pairs: LO from 0, HI from 2, LO from 4,
+			// HI from 6, filling words 0/1 then 2/3 of each.
+			static const int kToLo[4] = { 1, 0, 1, 0 };
+			static const int kDd[4]   = { 0, 0, 2, 2 };
+			static const int kN[4]    = { 0, 2, 4, 6 };
+			for (i = 0; i < 4; i++)
+			{
+				const u32 base = (kToLo[i] ? kLO : kHI);
+				m.Ldrsh(w0, MemOperand(gpr, rs * 16 + (u32)((kN[i] + 1) * 2)));
+				m.Ldrsh(w1, MemOperand(gpr, rt * 16 + (u32)((kN[i] + 1) * 2)));
+				m.Mul(w2, w0, w1);                      // firsttemp
+				m.Ldrsh(w0, MemOperand(gpr, rs * 16 + (u32)(kN[i] * 2)));
+				m.Ldrsh(w1, MemOperand(gpr, rt * 16 + (u32)(kN[i] * 2)));
+				m.Mul(w3, w0, w1);
+				if (add) m.Add(w1, w2, w3);
+				else     m.Sub(w1, w2, w3);
+				m.Str(w1, MemOperand(gpr, base + (u32)(kDd[i] * 4)));
+				if (!add)
+					m.Mvn(w2, w2);                      // ~firsttemp
+				m.Str(w2, MemOperand(gpr, base + (u32)((kDd[i] + 1) * 4)));
+			}
+		}
+
+		if (rd)
+		{
+			m.Ldr(w0, MemOperand(gpr, kLO + 0));
+			m.Ldr(w1, MemOperand(gpr, kHI + 0));
+			m.Ldr(w2, MemOperand(gpr, kLO + 8));
+			m.Ldr(w3, MemOperand(gpr, kHI + 8));
+			m.Str(w0, MemOperand(gpr, rd * 16 + 0));
+			m.Str(w1, MemOperand(gpr, rd * 16 + 4));
+			m.Str(w2, MemOperand(gpr, rd * 16 + 8));
+			m.Str(w3, MemOperand(gpr, rd * 16 + 12));
+			s_rc.Invalidate(rd);
+		}
+	}
+
 	// The word-lane multiply-accumulates: PMADDW (MMI2 0x00), PMSUBW
 	// (MMI2 0x04) and PMADDUW (MMI3 0x00). Unlike the PMULT forms these read
 	// HI and LO back and combine with what is already there.
@@ -3192,6 +3289,7 @@ namespace {
 				if (MmiPermAction(insn)) { EmitMmiPerm(m, gpr, insn); return true; }
 				if (MmiMulAction(insn)) { EmitMmiMul(m, gpr, insn); return true; }
 				if (MmiMaccAction(insn)) { EmitMmiMacc(m, gpr, insn); return true; }
+				if (MmiHmaccAction(insn)) { EmitMmiHmacc(m, gpr, insn); return true; }
 				// PCPYH: broadcast halfword 0 of each 64-bit half of rt across
 				// that half. Scalar: (u16)half * 0x0001000100010001.
 				if (IsPcpyh(insn))
@@ -3503,7 +3601,8 @@ namespace {
 				return true;
 			return MmiSupported(insn) || MmiHiLoAction(insn) || IsPcpyh(insn) || // C.79
 				MmiDivAction(insn) || MmiPermAction(insn) ||
-				MmiMulAction(insn) || MmiMaccAction(insn) || IsQfsrv(insn);
+				MmiMulAction(insn) || MmiMaccAction(insn) ||
+				MmiHmaccAction(insn) || IsQfsrv(insn);
 		}
 		if (op == 0x01) // REGIMM: MTSAB/MTSAH only (branches handled elsewhere)
 		{
