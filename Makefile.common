@@ -119,6 +119,17 @@ SOURCES_C += \
 	$(LIBRETRO_COMM_DIR)/queues/retro_spsc.c \
 	$(LIBRETRO_COMM_DIR)/vfs/vfs_implementation.c
 
+# bionic only declares getifaddrs()/freeifaddrs() from API 24 on, so DEV9
+# uses libretro-common's netlink reimplementation there instead. WANT_IFADDRS
+# is what redirects the DEV9 includes to <compat/ifaddrs.h>. Every other
+# platform has the pair in libc and must not compile this object, or it would
+# override libc's. Keep in step with libretro/CMakeLists.txt and
+# pcsx2/CMakeLists.txt.
+ifneq (,$(findstring android,$(platform)))
+   FLAGS      += -DWANT_IFADDRS
+   SOURCES_C  += $(LIBRETRO_COMM_DIR)/compat/compat_ifaddrs.c
+endif
+
 # ============================================================================
 # libretro core entry points (C++)
 # ============================================================================

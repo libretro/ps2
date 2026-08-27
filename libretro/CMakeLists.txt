@@ -36,6 +36,18 @@ target_sources(pcsx2_libretro PRIVATE
    ${CMAKE_SOURCE_DIR}/libretro/libretro-common/streams/trans_stream_pipe.c
 )
 
+# getifaddrs()/freeifaddrs() are only declared by bionic from API 24 on,
+# below what the NDK lanes target, so DEV9 gets libretro-common's netlink
+# reimplementation instead. WANT_IFADDRS (set on PCSX2_FLAGS in
+# pcsx2/CMakeLists.txt) is what switches the includes over. Every other
+# platform has them in libc and must not compile this. Keep in step with
+# Makefile.common.
+if(ANDROID)
+   target_sources(pcsx2_libretro PRIVATE
+      ${CMAKE_SOURCE_DIR}/libretro/libretro-common/compat/compat_ifaddrs.c
+   )
+endif()
+
 # Which of rchd's hunk codecs are compiled in.  Stated here rather than
 # left to rchd.c's fallback: that fallback turns on DEFLATE and LZMA
 # unconditionally but gates FLAC and Zstandard behind HAVE_FLAC/HAVE_RFLAC

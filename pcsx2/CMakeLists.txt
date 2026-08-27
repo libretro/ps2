@@ -82,6 +82,16 @@ if(WIN32)
 	)
 endif(WIN32)
 
+if(ANDROID)
+	# bionic declares struct ifaddrs unconditionally but gates getifaddrs()
+	# and freeifaddrs() on __INTRODUCED_IN(24), and the NDK lanes target 21,
+	# so DEV9 fails to compile there. WANT_IFADDRS is libretro-common's own
+	# switch for this: it redirects the DEV9 includes to
+	# <compat/ifaddrs.h> and brings in the netlink reimplementation added to
+	# libretro/CMakeLists.txt. Keep in step with Makefile.common.
+	target_compile_definitions(PCSX2_FLAGS INTERFACE WANT_IFADDRS)
+endif()
+
 # Main pcsx2 source
 set(pcsx2Sources
 	Cache.cpp
