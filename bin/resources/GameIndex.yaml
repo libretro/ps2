@@ -47517,10 +47517,10 @@ SLPS-25088:
   region: "NTSC-J"
   compat: 5
   roundModes:
-    eeRoundMode: 1 # Fixes reverse control and boss in some places.
+    eeRoundMode: 2 # Fixes cutscene animations while slightly dislocating a few select meshes. Setting round mode to Chop/Zero or Nearest fixes the issues with meshes at the cost of breaking important cutscenes.
   clampModes:
-    eeClampMode: 3 # Fixes animations.
-    vu0ClampMode: 3 # Fixes character flickering caused by EE clamp full.
+    eeClampMode: 3 # Fixes reverse controls as well as bosses and characters facing the wrong way during certain battles.
+    vu0ClampMode: 2 # Fixes Yojimbo's flickering cloak issue caused by EE Full Clamping.
   gsHWFixes:
     roundSprite: 2 # Fixes font artifacts.
 SLPS-25089:
