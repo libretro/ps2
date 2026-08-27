@@ -154,15 +154,6 @@
 #define _inline __inline__ __attribute__((unused))
 #endif
 
-// PS2_AUDIT_EXPORT: exported C entry points used by the fpaudit harness
-// (tests/fpaudit) via dlsym/GetProcAddress. MSVC has no
-// __attribute__((visibility)); use __declspec(dllexport) there.
-#if defined(_MSC_VER)
-#define PS2_AUDIT_EXPORT extern "C" __declspec(dllexport)
-#else
-#define PS2_AUDIT_EXPORT extern "C" __attribute__((visibility("default")))
-#endif
-
 // __forceinline / __fi: the codebase applies these to NON-static, NON-inline
 // function *definitions* in .cpp files, with `extern` declarations in headers.
 //
@@ -220,6 +211,23 @@
 #define unlikely(x) __builtin_expect(!!(x), 0)
 #endif
 
+#endif
+
+// --------------------------------------------------------------------------------------
+// PS2_AUDIT_EXPORT -- exported C entry points used by the fpaudit harness
+// (tests/fpaudit) via dlsym/GetProcAddress.
+// --------------------------------------------------------------------------------------
+// MSVC has no __attribute__((visibility)); it needs __declspec(dllexport).
+//
+// This block MUST stay outside the `#ifdef _MSC_VER / #else` compiler split
+// above: placed inside the GCC arm, MSVC never sees any definition at all,
+// the token survives preprocessing as a bare identifier, and every use site
+// fails as `int PS2_AUDIT_EXPORT` redefinition plus C2144/C4430 on the
+// declaration that follows it.
+#if defined(_MSC_VER)
+#define PS2_AUDIT_EXPORT extern "C" __declspec(dllexport)
+#else
+#define PS2_AUDIT_EXPORT extern "C" __attribute__((visibility("default")))
 #endif
 
 // --------------------------------------------------------------------------------------
