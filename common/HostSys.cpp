@@ -23,6 +23,9 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <unistd.h>
+#ifdef __ANDROID__
+#include <sys/syscall.h> /* memfd_create via syscall: bionic has no shm_open */
+#endif
 #endif
 
 #ifndef ftruncate64
@@ -465,6 +468,23 @@ void* HostSys::CreateSharedMemory(const char* name, size_t size)
 			static_cast<DWORD>(size >> 32), static_cast<DWORD>(size), wstr));
 	free(wstr);
 	return ptr;
+#elif defined(__ANDROID__)
+	/* Bionic has no shm_open (no /dev/shm on Android). This mapping is
+	 * effectively anonymous anyway -- the POSIX path below unlinks the
+	 * name immediately -- so a memfd serves identically. Called via
+	 * syscall so it builds and runs on every API level the NDK lanes
+	 * target; every Android kernel since 8.0 provides it. 1U is
+	 * MFD_CLOEXEC, spelled literally to avoid a linux/memfd.h
+	 * dependency on older sysroots. */
+	const int fd = static_cast<int>(syscall(__NR_memfd_create, name, 1U /* MFD_CLOEXEC */));
+	if (fd < 0)
+		return nullptr;
+	if (ftruncate64(fd, static_cast<off64_t>(size)) < 0)
+	{
+		close(fd);
+		return nullptr;
+	}
+	return reinterpret_cast<void*>(static_cast<intptr_t>(fd));
 #else
 	const int fd = shm_open(name, O_CREAT | O_EXCL | O_RDWR, 0600);
 	if (fd < 0)
