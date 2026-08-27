@@ -1953,7 +1953,7 @@ static void recPDIVW_half(int hilo, int word)
 
 	xe_fwd_set8(cont3);
 	xe_cdq();
-	xe_div32_r(XE_CX);
+	xe_idiv32_r(XE_CX);
 
 	xe_fwd_set8(end1);
 	xe_fwd_set8(end2);
@@ -2026,7 +2026,7 @@ static void recPDIVBW_lane(int n)
 
 	xe_fwd_set8(cont3);
 	xe_cdq();
-	xe_div32_r(XE_CX);
+	xe_idiv32_r(XE_CX);
 
 	xe_fwd_set8(end1);
 	xe_fwd_set8(end2);
