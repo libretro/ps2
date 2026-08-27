@@ -294,7 +294,28 @@ bool MTGS::MainLoop(bool flush_all)
 			retro_atomic_store_release_int(&s_ReadPos, newringpos);
 
 			if (!flush_all && tag.command == GS_RINGTYPE_VSYNC)
+			{
+				/* Returning mid-ring: the batch acknowledge at the top of
+				 * the outer loop already consumed the notifies for any
+				 * entries still queued behind this vsync.  WorkSema's
+				 * contract -- relied on by WaitForEmpty and by the
+				 * pre-park empty post in WaitForWorkTimed -- is that a
+				 * consumer at RUNNING_0 has drained the ring, and the
+				 * per-frame early exit is the one place this consumer
+				 * breaks it.  Re-arm the sema when entries remain so the
+				 * next WaitForWorkTimed drains them instead of parking
+				 * and waking a producer whose WaitGS(false) rendezvous
+				 * (readbacks, freezes) has not actually completed: a
+				 * producer released early reads a readback buffer the GS
+				 * side never filled, and the stale entry is processed
+				 * late into memory the EE may have reused.  A notify
+				 * racing a concurrent enqueue at worst doubles up; the
+				 * state machine absorbs spurious wakes by design. */
+				if (retro_atomic_load_acquire_int(&s_ReadPos) !=
+					retro_atomic_load_acquire_int(&s_WritePos))
+					s_sem_event.NotifyOfWork();
 				return true;
+			}
 		}
 	}
 
