@@ -77,6 +77,7 @@ static __ri void writeXYZW_##idx##_##mode##_0(u32 offnum, u32& dest, u32 data) \
 {                                                                              \
 	vifStruct& vif = MTVU_VIFX_N(idx);                                       \
 	(void)offnum;                                                              \
+	(void)vif; /* unused in mode 0, where the arithmetic is dest = data */     \
 	VIF_MODE_ARITH_##mode                                                      \
 }
 
