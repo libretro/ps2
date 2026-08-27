@@ -28,9 +28,10 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
-#endif
-
-#if defined(__FreeBSD__)
+/* sockaddr_in is used below. Every platform but FreeBSD used to get this
+ * transitively -- on Android it arrived via the system <ifaddrs.h> that
+ * DNS_Server.h pulled in, which is now <compat/ifaddrs.h> and includes no
+ * such thing. Declare the dependency here instead of relying on any of it. */
 #include <netinet/in.h>
 #endif
 
