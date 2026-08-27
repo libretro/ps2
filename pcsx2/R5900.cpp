@@ -692,7 +692,7 @@ void eeloadHook2(void)
 
 extern "C" void ps2_audit_ee_stepn(unsigned n); /* Interpreter.cpp */
 
-extern "C" __attribute__((visibility("default")))
+PS2_AUDIT_EXPORT
 void ps2_audit_ee_prep(const unsigned* words, unsigned nwords)
 {
 	/* The EE memory system's fault machinery (fastmem, vtlb page
@@ -713,7 +713,7 @@ void ps2_audit_ee_prep(const unsigned* words, unsigned nwords)
 	HostSys::UnregisterFaultHandlerThread();
 }
 
-extern "C" __attribute__((visibility("default")))
+PS2_AUDIT_EXPORT
 void ps2_audit_ee_exec(int use_interp, unsigned char* regs_io, unsigned ninstr)
 {
 	unsigned char* p = regs_io;

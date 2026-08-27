@@ -904,7 +904,7 @@ if(WIN32)
 		opengl32.lib
 		OneCore.lib
 	)
-elseif(APPLE)
+elseif(APPLE OR ANDROID)
 else()
 	target_link_libraries(PCSX2_FLAGS INTERFACE
 		OpenGL::GL

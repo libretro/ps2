@@ -12,7 +12,10 @@ if (WIN32)
 else()
 	# Using find_package OpenGL without either setting your opengl preference to GLVND or LEGACY
 	# is deprecated as of cmake 3.11.
-	if(USE_OPENGL)
+	# Android has no desktop libGL/GLX to find; the GL renderer resolves
+	# every entry point through hw_render.get_proc_address via glad, so
+	# nothing needs linking there.
+	if(USE_OPENGL AND NOT ANDROID)
 		set(OpenGL_GL_PREFERENCE GLVND)
 		find_package(OpenGL REQUIRED)
 	endif()

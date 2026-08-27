@@ -2267,7 +2267,7 @@ R5900cpu recCpu = {
 /* Temporary audit instrument: hand the compiled block for a guest PC
  * to the rig so the BC1 anomaly gets read from emitted bytes instead
  * of inferred. Returns the x86 entry pointer or NULL. */
-extern "C" __attribute__((visibility("default")))
+PS2_AUDIT_EXPORT
 const unsigned char* ps2_audit_ee_blockptr(unsigned pc_)
 {
 	BASEBLOCK* b = PC_GETBLOCK(pc_);

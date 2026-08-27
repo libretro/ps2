@@ -154,6 +154,15 @@
 #define _inline __inline__ __attribute__((unused))
 #endif
 
+// PS2_AUDIT_EXPORT: exported C entry points used by the fpaudit harness
+// (tests/fpaudit) via dlsym/GetProcAddress. MSVC has no
+// __attribute__((visibility)); use __declspec(dllexport) there.
+#if defined(_MSC_VER)
+#define PS2_AUDIT_EXPORT extern "C" __declspec(dllexport)
+#else
+#define PS2_AUDIT_EXPORT extern "C" __attribute__((visibility("default")))
+#endif
+
 // __forceinline / __fi: the codebase applies these to NON-static, NON-inline
 // function *definitions* in .cpp files, with `extern` declarations in headers.
 //

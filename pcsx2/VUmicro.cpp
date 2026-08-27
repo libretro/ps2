@@ -93,7 +93,7 @@ void vucpu_execute_block_jit(const struct VUmicroCpu* cpu, int interlocked)
  * regs_io layout, both directions:
  *   VF[0..31] 16 bytes each | VI[0..31].UL 4 bytes each | ACC 16 | Q 4 | P 4
  * -------------------------------------------------------------------------- */
-extern "C" __attribute__((visibility("default")))
+PS2_AUDIT_EXPORT
 void ps2_audit_vu_prep(int unit, int use_interp, const unsigned char* prog, unsigned prog_bytes)
 {
 	const struct VUmicroCpu* cpu = use_interp
@@ -107,7 +107,7 @@ void ps2_audit_vu_prep(int unit, int use_interp, const unsigned char* prog, unsi
 	cpu->Clear(0, cap);
 }
 
-extern "C" __attribute__((visibility("default")))
+PS2_AUDIT_EXPORT
 void ps2_audit_vu_exec(int unit, int use_interp, unsigned char* regs_io, unsigned max_cycles)
 {
 	const struct VUmicroCpu* cpu = use_interp
@@ -203,7 +203,7 @@ void ps2_audit_vu_exec(int unit, int use_interp, unsigned char* regs_io, unsigne
  * memory-op batteries load varied data (both engines see the same
  * fill), and hash it after a run so stores are verifiable without
  * shipping the whole memory image through the rig. */
-extern "C" __attribute__((visibility("default")))
+PS2_AUDIT_EXPORT
 void ps2_audit_vu_memfill(int unit, unsigned seed)
 {
 	VURegs* vu = &vuRegs[unit];
@@ -217,7 +217,7 @@ void ps2_audit_vu_memfill(int unit, unsigned seed)
 	}
 }
 
-extern "C" __attribute__((visibility("default")))
+PS2_AUDIT_EXPORT
 unsigned ps2_audit_vu_memhash(int unit)
 {
 	VURegs* vu = &vuRegs[unit];
