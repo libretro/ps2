@@ -457,7 +457,7 @@ void Gif_AddCompletedGSPacket(GS_Packet& _gsPack, GIF_PATH _path)
 	}
 	tag.data[2]                         = (int)_path;
 	retro_atomic_store_release_int(&MTGS::s_WritePos, (writepos + 1) & RINGBUFFERMASK);
-	MTGS::s_sem_event.NotifyOfWorkIfRunning();
+	MTGS::s_sem_event.NotifyOfWork();
 }
 
 void Gif_AddBlankGSPacket(u32 _size, GIF_PATH _path)
@@ -480,6 +480,6 @@ void Gif_AddBlankGSPacket(u32 _size, GIF_PATH _path)
 	tag.data[2]                 = (int)_path;
 
 	retro_atomic_store_release_int(&MTGS::s_WritePos, (writepos + 1) & RINGBUFFERMASK);
-	MTGS::s_sem_event.NotifyOfWorkIfRunning();
+	MTGS::s_sem_event.NotifyOfWork();
 }
 

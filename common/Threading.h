@@ -310,20 +310,6 @@ namespace Threading
 				m_sema.Post();
 		}
 
-		/// Like NotifyOfWork, but skips the expensive atomic RMW 
-                /// when the worker is already running with work queued 
-                /// (state >= RUNNING_N).
-		/// The worker discovers new data via the write-pointer, 
-                /// not the state counter, so bumping RUNNING_N -> RUNNING_N+2 
-                /// is wasted work.
-		/// Safe for hot producer paths; do NOT use for 
-                /// shutdown/close wakeups.
-		void NotifyOfWorkIfRunning()
-		{
-			if (retro_atomic_load_acquire_int(&m_state) < 2)
-				NotifyOfWork();
-		}
-
 		/// Checks if there's any work in the queue
 		bool CheckForWork();
 		/// Wait for work to be added to the queue
