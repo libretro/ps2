@@ -30,7 +30,10 @@ target_include_directories(granite-util PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(granite-util PUBLIC granite-application-global-interface)
 if (NOT WIN32)
     target_link_libraries(granite-util PUBLIC dl)
-    if (NOT APPLE)
+    # bionic has no librt (clock_*/timer_* live in libc); linking it
+    # unconditionally fails the NDK lanes at final link with
+    # "unable to find library -lrt".
+    if (NOT APPLE AND NOT ANDROID)
         target_link_libraries(granite-util PUBLIC rt)
     endif()
 endif()
