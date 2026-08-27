@@ -714,9 +714,12 @@ namespace R3000A
 				}
 				else
 				{
+					/* allocfd owns cleanup on failure: it already
+					 * close()s (and thereby deletes) the object before
+					 * returning the error, so closing again here was a
+					 * double delete -- GCC 12's -Wuse-after-free caught
+					 * it. */
 					v0 = allocfd(file);
-					if ((s32)v0 < 0)
-						file->close();
 				}
 
 				pc = ra;
@@ -763,9 +766,9 @@ namespace R3000A
 				}
 				else
 				{
+					/* Same ownership rule as open_HLE: allocfd already
+					 * closed and deleted dir on failure. */
 					v0 = allocfd(dir);
-					if ((s32)v0 < 0)
-						dir->close();
 				}
 
 				pc = ra;
