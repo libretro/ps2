@@ -718,16 +718,35 @@ void GSFreeWrappedMemory(void* ptr, size_t size, size_t repeat)
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#ifdef __ANDROID__
+#include <sys/syscall.h> /* memfd_create via syscall: bionic has no shm_open */
+#endif
 
 static int s_shm_fd = -1;
 
 void* GSAllocateWrappedMemory(size_t size, size_t repeat)
 {
+#ifdef __ANDROID__
+	/* Bionic has no shm_open and there is no /dev/shm on Android. The
+	 * mapping is anonymous anyway -- the POSIX path below unlinks the name
+	 * the moment it has the descriptor -- so a memfd is an exact
+	 * substitute, and it aliases under MAP_SHARED|MAP_FIXED the same way,
+	 * which is the whole point of this allocation. Called through syscall()
+	 * because the libc wrapper is only declared at API 30 and up, while the
+	 * NDK lanes target 21; every Android kernel since 8.0 has the syscall.
+	 * 1U is MFD_CLOEXEC, spelled literally to avoid depending on
+	 * linux/memfd.h being present in the sysroot. This mirrors
+	 * HostSys::CreateSharedMemory in common/HostSys.cpp. */
+	s_shm_fd = static_cast<int>(syscall(__NR_memfd_create, "GS.mem", 1U));
+	if (s_shm_fd == -1)
+		return nullptr;
+#else
 	const char* file_name = "/GS.mem";
 	s_shm_fd = shm_open(file_name, O_RDWR | O_CREAT | O_EXCL, 0600);
 	if (s_shm_fd == -1)
 		return nullptr;
 	shm_unlink(file_name); // file is deleted but descriptor is still open
+#endif
 
 	if (ftruncate(s_shm_fd, repeat * size) < 0)
 		fprintf(stderr, "Failed to reserve memory due to %s\n", strerror(errno));
