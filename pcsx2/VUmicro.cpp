@@ -18,7 +18,6 @@
 #include "MTVU.h"
 #include "GS.h"
 #include "Gif_Unit.h"
-#include <xmmintrin.h>
 
 const struct VUmicroCpu* CpuVU0 = NULL;
 const struct VUmicroCpu* CpuVU1 = NULL;
@@ -174,11 +173,11 @@ void ps2_audit_vu_exec(int unit, int use_interp, unsigned char* regs_io, unsigne
 		 * FPCR-update elision assumes: force the unit's rounding mode
 		 * around the run and restore the host's after. The interpreter
 		 * computes in ps2float integer code and ignores MXCSR. */
-		const u32 host_csr = _mm_getcsr();
+		const FPControlRegister host_fpcr = FPControlRegister::GetCurrent();
 		if (!use_interp)
-			_mm_setcsr((unit ? EmuConfig.Cpu.VU1FPCR : EmuConfig.Cpu.VU0FPCR).bitmask);
+			FPControlRegister::SetCurrent(unit ? EmuConfig.Cpu.VU1FPCR : EmuConfig.Cpu.VU0FPCR);
 		cpu->Execute(max_cycles ? max_cycles : 2048);
-		_mm_setcsr(host_csr);
+		FPControlRegister::SetCurrent(host_fpcr);
 	}
 	if (getenv("PS2_AUDIT_TRACE"))
 		fprintf(stderr, "[ATRACE] after: vf3=%08x tpc=%d stat=%x\n",

@@ -15,7 +15,6 @@
 
 
 #include <retro_atomic.h>
-#include <xmmintrin.h>
 #include <cstring> /* memset */
 #include <compat/strl.h>
 
@@ -737,8 +736,8 @@ void ps2_audit_ee_exec(int use_interp, unsigned char* regs_io, unsigned ninstr)
 	}
 	else
 	{
-		const u32 host_csr = _mm_getcsr();
-		_mm_setcsr(EmuConfig.Cpu.FPUFPCR.bitmask);
+		const FPControlRegister host_fpcr = FPControlRegister::GetCurrent();
+		FPControlRegister::SetCurrent(EmuConfig.Cpu.FPUFPCR);
 		/* The exit fires at the first block-boundary event test at or
 		 * beyond nextEventCycle; multi-block programs (branches jump
 		 * between blocks with event tests in between) need a cycle
@@ -746,7 +745,7 @@ void ps2_audit_ee_exec(int use_interp, unsigned char* regs_io, unsigned ninstr)
 		Cpu->ExitExecution();
 		cpuRegs.nextEventCycle = cpuRegs.cycle + ninstr * 2 + 64;
 		Cpu->Execute();
-		_mm_setcsr(host_csr);
+		FPControlRegister::SetCurrent(host_fpcr);
 	}
 	cpuRegs.pc = old_pc;
 	cpuRegs.nextEventCycle = old_cycle_target;
