@@ -718,16 +718,30 @@ void GSFreeWrappedMemory(void* ptr, size_t size, size_t repeat)
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#ifdef __ANDROID__
+#include <sys/syscall.h> /* memfd_create via syscall: bionic has no shm_open */
+#endif
 
 static int s_shm_fd = -1;
 
 void* GSAllocateWrappedMemory(size_t size, size_t repeat)
 {
 	const char* file_name = "/GS.mem";
+#ifdef __ANDROID__
+	/* Same as HostSys::CreateSharedMemory: bionic has no shm_open, and the
+	 * mapping is anonymous anyway since the name is unlinked right after
+	 * creation, so a memfd is a drop-in. Called via syscall so it builds on
+	 * every API level the NDK lanes target; 1U is MFD_CLOEXEC, spelled
+	 * literally to avoid a linux/memfd.h dependency on older sysroots. */
+	s_shm_fd = static_cast<int>(syscall(__NR_memfd_create, file_name, 1U /* MFD_CLOEXEC */));
+	if (s_shm_fd == -1)
+		return nullptr;
+#else
 	s_shm_fd = shm_open(file_name, O_RDWR | O_CREAT | O_EXCL, 0600);
 	if (s_shm_fd == -1)
 		return nullptr;
 	shm_unlink(file_name); // file is deleted but descriptor is still open
+#endif
 
 	if (ftruncate(s_shm_fd, repeat * size) < 0)
 		fprintf(stderr, "Failed to reserve memory due to %s\n", strerror(errno));
