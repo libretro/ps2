@@ -62,12 +62,10 @@ void debug_output_log(const char *tag, const char *fmt, ...);
 	fflush(stderr); \
 	::Util::debug_output_log("[INFO]: ", __VA_ARGS__); \
 } while(false)
-#elif defined(ANDROID)
-#include <android/log.h>
-#define LOGE_FALLBACK(...) do { __android_log_print(ANDROID_LOG_ERROR, "Granite", __VA_ARGS__); } while(0)
-#define LOGW_FALLBACK(...) do { __android_log_print(ANDROID_LOG_WARN, "Granite", __VA_ARGS__); } while(0)
-#define LOGI_FALLBACK(...) do { __android_log_print(ANDROID_LOG_INFO, "Granite", __VA_ARGS__); } while(0)
 #else
+/* Android included: __android_log_print lives in liblog, which the core
+ * does not link; the stderr fallback works everywhere and keeps the NDK
+ * lanes free of the extra dependency. */
 #define LOGE_FALLBACK(...)                        \
 	do                                            \
 	{                                             \
