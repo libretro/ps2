@@ -1501,9 +1501,10 @@ namespace
 		return HL_NONE;
 	}
 
-	// PDIVW (MMI2 sub 0x0d) and PDIVBW (MMI3 sub 0x1d): the signed parallel
-	// divides, two 32-bit lanes for PDIVW and four for PDIVBW. Without these
-	// a block containing one runs entirely on the interpreter.
+	// The parallel divides: PDIVW (MMI2 sub 0x0d) and PDIVBW (MMI3 sub 0x1d)
+	// signed, PDIVUW (MMI3 sub 0x0d) unsigned. Two 32-bit lanes each except
+	// PDIVBW, which has four. Without these a block containing one runs
+	// entirely on the interpreter.
 	//
 	// Both mirror MMI.cpp _PDIVW/_PDIVBW, including the two results the EE
 	// defines where hardware division would otherwise misbehave: INT_MIN / -1
@@ -1516,12 +1517,13 @@ namespace
 	// the sign-extended results to the two 64-bit lanes of LO and HI. PDIVBW
 	// divides each of the four words of rs by halfword 0 of rt -- one signed
 	// divisor shared by every lane -- writing four 32-bit lanes.
-	enum { MD_NONE, MD_PDIVW, MD_PDIVBW };
+	enum { MD_NONE, MD_PDIVW, MD_PDIVBW, MD_PDIVUW };
 	int MmiDivAction(u32 insn)
 	{
 		const u32 funct = insn & 0x3f, sub = (insn >> 6) & 0x1f;
 		if (funct == 0x09 && sub == 0x0d) return MD_PDIVW;  // MMI2
 		if (funct == 0x29 && sub == 0x1d) return MD_PDIVBW; // MMI3
+		if (funct == 0x29 && sub == 0x0d) return MD_PDIVUW; // MMI3
 		return MD_NONE;
 	}
 
@@ -1530,6 +1532,7 @@ namespace
 		const int  act   = MmiDivAction(insn);
 		const u32  rs    = (insn >> 21) & 31, rt = (insn >> 16) & 31;
 		const bool bw    = (act == MD_PDIVBW);
+		const bool uw    = (act == MD_PDIVUW);
 		const int  lanes = bw ? 4 : 2;
 		int        i;
 
@@ -1554,6 +1557,23 @@ namespace
 			m.Ldr(w0, MemOperand(gpr, rs * 16 + word * 4));
 			if (!bw)
 				m.Ldr(w1, MemOperand(gpr, rt * 16 + word * 4));
+
+			if (uw)
+			{
+				// PDIVUW is unsigned and has no overflow case: the only
+				// result the divider would get wrong is division by zero,
+				// which the EE defines as quotient -1 remainder dividend.
+				m.Cbz(w1, &zero);
+				m.Udiv(w2, w0, w1); m.Msub(w3, w2, w1, w0);
+				m.B(&store);
+				m.Bind(&zero);
+				m.Mov(w2, -1); m.Mov(w3, w0);
+				m.Bind(&store);
+				m.Sxtw(x2, w2); m.Sxtw(x3, w3);
+				m.Str(x2, MemOperand(gpr, loo));
+				m.Str(x3, MemOperand(gpr, hio));
+				continue;
+			}
 
 			m.Cbz(w1, &zero);                                       // divisor == 0
 			m.Mov(w5, 0x80000000); m.Cmp(w0, w5); m.B(&normal, ne); // dividend == INT_MIN
