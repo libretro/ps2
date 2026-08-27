@@ -102,7 +102,6 @@ static void iop_canonicalize(char *s)
 	char       *comps[128];
 	int         ncomp   = 0;
 	int         total   = 0;
-	char       *r       = s;
 	char       *w;
 	int         i;
 	char       *starts[128];

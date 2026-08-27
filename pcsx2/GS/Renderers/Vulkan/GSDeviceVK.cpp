@@ -580,7 +580,6 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 	bool GSDeviceVK::CreateCommandBuffers()
 	{
 		VkResult res;
-		uint32_t frame_index = 0;
 		VkDevice m_device    = vk_init_info.device;
 
 		for (FrameResources& resources : m_frame_resources)
@@ -618,8 +617,6 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 			res = vkCreateDescriptorPool(m_device, &pool_create_info, nullptr, &resources.descriptor_pool);
 			if (res != VK_SUCCESS)
 				return false;
-
-			++frame_index;
 		}
 
 		ActivateCommandBuffer(0);

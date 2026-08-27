@@ -15,7 +15,6 @@
 
 // The code has been designed for 64Mb flash and uses as file support the second memory card
 #include <stdio.h>
-//#include <winsock2.h>
 #include "DEV9.h"
 
 #define PAGE_SIZE_BITS 9

@@ -114,7 +114,6 @@ namespace VMManager
 	static void CheckForConfigChanges(const Pcsx2Config& old_config);
 	static void CheckForCPUConfigChanges(const Pcsx2Config& old_config);
 	static void CheckForGSConfigChanges(const Pcsx2Config& old_config);
-	static void CheckForFramerateConfigChanges(const Pcsx2Config& old_config);
 	static void CheckForPatchConfigChanges(const Pcsx2Config& old_config);
 	static void CheckForDEV9ConfigChanges(const Pcsx2Config& old_config);
 	static void CheckForMemoryCardConfigChanges(const Pcsx2Config& old_config);
@@ -1118,13 +1117,6 @@ void VMManager::CheckForGSConfigChanges(const Pcsx2Config& old_config)
 	MTGS::ApplySettings();
 }
 
-void VMManager::CheckForFramerateConfigChanges(const Pcsx2Config& old_config)
-{
-	if (EmuConfig.Framerate == old_config.Framerate)
-		return;
-	UpdateVSyncRate(true);
-}
-
 void VMManager::CheckForPatchConfigChanges(const Pcsx2Config& old_config)
 {
 	if (EmuConfig.EnableCheats == old_config.EnableCheats &&
@@ -1195,7 +1187,6 @@ void VMManager::CheckForConfigChanges(const Pcsx2Config& old_config)
 	if (HasValidVM())
 	{
 		CheckForCPUConfigChanges(old_config);
-		CheckForFramerateConfigChanges(old_config);
 		CheckForPatchConfigChanges(old_config);
 		CheckForDEV9ConfigChanges(old_config);
 		CheckForMemoryCardConfigChanges(old_config);

@@ -785,27 +785,6 @@ struct Pcsx2Config
 	};
 
 	// ------------------------------------------------------------------------
-	struct FramerateOptions
-	{
-		float TurboScalar{2.0f};
-
-		void LoadSave(SettingsWrapper& wrap);
-		void SanityCheck();
-
-		bool operator==(const FramerateOptions& right) const
-		{
-			return (TurboScalar == right.TurboScalar);
-		}
-
-		bool operator!=(const FramerateOptions& right) const
-		{
-			return !this->operator==(right);
-		}
-	};
-
-
-
-	// ------------------------------------------------------------------------
 	struct FilenameOptions
 	{
 		/* A BIOS filename, not a full path -- FullpathToBios joins it under
@@ -896,7 +875,6 @@ struct Pcsx2Config
 	GSOptions GS;
 	SpeedhackOptions Speedhacks;
 	GamefixOptions Gamefixes;
-	FramerateOptions Framerate;
 	DEV9Options DEV9;
 #if 0
 	USBOptions USB;

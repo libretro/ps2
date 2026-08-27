@@ -232,8 +232,6 @@ bool GSTextureCacheSW::Texture::Update(const GSVector4i& rect)
 
 	GSOffset off = m_offset;
 
-	u32 blocks = 0;
-
 	GSLocalMemory::readTextureBlock rtxbP = psm.rtxbP;
 
 	u32 pitch = (1 << m_tw) << shift;
@@ -265,8 +263,6 @@ bool GSTextureCacheSW::Texture::Update(const GSVector4i& rect)
 					m_valid[row] |= col;
 
 					rtxbP(mem, block, &dst[bn.blkX() << shift], pitch, m_TEXA);
-
-					blocks++;
 				}
 			}
 		}
@@ -287,8 +283,6 @@ bool GSTextureCacheSW::Texture::Update(const GSVector4i& rect)
 					m_valid[row] |= col;
 
 					rtxbP(mem, block, &dst[bn.blkX() << shift], pitch, m_TEXA);
-
-					blocks++;
 				}
 			}
 		}

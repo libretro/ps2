@@ -950,21 +950,6 @@ void Pcsx2Config::FilenameOptions::LoadSave(SettingsWrapper& wrap)
 	wrap.EntryBuf(CURRENT_SETTINGS_SECTION, "BIOS", Bios, sizeof(Bios), Bios);
 }
 
-void Pcsx2Config::FramerateOptions::SanityCheck()
-{
-       // Ensure Conformation of various options...
-
-       TurboScalar = pcsx2_clamp_i(TurboScalar, 0.05f, 10.0f);
-}
-
-void Pcsx2Config::FramerateOptions::LoadSave(SettingsWrapper& wrap)
-{
-       SettingsWrapSection("Framerate");
-
-       SettingsWrapEntry(TurboScalar);
-}
-
-
 Pcsx2Config::Pcsx2Config()
 {
 	/* char arrays have no default constructor; the std::string fields they
@@ -1017,7 +1002,6 @@ void Pcsx2Config::LoadSave(SettingsWrapper& wrap)
 	SettingsWrapEntryBuf(GzipIsoIndexTemplate);
 
 	BaseFilenames.LoadSave(wrap);
-	Framerate.LoadSave(wrap);
 	LoadSaveMemcards(wrap);
 
 	// Per-content memory card
@@ -1078,7 +1062,6 @@ bool Pcsx2Config::operator==(const Pcsx2Config& right) const
 		OpEqu(DEV9) &&
 		OpEqu(Speedhacks) &&
 		OpEqu(Gamefixes) &&
-		OpEqu(Framerate) &&
 		OpEqu(BaseFilenames) &&
 		(strcmp(GzipIsoIndexTemplate, right.GzipIsoIndexTemplate) == 0);
 	for (u32 i = 0; i < sizeof(Mcd) / sizeof(Mcd[0]); i++)

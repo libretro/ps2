@@ -511,17 +511,11 @@ void psxRcntWcount32(int index, u32 value)
 
 __fi void psxRcntWmode16(int index, u32 value)
 {
-	int irqmode = 0;
-
 	psxCounter& counter = psxCounters[index];
 
 	counter.mode = (value & IOPCNT_MODE_WRITE_MSK) | (counter.mode & IOPCNT_MODE_FLAG_MSK); // Write new value, preserve flags
 	counter.mode |= IOPCNT_INT_REQ; // IRQ Enable
 
-	if (value & (1 << 4))
-		irqmode += 1;
-	if (value & (1 << 5))
-		irqmode += 2;
 	if (index == 2)
 	{
 		switch (value & 0x200)
@@ -576,16 +570,11 @@ __fi void psxRcntWmode16(int index, u32 value)
 
 __fi void psxRcntWmode32(int index, u32 value)
 {
-	int irqmode = 0;
 	psxCounter& counter = psxCounters[index];
 
 	counter.mode = (value & IOPCNT_MODE_WRITE_MSK) | (counter.mode & IOPCNT_MODE_FLAG_MSK); // Write new value, preserve flags
 	counter.mode |= IOPCNT_INT_REQ; // IRQ Enable
 
-	if (value & (1 << 4))
-		irqmode += 1;
-	if (value & (1 << 5))
-		irqmode += 2;
 	if (index == 3)
 	{
 		// Counter 3 has the HBlank as an alternate source.
