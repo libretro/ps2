@@ -22,14 +22,7 @@
 #include <iphlpapi.h>
 #elif defined(__POSIX__)
 #include <sys/types.h>
-#ifdef WANT_IFADDRS
-/* bionic declares struct ifaddrs at every API level but hides getifaddrs()
- * and freeifaddrs() behind __INTRODUCED_IN(24); the NDK lanes target 21.
- * libretro-common's netlink reimplementation supplies both. */
 #include <compat/ifaddrs.h>
-#else
-#include <ifaddrs.h>
-#endif
 #endif
 
 #include <memory>
