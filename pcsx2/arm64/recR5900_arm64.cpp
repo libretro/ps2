@@ -1501,6 +1501,108 @@ namespace
 		return HL_NONE;
 	}
 
+	// Element permutes and the saturating absolutes.
+	//
+	// The permutes are pure data movement: each destination element is one
+	// source element, so they are emitted as word or halfword loads followed
+	// by stores. Every load is issued before any store, which is what makes
+	// rd aliasing rs or rt safe -- the interpreter reads its sources into
+	// locals for the same reason.
+	//
+	// PABSW/PABSH are the saturating absolute value, clamping 0x80000000 to
+	// 0x7fffffff and 0x8000 to 0x7fff, which is precisely what SQABS does.
+	enum { MP_NONE, MP_PEXEW, MP_PEXCW, MP_PROT3W, MP_PEXEH, MP_PEXCH,
+	       MP_PINTH, MP_PINTEH, MP_PABSW, MP_PABSH };
+	int MmiPermAction(u32 insn)
+	{
+		const u32 funct = insn & 0x3f, sub = (insn >> 6) & 0x1f;
+		if (funct == 0x28) // MMI1
+		{
+			if (sub == 0x01) return MP_PABSW;
+			if (sub == 0x05) return MP_PABSH;
+		}
+		if (funct == 0x09) // MMI2
+		{
+			if (sub == 0x0a) return MP_PINTH;
+			if (sub == 0x1a) return MP_PEXEH;
+			if (sub == 0x1e) return MP_PEXEW;
+			if (sub == 0x1f) return MP_PROT3W;
+		}
+		if (funct == 0x29) // MMI3
+		{
+			if (sub == 0x0a) return MP_PINTEH;
+			if (sub == 0x1a) return MP_PEXCH;
+			if (sub == 0x1e) return MP_PEXCW;
+		}
+		return MP_NONE;
+	}
+
+	void EmitMmiPerm(MacroAssembler& m, const Register& gpr, u32 insn)
+	{
+		const int act = MmiPermAction(insn);
+		const u32 rd = (insn >> 11) & 31, rs = (insn >> 21) & 31, rt = (insn >> 16) & 31;
+		int i;
+
+		if (!rd)
+			return;
+
+		if (act == MP_PABSW || act == MP_PABSH)
+		{
+			s_rc.FlushReg(m, gpr, rt);
+			LoadQ(m, q1, gpr, rt);
+			if (act == MP_PABSW) m.Sqabs(v0.V4S(), v1.V4S());
+			else                 m.Sqabs(v0.V8H(), v1.V8H());
+			m.Str(q0, MemOperand(gpr, rd * 16));
+			s_rc.Invalidate(rd); // 128-bit write bypasses StoreGpr
+			return;
+		}
+
+		// Source element index per destination element, matching MMI.cpp.
+		// Two-source forms take rs elements as indices 8..15 (halfwords) so
+		// the tables stay uniform.
+		static const int kPexew[4]  = { 2, 1, 0, 3 };
+		static const int kPexcw[4]  = { 0, 2, 1, 3 };
+		static const int kProt3w[4] = { 1, 2, 0, 3 };
+		static const int kPexeh[8]  = { 2, 1, 0, 3, 6, 5, 4, 7 };
+		static const int kPexch[8]  = { 0, 2, 1, 3, 4, 6, 5, 7 };
+		static const int kPinth[8]  = { 0, 8 + 4, 1, 8 + 5, 2, 8 + 6, 3, 8 + 7 };
+		static const int kPinteh[8] = { 0, 8 + 0, 2, 8 + 2, 4, 8 + 4, 6, 8 + 6 };
+
+		const bool     word  = (act == MP_PEXEW || act == MP_PEXCW || act == MP_PROT3W);
+		const bool     two   = (act == MP_PINTH || act == MP_PINTEH);
+		const int      count = word ? 4 : 8;
+		const int      size  = word ? 4 : 2;
+		const int*     idx   = (act == MP_PEXEW)  ? kPexew  :
+		                       (act == MP_PEXCW)  ? kPexcw  :
+		                       (act == MP_PROT3W) ? kProt3w :
+		                       (act == MP_PEXEH)  ? kPexeh  :
+		                       (act == MP_PEXCH)  ? kPexch  :
+		                       (act == MP_PINTH)  ? kPinth  : kPinteh;
+		// w0..w7 hold the gathered elements; count is 4 or 8, so they fit.
+		const Register src[8] = { w0, w1, w2, w3, w4, w5, w6, w7 };
+
+		s_rc.FlushReg(m, gpr, rt);
+		if (two)
+			s_rc.FlushReg(m, gpr, rs);
+
+		for (i = 0; i < count; i++)
+		{
+			const int  e    = idx[i];
+			const bool from = (e >= 8);            // two-source: 8.. selects rs
+			const u32  base = (from ? rs : rt) * 16;
+			const u32  off  = base + (u32)((from ? e - 8 : e) * size);
+			if (word) m.Ldr(src[i], MemOperand(gpr, off));
+			else      m.Ldrh(src[i], MemOperand(gpr, off));
+		}
+		for (i = 0; i < count; i++)
+		{
+			const u32 off = rd * 16 + (u32)(i * size);
+			if (word) m.Str(src[i], MemOperand(gpr, off));
+			else      m.Strh(src[i], MemOperand(gpr, off));
+		}
+		s_rc.Invalidate(rd); // 128-bit write bypasses StoreGpr
+	}
+
 	// The parallel divides: PDIVW (MMI2 sub 0x0d) and PDIVBW (MMI3 sub 0x1d)
 	// signed, PDIVUW (MMI3 sub 0x0d) unsigned. Two 32-bit lanes each except
 	// PDIVBW, which has four. Without these a block containing one runs
@@ -2829,6 +2931,7 @@ namespace {
 				if (MmiSupported(insn)) { EmitMmi(m, gpr, insn); return true; }
 				if (MmiHiLoAction(insn)) { EmitMmiHiLo(m, gpr, insn); return true; } // C.79
 				if (MmiDivAction(insn)) { EmitMmiDiv(m, gpr, insn); return true; }
+				if (MmiPermAction(insn)) { EmitMmiPerm(m, gpr, insn); return true; }
 				// PCPYH: broadcast halfword 0 of each 64-bit half of rt across
 				// that half. Scalar: (u16)half * 0x0001000100010001.
 				if (IsPcpyh(insn))
@@ -3139,7 +3242,7 @@ namespace {
 			if (f == 0x04)             // PLZCW (C.63)
 				return true;
 			return MmiSupported(insn) || MmiHiLoAction(insn) || IsPcpyh(insn) || // C.79
-				MmiDivAction(insn) || IsQfsrv(insn);
+				MmiDivAction(insn) || MmiPermAction(insn) || IsQfsrv(insn);
 		}
 		if (op == 0x01) // REGIMM: MTSAB/MTSAH only (branches handled elsewhere)
 		{
