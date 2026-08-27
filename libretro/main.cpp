@@ -2805,7 +2805,14 @@ void retro_run(void)
 	if ((VMState)retro_atomic_load_acquire_int(&cpu_thread_state) == VMState::Paused)
 		cpu_thread_resume();
 
-	MTGS::MainLoop(false);
+	if (!MTGS::MainLoop(false))
+	{
+		/* Bounded-wait timeout: the EE thread delivered no vsync within
+		 * the window.  Dupe the previous frame so the frontend's frame
+		 * time iteration, input, and menu stay alive regardless of what
+		 * the emulation threads are doing. */
+		video_cb(NULL, 0, 0, 0);
+	}
 	upload_output_audio_buffer();
 
 

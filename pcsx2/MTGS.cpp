@@ -153,7 +153,7 @@ void MTGS::TryOpenGS(void)
 	retro_atomic_store_release_int(&s_open_flag, true);
 }
 
-void MTGS::MainLoop(bool flush_all)
+bool MTGS::MainLoop(bool flush_all)
 {
 
 	// Threading info: run in MTGS thread
@@ -170,11 +170,16 @@ void MTGS::MainLoop(bool flush_all)
 		if (flush_all)
 		{
 			if(!s_sem_event.CheckForWork())
-				return;
+				return true;
 		}
 		else
 		{
-			s_sem_event.WaitForWork();
+			/* The frontend thread must never park unboundedly: a wedged
+			 * producer degrades to duped frames with a live frontend,
+			 * never a frozen process.  100ms only fires when the EE has
+			 * genuinely stopped delivering vsyncs. */
+			if (!s_sem_event.WaitForWorkTimed(100))
+				return false;
 		}
 
 		if (!retro_atomic_load_acquire_int(&s_open_flag))
@@ -289,7 +294,28 @@ void MTGS::MainLoop(bool flush_all)
 			retro_atomic_store_release_int(&s_ReadPos, newringpos);
 
 			if (!flush_all && tag.command == GS_RINGTYPE_VSYNC)
-				return;
+			{
+				/* Returning mid-ring: the batch acknowledge at the top of
+				 * the outer loop already consumed the notifies for any
+				 * entries still queued behind this vsync.  WorkSema's
+				 * contract -- relied on by WaitForEmpty and by the
+				 * pre-park empty post in WaitForWorkTimed -- is that a
+				 * consumer at RUNNING_0 has drained the ring, and the
+				 * per-frame early exit is the one place this consumer
+				 * breaks it.  Re-arm the sema when entries remain so the
+				 * next WaitForWorkTimed drains them instead of parking
+				 * and waking a producer whose WaitGS(false) rendezvous
+				 * (readbacks, freezes) has not actually completed: a
+				 * producer released early reads a readback buffer the GS
+				 * side never filled, and the stale entry is processed
+				 * late into memory the EE may have reused.  A notify
+				 * racing a concurrent enqueue at worst doubles up; the
+				 * state machine absorbs spurious wakes by design. */
+				if (retro_atomic_load_acquire_int(&s_ReadPos) !=
+					retro_atomic_load_acquire_int(&s_WritePos))
+					s_sem_event.NotifyOfWork();
+				return true;
+			}
 		}
 	}
 
@@ -300,6 +326,7 @@ void MTGS::MainLoop(bool flush_all)
 	 * with pending packets, so this path is strictly safer now. */
 	vu1Thread.semaP1Progress.Post();
 	s_sem_event.Kill();
+	return true;
 }
 
 void MTGS::CloseGS(void)
@@ -457,7 +484,7 @@ void Gif_AddCompletedGSPacket(GS_Packet& _gsPack, GIF_PATH _path)
 	}
 	tag.data[2]                         = (int)_path;
 	retro_atomic_store_release_int(&MTGS::s_WritePos, (writepos + 1) & RINGBUFFERMASK);
-	MTGS::s_sem_event.NotifyOfWorkIfRunning();
+	MTGS::s_sem_event.NotifyOfWork();
 }
 
 void Gif_AddBlankGSPacket(u32 _size, GIF_PATH _path)
@@ -480,6 +507,6 @@ void Gif_AddBlankGSPacket(u32 _size, GIF_PATH _path)
 	tag.data[2]                 = (int)_path;
 
 	retro_atomic_store_release_int(&MTGS::s_WritePos, (writepos + 1) & RINGBUFFERMASK);
-	MTGS::s_sem_event.NotifyOfWorkIfRunning();
+	MTGS::s_sem_event.NotifyOfWork();
 }
 

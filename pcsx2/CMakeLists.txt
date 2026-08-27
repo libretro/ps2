@@ -1,10 +1,8 @@
 # All flags, libraries, etc, that are shared between PCSX2 compilation files
 # GameDatabaseBuiltin.cpp is generated from the shipped GameIndex.yaml at
-# build time. Driven through CMake's own script mode rather than the shell
-# version in tools/gen_gamedb_builtin.sh: the MSVC Windows runner has no sh,
-# where the shell rule failed with "'sh' is not recognized as an internal or
-# external command". The .sh stays for the static-Makefile rule, which is
-# POSIX-only anyway - keep the two in sync.
+# build time. The static Makefile uses tools/gen_gamedb_builtin.sh (POSIX
+# shell + od + awk); CMake uses the byte-identical cmake -P twin so MSVC
+# runners without a shell can build too.
 add_custom_command(
 	OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/GameDatabaseBuiltin.cpp
 	COMMAND ${CMAKE_COMMAND}
