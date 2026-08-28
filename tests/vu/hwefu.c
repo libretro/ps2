@@ -28,6 +28,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <math.h>
+#include <fenv.h>
 
 #include "ps2float.h"
 
@@ -118,7 +119,7 @@ static int lookup(const char* tok, u32* out)
  * Alternatives were measured against these captures, not guessed:
  *
  *   ESIN  pow/double 7/13 (kept)   float 4-5   ps2float 6-7   chop 5
- *   EEXP  pow/double 5/13          float 4-5   ps2float 8     chop 8 (kept)
+ *   EEXP  pow/double 4/13          float 4-5   ps2float 8     chop 8 (kept)
  *
  * EEXP now uses the chopping helpers, matching the exact software float
  * path's 8 at 67ns against its 521ns, and beating the pow() form it
@@ -223,6 +224,16 @@ int main(int argc, char** argv)
 {
 	const char* path = (argc > 1) ? argv[1] : "efu.expected";
 	int op, failures = 0, total = 0;
+
+	/* Match the emulator: VMManager sets the host rounding mode to the EE/VU
+	 * chop-toward-zero setting at VM start, and EATAN and ESIN here are plain
+	 * host float, so they inherit it. All three currently score the same
+	 * either way -- EATAN 8, ESIN 7, EEXP 8, the last because its chop forces
+	 * the rounding itself -- but that is a coincidence of these ops and not
+	 * something to rely on when another is added. Scoring in a mode the
+	 * emulator never uses is how the reverted AVX-512 path came to look like
+	 * an improvement. */
+	fesetround(FE_TOWARDZERO);
 
 	for (op = 0; op < E_COUNT; op++)
 	{

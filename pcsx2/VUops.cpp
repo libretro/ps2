@@ -2660,7 +2660,7 @@ static __ri void _vuEEXP(VURegs* VU)
 	 *
 	 * Evaluated with the chopping helpers above rather than pow(): scored
 	 * against the console captures in ps2autotests
-	 * tests/vu/lower/efu.expected that takes it from 5 of 13 cases to 8,
+	 * tests/vu/lower/efu.expected that takes it from 4 of 13 cases to 8,
 	 * and it also drops six libm calls -- 92ns to 67ns over two million
 	 * calls. Routing the same shape through ps2f_mul/ps2f_add reaches the
 	 * same 8 but costs 521ns, so the chop is doing the arithmetic that
