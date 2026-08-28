@@ -16,6 +16,23 @@
  *  skipped, since an op landing in a reserved slot is the way these
  *  tables drift.
  *
+ *  There is deliberately no second audit here for the EE recompiler, the
+ *  way tests/iop/tabaudit.c has one for rpsxBSC and friends. The EE has
+ *  no separate recompiler table to drift: OPCODE in R5900OpcodeTables.h
+ *  carries both an interpret and a recompile pointer, and MakeOpcode
+ *  fills them from one name token, as Interpreter::OpcodeImpl::name and
+ *  ::rec##name. A slot cannot hold the interpreter for one op and the
+ *  emitter for another. The IOP needed its own audit precisely because it
+ *  does keep two tables, in R3000AOpcodeTables.cpp and iR3000Atables.cpp,
+ *  which can disagree.
+ *
+ *  The arm64 EE recompiler is a third dispatch path and is not covered by
+ *  either audit. It decodes with nested switch statements rather than
+ *  tables -- roughly 190 case labels across switches on op, funct and rs
+ *  in arm64/recR5900_arm64.cpp -- so there is no initialiser to read and
+ *  compare. A misplaced case there is the same class of bug as a swapped
+ *  table entry, and nothing here would catch it.
+ *
  *  Usage: tests/ee/tabaudit <path-to-R5900OpcodeTables.cpp>
  */
 
