@@ -1,0 +1,592 @@
+/*  Stubs for tests/ee/hwrealee.cpp.
+ *
+ *  R5900OpcodeTables.cpp names every op in the instruction set, including
+ *  the COP2 macro-mode ops and the whole recompiler emitter set, so
+ *  linking it drags in nearly four hundred symbols this harness never
+ *  calls. Generated rather than written out: the list comes from the
+ *  linker, and anything that is actually reached would crash here rather
+ *  than silently returning, which is the property worth having.
+ */
+#include <stdio.h>
+#include <stdlib.h>
+
+static void reached(const char* who)
+{
+	fprintf(stderr, "hwrealee: stub %s was called; it should not be reachable\n", who);
+	abort();
+}
+
+void BC2F() { reached("BC2F"); }
+void BC2FL() { reached("BC2FL"); }
+void BC2T() { reached("BC2T"); }
+void BC2TL() { reached("BC2TL"); }
+void CFC2() { reached("CFC2"); }
+void COP2_BC2() { reached("COP2_BC2"); }
+void COP2_SPECIAL() { reached("COP2_SPECIAL"); }
+void COP2_SPECIAL2() { reached("COP2_SPECIAL2"); }
+void COP2_Unknown() { reached("COP2_Unknown"); }
+void CTC2() { reached("CTC2"); }
+void QMFC2() { reached("QMFC2"); }
+void QMTC2() { reached("QMTC2"); }
+void VABS() { reached("VABS"); }
+void VADD() { reached("VADD"); }
+void VADDA() { reached("VADDA"); }
+void VADDAi() { reached("VADDAi"); }
+void VADDAq() { reached("VADDAq"); }
+void VADDAw() { reached("VADDAw"); }
+void VADDAx() { reached("VADDAx"); }
+void VADDAy() { reached("VADDAy"); }
+void VADDAz() { reached("VADDAz"); }
+void VADDi() { reached("VADDi"); }
+void VADDq() { reached("VADDq"); }
+void VADDw() { reached("VADDw"); }
+void VADDx() { reached("VADDx"); }
+void VADDy() { reached("VADDy"); }
+void VADDz() { reached("VADDz"); }
+void VCALLMS() { reached("VCALLMS"); }
+void VCALLMSR() { reached("VCALLMSR"); }
+void VCLIPw() { reached("VCLIPw"); }
+void VDIV() { reached("VDIV"); }
+void VFTOI0() { reached("VFTOI0"); }
+void VFTOI12() { reached("VFTOI12"); }
+void VFTOI15() { reached("VFTOI15"); }
+void VFTOI4() { reached("VFTOI4"); }
+void VIADD() { reached("VIADD"); }
+void VIADDI() { reached("VIADDI"); }
+void VIAND() { reached("VIAND"); }
+void VILWR() { reached("VILWR"); }
+void VIOR() { reached("VIOR"); }
+void VISUB() { reached("VISUB"); }
+void VISWR() { reached("VISWR"); }
+void VITOF0() { reached("VITOF0"); }
+void VITOF12() { reached("VITOF12"); }
+void VITOF15() { reached("VITOF15"); }
+void VITOF4() { reached("VITOF4"); }
+void VLQD() { reached("VLQD"); }
+void VLQI() { reached("VLQI"); }
+void VMADD() { reached("VMADD"); }
+void VMADDA() { reached("VMADDA"); }
+void VMADDAi() { reached("VMADDAi"); }
+void VMADDAq() { reached("VMADDAq"); }
+void VMADDAw() { reached("VMADDAw"); }
+void VMADDAx() { reached("VMADDAx"); }
+void VMADDAy() { reached("VMADDAy"); }
+void VMADDAz() { reached("VMADDAz"); }
+void VMADDi() { reached("VMADDi"); }
+void VMADDq() { reached("VMADDq"); }
+void VMADDw() { reached("VMADDw"); }
+void VMADDx() { reached("VMADDx"); }
+void VMADDy() { reached("VMADDy"); }
+void VMADDz() { reached("VMADDz"); }
+void VMAX() { reached("VMAX"); }
+void VMAXi() { reached("VMAXi"); }
+void VMAXw() { reached("VMAXw"); }
+void VMAXx() { reached("VMAXx"); }
+void VMAXy() { reached("VMAXy"); }
+void VMAXz() { reached("VMAXz"); }
+void VMFIR() { reached("VMFIR"); }
+void VMINI() { reached("VMINI"); }
+void VMINIi() { reached("VMINIi"); }
+void VMINIw() { reached("VMINIw"); }
+void VMINIx() { reached("VMINIx"); }
+void VMINIy() { reached("VMINIy"); }
+void VMINIz() { reached("VMINIz"); }
+void VMOVE() { reached("VMOVE"); }
+void VMR32() { reached("VMR32"); }
+void VMSUB() { reached("VMSUB"); }
+void VMSUBA() { reached("VMSUBA"); }
+void VMSUBAi() { reached("VMSUBAi"); }
+void VMSUBAq() { reached("VMSUBAq"); }
+void VMSUBAw() { reached("VMSUBAw"); }
+void VMSUBAx() { reached("VMSUBAx"); }
+void VMSUBAy() { reached("VMSUBAy"); }
+void VMSUBAz() { reached("VMSUBAz"); }
+void VMSUBi() { reached("VMSUBi"); }
+void VMSUBq() { reached("VMSUBq"); }
+void VMSUBw() { reached("VMSUBw"); }
+void VMSUBx() { reached("VMSUBx"); }
+void VMSUBy() { reached("VMSUBy"); }
+void VMSUBz() { reached("VMSUBz"); }
+void VMTIR() { reached("VMTIR"); }
+void VMUL() { reached("VMUL"); }
+void VMULA() { reached("VMULA"); }
+void VMULAi() { reached("VMULAi"); }
+void VMULAq() { reached("VMULAq"); }
+void VMULAw() { reached("VMULAw"); }
+void VMULAx() { reached("VMULAx"); }
+void VMULAy() { reached("VMULAy"); }
+void VMULAz() { reached("VMULAz"); }
+void VMULi() { reached("VMULi"); }
+void VMULq() { reached("VMULq"); }
+void VMULw() { reached("VMULw"); }
+void VMULx() { reached("VMULx"); }
+void VMULy() { reached("VMULy"); }
+void VMULz() { reached("VMULz"); }
+void VNOP() { reached("VNOP"); }
+void VOPMSUB() { reached("VOPMSUB"); }
+void VOPMULA() { reached("VOPMULA"); }
+void VRGET() { reached("VRGET"); }
+void VRINIT() { reached("VRINIT"); }
+void VRNEXT() { reached("VRNEXT"); }
+void VRSQRT() { reached("VRSQRT"); }
+void VRXOR() { reached("VRXOR"); }
+void VSQD() { reached("VSQD"); }
+void VSQI() { reached("VSQI"); }
+void VSQRT() { reached("VSQRT"); }
+void VSUB() { reached("VSUB"); }
+void VSUBA() { reached("VSUBA"); }
+void VSUBAi() { reached("VSUBAi"); }
+void VSUBAq() { reached("VSUBAq"); }
+void VSUBAw() { reached("VSUBAw"); }
+void VSUBAx() { reached("VSUBAx"); }
+void VSUBAy() { reached("VSUBAy"); }
+void VSUBAz() { reached("VSUBAz"); }
+void VSUBi() { reached("VSUBi"); }
+void VSUBq() { reached("VSUBq"); }
+void VSUBw() { reached("VSUBw"); }
+void VSUBx() { reached("VSUBx"); }
+void VSUBy() { reached("VSUBy"); }
+void VSUBz() { reached("VSUBz"); }
+void VWAITQ() { reached("VWAITQ"); }
+void recABS_S() { reached("recABS_S"); }
+void recADD() { reached("recADD"); }
+void recADDA_S() { reached("recADDA_S"); }
+void recADDI() { reached("recADDI"); }
+void recADDIU() { reached("recADDIU"); }
+void recADDU() { reached("recADDU"); }
+void recADD_S() { reached("recADD_S"); }
+void recAND() { reached("recAND"); }
+void recANDI() { reached("recANDI"); }
+void recBC0F() { reached("recBC0F"); }
+void recBC0FL() { reached("recBC0FL"); }
+void recBC0T() { reached("recBC0T"); }
+void recBC0TL() { reached("recBC0TL"); }
+void recBC1F() { reached("recBC1F"); }
+void recBC1FL() { reached("recBC1FL"); }
+void recBC1T() { reached("recBC1T"); }
+void recBC1TL() { reached("recBC1TL"); }
+void recBEQ() { reached("recBEQ"); }
+void recBEQL() { reached("recBEQL"); }
+void recBGEZ() { reached("recBGEZ"); }
+void recBGEZAL() { reached("recBGEZAL"); }
+void recBGEZALL() { reached("recBGEZALL"); }
+void recBGEZL() { reached("recBGEZL"); }
+void recBGTZ() { reached("recBGTZ"); }
+void recBGTZL() { reached("recBGTZL"); }
+void recBLEZ() { reached("recBLEZ"); }
+void recBLEZL() { reached("recBLEZL"); }
+void recBLTZ() { reached("recBLTZ"); }
+void recBLTZAL() { reached("recBLTZAL"); }
+void recBLTZALL() { reached("recBLTZALL"); }
+void recBLTZL() { reached("recBLTZL"); }
+void recBNE() { reached("recBNE"); }
+void recBNEL() { reached("recBNEL"); }
+void recBREAK() { reached("recBREAK"); }
+void recCACHE() { reached("recCACHE"); }
+void recCFC1() { reached("recCFC1"); }
+void recCOP0_Unknown() { reached("recCOP0_Unknown"); }
+void recCOP1_Unknown() { reached("recCOP1_Unknown"); }
+void recCOP2() { reached("recCOP2"); }
+void recCTC1() { reached("recCTC1"); }
+void recCVT_S() { reached("recCVT_S"); }
+void recCVT_W() { reached("recCVT_W"); }
+void recC_EQ() { reached("recC_EQ"); }
+void recC_F() { reached("recC_F"); }
+void recC_LE() { reached("recC_LE"); }
+void recC_LT() { reached("recC_LT"); }
+void recDADD() { reached("recDADD"); }
+void recDADDI() { reached("recDADDI"); }
+void recDADDIU() { reached("recDADDIU"); }
+void recDADDU() { reached("recDADDU"); }
+void recDI() { reached("recDI"); }
+void recDIV() { reached("recDIV"); }
+void recDIV1() { reached("recDIV1"); }
+void recDIVU() { reached("recDIVU"); }
+void recDIVU1() { reached("recDIVU1"); }
+void recDIV_S() { reached("recDIV_S"); }
+void recDSLL() { reached("recDSLL"); }
+void recDSLL32() { reached("recDSLL32"); }
+void recDSLLV() { reached("recDSLLV"); }
+void recDSRA() { reached("recDSRA"); }
+void recDSRA32() { reached("recDSRA32"); }
+void recDSRAV() { reached("recDSRAV"); }
+void recDSRL() { reached("recDSRL"); }
+void recDSRL32() { reached("recDSRL32"); }
+void recDSRLV() { reached("recDSRLV"); }
+void recDSUB() { reached("recDSUB"); }
+void recDSUBU() { reached("recDSUBU"); }
+void recEI() { reached("recEI"); }
+void recERET() { reached("recERET"); }
+void recJ() { reached("recJ"); }
+void recJAL() { reached("recJAL"); }
+void recJALR() { reached("recJALR"); }
+void recJR() { reached("recJR"); }
+void recLB() { reached("recLB"); }
+void recLBU() { reached("recLBU"); }
+void recLD() { reached("recLD"); }
+void recLDL() { reached("recLDL"); }
+void recLDR() { reached("recLDR"); }
+void recLH() { reached("recLH"); }
+void recLHU() { reached("recLHU"); }
+void recLQ() { reached("recLQ"); }
+void recLQC2() { reached("recLQC2"); }
+void recLUI() { reached("recLUI"); }
+void recLW() { reached("recLW"); }
+void recLWC1() { reached("recLWC1"); }
+void recLWL() { reached("recLWL"); }
+void recLWR() { reached("recLWR"); }
+void recLWU() { reached("recLWU"); }
+void recMADD() { reached("recMADD"); }
+void recMADD1() { reached("recMADD1"); }
+void recMADDA_S() { reached("recMADDA_S"); }
+void recMADDU() { reached("recMADDU"); }
+void recMADDU1() { reached("recMADDU1"); }
+void recMADD_S() { reached("recMADD_S"); }
+void recMAX_S() { reached("recMAX_S"); }
+void recMFC0() { reached("recMFC0"); }
+void recMFC1() { reached("recMFC1"); }
+void recMFHI() { reached("recMFHI"); }
+void recMFHI1() { reached("recMFHI1"); }
+void recMFLO() { reached("recMFLO"); }
+void recMFLO1() { reached("recMFLO1"); }
+void recMFSA() { reached("recMFSA"); }
+void recMIN_S() { reached("recMIN_S"); }
+void recMMI_Unknown() { reached("recMMI_Unknown"); }
+void recMOVN() { reached("recMOVN"); }
+void recMOVZ() { reached("recMOVZ"); }
+void recMOV_S() { reached("recMOV_S"); }
+void recMSUBA_S() { reached("recMSUBA_S"); }
+void recMSUB_S() { reached("recMSUB_S"); }
+void recMTC0() { reached("recMTC0"); }
+void recMTC1() { reached("recMTC1"); }
+void recMTHI() { reached("recMTHI"); }
+void recMTHI1() { reached("recMTHI1"); }
+void recMTLO() { reached("recMTLO"); }
+void recMTLO1() { reached("recMTLO1"); }
+void recMTSA() { reached("recMTSA"); }
+void recMTSAB() { reached("recMTSAB"); }
+void recMTSAH() { reached("recMTSAH"); }
+void recMULA_S() { reached("recMULA_S"); }
+void recMULT() { reached("recMULT"); }
+void recMULT1() { reached("recMULT1"); }
+void recMULTU() { reached("recMULTU"); }
+void recMULTU1() { reached("recMULTU1"); }
+void recMUL_S() { reached("recMUL_S"); }
+void recNEG_S() { reached("recNEG_S"); }
+void recNOR() { reached("recNOR"); }
+void recOR() { reached("recOR"); }
+void recORI() { reached("recORI"); }
+void recPABSH() { reached("recPABSH"); }
+void recPABSW() { reached("recPABSW"); }
+void recPADDB() { reached("recPADDB"); }
+void recPADDH() { reached("recPADDH"); }
+void recPADDSB() { reached("recPADDSB"); }
+void recPADDSH() { reached("recPADDSH"); }
+void recPADDSW() { reached("recPADDSW"); }
+void recPADDUB() { reached("recPADDUB"); }
+void recPADDUH() { reached("recPADDUH"); }
+void recPADDUW() { reached("recPADDUW"); }
+void recPADDW() { reached("recPADDW"); }
+void recPADSBH() { reached("recPADSBH"); }
+void recPAND() { reached("recPAND"); }
+void recPCEQB() { reached("recPCEQB"); }
+void recPCEQH() { reached("recPCEQH"); }
+void recPCEQW() { reached("recPCEQW"); }
+void recPCGTB() { reached("recPCGTB"); }
+void recPCGTH() { reached("recPCGTH"); }
+void recPCGTW() { reached("recPCGTW"); }
+void recPCPYH() { reached("recPCPYH"); }
+void recPCPYLD() { reached("recPCPYLD"); }
+void recPCPYUD() { reached("recPCPYUD"); }
+void recPDIVBW() { reached("recPDIVBW"); }
+void recPDIVUW() { reached("recPDIVUW"); }
+void recPDIVW() { reached("recPDIVW"); }
+void recPEXCH() { reached("recPEXCH"); }
+void recPEXCW() { reached("recPEXCW"); }
+void recPEXEH() { reached("recPEXEH"); }
+void recPEXEW() { reached("recPEXEW"); }
+void recPEXT5() { reached("recPEXT5"); }
+void recPEXTLB() { reached("recPEXTLB"); }
+void recPEXTLH() { reached("recPEXTLH"); }
+void recPEXTLW() { reached("recPEXTLW"); }
+void recPEXTUB() { reached("recPEXTUB"); }
+void recPEXTUH() { reached("recPEXTUH"); }
+void recPEXTUW() { reached("recPEXTUW"); }
+void recPHMADH() { reached("recPHMADH"); }
+void recPHMSBH() { reached("recPHMSBH"); }
+void recPINTEH() { reached("recPINTEH"); }
+void recPINTH() { reached("recPINTH"); }
+void recPLZCW() { reached("recPLZCW"); }
+void recPMADDH() { reached("recPMADDH"); }
+void recPMADDUW() { reached("recPMADDUW"); }
+void recPMADDW() { reached("recPMADDW"); }
+void recPMAXH() { reached("recPMAXH"); }
+void recPMAXW() { reached("recPMAXW"); }
+void recPMFHI() { reached("recPMFHI"); }
+void recPMFHL() { reached("recPMFHL"); }
+void recPMFLO() { reached("recPMFLO"); }
+void recPMINH() { reached("recPMINH"); }
+void recPMINW() { reached("recPMINW"); }
+void recPMSUBH() { reached("recPMSUBH"); }
+void recPMSUBW() { reached("recPMSUBW"); }
+void recPMTHI() { reached("recPMTHI"); }
+void recPMTHL() { reached("recPMTHL"); }
+void recPMTLO() { reached("recPMTLO"); }
+void recPMULTH() { reached("recPMULTH"); }
+void recPMULTUW() { reached("recPMULTUW"); }
+void recPMULTW() { reached("recPMULTW"); }
+void recPNOR() { reached("recPNOR"); }
+void recPOR() { reached("recPOR"); }
+void recPPAC5() { reached("recPPAC5"); }
+void recPPACB() { reached("recPPACB"); }
+void recPPACH() { reached("recPPACH"); }
+void recPPACW() { reached("recPPACW"); }
+void recPREF() { reached("recPREF"); }
+void recPREVH() { reached("recPREVH"); }
+void recPROT3W() { reached("recPROT3W"); }
+void recPSLLH() { reached("recPSLLH"); }
+void recPSLLVW() { reached("recPSLLVW"); }
+void recPSLLW() { reached("recPSLLW"); }
+void recPSRAH() { reached("recPSRAH"); }
+void recPSRAVW() { reached("recPSRAVW"); }
+void recPSRAW() { reached("recPSRAW"); }
+void recPSRLH() { reached("recPSRLH"); }
+void recPSRLVW() { reached("recPSRLVW"); }
+void recPSRLW() { reached("recPSRLW"); }
+void recPSUBB() { reached("recPSUBB"); }
+void recPSUBH() { reached("recPSUBH"); }
+void recPSUBSB() { reached("recPSUBSB"); }
+void recPSUBSH() { reached("recPSUBSH"); }
+void recPSUBSW() { reached("recPSUBSW"); }
+void recPSUBUB() { reached("recPSUBUB"); }
+void recPSUBUH() { reached("recPSUBUH"); }
+void recPSUBUW() { reached("recPSUBUW"); }
+void recPSUBW() { reached("recPSUBW"); }
+void recPXOR() { reached("recPXOR"); }
+void recQFSRV() { reached("recQFSRV"); }
+void recRSQRT_S() { reached("recRSQRT_S"); }
+void recSB() { reached("recSB"); }
+void recSD() { reached("recSD"); }
+void recSDL() { reached("recSDL"); }
+void recSDR() { reached("recSDR"); }
+void recSH() { reached("recSH"); }
+void recSLL() { reached("recSLL"); }
+void recSLLV() { reached("recSLLV"); }
+void recSLT() { reached("recSLT"); }
+void recSLTI() { reached("recSLTI"); }
+void recSLTIU() { reached("recSLTIU"); }
+void recSLTU() { reached("recSLTU"); }
+void recSQ() { reached("recSQ"); }
+void recSQC2() { reached("recSQC2"); }
+void recSQRT_S() { reached("recSQRT_S"); }
+void recSRA() { reached("recSRA"); }
+void recSRAV() { reached("recSRAV"); }
+void recSRL() { reached("recSRL"); }
+void recSRLV() { reached("recSRLV"); }
+void recSUB() { reached("recSUB"); }
+void recSUBA_S() { reached("recSUBA_S"); }
+void recSUBU() { reached("recSUBU"); }
+void recSUB_S() { reached("recSUB_S"); }
+void recSW() { reached("recSW"); }
+void recSWC1() { reached("recSWC1"); }
+void recSWL() { reached("recSWL"); }
+void recSWR() { reached("recSWR"); }
+void recSYNC() { reached("recSYNC"); }
+void recSYSCALL() { reached("recSYSCALL"); }
+void recTEQ() { reached("recTEQ"); }
+void recTEQI() { reached("recTEQI"); }
+void recTGE() { reached("recTGE"); }
+void recTGEI() { reached("recTGEI"); }
+void recTGEIU() { reached("recTGEIU"); }
+void recTGEU() { reached("recTGEU"); }
+void recTLBP() { reached("recTLBP"); }
+void recTLBR() { reached("recTLBR"); }
+void recTLBWI() { reached("recTLBWI"); }
+void recTLBWR() { reached("recTLBWR"); }
+void recTLT() { reached("recTLT"); }
+void recTLTI() { reached("recTLTI"); }
+void recTLTIU() { reached("recTLTIU"); }
+void recTLTU() { reached("recTLTU"); }
+void recTNE() { reached("recTNE"); }
+void recTNEI() { reached("recTNEI"); }
+void recUnknown() { reached("recUnknown"); }
+void recXOR() { reached("recXOR"); }
+void recXORI() { reached("recXORI"); }
+
+namespace R5900 { namespace Interpreter { namespace OpcodeImpl { 
+	void BEQ() { reached("R5900::Interpreter::OpcodeImpl::BEQ"); }
+	void BEQL() { reached("R5900::Interpreter::OpcodeImpl::BEQL"); }
+	void BGEZ() { reached("R5900::Interpreter::OpcodeImpl::BGEZ"); }
+	void BGEZAL() { reached("R5900::Interpreter::OpcodeImpl::BGEZAL"); }
+	void BGEZALL() { reached("R5900::Interpreter::OpcodeImpl::BGEZALL"); }
+	void BGEZL() { reached("R5900::Interpreter::OpcodeImpl::BGEZL"); }
+	void BGTZ() { reached("R5900::Interpreter::OpcodeImpl::BGTZ"); }
+	void BGTZL() { reached("R5900::Interpreter::OpcodeImpl::BGTZL"); }
+	void BLEZ() { reached("R5900::Interpreter::OpcodeImpl::BLEZ"); }
+	void BLEZL() { reached("R5900::Interpreter::OpcodeImpl::BLEZL"); }
+	void BLTZ() { reached("R5900::Interpreter::OpcodeImpl::BLTZ"); }
+	void BLTZAL() { reached("R5900::Interpreter::OpcodeImpl::BLTZAL"); }
+	void BLTZALL() { reached("R5900::Interpreter::OpcodeImpl::BLTZALL"); }
+	void BLTZL() { reached("R5900::Interpreter::OpcodeImpl::BLTZL"); }
+	void BNE() { reached("R5900::Interpreter::OpcodeImpl::BNE"); }
+	void BNEL() { reached("R5900::Interpreter::OpcodeImpl::BNEL"); }
+	void CACHE() { reached("R5900::Interpreter::OpcodeImpl::CACHE"); }
+	void DIV1() { reached("R5900::Interpreter::OpcodeImpl::DIV1"); }
+	void DIVU1() { reached("R5900::Interpreter::OpcodeImpl::DIVU1"); }
+	void J() { reached("R5900::Interpreter::OpcodeImpl::J"); }
+	void JAL() { reached("R5900::Interpreter::OpcodeImpl::JAL"); }
+	void JALR() { reached("R5900::Interpreter::OpcodeImpl::JALR"); }
+	void JR() { reached("R5900::Interpreter::OpcodeImpl::JR"); }
+	void LQC2() { reached("R5900::Interpreter::OpcodeImpl::LQC2"); }
+	void LWC1() { reached("R5900::Interpreter::OpcodeImpl::LWC1"); }
+	void MADD() { reached("R5900::Interpreter::OpcodeImpl::MADD"); }
+	void MADD1() { reached("R5900::Interpreter::OpcodeImpl::MADD1"); }
+	void MADDU() { reached("R5900::Interpreter::OpcodeImpl::MADDU"); }
+	void MADDU1() { reached("R5900::Interpreter::OpcodeImpl::MADDU1"); }
+	void MFHI1() { reached("R5900::Interpreter::OpcodeImpl::MFHI1"); }
+	void MFLO1() { reached("R5900::Interpreter::OpcodeImpl::MFLO1"); }
+	void MTHI1() { reached("R5900::Interpreter::OpcodeImpl::MTHI1"); }
+	void MTLO1() { reached("R5900::Interpreter::OpcodeImpl::MTLO1"); }
+	void MULT1() { reached("R5900::Interpreter::OpcodeImpl::MULT1"); }
+	void MULTU1() { reached("R5900::Interpreter::OpcodeImpl::MULTU1"); }
+	void SQC2() { reached("R5900::Interpreter::OpcodeImpl::SQC2"); }
+	void SWC1() { reached("R5900::Interpreter::OpcodeImpl::SWC1"); }
+}}}
+namespace R5900 { namespace Interpreter { namespace OpcodeImpl { namespace COP0 { 
+	void BC0F() { reached("R5900::Interpreter::OpcodeImpl::COP0::BC0F"); }
+	void BC0FL() { reached("R5900::Interpreter::OpcodeImpl::COP0::BC0FL"); }
+	void BC0T() { reached("R5900::Interpreter::OpcodeImpl::COP0::BC0T"); }
+	void BC0TL() { reached("R5900::Interpreter::OpcodeImpl::COP0::BC0TL"); }
+	void DI() { reached("R5900::Interpreter::OpcodeImpl::COP0::DI"); }
+	void EI() { reached("R5900::Interpreter::OpcodeImpl::COP0::EI"); }
+	void ERET() { reached("R5900::Interpreter::OpcodeImpl::COP0::ERET"); }
+	void MFC0() { reached("R5900::Interpreter::OpcodeImpl::COP0::MFC0"); }
+	void MTC0() { reached("R5900::Interpreter::OpcodeImpl::COP0::MTC0"); }
+	void TLBP() { reached("R5900::Interpreter::OpcodeImpl::COP0::TLBP"); }
+	void TLBR() { reached("R5900::Interpreter::OpcodeImpl::COP0::TLBR"); }
+	void TLBWI() { reached("R5900::Interpreter::OpcodeImpl::COP0::TLBWI"); }
+	void TLBWR() { reached("R5900::Interpreter::OpcodeImpl::COP0::TLBWR"); }
+}}}}
+namespace R5900 { namespace Interpreter { namespace OpcodeImpl { namespace COP1 { 
+	void ABS_S() { reached("R5900::Interpreter::OpcodeImpl::COP1::ABS_S"); }
+	void ADDA_S() { reached("R5900::Interpreter::OpcodeImpl::COP1::ADDA_S"); }
+	void ADD_S() { reached("R5900::Interpreter::OpcodeImpl::COP1::ADD_S"); }
+	void BC1F() { reached("R5900::Interpreter::OpcodeImpl::COP1::BC1F"); }
+	void BC1FL() { reached("R5900::Interpreter::OpcodeImpl::COP1::BC1FL"); }
+	void BC1T() { reached("R5900::Interpreter::OpcodeImpl::COP1::BC1T"); }
+	void BC1TL() { reached("R5900::Interpreter::OpcodeImpl::COP1::BC1TL"); }
+	void CFC1() { reached("R5900::Interpreter::OpcodeImpl::COP1::CFC1"); }
+	void CTC1() { reached("R5900::Interpreter::OpcodeImpl::COP1::CTC1"); }
+	void CVT_S() { reached("R5900::Interpreter::OpcodeImpl::COP1::CVT_S"); }
+	void CVT_W() { reached("R5900::Interpreter::OpcodeImpl::COP1::CVT_W"); }
+	void C_EQ() { reached("R5900::Interpreter::OpcodeImpl::COP1::C_EQ"); }
+	void C_F() { reached("R5900::Interpreter::OpcodeImpl::COP1::C_F"); }
+	void C_LE() { reached("R5900::Interpreter::OpcodeImpl::COP1::C_LE"); }
+	void C_LT() { reached("R5900::Interpreter::OpcodeImpl::COP1::C_LT"); }
+	void DIV_S() { reached("R5900::Interpreter::OpcodeImpl::COP1::DIV_S"); }
+	void MADDA_S() { reached("R5900::Interpreter::OpcodeImpl::COP1::MADDA_S"); }
+	void MADD_S() { reached("R5900::Interpreter::OpcodeImpl::COP1::MADD_S"); }
+	void MAX_S() { reached("R5900::Interpreter::OpcodeImpl::COP1::MAX_S"); }
+	void MFC1() { reached("R5900::Interpreter::OpcodeImpl::COP1::MFC1"); }
+	void MIN_S() { reached("R5900::Interpreter::OpcodeImpl::COP1::MIN_S"); }
+	void MOV_S() { reached("R5900::Interpreter::OpcodeImpl::COP1::MOV_S"); }
+	void MSUBA_S() { reached("R5900::Interpreter::OpcodeImpl::COP1::MSUBA_S"); }
+	void MSUB_S() { reached("R5900::Interpreter::OpcodeImpl::COP1::MSUB_S"); }
+	void MTC1() { reached("R5900::Interpreter::OpcodeImpl::COP1::MTC1"); }
+	void MULA_S() { reached("R5900::Interpreter::OpcodeImpl::COP1::MULA_S"); }
+	void MUL_S() { reached("R5900::Interpreter::OpcodeImpl::COP1::MUL_S"); }
+	void NEG_S() { reached("R5900::Interpreter::OpcodeImpl::COP1::NEG_S"); }
+	void RSQRT_S() { reached("R5900::Interpreter::OpcodeImpl::COP1::RSQRT_S"); }
+	void SQRT_S() { reached("R5900::Interpreter::OpcodeImpl::COP1::SQRT_S"); }
+	void SUBA_S() { reached("R5900::Interpreter::OpcodeImpl::COP1::SUBA_S"); }
+	void SUB_S() { reached("R5900::Interpreter::OpcodeImpl::COP1::SUB_S"); }
+}}}}
+namespace R5900 { namespace Interpreter { namespace OpcodeImpl { namespace MMI { 
+	void PABSH() { reached("R5900::Interpreter::OpcodeImpl::MMI::PABSH"); }
+	void PABSW() { reached("R5900::Interpreter::OpcodeImpl::MMI::PABSW"); }
+	void PADDB() { reached("R5900::Interpreter::OpcodeImpl::MMI::PADDB"); }
+	void PADDH() { reached("R5900::Interpreter::OpcodeImpl::MMI::PADDH"); }
+	void PADDSB() { reached("R5900::Interpreter::OpcodeImpl::MMI::PADDSB"); }
+	void PADDSH() { reached("R5900::Interpreter::OpcodeImpl::MMI::PADDSH"); }
+	void PADDSW() { reached("R5900::Interpreter::OpcodeImpl::MMI::PADDSW"); }
+	void PADDUB() { reached("R5900::Interpreter::OpcodeImpl::MMI::PADDUB"); }
+	void PADDUH() { reached("R5900::Interpreter::OpcodeImpl::MMI::PADDUH"); }
+	void PADDUW() { reached("R5900::Interpreter::OpcodeImpl::MMI::PADDUW"); }
+	void PADDW() { reached("R5900::Interpreter::OpcodeImpl::MMI::PADDW"); }
+	void PADSBH() { reached("R5900::Interpreter::OpcodeImpl::MMI::PADSBH"); }
+	void PAND() { reached("R5900::Interpreter::OpcodeImpl::MMI::PAND"); }
+	void PCEQB() { reached("R5900::Interpreter::OpcodeImpl::MMI::PCEQB"); }
+	void PCEQH() { reached("R5900::Interpreter::OpcodeImpl::MMI::PCEQH"); }
+	void PCEQW() { reached("R5900::Interpreter::OpcodeImpl::MMI::PCEQW"); }
+	void PCGTB() { reached("R5900::Interpreter::OpcodeImpl::MMI::PCGTB"); }
+	void PCGTH() { reached("R5900::Interpreter::OpcodeImpl::MMI::PCGTH"); }
+	void PCGTW() { reached("R5900::Interpreter::OpcodeImpl::MMI::PCGTW"); }
+	void PCPYH() { reached("R5900::Interpreter::OpcodeImpl::MMI::PCPYH"); }
+	void PCPYLD() { reached("R5900::Interpreter::OpcodeImpl::MMI::PCPYLD"); }
+	void PCPYUD() { reached("R5900::Interpreter::OpcodeImpl::MMI::PCPYUD"); }
+	void PDIVBW() { reached("R5900::Interpreter::OpcodeImpl::MMI::PDIVBW"); }
+	void PDIVUW() { reached("R5900::Interpreter::OpcodeImpl::MMI::PDIVUW"); }
+	void PDIVW() { reached("R5900::Interpreter::OpcodeImpl::MMI::PDIVW"); }
+	void PEXCH() { reached("R5900::Interpreter::OpcodeImpl::MMI::PEXCH"); }
+	void PEXCW() { reached("R5900::Interpreter::OpcodeImpl::MMI::PEXCW"); }
+	void PEXEH() { reached("R5900::Interpreter::OpcodeImpl::MMI::PEXEH"); }
+	void PEXEW() { reached("R5900::Interpreter::OpcodeImpl::MMI::PEXEW"); }
+	void PEXT5() { reached("R5900::Interpreter::OpcodeImpl::MMI::PEXT5"); }
+	void PEXTLB() { reached("R5900::Interpreter::OpcodeImpl::MMI::PEXTLB"); }
+	void PEXTLH() { reached("R5900::Interpreter::OpcodeImpl::MMI::PEXTLH"); }
+	void PEXTLW() { reached("R5900::Interpreter::OpcodeImpl::MMI::PEXTLW"); }
+	void PEXTUB() { reached("R5900::Interpreter::OpcodeImpl::MMI::PEXTUB"); }
+	void PEXTUH() { reached("R5900::Interpreter::OpcodeImpl::MMI::PEXTUH"); }
+	void PEXTUW() { reached("R5900::Interpreter::OpcodeImpl::MMI::PEXTUW"); }
+	void PHMADH() { reached("R5900::Interpreter::OpcodeImpl::MMI::PHMADH"); }
+	void PHMSBH() { reached("R5900::Interpreter::OpcodeImpl::MMI::PHMSBH"); }
+	void PINTEH() { reached("R5900::Interpreter::OpcodeImpl::MMI::PINTEH"); }
+	void PINTH() { reached("R5900::Interpreter::OpcodeImpl::MMI::PINTH"); }
+	void PLZCW() { reached("R5900::Interpreter::OpcodeImpl::MMI::PLZCW"); }
+	void PMADDH() { reached("R5900::Interpreter::OpcodeImpl::MMI::PMADDH"); }
+	void PMADDUW() { reached("R5900::Interpreter::OpcodeImpl::MMI::PMADDUW"); }
+	void PMADDW() { reached("R5900::Interpreter::OpcodeImpl::MMI::PMADDW"); }
+	void PMAXH() { reached("R5900::Interpreter::OpcodeImpl::MMI::PMAXH"); }
+	void PMAXW() { reached("R5900::Interpreter::OpcodeImpl::MMI::PMAXW"); }
+	void PMFHI() { reached("R5900::Interpreter::OpcodeImpl::MMI::PMFHI"); }
+	void PMFHL() { reached("R5900::Interpreter::OpcodeImpl::MMI::PMFHL"); }
+	void PMFLO() { reached("R5900::Interpreter::OpcodeImpl::MMI::PMFLO"); }
+	void PMINH() { reached("R5900::Interpreter::OpcodeImpl::MMI::PMINH"); }
+	void PMINW() { reached("R5900::Interpreter::OpcodeImpl::MMI::PMINW"); }
+	void PMSUBH() { reached("R5900::Interpreter::OpcodeImpl::MMI::PMSUBH"); }
+	void PMSUBW() { reached("R5900::Interpreter::OpcodeImpl::MMI::PMSUBW"); }
+	void PMTHI() { reached("R5900::Interpreter::OpcodeImpl::MMI::PMTHI"); }
+	void PMTHL() { reached("R5900::Interpreter::OpcodeImpl::MMI::PMTHL"); }
+	void PMTLO() { reached("R5900::Interpreter::OpcodeImpl::MMI::PMTLO"); }
+	void PMULTH() { reached("R5900::Interpreter::OpcodeImpl::MMI::PMULTH"); }
+	void PMULTUW() { reached("R5900::Interpreter::OpcodeImpl::MMI::PMULTUW"); }
+	void PMULTW() { reached("R5900::Interpreter::OpcodeImpl::MMI::PMULTW"); }
+	void PNOR() { reached("R5900::Interpreter::OpcodeImpl::MMI::PNOR"); }
+	void POR() { reached("R5900::Interpreter::OpcodeImpl::MMI::POR"); }
+	void PPAC5() { reached("R5900::Interpreter::OpcodeImpl::MMI::PPAC5"); }
+	void PPACB() { reached("R5900::Interpreter::OpcodeImpl::MMI::PPACB"); }
+	void PPACH() { reached("R5900::Interpreter::OpcodeImpl::MMI::PPACH"); }
+	void PPACW() { reached("R5900::Interpreter::OpcodeImpl::MMI::PPACW"); }
+	void PREVH() { reached("R5900::Interpreter::OpcodeImpl::MMI::PREVH"); }
+	void PROT3W() { reached("R5900::Interpreter::OpcodeImpl::MMI::PROT3W"); }
+	void PSLLH() { reached("R5900::Interpreter::OpcodeImpl::MMI::PSLLH"); }
+	void PSLLVW() { reached("R5900::Interpreter::OpcodeImpl::MMI::PSLLVW"); }
+	void PSLLW() { reached("R5900::Interpreter::OpcodeImpl::MMI::PSLLW"); }
+	void PSRAH() { reached("R5900::Interpreter::OpcodeImpl::MMI::PSRAH"); }
+	void PSRAVW() { reached("R5900::Interpreter::OpcodeImpl::MMI::PSRAVW"); }
+	void PSRAW() { reached("R5900::Interpreter::OpcodeImpl::MMI::PSRAW"); }
+	void PSRLH() { reached("R5900::Interpreter::OpcodeImpl::MMI::PSRLH"); }
+	void PSRLVW() { reached("R5900::Interpreter::OpcodeImpl::MMI::PSRLVW"); }
+	void PSRLW() { reached("R5900::Interpreter::OpcodeImpl::MMI::PSRLW"); }
+	void PSUBB() { reached("R5900::Interpreter::OpcodeImpl::MMI::PSUBB"); }
+	void PSUBH() { reached("R5900::Interpreter::OpcodeImpl::MMI::PSUBH"); }
+	void PSUBSB() { reached("R5900::Interpreter::OpcodeImpl::MMI::PSUBSB"); }
+	void PSUBSH() { reached("R5900::Interpreter::OpcodeImpl::MMI::PSUBSH"); }
+	void PSUBSW() { reached("R5900::Interpreter::OpcodeImpl::MMI::PSUBSW"); }
+	void PSUBUB() { reached("R5900::Interpreter::OpcodeImpl::MMI::PSUBUB"); }
+	void PSUBUH() { reached("R5900::Interpreter::OpcodeImpl::MMI::PSUBUH"); }
+	void PSUBUW() { reached("R5900::Interpreter::OpcodeImpl::MMI::PSUBUW"); }
+	void PSUBW() { reached("R5900::Interpreter::OpcodeImpl::MMI::PSUBW"); }
+	void PXOR() { reached("R5900::Interpreter::OpcodeImpl::MMI::PXOR"); }
+	void QFSRV() { reached("R5900::Interpreter::OpcodeImpl::MMI::QFSRV"); }
+}}}}
