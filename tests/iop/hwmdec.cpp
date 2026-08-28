@@ -16,7 +16,7 @@
  *    - the words the output FIFO hands back,
  *    - the order of the phase switches (input full, output empty).
  *
- *  As it stands this reports 88 of 777 status reads and 0 of 512 output
+ *  As it stands this reports 154 of 777 status reads and 0 of 512 output
  *  words. The status register now carries real state -- see the note in
  *  Mdec.cpp -- and what is left needs the output FIFO, because the
  *  decoder is driven from a memory buffer by psxDma0/psxDma1 rather than

@@ -29,9 +29,14 @@
  * report. Bits 26 down to 23 are set by the decode command and do not
  * change while it runs; 31 down to 27 are the FIFO and busy flags; 18..16
  * count the block being decoded and 15..0 the words left of the command. */
-#define MDEC_ST_CMDBUSY   (1u << 31)
+/* Bit 31 is the output FIFO's empty flag and 29 the command-busy flag,
+ * not the other way round. Two lines of the trace settle it: 0xb60400ff
+ * is reported as outEmpty 1 and busy 1, and 0x3e0100d0 as outEmpty 0 and
+ * busy 1 -- only bit 31 differs between them, so it is the one that
+ * tracks the output FIFO. */
+#define MDEC_ST_OUTEMPTY  (1u << 31)
 #define MDEC_ST_INFULL    (1u << 30)
-#define MDEC_ST_OUTEMPTY  (1u << 29)
+#define MDEC_ST_CMDBUSY   (1u << 29)
 #define MDEC_ST_INREQ     (1u << 28)
 #define MDEC_ST_OUTREQ    (1u << 27)
 #define MDEC_ST_DEPTH_SH  25
@@ -53,6 +58,7 @@ struct {
 	u32 block_idx;      /* index into the block order */
 	u32 block;          /* 18..16; the decoder walks 4,1,2,3,0,1,2,3 */
 	int have_output;    /* a decoded block is waiting to be read */
+	u32 read_words;     /* output words handed back since the command */
 	u32 cmd_bits;       /* 26..23, latched from the decode command */
 	int busy;
 } mdec;
@@ -419,6 +425,7 @@ void mdecInit(void)
 	mdec.status     = 0;
 	mdec.words_left = 0;
 	mdec.consumed   = 0;
+	mdec.read_words = 0;
 	mdec.block_idx  = 0;
 	mdec.block      = 0;
 	mdec.have_output = 0;
@@ -450,7 +457,8 @@ void mdecWrite0(u32 data)
 		mdec.words_left = (data & 0xffff) - 1u;
 		mdec.block      = mdec_block_order[0];
 		mdec.block_idx  = 0;
-		mdec.consumed   = 0;
+		mdec.consumed    = 0;
+		mdec.read_words  = 0;
 		mdec.have_output = 0;
 		mdec.cmd_bits   = ((data >> 27) & 0x3) << MDEC_ST_DEPTH_SH;
 		if (data & (1u << 26)) mdec.cmd_bits |= MDEC_ST_SIGNED;
@@ -469,16 +477,15 @@ void mdecWrite0(u32 data)
 		 * cmdBusy and raising dataOutReq: there is now something to read.
 		 * The 32-word unit is what the trace's phase boundaries are all
 		 * multiples of. */
-		/* cmdBusy is not an acceptance gate: the console keeps taking
-		 * words after it drops, so the counter must keep falling. It
-		 * reports that the decoder has no block in flight, which is true
-		 * from the moment the first block is ready to read. */
+		/* A block completes every 32 words -- one 8x8 block at 15bpp --
+		 * and the console reports it by advancing currentBlock and
+		 * dropping the output FIFO's empty flag: there is now something
+		 * to read. cmdBusy stays set for the whole command. */
 		if ((mdec.consumed % MDEC_BLOCK_WORDS) == 0)
 		{
 			mdec.block_idx = (mdec.block_idx + 1) & 7u;
 			mdec.block = mdec_block_order[mdec.block_idx];
 			mdec.have_output = 1;
-			mdec.busy = 0;
 		}
 	}
 }
@@ -489,7 +496,30 @@ void mdecWrite1(u32 data)
 		round_init();
 }
 
-u32 mdecRead0(void) { return mdec.command; }
+u32 mdecRead0(void)
+{
+	/* MDEC_DATA read. The decoded words themselves still come from the
+	 * DMA path -- psxDma1 decodes a whole image into a buffer rather than
+	 * filling a FIFO a word at a time -- so this cannot hand back the
+	 * right value yet. What it can do is account for the read, because
+	 * that is what moves the block counter the status register reports:
+	 * the trace advances currentBlock at points where the input word
+	 * counter does not move at all.
+	 *
+	 * One block is 32 words at 15bpp, so every 32 reads retires a block
+	 * and the output FIFO goes empty until the next one is decoded. */
+	if (mdec.have_output)
+	{
+		mdec.read_words++;
+		if ((mdec.read_words % MDEC_BLOCK_WORDS) == 0)
+		{
+			mdec.block_idx = (mdec.block_idx + 1) & 7u;
+			mdec.block = mdec_block_order[mdec.block_idx];
+			mdec.have_output = 0;
+		}
+	}
+	return mdec.command;
+}
 
 /* MDEC_STATUS (0x1f801824) reports the parts of the decode a poller can
  * see. It used to be a stub that always read zero.
@@ -499,25 +529,25 @@ u32 mdecRead0(void) { return mdec.command; }
  * 15..0, the block counter at 18..16, and cmdBusy, dataInReq and
  * dataOutReq. Scored against JaCzekanski's ps1-tests
  * mdec/step-by-step-log, which drives the MDEC register by register on a
- * console and reads the status between every step, this matches 88 of its
+ * console and reads the status between every step, this matches 154 of its
  * 777 reads, against none before.
  *
  * What is not: the rest of that trace needs the output FIFO. Two things
  * were learned scoring it and are worth leaving here, because neither is
  * visible from the register layout:
  *
- * cmdBusy is not an acceptance gate. It drops once a block is ready to
- * read and the console keeps taking input words afterwards, so the word
- * counter must keep falling while it is clear. Treating it as a gate
- * stalls the counter and the trace diverges immediately.
+ * cmdBusy is not an acceptance gate. The console keeps taking input words
+ * with the decoder mid-command, so the word counter must keep falling;
+ * treating the flag as a gate stalls it and the trace diverges within a
+ * few steps.
  *
  * currentBlock counts blocks going out, not words coming in. It advances
  * at points where the word counter does not move at all -- 96, 96 then
  * 128, 128, 128 words consumed across five successive changes -- which
- * only happens if reads are what drive it. It also reaches 5, so the
- * field walks all six blocks rather than the four-plus-two the input side
- * suggests. Finishing this means modelling the output FIFO and letting
- * reads advance the counter, not refining the input side further.
+ * only happens if reads drive it. Letting mdecRead0 retire a block every
+ * 32 reads took this from 88 of 777 to 154, which is the evidence for it.
+ * The field also reaches 5, so it walks all six blocks rather than the
+ * four-plus-two the input side suggests.
  *
  * Nothing in PS2 mode touches the MDEC: it is reachable only through the
  * PS1 hardware map in ps2/Iop/IopHwRead.cpp, and matters to PS1 software
@@ -528,10 +558,10 @@ u32 mdecRead1(void)
 	u32 st = mdec.cmd_bits | ((mdec.block & 7u) << MDEC_ST_BLOCK_SH)
 	       | (mdec.words_left & 0xFFFFu);
 
-	if (mdec.busy) st |= MDEC_ST_CMDBUSY;
-	if (mdec.words_left) st |= MDEC_ST_INREQ;
-	if (mdec.have_output) st |= MDEC_ST_OUTREQ;
-	st |= MDEC_ST_OUTEMPTY;
+	if (mdec.busy)           st |= MDEC_ST_CMDBUSY;
+	if (mdec.words_left)     st |= MDEC_ST_INREQ;
+	if (mdec.have_output)    st |= MDEC_ST_OUTREQ;
+	if (!mdec.have_output)   st |= MDEC_ST_OUTEMPTY;
 
 	mdec.status = st;
 	return st;
