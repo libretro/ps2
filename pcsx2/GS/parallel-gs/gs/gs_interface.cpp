@@ -2722,8 +2722,26 @@ void GSInterface::drawing_kick_append()
 			const int pixels_x = (pre_snap_hi.x - pre_snap_lo.x) >> int(PGS_SUBPIXEL_BITS);
 			const int pixels_y = (pre_snap_hi.y - pre_snap_lo.y) >> int(PGS_SUBPIXEL_BITS);
 
-			super_sample_this_sprite = (pixels_x > 0 && texels_x > pixels_x + 1) ||
-			                           (pixels_y > 0 && texels_y > pixels_y + 1);
+			const bool minifies = (pixels_x > 0 && texels_x > pixels_x + 1) ||
+			                      (pixels_y > 0 && texels_y > pixels_y + 1);
+
+			// Per-sample interpolation also moves samples outward at the
+			// primitive's edges, by up to a texel past the span a snapped
+			// sprite would touch. Where the sampler clamps, that is
+			// harmless; where it does not, the overshoot reads whatever
+			// sits next to the sprite's window in the texture, which for
+			// nearest filtering arrives as a whole foreign texel -- a hard
+			// line down the edge rather than a soft fringe. Require either
+			// a clamping sampler or a texel of margin inside the texture,
+			// on both axes, since unsnapping affects both.
+			const int tex_width = 1 << int(ctx.tex0.desc.TW);
+			const int tex_height = 1 << int(ctx.tex0.desc.TH);
+			const bool safe_u = ctx.clamp.desc.has_horizontal_clamp() ||
+			                    (sprite_uv_bb.x >= 1 && sprite_uv_bb.z <= tex_width - 2);
+			const bool safe_v = ctx.clamp.desc.has_vertical_clamp() ||
+			                    (sprite_uv_bb.y >= 1 && sprite_uv_bb.w <= tex_height - 2);
+
+			super_sample_this_sprite = minifies && safe_u && safe_v;
 		}
 
 		if (!super_sample_this_sprite)
