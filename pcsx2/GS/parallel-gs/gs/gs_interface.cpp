@@ -1856,21 +1856,6 @@ void GSInterface::drawing_kick_update_state(FBFeedbackMode feedback_mode, const 
 				break;
 			}
 		}
-		else if (hacks.forced_mipmaps && tex_index < MaxTextures &&
-		         !render_pass.tex_infos[tex_index].info.arrayed &&
-		         render_pass.tex_infos[tex_index].view &&
-		         render_pass.tex_infos[tex_index].view->get_image().get_create_info().levels > 1)
-		{
-			// Synthesized chain: level count comes from the image that is
-			// actually bound, so a cache entry created before the option
-			// was toggled (single level) simply never takes this path.
-			uint32_t synth_levels = render_pass.tex_infos[tex_index].view->get_image().get_create_info().levels;
-			p.tex |= (synth_levels - 1u) << TEX_MAX_MIP_LEVEL_OFFSET;
-			p.tex |= TEX_SAMPLER_FORCED_MIP_BIT;
-			// The game never programmed MMIN for a mipless texture; reuse
-			// the MMAG filter for minification so the base look matches.
-			p.tex |= ctx.tex1.desc.MMAG == TEX1Bits::LINEAR ? TEX_SAMPLER_MIN_LINEAR_BIT : 0;
-		}
 		else
 		{
 			// Always flag fixed LOD so we can do early perspective divide.
@@ -4450,7 +4435,6 @@ void GSInterface::set_debug_mode(const DebugMode &mode)
 void GSInterface::set_hacks(const Hacks &hacks_)
 {
 	hacks = hacks_;
-	renderer.set_forced_mipmaps(hacks.forced_mipmaps);
 
 	if (!hacks.backbuffer_promotion)
 	{

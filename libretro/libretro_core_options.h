@@ -332,20 +332,6 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       "disabled"
    },
    {
-      "pcsx2_pgs_forced_mipmaps",
-      "Video > paraLLEl forced mipmaps",
-      "paraLLEl forced mipmaps",
-      "Synthesize mip chains for textures the game samples without mips, with LOD derived from screen-space derivatives. Greatly reduces texture shimmer on distant surfaces at every scanout factor, at the cost of some softness at glancing angles, and can change the look of alpha-tested edges. Per-game option: leave disabled unless a game shimmers.",
-      NULL,
-      "video",
-      {
-         { "enabled", NULL },
-         { "disabled", NULL },
-         { NULL, NULL },
-      },
-      "disabled"
-   },
-   {
       "pcsx2_pgs_ss_tex",
       "Video > paraLLEl experimental SSAA texture",
       "paraLLEl experimental SSAA texture",
