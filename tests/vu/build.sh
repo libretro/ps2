@@ -72,7 +72,7 @@ if [ -f "$EXPECTED" ]; then
 		-I "$ROOT/common" -I "$ROOT/common/include" -I "$ROOT/3rdparty/include" \
 		-I "$ROOT/libretro/libretro-common/include" \
 		-o "$DIR/vu_hwrealvu" "$DIR/hwrealvu.cpp" \
-		"$ROOT/pcsx2/VUops.cpp" "$ROOT/pcsx2/ps2float.c"
+		"$ROOT/pcsx2/VUops.cpp" "$ROOT/pcsx2/VU0.cpp" "$ROOT/pcsx2/ps2float.c"
 	"$DIR/vu_hwrealvu" "$EXPECTED" | tail -3
 else
 	echo "  skipped: set PS2AUTOTESTS to a ps2autotests checkout to run this"

@@ -53,6 +53,7 @@ namespace R5900 { namespace Interpreter { namespace OpcodeImpl { namespace COP1 
 	void CVT_W(); void CVT_S();
 	void C_EQ(); void C_LT(); void C_LE(); void C_F();
 	void CFC1(); void CTC1();
+	void MFC1(); void MTC1();
 	void ABS_S(); void NEG_S(); void MOV_S(); void MAX_S(); void MIN_S();
 	void ADDA_S(); void SUBA_S(); void MULA_S();
 	void MADDA_S(); void MSUBA_S();
@@ -280,6 +281,74 @@ int main(int argc, char** argv)
 			total += cases;
 			if (pass != cases) failures++;
 		}
+	}
+
+	/* ---- the register transfers ---------------------------------------
+	 *
+	 * From tests/cpu/ee_fpu/transfer.expected, which nothing scored. MFC1
+	 * moves an FPU register into a GPR and MTC1 the other way, and the
+	 * capture pins the two things easy to get wrong about them: MFC1
+	 * sign-extends into the full 64 bits, so a negative float's bit
+	 * pattern arrives with the upper word all ones, and writing to $0
+	 * discards.
+	 *
+	 * CFC1 and CTC1 are already scored above against the fcr capture; the
+	 * lines here restate the same masks and are not repeated.
+	 */
+	{
+		static const struct { const char* name; u32 fs; u64 want_rt; }
+		kMove[] = {
+			/* mfc1 negative: fs 0xbf800000 -> rt ffffffffbf800000 */
+			{ "mfc1 negative", 0xBF800000u, 0xFFFFFFFFBF800000ull },
+			{ "mfc1 positive", 0x3F800000u, 0x000000003F800000ull },
+		};
+		const int n = (int)(sizeof(kMove)/sizeof(kMove[0]));
+		int i, pass = 0, cases = 0;
+
+		for (i = 0; i < n; i++)
+		{
+			fpuRegs.fpr[FS].UL = kMove[i].fs;
+			cpuRegs.GPR.r[RT].UD[0] = 0;
+			set_code(FS, RT, 0);
+			MFC1();
+			cases++;
+			if (cpuRegs.GPR.r[RT].UD[0] == kMove[i].want_rt) pass++;
+			else
+				printf("  %-14s console %016llx  ours %016llx\n", kMove[i].name,
+				       (unsigned long long)kMove[i].want_rt,
+				       (unsigned long long)cpuRegs.GPR.r[RT].UD[0]);
+		}
+
+		/* MTC1 the other way: the GPR's low word lands in fs unchanged. */
+		for (i = 0; i < n; i++)
+		{
+			const u32 v = (i == 0) ? 0x80F0000Fu : 0x00F0000Fu;
+			fpuRegs.fpr[FS].UL = 0;
+			cpuRegs.GPR.r[RT].UD[0] = v;
+			set_code(FS, RT, 0);
+			MTC1();
+			cases++;
+			if (fpuRegs.fpr[FS].UL == v) pass++;
+			else
+				printf("  mtc1 %08x: fs is %08x\n", v, fpuRegs.fpr[FS].UL);
+		}
+
+		/* Writing to $0 is discarded. MFC1 checks _Rt_ itself. */
+		{
+			fpuRegs.fpr[FS].UL = 0xBF800000u;
+			cpuRegs.GPR.r[0].UD[0] = 0;
+			cpuRegs.code = (0u << 16) | ((u32)FS << 11);
+			MFC1();
+			cases++;
+			if (cpuRegs.GPR.r[0].UD[0] == 0) pass++;
+			else printf("  mfc1 -> $0 wrote %016llx\n",
+			            (unsigned long long)cpuRegs.GPR.r[0].UD[0]);
+		}
+
+		total += cases;
+		printf("moves    %2d/%-3d transfer cases from ee_fpu/transfer\n",
+		       pass, cases);
+		if (pass != cases) failures++;
 	}
 
 	printf("hwrealfpu: %d cases across %d ops, driven through FPU.cpp\n",

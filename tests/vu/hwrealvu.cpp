@@ -62,6 +62,23 @@ alignas(16) u8 s_vu1thread[sizeof(VU_Thread)];
 asm(".globl vu1Thread\n.set vu1Thread, s_vu1thread");
 
 void CPU_INT(EE_EventType, int) { }
+/* VU0.cpp's other dependencies: the VU scheduling and COP2 dispatch that
+ * QMFC2 and QMTC2 do not reach. */
+void intUpdateCPUCycles() { }
+void vu0ResetRegs() { }
+void vu1ResetRegs() { }
+void vu1ExecMicro(u32) { }
+void vu1Finish(bool) { }
+void vucpu_execute_block(const VUmicroCpu*, int) { }
+/* Declared as pointers to const, so the storage is ours. */
+static VUmicroCpu s_vu0cpu, s_vu1cpu;
+const VUmicroCpu* CpuVU0 = &s_vu0cpu;
+const VUmicroCpu* CpuVU1 = &s_vu1cpu;
+void (*Int_COP2BC2PrintTable[32])() = {};
+void (*Int_COP2SPECIAL1PrintTable[64])() = {};
+void (*Int_COP2SPECIAL2PrintTable[128])() = {};
+RETURNS_R128 vtlb_memRead128(u32) { r128 v; memset(&v, 0, sizeof(v)); return v; }
+void vtlb_memWrite128(u32, r128) { }
 void Gif_AddBlankGSPacket(u32, GIF_PATH) { }
 void Gif_AddCompletedGSPacket(GS_Packet&, GIF_PATH) { }
 void Gif_FinishIRQ() { }
@@ -521,6 +538,83 @@ static int run_clip(int* total)
 extern void VIADD(); extern void VIADDI(); extern void VIAND();
 extern void VIOR(); extern void VISUB();
 
+/* QMFC2 and QMTC2 live in VU0.cpp, which this links for them. Its other
+ * dependencies are the VU scheduling machinery these two do not reach. */
+extern void QMFC2(); extern void QMTC2();
+
+/* ---- the VU0 quadword moves ------------------------------------------
+ *
+ * From tests/cpu/vu0_macro/transfer.expected, whose ctc2 half is already
+ * scored by tests/vu/hwctc2.c. What was left is QMFC2 and QMTC2, the
+ * full-width moves between a VF register and a GPR pair, and the two $0
+ * and $vf0 cases: writing either is discarded, and reading VF0 gives the
+ * constant (1, 0, 0, 0) rather than whatever was last stored.
+ */
+static int run_quad_moves(int* total)
+{
+	int pass = 0, cases = 0;
+
+	/* QMFC2 with rt = 0 discards. */
+	memset(&vuRegs[0], 0, sizeof(vuRegs[0]));
+	memset(&cpuRegs.GPR, 0, sizeof(cpuRegs.GPR));
+	vuRegs[0].VF[1].UD[0] = 0x00000000CAFEBABEull;
+	cpuRegs.code = ((u32)1 << 11);            /* fs 1, rt 0 */
+	QMFC2();
+	cases++;
+	if (cpuRegs.GPR.r[0].UD[0] == 0 && cpuRegs.GPR.r[0].UD[1] == 0) pass++;
+	else printf("  qmfc2 -> $0 wrote %016llx\n",
+	            (unsigned long long)cpuRegs.GPR.r[0].UD[0]);
+
+	/* QMFC2 moves all 128 bits. */
+	vuRegs[0].VF[1].UL[0] = 0x3F800000u; vuRegs[0].VF[1].UL[1] = 0;
+	vuRegs[0].VF[1].UL[2] = 0;           vuRegs[0].VF[1].UL[3] = 0;
+	cpuRegs.code = ((u32)2 << 16) | ((u32)1 << 11);
+	QMFC2();
+	cases++;
+	if (cpuRegs.GPR.r[2].UL[0] == 0x3F800000u && cpuRegs.GPR.r[2].UL[1] == 0
+	 && cpuRegs.GPR.r[2].UL[2] == 0 && cpuRegs.GPR.r[2].UL[3] == 0) pass++;
+	else printf("  qmfc2: %08x %08x %08x %08x\n",
+	            cpuRegs.GPR.r[2].UL[3], cpuRegs.GPR.r[2].UL[2],
+	            cpuRegs.GPR.r[2].UL[1], cpuRegs.GPR.r[2].UL[0]);
+
+	/* QMTC2 the other way, into a real VF register. */
+	{
+		int i;
+		for (i = 0; i < 4; i++) cpuRegs.GPR.r[2].UL[i] = 0x12345678u;
+		memset(&vuRegs[0].VF[1], 0, 16);
+		cpuRegs.code = ((u32)2 << 16) | ((u32)1 << 11);
+		QMTC2();
+		cases++;
+		if (vuRegs[0].VF[1].UL[0] == 0x12345678u
+		 && vuRegs[0].VF[1].UL[3] == 0x12345678u) pass++;
+		else printf("  qmtc2: vf1 is %08x %08x %08x %08x\n",
+		            vuRegs[0].VF[1].UL[3], vuRegs[0].VF[1].UL[2],
+		            vuRegs[0].VF[1].UL[1], vuRegs[0].VF[1].UL[0]);
+	}
+
+	/* QMTC2 into VF0 is discarded: VF0 reads back as (0, 0, 0, 1.0f),
+	 * printed by the capture high word first as 3f800000 0 0 0. */
+	{
+		int i;
+		for (i = 0; i < 4; i++) cpuRegs.GPR.r[2].UL[i] = 0x12345678u;
+		vuRegs[0].VF[0].UL[0] = 0; vuRegs[0].VF[0].UL[1] = 0;
+		vuRegs[0].VF[0].UL[2] = 0; vuRegs[0].VF[0].UL[3] = 0x3F800000u;
+		cpuRegs.code = ((u32)2 << 16) | ((u32)0 << 11);
+		QMTC2();
+		cases++;
+		if (vuRegs[0].VF[0].UL[3] == 0x3F800000u
+		 && vuRegs[0].VF[0].UL[0] == 0) pass++;
+		else printf("  qmtc2 -> $vf0: vf0 is %08x %08x %08x %08x\n",
+		            vuRegs[0].VF[0].UL[3], vuRegs[0].VF[0].UL[2],
+		            vuRegs[0].VF[0].UL[1], vuRegs[0].VF[0].UL[0]);
+	}
+
+	*total += cases;
+	printf("qmove   %2d/%-3d quadword moves from vu0_macro/transfer\n",
+	       pass, cases);
+	return pass != cases;
+}
+
 static int run_vu0_macro(const char* dir, int* total)
 {
 	static const struct { const char* name; void (*fn)(); int imm; } kM[] = {
@@ -707,6 +801,7 @@ int main(int argc, char** argv)
 		strncat(mdir, "/../../cpu/vu0_macro", sizeof(mdir) - strlen(mdir) - 1);
 		failures += run_vu0_macro(slash ? mdir : ".", &total);
 	}
+	failures += run_quad_moves(&total);
 
 	printf("hwrealvu: %d cases across %d ops, driven through VUops.cpp\n",
 	       total, NOPS + NIOPS + 10);
