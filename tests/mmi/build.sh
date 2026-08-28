@@ -34,6 +34,8 @@ EXPECTED="${PS2AUTOTESTS:-}/tests/cpu/ee_simd/muldiv.expected"
 if [ -f "$EXPECTED" ]; then
 	"$CC" -O1 -g -Wall $SANFLAGS -o "$DIR/mmi_hwscore" "$DIR/hwscore.c"
 	"$DIR/mmi_hwscore" "$EXPECTED"
+	"$CC" -O1 -g -Wall $SANFLAGS -o "$DIR/mmi_hwelem" "$DIR/hwelem.c"
+	"$DIR/mmi_hwelem" "$(dirname "$EXPECTED")"
 else
 	echo "  skipped: set PS2AUTOTESTS to a ps2autotests checkout to run this"
 fi
