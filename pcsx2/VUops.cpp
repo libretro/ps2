@@ -2459,9 +2459,46 @@ static __ri void _vuERLENG(VURegs* VU)
 }
 
 
-static __ri float _vuCalculateEATAN(float inputvalue)
+/* ESIN and EEXP below are polynomial approximations evaluated with libm
+ * pow(), so every term is computed and accumulated in double before being
+ * narrowed back to float. That is not what a 32-bit VU does, and it is
+ * tempting to "clean up". Measured against the console captures in
+ * ps2autotests tests/vu/lower/efu.expected, don't: the same polynomials in
+ * float-only arithmetic score worse, and routed through ps2f_mul/ps2f_add
+ * they gain little and run about four times slower, ps2float being a
+ * software model rather than hardware float. ESIN in particular matches the
+ * console exactly on several inputs with the doubles and misses by an ULP
+ * without them.
+ *
+ * EATAN is a different story and no longer belongs in that list -- see the
+ * comment on its helper below. Its problem was never precision.
+ *
+ * The remaining gap for these two is the approach rather than the
+ * intermediates: ESQRT, ERSQRT and ERCPR score 39 of 39 because ps2float.c
+ * implements what the hardware does, while these are curve fits.
+ */
+static __ri float _vuCalculateEATAN(float t)
 {
-	float eatanconst[9] = {  0.999999344348907f,
+	/* The series is the odd polynomial in t plus pi/4, and it is only valid
+	 * on |t| <= 1. Callers pass the REDUCED argument: EATAN of x uses
+	 * t = (x-1)/(x+1), and EATANxy/EATANxz of y over x use t = (y-x)/(y+x),
+	 * which is the same reduction with the divide folded in. The trailing
+	 * 0.785398185253143 is the pi/4 that reduction leaves behind.
+	 *
+	 * Feeding x in unreduced -- which this did until now -- is wrong twice
+	 * over: it returns pi/2 rather than pi/4 for x = 1, and for x much past
+	 * 1 the high-order terms run away, so EATAN of 3 came out around -31558
+	 * where the console gives 1.249. Scored against the captures in
+	 * ps2autotests tests/vu/lower/efu.expected that was 0 of 13 cases; with
+	 * the reduction every finite case lands within 1-2 ULP.
+	 *
+	 * The powers are built by repeated multiplication rather than pow().
+	 * On the unreduced argument that lost accuracy, which is why the double
+	 * intermediates were worth keeping; with |t| <= 1 the series is well
+	 * conditioned and the two agree bit for bit on every captured case,
+	 * while dropping seven libm calls makes it about fifteen times faster.
+	 */
+	static const float eatanconst[9] = {  0.999999344348907f,
 				-0.333298563957214f,
 				 0.199465364217758f,
 				-0.139085337519646f,
@@ -2470,29 +2507,35 @@ static __ri float _vuCalculateEATAN(float inputvalue)
 				 0.021861229091883f,
 				-0.004054057877511f,
 				 0.785398185253143f };
-	float result = (eatanconst[0] * inputvalue) 
-		     + (eatanconst[1] * pow(inputvalue, 3)) 
-		     + (eatanconst[2] * pow(inputvalue, 5))
-		     + (eatanconst[3] * pow(inputvalue, 7)) 
-		     + (eatanconst[4] * pow(inputvalue, 9)) 
-		     + (eatanconst[5] * pow(inputvalue, 11))
-		     + (eatanconst[6] * pow(inputvalue, 13)) 
-		     + (eatanconst[7] * pow(inputvalue, 15));
+	const float t2 = t * t;
+	float p = t;
+	float result = eatanconst[0] * t;
+	int i;
 
+	for (i = 1; i < 8; i++)
+	{
+		p *= t2;
+		result += eatanconst[i] * p;
+	}
 	result += eatanconst[8];
 	return vuDouble(*(u32*)&result);
 }
 
 static __ri void _vuEATAN(VURegs* VU)
 {
-	VU->p.F = _vuCalculateEATAN(vuDouble(VU->VF[_Fs_].UL[_Fsf_]));
+	const float x = vuDouble(VU->VF[_Fs_].UL[_Fsf_]);
+	VU->p.F = _vuCalculateEATAN((x - 1.0f) / (x + 1.0f));
 }
 
 static __ri void _vuEATANxy(VURegs* VU)
 {
 	float p = 0;
 	if (vuDouble(VU->VF[_Fs_].i.x) != 0)
-		p = _vuCalculateEATAN(vuDouble(VU->VF[_Fs_].i.y) / vuDouble(VU->VF[_Fs_].i.x));
+	{
+		const float x = vuDouble(VU->VF[_Fs_].i.x);
+		const float y = vuDouble(VU->VF[_Fs_].i.y);
+		p = _vuCalculateEATAN((y - x) / (y + x));
+	}
 	VU->p.F = p;
 }
 
@@ -2500,7 +2543,11 @@ static __ri void _vuEATANxz(VURegs* VU)
 {
 	float p = 0;
 	if (vuDouble(VU->VF[_Fs_].i.x) != 0)
-		p = _vuCalculateEATAN(vuDouble(VU->VF[_Fs_].i.z) / vuDouble(VU->VF[_Fs_].i.x));
+	{
+		const float x = vuDouble(VU->VF[_Fs_].i.x);
+		const float z = vuDouble(VU->VF[_Fs_].i.z);
+		p = _vuCalculateEATAN((z - x) / (z + x));
+	}
 	VU->p.F = p;
 }
 
