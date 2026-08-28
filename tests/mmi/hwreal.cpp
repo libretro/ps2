@@ -76,6 +76,7 @@ namespace R5900 { namespace Interpreter { namespace OpcodeImpl { namespace MMI {
 	void PHMADH(); void PHMSBH();
 	void PDIVW(); void PDIVUW(); void PDIVBW();
 	void PMFHI(); void PMFLO(); void PMTHI(); void PMTLO();
+	void PMFHL(); void PMTHL();
 } } } }
 using namespace R5900::Interpreter::OpcodeImpl::MMI;
 
@@ -84,7 +85,8 @@ using namespace R5900::Interpreter::OpcodeImpl::MMI;
  * takes a shift amount in sa rather than a second register; VSHIFT is the
  * variable-shift trio, which assemble as rd, rt, rs -- value first,
  * amount second -- so the operands go in swapped. */
-enum { A_TWO, A_ONE, A_IMM, A_VSHIFT, A_HILO, A_HILO1, A_HILO_TO };
+enum { A_TWO, A_ONE, A_IMM, A_VSHIFT, A_HILO, A_HILO1, A_HILO_TO,
+       A_PMFHL, A_PMTHL };
 
 static const struct { const char* name; const char* file; void (*fn)(); int form; }
 kOps[] = {
@@ -144,7 +146,24 @@ kOps[] = {
 	 * scores 1 of 28 while the HI/LO values it is actually testing match
 	 * on every case. */
 	{ "pmthi","muldiv",PMTHI,A_HILO_TO },{ "pmtlo","muldiv",PMTLO,A_HILO_TO },
+	/* PMFHL and PMTHL pick their variant from sa, which the harness
+	 * encodes into the instruction word anyway, so the five forms of one
+	 * and the single form of the other are just six more table rows. */
+	{ "pmfhl.lw","muldiv",PMFHL,A_PMFHL },{ "pmfhl.uw","muldiv",PMFHL,A_PMFHL },
+	{ "pmfhl.slw","muldiv",PMFHL,A_PMFHL },{ "pmfhl.lh","muldiv",PMFHL,A_PMFHL },
+	{ "pmfhl.sh","muldiv",PMFHL,A_PMFHL },
+	{ "pmthl.lw","muldiv",PMTHL,A_PMTHL },
 };
+
+/* sa value for each PMFHL variant, in the order MMI.cpp switches on. */
+static u32 pmfhl_sa(const char* name)
+{
+	if (!strcmp(name, "pmfhl.lw"))  return 0x00;
+	if (!strcmp(name, "pmfhl.uw"))  return 0x01;
+	if (!strcmp(name, "pmfhl.slw")) return 0x02;
+	if (!strcmp(name, "pmfhl.lh"))  return 0x03;
+	return 0x04;                      /* pmfhl.sh */
+}
 #define NOPS ((int)(sizeof(kOps)/sizeof(kOps[0])))
 
 static const struct { const char* name; Q v; } kConst[] = {
@@ -248,7 +267,7 @@ int main(int argc, char** argv)
 		{
 			Q rs, rt, rd; unsigned w3, w2, w1, w0; u32 sa;
 			unsigned long long whi = 0, whi1 = 0, wlo = 0, wlo1 = 0;
-			int has_rd = 0;
+			int has_rd = 0, got_quad = 0;
 			int named_s = 0, named_t = 0;
 			char* colon; char* args; char* comma;
 
@@ -267,8 +286,13 @@ int main(int argc, char** argv)
 				 * these print rd and some do not, so the H: marker decides. */
 				const char* h = strstr(colon, "H: ");
 				if (!h) continue;
-				has_rd = (kOps[op].form != A_HILO_TO)
-				      && (sscanf(colon + 2, "%x %x %x %x", &w3, &w2, &w1, &w0) == 4);
+				/* Parse the quad whenever the line carries one; whether it
+				 * is a result or a source is a separate question. */
+				got_quad = (sscanf(colon + 2, "%x %x %x %x",
+				                   &w3, &w2, &w1, &w0) == 4);
+				has_rd = got_quad
+				      && kOps[op].form != A_HILO_TO
+				      && kOps[op].form != A_PMTHL;
 				if (sscanf(h, "H: %llx %llx L: %llx %llx",
 				           &whi, &whi1, &wlo, &wlo1) != 4) continue;
 			}
@@ -278,7 +302,24 @@ int main(int argc, char** argv)
 			*colon = '\0';
 			sa = 0;
 			comma = strchr(args, ',');
-			if (kOps[op].form == A_HILO1 || kOps[op].form == A_HILO_TO)
+			if (kOps[op].form == A_PMFHL || kOps[op].form == A_PMTHL)
+			{
+				named_s = named_t = (strstr(args, "C_") != NULL);
+				sa = (kOps[op].form == A_PMFHL) ? pmfhl_sa(kOps[op].name) : 0;
+				rs.w[0] = rs.w[1] = rs.w[2] = rs.w[3] = 0;
+				if (kOps[op].form == A_PMTHL && got_quad)
+				{
+					/* PMTHL reads rs and writes HI and LO, so the quad on the
+					 * line is its source, not a result -- the same shape as
+					 * PMTHI and PMTLO. It prints high word first. Leaving it
+					 * unparsed scores 4 of 28: just the cases whose source
+					 * happens to be zero. */
+					rs.w[0] = (u32)w0; rs.w[1] = (u32)w1;
+					rs.w[2] = (u32)w2; rs.w[3] = (u32)w3;
+				}
+				rt = rs;
+			}
+			else if (kOps[op].form == A_HILO1 || kOps[op].form == A_HILO_TO)
 			{
 				/* PMFHI and PMFLO print no operand, PMTHI and PMTLO one. */
 				int dummy = 0;
