@@ -371,6 +371,29 @@ void recMFC0()
 	else if (_Rd_ == 24)
 		return;
 
+	if (_Rd_ == 12)
+	{
+		/* Status reads back only its implemented bits. MFC0 in COP0.cpp has
+		 * always masked with this and the recompiler had not, so the two
+		 * engines returned different values for any bit outside it -- and
+		 * they can be set, since the write path both share, _WriteCP0Status,
+		 * stores what it is given without masking.
+		 *
+		 * That divergence is reachable from the front end: pcsx2_ee_cpu
+		 * switches between these two at run time, so the same write followed
+		 * by the same read answers differently depending on the setting.
+		 * No ps2autotests capture covers Status -- ee_cop0 only has the
+		 * performance counters -- so this follows the interpreter, which
+		 * matches the documented implemented-bit set, rather than the other
+		 * way round. Upstream has the same asymmetry.
+		 */
+		const int regt = _allocX86reg(X86TYPE_GPR, _Rt_, MODE_WRITE);
+		xe_mov32_rm(regt, &cpuRegs.CP0.r[_Rd_]);
+		xe_and32_ri(regt, 0xf0c79c1f);
+		xe_movsxd_rr(regt, regt);
+		return;
+	}
+
 	const int regt = _allocX86reg(X86TYPE_GPR, _Rt_, MODE_WRITE);
 	xe_movsxd_rm(regt, &cpuRegs.CP0.r[_Rd_]);
 }
