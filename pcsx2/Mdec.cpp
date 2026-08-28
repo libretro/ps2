@@ -399,7 +399,26 @@ static void yuv2rgb24(int *blk,unsigned char *image)
  * starts reading output back before a whole macroblock's worth of codes
  * has been written, so a decoder that only runs six blocks at a time
  * cannot serve it. Nothing calls the per-block entry point yet; rl2blk
- * below is the same six iterations the loop was. */
+ * below is the same six iterations the loop was.
+ *
+ * How much arrives before the first read, measured against the trace's
+ * real codes: its first input phase is 96 words, 192 RL codes, and
+ * exactly four of the six blocks complete in them -- three codes each for
+ * the chroma pair, then 61 and 64 for the first two luma blocks, with the
+ * fifth running off the end.
+ *
+ * An earlier note put this at 261 codes for the macroblock. That was
+ * measured by letting rl2blk read past the written data into a zeroed
+ * buffer, and zero is not a terminator, so the last blocks ran long. The
+ * four-of-six figure is measured against the codes themselves.
+ *
+ * What is still missing is not the decoder but the conversion: yuv2rgb15
+ * takes all six blocks at once, because the chroma pair is shared across
+ * the four luma blocks, so stopping at a block boundary does not by
+ * itself produce output. The console answers reads anyway and the first
+ * 83 words it returns are zero, which suggests it serves the FIFO before
+ * conversion finishes rather than stalling. That is the behaviour to pin
+ * down next, and it is a question about the hardware. */
 static unsigned short* rl2blk_one(int *blk, unsigned short *mdec_rl, int which)
 {
 	int k, q_scale, rl;
