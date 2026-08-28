@@ -747,7 +747,23 @@ void psxDma1(u32 adr, u32 bcr, u32 chcr)
 	 * sign convention is right and it really is a scale.
 	 *
 	 * Use mdec/8bit for this, not mdec/4bit: same block, same input, four
-	 * times the resolution to measure against. */
+	 * times the resolution to measure against.
+	 *
+	 * And it is not a scale, which two notes above this one guessed it
+	 * was. Comparing the decoded coefficients against the console's pixels
+	 * as deviations from mid-grey settles it: on the pixels the console
+	 * did not clamp, the two agree to within about three -- 70 against 73,
+	 * 107 against 108, 109 against 111, 108 against 109 -- so there is no
+	 * factor missing. The pairs that looked like a scale were all
+	 * saturated ones, where the console reports exactly +/-128 and our
+	 * value runs past it before RANGE clamps; comparing those as a ratio
+	 * measures the clamp, not the transform.
+	 *
+	 * So the remaining error is rounding, of order three counts on an
+	 * 8-bit scale, spread through the dequantise-and-transform pair. That
+	 * is a much smaller thing than the earlier notes supposed, and it
+	 * explains the scores: 10 of 64 exact, 42 within 8, and only 2 of 32
+	 * in 4-bit where three counts can cross a nibble boundary. */
 	switch ((mdec.command >> 27) & 3)
 	{
 	case 3:  /* 15-bit */
