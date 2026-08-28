@@ -73,9 +73,20 @@ void cpuException(u32, u32) { }
 static void nop_v() { }
 static void nop_u32(u32) { }
 static void nop_u32_u32(u32, u32) { }
+/* Set when an op takes its misaligned-address path. The captures use
+ * aligned addresses, so this firing means the harness set up the address
+ * wrongly -- it is recorded rather than ignored, and never null, because a
+ * null CancelInstruction turns that mistake into a segfault. */
+static int s_cancelled;
+static void harness_cancel() { s_cancelled = 1; }
 static R5900cpu s_cpu = {};
 R5900cpu* Cpu = &s_cpu;
+static struct cpu_init_t { cpu_init_t() { s_cpu.CancelInstruction = harness_cancel; } } s_cpu_init;
 BiosDebugInformation CurrentBiosInformation = {};
+/* Referenced by inline helpers in GS.h and Dmac.h; only needed when the
+ * compiler does not elide them, which -O0 does not. */
+alignas(16) u8 g_RealGSMem[0x2000];
+alignas(16) u8 eeHw[0x10000];
 void gsSetVideoMode(GS_VideoMode) { }
 void cdvdReadLanguageParams(u8*) { }
 tDMA_TAG* dmaGetAddr(u32, bool) { return (tDMA_TAG*)s_mem; }
@@ -95,10 +106,15 @@ namespace R5900 { namespace Interpreter { namespace OpcodeImpl {
 	void SLL(); void SRL(); void SRA();
 	void DSLL(); void DSRL(); void DSRA();
 	void DSLL32(); void DSRL32(); void DSRA32();
+	void LB(); void LBU(); void LH(); void LHU(); void LW(); void LWU();
+	void LD(); void LQ(); void LWL(); void LWR(); void LDL(); void LDR();
+	void SB(); void SH(); void SW(); void SD(); void SQ();
+	void SWL(); void SWR(); void SDL(); void SDR();
+	void DIV(); void DIVU(); void MULT(); void MULTU();
 } } }
 using namespace R5900::Interpreter::OpcodeImpl;
 
-enum Shape { RRR, RRI, RRS, RI };
+enum Shape { RRR, RRI, RRS, RI, LOAD, STORE, MULDIV };
 
 static const struct { const char* name; void (*fn)(); Shape shape; int swap; }
 kOps[] = {
@@ -118,7 +134,37 @@ kOps[] = {
 	{ "sll",SLL,RRS,0 },{ "srl",SRL,RRS,0 },{ "sra",SRA,RRS,0 },
 	{ "dsll",DSLL,RRS,0 },{ "dsrl",DSRL,RRS,0 },{ "dsra",DSRA,RRS,0 },
 	{ "dsll32",DSLL32,RRS,0 },{ "dsrl32",DSRL32,RRS,0 },{ "dsra32",DSRA32,RRS,0 },
+	/* Loads and stores run against the backing array; the base register
+	 * holds the pattern's base and the offset comes from the line. */
+	{ "lb",LB,LOAD,0 },{ "lbu",LBU,LOAD,0 },{ "lh",LH,LOAD,0 },
+	{ "lhu",LHU,LOAD,0 },{ "lw",LW,LOAD,0 },{ "lwu",LWU,LOAD,0 },
+	{ "ld",LD,LOAD,0 },{ "lq",LQ,LOAD,0 },
+	{ "sb",SB,STORE,0 },{ "sh",SH,STORE,0 },{ "sw",SW,STORE,0 },
+	{ "sd",SD,STORE,0 },{ "sq",SQ,STORE,0 },
+	{ "div",DIV,MULDIV,0 },{ "divu",DIVU,MULDIV,0 },
+	{ "mult",MULT,MULDIV,0 },{ "multu",MULTU,MULDIV,0 },
 };
+
+/* C_PATTERN from the lsu harness, and the two bases its load and store
+ * halves use -- byte 16 for loads, byte 4 for stores, which is a row index
+ * against a flat word index rather than a mistake. */
+static const u32 kPattern[12] = {
+	0x45678123u, 0x9ABCDEF0u, 0xDEADBEEFu, 0xC0DE1337u,
+	0x23456789u, 0xABCDEF01u, 0xBEEFDEADu, 0xC0DEC0DEu,
+	0x8899AABBu, 0xCCDDEEFFu, 0x00112233u, 0x44556677u,
+};
+#define LOAD_BASE  16
+/* The EE store harness bases at &buffer[1] of a u128 array, so byte 16 --
+ * the same base its loads use. The IOP one bases at byte 4 because its
+ * buffer is a flat u32 array; that difference cost a crash here, since SD
+ * and SQ at byte 4 take their misaligned path. */
+#define STORE_BASE 16
+
+/* C_HILO, the seed the muldiv harness restores before each case. */
+#define HI0 0x0123456789ABCDEFull
+#define LO0 0x123456789ABCDEF0ull
+#define HI1 0x23456789ABCDEF01ull
+#define LO1 0x456789ABCDEF0123ull
 #define NOPS ((int)(sizeof(kOps)/sizeof(kOps[0])))
 
 #define RD 1
@@ -175,6 +221,156 @@ static void set_reg(int r, const Q* q)
 	cpuRegs.GPR.r[r].UL[2] = q->w[2]; cpuRegs.GPR.r[r].UL[3] = q->w[3];
 }
 
+/* Case count for a block, so the store seed can switch at its midpoint.
+ * Each store block runs its offsets twice, first from SET_U32<0xABCD4321>
+ * and then from SET_M(C_GARBAGE1), and the number of offsets is not
+ * constant -- three for the byte through doubleword stores, four for SQ.
+ * Assuming three seeds the wrong half of the larger block. */
+static int count_block(const char* path, const char* name)
+{
+	FILE* f = fopen(path, "r");
+	char buf[512];
+	int in = 0, n = 0;
+	if (!f) return 0;
+	while (fgets(buf, sizeof(buf), f))
+	{
+		if (buf[0] != ' ')
+		{
+			char* c = strchr(buf, ':');
+			if (in) break;
+			if (c && c[1] == '\n') { *c = '\0'; in = !strcmp(buf, name); *c = ':'; }
+			continue;
+		}
+		if (!in || strstr(buf, "-> $0")) continue;
+		n++;
+	}
+	fclose(f);
+	return n;
+}
+
+/* Memory backing for the load and store blocks. */
+static void reset_pattern(void) { memcpy(s_mem, kPattern, sizeof(kPattern)); }
+
+/* Read "+0", "-16" or "+-16": the second half of each block prints a
+ * negative offset through a "+%d" format, so the sign can follow the plus. */
+static int read_off(char** pp, int* out)
+{
+	char* p = *pp;
+	while (*p == ' ') p++;
+	if (*p == '+') p++;
+	if (*p != '-' && (*p < '0' || *p > '9')) return 0;
+	*out = (int)strtol(p, &p, 10);
+	*pp = p;
+	return 1;
+}
+
+/* The load, store and multiply/divide blocks: different files, different
+ * line shapes, and for the stores the result is memory rather than a
+ * register. Returns 0 when the line is not a case. */
+static int run_special(int op, char* buf, int* cases, int* pass, int* failures,
+                       int block_total)
+{
+	unsigned w3, w2, w1, w0;
+	int off = 0;
+	char* p;
+
+	if (strstr(buf, "-> $0")) return 0;
+	p = buf + 2;
+	while (*p && *p != ' ') p++;
+
+	if (kOps[op].shape == MULDIV)
+	{
+		u32 a, b;
+		unsigned long long wh, wh1, wl, wl1;
+		char* q = p;
+		int na = 0, nb = 0;
+		Q qa, qb;
+		if (!operand(&q, &qa, &na)) return 0;
+		if (!operand(&q, &qb, &nb)) return 0;
+		a = qa.w[0]; b = qb.w[0];
+		q = strchr(buf, ':');
+		if (!q || sscanf(q + 1, " H: %llx %llx L: %llx %llx",
+		                 &wh, &wh1, &wl, &wl1) != 4) return 0;
+
+		cpuRegs.HI.UD[0] = HI0; cpuRegs.HI.UD[1] = HI1;
+		cpuRegs.LO.UD[0] = LO0; cpuRegs.LO.UD[1] = LO1;
+		cpuRegs.GPR.r[RS].UD[0] = (u64)(s64)(s32)a;
+		cpuRegs.GPR.r[RT].UD[0] = (u64)(s64)(s32)b;
+		cpuRegs.code = ((u32)RS << 21) | ((u32)RT << 16);
+		kOps[op].fn();
+
+		(*cases)++;
+		if (cpuRegs.HI.UD[0] == wh && cpuRegs.HI.UD[1] == wh1
+		 && cpuRegs.LO.UD[0] == wl && cpuRegs.LO.UD[1] == wl1) (*pass)++;
+		else if ((*failures)++ < 6)
+			printf("  %-6s %d, %d: console H %016llx %016llx L %016llx %016llx\n"
+			       "         ours    H %016llx %016llx L %016llx %016llx\n",
+			       kOps[op].name, (int)a, (int)b, wh, wh1, wl, wl1,
+			       (unsigned long long)cpuRegs.HI.UD[0],
+			       (unsigned long long)cpuRegs.HI.UD[1],
+			       (unsigned long long)cpuRegs.LO.UD[0],
+			       (unsigned long long)cpuRegs.LO.UD[1]);
+		return 0;
+	}
+
+	if (!read_off(&p, &off)) return 0;
+	p = strchr(buf, ':');
+	if (!p) return 0;
+
+	reset_pattern();
+	if (kOps[op].shape == LOAD)
+	{
+		if (sscanf(p + 1, " %x %x %x %x", &w3, &w2, &w1, &w0) != 4) return 0;
+		/* rt carries between cases; seed it as the lsu harness leaves it. */
+		cpuRegs.GPR.r[RT].UD[1] = 0x0000133A00001339ull;
+		cpuRegs.GPR.r[RS].UD[0] = LOAD_BASE;
+		cpuRegs.code = ((u32)RS << 21) | ((u32)RT << 16) | (u32)(off & 0xFFFF);
+		kOps[op].fn();
+		(*cases)++;
+		{
+			const u32 g0 = cpuRegs.GPR.r[RT].UL[0], g1 = cpuRegs.GPR.r[RT].UL[1];
+			const u32 g2 = cpuRegs.GPR.r[RT].UL[2], g3 = cpuRegs.GPR.r[RT].UL[3];
+			if (g0 == w0 && g1 == w1 && g2 == w2 && g3 == w3) (*pass)++;
+			else if ((*failures)++ < 6)
+				printf("  %-4s %+d: console %08x %08x %08x %08x  ours %08x %08x %08x %08x\n",
+				       kOps[op].name, off, w3, w2, w1, w0, g3, g2, g1, g0);
+		}
+		return 0;
+	}
+
+	/* STORE: the line prints the whole sixteen-byte row the store landed
+	 * in, high word first, which is row 1 + offset/16 of the pattern. */
+	{
+		unsigned m3, m2, m1, m0;
+		int row;
+		if (sscanf(p + 1, " %x %x %x %x", &m3, &m2, &m1, &m0) != 4) return 0;
+		cpuRegs.GPR.r[RT].UD[0] = (*cases < block_total / 2)
+		                        ? (u64)(s64)(s32)0xABCD4321u
+		                        : ((u64)0x1338u << 32) | 0x1337u;
+		cpuRegs.GPR.r[RT].UD[1] = 0x0000133A00001339ull;
+		cpuRegs.GPR.r[RS].UD[0] = STORE_BASE;
+		cpuRegs.code = ((u32)RS << 21) | ((u32)RT << 16) | (u32)(off & 0xFFFF);
+		s_cancelled = 0;
+		kOps[op].fn();
+		(*cases)++;
+		row = 16 + (off / 16) * 16;   /* base row plus the printed offset */
+		{
+			u32 g[4];
+			int i;
+			for (i = 0; i < 4; i++)
+				memcpy(&g[i], s_mem + ((row + i * 4) & (MEMSIZE - 1)), 4);
+			if (!s_cancelled && g[0] == m0 && g[1] == m1
+			 && g[2] == m2 && g[3] == m3) (*pass)++;
+			else if ((*failures)++ < 6)
+				printf("  %-4s %+d: console %08x %08x %08x %08x  ours %08x %08x %08x %08x%s\n",
+				       kOps[op].name, off, m3, m2, m1, m0,
+				       g[3], g[2], g[1], g[0],
+				       s_cancelled ? " (cancelled)" : "");
+		}
+	}
+	return 0;
+}
+
 int main(int argc, char** argv)
 {
 	const char* dir = (argc > 1) ? argv[1] : ".";
@@ -186,12 +382,15 @@ int main(int argc, char** argv)
 	{
 		char path[512], head[32], buf[512];
 		FILE* f;
-		int inblock = 0, pass = 0, cases = 0;
+		int inblock = 0, pass = 0, cases = 0, block_total = 0;
 
-		snprintf(path, sizeof(path), "%s/alu.expected", dir);
+		snprintf(path, sizeof(path), "%s/%s.expected", dir,
+		         (kOps[op].shape == LOAD || kOps[op].shape == STORE) ? "lsu"
+		       : (kOps[op].shape == MULDIV) ? "muldiv" : "alu");
 		f = fopen(path, "r");
 		if (!f) { fprintf(stderr, "cannot open %s\n", path); return 2; }
 		snprintf(head, sizeof(head), "%s:", kOps[op].name);
+		block_total = count_block(path, kOps[op].name);
 
 		while (fgets(buf, sizeof(buf), f))
 		{
@@ -206,6 +405,13 @@ int main(int argc, char** argv)
 			  continue; }
 			if (buf[0] != ' ') break;
 			if (strstr(buf, "-> $0")) continue;
+
+			if (kOps[op].shape == LOAD || kOps[op].shape == STORE
+			 || kOps[op].shape == MULDIV)
+			{
+				if (!run_special(op, buf, &cases, &pass, &failures, block_total)) continue;
+				continue;
+			}
 
 			p = buf + 2 + strlen(kOps[op].name);
 			if (kOps[op].shape == RI)
