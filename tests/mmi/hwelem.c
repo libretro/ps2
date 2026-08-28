@@ -35,6 +35,14 @@ typedef int8_t   s8;  typedef uint8_t  u8;  typedef int64_t s64;
 
 typedef struct { u32 UL[4]; } Q;
 
+/* Byte and halfword views of the quadword, index 0 being the lowest. */
+static u32 getb(const Q* q, int i) { return (q->UL[i >> 2] >> ((i & 3) * 8)) & 0xff; }
+static void setb(Q* q, int i, u32 v)
+{ const int sh = (i & 3) * 8; q->UL[i >> 2] = (q->UL[i >> 2] & ~(0xffu << sh)) | ((v & 0xff) << sh); }
+static u32 geth(const Q* q, int i) { return (q->UL[i >> 1] >> ((i & 1) * 16)) & 0xffff; }
+static void seth(Q* q, int i, u32 v)
+{ const int sh = (i & 1) * 16; q->UL[i >> 1] = (q->UL[i >> 1] & ~(0xffffu << sh)) | ((v & 0xffff) << sh); }
+
 static Q lit(u32 a, u32 b, u32 c, u32 d)
 { Q q; q.UL[0]=a; q.UL[1]=b; q.UL[2]=c; q.UL[3]=d; return q; }
 
@@ -236,6 +244,10 @@ enum { A_PABSW, A_PABSH, A_PADSBH, A_PSLLVW, A_PSRLVW, A_PSRAVW,
        A_PMAXH, A_PMAXW, A_PMINH, A_PMINW,
        A_PCEQB, A_PCEQH, A_PCEQW, A_PCGTB, A_PCGTH, A_PCGTW,
        A_PAND, A_POR, A_PXOR, A_PNOR, A_PLZCW,
+       /* Interleave, copy, reverse and pack. */
+       A_PEXTLB, A_PEXTLH, A_PEXTLW, A_PEXTUB, A_PEXTUH, A_PEXTUW,
+       A_PCPYH, A_PCPYLD, A_PCPYUD, A_PREVH,
+       A_PPACB, A_PPACH, A_PPACW,
        A_COUNT };
 /* `swap` marks the ops whose printed operand order is the reverse of the
  * architectural one. The variable shifts assemble as PSLLVW rd, rt, rs --
@@ -265,6 +277,11 @@ static const struct { const char* name; const char* file; int two; int swap; } k
 	{ "pcgtb","compare",1,0 },{ "pcgth","compare",1,0 },{ "pcgtw","compare",1,0 },
 	{ "pand","logic",1,0 },{ "por","logic",1,0 },{ "pxor","logic",1,0 },
 	{ "pnor","logic",1,0 },{ "plzcw","logic",0,0 },
+	{ "pextlb","shuffle",1,0 },{ "pextlh","shuffle",1,0 },{ "pextlw","shuffle",1,0 },
+	{ "pextub","shuffle",1,0 },{ "pextuh","shuffle",1,0 },{ "pextuw","shuffle",1,0 },
+	{ "pcpyh","shuffle",0,0 },{ "pcpyld","shuffle",1,0 },{ "pcpyud","shuffle",1,0 },
+	{ "prevh","shuffle",0,0 },
+	{ "ppacb","shuffle",1,0 },{ "ppach","shuffle",1,0 },{ "ppacw","shuffle",1,0 },
 };
 
 static void apply(int op, const Q* rs, const Q* rt, Q* rd)
@@ -326,6 +343,73 @@ static void apply(int op, const Q* rs, const Q* rt, Q* rd)
 	case A_PXOR:   bitop(rs,rt,rd,2); break;
 	case A_PNOR:   bitop(rs,rt,rd,3); break;
 	case A_PLZCW:  plzcw(rt, rd); break;
+	case A_PEXTLB: case A_PEXTUB:
+	{
+		/* Interleave bytes from the low or high half, rt first. */
+		const int base = (op == A_PEXTLB) ? 0 : 8;
+		int i;
+		for (i = 0; i < 8; i++)
+		{ setb(rd, i * 2, getb(rt, base + i)); setb(rd, i * 2 + 1, getb(rs, base + i)); }
+		break;
+	}
+	case A_PEXTLH: case A_PEXTUH:
+	{
+		const int base = (op == A_PEXTLH) ? 0 : 4;
+		int i;
+		for (i = 0; i < 4; i++)
+		{ seth(rd, i * 2, geth(rt, base + i)); seth(rd, i * 2 + 1, geth(rs, base + i)); }
+		break;
+	}
+	case A_PEXTLW: case A_PEXTUW:
+	{
+		const int base = (op == A_PEXTLW) ? 0 : 2;
+		int i;
+		for (i = 0; i < 2; i++)
+		{ rd->UL[i * 2] = rt->UL[base + i]; rd->UL[i * 2 + 1] = rs->UL[base + i]; }
+		break;
+	}
+	case A_PCPYH:
+	{
+		int i;
+		for (i = 0; i < 4; i++) seth(rd, i, geth(rt, 0));
+		for (i = 4; i < 8; i++) seth(rd, i, geth(rt, 4));
+		break;
+	}
+	case A_PCPYLD:
+		/* rs supplies the upper doubleword, rt the lower. */
+		rd->UL[2] = rs->UL[0]; rd->UL[3] = rs->UL[1];
+		rd->UL[0] = rt->UL[0]; rd->UL[1] = rt->UL[1];
+		break;
+	case A_PCPYUD:
+		rd->UL[0] = rs->UL[2]; rd->UL[1] = rs->UL[3];
+		rd->UL[2] = rt->UL[2]; rd->UL[3] = rt->UL[3];
+		break;
+	case A_PREVH:
+	{
+		int i;
+		for (i = 0; i < 4; i++) seth(rd, i, geth(rt, 3 - i));
+		for (i = 4; i < 8; i++) seth(rd, i, geth(rt, 11 - i));
+		break;
+	}
+	case A_PPACB:
+	{
+		/* Even bytes only: rt fills the low half, rs the high. */
+		int i;
+		for (i = 0; i < 8; i++) setb(rd, i, getb(rt, i * 2));
+		for (i = 0; i < 8; i++) setb(rd, 8 + i, getb(rs, i * 2));
+		break;
+	}
+	case A_PPACH:
+	{
+		int i;
+		for (i = 0; i < 4; i++) seth(rd, i, geth(rt, i * 2));
+		for (i = 0; i < 4; i++) seth(rd, 4 + i, geth(rs, i * 2));
+		break;
+	}
+	case A_PPACW:
+		rd->UL[0] = rt->UL[0]; rd->UL[1] = rt->UL[2];
+		rd->UL[2] = rs->UL[0]; rd->UL[3] = rs->UL[2];
+		break;
 	}
 }
 
