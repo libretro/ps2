@@ -101,11 +101,15 @@ static void apply(int op, const Q* rs, const Q* rt, Q* HI, Q* LO, Q* rd)
 		{
 			const s16 a = (s16)(rs->UL[i/2] >> ((i & 1) * 16));
 			const s16 b = (s16)(rt->UL[i/2] >> ((i & 1) * 16));
-			s32 p = (s32)a * (s32)b;
+			/* The accumulate wraps rather than saturating, which is
+			 * what the hardware does, so do it on the unsigned type:
+			 * signed overflow here is undefined and the operands do
+			 * reach it -- UBSan on this file reports it otherwise. */
+			u32 p = (u32)((s32)a * (s32)b);
 			Q* d = toLo[i] ? LO : HI;
-			if (op == OP_PMADDH) p = (s32)d->UL[word[i]] + p;
-			else if (op == OP_PMSUBH) p = (s32)d->UL[word[i]] - p;
-			d->UL[word[i]] = (u32)p;
+			if (op == OP_PMADDH) p = d->UL[word[i]] + p;
+			else if (op == OP_PMSUBH) p = d->UL[word[i]] - p;
+			d->UL[word[i]] = p;
 		}
 		rd->UL[0] = LO->UL[0]; rd->UL[1] = HI->UL[0];
 		rd->UL[2] = LO->UL[2]; rd->UL[3] = HI->UL[2];

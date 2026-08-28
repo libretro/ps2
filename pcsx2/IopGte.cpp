@@ -153,6 +153,15 @@ static __fi u32 gte_clz32(u32 v)
 
 /* -------- flag-tracked arithmetic helpers */
 
+/* Left shift of a negative signed value is undefined in C++ before C++20,
+ * and the GTE does it constantly: every translation vector is scaled by
+ * 1<<12, and the 44-bit accumulator is sign-extended with the usual
+ * shift-up-shift-down pair. Doing the shift on the unsigned type and
+ * converting back is bit-identical on two's complement and defined
+ * everywhere, so the arithmetic below is unchanged -- the fuzz log in
+ * tests/iop/hwgtefuzz still matches on all 1100 console tests. */
+static __fi s64 gte_shl(s64 v, int n) { return (s64)((u64)v << n); }
+
 /* 44-bit MAC accumulate: overflow flags stick per lane, value wraps by
  * sign-extension from bit 43. */
 static __fi s64 gte_mac_upd(int which, s64 v)
@@ -161,7 +170,7 @@ static __fi s64 gte_mac_upd(int which, s64 v)
 		gteFLAG |= 1u << (31 - which);        /* 30,29,28 */
 	else if (v < -(1LL << 43))
 		gteFLAG |= 1u << (28 - which);        /* 27,26,25 */
-	return (v << 20) >> 20;
+	return gte_shl(v, 20) >> 20;
 }
 
 /* IR1..IR3 saturation. */
@@ -490,9 +499,9 @@ static __fi void gte_mx_v_tr(s32 m11, s32 m12, s32 m13, s32 m21, s32 m22, s32 m2
 		s32 m31, s32 m32, s32 m33, s32 vx, s32 vy, s32 vz,
 		s64 tx, s64 ty, s64 tz, int sf, int lm)
 {
-	gteMAC1 = (s32)gte_dot3(1, tx << 12, m11, vx, m12, vy, m13, vz, sf);
-	gteMAC2 = (s32)gte_dot3(2, ty << 12, m21, vx, m22, vy, m23, vz, sf);
-	gteMAC3 = (s32)gte_dot3(3, tz << 12, m31, vx, m32, vy, m33, vz, sf);
+	gteMAC1 = (s32)gte_dot3(1, gte_shl(tx, 12), m11, vx, m12, vy, m13, vz, sf);
+	gteMAC2 = (s32)gte_dot3(2, gte_shl(ty, 12), m21, vx, m22, vy, m23, vz, sf);
+	gteMAC3 = (s32)gte_dot3(3, gte_shl(tz, 12), m31, vx, m32, vy, m33, vz, sf);
 	gte_mac_to_ir(lm);
 }
 
@@ -511,9 +520,9 @@ static __fi void gte_rtp_one(s32 vx, s32 vy, s32 vz, int sf, int lm, int last)
 	u32 div;
 	s64 mac0;
 
-	gteMAC1 = (s32)gte_dot3(1, (s64)gteTRX << 12, gteR11, vx, gteR12, vy, gteR13, vz, sf);
-	gteMAC2 = (s32)gte_dot3(2, (s64)gteTRY << 12, gteR21, vx, gteR22, vy, gteR23, vz, sf);
-	mac3_full = gte_mac_upd(3, ((s64)gteTRZ << 12) + (s64)gteR31 * vx);
+	gteMAC1 = (s32)gte_dot3(1, gte_shl((s64)gteTRX, 12), gteR11, vx, gteR12, vy, gteR13, vz, sf);
+	gteMAC2 = (s32)gte_dot3(2, gte_shl((s64)gteTRY, 12), gteR21, vx, gteR22, vy, gteR23, vz, sf);
+	mac3_full = gte_mac_upd(3, (gte_shl((s64)gteTRZ, 12)) + (s64)gteR31 * vx);
 	mac3_full = gte_mac_upd(3, mac3_full + (s64)gteR32 * vy);
 	mac3_full = gte_mac_upd(3, mac3_full + (s64)gteR33 * vz);
 	gteMAC3   = (s32)(mac3_full >> (sf * 12));
@@ -603,9 +612,9 @@ void gteMVMVA(void)
 			 * accumulator is then discarded before the remaining two
 			 * products. */
 			{
-				s64 a1 = gte_mac_upd(1, (((s64)gteRFC << 12) + (s64)m[0] * vx));
-				s64 a2 = gte_mac_upd(2, (((s64)gteGFC << 12) + (s64)m[3] * vx));
-				s64 a3 = gte_mac_upd(3, (((s64)gteBFC << 12) + (s64)m[6] * vx));
+				s64 a1 = gte_mac_upd(1, ((gte_shl((s64)gteRFC, 12)) + (s64)m[0] * vx));
+				s64 a2 = gte_mac_upd(2, ((gte_shl((s64)gteGFC, 12)) + (s64)m[3] * vx));
+				s64 a3 = gte_mac_upd(3, ((gte_shl((s64)gteBFC, 12)) + (s64)m[6] * vx));
 				gte_lim_ir(1, (s32)(a1 >> (sf * 12)), 0);
 				gte_lim_ir(2, (s32)(a2 >> (sf * 12)), 0);
 				gte_lim_ir(3, (s32)(a3 >> (sf * 12)), 0);
@@ -688,11 +697,11 @@ static __fi void gte_interp_fc(s64 in1, s64 in2, s64 in3, int sf, int lm)
 {
 	s32 t1, t2, t3;
 	s64 a;
-	a  = gte_mac_upd(1, ((s64)gteRFC << 12) - in1);
+	a  = gte_mac_upd(1, (gte_shl((s64)gteRFC, 12)) - in1);
 	t1 = gte_lim_ir(1, (s32)(a >> (sf * 12)), 0);
-	a  = gte_mac_upd(2, ((s64)gteGFC << 12) - in2);
+	a  = gte_mac_upd(2, (gte_shl((s64)gteGFC, 12)) - in2);
 	t2 = gte_lim_ir(2, (s32)(a >> (sf * 12)), 0);
-	a  = gte_mac_upd(3, ((s64)gteBFC << 12) - in3);
+	a  = gte_mac_upd(3, (gte_shl((s64)gteBFC, 12)) - in3);
 	t3 = gte_lim_ir(3, (s32)(a >> (sf * 12)), 0);
 
 	gteMAC1 = (s32)(gte_mac_upd(1, (s64)t1 * (s16)gteIR0 + in1) >> (sf * 12));
@@ -828,9 +837,9 @@ void gteGPL(void)
 {
 	const int sf = GTE_SF, lm = GTE_LM;
 	gteFLAG = 0;
-	gteMAC1 = (s32)(gte_mac_upd(1, gte_mac_upd(1, (s64)gteMAC1 << (sf * 12)) + (s64)(s16)gteIR0 * (s16)gteIR1) >> (sf * 12));
-	gteMAC2 = (s32)(gte_mac_upd(2, gte_mac_upd(2, (s64)gteMAC2 << (sf * 12)) + (s64)(s16)gteIR0 * (s16)gteIR2) >> (sf * 12));
-	gteMAC3 = (s32)(gte_mac_upd(3, gte_mac_upd(3, (s64)gteMAC3 << (sf * 12)) + (s64)(s16)gteIR0 * (s16)gteIR3) >> (sf * 12));
+	gteMAC1 = (s32)(gte_mac_upd(1, gte_mac_upd(1, gte_shl((s64)gteMAC1, sf * 12)) + (s64)(s16)gteIR0 * (s16)gteIR1) >> (sf * 12));
+	gteMAC2 = (s32)(gte_mac_upd(2, gte_mac_upd(2, gte_shl((s64)gteMAC2, sf * 12)) + (s64)(s16)gteIR0 * (s16)gteIR2) >> (sf * 12));
+	gteMAC3 = (s32)(gte_mac_upd(3, gte_mac_upd(3, gte_shl((s64)gteMAC3, sf * 12)) + (s64)(s16)gteIR0 * (s16)gteIR3) >> (sf * 12));
 	gte_mac_to_ir(lm);
 	gte_color_fifo_push();
 	gte_flag_finish();
