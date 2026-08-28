@@ -1081,8 +1081,14 @@ static void mVUexactMulPS_AVX2(mV, int dst, int to, int from)
 	xe_vpor_xxm(T3, T3, mVUglob.mulimp, 0);
 	xe_vpand_xxm2(T4, from, mVUglob.mulman, 0);
 	xe_vpor_xxm(T4, T4, mVUglob.mulimp, 0);
-	xe_movaps_mx(&buf[0], T3);
-	xe_movaps_mx(&buf[4], T4);
+	/* The stub reads only the low halfword of each operand lane (it packs
+	 * them with tPack), and the implicit bit sits at 23, so the raw words
+	 * serve in place of the mantissas and the stores move to the slow
+	 * path. `from` is always still live there -- dst is never from. `to`
+	 * is not when dst doubles as scratch S, so that one case keeps a
+	 * store here, before S is first written. */
+	if (dst == to)
+		xe_movaps_mx(&buf[0], to);
 	xe_vpslld_xxi(T5, to, 1, 0);
 	xe_vpsrld_xxi(T5, T5, 24, 0);
 	xe_vpslld_xxi(T6, from, 1, 0);
@@ -1128,6 +1134,9 @@ static void mVUexactMulPS_AVX2(mV, int dst, int to, int from)
 	xe_vblendvps_xxxx(dst, T2, T4, T6, 0);
 	xe_fwd_jcc32(Jcc_Unconditional, jDone);
 	xe_fwd_set32(jSlow);
+	if (dst != to)
+		xe_movaps_mx(&buf[0], to);
+	xe_movaps_mx(&buf[4], from);
 	xe_movaps_mx(&buf[8], T6);
 	xe_movaps_mx(&buf[12], T3);
 	xe_call_ptr(mVU->exactMulStub);
@@ -1182,9 +1191,9 @@ static void mVUexactMulPS(mV, int dst, int to, int from)
 	xe_movaps_xx(T4, from);
 	xe_pand_xm(T4, mVUglob.mulman);
 	xe_por_xm(T4, mVUglob.mulimp);
-	// mantissas for the tree stub's slow path
-	xe_movaps_mx(&buf[0], T3);
-	xe_movaps_mx(&buf[4], T4);
+	/* The operand words go to the stub on the slow path only; see the
+	 * AVX2 form above. This variant keeps every temporary in its own
+	 * register, so both `to` and `from` are still live there. */
 	// T5 = biased result exponent
 	xe_movaps_xx(T5, to);
 	xe_pand_xm(T5, mVUglob.exponent);
@@ -1282,6 +1291,8 @@ static void mVUexactMulPS(mV, int dst, int to, int from)
 	// corrected ones back, and rejoin the pack above. The stub saves
 	// every register itself, so nothing here needs a flush. ----
 	xe_fwd_set32(jSlow);
+	xe_movaps_mx(&buf[0], to);
+	xe_movaps_mx(&buf[4], from);
 	xe_movaps_mx(&buf[8], T6);
 	xe_movaps_mx(&buf[12], T7);
 	xe_call_ptr(mVU->exactMulStub);

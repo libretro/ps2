@@ -39,8 +39,10 @@ static int mvuNeedsFPCRUpdate(mV)
 // The paired Booth/CSA tree proven in the harness - 48 million lanes
 // with zero mismatches against the scalar reference, byte-exact end
 // to end against ps2float - transcribed instruction for instruction.
-// Memory ABI through mVU->exactMulBuf: in [0..3] ma, [4..7] mb
-// (mantissas with implicit bit, epi32 lanes); [8..11] p02 and
+// Memory ABI through mVU->exactMulBuf: in [0..3] fs, [4..7] ft (the raw
+// operand words, epi32 lanes; tPack keeps only their low halfwords,
+// which the implicit bit at 23 does not reach, so mantissas and raw
+// words are interchangeable here); [8..11] p02 and
 // [12..15] p13 are the 64-bit products, corrected in place. The stub
 // saves and restores every vector register, so call sites need no
 // register flush at all - the old slow path's full backup around a C

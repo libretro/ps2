@@ -995,9 +995,11 @@ bool SaveStateBase::vuJITFreeze()
 //------------------------------------------------------------------
 // Shared exact-multiply tree stub (x86: mVUemitExactMulStub). The
 // harness-proven paired Booth/CSA tree, transcribed for NEON. Memory
-// ABI through mVU.exactMulBuf: in [0..3] ma, [4..7] mb (epi32 lanes,
-// implicit bit set); [8..11] p01 and [12..15] p23 are the Umull-pair
-// products, corrected in place. Saves and restores every vector
+// ABI through mVU.exactMulBuf: in [0..3] fs, [4..7] ft (the raw operand
+// words -- only their low halfwords are read, which the implicit bit at
+// 23 does not reach, so mantissas and raw words are interchangeable
+// here); [8..11] p01 and [12..15] p23 are the Umull-pair products,
+// corrected in place. Saves and restores every vector
 // register it touches, so call sites need no flush. NEON shortens
 // the x86 stub: one per-lane Ushl with a count vector replaces each
 // iteration's shift-shift-blend, Tbl is the mask lookup, two

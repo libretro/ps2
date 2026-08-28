@@ -486,6 +486,8 @@ static void SSE_SUBSS(mV, const a64::VRegister& to, const a64::VRegister& from, 
 // the mantissas, the carry-normalize is one per-lane Ushl by negated
 // counts, and Bic with immediates does the field masking.
 // Scratch: v0, v1, q29-q31; from is not modified; dst may equal to.
+// The stub's operand words are stored on the slow path only, so the hot
+// path carries no stores at all.
 //------------------------------------------------------------------
 
 static void mVUexactMulPS(mV, const a64::VRegister& dst, const a64::VRegister& to, const a64::VRegister& from)
@@ -506,9 +508,6 @@ static void mVUexactMulPS(mV, const a64::VRegister& dst, const a64::VRegister& t
 	armAsm->Orr (vA.V16B(), vA.V16B(), vC.V16B());
 	armAsm->And (vB.V16B(), from.V16B(), vD.V16B());
 	armAsm->Orr (vB.V16B(), vB.V16B(), vC.V16B());
-	// mantissas for the tree stub's slow path
-	armAsm->Str(vA, armAbsMemOperand(RSCRATCHADDR, &buf[0], 128));
-	armAsm->Str(vB, armAbsMemOperand(RSCRATCHADDR, &buf[4], 128));
 
 	// products: vC = p01 (lanes 0,1), vA = p23
 	armAsm->Umull (vC.V2D(), vA.V2S(), vB.V2S());
@@ -597,6 +596,14 @@ static void mVUexactMulPS(mV, const a64::VRegister& dst, const a64::VRegister& t
 	// corrected ones back, and rejoin the pack. The stub saves every
 	// vector register itself, so nothing here needs a flush. ----
 	armAsm->Bind(&slow);
+	// The stub narrows its two operand words with Xtn and never reads
+	// above bit 15, and setting the implicit bit only touches bit 23, so
+	// the raw operands serve where the mantissas used to: the stores that
+	// were on every multiply now happen only here. `to` and `from` are
+	// both still live -- the pack below reads them, and dst is not
+	// written until the very end.
+	armAsm->Str(to,   armAbsMemOperand(RSCRATCHADDR, &buf[0], 128));
+	armAsm->Str(from, armAbsMemOperand(RSCRATCHADDR, &buf[4], 128));
 	armAsm->Str(vC, armAbsMemOperand(RSCRATCHADDR, &buf[8], 128));
 	armAsm->Str(vA, armAbsMemOperand(RSCRATCHADDR, &buf[12], 128));
 	armEmitCall(reinterpret_cast<const void*>(mVU.exactMulStub));
