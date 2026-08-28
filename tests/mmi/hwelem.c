@@ -2,9 +2,11 @@
  *
  *  Companion to hwscore.c, which covers the multiply and divide family in
  *  muldiv.expected. This covers the element operations recorded in
- *  shuffle.expected, arithmetic.expected and logic.expected: the
- *  permutes, the saturating absolutes, PADSBH and the variable word
- *  shifts.
+ *  shuffle.expected, arithmetic.expected, compare.expected and
+ *  logic.expected: the permutes, the saturating absolutes, PADSBH, the
+ *  variable word shifts, the packed add/subtract family in all three
+ *  widths with its saturating and unsigned forms, min/max, the compares,
+ *  the bitwise ops and PLZCW.
  *
  *  Operands are read from the capture lines themselves rather than
  *  transcribed from the test source. Every line names what it ran, either
@@ -29,6 +31,7 @@
 
 typedef uint32_t u32; typedef uint64_t u64;
 typedef int32_t  s32; typedef int16_t s16; typedef uint16_t u16;
+typedef int8_t   s8;  typedef uint8_t  u8;  typedef int64_t s64;
 
 typedef struct { u32 UL[4]; } Q;
 
@@ -146,9 +149,94 @@ static void pext5(const Q* rt, Q* rd)
 	rd->UL[n] = ((v & 0x0000001Fu) << 3) | ((v & 0x000003E0u) << 6)
 	          | ((v & 0x00007C00u) << 9) | ((v & 0x00008000u) << 16); } }
 
+/* Generic element access, width in bytes. */
+static u32 getel(const Q* q, int w, int n)
+{
+	if (w == 4) return q->UL[n];
+	if (w == 2) return (u32)(u16)(q->UL[n/2] >> ((n & 1) * 16));
+	return (u32)(u8)(q->UL[n/4] >> ((n & 3) * 8));
+}
+static void setel(Q* q, int w, int n, u32 v)
+{
+	if (w == 4) { q->UL[n] = v; return; }
+	if (w == 2)
+	{ const int sh = (n & 1) * 16;
+	  q->UL[n/2] = (q->UL[n/2] & ~(0xFFFFu << sh)) | ((v & 0xFFFFu) << sh); return; }
+	{ const int sh = (n & 3) * 8;
+	  q->UL[n/4] = (q->UL[n/4] & ~(0xFFu << sh)) | ((v & 0xFFu) << sh); }
+}
+static s32 sext(u32 v, int w)
+{ if (w == 4) return (s32)v;
+  if (w == 2) return (s32)(s16)(u16)v;
+  return (s32)(s8)(u8)v; }
+
+/* add/sub, plain or saturating, signed or unsigned */
+static void addsub(const Q* rs, const Q* rt, Q* rd, int w, int sub, int sat, int uns)
+{
+	const int n = 16 / w;
+	const s64 smax = (w == 4) ? 0x7FFFFFFFll : (w == 2) ? 0x7FFFll : 0x7Fll;
+	const s64 smin = (w == 4) ? -0x80000000ll : (w == 2) ? -0x8000ll : -0x80ll;
+	const u64 umax = (w == 4) ? 0xFFFFFFFFull : (w == 2) ? 0xFFFFull : 0xFFull;
+	int i;
+	for (i = 0; i < n; i++)
+	{
+		if (uns)
+		{
+			const u64 a = getel(rs, w, i), b = getel(rt, w, i);
+			s64 r = sub ? (s64)(a - b) : (s64)(a + b);
+			if (sat) { if (sub && a < b) r = 0; else if (!sub && (u64)r > umax) r = (s64)umax; }
+			setel(rd, w, i, (u32)r);
+		}
+		else
+		{
+			const s64 a = sext(getel(rs, w, i), w), b = sext(getel(rt, w, i), w);
+			s64 r = sub ? (a - b) : (a + b);
+			if (sat) { if (r > smax) r = smax; else if (r < smin) r = smin; }
+			setel(rd, w, i, (u32)r);
+		}
+	}
+}
+static void minmax(const Q* rs, const Q* rt, Q* rd, int w, int max)
+{
+	const int n = 16 / w; int i;
+	for (i = 0; i < n; i++)
+	{ const s32 a = sext(getel(rs, w, i), w), b = sext(getel(rt, w, i), w);
+	  setel(rd, w, i, (u32)(max ? (a > b ? a : b) : (a < b ? a : b))); }
+}
+static void cmp(const Q* rs, const Q* rt, Q* rd, int w, int gt)
+{
+	const int n = 16 / w; int i;
+	for (i = 0; i < n; i++)
+	{ const s32 a = sext(getel(rs, w, i), w), b = sext(getel(rt, w, i), w);
+	  setel(rd, w, i, (gt ? (a > b) : (a == b)) ? 0xFFFFFFFFu : 0u); }
+}
+static void bitop(const Q* rs, const Q* rt, Q* rd, int kind)
+{
+	int i; for (i = 0; i < 4; i++)
+	{ const u32 a = rs->UL[i], b = rt->UL[i];
+	  rd->UL[i] = (kind == 0) ? (a & b) : (kind == 1) ? (a | b)
+	            : (kind == 2) ? (a ^ b) : ~(a | b); }
+}
+static void plzcw(const Q* rs, Q* rd)
+{
+	int i; for (i = 0; i < 2; i++)
+	{ u32 v = rs->UL[i]; int c = 0;
+	  const u32 sign = v & 0x80000000u;
+	  v <<= 1;
+	  while (c < 31 && ((v & 0x80000000u) == sign)) { c++; v <<= 1; }
+	  rd->UL[i] = (u32)c; }
+}
+
 enum { A_PABSW, A_PABSH, A_PADSBH, A_PSLLVW, A_PSRLVW, A_PSRAVW,
        A_PEXT5, A_PEXEW, A_PEXCW, A_PROT3W, A_PEXEH, A_PEXCH,
-       A_PINTH, A_PINTEH, A_COUNT };
+       A_PINTH, A_PINTEH,
+       A_PADDB, A_PADDH, A_PADDW, A_PSUBB, A_PSUBH, A_PSUBW,
+       A_PADDSB, A_PADDSH, A_PADDSW, A_PSUBSB, A_PSUBSH, A_PSUBSW,
+       A_PADDUB, A_PADDUH, A_PADDUW, A_PSUBUB, A_PSUBUH, A_PSUBUW,
+       A_PMAXH, A_PMAXW, A_PMINH, A_PMINW,
+       A_PCEQB, A_PCEQH, A_PCEQW, A_PCGTB, A_PCGTH, A_PCGTW,
+       A_PAND, A_POR, A_PXOR, A_PNOR, A_PLZCW,
+       A_COUNT };
 /* `swap` marks the ops whose printed operand order is the reverse of the
  * architectural one. The variable shifts assemble as PSLLVW rd, rt, rs --
  * value first, shift amount second -- while the test source names its C
@@ -165,6 +253,18 @@ static const struct { const char* name; const char* file; int two; int swap; } k
 	{ "prot3w", "shuffle", 0, 0 }, { "pexeh",  "shuffle", 0, 0 },
 	{ "pexch",  "shuffle", 0, 0 },
 	{ "pinth",  "shuffle", 1, 0 }, { "pinteh", "shuffle", 1, 0 },
+	{ "paddb","arithmetic",1,0 },{ "paddh","arithmetic",1,0 },{ "paddw","arithmetic",1,0 },
+	{ "psubb","arithmetic",1,0 },{ "psubh","arithmetic",1,0 },{ "psubw","arithmetic",1,0 },
+	{ "paddsb","arithmetic",1,0 },{ "paddsh","arithmetic",1,0 },{ "paddsw","arithmetic",1,0 },
+	{ "psubsb","arithmetic",1,0 },{ "psubsh","arithmetic",1,0 },{ "psubsw","arithmetic",1,0 },
+	{ "paddub","arithmetic",1,0 },{ "padduh","arithmetic",1,0 },{ "padduw","arithmetic",1,0 },
+	{ "psubub","arithmetic",1,0 },{ "psubuh","arithmetic",1,0 },{ "psubuw","arithmetic",1,0 },
+	{ "pmaxh","arithmetic",1,0 },{ "pmaxw","arithmetic",1,0 },
+	{ "pminh","arithmetic",1,0 },{ "pminw","arithmetic",1,0 },
+	{ "pceqb","compare",1,0 },{ "pceqh","compare",1,0 },{ "pceqw","compare",1,0 },
+	{ "pcgtb","compare",1,0 },{ "pcgth","compare",1,0 },{ "pcgtw","compare",1,0 },
+	{ "pand","logic",1,0 },{ "por","logic",1,0 },{ "pxor","logic",1,0 },
+	{ "pnor","logic",1,0 },{ "plzcw","logic",0,0 },
 };
 
 static void apply(int op, const Q* rs, const Q* rt, Q* rd)
@@ -193,6 +293,39 @@ static void apply(int op, const Q* rs, const Q* rt, Q* rd)
 	case A_PEXCH:  permute(rs, rt, rd, kPexch, 8, 0); break;
 	case A_PINTH:  permute(rs, rt, rd, kPinth, 8, 0); break;
 	case A_PINTEH: permute(rs, rt, rd, kPinteh, 8, 0); break;
+	case A_PADDB:  addsub(rs,rt,rd,1,0,0,0); break;
+	case A_PADDH:  addsub(rs,rt,rd,2,0,0,0); break;
+	case A_PADDW:  addsub(rs,rt,rd,4,0,0,0); break;
+	case A_PSUBB:  addsub(rs,rt,rd,1,1,0,0); break;
+	case A_PSUBH:  addsub(rs,rt,rd,2,1,0,0); break;
+	case A_PSUBW:  addsub(rs,rt,rd,4,1,0,0); break;
+	case A_PADDSB: addsub(rs,rt,rd,1,0,1,0); break;
+	case A_PADDSH: addsub(rs,rt,rd,2,0,1,0); break;
+	case A_PADDSW: addsub(rs,rt,rd,4,0,1,0); break;
+	case A_PSUBSB: addsub(rs,rt,rd,1,1,1,0); break;
+	case A_PSUBSH: addsub(rs,rt,rd,2,1,1,0); break;
+	case A_PSUBSW: addsub(rs,rt,rd,4,1,1,0); break;
+	case A_PADDUB: addsub(rs,rt,rd,1,0,1,1); break;
+	case A_PADDUH: addsub(rs,rt,rd,2,0,1,1); break;
+	case A_PADDUW: addsub(rs,rt,rd,4,0,1,1); break;
+	case A_PSUBUB: addsub(rs,rt,rd,1,1,1,1); break;
+	case A_PSUBUH: addsub(rs,rt,rd,2,1,1,1); break;
+	case A_PSUBUW: addsub(rs,rt,rd,4,1,1,1); break;
+	case A_PMAXH:  minmax(rs,rt,rd,2,1); break;
+	case A_PMAXW:  minmax(rs,rt,rd,4,1); break;
+	case A_PMINH:  minmax(rs,rt,rd,2,0); break;
+	case A_PMINW:  minmax(rs,rt,rd,4,0); break;
+	case A_PCEQB:  cmp(rs,rt,rd,1,0); break;
+	case A_PCEQH:  cmp(rs,rt,rd,2,0); break;
+	case A_PCEQW:  cmp(rs,rt,rd,4,0); break;
+	case A_PCGTB:  cmp(rs,rt,rd,1,1); break;
+	case A_PCGTH:  cmp(rs,rt,rd,2,1); break;
+	case A_PCGTW:  cmp(rs,rt,rd,4,1); break;
+	case A_PAND:   bitop(rs,rt,rd,0); break;
+	case A_POR:    bitop(rs,rt,rd,1); break;
+	case A_PXOR:   bitop(rs,rt,rd,2); break;
+	case A_PNOR:   bitop(rs,rt,rd,3); break;
+	case A_PLZCW:  plzcw(rt, rd); break;
 	}
 }
 
@@ -244,7 +377,16 @@ int main(int argc, char** argv)
 			*colon = ':';
 			if (kOps[op].swap) { const Q t = rs; rs = rt; rt = t; }
 
-			rd = lit(0x1337u, 0x1338u, 0x1339u, 0x133Au);
+			/* The harness seeds rd differently per case shape: the integer
+			 * cases do SET_U32<0x1337> (both doublewords the sign-extended
+			 * immediate), the named-constant cases use C_GARBAGE1. It only
+			 * shows up on ops that do not write all 128 bits -- PLZCW writes
+			 * just the low two words and leaves the rest of rd standing --
+			 * but seeding it wrongly makes those look broken. */
+			if (args[0] == 'C' && args[1] == '_')
+				rd = lit(0x1337u, 0x1338u, 0x1339u, 0x133Au);
+			else
+				operand("4919", &rd); /* 0x1337 through SET_U32 */
 			apply(op, &rs, &rt, &rd);
 
 			snprintf(want, sizeof(want), "%08x %08x %08x %08x", w3, w2, w1, w0);
