@@ -4,6 +4,9 @@
 # hwclip scores _vuCLIP against tests/vu/upper/clip.expected. The expected
 # values are inlined, so it needs no capture checkout.
 #
+# hwrandom scores RINIT/RXOR/RGET/RNEXT against
+# tests/vu/lower/random.expected, also with values inlined.
+#
 # hwint scores the integer lower ops against tests/vu/lower/integer.expected
 # and reads that file directly, so point PS2AUTOTESTS at a checkout:
 #   git clone https://github.com/unknownbrackets/ps2autotests
@@ -18,6 +21,10 @@ SANFLAGS=""
 echo "== VU CLIP vs console =="
 "$CC" -O1 -g -Wall $SANFLAGS -o "$DIR/vu_hwclip" "$DIR/hwclip.c"
 "$DIR/vu_hwclip"
+
+echo "== VU random unit vs console =="
+"$CC" -O1 -g -Wall $SANFLAGS -o "$DIR/vu_hwrandom" "$DIR/hwrandom.c"
+"$DIR/vu_hwrandom"
 
 echo "== VU integer ops vs console =="
 EXPECTED="${PS2AUTOTESTS:-}/tests/vu/lower/integer.expected"
