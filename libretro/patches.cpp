@@ -2178,13 +2178,23 @@ int lrps2_ingame_patches(const char *serial,
 			/* Grand Theft Auto: Vice City (NTSC-U) [CRC: 20B19E49] */
 			else if (!strcmp(serial, "SLUS-20552"))
 			{
-				/* 60fps uncapped */
-				static const char *const patches[] = {
-					"patch=1,EE,20272204,extended,28420001"
-				};
-				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
-					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Grand Theft Auto: Vice City (NTSC-U)]: 60fps patch applied.\n");
+				/* The addresses below were derived from the CRC 20B19E49
+				 * executable. Later pressings reuse the serial with a
+				 * different ELF (e.g. v4.00), where these pokes land in
+				 * unrelated code and hang the game after the first load,
+				 * so only apply them to the revision they were made for. */
+				if (game_crc == 0x20B19E49)
+				{
+					/* 60fps uncapped */
+					static const char *const patches[] = {
+						"patch=1,EE,20272204,extended,28420001"
+					};
+					for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
+						LoadPatchesFromString(patches[i]);
+					log_cb(RETRO_LOG_INFO, "[PATCH] [Grand Theft Auto: Vice City (NTSC-U)]: 60fps patch applied.\n");
+				}
+				else
+					log_cb(RETRO_LOG_INFO, "[PATCH] [Grand Theft Auto: Vice City (NTSC-U)]: 60fps patch skipped, no patch for this revision (CRC %08X).\n", game_crc);
 			}
 			/* Grand Theft Auto: San Andreas (NTSC-U) [CRC: 399A49CA] */
 			else if (!strcmp(serial, "SLUS-20946"))
@@ -3860,21 +3870,28 @@ int lrps2_ingame_patches(const char *serial,
 			/* Grand Theft Auto: Vice City (NTSC-U) [CRC: 20B19E49] */
 			else if (!strcmp(serial, "SLUS-20552"))
 			{
-				static const char *const patches[] = {
-					/* 16:9 */
-					"patch=1,EE,001325BC,word,3C013F9D",
-					"patch=1,EE,001325C0,word,44810000",
-					"patch=1,EE,001325C4,word,46006302",
-					"patch=1,EE,001325C8,word,03E00008",
-					"patch=1,EE,001325CC,word,E78C86F8",
+				/* Same revision guard as the 60fps entry above: these
+				 * addresses are only valid for the CRC 20B19E49 ELF. */
+				if (game_crc == 0x20B19E49)
+				{
+					static const char *const patches[] = {
+						/* 16:9 */
+						"patch=1,EE,001325BC,word,3C013F9D",
+						"patch=1,EE,001325C0,word,44810000",
+						"patch=1,EE,001325C4,word,46006302",
+						"patch=1,EE,001325C8,word,03E00008",
+						"patch=1,EE,001325CC,word,E78C86F8",
 
-					"patch=1,EE,002434EC,word,0C04C96F",
-					"patch=1,EE,0026FE1C,word,0C04C972",
-					"patch=1,EE,002703F4,word,0C04C972"
-				};
-				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
-					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Grand Theft Auto: Vice City (NTSC-U)]: 16:9 Widescreen patch applied.\n");
+						"patch=1,EE,002434EC,word,0C04C96F",
+						"patch=1,EE,0026FE1C,word,0C04C972",
+						"patch=1,EE,002703F4,word,0C04C972"
+					};
+					for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
+						LoadPatchesFromString(patches[i]);
+					log_cb(RETRO_LOG_INFO, "[PATCH] [Grand Theft Auto: Vice City (NTSC-U)]: 16:9 Widescreen patch applied.\n");
+			}
+				else
+					log_cb(RETRO_LOG_INFO, "[PATCH] [Grand Theft Auto: Vice City (NTSC-U)]: 16:9 Widescreen patch skipped, no patch for this revision (CRC %08X).\n", game_crc);
 			}
 			/* Grand Theft Auto: San Andreas (NTSC-U) [CRC: 399A49CA / 2C6BE4534] */
 			else if (!strcmp(serial, "SLUS-20946"))
