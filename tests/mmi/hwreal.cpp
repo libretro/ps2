@@ -70,6 +70,12 @@ namespace R5900 { namespace Interpreter { namespace OpcodeImpl { namespace MMI {
 	void PSLLH(); void PSLLW(); void PSRAH(); void PSRAW();
 	void PSRLH(); void PSRLW();
 	void PSLLVW(); void PSRLVW(); void PSRAVW();
+	void PMADDW(); void PMSUBW(); void PMADDUW();
+	void PMULTW(); void PMULTUW();
+	void PMADDH(); void PMSUBH(); void PMULTH();
+	void PHMADH(); void PHMSBH();
+	void PDIVW(); void PDIVUW(); void PDIVBW();
+	void PMFHI(); void PMFLO(); void PMTHI(); void PMTLO();
 } } } }
 using namespace R5900::Interpreter::OpcodeImpl::MMI;
 
@@ -78,7 +84,7 @@ using namespace R5900::Interpreter::OpcodeImpl::MMI;
  * takes a shift amount in sa rather than a second register; VSHIFT is the
  * variable-shift trio, which assemble as rd, rt, rs -- value first,
  * amount second -- so the operands go in swapped. */
-enum { A_TWO, A_ONE, A_IMM, A_VSHIFT };
+enum { A_TWO, A_ONE, A_IMM, A_VSHIFT, A_HILO, A_HILO1, A_HILO_TO };
 
 static const struct { const char* name; const char* file; void (*fn)(); int form; }
 kOps[] = {
@@ -119,6 +125,25 @@ kOps[] = {
 	{ "psrlw","logic",PSRLW,A_IMM },{ "psraw","logic",PSRAW,A_IMM },
 	{ "psllvw","logic",PSLLVW,A_VSHIFT },{ "psrlvw","logic",PSRLVW,A_VSHIFT },
 	{ "psravw","logic",PSRAVW,A_VSHIFT },
+	/* The accumulators and the HI/LO moves. These read and write HI and LO
+	 * as well as rd, and the capture prints all three, so the seed named on
+	 * each line has to be applied before the op runs. This is the family
+	 * the PMADDW errata bug lived in, which is reason enough to drive it
+	 * through the real code rather than a copy. */
+	{ "pmaddw","muldiv",PMADDW,A_HILO },{ "pmsubw","muldiv",PMSUBW,A_HILO },
+	{ "pmadduw","muldiv",PMADDUW,A_HILO },
+	{ "pmultw","muldiv",PMULTW,A_HILO },{ "pmultuw","muldiv",PMULTUW,A_HILO },
+	{ "pmaddh","muldiv",PMADDH,A_HILO },{ "pmsubh","muldiv",PMSUBH,A_HILO },
+	{ "pmulth","muldiv",PMULTH,A_HILO },
+	{ "phmadh","muldiv",PHMADH,A_HILO },{ "phmsbh","muldiv",PHMSBH,A_HILO },
+	{ "pdivw","muldiv",PDIVW,A_HILO },{ "pdivuw","muldiv",PDIVUW,A_HILO },
+	{ "pdivbw","muldiv",PDIVBW,A_HILO },
+	{ "pmfhi","muldiv",PMFHI,A_HILO1 },{ "pmflo","muldiv",PMFLO,A_HILO1 },
+	/* PMTHI and PMTLO write HI or LO and leave rd alone, so the quad their
+	 * lines print is the source register, not a result. Comparing it as rd
+	 * scores 1 of 28 while the HI/LO values it is actually testing match
+	 * on every case. */
+	{ "pmthi","muldiv",PMTHI,A_HILO_TO },{ "pmtlo","muldiv",PMTLO,A_HILO_TO },
 };
 #define NOPS ((int)(sizeof(kOps)/sizeof(kOps[0])))
 
@@ -146,7 +171,35 @@ static const struct { const char* name; Q v; } kConst[] = {
 	{ "C_P_S32_D",  {{0x7FFFFFFFu,0x12345678u,0xFFFFFFFFu,0x80000000u}} },
 	{ "C_P_S32_E",  {{0x00000000u,0x7FFFFFFFu,0xFFFFFFFFu,0x80000000u}} },
 	{ "C_P_S32_F",  {{0xFFFFFFFFu,0x80000000u,0x00000000u,0x7FFFFFFFu}} },
+	/* Declared in muldiv.cpp rather than shared.h, so easy to miss. */
+	{ "C_TWOTWOTWOTWO", {{2u,2u,2u,2u}} },
+	{ "C_ONEONEONEONE", {{1u,1u,1u,1u}} },
 };
+
+/* The three HILOREGS the muldiv harness seeds: { hi, lo, hi1, lo1 }. */
+static const struct { const char* name; u64 hi, lo, hi1, lo1; } kSeed[] = {
+	{ "C_HILO_PATTERN", 0x0000000000000000ull, 0x0000000010001234ull,
+	                    0x0000000000000000ull, 0x00000000F000ABCDull },
+	{ "C_HILO_ZERO",    0, 0, 0, 0 },
+	{ "C_HILO",         0x0123456789ABCDEFull, 0x123456789ABCDEF0ull,
+	                    0x23456789ABCDEF01ull, 0x456789ABCDEF0123ull },
+};
+
+static int seed_hilo(const char* line)
+{
+	size_t i;
+	for (i = 0; i < sizeof(kSeed)/sizeof(kSeed[0]); i++)
+	{
+		if (!strstr(line, kSeed[i].name)) continue;
+		cpuRegs.HI.UD[0] = kSeed[i].hi;  cpuRegs.HI.UD[1] = kSeed[i].hi1;
+		cpuRegs.LO.UD[0] = kSeed[i].lo;  cpuRegs.LO.UD[1] = kSeed[i].lo1;
+		return 1;
+	}
+	/* Lines with no seed named use C_HILO, which the harness sets once. */
+	cpuRegs.HI.UD[0] = kSeed[2].hi;  cpuRegs.HI.UD[1] = kSeed[2].hi1;
+	cpuRegs.LO.UD[0] = kSeed[2].lo;  cpuRegs.LO.UD[1] = kSeed[2].lo1;
+	return 1;
+}
 
 static int operand(const char* p, Q* out, int* named)
 {
@@ -194,6 +247,8 @@ int main(int argc, char** argv)
 		while (fgets(buf, sizeof(buf), f))
 		{
 			Q rs, rt, rd; unsigned w3, w2, w1, w0; u32 sa;
+			unsigned long long whi = 0, whi1 = 0, wlo = 0, wlo1 = 0;
+			int has_rd = 0;
 			int named_s = 0, named_t = 0;
 			char* colon; char* args; char* comma;
 
@@ -206,12 +261,34 @@ int main(int argc, char** argv)
 
 			colon = strstr(buf, ": ");
 			if (!colon) continue;
-			if (sscanf(colon + 2, "%x %x %x %x", &w3, &w2, &w1, &w0) != 4) continue;
+			if (kOps[op].form >= A_HILO)
+			{
+				/* "<op> <ops>: [rd rd rd rd ]H: hi hi1 L: lo lo1" -- some of
+				 * these print rd and some do not, so the H: marker decides. */
+				const char* h = strstr(colon, "H: ");
+				if (!h) continue;
+				has_rd = (kOps[op].form != A_HILO_TO)
+				      && (sscanf(colon + 2, "%x %x %x %x", &w3, &w2, &w1, &w0) == 4);
+				if (sscanf(h, "H: %llx %llx L: %llx %llx",
+				           &whi, &whi1, &wlo, &wlo1) != 4) continue;
+			}
+			else if (sscanf(colon + 2, "%x %x %x %x", &w3, &w2, &w1, &w0) != 4)
+				continue;
 			args = buf + 2 + strlen(kOps[op].name);
 			*colon = '\0';
 			sa = 0;
 			comma = strchr(args, ',');
-			if (kOps[op].form == A_ONE)
+			if (kOps[op].form == A_HILO1 || kOps[op].form == A_HILO_TO)
+			{
+				/* PMFHI and PMFLO print no operand, PMTHI and PMTLO one. */
+				int dummy = 0;
+				rs.w[0] = rs.w[1] = rs.w[2] = rs.w[3] = 0;
+				if (!operand(args, &rs, &dummy))
+					rs.w[0] = rs.w[1] = rs.w[2] = rs.w[3] = 0;
+				rt = rs;
+				named_s = named_t = (strstr(args, "C_") != NULL);
+			}
+			else if (kOps[op].form == A_ONE)
 			{
 				/* Single source: MMI.cpp reads it from rt. */
 				if (comma) { *colon = ':'; continue; }
@@ -259,6 +336,8 @@ int main(int argc, char** argv)
 				set_reg(RD, &seed);
 			}
 
+			if (kOps[op].form >= A_HILO)
+				seed_hilo(buf);
 			set_reg(RS, &rs);
 			set_reg(RT, &rt);
 			/* SPECIAL-form encoding: rs at 21, rt at 16, rd at 11. */
@@ -268,7 +347,24 @@ int main(int argc, char** argv)
 			get_reg(RD, &rd);
 
 			cases++;
-			if (rd.w[0] == w0 && rd.w[1] == w1 && rd.w[2] == w2 && rd.w[3] == w3)
+			if (kOps[op].form >= A_HILO)
+			{
+				const int hilo_ok = cpuRegs.HI.UD[0] == whi && cpuRegs.HI.UD[1] == whi1
+				                 && cpuRegs.LO.UD[0] == wlo && cpuRegs.LO.UD[1] == wlo1;
+				const int rd_ok = !has_rd
+				               || (rd.w[0] == w0 && rd.w[1] == w1
+				                && rd.w[2] == w2 && rd.w[3] == w3);
+				if (hilo_ok && rd_ok) pass++;
+				else if (failures++ < 6)
+					printf("  %-7s console H %016llx %016llx L %016llx %016llx\n"
+					       "          ours    H %016llx %016llx L %016llx %016llx\n",
+					       kOps[op].name, whi, whi1, wlo, wlo1,
+					       (unsigned long long)cpuRegs.HI.UD[0],
+					       (unsigned long long)cpuRegs.HI.UD[1],
+					       (unsigned long long)cpuRegs.LO.UD[0],
+					       (unsigned long long)cpuRegs.LO.UD[1]);
+			}
+			else if (rd.w[0] == w0 && rd.w[1] == w1 && rd.w[2] == w2 && rd.w[3] == w3)
 				pass++;
 			else if (failures++ < 6)
 				printf("  %-7s console %08x %08x %08x %08x  ours %08x %08x %08x %08x\n",
