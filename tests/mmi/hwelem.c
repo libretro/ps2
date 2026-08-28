@@ -248,6 +248,8 @@ enum { A_PABSW, A_PABSH, A_PADSBH, A_PSLLVW, A_PSRLVW, A_PSRAVW,
        A_PEXTLB, A_PEXTLH, A_PEXTLW, A_PEXTUB, A_PEXTUH, A_PEXTUW,
        A_PCPYH, A_PCPYLD, A_PCPYUD, A_PREVH,
        A_PPACB, A_PPACH, A_PPACW,
+       /* Shift by immediate. */
+       A_PSLLH, A_PSRLH, A_PSRAH, A_PSLLW, A_PSRLW, A_PSRAW,
        A_COUNT };
 /* `swap` marks the ops whose printed operand order is the reverse of the
  * architectural one. The variable shifts assemble as PSLLVW rd, rt, rs --
@@ -255,34 +257,41 @@ enum { A_PABSW, A_PABSH, A_PADSBH, A_PSLLVW, A_PSRLVW, A_PSRAVW,
  * variables rs, rt and prints them in that order, so the first operand on
  * the line is the value. PINTH and PADSBH take their operands in the
  * architectural order and need no swap. */
-static const struct { const char* name; const char* file; int two; int swap; } kOps[A_COUNT] = {
-	{ "pabsw",  "arithmetic", 0, 0 }, { "pabsh",  "arithmetic", 0, 0 },
-	{ "padsbh", "arithmetic", 1, 0 },
-	{ "psllvw", "logic", 1, 1 }, { "psrlvw", "logic", 1, 1 },
-	{ "psravw", "logic", 1, 1 },
-	{ "pext5",  "shuffle", 0, 0 },
-	{ "pexew",  "shuffle", 0, 0 }, { "pexcw",  "shuffle", 0, 0 },
-	{ "prot3w", "shuffle", 0, 0 }, { "pexeh",  "shuffle", 0, 0 },
-	{ "pexch",  "shuffle", 0, 0 },
-	{ "pinth",  "shuffle", 1, 0 }, { "pinteh", "shuffle", 1, 0 },
-	{ "paddb","arithmetic",1,0 },{ "paddh","arithmetic",1,0 },{ "paddw","arithmetic",1,0 },
-	{ "psubb","arithmetic",1,0 },{ "psubh","arithmetic",1,0 },{ "psubw","arithmetic",1,0 },
-	{ "paddsb","arithmetic",1,0 },{ "paddsh","arithmetic",1,0 },{ "paddsw","arithmetic",1,0 },
-	{ "psubsb","arithmetic",1,0 },{ "psubsh","arithmetic",1,0 },{ "psubsw","arithmetic",1,0 },
-	{ "paddub","arithmetic",1,0 },{ "padduh","arithmetic",1,0 },{ "padduw","arithmetic",1,0 },
-	{ "psubub","arithmetic",1,0 },{ "psubuh","arithmetic",1,0 },{ "psubuw","arithmetic",1,0 },
-	{ "pmaxh","arithmetic",1,0 },{ "pmaxw","arithmetic",1,0 },
-	{ "pminh","arithmetic",1,0 },{ "pminw","arithmetic",1,0 },
-	{ "pceqb","compare",1,0 },{ "pceqh","compare",1,0 },{ "pceqw","compare",1,0 },
-	{ "pcgtb","compare",1,0 },{ "pcgth","compare",1,0 },{ "pcgtw","compare",1,0 },
-	{ "pand","logic",1,0 },{ "por","logic",1,0 },{ "pxor","logic",1,0 },
-	{ "pnor","logic",1,0 },{ "plzcw","logic",0,0 },
-	{ "pextlb","shuffle",1,0 },{ "pextlh","shuffle",1,0 },{ "pextlw","shuffle",1,0 },
-	{ "pextub","shuffle",1,0 },{ "pextuh","shuffle",1,0 },{ "pextuw","shuffle",1,0 },
-	{ "pcpyh","shuffle",0,0 },{ "pcpyld","shuffle",1,0 },{ "pcpyud","shuffle",1,0 },
-	{ "prevh","shuffle",0,0 },
-	{ "ppacb","shuffle",1,0 },{ "ppach","shuffle",1,0 },{ "ppacw","shuffle",1,0 },
+/* `imm` marks the ops whose second printed operand is a shift amount
+ * rather than a register. */
+static const struct { const char* name; const char* file; int two; int swap; int imm; } kOps[A_COUNT] = {
+	{ "pabsw", "arithmetic", 0, 0, 0 }, { "pabsh", "arithmetic", 0, 0, 0 },
+	{ "padsbh", "arithmetic", 1, 0, 0 },
+	{ "psllvw", "logic", 1, 1, 0 }, { "psrlvw", "logic", 1, 1, 0 },
+	{ "psravw", "logic", 1, 1, 0 },
+	{ "pext5", "shuffle", 0, 0, 0 },
+	{ "pexew", "shuffle", 0, 0, 0 }, { "pexcw", "shuffle", 0, 0, 0 },
+	{ "prot3w", "shuffle", 0, 0, 0 }, { "pexeh", "shuffle", 0, 0, 0 },
+	{ "pexch", "shuffle", 0, 0, 0 },
+	{ "pinth", "shuffle", 1, 0, 0 }, { "pinteh", "shuffle", 1, 0, 0 },
+	{ "paddb", "arithmetic", 1, 0, 0 },{ "paddh", "arithmetic", 1, 0, 0 },{ "paddw", "arithmetic", 1, 0, 0 },
+	{ "psubb", "arithmetic", 1, 0, 0 },{ "psubh", "arithmetic", 1, 0, 0 },{ "psubw", "arithmetic", 1, 0, 0 },
+	{ "paddsb", "arithmetic", 1, 0, 0 },{ "paddsh", "arithmetic", 1, 0, 0 },{ "paddsw", "arithmetic", 1, 0, 0 },
+	{ "psubsb", "arithmetic", 1, 0, 0 },{ "psubsh", "arithmetic", 1, 0, 0 },{ "psubsw", "arithmetic", 1, 0, 0 },
+	{ "paddub", "arithmetic", 1, 0, 0 },{ "padduh", "arithmetic", 1, 0, 0 },{ "padduw", "arithmetic", 1, 0, 0 },
+	{ "psubub", "arithmetic", 1, 0, 0 },{ "psubuh", "arithmetic", 1, 0, 0 },{ "psubuw", "arithmetic", 1, 0, 0 },
+	{ "pmaxh", "arithmetic", 1, 0, 0 },{ "pmaxw", "arithmetic", 1, 0, 0 },
+	{ "pminh", "arithmetic", 1, 0, 0 },{ "pminw", "arithmetic", 1, 0, 0 },
+	{ "pceqb", "compare", 1, 0, 0 },{ "pceqh", "compare", 1, 0, 0 },{ "pceqw", "compare", 1, 0, 0 },
+	{ "pcgtb", "compare", 1, 0, 0 },{ "pcgth", "compare", 1, 0, 0 },{ "pcgtw", "compare", 1, 0, 0 },
+	{ "pand", "logic", 1, 0, 0 },{ "por", "logic", 1, 0, 0 },{ "pxor", "logic", 1, 0, 0 },
+	{ "pnor", "logic", 1, 0, 0 },{ "plzcw", "logic", 0, 0, 0 },
+	{ "pextlb", "shuffle", 1, 0, 0 },{ "pextlh", "shuffle", 1, 0, 0 },{ "pextlw", "shuffle", 1, 0, 0 },
+	{ "pextub", "shuffle", 1, 0, 0 },{ "pextuh", "shuffle", 1, 0, 0 },{ "pextuw", "shuffle", 1, 0, 0 },
+	{ "pcpyh", "shuffle", 0, 0, 0 },{ "pcpyld", "shuffle", 1, 0, 0 },{ "pcpyud", "shuffle", 1, 0, 0 },
+	{ "prevh", "shuffle", 0, 0, 0 },
+	{ "ppacb", "shuffle", 1, 0, 0 },{ "ppach", "shuffle", 1, 0, 0 },{ "ppacw", "shuffle", 1, 0, 0 },
+	{ "psllh", "logic", 1, 0, 1 },{ "psrlh", "logic", 1, 0, 1 },{ "psrah", "logic", 1, 0, 1 },
+	{ "psllw", "logic", 1, 0, 1 },{ "psrlw", "logic", 1, 0, 1 },{ "psraw", "logic", 1, 0, 1 },
 };
+
+/* Shift amount for the immediate forms, set just before apply(). */
+static u32 g_sa;
 
 static void apply(int op, const Q* rs, const Q* rt, Q* rd)
 {
@@ -410,6 +419,37 @@ static void apply(int op, const Q* rs, const Q* rt, Q* rd)
 		rd->UL[0] = rt->UL[0]; rd->UL[1] = rt->UL[2];
 		rd->UL[2] = rs->UL[0]; rd->UL[3] = rs->UL[2];
 		break;
+	/* The halfword shifts take sa & 0xf, the word shifts the whole five-bit
+	 * field. The capture exercises the difference: it shifts by 16 and 31,
+	 * which a halfword op treats as 0 and 15. */
+	case A_PSLLH: case A_PSRLH: case A_PSRAH:
+	{
+		const u32 n = g_sa & 0xf;
+		int i;
+		for (i = 0; i < 8; i++)
+		{
+			const u32 v = geth(rt, i);
+			u32 r;
+			if (op == A_PSLLH)      r = v << n;
+			else if (op == A_PSRLH) r = v >> n;
+			else                    r = (u32)(((s32)(s16)(u16)v) >> n);
+			seth(rd, i, r);
+		}
+		break;
+	}
+	case A_PSLLW: case A_PSRLW: case A_PSRAW:
+	{
+		const u32 n = g_sa & 0x1f;
+		int i;
+		for (i = 0; i < 4; i++)
+		{
+			const u32 v = rt->UL[i];
+			if (op == A_PSLLW)      rd->UL[i] = v << n;
+			else if (op == A_PSRLW) rd->UL[i] = v >> n;
+			else                    rd->UL[i] = (u32)(((s32)v) >> n);
+		}
+		break;
+	}
 	}
 }
 
@@ -431,7 +471,7 @@ int main(int argc, char** argv)
 
 		while (fgets(buf, sizeof(buf), f))
 		{
-			char* colon; char* args; Q rs, rt, rd; unsigned w3,w2,w1,w0;
+			char* colon; char* args; Q rs, rt, rd; unsigned w3,w2,w1,w0; u32 sa = 0;
 			char want[128], got[128];
 
 			if (!inblock)
@@ -457,7 +497,15 @@ int main(int argc, char** argv)
 				args = comma + 1;
 				while (*args == ' ') args++;
 			}
-			if (!operand(args, &rt)) { *colon = ':'; continue; }
+			if (kOps[op].imm)
+			{
+				/* Second operand is a decimal shift amount, and the value
+				 * being shifted is the first one -- so rt carries it, the
+				 * way the architectural rt does. */
+				sa = (u32)strtoul(args, NULL, 10);
+				rt = rs;
+			}
+			else if (!operand(args, &rt)) { *colon = ':'; continue; }
 			*colon = ':';
 			if (kOps[op].swap) { const Q t = rs; rs = rt; rt = t; }
 
@@ -471,6 +519,7 @@ int main(int argc, char** argv)
 				rd = lit(0x1337u, 0x1338u, 0x1339u, 0x133Au);
 			else
 				operand("4919", &rd); /* 0x1337 through SET_U32 */
+			g_sa = sa;
 			apply(op, &rs, &rt, &rd);
 
 			snprintf(want, sizeof(want), "%08x %08x %08x %08x", w3, w2, w1, w0);
