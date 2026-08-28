@@ -718,7 +718,24 @@ void psxDma1(u32 adr, u32 bcr, u32 chcr)
 	 * nibble order scores 1, dropping the +128 offset scores 0, transposing
 	 * the block scores 1, and running the guest IDCT matrix scores 0. The
 	 * difference is in the coefficient stage, not the packing or the
-	 * transform. */
+	 * transform.
+	 *
+	 * Narrowed further, so the sweeps are not repeated. The picture is
+	 * structurally right: the console's bytes for this block are almost
+	 * all f and 0, a two-level image, and ours are almost all e and 1 --
+	 * the same image with both extremes one step short of saturating. So
+	 * the coefficients are slightly small rather than wrong.
+	 *
+	 * What that is not: dequantising with the raw quantisation table
+	 * instead of the aanscales-prescaled one and applying the guest matrix
+	 * scores 3 of 32, no better than the fast transform. Nor is it the
+	 * dequantiser's /8 -- removing it, or using /4 or /16, scores 0, and a
+	 * signed shift instead of the divide is identical.
+	 *
+	 * Note that iqtab_init folds aanscales into the quantisation table,
+	 * so the dequantiser and idct() are a matched pair: any attempt at the
+	 * hardware's transform has to replace both together. That coupling is
+	 * probably where the missing scale lives. */
 	switch ((mdec.command >> 27) & 3)
 	{
 	case 3:  /* 15-bit */
