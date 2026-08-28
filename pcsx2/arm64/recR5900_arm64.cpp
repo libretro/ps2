@@ -1774,13 +1774,14 @@ namespace
 	// (MMI2 0x04) and PMADDUW (MMI3 0x00). Unlike the PMULT forms these read
 	// HI and LO back and combine with what is already there.
 	//
-	// PMADDW and PMSUBW carry two hardware quirks that MMI.cpp reproduces and
-	// so does this. The high half is not a shift but a division by
-	// 0xffffffff, which is off by one from >> 32 on the real part; and for
-	// lane 0 only, PMADDW adds 0x70000000 when rt's low 31 bits are all zero
-	// or all one and rs differs from rt. Both are emitted literally -- the
-	// division as a real SDIV, since getting it merely close is the kind of
-	// thing that produces wrong pixels a long way from here.
+	// All three treat the lane's accumulator as one 64-bit quantity spanning
+	// LO and HI rather than two independent halves, so the carry out of the
+	// low word reaches the high one, and both destinations are re-derived
+	// from that single result. PMADDW and PMSUBW previously reproduced two
+	// claimed errata here -- a divide by 0xffffffff standing in for >> 32 and
+	// a conditional +0x70000000 on lane 0 -- which the ps2autotests console
+	// captures do not support (30/32 and 28/32 against them, versus 32/32
+	// for this form), and which the x86 recompiler never implemented either.
 	enum { MA_NONE, MA_PMADDW, MA_PMSUBW, MA_PMADDUW };
 	int MmiMaccAction(u32 insn)
 	{
@@ -1825,45 +1826,25 @@ namespace
 				continue;
 			}
 
-			m.Ldrsw(x0, MemOperand(gpr, rs * 16 + ss * 4));
-			m.Ldrsw(x1, MemOperand(gpr, rt * 16 + ss * 4));
-			m.Mul(x2, x0, x1);                       // temp
-			m.Ldrsw(x3, MemOperand(gpr, kHI + ss * 4));
-			m.Lsl(x3, x3, 32);                       // HI.SL[ss] << 32
-			if (madd) m.Add(x4, x2, x3);             // temp2 = temp + that
-			else      m.Sub(x4, x3, x2);             // temp2 = that - temp
-
-			if (madd && ss == 0)
-			{
-				Label add70, skip;
-				m.And(w5, w1, 0x7fffffff);
-				m.Cbz(w5, &add70);                   // low 31 bits all zero
-				m.Mov(w6, 0x7fffffff);
-				m.Cmp(w5, w6);
-				m.B(&skip, ne);                      // ...or all one
-				m.Bind(&add70);
-				m.Cmp(w0, w1);
-				m.B(&skip, eq);                      // and rs != rt
-				m.Add(x4, x4, 0x70000000);
-				m.Bind(&skip);
-			}
-
-			m.Mov(x6, 4294967295);
-			m.Sdiv(x4, x4, x6);
-			m.Sxtw(x4, w4);                          // HI = (s32)temp2
-
-			m.Ldr(w7, MemOperand(gpr, kLO + ss * 4));
-			if (madd) m.Add(w7, w2, w7);             // LO = (s32)temp + LO.SL[ss]
-			else      m.Sub(w7, w7, w2);             // LO = LO.SL[ss] - (s32)temp
-			m.Sxtw(x7, w7);
-
-			m.Str(x7, MemOperand(gpr, kLO + lane));
-			m.Str(x4, MemOperand(gpr, kHI + lane));
+			// product = (s64)rs.SL[ss] * rt.SL[ss]
+			m.Ldr(w0, MemOperand(gpr, rs * 16 + ss * 4));
+			m.Ldr(w1, MemOperand(gpr, rt * 16 + ss * 4));
+			m.Smull(x2, w0, w1);
+			// acc = LO.UL[ss] | HI.UL[ss] << 32, as one 64-bit value
+			m.Ldr(w3, MemOperand(gpr, kLO + ss * 4));
+			m.Ldr(w4, MemOperand(gpr, kHI + ss * 4));
+			m.Orr(x3, x3, Operand(x4, LSL, 32));
+			if (madd) m.Add(x2, x3, x2);
+			else      m.Sub(x2, x3, x2);
+			m.Sxtw(x5, w2);                      // LO = sign-extended low
+			m.Lsr(x6, x2, 32); m.Sxtw(x6, w6);   // HI = sign-extended high
+			m.Str(x5, MemOperand(gpr, kLO + lane));
+			m.Str(x6, MemOperand(gpr, kHI + lane));
 			if (rd)
 			{
-				// rd word dd*2 takes LO's low word, dd*2+1 takes HI's.
-				m.Str(w7, MemOperand(gpr, rd * 16 + lane));
-				m.Str(w4, MemOperand(gpr, rd * 16 + lane + 4));
+				// rd word dd*2 takes LO's low word, dd*2+1 takes HI's,
+				// which together are the 64-bit result.
+				m.Str(x2, MemOperand(gpr, rd * 16 + lane));
 			}
 		}
 		if (rd)

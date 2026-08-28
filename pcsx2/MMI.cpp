@@ -1031,21 +1031,24 @@ void QFSRV() {				// JayteeMaster: changed a bit to avoid screw up
 
 static __fi void _PMADDW(int dd, int ss)
 {
-	s64 temp = ((s64)cpuRegs.GPR.r[_Rs_].SL[ss] * (s64)cpuRegs.GPR.r[_Rt_].SL[ss]);
-	s64 temp2 = temp + ((s64)cpuRegs.HI.SL[ss] << 32);
+	// The accumulator is one 64-bit quantity spanning LO and HI of the lane,
+	// not two independent 32-bit halves, so the carry out of the low word
+	// reaches the high one. Both destinations are then re-derived from that
+	// single result.
+	//
+	// This replaces a form carrying two claimed hardware errata -- a divide
+	// by 0xffffffff standing in for >> 32, and a conditional +0x70000000 on
+	// lane 0. Neither survives the console captures in ps2autotests
+	// (tests/cpu/ee_simd/muldiv.expected): scored against them the errata
+	// form gets 30/32 on pmaddw and 28/32 on pmsubw, this one 32/32 on both.
+	// The x86 recompiler has always computed it this way (pmuldq then paddq
+	// in recPMADDW), so this also stops the two engines from disagreeing.
+	const s64 product = (s64)cpuRegs.GPR.r[_Rs_].SL[ss] * (s64)cpuRegs.GPR.r[_Rt_].SL[ss];
+	const u64 acc     = (u64)cpuRegs.LO.UL[ss] | ((u64)cpuRegs.HI.UL[ss] << 32);
+	const u64 result  = acc + (u64)product;
 
-	//PlayStation 2 division voodoo, for some reason only the lower half is affected
-	if (ss == 0)
-	{
-		if (((cpuRegs.GPR.r[_Rt_].SL[ss] & 0x7FFFFFFF) == 0 || (cpuRegs.GPR.r[_Rt_].SL[ss] & 0x7FFFFFFF) == 0x7FFFFFFF) &&
-			cpuRegs.GPR.r[_Rs_].SL[ss] != cpuRegs.GPR.r[_Rt_].SL[ss])
-			temp2 += 0x70000000;
-	}
-	//Multiplication error on the PS2 causes this not to be exactly >> 32 (off by 1)
-	temp2 = (s32)(temp2 / 4294967295);
-
-	cpuRegs.LO.SD[dd] = (s32)(temp & 0xffffffff) + cpuRegs.LO.SL[ss];
-	cpuRegs.HI.SD[dd] = (s32)temp2;
+	cpuRegs.LO.SD[dd] = (s32)(u32)result;
+	cpuRegs.HI.SD[dd] = (s32)(u32)(result >> 32);
 
 	if (_Rd_)
 	{
@@ -1079,14 +1082,13 @@ void PSRLVW() {
 
 __fi void  _PMSUBW(int dd, int ss)
 {
-	s64 temp = ((s64)cpuRegs.GPR.r[_Rs_].SL[ss] * (s64)cpuRegs.GPR.r[_Rt_].SL[ss]);
-	s64 temp2 = ((s64)cpuRegs.HI.SL[ss] << 32) - temp;
+	// Same single 64-bit accumulator as _PMADDW above, subtracting instead.
+	const s64 product = (s64)cpuRegs.GPR.r[_Rs_].SL[ss] * (s64)cpuRegs.GPR.r[_Rt_].SL[ss];
+	const u64 acc     = (u64)cpuRegs.LO.UL[ss] | ((u64)cpuRegs.HI.UL[ss] << 32);
+	const u64 result  = acc - (u64)product;
 
-	//Multiplication error on the PS2 causes this not to be exactly >> 32 (off by 1)
-	temp2 = (s32)(temp2 / 4294967295);
-
-	cpuRegs.LO.SD[dd] = cpuRegs.LO.SL[ss] - (s32)(temp & 0xffffffff);
-	cpuRegs.HI.SD[dd] = (s32)temp2;
+	cpuRegs.LO.SD[dd] = (s32)(u32)result;
+	cpuRegs.HI.SD[dd] = (s32)(u32)(result >> 32);
 
 	if (_Rd_)
 	{

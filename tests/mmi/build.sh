@@ -26,6 +26,18 @@ SANFLAGS=""
 echo "== divide signedness (static) =="
 sh "$DIR/divsign.sh"
 
+echo "== multiply-accumulate vs console captures =="
+# Needs the captured expected output from ps2autotests:
+#   git clone https://github.com/unknownbrackets/ps2autotests
+# Point PS2AUTOTESTS at the checkout, or skip this section.
+EXPECTED="${PS2AUTOTESTS:-}/tests/cpu/ee_simd/muldiv.expected"
+if [ -f "$EXPECTED" ]; then
+	"$CC" -O1 -g -Wall $SANFLAGS -o "$DIR/mmi_hwscore" "$DIR/hwscore.c"
+	"$DIR/mmi_hwscore" "$EXPECTED"
+else
+	echo "  skipped: set PS2AUTOTESTS to a ps2autotests checkout to run this"
+fi
+
 echo "== divide execution (emit and run) =="
 "$CC" -O1 -g -Wall -Wno-unused-function $SANFLAGS \
 	-I "$ROOT" -I "$ROOT/common" -I "$ROOT/pcsx2" \
