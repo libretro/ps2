@@ -29,3 +29,12 @@ if [ -f "$EXPECTED" ]; then
 else
 	echo "  skipped: set PS2AUTOTESTS to a ps2autotests checkout to run this"
 fi
+
+echo "== EE aligned loads vs console =="
+EXPECTED="${PS2AUTOTESTS:-}/tests/cpu/ee/lsu.expected"
+if [ -f "$EXPECTED" ]; then
+	"$CC" -O1 -g -Wall $SANFLAGS -o "$DIR/ee_hwload" "$DIR/hwload.c"
+	"$DIR/ee_hwload" "$EXPECTED"
+else
+	echo "  skipped: set PS2AUTOTESTS to a ps2autotests checkout to run this"
+fi
