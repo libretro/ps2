@@ -2437,11 +2437,45 @@ static __ri void _vuMFP(VURegs* VU)
  * replay bit-identically across them. That is a deliberate trade -- accuracy
  * where the hardware allows it -- and it is confined to these two ops.
  *
- * It deliberately does NOT extend to EEXP or ESIN. Those run on the EFU, which
- * is a separate approximation unit rather than the FMAC, and true round-toward
- * -zero models it worse, not better: EEXP falls from 8 of 13 to 4 and ESIN
- * from 7 to 5. Speed is not the question there -- the AVX-512 forms are ten
- * times quicker -- the arithmetic simply is not what that unit does.
+ * It deliberately stops at these two ops. The rest of the EFU was measured
+ * against the same captures and none of it wants this treatment:
+ *
+ *   EEXP, ESIN        run on the EFU, an approximation unit rather than the
+ *                     FMAC. True round-toward-zero models it worse, not
+ *                     better -- EEXP 8 of 13 down to 4, ESIN 7 down to 5 --
+ *                     despite the AVX-512 forms being ten times quicker.
+ *                     Speed was never the obstacle there.
+ *   ERSADD, ELENG,    their sums gain, but the reciprocal and the square root
+ *   ERLENG            do not: {rz-sae} div and sqrt score 5, 11 and 6 of 16
+ *                     against 8, 11 and 5 now, while ps2float.c scores 11, 13
+ *                     and 9 at 333ns, 190ns and 333ns a call against about
+ *                     2ns. The PS2 divider and square root are not IEEE with
+ *                     a rounding mode bolted on, which is the same reason
+ *                     ESQRT/ERSQRT/ERCPR have to go through ps2float.c to be
+ *                     exact. A rounding mode cannot express a different
+ *                     algorithm.
+ *
+ * Two further avenues outside this file were checked and rejected. The
+ * ps2f_add/ps2f_mul the VU interpreter uses for every FMAC lane cannot take
+ * embedded rounding, because {rz-sae} suppresses the exceptions whose flags
+ * VU_MAC_UPDATE_SOFT reads back out of PS2F_UF and PS2F_OF. FPU_ADD_SUB in
+ * pcsx2/x86/iFPU.cpp -- far hotter than any of this, being emitted per EE FPU
+ * op -- emulates the EE FPU having no guard bits by truncating the smaller
+ * operand before the add, which is operand preparation rather than result
+ * rounding and so is not something a rounding mode reaches. AVX2 has no
+ * per-instruction rounding control at all, and the adds here are a sequential
+ * dependency chain with only the three squares to parallelise: 18.8ns.
+ *
+ * Worth noting separately, because it is a latent issue rather than an
+ * opportunity: vu0ExecMicro does not apply the unit's rounding mode when it
+ * runs the interpreter, on the stated grounds that the interpreter works in
+ * ps2float integer code and ignores MXCSR. That holds for most ops but not
+ * for these -- ESADD, ESUM, ELENG, ERLENG, EATAN, ESIN and EEXP all compute
+ * in host float and inherit whatever rounding the host left set. Running the
+ * interpreter under round-toward-zero reproduces exactly what the AVX-512
+ * path achieves here, on any CPU, but it is not a free win: ERSADD drops from
+ * 8 of 16 to 5 and only ERLENG improves alongside. Sorting that out means
+ * deciding per op what rounding each unit really uses, which is its own job.
  * --------------------------------------------------------------------------- */
 #ifdef ARCH_X86
 
