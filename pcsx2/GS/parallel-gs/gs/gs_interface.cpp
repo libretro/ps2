@@ -53,7 +53,8 @@ bool GSInterface::init(Vulkan::Device *device, const GSOptions &options)
 
 	set_super_sampling_rate(options.super_sampling,
 	                        options.ordered_super_sampling,
-	                        options.super_sampled_textures);
+	                        options.super_sampled_textures,
+	                        options.super_sampled_quads);
 
 	renderer.reserve_primitive_buffers(MaxPrimitivesPerFlush);
 	render_pass.positions = renderer.get_reserved_vertex_positions();
@@ -63,9 +64,11 @@ bool GSInterface::init(Vulkan::Device *device, const GSOptions &options)
 }
 
 void GSInterface::set_super_sampling_rate(SuperSampling super_sampling,
-                                          bool ordered_grid, bool super_sampled_textures_)
+                                          bool ordered_grid, bool super_sampled_textures_,
+                                          bool super_sampled_quads_)
 {
 	super_sampled_textures = super_sampled_textures_;
+	super_sampled_quads = super_sampled_quads_;
 	super_sampling = SuperSampling(std::min<uint32_t>(
 			uint32_t(super_sampling), uint32_t(renderer.get_max_supported_super_sampling())));
 
@@ -2687,8 +2690,47 @@ void GSInterface::drawing_kick_append()
 	{
 		prim_attr.state |= 1u << STATE_BIT_PARALLELOGRAM;
 		prim_attr.state |= 1u << STATE_BIT_SPRITE;
+
+		// Sprites snap both coverage and attributes: coverage so the
+		// primitive lands on whole native pixels, attributes so UVs are
+		// never interpolated toward the right or bottom of a pixel, where
+		// a game's atlas does not expect to be sampled.
+		//
+		// The supersampled-quad option relaxes the second of those, and
+		// only for sprites that minify. Coverage stays snapped, so the
+		// sprite covers exactly the pixels it did before and cannot grow
+		// an extra column or row -- the shader has this pairing already,
+		// as "we may snap coverage, but we want per-sample
+		// interpolation". Within those pixels the samples then walk
+		// across the texture instead of all reading one texel, which is
+		// the detail a scaled-down texture has to give.
+		//
+		// Minification is what makes that safe as well as useful: with
+		// more texels than pixels the walk stays inside the span the
+		// sprite already maps, while at 1:1 it would step into the
+		// neighbouring texel and, with nearest filtering, show it whole.
+		bool super_sample_this_sprite = false;
+		const bool sprite_is_per_sample = (prim_attr.tex & TEX_PER_SAMPLE_BIT) != 0;
+		if (super_sampled_quads && prim.desc.TME && !sprite_is_per_sample)
+		{
+			ivec4 sprite_uv_bb;
+			compute_uv_bb<quad, num_vertices, false>(attr, ctx, prim.desc, sprite_uv_bb, nullptr, nullptr);
+
+			// uv_bb bounds are inclusive texel indices, so a 1:1 sprite
+			// spanning N pixels covers N + 1 of them; require more than
+			// that before calling it minification.
+			const int texels_x = sprite_uv_bb.z - sprite_uv_bb.x + 1;
+			const int texels_y = sprite_uv_bb.w - sprite_uv_bb.y + 1;
+			const int pixels_x = (pre_snap_hi.x - pre_snap_lo.x) >> int(PGS_SUBPIXEL_BITS);
+			const int pixels_y = (pre_snap_hi.y - pre_snap_lo.y) >> int(PGS_SUBPIXEL_BITS);
+
+			super_sample_this_sprite = (pixels_x > 0 && texels_x > pixels_x + 1) ||
+			                           (pixels_y > 0 && texels_y > pixels_y + 1);
+		}
+
 		prim_attr.state |= 1u << STATE_BIT_SNAP_RASTER;
-		prim_attr.state |= 1u << STATE_BIT_SNAP_ATTRIBUTE;
+		if (!super_sample_this_sprite)
+			prim_attr.state |= 1u << STATE_BIT_SNAP_ATTRIBUTE;
 		prim_attr.state &= ~(1u << STATE_BIT_MULTISAMPLE);
 	}
 	else if (is_line)
