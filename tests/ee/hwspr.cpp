@@ -149,6 +149,23 @@ static void run_download(u16 skip, u16 transfer, u16 qwc, u32* out, int outw)
 	for (i = 0; i < outw && i < 0x1000; i++) out[i] = dst[i];
 }
 
+/* tests/dma/dmac/tagintr.expected is not scored here, and the attempt is
+ * worth recording. It builds a three-tag source chain -- REF, REF, END --
+ * and runs it four times with the channel's TIE bit and the first tag's
+ * IRQ bit each on and off. Only when both are set does the transfer stop
+ * early: TADR advances 0x10 in that case and 0x20 in the other three.
+ * That is one condition, spr1ch.chcr.TIE && ptag->IRQ in _SPR1chain, and
+ * it reads correctly.
+ *
+ * Driving it needs the real hwDmacSrcChain, which is what advances TADR.
+ * This harness stubs that function -- the interleave path never calls it
+ * -- and with the stub in place all four cases report TADR unmoved, so
+ * the test would be measuring the stub. Linking Hw.cpp for the real one
+ * pulls in about sixty further symbols, the whole hardware register
+ * dispatch, which is disproportionate for four cases and would put most
+ * of the emulator behind a test of one boolean.
+ */
+
 int main(int argc, char** argv)
 {
 	const char* path = (argc > 1) ? argv[1] : "interleave.expected";
@@ -313,5 +330,6 @@ int main(int argc, char** argv)
 
 	printf("hwspr: %d/%d scratchpad interleave rows match the console\n",
 	       pass, cases);
+
 	return pass != cases;
 }
