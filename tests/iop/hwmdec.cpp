@@ -18,7 +18,7 @@
  *
  *  As it stands this reports 154 of 777 status reads and 0 of 512 output
  *  words. The status register now carries real state -- see the note in
- *  Mdec.cpp -- and what is left needs the output FIFO, because the
+ *  Mdec.cpp, which also pins why the output words cannot follow yet: the
  *  decoder is driven from a memory buffer by psxDma0/psxDma1 rather than
  *  from the registers. Neither is a small fix, and the trace shows why:
  *  the console's input phases take 96, 32, 64 and 32 words before the
