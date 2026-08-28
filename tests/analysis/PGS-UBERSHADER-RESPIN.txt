@@ -1,0 +1,77 @@
+paraLLEl-GS ubershader respin: is a local recompile faithful?
+=============================================================
+
+Why this was asked
+------------------
+The fork ships paraLLEl-GS shaders as SPIR-V in gs/shaders/slangmosh.hpp,
+and there is no shader build step. Changing a shader therefore means
+compiling the GLSL with whatever glslang/spirv-opt is to hand and splicing
+the result into the bank. Several commits in the high-res scanout and 2D
+quad work did exactly that, so the question is whether the recompile alone
+changes behaviour -- if it does, every spliced commit is suspect, including
+ones already merged.
+
+The revert of the 2D quad supersampling option (13933af70) asserted that it
+does, and blamed the respin for damage visible with the option disabled.
+That assertion was not tested. It is wrong. This note records the test and
+the correction.
+
+Method
+------
+Frames captured headless through a Vulkan libretro frontend on lavapipe,
+from savestates, at 4x SSAA ordered with native scanout, comparing full
+frames pixel for pixel:
+
+  Ridge Racer V (Japan)        main menu
+  SSX3 (SLUS-20772)            main menu
+  Tekken Tag Tournament (USA)  command list
+
+Result 1: the recompile is faithful
+-----------------------------------
+gs/shaders/ubershader.comp was compiled unmodified with the local
+glslangValidator and spirv-opt, and the four FEEDBACK_COLOR/FEEDBACK_DEPTH
+variants were spliced over the shipped blobs with no source change at all.
+
+  SPIR-V bytes, shipped vs fresh:
+
+    variant [0][0]   85380  ->  89096   differ
+    variant [0][1]   86276  ->  90016   differ
+    variant [1][0]   90448  ->  94208   differ
+    variant [1][1]   91140  ->  94924   differ
+
+  Rendered frames, shipped blobs vs no-op recompile:
+
+    Ridge Racer V    0 differing pixels
+    SSX3             0 differing pixels
+    Tekken Tag       0 differing pixels
+
+The binaries differ, as expected from a different toolchain version. The
+behaviour does not. The splice workflow is sound and the merged scanout
+commits are not implicated.
+
+Result 2: the damage came from one unmerged commit
+--------------------------------------------------
+Frames captured with the option disabled, against the post-revert tree:
+
+    b3ef57a1b (edge-directed magnification, merged)    0 differing pixels
+    763c2ad91 (quad supersampling, never merged)  114107 differing pixels
+
+So the disabled-path damage -- vertical bars beside Ridge Racer V's menu
+entries and a black smear over "load" -- belongs to 763c2ad91 alone, which
+only ever existed locally. The merged feature commits were inert with the
+option off, and the revert's stated cause is retracted.
+
+A plausible mechanism in that commit is its unconditional write of
+prim_attr.tex2 = fx | (fy << 16), which clobbers the field that otherwise
+carries the LOD/K/L filtering state. That is untested and recorded only as
+a starting point, not as a finding.
+
+What to keep from this
+----------------------
+- A recompile-and-splice of an unchanged shader is a no-op. It can be used
+  as a control when a spliced commit is suspected.
+- Judging a rendering option by diffing its own on state against its own
+  off state cannot see damage present in both. Compare against a fixed
+  known-good capture instead. Every acceptance decision in the 2D quad
+  series was made the unsound way, which is how a broken baseline was
+  reported as clean.
