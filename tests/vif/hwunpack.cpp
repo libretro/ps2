@@ -82,6 +82,126 @@ static u32 source_for(const char* name)
 	return 0x88888888u;
 }
 
+/* ---- STMOD: the write modes and the mask ------------------------------
+ *
+ * tests/dma/vif/stmod.expected runs the same shape eight times per VIF
+ * unit: STCYCL(4,4), STROW of 0x1000 in every lane, STMASK, STMOD, then a
+ * V4-32 unpack of the words 0..15, and prints the four quadwords that
+ * land in VU memory along with the row register and the mode afterwards.
+ *
+ * Row is a result as well as an input. Modes 2 and 3 write back through
+ * setVifRow as they go, so the row the capture prints at the end is what
+ * pins those two down -- the memory alone does not distinguish a mode that
+ * accumulates into row from one that merely reads it.
+ *
+ * What these sixteen do not reach is column masking. The mask they use,
+ * 0x40100401, selects row (n==1) on the diagonal and data (n==0)
+ * everywhere else, so the n==2 arm that reads MaskCol never runs:
+ * changing it to read MaskRow instead leaves all sixteen passing.
+ * Row masking, the offset arithmetic and the mode-2 write-back are all
+ * covered -- each fails four scenarios when mutated.
+ *
+ * vif.cl has to be stepped per vector, since the mask nibble is selected
+ * by it: leaving it at zero applies the first row of the mask to all four
+ * vectors, which passes the unmasked scenarios and quietly fails the
+ * masked ones in a way that looks like a mask decoding bug. */
+
+static int run_stmod(const char* path, int* total)
+{
+	FILE* f = fopen(path, "r");
+	char buf[512];
+	int pass = 0, cases = 0, shown = 0, unit = 0, masked = 0;
+	u32 want_mem[4][4];
+	int have = 0;
+
+	if (!f) return 0;
+	while (fgets(buf, sizeof(buf), f))
+	{
+		unsigned w[4];
+		int row_line;
+
+		if (!strncmp(buf, "== VIF1", 7)) { unit = 1; continue; }
+		if (!strncmp(buf, "== VIF0", 7)) { unit = 0; continue; }
+		/* The scenario heading says whether the mask was enabled, so it is
+		 * read rather than guessed. Trying both and accepting whichever
+		 * matched would let a scenario pass for the wrong reason. */
+		if (buf[0] != ' ' && strchr(buf, ':'))
+		{ /* "no mask" contains "mask", so the negative has to be tested
+		   * first -- matching on "mask" alone marks every scenario as
+		   * masked and compares the masked output against the unmasked
+		   * expectations. */
+		  masked = strstr(buf, "mask") != NULL && strstr(buf, "no mask") == NULL;
+		  continue; }
+
+		if (sscanf(buf, "  vumem(%*x): %x - %x - %x - %x",
+		           &w[0], &w[1], &w[2], &w[3]) == 4)
+		{
+			if (have < 4)
+			{ want_mem[have][0]=w[0]; want_mem[have][1]=w[1];
+			  want_mem[have][2]=w[2]; want_mem[have][3]=w[3]; have++; }
+			continue;
+		}
+		row_line = (sscanf(buf, "  row: %x - %x - %x - %x",
+		                   &w[0], &w[1], &w[2], &w[3]) == 4);
+		if (!row_line) continue;
+		{
+			unsigned mode = 0;
+			u32 want_row[4] = { w[0], w[1], w[2], w[3] };
+			if (!fgets(buf, sizeof(buf), f)) break;
+			if (sscanf(buf, "  mode: %x", &mode) != 1) { have = 0; continue; }
+			if (have != 4) { have = 0; continue; }
+
+			{
+				/* The mask value is the same in every masked scenario. */
+				const int dm = masked;
+				int ok = 0;
+				{
+					alignas(16) u32 mem[16];
+					u32 src[4];
+					int v, i;
+					vifStruct& vif = unit ? vif1 : vif0;
+					VIFregisters& regs = unit ? vif1Regs : vif0Regs;
+
+					memset(mem, 0, sizeof(mem));
+					memset(&vif, 0, sizeof(vif));
+					memset(&regs, 0, sizeof(regs));
+					regs.mask = 0x40100401u;
+					regs.mode = mode;
+					for (i = 0; i < 4; i++) vif.MaskRow._u32[i] = 0x1000u;
+
+					for (v = 0; v < 4; v++)
+					{
+						const UNPACKFUNCTYPE fn =
+							VIFfuncTable[unit][mode][0x0C | (dm ? 0x20 : 0)];
+						/* signed/dm1 is +0x20; +0x30 is unsigned/dm1 and
+						 * silently unpacks unmasked for a 32-bit format. */
+						for (i = 0; i < 4; i++) src[i] = (u32)(v * 4 + i);
+						vif.cl = v;          /* selects the mask nibble */
+						fn(mem + v * 4, src);
+					}
+
+					ok = 1;
+					for (v = 0; v < 4 && ok; v++)
+						for (i = 0; i < 4; i++)
+							if (mem[v * 4 + i] != want_mem[v][i]) { ok = 0; break; }
+					for (i = 0; i < 4 && ok; i++)
+						if (vif.MaskRow._u32[i] != want_row[i]) ok = 0;
+				}
+				cases++;
+				if (ok) pass++;
+				else if (shown++ < 4)
+					printf("  stmod VIF%d mode %u %s: does not match the capture\n",
+					       unit, mode, masked ? "masked" : "unmasked");
+			}
+			have = 0;
+		}
+	}
+	fclose(f);
+	*total += cases;
+	printf("hwstmod:  %d/%d VIF write-mode scenarios match the console\n", pass, cases);
+	return pass != cases;
+}
+
 int main(int argc, char** argv)
 {
 	const char* path = (argc > 1) ? argv[1] : "unpack.expected";
@@ -146,5 +266,11 @@ int main(int argc, char** argv)
 	fclose(f);
 
 	printf("hwunpack: %d/%d VIF unpack formats match the console\n", pass, cases);
+
+	if (argc > 2)
+	{
+		int stmod_total = 0;
+		if (run_stmod(argv[2], &stmod_total)) return 1;
+	}
 	return pass != cases;
 }
