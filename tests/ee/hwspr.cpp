@@ -295,6 +295,22 @@ int main(int argc, char** argv)
 	{ printf("hwspr: parsed no cases; the capture's line shape changed\n");
 	  return 1; }
 
+	/* tests/dma/spr/normal.expected is about the registers rather than the
+	 * transfer, and it is not scored here. Its two claims are that SADR
+	 * keeps bits 4 to 13 -- the scratchpad is 16K and the address must be
+	 * quadword aligned, so its 0x81234028 reads back as 0x20 -- and that
+	 * MADR drops bit 31, which is why its harness reports the transfer
+	 * "did not accept MADR: 80000000". Dmac.cpp's write path applies
+	 * 0x3FF0 and 0x7FFFFFFF respectively, which is checked by reading it.
+	 *
+	 * Not scored because it cannot be, cheaply: reaching that path needs
+	 * the hardware register file and its dispatch, and a test that
+	 * restated the two masks here would be comparing constants I copied
+	 * out of the source against constants I copied out of the capture --
+	 * arithmetic, not the emulator. An inspection recorded as an
+	 * inspection is worth more than a check that cannot fail.
+	 */
+
 	printf("hwspr: %d/%d scratchpad interleave rows match the console\n",
 	       pass, cases);
 	return pass != cases;
