@@ -31,3 +31,12 @@ if [ -f "$EXPECTED" ]; then
 else
 	echo "  skipped: set PS2AUTOTESTS to a ps2autotests checkout to run this"
 fi
+
+echo "== FPU branch conditions vs console =="
+EXPECTED="${PS2AUTOTESTS:-}/tests/cpu/ee_fpu/branch.expected"
+if [ -f "$EXPECTED" ]; then
+	"$CC" -O1 -g -Wall $SANFLAGS -o "$DIR/fpu_hwbranch" "$DIR/hwbranch.c"
+	"$DIR/fpu_hwbranch" "$EXPECTED"
+else
+	echo "  skipped: set PS2AUTOTESTS to a ps2autotests checkout to run this"
+fi
