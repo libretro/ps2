@@ -1252,18 +1252,36 @@ namespace
 			m.Mov(x1, fbase); LoadGpr(m, x0, gpr, rt); m.Str(w0, MemOperand(x1, fs * 4));
 			return;
 		}
-		// C.65: the control-register moves. fs is a compile-time constant, so the
-		// three CFC1 cases specialize to a load or a constant (FPU.cpp: fs==31 ->
-		// sign-extended FCR31; fs==0 -> revision 0x2E00; anything else -> 0), and
-		// a CTC1 to any register but FCR31 is a nop. fprc[31] sits at fpuRegs
-		// byte offset 252 (fpr[32] first, 4 bytes each) -- same as the BC1 test.
+		// C.65: the control-register moves. fs is a compile-time constant, so
+		// CFC1 specializes to one of two loads, and a CTC1 to any register but
+		// FCR31 is a nop. fprc[31] sits at fpuRegs byte offset 252 (fpr[32]
+		// first, 4 bytes each) and fprc[0] at 128 -- same base as the BC1 test.
+		//
+		// Only FCR0 and FCR31 exist and the hardware decodes one bit of the
+		// register number, so 0-15 read as FCR0 and 16-31 as FCR31. FCR31 reads
+		// drop the always-zero bits and set the always-one ones. This used to
+		// mirror FPU.cpp's interpreter, which returned a literal 0x2E00 for
+		// FCR0, zero for everything but 0 and 31, and an unmasked FCR31 -- all
+		// three wrong against ps2autotests tests/cpu/ee_fpu/fcr.expected, which
+		// prints the whole file after reset. FPU.cpp is fixed; this follows it
+		// so the three engines agree.
 		if (rs == 0x02) // CFC1 rt, fs
 		{
 			if (rt)
 			{
-				if (fs == 31) { m.Mov(x1, fbase); m.Ldr(w0, MemOperand(x1, 252)); m.Sxtw(x0, w0); }
-				else if (fs == 0) m.Mov(x0, 0x2E00);
-				else              m.Mov(x0, 0);
+				m.Mov(x1, fbase);
+				if (fs & 0x10)
+				{
+					m.Ldr(w0, MemOperand(x1, 252));
+					m.And(w0, w0, 0x0083c078);
+					m.Orr(w0, w0, 0x01000001);
+					m.Sxtw(x0, w0);
+				}
+				else
+				{
+					m.Ldr(w0, MemOperand(x1, 128));
+					m.Sxtw(x0, w0);
+				}
 				StoreGpr(m, x0, gpr, rt);
 			}
 			return;
