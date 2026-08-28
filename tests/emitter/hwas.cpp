@@ -42,7 +42,10 @@ static uint8_t s_buf[256];
  * objdump's Nth line is case N. That assumption is checked: if the counts
  * disagree the run stops rather than comparing misaligned pairs. */
 
-#define MAXCASES 8192
+/* Comfortably above the current count. The sweeps add 256 cases a line,
+ * so this is checked rather than assumed: overflowing it silently would
+ * drop the tail of the run and still print a clean score. */
+#define MAXCASES 32768
 
 static char*   s_text[MAXCASES];
 static uint8_t s_got[MAXCASES][16];
@@ -51,7 +54,8 @@ static int     s_ncases;
 
 static void add_case(const char* text, void (*emit)(void))
 {
-	if (s_ncases >= MAXCASES) { printf("  case table full\n"); return; }
+	if (s_ncases >= MAXCASES)
+	{ printf("  case table full at %d; raise MAXCASES\n", MAXCASES); exit(2); }
 	x86Ptr = s_buf;
 	emit();
 	s_gotlen[s_ncases] = (int)(x86Ptr - s_buf);
@@ -279,6 +283,34 @@ int main(void)
 	CASE("cmp DWORD PTR ds:0x12345678, 0x12345678", xe_cmp32_mi(0x12345678, 0x12345678));
 	CASE("sub DWORD PTR ds:0x100, 0x10",            xe_sub32_mi(0x100, 0x10));
 
+	/* Sweeping one op over all 256 register pairs is a line, so the set
+	 * below is the instruction mix the recompilers actually emit rather
+	 * than a sample of it. */
+#define SWEEP_GUARD()                                                         \
+	do { if (s_ncases >= MAXCASES)                                            \
+		{ printf("  case table full at %d; raise MAXCASES\n", MAXCASES);      \
+		  exit(2); } } while (0)
+
+#define SWEEP_RR(text, macro, names)                                          \
+	do { int d_, e_; char t_[96];                                             \
+		for (d_ = 0; d_ < 16; d_++) for (e_ = 0; e_ < 16; e_++) {             \
+			SWEEP_GUARD();                                                    \
+			snprintf(t_, sizeof(t_), "%s %s, %s", text, names[d_], names[e_]);\
+			x86Ptr = s_buf; macro(d_, e_);                                    \
+			s_gotlen[s_ncases] = (int)(x86Ptr - s_buf);                       \
+			memcpy(s_got[s_ncases], s_buf, (size_t)s_gotlen[s_ncases]);       \
+			s_text[s_ncases++] = strdup(t_); } } while (0)
+
+#define SWEEP_RI(text, macro, names, imm)                                     \
+	do { int d_; char t_[96];                                                 \
+		for (d_ = 0; d_ < 16; d_++) {                                         \
+			SWEEP_GUARD();                                                    \
+			snprintf(t_, sizeof(t_), "%s %s, %d", text, names[d_], (int)(imm));\
+			x86Ptr = s_buf; macro(d_, imm);                                   \
+			s_gotlen[s_ncases] = (int)(x86Ptr - s_buf);                       \
+			memcpy(s_got[s_ncases], s_buf, (size_t)s_gotlen[s_ncases]);       \
+			s_text[s_ncases++] = strdup(t_); } } while (0)
+
 	/* Exhaustive register sweeps. The hand-written cases above pick a few
 	 * registers each, which catches an opcode mistake but not one that
 	 * only shows for a particular encoding -- rsp and rbp are the classic
@@ -355,6 +387,78 @@ int main(void)
 			  s_gotlen[s_ncases] = (int)(x86Ptr - s_buf);
 			  memcpy(s_got[s_ncases], s_buf, (size_t)s_gotlen[s_ncases]);
 			  s_text[s_ncases++] = strdup(t); }
+		}
+
+		/* The rest of the integer ALU, both widths. */
+		SWEEP_RR("sub", xe_sub32_rr, r32);
+		SWEEP_RR("and", xe_and32_rr, r32);
+		SWEEP_RR("or",  xe_or32_rr,  r32);
+		SWEEP_RR("xor", xe_xor32_rr, r32);
+		SWEEP_RR("cmp", xe_cmp32_rr, r32);
+		SWEEP_RR("test", xe_test32_rr, r32);
+		SWEEP_RR("add", xe_add64_rr, r64);
+		SWEEP_RR("sub", xe_sub64_rr, r64);
+		SWEEP_RR("cmp", xe_cmp64_rr, r64);
+		SWEEP_RR("test", xe_test64_rr, r64);
+		/* movsxd's destination is 64-bit and its source 32-bit, so it needs
+		 * a name from each table rather than one twice -- sweeping it with
+		 * r64 on both sides makes as reject the batch outright. */
+		{
+			int d2, e2;
+			char t3[96];
+			for (d2 = 0; d2 < 16; d2++)
+				for (e2 = 0; e2 < 16; e2++)
+				{
+					snprintf(t3, sizeof(t3), "movsxd %s, %s", r64[d2], r32[e2]);
+					x86Ptr = s_buf; xe_movsxd_rr(d2, e2);
+					s_gotlen[s_ncases] = (int)(x86Ptr - s_buf);
+					memcpy(s_got[s_ncases], s_buf, (size_t)s_gotlen[s_ncases]);
+					s_text[s_ncases++] = strdup(t3);
+				}
+		}
+
+		/* The rest of the SSE mix. */
+		SWEEP_RR("movdqa", xe_movdqa_xx, rxmm);
+		SWEEP_RR("psubd",  xe_psubd_xx,  rxmm);
+		SWEEP_RR("pand",   xe_pand_xx,   rxmm);
+		SWEEP_RR("por",    xe_por_xx,    rxmm);
+		SWEEP_RR("pxor",   xe_pxor_xx,   rxmm);
+		SWEEP_RR("punpckldq",  xe_punpckldq_xx,  rxmm);
+		SWEEP_RR("punpckhdq",  xe_punpckhdq_xx,  rxmm);
+		SWEEP_RR("punpcklqdq", xe_punpcklqdq_xx, rxmm);
+		SWEEP_RR("punpcklbw",  xe_punpcklbw_xx,  rxmm);
+		SWEEP_RR("punpckhwd",  xe_punpckhwd_xx,  rxmm);
+
+		/* Shifts across every count, which is where the one-bit short form
+		 * and the 0x1f masking both live. */
+		{
+			int sh;
+			for (sh = 1; sh < 32; sh++)
+			{
+				SWEEP_RI("shl", xe_shl32_ri, r32, sh);
+				SWEEP_RI("shr", xe_shr32_ri, r32, sh);
+				SWEEP_RI("sar", xe_sar32_ri, r32, sh);
+			}
+		}
+
+		/* Unary forms over every register. */
+		{
+			int u;
+			char t2[96];
+			for (u = 0; u < 16; u++)
+			{
+				snprintf(t2, sizeof(t2), "not %s", r32[u]);
+				x86Ptr = s_buf; xe_not32_r(u);
+				s_gotlen[s_ncases] = (int)(x86Ptr - s_buf);
+				memcpy(s_got[s_ncases], s_buf, (size_t)s_gotlen[s_ncases]);
+				s_text[s_ncases++] = strdup(t2);
+
+				snprintf(t2, sizeof(t2), "neg %s", r32[u]);
+				x86Ptr = s_buf; xe_neg32_r(u);
+				s_gotlen[s_ncases] = (int)(x86Ptr - s_buf);
+				memcpy(s_got[s_ncases], s_buf, (size_t)s_gotlen[s_ncases]);
+				s_text[s_ncases++] = strdup(t2);
+			}
 		}
 	}
 
