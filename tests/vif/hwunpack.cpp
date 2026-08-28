@@ -202,6 +202,56 @@ static int run_stmod(const char* path, int* total)
 	return pass != cases;
 }
 
+/* ---- the table's block layout ----------------------------------------
+ *
+ * VIFfuncTable's inner dimension is four blocks of sixteen and nothing in
+ * the source says which is which -- UnpackModeSet spells it out in macro
+ * arguments, and the loop that reads the table got it backwards for years
+ * because it borrowed nVifUpk's convention, where usn and the mask sit at
+ * the opposite offsets. That was worth a real bug: masked unpacks silently
+ * lost their mask.
+ *
+ * So the layout is asserted rather than assumed. One S8 unpack of 0x88
+ * separates all four: signed gives ffffff88, unsigned 00000088, and a
+ * masked one takes the column value regardless of sign. If someone
+ * reorders the table, this fails here instead of quietly in whichever
+ * caller happens to disagree with it. */
+static int check_layout(void)
+{
+	static const struct { u32 off; u32 want; const char* what; } kBlocks[] = {
+		{ 0x00, 0xFFFFFF88u, "signed, unmasked"   },
+		{ 0x10, 0x00000088u, "unsigned, unmasked" },
+		{ 0x20, 0x11111111u, "signed, masked"     },
+		{ 0x30, 0x11111111u, "unsigned, masked"   },
+	};
+	const int n = (int)(sizeof(kBlocks)/sizeof(kBlocks[0]));
+	int i, bad = 0;
+
+	for (i = 0; i < n; i++)
+	{
+		alignas(16) u32 dest[4];
+		alignas(16) u32 src[4] = { 0x88u, 0, 0, 0 };
+		int k;
+
+		memset(dest, 0xFF, sizeof(dest));
+		memset(&vif0, 0, sizeof(vif0));
+		memset(&vif0Regs, 0, sizeof(vif0Regs));
+		vif0Regs.mask = 0xAAAAAAAAu;              /* every element a column */
+		for (k = 0; k < 4; k++) vif0.MaskCol._u32[k] = 0x11111111u * (u32)(k + 1);
+
+		VIFfuncTable[0][0][kBlocks[i].off | 0x02](dest, src);   /* S8 */
+		if (dest[0] != kBlocks[i].want)
+		{
+			printf("  block +%02x should be %s (%08x), got %08x\n",
+			       kBlocks[i].off, kBlocks[i].what, kBlocks[i].want, dest[0]);
+			bad++;
+		}
+	}
+	printf("hwlayout: %d/%d VIFfuncTable blocks are where the callers assume\n",
+	       n - bad, n);
+	return bad;
+}
+
 int main(int argc, char** argv)
 {
 	const char* path = (argc > 1) ? argv[1] : "unpack.expected";
@@ -210,6 +260,8 @@ int main(int argc, char** argv)
 	int pass = 0, cases = 0, shown = 0;
 
 	if (!f) { fprintf(stderr, "cannot open %s\n", path); return 2; }
+
+	if (check_layout()) return 1;
 
 	while (fgets(buf, sizeof(buf), f))
 	{
