@@ -46,3 +46,7 @@ if [ -f "$EXPECTED" ]; then
 else
 	echo "  skipped: set PS2AUTOTESTS to a ps2autotests checkout to run this"
 fi
+
+echo "== GTE divider self-checks (no capture needed) =="
+"$CC" -O1 -g -Wall $SANFLAGS -o "$DIR/iop_hwgte" "$DIR/hwgte.c"
+"$DIR/iop_hwgte"
