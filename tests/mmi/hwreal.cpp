@@ -64,36 +64,61 @@ namespace R5900 { namespace Interpreter { namespace OpcodeImpl { namespace MMI {
 	void PEXTUW(); void PEXTUH(); void PEXTUB();
 	void PCPYLD(); void PCPYUD(); void PCPYH(); void PREVH();
 	void PPACW(); void PPACH(); void PPACB();
+	void PABSW(); void PABSH(); void PADSBH();
+	void PEXCH(); void PEXCW(); void PEXEH(); void PEXEW();
+	void PEXT5(); void PINTEH(); void PINTH(); void PLZCW(); void PROT3W();
+	void PSLLH(); void PSLLW(); void PSRAH(); void PSRAW();
+	void PSRLH(); void PSRLW();
+	void PSLLVW(); void PSRLVW(); void PSRAVW();
 } } } }
 using namespace R5900::Interpreter::OpcodeImpl::MMI;
 
-static const struct { const char* name; const char* file; void (*fn)(); }
+/* How a line's operands map onto the instruction word. TWO is the usual
+ * rs,rt pair; ONE has a single source, which MMI.cpp reads from rt; IMM
+ * takes a shift amount in sa rather than a second register; VSHIFT is the
+ * variable-shift trio, which assemble as rd, rt, rs -- value first,
+ * amount second -- so the operands go in swapped. */
+enum { A_TWO, A_ONE, A_IMM, A_VSHIFT };
+
+static const struct { const char* name; const char* file; void (*fn)(); int form; }
 kOps[] = {
-	{ "paddw","arithmetic",PADDW },{ "psubw","arithmetic",PSUBW },
-	{ "pcgtw","compare",PCGTW },{ "pmaxw","arithmetic",PMAXW },
-	{ "paddh","arithmetic",PADDH },{ "psubh","arithmetic",PSUBH },
-	{ "pcgth","compare",PCGTH },{ "pmaxh","arithmetic",PMAXH },
-	{ "paddb","arithmetic",PADDB },{ "psubb","arithmetic",PSUBB },
-	{ "pcgtb","compare",PCGTB },
-	{ "paddsw","arithmetic",PADDSW },{ "psubsw","arithmetic",PSUBSW },
-	{ "paddsh","arithmetic",PADDSH },{ "psubsh","arithmetic",PSUBSH },
-	{ "paddsb","arithmetic",PADDSB },{ "psubsb","arithmetic",PSUBSB },
-	{ "padduw","arithmetic",PADDUW },{ "psubuw","arithmetic",PSUBUW },
-	{ "padduh","arithmetic",PADDUH },{ "psubuh","arithmetic",PSUBUH },
-	{ "paddub","arithmetic",PADDUB },{ "psubub","arithmetic",PSUBUB },
-	{ "pand","logic",PAND },{ "por","logic",POR },
-	{ "pxor","logic",PXOR },{ "pnor","logic",PNOR },
-	{ "pceqw","compare",PCEQW },{ "pceqh","compare",PCEQH },
-	{ "pceqb","compare",PCEQB },
-	{ "pminh","arithmetic",PMINH },{ "pminw","arithmetic",PMINW },
-	{ "pextlw","shuffle",PEXTLW },{ "pextlh","shuffle",PEXTLH },
-	{ "pextlb","shuffle",PEXTLB },
-	{ "pextuw","shuffle",PEXTUW },{ "pextuh","shuffle",PEXTUH },
-	{ "pextub","shuffle",PEXTUB },
-	{ "pcpyld","shuffle",PCPYLD },{ "pcpyud","shuffle",PCPYUD },
-	{ "pcpyh","shuffle",PCPYH },{ "prevh","shuffle",PREVH },
-	{ "ppacw","shuffle",PPACW },{ "ppach","shuffle",PPACH },
-	{ "ppacb","shuffle",PPACB },
+	{ "paddw","arithmetic",PADDW,A_TWO },{ "psubw","arithmetic",PSUBW,A_TWO },
+	{ "pcgtw","compare",PCGTW,A_TWO },{ "pmaxw","arithmetic",PMAXW,A_TWO },
+	{ "paddh","arithmetic",PADDH,A_TWO },{ "psubh","arithmetic",PSUBH,A_TWO },
+	{ "pcgth","compare",PCGTH,A_TWO },{ "pmaxh","arithmetic",PMAXH,A_TWO },
+	{ "paddb","arithmetic",PADDB,A_TWO },{ "psubb","arithmetic",PSUBB,A_TWO },
+	{ "pcgtb","compare",PCGTB,A_TWO },
+	{ "paddsw","arithmetic",PADDSW,A_TWO },{ "psubsw","arithmetic",PSUBSW,A_TWO },
+	{ "paddsh","arithmetic",PADDSH,A_TWO },{ "psubsh","arithmetic",PSUBSH,A_TWO },
+	{ "paddsb","arithmetic",PADDSB,A_TWO },{ "psubsb","arithmetic",PSUBSB,A_TWO },
+	{ "padduw","arithmetic",PADDUW,A_TWO },{ "psubuw","arithmetic",PSUBUW,A_TWO },
+	{ "padduh","arithmetic",PADDUH,A_TWO },{ "psubuh","arithmetic",PSUBUH,A_TWO },
+	{ "paddub","arithmetic",PADDUB,A_TWO },{ "psubub","arithmetic",PSUBUB,A_TWO },
+	{ "pand","logic",PAND,A_TWO },{ "por","logic",POR,A_TWO },
+	{ "pxor","logic",PXOR,A_TWO },{ "pnor","logic",PNOR,A_TWO },
+	{ "pceqw","compare",PCEQW,A_TWO },{ "pceqh","compare",PCEQH,A_TWO },
+	{ "pceqb","compare",PCEQB,A_TWO },
+	{ "pminh","arithmetic",PMINH,A_TWO },{ "pminw","arithmetic",PMINW,A_TWO },
+	{ "pextlw","shuffle",PEXTLW,A_TWO },{ "pextlh","shuffle",PEXTLH,A_TWO },
+	{ "pextlb","shuffle",PEXTLB,A_TWO },
+	{ "pextuw","shuffle",PEXTUW,A_TWO },{ "pextuh","shuffle",PEXTUH,A_TWO },
+	{ "pextub","shuffle",PEXTUB,A_TWO },
+	{ "pcpyld","shuffle",PCPYLD,A_TWO },{ "pcpyud","shuffle",PCPYUD,A_TWO },
+	{ "pcpyh","shuffle",PCPYH,A_TWO },{ "prevh","shuffle",PREVH,A_TWO },
+	{ "ppacw","shuffle",PPACW,A_TWO },{ "ppach","shuffle",PPACH,A_TWO },
+	{ "ppacb","shuffle",PPACB,A_TWO },
+	{ "pabsw","arithmetic",PABSW,A_ONE },{ "pabsh","arithmetic",PABSH,A_ONE },
+	{ "padsbh","arithmetic",PADSBH,A_TWO },
+	{ "pexch","shuffle",PEXCH,A_ONE },{ "pexcw","shuffle",PEXCW,A_ONE },
+	{ "pexeh","shuffle",PEXEH,A_ONE },{ "pexew","shuffle",PEXEW,A_ONE },
+	{ "pext5","shuffle",PEXT5,A_ONE },{ "prot3w","shuffle",PROT3W,A_ONE },
+	{ "pinteh","shuffle",PINTEH,A_TWO },{ "pinth","shuffle",PINTH,A_TWO },
+	{ "plzcw","logic",PLZCW,A_ONE },
+	{ "psllh","logic",PSLLH,A_IMM },{ "psrlh","logic",PSRLH,A_IMM },
+	{ "psrah","logic",PSRAH,A_IMM },{ "psllw","logic",PSLLW,A_IMM },
+	{ "psrlw","logic",PSRLW,A_IMM },{ "psraw","logic",PSRAW,A_IMM },
+	{ "psllvw","logic",PSLLVW,A_VSHIFT },{ "psrlvw","logic",PSRLVW,A_VSHIFT },
+	{ "psravw","logic",PSRAVW,A_VSHIFT },
 };
 #define NOPS ((int)(sizeof(kOps)/sizeof(kOps[0])))
 
@@ -168,7 +193,7 @@ int main(int argc, char** argv)
 
 		while (fgets(buf, sizeof(buf), f))
 		{
-			Q rs, rt, rd; unsigned w3, w2, w1, w0;
+			Q rs, rt, rd; unsigned w3, w2, w1, w0; u32 sa;
 			int named_s = 0, named_t = 0;
 			char* colon; char* args; char* comma;
 
@@ -184,11 +209,34 @@ int main(int argc, char** argv)
 			if (sscanf(colon + 2, "%x %x %x %x", &w3, &w2, &w1, &w0) != 4) continue;
 			args = buf + 2 + strlen(kOps[op].name);
 			*colon = '\0';
+			sa = 0;
 			comma = strchr(args, ',');
-			if (!comma) { *colon = ':'; continue; }
-			*comma = '\0';
-			if (!operand(args, &rs, &named_s)) { *colon = ':'; continue; }
-			if (!operand(comma + 1, &rt, &named_t)) { *colon = ':'; continue; }
+			if (kOps[op].form == A_ONE)
+			{
+				/* Single source: MMI.cpp reads it from rt. */
+				if (comma) { *colon = ':'; continue; }
+				if (!operand(args, &rt, &named_t)) { *colon = ':'; continue; }
+				rs = rt; named_s = named_t;
+			}
+			else
+			{
+				if (!comma) { *colon = ':'; continue; }
+				*comma = '\0';
+				if (!operand(args, &rs, &named_s)) { *colon = ':'; continue; }
+				if (kOps[op].form == A_IMM)
+				{
+					/* Second operand is a shift amount, and the value being
+					 * shifted is the first one, which MMI.cpp reads from rt. */
+					char* q = comma + 1;
+					while (*q == ' ') q++;
+					sa = (u32)strtoul(q, NULL, 10) & 0x1F;
+					rt = rs;
+				}
+				else if (!operand(comma + 1, &rt, &named_t))
+				{ *colon = ':'; continue; }
+				if (kOps[op].form == A_VSHIFT)
+				{ const Q t = rs; rs = rt; rt = t; }
+			}
 			*colon = ':';
 
 			/* rd carries state between cases exactly as in hwelem: the
@@ -201,12 +249,21 @@ int main(int argc, char** argv)
 				set_reg(RD, &g);
 			}
 			else
-				cpuRegs.GPR.r[RD].UL[0] = 0x1337u;
+			{
+				/* The decimal cases seed rd into both doublewords, the same
+				 * way they seed the operands. Setting only the low word
+				 * leaves the upper half holding whatever the previous case
+				 * left, which PLZCW exposes: it writes two words and leaves
+				 * the rest of rd standing. */
+				const Q seed = {{0x1337u, 0u, 0x1337u, 0u}};
+				set_reg(RD, &seed);
+			}
 
 			set_reg(RS, &rs);
 			set_reg(RT, &rt);
 			/* SPECIAL-form encoding: rs at 21, rt at 16, rd at 11. */
-			cpuRegs.code = ((u32)RS << 21) | ((u32)RT << 16) | ((u32)RD << 11);
+			cpuRegs.code = ((u32)RS << 21) | ((u32)RT << 16) | ((u32)RD << 11)
+			             | (sa << 6);
 			kOps[op].fn();
 			get_reg(RD, &rd);
 
