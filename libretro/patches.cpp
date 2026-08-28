@@ -1675,17 +1675,25 @@ int lrps2_ingame_patches(const char *serial,
 			/* Grand Theft Auto: San Andreas (NTSC-U) [CRC: 399A49CA] */
 			else if (!strcmp(serial, "SLUS-20946"))
 			{
-				static const char *const patches[] = {
-					/* Enable Hot Coffee */
-					"patch=1,EE,206B32FC,extended,00000000",
-					"patch=1,EE,E003F0FF,extended,00700942",
-					"patch=1,EE,2088D760,extended,4C333132",
-					"patch=1,EE,2088D764,extended,3244334C",
-					"patch=1,EE,2088D768,extended,32000052"
-				};
-				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
-					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Grand Theft Auto: San Andreas (NTSC-U)]: Hot Coffee enabled.\n");
+				/* Addresses are for the CRC 399A49CA pressing; other
+				 * pressings reuse the serial with a different ELF, so
+				 * only patch the one these were made for. */
+				if (game_crc == 0x399A49CA)
+				{
+					static const char *const patches[] = {
+						/* Enable Hot Coffee */
+						"patch=1,EE,206B32FC,extended,00000000",
+						"patch=1,EE,E003F0FF,extended,00700942",
+						"patch=1,EE,2088D760,extended,4C333132",
+						"patch=1,EE,2088D764,extended,3244334C",
+						"patch=1,EE,2088D768,extended,32000052"
+					};
+					for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
+						LoadPatchesFromString(patches[i]);
+					log_cb(RETRO_LOG_INFO, "[PATCH] [Grand Theft Auto: San Andreas (NTSC-U)]: Hot Coffee enabled.\n");
+				}
+				else
+					log_cb(RETRO_LOG_INFO, "[PATCH] [Grand Theft Auto: San Andreas (NTSC-U)]: Hot Coffee patch skipped, no patch for this revision (CRC %08X).\n", game_crc);
 			}
 			/* King of Fighters '98 - Ultimate Match, The (NTSC-U) [CRC: E5A904B3] */
 			else if (!strcmp(serial, "SLUS-21816"))
@@ -2211,16 +2219,24 @@ int lrps2_ingame_patches(const char *serial,
 			/* Grand Theft Auto: San Andreas (NTSC-U) [CRC: 399A49CA] */
 			else if (!strcmp(serial, "SLUS-20946"))
 			{
-				/* 60fps uncapped. Need EE Overclock at 180%. */
-				static const char *const patches[] = {
-					"patch=0,EE,2039B53C,extended,24040001", /* Set VSync Mode to 60 FPS */
-					"patch=1,EE,0066804C,word,10000001",
-					"patch=1,EE,D066804C,word,10000001",
-					"patch=1,EE,006678CC,extended,00000001" /* Framerate boost */
-				};
-				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
-					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Grand Theft Auto: San Andreas (NTSC-U)]: 60fps patch applied (needs 180% EE cyclerate).\n");
+				/* Same revision guard as the Hot Coffee entry: these
+				 * addresses are only valid for the CRC 399A49CA ELF
+				 * (verified against it: 39B53C holds li a0,2). */
+				if (game_crc == 0x399A49CA)
+				{
+					/* 60fps uncapped. Need EE Overclock at 180%. */
+					static const char *const patches[] = {
+						"patch=0,EE,2039B53C,extended,24040001", /* Set VSync Mode to 60 FPS */
+						"patch=1,EE,0066804C,word,10000001",
+						"patch=1,EE,D066804C,word,10000001",
+						"patch=1,EE,006678CC,extended,00000001" /* Framerate boost */
+					};
+					for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
+						LoadPatchesFromString(patches[i]);
+					log_cb(RETRO_LOG_INFO, "[PATCH] [Grand Theft Auto: San Andreas (NTSC-U)]: 60fps patch applied (needs 180% EE cyclerate).\n");
+				}
+				else
+					log_cb(RETRO_LOG_INFO, "[PATCH] [Grand Theft Auto: San Andreas (NTSC-U)]: 60fps patch skipped, no patch for this revision (CRC %08X).\n", game_crc);
 			}
 			/* Jurassic: The Hunted (NTSC-U) [CRC:EFE4448F] */
 			else if (!strcmp(serial, "SLUS-21907"))
@@ -3931,22 +3947,31 @@ int lrps2_ingame_patches(const char *serial,
 				else
 					log_cb(RETRO_LOG_INFO, "[PATCH] [Grand Theft Auto: Vice City (NTSC-U)]: 16:9 Widescreen patch skipped, no patch for this revision (CRC %08X).\n", game_crc);
 			}
-			/* Grand Theft Auto: San Andreas (NTSC-U) [CRC: 399A49CA / 2C6BE4534] */
+			/* Grand Theft Auto: San Andreas (NTSC-U) [CRC: 399A49CA] */
 			else if (!strcmp(serial, "SLUS-20946"))
 			{
-				/* Patch courtesy: nemesis2000, flameofrecca */
-				static const char *const patches[] = {
-					"patch=1,EE,001130BC,word,3C013F9D",
-					"patch=1,EE,001130C0,word,44810000",
-					"patch=1,EE,001130C4,word,46006302",
-					"patch=1,EE,001130C8,word,03E00008",
-					"patch=1,EE,001130CC,word,E78C9A90",
-					"patch=1,EE,0021DF84,word,0C044C2F",
-					"patch=1,EE,00242D54,word,0C044C32"
-				};
-				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
-					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Grand Theft Auto: San Andreas (NTSC-U)]: 16:9 Widescreen patch applied.\n");
+				/* Same revision guard as the entries above: the aspect
+				 * setter tail (jr ra; swc1 f12,-0x6570(gp)) sits at
+				 * 1130C0/C4 in the 399A49CA ELF and both callers jal it;
+				 * on any other pressing these words land elsewhere. */
+				if (game_crc == 0x399A49CA)
+				{
+					/* Patch courtesy: nemesis2000, flameofrecca */
+					static const char *const patches[] = {
+						"patch=1,EE,001130BC,word,3C013F9D",
+						"patch=1,EE,001130C0,word,44810000",
+						"patch=1,EE,001130C4,word,46006302",
+						"patch=1,EE,001130C8,word,03E00008",
+						"patch=1,EE,001130CC,word,E78C9A90",
+						"patch=1,EE,0021DF84,word,0C044C2F",
+						"patch=1,EE,00242D54,word,0C044C32"
+					};
+					for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
+						LoadPatchesFromString(patches[i]);
+					log_cb(RETRO_LOG_INFO, "[PATCH] [Grand Theft Auto: San Andreas (NTSC-U)]: 16:9 Widescreen patch applied.\n");
+				}
+				else
+					log_cb(RETRO_LOG_INFO, "[PATCH] [Grand Theft Auto: San Andreas (NTSC-U)]: 16:9 Widescreen patch skipped, no patch for this revision (CRC %08X).\n", game_crc);
 			}
 			/* Half-Life (NTSC-U) [CRC: A880AE9B] */
 			else if (!strcmp(serial, "SLUS-20066")) /* 16:9 */
