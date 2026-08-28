@@ -193,6 +193,11 @@ struct VSyncInfo
 	// Requested log2 of the scanout upsample factor (0 = off, 1 = 2x, 2 = 4x).
 	// Clamped internally to what the super-sampling grid can feed.
 	uint32_t high_resolution_scanout;
+	// At 4x, reconstruct each output pixel with a 9-tap tent over the
+	// neighboring grid samples instead of the single point sample. Real
+	// texture anti-aliasing at full resolution, for about half a pixel
+	// of softness. Ignored below 4x.
+	bool high_res_scanout_filtered;
 
 	// If using interlaced, defer any attempt to deinterlace and just return the raw output as-is with phase information.
 	// User is responsible for deinterlacing in whatever way is appropriate.

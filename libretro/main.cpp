@@ -511,8 +511,10 @@ static void check_variables(bool first_run)
 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 		{
 			u8 pgs_high_res_scanout_prev = setting_pgs_high_res_scanout;
-			/* Value is the scanout scale log2: 0 = off, 1 = 2x, 2 = 4x. */
-			if (!strcmp(var.value, "enabled (4x)"))
+			/* 0 = off, 1 = 2x, 2 = 4x, 3 = 4x anti-aliased. */
+			if (!strcmp(var.value, "enabled (4x, anti-aliased)"))
+				setting_pgs_high_res_scanout = 3;
+			else if (!strcmp(var.value, "enabled (4x)"))
 				setting_pgs_high_res_scanout = 2;
 			else
 				setting_pgs_high_res_scanout = !strcmp(var.value, "enabled");
@@ -1918,7 +1920,8 @@ unsigned retro_get_region(void)
 
 void retro_get_system_av_info(retro_system_av_info* info)
 {
-	unsigned upscale_mul       = (setting_renderer == "paraLLEl-GS" && setting_pgs_high_res_scanout) ? (1u << setting_pgs_high_res_scanout) : setting_upscale_multiplier;
+	unsigned pgs_scanout_log2  = setting_pgs_high_res_scanout == 3 ? 2 : setting_pgs_high_res_scanout;
+	unsigned upscale_mul       = (setting_renderer == "paraLLEl-GS" && pgs_scanout_log2) ? (1u << pgs_scanout_log2) : setting_upscale_multiplier;
 
 	switch (gsVideoMode)
 	{

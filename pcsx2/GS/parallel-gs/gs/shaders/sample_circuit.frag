@@ -95,6 +95,35 @@ bool super_sample_is_valid(uint addr)
 }
 #endif
 
+// Fetch one sample from the ordered 4x4 grid addressed in 4x-output
+// coordinates: G is the global grid coordinate (four grid steps per
+// native pixel on each axis). Used by the tent reconstruction taps,
+// which cross native pixel boundaries.
+vec4 fetch_grid_sample(uvec2 G, uint phase_stride)
+{
+#if PROMOTED
+    const uint TAP_BASE_LAYER = 1u;
+#else
+    const uint TAP_BASE_LAYER = 2u;
+#endif
+    uvec2 native = G >> 2u;
+    uvec2 g = G & 3u;
+    uint slice = (g.y & 1u) | ((g.x & 1u) << 1u) | ((g.y >> 1u) << 2u) | ((g.x >> 1u) << 3u);
+
+    uvec2 c = native * uvec2(1u, phase_stride) +
+        uvec2(registers.dbx, registers.dby + registers.phase);
+
+#if PROMOTED
+    return sample_vram(c, TAP_BASE_LAYER + slice);
+#else
+    uint a = swizzle_PS2(c.x, c.y, registers.fbp * PGS_BLOCKS_PER_PAGE, registers.fbw, PSM, VRAM_MASK);
+    if (super_sample_is_valid(a))
+        return sample_vram(a, TAP_BASE_LAYER + slice);
+    else
+        return sample_vram(a, 0);
+#endif
+}
+
 void main()
 {
     // The upper half of phase_stride carries the per-axis scanout scale
@@ -103,6 +132,7 @@ void main()
     // scanout caps Y at 1 while X may still be 2.
     uint scale_x_log2 = (registers.phase_stride >> 16u) & 0xfu;
     uint scale_y_log2 = (registers.phase_stride >> 20u) & 0xfu;
+    bool tent_filter = ((registers.phase_stride >> 24u) & 1u) != 0u;
     if (scale_x_log2 == 0u)
         scale_x_log2 = 1u;
     if (scale_y_log2 == 0u)
@@ -141,7 +171,24 @@ void main()
         // (see compute_sample_points), so rebuild the index from the two
         // low output coordinate bits per axis. No averaging: the whole
         // grid is spent on resolution.
-        if (super_sample_is_valid(addr))
+        if (tent_filter)
+        {
+            // Reconstruct with a separable [1 2 1]/4 tent over the
+            // neighboring grid samples: nine real rasterized samples per
+            // output pixel instead of one. Texture anti-aliasing at full
+            // resolution for about half an output pixel of softness.
+            const float w[3] = float[3](0.25, 0.5, 0.25);
+            ivec2 base = ivec2(super_sampled_coord);
+            vec4 acc = vec4(0.0);
+            for (int dy = -1; dy <= 1; dy++)
+                for (int dx = -1; dx <= 1; dx++)
+                {
+                    uvec2 G = uvec2(max(base + ivec2(dx, dy), ivec2(0)));
+                    acc += w[dx + 1] * w[dy + 1] * fetch_grid_sample(G, phase_stride);
+                }
+            FragColor = acc;
+        }
+        else if (super_sample_is_valid(addr))
         {
             uvec2 g = super_sampled_coord & 3u;
             uint slice = (g.y & 1u) | ((g.x & 1u) << 1u) | ((g.y >> 1u) << 2u) | ((g.x >> 1u) << 3u);

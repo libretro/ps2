@@ -4054,7 +4054,8 @@ void GSRenderer::transfer_overlap_barrier()
 
 void GSRenderer::sample_crtc_circuit(Vulkan::CommandBuffer &cmd, const Vulkan::Image &img, const DISPFBBits &dispfb,
                                      const SamplingRect &rect, uint32_t super_samples,
-                                     uint32_t scale_x_log2, uint32_t scale_y_log2, const Vulkan::Image *promoted)
+                                     uint32_t scale_x_log2, uint32_t scale_y_log2, bool filtered,
+                                     const Vulkan::Image *promoted)
 {
 	cmd.image_barrier(img, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
 	                  0, 0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT);
@@ -4103,9 +4104,11 @@ void GSRenderer::sample_crtc_circuit(Vulkan::CommandBuffer &cmd, const Vulkan::I
 	push.dby = uint32_t(dispfb.DBY);
 	push.phase = rect.phase_offset;
 	// The upper half of phase_stride carries the per-axis scanout scale
-	// log2s (X in bits 16..19, Y in bits 20..23) so the push layout (and
-	// the serialized reflection for it) stays unchanged.
-	push.phase_stride = rect.phase_stride | (scale_x_log2 << 16) | (scale_y_log2 << 20);
+	// log2s (X in bits 16..19, Y in bits 20..23) and the tent filter flag
+	// (bit 24) so the push layout (and the serialized reflection for it)
+	// stays unchanged.
+	push.phase_stride = rect.phase_stride | (scale_x_log2 << 16) | (scale_y_log2 << 20) |
+	                    (uint32_t(filtered) << 24);
 	cmd.push_constants(&push, 0, sizeof(push));
 
 	cmd.checkpoint("sample-crtc");
@@ -4272,6 +4275,11 @@ ScanoutResult GSRenderer::vsync(const PrivRegisterState &priv, const VSyncInfo &
 		high_resolution_scanout = scanout_scale_x_log2 > scanout_scale_y_log2 ?
 		                          scanout_scale_x_log2 : scanout_scale_y_log2;
 	}
+
+	// The tent reconstruction only makes sense where the grid is fully
+	// spent on resolution: the symmetric 4x case.
+	bool scanout_filtered = info.high_res_scanout_filtered &&
+	                        scanout_scale_x_log2 == 2 && scanout_scale_y_log2 == 2;
 
 	uint32_t super_samples = 1;
 	if (high_resolution_scanout)
@@ -4599,7 +4607,7 @@ ScanoutResult GSRenderer::vsync(const PrivRegisterState &priv, const VSyncInfo &
 			}
 			circuit1 = device->create_image(image_info);
 			sample_crtc_circuit(cmd, *circuit1, priv.dispfb1, rect, super_samples,
-			                    scanout_scale_x_log2, scanout_scale_y_log2, promoted1);
+			                    scanout_scale_x_log2, scanout_scale_y_log2, scanout_filtered, promoted1);
 			device->set_name(*circuit1, "Circuit1");
 		}
 
@@ -4658,7 +4666,7 @@ ScanoutResult GSRenderer::vsync(const PrivRegisterState &priv, const VSyncInfo &
 			}
 			circuit2 = device->create_image(image_info);
 			sample_crtc_circuit(cmd, *circuit2, priv.dispfb2, rect, super_samples,
-			                    scanout_scale_x_log2, scanout_scale_y_log2, promoted2);
+			                    scanout_scale_x_log2, scanout_scale_y_log2, scanout_filtered, promoted2);
 			device->set_name(*circuit2, "Circuit2");
 		}
 
