@@ -433,7 +433,25 @@ static void yuv2rgb24(int *blk,unsigned char *image)
  * Bit-exact output therefore needs a table-driven transform, which is a
  * change to idct() rather than to this register or to the FIFO. The RL
  * decode itself is not implicated: the trace's input consumes 473 of its
- * 512 codes into exactly four macroblocks. */
+ * 512 codes into exactly four macroblocks.
+ *
+ * That transform was written and measured before being set aside, and the
+ * numbers are worth keeping so it is not redone from scratch. Replacing
+ * idct() with the documented two-pass matrix multiply -- for each pass,
+ * dst[x+y*8] = (sum over z of src[y+z*8] * (tab[x+z*8]/8) + 0xfff)/0x2000
+ * -- and feeding it the table the trace uploads takes the output words
+ * from 1 of 512 to 38, and from 25 to 84 present in either order. Four
+ * index and rounding variants of the same multiply were tried and all
+ * scored lower: transposing the source gives 17, transposing the table
+ * 22, writing the destination transposed 13, and dropping the /8 for a
+ * 16-bit shift is identical at 38.
+ *
+ * So the matrix is necessary and not sufficient, and the remaining
+ * difference is downstream of it -- yuv2rgb15's colour conversion and
+ * 15-bit packing are what is left unaccounted for. 38 of 512 is not
+ * enough to justify changing how PS1 software decodes, which is why the
+ * transform is not in the tree: it would alter every PS1 title that
+ * uploads a table, on evidence that only shows it is closer. */
 static unsigned short* rl2blk_one(int *blk, unsigned short *mdec_rl, int which)
 {
 	int k, q_scale, rl;
