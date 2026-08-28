@@ -128,9 +128,19 @@ void psxSRL() { if (!_Rd_) return; _rRd_ = _u32(_rRt_) >> _Sa_; } // Rd = Rt >> 
 * Shift arithmetic with variant register shift           *
 * Format:  OP rd, rt, rs                                 *
 *********************************************************/
-void psxSLLV() { if (!_Rd_) return; _rRd_ = _u32(_rRt_) << _u32(_rRs_); } // Rd = Rt << rs
-void psxSRAV() { if (!_Rd_) return; _rRd_ = _i32(_rRt_) >> _u32(_rRs_); } // Rd = Rt >> rs (arithmetic)
-void psxSRLV() { if (!_Rd_) return; _rRd_ = _u32(_rRt_) >> _u32(_rRs_); } // Rd = Rt >> rs (logical)
+/* The shift amount is the low five bits of rs. Shifting a 32-bit value by
+ * 32 or more is undefined in C, and the register holds whatever the guest
+ * put there -- the ps2autotests capture uses -1 among others. x86 masks
+ * the count in hardware, so this happened to give the right answer there
+ * and only there; AArch64 produces zero for the same shift, so an IOP
+ * running on arm64 would diverge from one running on x86 for any variable
+ * shift with rs >= 32.
+ *
+ * rpsxSLLV in x86/iR3000Atables.cpp masks, and so does SLLV in
+ * R5900OpcodeImpl.cpp for the EE. This was the odd one out. */
+void psxSLLV() { if (!_Rd_) return; _rRd_ = _u32(_rRt_) << (_u32(_rRs_) & 0x1f); } // Rd = Rt << rs
+void psxSRAV() { if (!_Rd_) return; _rRd_ = _i32(_rRt_) >> (_u32(_rRs_) & 0x1f); } // Rd = Rt >> rs (arithmetic)
+void psxSRLV() { if (!_Rd_) return; _rRd_ = _u32(_rRt_) >> (_u32(_rRs_) & 0x1f); } // Rd = Rt >> rs (logical)
 
 /*********************************************************
 * Load higher 16 bits of the first word in GPR with imm  *
