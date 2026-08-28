@@ -2698,8 +2698,35 @@ void GSInterface::drawing_kick_append()
 		// super-sampled quads on, keep the sprite on the sample grid.
 		// The arrayed (per-sample) case is left alone here; the
 		// triangle_setup path handles that one.
+		bool super_sample_this_sprite = false;
 		const bool sprite_is_per_sample = (prim_attr.tex & TEX_PER_SAMPLE_BIT) != 0;
-		if (!(super_sampled_quads && prim.desc.TME && !sprite_is_per_sample))
+		if (super_sampled_quads && prim.desc.TME && !sprite_is_per_sample)
+		{
+			// Only minifying sprites have detail to recover. A sprite at
+			// 1:1 -- which is most UI, and all bitmap-font text -- has
+			// exactly one texel per pixel, so per-sample interpolation
+			// gains nothing and instead lets samples within the pixel
+			// straddle a texel boundary. With NEAREST filtering and a 4x
+			// scanout, where one sample IS one output pixel, that shows
+			// up as hard neighbouring texels punched through the glyph
+			// edges rather than as a soft fringe.
+			//
+			// uv_bb bounds are inclusive texel indices, so a 1:1 sprite
+			// spanning N pixels covers N + 1 of them; require more than
+			// that before calling it minification.
+			ivec4 sprite_uv_bb;
+			compute_uv_bb<quad, num_vertices, false>(attr, ctx, prim.desc, sprite_uv_bb, nullptr, nullptr);
+
+			const int texels_x = sprite_uv_bb.z - sprite_uv_bb.x + 1;
+			const int texels_y = sprite_uv_bb.w - sprite_uv_bb.y + 1;
+			const int pixels_x = (pre_snap_hi.x - pre_snap_lo.x) >> int(PGS_SUBPIXEL_BITS);
+			const int pixels_y = (pre_snap_hi.y - pre_snap_lo.y) >> int(PGS_SUBPIXEL_BITS);
+
+			super_sample_this_sprite = (pixels_x > 0 && texels_x > pixels_x + 1) ||
+			                           (pixels_y > 0 && texels_y > pixels_y + 1);
+		}
+
+		if (!super_sample_this_sprite)
 		{
 			prim_attr.state |= 1u << STATE_BIT_SNAP_RASTER;
 			prim_attr.state |= 1u << STATE_BIT_SNAP_ATTRIBUTE;
