@@ -3355,7 +3355,41 @@ namespace {
 			// identical in both execution modes; MTC0 Status/Config side effects
 			// live inside the op. BC0x (branches) and CO/TLB/ERET stay handoffs.
 			case 0x10:
-				if (rs == 0x00) { EmitInterpOpCall(m, gpr, insn, &R5900::Interpreter::OpcodeImpl::COP0::MFC0); return true; }
+				if (rs == 0x00)
+				{
+					// MFC0 rt, rd. rd is a compile-time constant, so most of
+					// COP0.cpp's switch collapses to a load here rather than a
+					// call into the interpreter:
+					//
+					//   24        reads nothing at all, a plain nop
+					//   12        Status, masked to its implemented bits
+					//   default   the register, sign-extended
+					//
+					// 9 (Count) and 25 (PERF) keep the call. Count has to
+					// advance cpuRegs.cycle first and does it even when rt is
+					// zero, and PERF runs COP0_UpdatePCCR, so neither is a
+					// load -- emitting them would mean duplicating side
+					// effects that already exist in one place.
+					const u32 rd_ = (insn >> 11) & 31;
+					// COP0.cpp returns early when rt is zero unless rd is 9,
+					// the one register read for its side effect rather than
+					// its value, so nothing at all happens here either.
+					if (!rt && rd_ != 9)
+						return true;
+					if (rd_ == 9 || rd_ == 25)
+					{
+						EmitInterpOpCall(m, gpr, insn, &R5900::Interpreter::OpcodeImpl::COP0::MFC0);
+						return true;
+					}
+					if (rd_ == 24)
+						return true;              // reads nothing
+					m.Ldr(w0, RegsField(&cpuRegs.CP0.r[rd_]));
+					if (rd_ == 12)
+						m.And(w0, w0, 0xf0c79c1f);
+					m.Sxtw(x0, w0);
+					StoreGpr(m, x0, gpr, rt);
+					return true;
+				}
 				if (rs == 0x04) { EmitInterpOpCall(m, gpr, insn, &R5900::Interpreter::OpcodeImpl::COP0::MTC0); return true; }
 				// CO-format EI/DI (funct 0x38/0x39), C.43: both just conditionally
 				// toggle the COP0 Status EIE bit -- no memory, no control flow. EI
