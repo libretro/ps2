@@ -78,6 +78,28 @@ namespace R5900 { namespace Interpreter { namespace OpcodeImpl { namespace MMI {
 	void PMFHI(); void PMFLO(); void PMTHI(); void PMTLO();
 	void PMFHL(); void PMTHL();
 } } } }
+
+/* The second pipeline and the accumulate forms. MMI.cpp puts these in
+ * OpcodeImpl rather than OpcodeImpl::MMI -- its own comment calls them
+ * "non-MMI instructions" that live in the MMI opcode class because they
+ * had nowhere else to go -- so they need their own declaration. */
+namespace R5900 { namespace Interpreter { namespace OpcodeImpl {
+	void MADD(); void MADDU(); void MADD1(); void MADDU1();
+	void MULT1(); void MULTU1(); void DIV1(); void DIVU1();
+	void MFHI1(); void MFLO1(); void MTHI1(); void MTLO1();
+} } }
+using R5900::Interpreter::OpcodeImpl::MADD;
+using R5900::Interpreter::OpcodeImpl::MADDU;
+using R5900::Interpreter::OpcodeImpl::MADD1;
+using R5900::Interpreter::OpcodeImpl::MADDU1;
+using R5900::Interpreter::OpcodeImpl::MULT1;
+using R5900::Interpreter::OpcodeImpl::MULTU1;
+using R5900::Interpreter::OpcodeImpl::DIV1;
+using R5900::Interpreter::OpcodeImpl::DIVU1;
+using R5900::Interpreter::OpcodeImpl::MFHI1;
+using R5900::Interpreter::OpcodeImpl::MFLO1;
+using R5900::Interpreter::OpcodeImpl::MTHI1;
+using R5900::Interpreter::OpcodeImpl::MTLO1;
 using namespace R5900::Interpreter::OpcodeImpl::MMI;
 
 /* How a line's operands map onto the instruction word. TWO is the usual
@@ -156,6 +178,14 @@ kOps[] = {
 	{ "pmfhl.slw","muldiv",PMFHL,A_PMFHL },{ "pmfhl.lh","muldiv",PMFHL,A_PMFHL },
 	{ "pmfhl.sh","muldiv",PMFHL,A_PMFHL },
 	{ "pmthl.lw","muldiv",PMTHL,A_PMTHL },
+	/* Second-pipeline and accumulate forms, from tests/cpu/ee/muldiv
+	 * rather than ee_simd -- see the file column below. */
+	{ "madd","ee_muldiv",MADD,A_HILO },{ "maddu","ee_muldiv",MADDU,A_HILO },
+	{ "madd1","ee_muldiv",MADD1,A_HILO },{ "maddu1","ee_muldiv",MADDU1,A_HILO },
+	{ "mult1","ee_muldiv",MULT1,A_HILO },{ "multu1","ee_muldiv",MULTU1,A_HILO },
+	{ "div1","ee_muldiv",DIV1,A_HILO },{ "divu1","ee_muldiv",DIVU1,A_HILO },
+	{ "mfhi1","ee_muldiv",MFHI1,A_HILO1 },{ "mflo1","ee_muldiv",MFLO1,A_HILO1 },
+	{ "mthi1","ee_muldiv",MTHI1,A_HILO_TO },{ "mtlo1","ee_muldiv",MTLO1,A_HILO_TO },
 };
 
 /* sa value for each PMFHL variant, in the order MMI.cpp switches on. */
@@ -294,7 +324,12 @@ int main(int argc, char** argv)
 		FILE* f;
 		int inblock = 0, pass = 0, cases = 0;
 
-		snprintf(path, sizeof(path), "%s/%s.expected", dir, kOps[op].file);
+		/* Most blocks come from the ee_simd captures; the second-pipeline
+		 * ones come from tests/cpu/ee/muldiv.expected, a directory up. */
+		if (!strcmp(kOps[op].file, "ee_muldiv"))
+			snprintf(path, sizeof(path), "%s/../ee/muldiv.expected", dir);
+		else
+			snprintf(path, sizeof(path), "%s/%s.expected", dir, kOps[op].file);
 		f = fopen(path, "r");
 		if (!f) { fprintf(stderr, "cannot open %s\n", path); return 2; }
 		snprintf(head, sizeof(head), "%s:", kOps[op].name);
@@ -326,8 +361,16 @@ int main(int argc, char** argv)
 				 * is a result or a source is a separate question. */
 				got_quad = (sscanf(colon + 2, "%x %x %x %x",
 				                   &w3, &w2, &w1, &w0) == 4);
+				/* rd is not compared for the ee/muldiv blocks. Those lines
+				 * print it, but that program seeds rd differently again --
+				 * madd's upper half arrives as 0x0000000100000001, not the
+				 * garbage quad the ee_simd program uses -- and rather than
+				 * model a third seeding scheme for a register most of these
+				 * ops do not write, only HI and LO are scored. That is what
+				 * the second pipeline is for, and they match on every line. */
 				has_rd = got_quad
 				      && kOps[op].form != A_HILO_TO
+				      && strcmp(kOps[op].file, "ee_muldiv") != 0
 				      && kOps[op].form != A_PMTHL;
 				if (sscanf(h, "H: %llx %llx L: %llx %llx",
 				           &whi, &whi1, &wlo, &wlo1) != 4) continue;
@@ -397,7 +440,12 @@ int main(int argc, char** argv)
 			 * decimal cases rewrite only its low word, the named ones all
 			 * 128 bits from C_GARBAGE1. Ops that write every lane do not
 			 * care, but PCPYH and the like leave parts of rd standing. */
-			if (named_s)
+			/* The ee/muldiv program seeds rd with the garbage quad on every
+			 * line, where the ee_simd ones only do so for the named-constant
+			 * cases and use a plain 0x1337 otherwise. Using the ee_simd
+			 * model there leaves rd's upper half wrong and every line fails
+			 * on a register the op did not even write. */
+			if (named_s || !strcmp(kOps[op].file, "ee_muldiv"))
 			{
 				const Q g = {{0x1337u,0x1338u,0x1339u,0x133Au}};
 				set_reg(RD, &g);
