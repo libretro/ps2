@@ -25,12 +25,14 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
+#include <fenv.h>
 
 #include "ps2float.h"
 
 typedef uint32_t u32;
 
-enum { F_ADD, F_SUB, F_MUL, F_DIV, F_SQRT, F_RSQRT, F_MADD, F_MSUB, F_COUNT };
+enum { F_ADD, F_SUB, F_MUL, F_DIV, F_SQRT, F_RSQRT, F_MADD, F_MSUB,
+       F_CVTWS, F_CVTSW, F_CEQ, F_CLT, F_CLE, F_CF, F_COUNT };
 
 static const struct { const char* name; const char* file; int operands; int acc; }
 kOps[F_COUNT] = {
@@ -42,7 +44,41 @@ kOps[F_COUNT] = {
 	{ "rsqrt", "sqrt",       2, 0 },
 	{ "madd",  "muldiv",     2, 1 },
 	{ "msub",  "muldiv",     2, 1 },
+	/* CVT_W / CVT_S and the four compares live in FPU.cpp rather than
+	 * ps2float.c, so unlike everything above these are transcribed. */
+	{ "cvt.w.s", "convert",  1, 0 },
+	{ "cvt.s.w", "convert",  1, 0 },
+	{ "eq",    "compare",    2, 0 },
+	{ "lt",    "compare",    2, 0 },
+	{ "le",    "compare",    2, 0 },
+	{ "f",     "compare",    2, 0 },
 };
+/* Ops whose captures print true/false rather than a value. */
+static int is_compare(int op) { return op >= F_CEQ; }
+
+/* Mirrors CVT_W in pcsx2/FPU.cpp: in range it truncates, out of range it
+ * pins to INT_MAX or INT_MIN by sign. */
+static u32 cvt_w(u32 f)
+{
+	if ((f & 0x7F800000u) <= 0x4E800000u)
+	{ float v; memcpy(&v, &f, 4); return (u32)(int32_t)v; }
+	return (f & 0x80000000u) == 0 ? 0x7fffffffu : 0x80000000u;
+}
+/* Mirrors CVT_S: integer to float, then the denormal flush fpuDouble does. */
+static u32 cvt_s(u32 f)
+{
+	float v = (float)(int32_t)f;
+	u32 r; memcpy(&r, &v, 4);
+	if ((r & 0x7f800000u) == 0) r &= 0x80000000u;
+	return r;
+}
+/* Mirrors fpuCompareFull: flush denormals, then order as sign-magnitude. */
+static int32_t cmp_key(u32 f)
+{
+	if (!(f & 0x7f800000u)) f = 0;
+	if (f & 0x80000000u) f ^= 0x7fffffffu;
+	return (int32_t)f;
+}
 
 /* The named constants, from tests/cpu/ee_fpu/shared.h. */
 static const struct { const char* name; u32 v; } kConst[] = {
@@ -106,6 +142,12 @@ static u32 apply(int op, u32 a, u32 b, u32 acc)
 	case F_RSQRT: return ps2f_raw(ps2f_rsqrt(a, b));
 	case F_MADD:  return ps2f_raw(ps2f_madd(acc, a, b, 0));
 	case F_MSUB:  return ps2f_raw(ps2f_msub(acc, a, b, 0));
+	case F_CVTWS: return cvt_w(a);
+	case F_CVTSW: return cvt_s(a);
+	case F_CEQ:   return cmp_key(a) == cmp_key(b);
+	case F_CLT:   return cmp_key(a) <  cmp_key(b);
+	case F_CLE:   return cmp_key(a) <= cmp_key(b);
+	case F_CF:    return 0; /* always false */
 	}
 	return 0;
 }
@@ -114,6 +156,16 @@ int main(int argc, char** argv)
 {
 	const char* dir = (argc > 1) ? argv[1] : ".";
 	int op, failures = 0, total = 0;
+
+	/* Match the emulator. VMManager sets the host rounding mode to the
+	 * EE/VU chop-toward-zero setting at VM start, and CVT_S and the compares
+	 * are plain host float in FPU.cpp, so they inherit it. Left at the
+	 * default, CVT_S scores 26 of 32 here and reads as a conversion bug --
+	 * console cvt.s.w(7fffffff) is 4effffff, the truncation, against
+	 * 4f000000 rounded to nearest -- when it is this harness in the wrong
+	 * mode rather than the emulator. The ps2float ops are integer code and
+	 * do not care either way. */
+	fesetround(FE_TOWARDZERO);
 
 	for (op = 0; op < F_COUNT; op++)
 	{
@@ -145,9 +197,17 @@ int main(int argc, char** argv)
 			while (*p && *p != ':') p++;
 			if (*p != ':') continue;
 			p++;
+			while (*p == ' ') p++;
+			if (is_compare(op))
+			{
+				if (!strncmp(p, "true", 4)) want = 1;
+				else if (!strncmp(p, "false", 5)) want = 0;
+				else continue;
+			}
+			else
 			{
 				unsigned v;
-				if (sscanf(p, " %x", &v) != 1) continue;
+				if (sscanf(p, "%x", &v) != 1) continue;
 				want = v;
 			}
 

@@ -17,7 +17,7 @@ echo "== EE FPU vs console =="
 EXPECTED="${PS2AUTOTESTS:-}/tests/cpu/ee_fpu"
 if [ -d "$EXPECTED" ]; then
 	"$CC" -O1 -g -Wall $SANFLAGS -I "$ROOT" -I "$ROOT/pcsx2" -I "$ROOT/common" \
-		-o "$DIR/fpu_hwfpu" "$DIR/hwfpu.c" "$ROOT/pcsx2/ps2float.c"
+		-frounding-math -o "$DIR/fpu_hwfpu" "$DIR/hwfpu.c" "$ROOT/pcsx2/ps2float.c" -lm
 	"$DIR/fpu_hwfpu" "$EXPECTED"
 else
 	echo "  skipped: set PS2AUTOTESTS to a ps2autotests checkout to run this"
