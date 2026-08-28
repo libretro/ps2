@@ -16,9 +16,9 @@
  *    - the words the output FIFO hands back,
  *    - the order of the phase switches (input full, output empty).
  *
- *  As it stands this reports 0 of 777 status reads and 0 of 512 output
- *  words. MDEC_STATUS is a stub that always reads zero, and mdecWrite0
- *  treats every word as a command rather than as FIFO data, because the
+ *  As it stands this reports 88 of 777 status reads and 0 of 512 output
+ *  words. The status register now carries real state -- see the note in
+ *  Mdec.cpp -- and what is left needs the output FIFO, because the
  *  decoder is driven from a memory buffer by psxDma0/psxDma1 rather than
  *  from the registers. Neither is a small fix, and the trace shows why:
  *  the console's input phases take 96, 32, 64 and 32 words before the
@@ -103,6 +103,30 @@ int main(int argc, char** argv)
 			have_status = 1;
 			continue;
 		}
+		/* "mdec_decode(addr=0x800137a4, length=0x400, colorDepth=3,
+		 * outputSigned=0, setBit15=0)..." -- the trace states the decode
+		 * command in prose rather than as a register write, because the
+		 * library call that issues it does so before the logged section
+		 * begins. Without it the status register has no command to report
+		 * and every read comes back with only the idle bits, which looks
+		 * like the register being unimplemented rather than uncommanded.
+		 * The command word is rebuilt from the parameters. */
+		{
+			unsigned len, depth, sgn, b15;
+			const char* d = strstr(buf, "mdec_decode(");
+			if (d && sscanf(d, "mdec_decode(addr=0x%*x, length=0x%x,"
+			                   " colorDepth=%u, outputSigned=%u, setBit15=%u)",
+			                &len, &depth, &sgn, &b15) == 4)
+			{
+				u32 cmd = 0x30000000u | ((len / 4) & 0xFFFFu);
+				cmd |= (depth & 3u) << 27;
+				if (sgn) cmd |= 1u << 26;
+				if (b15) cmd |= 1u << 25;
+				mdecWrite0(cmd);
+				continue;
+			}
+		}
+
 		/* "MDEC_CTRL <- 0x........" */
 		if (strstr(buf, "MDEC_CTRL <- 0x") &&
 		    sscanf(strstr(buf, "MDEC_CTRL <- 0x") + 15, "%x", &v) == 1)

@@ -25,11 +25,36 @@
 #include "Mdec.h"
 #include "IopHw.h"
 
+/* MDEC_STATUS field positions, from the register layout the PS1 traces
+ * report. Bits 26 down to 23 are set by the decode command and do not
+ * change while it runs; 31 down to 27 are the FIFO and busy flags; 18..16
+ * count the block being decoded and 15..0 the words left of the command. */
+#define MDEC_ST_CMDBUSY   (1u << 31)
+#define MDEC_ST_INFULL    (1u << 30)
+#define MDEC_ST_OUTEMPTY  (1u << 29)
+#define MDEC_ST_INREQ     (1u << 28)
+#define MDEC_ST_OUTREQ    (1u << 27)
+#define MDEC_ST_DEPTH_SH  25
+#define MDEC_ST_SIGNED    (1u << 24)
+#define MDEC_ST_BIT15     (1u << 23)
+#define MDEC_ST_BLOCK_SH  16
+
 struct {
 	u32 command;
 	u32 status;
 	u16 *rl;
 	int rlsize;
+	/* Register-visible decode state. The decoder proper is driven by
+	 * psxDma0/psxDma1 from a memory buffer, but the status register has to
+	 * answer between those transfers, so the parts of the state a poller
+	 * can see are tracked here. */
+	u32 words_left;     /* 15..0 of the status word */
+	u32 consumed;       /* data words taken since the command */
+	u32 block_idx;      /* index into the block order */
+	u32 block;          /* 18..16; the decoder walks 4,1,2,3,0,1,2,3 */
+	int have_output;    /* a decoded block is waiting to be read */
+	u32 cmd_bits;       /* 26..23, latched from the decode command */
+	int busy;
 } mdec;
 
 struct config_mdec {
@@ -390,17 +415,72 @@ void mdecInit(void)
 {
 	Config.Mdec  = 0; //XXXXXXXXXXXXXXXXX  0 or 1 // 1 is black and white decoding
 	mdec.rl      = (u16*)PSXM(0);
-	mdec.command = 0;
-	mdec.status  = 0;
+	mdec.command    = 0;
+	mdec.status     = 0;
+	mdec.words_left = 0;
+	mdec.consumed   = 0;
+	mdec.block_idx  = 0;
+	mdec.block      = 0;
+	mdec.have_output = 0;
+	mdec.cmd_bits   = 0;
+	mdec.busy       = 0;
 	round_init();
 }
 
 
+/* The block order the decoder walks: Cr, then Cb, then the four luma
+ * blocks. The trace's currentBlock field reports 4 before the first block
+ * and then 1,2,3,0 repeating, which is that order offset by one because
+ * the field names the block being filled rather than the one just done. */
+static const u32 mdec_block_order[8] = { 4, 1, 2, 3, 0, 1, 2, 3 };
+#define MDEC_BLOCK_WORDS 32u   /* one 8x8 block at 15bpp: 64 pixels, 2 bytes */
+
 void mdecWrite0(u32 data)
 {
 	mdec.command = data;
-	if ((data&0xf5ff0000)==0x30000000)
-		mdec.rlsize = data&0xffff;
+	if ((data & 0xf5ff0000) == 0x30000000)
+	{
+		/* Decode: the low half is the length in words, and bits 27..25 of
+		 * the command carry the output depth, signedness and bit 15,
+		 * which the status register reports back at 26..23. */
+		mdec.rlsize     = data & 0xffff;
+		/* The counter reports the words still to come, and the console has
+		 * already accepted one by the time the first status read happens:
+		 * a 0x400-byte decode reads back 0xff, not 0x100. */
+		mdec.words_left = (data & 0xffff) - 1u;
+		mdec.block      = mdec_block_order[0];
+		mdec.block_idx  = 0;
+		mdec.consumed   = 0;
+		mdec.have_output = 0;
+		mdec.cmd_bits   = ((data >> 27) & 0x3) << MDEC_ST_DEPTH_SH;
+		if (data & (1u << 26)) mdec.cmd_bits |= MDEC_ST_SIGNED;
+		if (data & (1u << 25)) mdec.cmd_bits |= MDEC_ST_BIT15;
+		mdec.busy       = 1;
+	}
+	else if (mdec.words_left)
+	{
+		/* Data for a decode in progress. The word counter is what a
+		 * poller watches to know how much of its transfer has been
+		 * accepted. */
+		mdec.words_left--;
+		mdec.consumed++;
+		/* A block completes every 32 words -- one 8x8 block at 15bpp --
+		 * and the console reports it by advancing currentBlock, dropping
+		 * cmdBusy and raising dataOutReq: there is now something to read.
+		 * The 32-word unit is what the trace's phase boundaries are all
+		 * multiples of. */
+		/* cmdBusy is not an acceptance gate: the console keeps taking
+		 * words after it drops, so the counter must keep falling. It
+		 * reports that the decoder has no block in flight, which is true
+		 * from the moment the first block is ready to read. */
+		if ((mdec.consumed % MDEC_BLOCK_WORDS) == 0)
+		{
+			mdec.block_idx = (mdec.block_idx + 1) & 7u;
+			mdec.block = mdec_block_order[mdec.block_idx];
+			mdec.have_output = 1;
+			mdec.busy = 0;
+		}
+	}
 }
 
 void mdecWrite1(u32 data)
@@ -411,25 +491,51 @@ void mdecWrite1(u32 data)
 
 u32 mdecRead0(void) { return mdec.command; }
 
-/* MDEC_STATUS (0x1f801824) is a stub: mdec.status is cleared in
- * mdecInit and never written afterwards, so this always reads zero.
+/* MDEC_STATUS (0x1f801824) reports the parts of the decode a poller can
+ * see. It used to be a stub that always read zero.
  *
- * The hardware puts real state here -- bit 31 cmdBusy, 30 dataInFifoFull,
- * 29 dataOutFifoEmpty, 28 and 27 the DMA request lines, 25..23 the output
- * depth and flags, 18..16 the block counter, and a word counter in the
- * low half. JaCzekanski's ps1-tests mdec/step-by-step-log traces a decode
- * register by register on a console and reports 280 distinct values of it
- * across one image; every one of them reads back as zero here.
+ * What is modelled: the fields the decode command latches (output depth,
+ * signedness and bit 15, at 26..23), the count of words still to come at
+ * 15..0, the block counter at 18..16, and cmdBusy, dataInReq and
+ * dataOutReq. Scored against JaCzekanski's ps1-tests
+ * mdec/step-by-step-log, which drives the MDEC register by register on a
+ * console and reads the status between every step, this matches 88 of its
+ * 777 reads, against none before.
  *
- * Nothing in PS2 mode touches the MDEC, so this costs nothing today: it
- * is reachable only through the PS1 hardware map in ps2/Iop/IopHwRead.cpp
- * and would matter to PS1 software polling the register between blocks,
- * which is what that trace does. Implementing it means modelling the two
- * FIFOs and the block counter rather than filling in a formula, so it is
- * recorded here rather than guessed at -- and the trace above is the
- * oracle to do it against if anyone wants to.
+ * What is not: the rest of that trace needs the output FIFO. Two things
+ * were learned scoring it and are worth leaving here, because neither is
+ * visible from the register layout:
+ *
+ * cmdBusy is not an acceptance gate. It drops once a block is ready to
+ * read and the console keeps taking input words afterwards, so the word
+ * counter must keep falling while it is clear. Treating it as a gate
+ * stalls the counter and the trace diverges immediately.
+ *
+ * currentBlock counts blocks going out, not words coming in. It advances
+ * at points where the word counter does not move at all -- 96, 96 then
+ * 128, 128, 128 words consumed across five successive changes -- which
+ * only happens if reads are what drive it. It also reaches 5, so the
+ * field walks all six blocks rather than the four-plus-two the input side
+ * suggests. Finishing this means modelling the output FIFO and letting
+ * reads advance the counter, not refining the input side further.
+ *
+ * Nothing in PS2 mode touches the MDEC: it is reachable only through the
+ * PS1 hardware map in ps2/Iop/IopHwRead.cpp, and matters to PS1 software
+ * polling the register between blocks, which is what that trace does.
  */
-u32 mdecRead1(void) { return mdec.status;  }
+u32 mdecRead1(void)
+{
+	u32 st = mdec.cmd_bits | ((mdec.block & 7u) << MDEC_ST_BLOCK_SH)
+	       | (mdec.words_left & 0xFFFFu);
+
+	if (mdec.busy) st |= MDEC_ST_CMDBUSY;
+	if (mdec.words_left) st |= MDEC_ST_INREQ;
+	if (mdec.have_output) st |= MDEC_ST_OUTREQ;
+	st |= MDEC_ST_OUTEMPTY;
+
+	mdec.status = st;
+	return st;
+}
 
 void psxDma0(u32 adr, u32 bcr, u32 chcr)
 {
