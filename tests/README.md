@@ -10,9 +10,18 @@ emulator against console captures and want a checkout to compare against:
         git clone https://github.com/JaCzekanski/ps1-tests
 
 Without them those suites skip rather than fail, so the script is still
-worth running with neither set. `SANITIZER=undefined sh tests/run-all.sh`
-builds everything with UBSan; do a clean build between sanitizers with
-different define sets.
+worth running with neither set.
+
+`SANITIZER=undefined sh tests/run-all.sh` builds under UBSan, and
+everything that links emulator code is clean under it. Two suites ignore
+the variable on purpose: `faultstress` and `spsc` are concurrency tests
+and build with `-fsanitize=thread` unconditionally, since that is what
+they are for. `fpaudit` honours it but drops it for `jit_stage`, which
+emits and runs machine code of its own that ASan's shadow mapping does
+not survive.
+
+Do a clean build between sanitizers with different define sets rather
+than reusing objects.
 
 ## The two kinds of harness
 
