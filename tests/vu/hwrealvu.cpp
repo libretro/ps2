@@ -306,6 +306,124 @@ static int run_integer(const char* dir, int* total)
 	return bad;
 }
 
+/* ---- the random unit --------------------------------------------------
+ *
+ * RINIT and RXOR keep only the low 23 bits and force the exponent to
+ * 0x3f800000, so R always reads back as a float in [1,2); RNEXT advances
+ * an LFSR over those bits. The expected values are the same ones
+ * tests/vu/hwrandom.c inlines from ps2autotests
+ * tests/vu/lower/random.expected -- what differs is that these go through
+ * VUops.cpp and its dispatch rather than a copy of the algorithm.
+ *
+ * RINIT and RXOR are type-4 lower ops taking a field selector; RGET and
+ * RNEXT are type-3 and write a VF register, which is where the result is
+ * read from rather than from R itself. */
+
+static void vu_rinit(u32 v, int field)
+{
+	vuRegs[0].VF[VF_SRC].UL[field] = v;
+	vuRegs[0].code = LOWER_TYPE1345 | VS(VF_SRC) | FSF((u32)field) | OP_RINIT;
+	VU0_LOWER_OPCODE[vuRegs[0].code >> 25]();
+}
+static void vu_rxor(u32 v, int field)
+{
+	vuRegs[0].VF[VF_SRC].UL[field] = v;
+	vuRegs[0].code = LOWER_TYPE1345 | VS(VF_SRC) | FSF((u32)field) | OP_RXOR;
+	VU0_LOWER_OPCODE[vuRegs[0].code >> 25]();
+}
+static u32 vu_rop(u32 op)
+{
+	const u32 dst = 2;
+	vuRegs[0].VF[dst].UL[0] = 0;
+	/* The dest mask runs x at bit 24 down to w at bit 21, so DEST(1) is w,
+	 * not x -- writing that and reading lane 0 gets zero every time. All
+	 * four lanes are enabled here and lane 0 read back. */
+	vuRegs[0].code = LOWER_TYPE1345 | DEST(0xF) | VT(dst) | op;
+	VU0_LOWER_OPCODE[vuRegs[0].code >> 25]();
+	return vuRegs[0].VF[dst].UL[0];
+}
+
+static int run_random(int* total)
+{
+	static const u32 GARBAGE[4] =
+		{ 0x01234567u, 0x89ABCDEFu, 0xFEDCBA98u, 0x76543210u };
+	static const u32 ZEROONE[4] =
+		{ 0x3F800000u, 0x3FFFFFFFu, 0x00000000u, 0xFFFFFFFFu };
+	static const u32 want_init[4] =
+		{ 0x3fa34567u, 0x3fabcdefu, 0x3fdcba98u, 0x3fd43210u };
+	static const u32 want_xor[4] =
+		{ 0x3fa34567u, 0x3f888888u, 0x3fd43210u, 0x3f800000u };
+	static const u32 want_next_zeroone[4][4] = {
+		{ 0x3f800000u, 0x3f800000u, 0x3f800000u, 0x3f800000u },
+		{ 0x3ffffffeu, 0x3ffffffcu, 0x3ffffff8u, 0x3ffffff0u },
+		{ 0x3f800000u, 0x3f800000u, 0x3f800000u, 0x3f800000u },
+		{ 0x3ffffffeu, 0x3ffffffcu, 0x3ffffff8u, 0x3ffffff0u },
+	};
+	static const u32 want_next_garbage[4][4] = {
+		{ 0x3fc68aceu, 0x3f8d159du, 0x3f9a2b3bu, 0x3fb45677u },
+		{ 0x3fd79bdeu, 0x3faf37bcu, 0x3fde6f79u, 0x3fbcdef2u },
+		{ 0x3fb97530u, 0x3ff2ea61u, 0x3fe5d4c3u, 0x3fcba987u },
+		{ 0x3fa86420u, 0x3fd0c840u, 0x3fa19081u, 0x3fc32102u },
+	};
+	int bad = 0, pass = 0, cases = 0, i, f;
+
+	memset(&vuRegs[0], 0, sizeof(vuRegs[0]));
+
+	for (i = 0; i < 4; i++)
+	{
+		u32 got;
+		vu_rinit(GARBAGE[i], 0);
+		got = vu_rop(OP_RGET);
+		cases++;
+		if (got == want_init[i]) pass++;
+		else if (bad++ < 4)
+			printf("  RINIT %d: console %08x  ours %08x\n", i, want_init[i], got);
+	}
+
+	vu_rinit(0, 0);
+	for (i = 0; i < 4; i++)
+	{
+		u32 got;
+		vu_rxor(GARBAGE[i], 0);
+		got = vu_rop(OP_RGET);
+		cases++;
+		if (got == want_xor[i]) pass++;
+		else if (bad++ < 4)
+			printf("  RXOR %d: console %08x  ours %08x\n", i, want_xor[i], got);
+	}
+
+	for (f = 0; f < 4; f++)
+	{
+		vu_rinit(ZEROONE[f], 0);
+		for (i = 0; i < 4; i++)
+		{
+			const u32 got = vu_rop(OP_RNEXT);
+			cases++;
+			if (got == want_next_zeroone[f][i]) pass++;
+			else if (bad++ < 4)
+				printf("  RNEXT zeroone %d step %d: console %08x  ours %08x\n",
+				       f, i + 1, want_next_zeroone[f][i], got);
+		}
+	}
+	for (f = 0; f < 4; f++)
+	{
+		vu_rinit(GARBAGE[f], 0);
+		for (i = 0; i < 4; i++)
+		{
+			const u32 got = vu_rop(OP_RNEXT);
+			cases++;
+			if (got == want_next_garbage[f][i]) pass++;
+			else if (bad++ < 4)
+				printf("  RNEXT garbage %d step %d: console %08x  ours %08x\n",
+				       f, i + 1, want_next_garbage[f][i], got);
+		}
+	}
+
+	*total += cases;
+	printf("random  %2d/%-3d console cases\n", pass, cases);
+	return pass != cases;
+}
+
 int main(int argc, char** argv)
 {
 	const char* path = (argc > 1) ? argv[1] : "efu.expected";
@@ -389,8 +507,9 @@ int main(int argc, char** argv)
 		dir[n] = '\0';
 		failures += run_integer(slash ? dir : ".", &total);
 	}
+	failures += run_random(&total);
 
 	printf("hwrealvu: %d cases across %d ops, driven through VUops.cpp\n",
-	       total, NOPS + NIOPS);
+	       total, NOPS + NIOPS + 4);
 	return failures != 0;
 }
