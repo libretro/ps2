@@ -123,6 +123,7 @@ static u8 setting_pgs_super_sampling           = 0;
 static u8 setting_pgs_high_res_scanout         = 0;
 static u8 setting_pgs_disable_mipmaps          = 0;
 static u8 setting_pgs_ss_tex                   = 0;
+static u8 setting_pgs_ss_quads                 = 0;
 static u8 setting_pgs_deblur                   = 0;
 static u8 setting_deinterlace_mode             = 0;
 static u8 setting_hw_download_mode             = 0; /* GSHardwareDownloadMode::Enabled */
@@ -235,6 +236,8 @@ static bool update_option_visibility(void)
 		option_display.key     = "pcsx2_pgs_high_res_scanout";
 		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
 		option_display.key     = "pcsx2_pgs_ss_tex";
+		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+		option_display.key     = "pcsx2_pgs_ss_quads";
 		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
 		option_display.key     = "pcsx2_pgs_deblur";
 		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
@@ -490,6 +493,19 @@ static void check_variables(bool first_run)
 			if (first_run || setting_pgs_ss_tex != pgs_ss_tex_prev)
 			{
 				s_settings_interface.SetIntValue("EmuCore/GS", "pgsSuperSampleTextures", setting_pgs_ss_tex);
+				updated = true;
+			}
+		}
+
+		var.key = "pcsx2_pgs_ss_quads";
+		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+		{
+			u8 pgs_ss_quads_prev = setting_pgs_ss_quads;
+			setting_pgs_ss_quads = !strcmp(var.value, "enabled");
+
+			if (first_run || setting_pgs_ss_quads != pgs_ss_quads_prev)
+			{
+				s_settings_interface.SetIntValue("EmuCore/GS", "pgsSuperSampleQuads", setting_pgs_ss_quads);
 				updated = true;
 			}
 		}
