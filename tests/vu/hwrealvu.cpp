@@ -38,6 +38,24 @@ alignas(16) cpuRegisters cpuRegs;
 alignas(16) u8 eeHw[0x10000];
 alignas(16) u8 s_emuconfig[sizeof(Pcsx2Config)];
 asm(".globl EmuConfig\n.set EmuConfig, s_emuconfig");
+
+/* vuDouble's clamp of a maximal exponent to the largest finite value is
+ * gated on Cpu.Recompiler.vu0ExtraOverflow, which defaults off -- it is a
+ * per-game fix, not the normal path. The zeroed EmuConfig above therefore
+ * matches the default, and that is deliberate: this harness scores the
+ * configuration almost every game runs under.
+ *
+ * It matters more than it looks. With the clamp off, CVF_MAX and CVF_MIN
+ * reach the EFU as host NaNs and propagate, so EATAN returns its own
+ * input. With it on they clamp and EATAN lands within an ULP -- but ESADD
+ * drops from 11 of 16 to 10 and ESUM from 11 to 9, while ERSADD rises
+ * from 8 to 11. Neither setting is uniformly closer to the console.
+ *
+ * This is also what tests/vu/hwefu.c's transcription differs by: it
+ * hardcodes the clamp, so it is modelling the non-default configuration.
+ * That, rather than any difference in the arithmetic, is why its EATAN
+ * scores 8 of 13 where this scores 0 of 16. */
+static void vu_config_is_default(void) { }
 alignas(16) u8 s_gifunit[sizeof(Gif_Unit)];
 asm(".globl gifUnit\n.set gifUnit, s_gifunit");
 alignas(16) u8 s_vu1thread[sizeof(VU_Thread)];
@@ -79,13 +97,10 @@ enum {
  * tests/vu/hwefu.c already measures and documents. What this table adds is
  * a regression bound on the real code rather than on a copy of it.
  *
- * EATAN is the one worth pointing at. hwefu.c's transcription scores 8 of
- * its 13 cases; the real code scores 0 of 16 here, and the misses are a
- * single ULP -- 3f8db70c against the console's 3f8db70b. So the
- * transcription and VUops.cpp do not compute quite the same thing, which
- * is precisely the drift a copy cannot report on itself. Recorded rather
- * than papered over; whichever is closer to the hardware is a separate
- * question from noticing they differ. */
+ * EATAN scoring 0 here against hwefu.c's 8 of 13 is a configuration
+ * difference, not an arithmetic one: see the note on vuDouble's clamp
+ * above. hwefu.c hardcodes the clamp and so models vu0ExtraOverflow being
+ * on; this runs the default. */
 static const struct { const char* name; u32 op; int vector; int floor; } kOps[] = {
 	/* The scalar forms take one component through the fsf selector; the
 	 * vector forms read x, y and z of the register. */
@@ -141,6 +156,8 @@ int main(int argc, char** argv)
 {
 	const char* path = (argc > 1) ? argv[1] : "efu.expected";
 	int op, failures = 0, total = 0, shown = 0;
+
+	vu_config_is_default();
 
 	for (op = 0; op < NOPS; op++)
 	{
