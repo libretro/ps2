@@ -500,7 +500,23 @@ __ri void _nVifUnpackLoop(const u8* data)
 	//uint vSize = ((32 >> vl) * (vn+1)) / 8;		// size of data (in bytes) used for each write cycle
 
 	const nVifCall* fnbase = &nVifUpk[((usn * 2 * 16) + upkNum) * (4 * 1)];
-	const UNPACKFUNCTYPE ft = VIFfuncTable[idx][doMode ? vifRegs.mode : 0][((usn * 2 * 16) + upkNum)];
+	/* Two tables, two layouts. nVifUpk is filled by the recompilers with
+	 * usn at +32 and the mask at +16 -- see usnpart and maskpart in
+	 * x86/newVif_UnpackSSE.cpp and arm64/Vif_UnpackNEON.cpp -- and
+	 * upkNum already carries the mask bit at 0x10, so (usn * 2 * 16) +
+	 * upkNum is right for that one. VIFfuncTable is laid out the other way
+	 * round: UnpackModeSet emits signed-unmasked, unsigned-unmasked,
+	 * signed-masked, unsigned-masked, so the mask is at +32 and usn at
+	 * +16. Indexing it with the nVifUpk formula picks the unsigned
+	 * unmasked entry for a masked signed unpack, which drops the mask
+	 * entirely, and the signed masked entry for an unmasked unsigned one,
+	 * which applies a mask that was never asked for.
+	 *
+	 * Scored against the masked scenarios in ps2autotests
+	 * tests/dma/vif/stmod.expected that is 8 of 16; with the mask and usn
+	 * the right way round it is 16. */
+	const int ftIdx = ((upkNum & 0x10) ? 32 : 0) + (usn ? 16 : 0) + (upkNum & 0x0f);
+	const UNPACKFUNCTYPE ft = VIFfuncTable[idx][doMode ? vifRegs.mode : 0][ftIdx];
 
 	do
 	{
