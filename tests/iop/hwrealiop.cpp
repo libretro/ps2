@@ -84,7 +84,7 @@ namespace R3000A { int irxImportExecCached(u32, u16) { return 0; } }
 	void psxLB(); void psxLBU(); void psxLH(); void psxLHU(); void psxLW();
 	void psxSB(); void psxSH(); void psxSW();
 	void psxLWL(); void psxLWR(); void psxSWL(); void psxSWR();
-	void psxMTSA();
+	void psxMTSA(); void psxSLTI();
 
 enum Shape { RRR, RRI, RRS, RI, MULDIV, LOAD, STORE };
 
@@ -333,6 +333,54 @@ int main(int argc, char** argv)
 		if (pass != cases)
 		{ printf("%-6s %2d/%-3d console cases\n", kOps[op].name, pass, cases);
 		  failures++; }
+	}
+
+	/* ---- cases the capture cannot supply -------------------------------
+	 *
+	 * SLTIU and SLTI sign-extend their immediate and then compare, SLTIU
+	 * comparing the result as unsigned. Every sltiu line in
+	 * tests/cpu/iop/alu.expected uses a small positive immediate -- not
+	 * one has bit 15 set -- so the capture cannot tell a sign-extending
+	 * implementation from a zero-extending one, and swapping _Imm_ for
+	 * _ImmU_ passes all 558 console cases.
+	 *
+	 * The architecture does define it, so these three cases come from the
+	 * MIPS definition rather than from hardware. With an immediate of
+	 * -1 the sign-extended comparand is 0xffffffff, which almost nothing
+	 * is below; zero-extended it would be 0x0000ffff, which most values
+	 * are above. The two disagree on every line here.
+	 */
+	{
+		static const struct { const char* name; u32 rs; u32 imm; u32 want; }
+		kSpec[] = {
+			/* sltiu rs, -1: unsigned compare against 0xffffffff. */
+			{ "sltiu",  0x00000000u, 0xFFFFu, 1 },  /* 0 < 0xffffffff      */
+			{ "sltiu",  0x00010000u, 0xFFFFu, 1 },  /* zero-extend says 0  */
+			{ "sltiu",  0xFFFFFFFFu, 0xFFFFu, 0 },  /* equal, so not less  */
+			/* slti rs, -1: signed compare against -1. */
+			{ "slti",   0x00000000u, 0xFFFFu, 0 },
+			{ "slti",   0xFFFFFFFEu, 0xFFFFu, 1 },  /* -2 < -1             */
+		};
+		const int n = (int)(sizeof(kSpec)/sizeof(kSpec[0]));
+		int i, pass = 0;
+
+		for (i = 0; i < n; i++)
+		{
+			const int is_u = !strcmp(kSpec[i].name, "sltiu");
+			memset(&psxRegs.GPR, 0, sizeof(psxRegs.GPR));
+			psxRegs.GPR.r[RS] = kSpec[i].rs;
+			psxRegs.code = ((u32)RS << 21) | ((u32)RT << 16) | kSpec[i].imm;
+			if (is_u) psxSLTIU(); else psxSLTI();
+			if (psxRegs.GPR.r[RT] == kSpec[i].want) pass++;
+			else
+				printf("  %s %08x, -1: MIPS says %u, ours %u\n",
+				       kSpec[i].name, kSpec[i].rs, kSpec[i].want,
+				       psxRegs.GPR.r[RT]);
+		}
+		total += n;
+		printf("spec    %2d/%-3d immediate-extension cases from the MIPS definition\n",
+		       pass, n);
+		if (pass != n) failures++;
 	}
 
 	printf("hwrealiop: %d cases across %d ops, driven through R3000AOpcodeTables.cpp\n",
