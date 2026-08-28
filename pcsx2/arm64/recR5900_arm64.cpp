@@ -3237,8 +3237,18 @@ namespace {
 				return true;
 			}
 
-			// COP1 register ops (MFC1/MTC1/MOV.S/NEG.S/ABS.S only -- arithmetic and
-			// BC1/CFC1/CTC1 hand off to the interpreter).
+			// COP1. Cop1RegSupported decides: the register moves
+			// (MFC1/MTC1/CFC1/CTC1), the S-format arithmetic and compares,
+			// and the conversions are all emitted here. BC1 is declined by
+			// that predicate but is not a handoff -- it is a branch, and
+			// EmitBranch picks it up below alongside BC0x and BC2x.
+			//
+			// The one conditional is soft-float rec mode: the native
+			// arithmetic mirrors the old fpuDouble interpreter rather than
+			// the ps2float model, so with EnableFpuSoftFloat set the
+			// arithmetic falls back and only the bit moves, compares and
+			// conversions stay native. That setting is off by default, so
+			// the arithmetic is normally emitted.
 			case 0x11:
 				if (!Cop1RegSupported(insn)) return false;
 				EmitCop1Reg(m, gpr, insn);
