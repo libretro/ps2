@@ -20,3 +20,12 @@ if [ -f "$EXPECTED" ]; then
 else
 	echo "  skipped: set PS2AUTOTESTS to a ps2autotests checkout to run this"
 fi
+
+echo "== EE ALU three-register ops vs console =="
+EXPECTED="${PS2AUTOTESTS:-}/tests/cpu/ee/alu.expected"
+if [ -f "$EXPECTED" ]; then
+	"$CC" -O1 -g -Wall $SANFLAGS -o "$DIR/ee_hwalu" "$DIR/hwalu.c"
+	"$DIR/ee_hwalu" "$EXPECTED"
+else
+	echo "  skipped: set PS2AUTOTESTS to a ps2autotests checkout to run this"
+fi
