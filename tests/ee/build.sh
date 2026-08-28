@@ -8,6 +8,7 @@
 # Usage: sh tests/ee/build.sh
 set -e
 DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+ROOT=$(CDPATH= cd -- "$DIR/../.." && pwd)
 CC=${CC:-cc}
 SANFLAGS=""
 [ -n "$SANITIZER" ] && SANFLAGS="-fsanitize=$SANITIZER"
@@ -56,3 +57,7 @@ if [ -f "$EXPECTED" ]; then
 else
 	echo "  skipped: set PS2AUTOTESTS to a ps2autotests checkout to run this"
 fi
+
+echo "== EE dispatch tables vs the R5900 encoding =="
+"$CC" -O1 -g -Wall $SANFLAGS -o "$DIR/ee_tabaudit" "$DIR/tabaudit.c"
+"$DIR/ee_tabaudit" "$ROOT/pcsx2/R5900OpcodeTables.cpp"
