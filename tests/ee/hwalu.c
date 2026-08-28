@@ -1,8 +1,14 @@
 /*  EE ALU three-register ops against console captures.
  *
- *  Scores the eighteen TEST_RRR_FUNC ops in ps2autotests
- *  tests/cpu/ee/alu.expected against the semantics in
- *  pcsx2/R5900OpcodeImpl.cpp.
+ *  Scores all thirty-five ops in ps2autotests tests/cpu/ee/alu.expected
+ *  against the semantics in pcsx2/R5900OpcodeImpl.cpp: the eighteen
+ *  three-register ones, the five register-immediate, the eleven
+ *  shift-by-immediate and compare-immediate, and LUI.
+ *
+ *  The immediate is printed as an unsigned decimal but is sign-extended
+ *  where the instruction sign-extends it -- "addiu C_ONE, 65535" gives 0,
+ *  which is 1 + (-1), not 65536 -- and zero-extended for the logical ops,
+ *  which is what ANDI, ORI and XORI do with it.
  *
  *  Every one of these writes only the low doubleword of rd, so the upper
  *  one is whatever the harness happened to leave there -- and that is
@@ -33,6 +39,8 @@
 typedef uint32_t u32;
 typedef uint64_t u64;
 typedef int32_t  s32;
+typedef int16_t  s16;
+typedef uint16_t u16;
 typedef int64_t  s64;
 
 /* Full 128-bit operands: the 64-bit ops read the whole low doubleword. */
@@ -93,10 +101,24 @@ static int operand(char** pp, Q* out, int* named)
 
 enum { A_ADDU, A_AND, A_DADDU, A_DSLLV, A_DSRAV, A_DSRLV, A_DSUBU, A_MOVN,
        A_MOVZ, A_NOR, A_OR, A_SLLV, A_SLT, A_SLTU, A_SRAV, A_SRLV, A_SUBU,
-       A_XOR, A_COUNT };
+       A_XOR,
+       /* register, immediate */
+       A_ADDIU, A_ANDI, A_DADDIU, A_ORI, A_XORI,
+       /* shift or compare by immediate */
+       A_DSLL, A_DSLL32, A_DSRA, A_DSRA32, A_DSRL, A_DSRL32, A_SLL,
+       A_SLTI, A_SLTIU, A_SRA, A_SRL,
+       /* immediate only */
+       A_LUI,
+       A_COUNT };
 static const char* const kName[A_COUNT] = {
 	"addu","and","daddu","dsllv","dsrav","dsrlv","dsubu","movn","movz",
-	"nor","or","sllv","slt","sltu","srav","srlv","subu","xor" };
+	"nor","or","sllv","slt","sltu","srav","srlv","subu","xor",
+	"addiu","andi","daddiu","ori","xori",
+	"dsll","dsll32","dsra","dsra32","dsrl","dsrl32","sll",
+	"slti","sltiu","sra","srl",
+	"lui" };
+/* LUI prints one operand; everything else prints two. */
+static int one_operand(int op) { return op == A_LUI; }
 
 /* Transcribed from R5900OpcodeImpl.cpp. Each returns the new low
  * doubleword of rd; `keep` says whether rd is left alone entirely, which
@@ -134,6 +156,26 @@ static u64 apply(int op, const Q* s, const Q* t, u64 rd_lo, int* keep)
 	case A_DSRAV: return (u64)((s64)rt >> (rs & 0x3f));
 	case A_MOVN:  if (rt == 0) { *keep = 1; return rd_lo; } return rs;
 	case A_MOVZ:  if (rt != 0) { *keep = 1; return rd_lo; } return rs;
+
+	/* Immediate forms. `rt` carries the immediate as printed; sign or zero
+	 * extension is per instruction, exactly as R5900OpcodeImpl.cpp does it. */
+	case A_ADDIU:  return (u64)(s64)(s32)((u32)rs + (u32)(s32)(s16)(u16)rt);
+	case A_DADDIU: return rs + (u64)(s64)(s16)(u16)rt;
+	case A_ANDI:   return rs & (u64)(u16)rt;
+	case A_ORI:    return rs | (u64)(u16)rt;
+	case A_XORI:   return rs ^ (u64)(u16)rt;
+	case A_SLTI:   return ((s64)rs < (s64)(s16)(u16)rt) ? 1 : 0;
+	case A_SLTIU:  return (rs < (u64)(s64)(s16)(u16)rt) ? 1 : 0;
+	case A_SLL:    return (u64)(s64)(s32)((u32)rs << (rt & 0x1f));
+	case A_SRL:    return (u64)(s64)(s32)((u32)rs >> (rt & 0x1f));
+	case A_SRA:    return (u64)(s64)((s32)(u32)rs >> (rt & 0x1f));
+	case A_DSLL:   return rs << (rt & 0x3f);
+	case A_DSRL:   return rs >> (rt & 0x3f);
+	case A_DSRA:   return (u64)((s64)rs >> (rt & 0x3f));
+	case A_DSLL32: return rs << ((rt & 0x1f) + 32);
+	case A_DSRL32: return rs >> ((rt & 0x1f) + 32);
+	case A_DSRA32: return (u64)((s64)rs >> ((rt & 0x1f) + 32));
+	case A_LUI:    return (u64)(s64)(s32)((u32)rt << 16);
 	}
 	return 0;
 }
@@ -184,8 +226,17 @@ int main(int argc, char** argv)
 			while (*name_end && *name_end != ' ') name_end++;
 			p = name_end;
 		}
-		if (!operand(&p, &s, &named_s)) continue;
-		if (!operand(&p, &t, &named_t)) continue;
+		if (op >= 0 && one_operand(op))
+		{
+			/* LUI prints only its immediate. */
+			s.w[0] = s.w[1] = s.w[2] = s.w[3] = 0;
+			if (!operand(&p, &t, &named_t)) continue;
+		}
+		else
+		{
+			if (!operand(&p, &s, &named_s)) continue;
+			if (!operand(&p, &t, &named_t)) continue;
+		}
 		while (*p == ' ' || *p == ':') p++;
 		if (sscanf(p, "%x %x %x %x", &w3, &w2, &w1, &w0) != 4) continue;
 
