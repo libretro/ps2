@@ -735,7 +735,19 @@ void psxDma1(u32 adr, u32 bcr, u32 chcr)
 	 * Note that iqtab_init folds aanscales into the quantisation table,
 	 * so the dequantiser and idct() are a matched pair: any attempt at the
 	 * hardware's transform has to replace both together. That coupling is
-	 * probably where the missing scale lives. */
+	 * probably where the missing scale lives.
+	 *
+	 * The 8-bit trace measures the error better than the 4-bit one, and
+	 * both decode the same input stream. Against mdec/8bit, whose log
+	 * hexdumps 64 bytes for the same block, this scores 10 exact and 42
+	 * within 8 -- so the values are close rather than unrelated, and the
+	 * 4-bit score of 2 of 32 is that same error quantised to nibbles,
+	 * where a difference of one step lands on the wrong side of a
+	 * boundary. Inverting the output makes it worse -- 1 of 64 -- so the
+	 * sign convention is right and it really is a scale.
+	 *
+	 * Use mdec/8bit for this, not mdec/4bit: same block, same input, four
+	 * times the resolution to measure against. */
 	switch ((mdec.command >> 27) & 3)
 	{
 	case 3:  /* 15-bit */
