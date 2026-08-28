@@ -441,6 +441,61 @@ int main(void)
 			}
 		}
 
+		/* Immediates at their encoding boundaries, over every register.
+		 * The register sweeps above vary the ModRM byte and leave the
+		 * immediate alone, so they say nothing about where the short form
+		 * ends: 0x7f fits a sign-extended byte and 0x80 does not, -0x80
+		 * fits and -0x81 does not, and the eax forms have their own
+		 * opcode. Those four transitions are the whole of the choice. */
+		{
+			static const long kImm[] = {
+				0, 1, -1, 0x7f, 0x80, -0x80, -0x81,
+				0x7fff, 0x7fffffffL, -0x7fffffffL - 1
+			};
+			const int nimm = (int)(sizeof(kImm)/sizeof(kImm[0]));
+			int ii;
+			for (ii = 0; ii < nimm; ii++)
+			{
+				SWEEP_RI("add", xe_add32_ri, r32, kImm[ii]);
+				SWEEP_RI("sub", xe_sub32_ri, r32, kImm[ii]);
+				SWEEP_RI("cmp", xe_cmp32_ri, r32, kImm[ii]);
+				SWEEP_RI("and", xe_and32_ri, r32, kImm[ii]);
+				SWEEP_RI("or",  xe_or32_ri,  r32, kImm[ii]);
+				SWEEP_RI("xor", xe_xor32_ri, r32, kImm[ii]);
+			}
+		}
+
+		/* Memory operands at several displacements. One address exercises
+		 * one displacement encoding; these cover a zero, a byte-sized one,
+		 * a word-sized one and a full 32-bit one. */
+		{
+			static const unsigned long kAddr[] = {
+				0x0, 0x40, 0x7f, 0x80, 0x1000, 0x12345678UL, 0x7ffffff0UL
+			};
+			const int naddr = (int)(sizeof(kAddr)/sizeof(kAddr[0]));
+			int ai, rr;
+			char t4[96];
+			for (ai = 0; ai < naddr; ai++)
+				for (rr = 0; rr < 16; rr++)
+				{
+					SWEEP_GUARD();
+					snprintf(t4, sizeof(t4), "add %s, DWORD PTR ds:0x%lx",
+					         r32[rr], kAddr[ai]);
+					x86Ptr = s_buf; xe_add32_rm(rr, kAddr[ai]);
+					s_gotlen[s_ncases] = (int)(x86Ptr - s_buf);
+					memcpy(s_got[s_ncases], s_buf, (size_t)s_gotlen[s_ncases]);
+					s_text[s_ncases++] = strdup(t4);
+
+					SWEEP_GUARD();
+					snprintf(t4, sizeof(t4), "mov DWORD PTR ds:0x%lx, %s",
+					         kAddr[ai], r32[rr]);
+					x86Ptr = s_buf; xe_mov32_mr(kAddr[ai], rr);
+					s_gotlen[s_ncases] = (int)(x86Ptr - s_buf);
+					memcpy(s_got[s_ncases], s_buf, (size_t)s_gotlen[s_ncases]);
+					s_text[s_ncases++] = strdup(t4);
+				}
+		}
+
 		/* Unary forms over every register. */
 		{
 			int u;
