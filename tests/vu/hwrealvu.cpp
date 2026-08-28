@@ -91,6 +91,26 @@ enum {
 };
 
 #define VF_SRC 1     /* the source register this harness loads */
+#define VI_D   1     /* the integer destination and its two sources */
+#define VI_S   2
+#define VI_T   3
+
+/* Lower type-1 puts the destination at bit 6; type-5 carries a signed
+ * five-bit immediate in the same place; type-8 is a different shape
+ * entirely, with the opcode at 25 and a fifteen-bit immediate split in
+ * two -- eleven bits at 0 and four more at 21. */
+#define VD(r)    ((u32)(r) << 6)
+/* IMM5 sits at bit 6, not bit 0, where it would collide with the
+ * six-bit opcode. */
+#define IMM5(v)  (((u32)(v) & 0x1F) << 6)
+#define IMM15(v) (((u32)(v) & 0x7FF) | (((u32)(v) & 0x7800) << 10))
+
+enum {
+	OP_IADD = 0x30, OP_ISUB = 0x31, OP_IADDI = 0x32,
+	OP_IAND = 0x34, OP_IOR = 0x35,
+	OP_IADDIU = 0x08, OP_ISUBIU = 0x09,
+	OP_RNEXT = 0x43C, OP_RGET = 0x43D, OP_RINIT = 0x43E, OP_RXOR = 0x43F,
+};
 
 /* Floors, not targets. The three that go through ps2float.c are exact;
  * the polynomial ones are not, and the interpreter's own accuracy is what
@@ -150,6 +170,140 @@ static int lookup(const char* tok, u32* x, u32* y, u32* z, u32* w)
 	*x = kConst[best].x; *y = kConst[best].y;
 	*z = kConst[best].z; *w = kConst[best].w;
 	return 1;
+}
+
+/* ---- the integer ops --------------------------------------------------
+ *
+ * These take their operands in VI registers rather than VF, and the
+ * capture prints the destination as four hex digits. The harness that
+ * produced it cannot load an arbitrary sixteen-bit value in one
+ * instruction, so what a line prints as an operand is not always what the
+ * register held: WrSetIntegerRegister emits ISUBIU(r, VI00, v & ~0x8000)
+ * for anything with bit 15 set, and the register ends up holding the
+ * negation. That model is tests/vu/hwint.c's; it is reproduced here
+ * because it belongs to the test program, not to the emulator. */
+
+static const struct { const char* name; u16 v; } kIConst[] = {
+	{ "CVI_ZERO",     0x0000u }, { "CVI_MAX",      0x7FFFu },
+	{ "CVI_MIN",      0x8000u }, { "CVI_NEGONE",   0xFFFFu },
+	{ "CVI_ONE",      0x0001u },
+	{ "CVI_GARBAGE1", 0x1337u }, { "CVI_GARBAGE2", 0xBEEFu },
+	/* The wider names all narrow to sixteen bits in a VI register. */
+	{ "CVI_S16_MAX",  0x7FFFu }, { "CVI_S16_MIN",  0x8000u },
+	{ "CVI_S32_MAX",  0xFFFFu }, { "CVI_S32_MIN",  0x0000u },
+	{ "CVI_S64_MAX",  0xFFFFu }, { "CVI_S64_MIN",  0x0000u },
+};
+
+static u16 setvi(u32 v)
+{
+	if (v == 0x8000u) return (u16)((u16)0xFFFFu - (u16)0x7FFFu);
+	if (v & 0x8000u)  return (u16)(0u - (v & ~0x8000u));
+	return (u16)v;
+}
+
+/* `named` reports whether the operand was a CVI_ constant. Those are
+ * loaded into the register from VU memory, so they arrive intact; a plain
+ * decimal goes through WrSetIntegerRegister and is transformed. Applying
+ * setvi to both scores 17 to 19 of 21 per block -- close enough to look
+ * like an arithmetic edge case rather than a loading model. */
+static int resolve_i(const char* tok, u16* out, int* named)
+{
+	size_t i, best = (size_t)-1, bestlen = 0;
+	char* end; long v;
+	for (i = 0; i < sizeof(kIConst)/sizeof(kIConst[0]); i++)
+	{
+		const size_t n = strlen(kIConst[i].name);
+		if (!strncmp(tok, kIConst[i].name, n) && n > bestlen) { best = i; bestlen = n; }
+	}
+	if (best != (size_t)-1) { *out = kIConst[best].v; *named = 1; return 1; }
+	v = strtol(tok, &end, 10);
+	if (end == tok) return 0;
+	*out = (u16)v; *named = 0;
+	return 1;
+}
+
+enum IForm { I_RRR, I_IMM5, I_IMM15 };
+
+static const struct { const char* name; u32 op; IForm form; } kIOps[] = {
+	{ "iadd",   OP_IADD,   I_RRR },
+	{ "isub",   OP_ISUB,   I_RRR },
+	{ "iand",   OP_IAND,   I_RRR },
+	{ "ior",    OP_IOR,    I_RRR },
+	{ "iaddi",  OP_IADDI,  I_IMM5 },
+	{ "iaddiu", OP_IADDIU, I_IMM15 },
+	{ "isubiu", OP_ISUBIU, I_IMM15 },
+};
+#define NIOPS ((int)(sizeof(kIOps)/sizeof(kIOps[0])))
+
+static int run_integer(const char* dir, int* total)
+{
+	char path[512];
+	int op, bad = 0;
+
+	snprintf(path, sizeof(path), "%s/integer.expected", dir);
+	for (op = 0; op < NIOPS; op++)
+	{
+		FILE* f = fopen(path, "r");
+		char buf[512];
+		int inblock = 0, pass = 0, cases = 0;
+
+		if (!f) return 0;
+		while (fgets(buf, sizeof(buf), f))
+		{
+			u16 a = 0, b = 0;
+			int a_named = 0, b_named = 0;
+			unsigned want;
+			char *p, *comma, *colon;
+
+			if (!inblock)
+			{ if (!strncmp(buf, kIOps[op].name, strlen(kIOps[op].name))
+			   && buf[strlen(kIOps[op].name)] == '\n') inblock = 1;
+			  continue; }
+			if (buf[0] != ' ') break;
+
+			colon = strstr(buf, ": ");
+			if (!colon) continue;
+			if (sscanf(colon + 2, "%x", &want) != 1) continue;
+			p = buf + 2 + strlen(kIOps[op].name);
+			while (*p == ' ') p++;
+			*colon = '\0';
+			comma = strchr(p, ',');
+			if (!comma) { *colon = ':'; continue; }
+			*comma = '\0';
+			if (!resolve_i(p, &a, &a_named)) { *colon = ':'; continue; }
+			{ char* q = comma + 1; while (*q == ' ') q++;
+			  if (!resolve_i(q, &b, &b_named)) { *colon = ':'; continue; } }
+			*colon = ':';
+
+			memset(&vuRegs[0], 0, sizeof(vuRegs[0]));
+			vuRegs[0].VI[VI_S].UL = a_named ? a : setvi(a);
+			switch (kIOps[op].form)
+			{
+			case I_RRR:
+				vuRegs[0].VI[VI_T].UL = b_named ? b : setvi(b);
+				vuRegs[0].code = LOWER_TYPE1345 | VT(VI_T) | VS(VI_S)
+				               | VD(VI_D) | kIOps[op].op;
+				break;
+			case I_IMM5:
+				vuRegs[0].code = LOWER_TYPE1345 | VT(VI_D) | VS(VI_S)
+				               | IMM5(b) | kIOps[op].op;
+				break;
+			default:
+				vuRegs[0].code = ((u32)kIOps[op].op << 25) | VT(VI_D)
+				               | VS(VI_S) | IMM15(b);
+				break;
+			}
+			VU0_LOWER_OPCODE[vuRegs[0].code >> 25]();
+
+			cases++;
+			if ((vuRegs[0].VI[VI_D].UL & 0xFFFFu) == want) pass++;
+		}
+		fclose(f);
+		*total += cases;
+		printf("%-7s %2d/%-3d console cases\n", kIOps[op].name, pass, cases);
+		if (pass != cases) bad++;
+	}
+	return bad;
 }
 
 int main(int argc, char** argv)
@@ -225,7 +379,18 @@ int main(int argc, char** argv)
 		  failures++; }
 	}
 
+	{
+		/* integer.expected sits beside efu.expected. */
+		char dir[512];
+		const char* slash = strrchr(path, '/');
+		size_t n = slash ? (size_t)(slash - path) : 1;
+		if (n >= sizeof(dir)) n = sizeof(dir) - 1;
+		memcpy(dir, path, n);
+		dir[n] = '\0';
+		failures += run_integer(slash ? dir : ".", &total);
+	}
+
 	printf("hwrealvu: %d cases across %d ops, driven through VUops.cpp\n",
-	       total, NOPS);
+	       total, NOPS + NIOPS);
 	return failures != 0;
 }
