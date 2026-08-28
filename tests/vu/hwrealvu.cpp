@@ -502,6 +502,115 @@ static int run_clip(int* total)
 	return pass != n;
 }
 
+/* ---- VU0 macro mode --------------------------------------------------
+ *
+ * The same integer ops again, but reached the way the EE reaches them: as
+ * COP2 instructions rather than through the VU's own dispatch. VIADD and
+ * friends copy cpuRegs.code into vuRegs[0].code and call the same _vu
+ * helpers, so what this adds over the lower-op sweep is the operand
+ * decode -- _Id_, _Is_ and _It_ take the low four bits of the VF fields,
+ * so a macro-mode instruction naming register 17 addresses VI1.
+ *
+ * From ps2autotests tests/cpu/vu0_macro/integer.expected. Its harness
+ * loads the VI registers the same way the lower-op one does, so setvi
+ * applies to the decimal operands here too.
+ */
+
+/* VUops.cpp defines the macro-mode entry points at global scope, not in
+ * the OpcodeImpl::COP2 namespace the EE's other interpreters use. */
+extern void VIADD(); extern void VIADDI(); extern void VIAND();
+extern void VIOR(); extern void VISUB();
+
+static int run_vu0_macro(const char* dir, int* total)
+{
+	static const struct { const char* name; void (*fn)(); int imm; } kM[] = {
+		{ "viadd",  VIADD,  0 },
+		{ "viaddi", VIADDI, 1 },
+		{ "viand",  VIAND,  0 },
+		{ "vior",   VIOR,   0 },
+		{ "visub",  VISUB,  0 },
+	};
+	const int nm = (int)(sizeof(kM)/sizeof(kM[0]));
+	char path[512];
+	int op, bad = 0;
+
+	snprintf(path, sizeof(path), "%s/integer.expected", dir);
+	for (op = 0; op < nm; op++)
+	{
+		FILE* f = fopen(path, "r");
+		char buf[512];
+		int inblock = 0, pass = 0, cases = 0;
+
+		if (!f) return 0;
+		while (fgets(buf, sizeof(buf), f))
+		{
+			u16 a = 0, b = 0;
+			int a_named = 0, b_named = 0;
+			unsigned want;
+			char *p, *comma, *colon;
+
+			(void)a_named; (void)b_named;
+			if (!inblock)
+			{ if (!strncmp(buf, kM[op].name, strlen(kM[op].name))
+			   && buf[strlen(kM[op].name)] == ':') inblock = 1;
+			  continue; }
+			if (buf[0] != ' ') break;
+
+			colon = strstr(buf, ": ");
+			if (!colon || sscanf(colon + 2, "%x", &want) != 1) continue;
+			p = buf + 2 + strlen(kM[op].name);
+			while (*p == ' ') p++;
+			*colon = '\0';
+			comma = strchr(p, ',');
+			if (!comma) { *colon = ':'; continue; }
+			*comma = '\0';
+			if (!resolve_i(p, &a, &a_named)) { *colon = ':'; continue; }
+			{ char* q = comma + 1; while (*q == ' ') q++;
+			  if (!resolve_i(q, &b, &b_named)) { *colon = ':'; continue; } }
+			*colon = ':';
+
+			memset(&vuRegs[0], 0, sizeof(vuRegs[0]));
+			/* No setvi here. The lower-op harness builds its VI values with
+			 * WrSetIntegerRegister, which cannot load an arbitrary sixteen
+			 * bits and negates anything with bit 15 set; the macro-mode one
+			 * loads them through COP2 and they arrive intact. Applying the
+			 * lower-op transform scores 17 of 21 -- only the lines whose
+			 * operands have bit 15 clear, which is the same shape of error
+			 * as the one it was written to fix. */
+			vuRegs[0].VI[VI_S].UL = a;
+			if (kM[op].imm)
+			{
+				/* VIADDI takes a signed five-bit immediate in the same
+				 * field the lower-op form uses. */
+				cpuRegs.code = ((u32)VI_S << 11) | ((u32)VI_D << 16)
+				             | (((u32)b & 0x1F) << 6);
+			}
+			else
+			{
+				vuRegs[0].VI[VI_T].UL = b;
+				cpuRegs.code = ((u32)VI_T << 16) | ((u32)VI_S << 11)
+				             | ((u32)VI_D << 6);
+			}
+			kM[op].fn();
+
+			cases++;
+			if ((vuRegs[0].VI[VI_D].UL & 0xFFFFu) == want) pass++;
+			else if (bad < 4)
+				printf("  %-7s %04x, %04x: console %04x  ours %04x\n",
+				       kM[op].name, a, b, want,
+				       vuRegs[0].VI[VI_D].UL & 0xFFFFu);
+		}
+		fclose(f);
+		*total += cases;
+		if (cases == 0)
+		{ printf("%-7s parsed no cases; the block name or line shape does"
+		         " not match the capture\n", kM[op].name); bad++; }
+		printf("%-7s %2d/%-3d console cases\n", kM[op].name, pass, cases);
+		if (pass != cases) bad++;
+	}
+	return bad;
+}
+
 int main(int argc, char** argv)
 {
 	const char* path = (argc > 1) ? argv[1] : "efu.expected";
@@ -587,8 +696,19 @@ int main(int argc, char** argv)
 	}
 	failures += run_random(&total);
 	failures += run_clip(&total);
+	{
+		/* vu0_macro sits beside vu/lower in the checkout. */
+		char mdir[512];
+		const char* slash = strrchr(path, '/');
+		size_t n = slash ? (size_t)(slash - path) : 1;
+		if (n >= sizeof(mdir) - 32) n = sizeof(mdir) - 32;
+		memcpy(mdir, path, n);
+		mdir[n] = '\0';
+		strncat(mdir, "/../../cpu/vu0_macro", sizeof(mdir) - strlen(mdir) - 1);
+		failures += run_vu0_macro(slash ? mdir : ".", &total);
+	}
 
 	printf("hwrealvu: %d cases across %d ops, driven through VUops.cpp\n",
-	       total, NOPS + NIOPS + 5);
+	       total, NOPS + NIOPS + 10);
 	return failures != 0;
 }
