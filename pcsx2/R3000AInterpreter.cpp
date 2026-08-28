@@ -149,11 +149,24 @@ void psxJR(void)
 
 void psxJALR(void)
 {
+	/* Read the target before writing the link. They can be the same
+	 * register, and _SetLink writes GPR[rd] directly, so taking the target
+	 * from _rRs_ afterwards would jump to the return address instead --
+	 * ps2autotests tests/cpu/iop/branchdelay.expected covers exactly that
+	 * as "jalr: rs/rd match" and the console branches to the target.
+	 *
+	 * rpsxJALR in x86/iR3000Atables.cpp has always had this right: it moves
+	 * Rs into its writeback register before assigning Rd, and separately
+	 * refuses to swap the delay slot when the two match. JALR in
+	 * Interpreter.cpp does the same for the EE, taking a temp copy first.
+	 * This was the odd one out. */
+	const u32 target = _u32(_rRs_);
+
 	if (_Rd_)
 	{
 		_SetLink(_Rd_);
 	}
-	doBranch(_u32(_rRs_));
+	doBranch(target);
 }
 
 static void intReserve(void) { }
