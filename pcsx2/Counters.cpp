@@ -913,10 +913,49 @@ static __fi void rcntWtarget(int index, u32 value)
 
 __fi u32 rcntRcount(int index)
 {
+	u32 ret;
+
 	// only count if the counter is turned on (0x80) and is not an hsync gate (!0x03)
 	if (counters[index].mode.IsCounting && (counters[index].mode.ClockSource != 0x3))
-		return counters[index].count + ((cpuRegs.cycle - counters[index].startCycle) / counters[index].rate);
-	return counters[index].count;
+		ret = counters[index].count + ((cpuRegs.cycle - counters[index].startCycle) / counters[index].rate);
+	else
+		ret = counters[index].count;
+
+	// Never show the guest a boundary crossing -- a wrap, or a target reset --
+	// before the interrupt for it has actually been delivered. On hardware the
+	// crossing and the interrupt are the same edge, so with interrupts enabled
+	// the handler preempts before any later read can run, and a wrapped count
+	// paired with pre-overflow ISR state is not an observable combination.
+	// Under the recompilers that window is real, in two phases: the count is
+	// derived from the live cpuRegs.cycle and can cross before the scheduled
+	// rcntUpdate event runs, and after rcntUpdate has wrapped it and raised
+	// the INTC the exception still waits for the next event test, which
+	// short-block tails can defer past the reader's whole load sequence.
+	//
+	// A game keeping a 64-bit clock as an overflow-ISR wrap accumulator plus a
+	// live COUNT read then sees time move backwards by a wrap period. Clamp to
+	// just before the boundary until delivery. The deliverability guard keeps
+	// this exact: with interrupts blocked (EXL/ERL, or inside the handler) or
+	// the source masked, the wrapped count stays observable as it is on
+	// hardware.
+	const u32 target = counters[index].target & 0xffff;
+	const bool intc_pending_delivery =
+		(psHu32(INTC_STAT) & psHu32(INTC_MASK) & (1u << counters[index].interrupt)) &&
+		(cpuRegs.CP0.n.Status.val & 0x400) &&
+		cpuRegs.CP0.n.Status.b.EIE && cpuRegs.CP0.n.Status.b.IE &&
+		!cpuRegs.CP0.n.Status.b.EXL && !cpuRegs.CP0.n.Status.b.ERL;
+
+	if (counters[index].mode.ZeroReturn)
+	{
+		if (target != 0 && (ret >= target || (counters[index].mode.TargetReached && intc_pending_delivery)))
+			ret = target - 1;
+	}
+	else if (ret > 0xffff || (counters[index].mode.OverflowReached && intc_pending_delivery))
+	{
+		ret = 0xffff;
+	}
+
+	return ret;
 }
 
 __fi u16 rcntRead32(u32 mem)

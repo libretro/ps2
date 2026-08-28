@@ -337,7 +337,14 @@ static __fi void IntCHackCheck(void)
 template< uint page >
 RETURNS_R128 hwRead128(u32 mem)
 {
-	alignas(16) mem128_t result;
+	// Zero-init: several page/address combinations -- a 128-bit read of a
+	// page-0x0F register that is neither in the SBUS_PS1 range nor at
+	// 0x1000f300 -- break out of the switch below without ever writing
+	// `result`, then fall through to the r128_load at the end. Left
+	// uninitialized that returns whatever was on the stack, which is
+	// nondeterministic and depends on the caller's frame layout. The paths
+	// that do fill it overwrite this.
+	alignas(16) mem128_t result = {};
 
 	// FIFOs are the only "legal" 128 bit registers, so we Handle them first.
 	// All other registers fall back on the 64-bit handler (and from there
