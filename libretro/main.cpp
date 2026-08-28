@@ -18,6 +18,7 @@
 
 #include "libretro_core_options.h"
 
+#include <cmath>
 #include "../pcsx2/GS.h"
 #include "../pcsx2/SPU2/Global.h"
 #include "../pcsx2/ps2/BiosTools.h"
@@ -2825,12 +2826,64 @@ void retro_unload_game(void)
 	retro_set_region(RETRO_REGION_NTSC); /* set back to default */
 }
 
+/* SET_SYSTEM_AV_INFO makes the frontend tear down and rebuild its whole video
+ * driver - on the HW-render path that means context_destroy and a fresh
+ * negotiation - so it is only worth sending for a change that actually needs
+ * one. Announcing unconditionally cost a full video and audio driver reinit
+ * every time the VM reported its mode, including reports identical to the last
+ * one, and put that rebuild in the way of a GS thread still submitting to the
+ * shared Vulkan queue.
+ *
+ * Two guards, both taken from the same fix in pcee2:
+ *
+ *  - Only announce on a real timing change. The fps compare needs a tolerance:
+ *    NTSC reports 59.94005994 Hz against a 59.94 default and that 0.00006 Hz
+ *    difference must not rebuild anything. Geometry does not need an announce
+ *    at all on the HW-render path - SET_GEOMETRY carries it without a reinit,
+ *    which is how the widescreen hint already does it.
+ *  - Drain the GS thread before an announce that does go out, so no queued work
+ *    races the frontend's reinit. The CPU thread is already parked here:
+ *    retro_run has not resumed it yet. */
 static void update_av_info(void)
 {
 	retro_system_av_info av_info;
 	retro_get_system_av_info(&av_info);
-	environ_cb(RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO, &av_info);
 	pending_update_av_info = false;
+
+	static bool have_last          = false;
+	static double last_fps         = 0.0;
+	static double last_sample_rate = 0.0;
+	static unsigned last_width     = 0;
+	static unsigned last_height    = 0;
+	static float last_aspect       = 0.0f;
+
+	const bool hw_vulkan = (hw_render.context_type == RETRO_HW_CONTEXT_VULKAN);
+	const bool timing_changed = !have_last
+		|| std::fabs(av_info.timing.fps - last_fps) > 0.25
+		|| av_info.timing.sample_rate != last_sample_rate;
+	const bool geometry_changed = !have_last
+		|| av_info.geometry.base_width != last_width
+		|| av_info.geometry.base_height != last_height
+		|| std::fabs(av_info.geometry.aspect_ratio - last_aspect) > 0.001f;
+
+	have_last        = true;
+	last_fps         = av_info.timing.fps;
+	last_sample_rate = av_info.timing.sample_rate;
+	last_width       = av_info.geometry.base_width;
+	last_height      = av_info.geometry.base_height;
+	last_aspect      = av_info.geometry.aspect_ratio;
+
+	if (!timing_changed && (hw_vulkan || !geometry_changed))
+	{
+		if (geometry_changed)
+			environ_cb(RETRO_ENVIRONMENT_SET_GEOMETRY, &av_info.geometry);
+		return;
+	}
+
+	if (hw_vulkan && MTGS::IsOpen())
+		MTGS::WaitGS(false);
+
+	environ_cb(RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO, &av_info);
 }
 
 void retro_run(void)
