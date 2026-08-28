@@ -2432,6 +2432,16 @@ static __ri void _vuMFP(VURegs* VU)
  * arm64 build never sees it. A machine without AVX-512 takes the same path it
  * always did, at the same speed.
  *
+ * The two cases ESADD still misses are inputs with a maximal exponent, which
+ * the PS2 treats as ordinary large numbers and the host as Inf or NaN. It is
+ * tempting to clamp the inputs and saturate the result to fix them; that was
+ * tried and scores 13 of 16 rather than 14. Two reasons. Under round-toward
+ * -zero an overflowing multiply lands on the largest finite value instead of
+ * infinity, so a saturation check on the result never fires; and the plain
+ * form already gets those cases right because host NaN propagation happens to
+ * carry through the exact bit pattern the console produces. This is the
+ * ceiling for the approach.
+ *
  * Note this does make ESADD and ESUM host-dependent: an AVX-512 machine and an
  * older one will not agree in every case, so a savestate is not guaranteed to
  * replay bit-identically across them. That is a deliberate trade -- accuracy
@@ -2768,6 +2778,12 @@ static __fi float _vuChop(double d)
 	memcpy(&d, &u, sizeof(d));
 	f = (float)d;
 
+	/* Saturate to the largest finite HOST float, not to
+	 * PS2F_MAX_FLOATING_POINT_VALUE. The PS2 maximum, 0x7fffffff, is a NaN
+	 * when read as an IEEE float, and the value returned here goes straight
+	 * back into host arithmetic in the caller -- one NaN poisons the rest of
+	 * the polynomial. "Correcting" this to the PS2 constant looks right and
+	 * drops EEXP from 8 of 13 console cases to 4. */
 	memcpy(&b, &f, sizeof(b));
 	if ((b & 0x7f800000u) == 0x7f800000u)
 		b = (b & 0x80000000u) | 0x7f7fffffu; /* no infinities: saturate */
