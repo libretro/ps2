@@ -24,13 +24,7 @@
 set -u
 
 DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-# tests/emitter is deliberately absent. Its reference layer is built on
-# xRegisterBase, xIndirectVoid and the JMP8/JZ8 label family, none of which
-# the C++ emitter still has -- the C macros replaced them. It compares the
-# two emitters against each other, so with one side gone it cannot build,
-# and porting it is a rewrite rather than a fix. Left out so this script
-# reports real failures rather than a known-stale one.
-SUITES="mmi vu fpu ee iop vif faultstress fpaudit ipu spsc"
+SUITES="mmi vu fpu ee iop vif emitter faultstress fpaudit ipu spsc"
 
 failed=""
 skipped=""
