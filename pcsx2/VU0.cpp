@@ -201,6 +201,14 @@ void CTC2() {
 			vu1Finish(true);
 			vu1ExecMicro(cpuRegs.GPR.r[_Rt_].US[0]);	// Execute VU1 Micro SubRoutine
 			break;
+		case REG_CLIP_FLAG:
+			// The interpreter's FMAC pipeline snapshots VU->clipflag rather
+			// than reading VI, so update both here. vu0ExecMicro re-seeds it
+			// from VI at program start for exactly this case, which covers a
+			// following micro program; this keeps the two consistent from the
+			// write itself. Falls through to store VI as well.
+			vuRegs[0].clipflag = cpuRegs.GPR.r[_Rt_].UL[0];
+			[[fallthrough]];
 		default:
 			vuRegs[0].VI[_Fs_].UL = cpuRegs.GPR.r[_Rt_].UL[0];
 			break;
