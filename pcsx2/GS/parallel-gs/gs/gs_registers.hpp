@@ -714,7 +714,10 @@ struct SMODE1Bits
 	{
 		LC_ANALOG = 32,
 		LC_HDTV = 22,
-		LC_VGA = 15, // uncertain
+		// VESA-style 640x480 progressive over VGA. Konami Python 1/2 arcade
+		// titles program it as SetGsCrt(mode 0x1a), which is CMOD 0 with this
+		// LC; PCSX2 calls the same pair VESA 640x480 @ 59.94.
+		LC_VGA = 15,
 		LC_UNKNOWN_29 = 29 // no idea ... some weird-ass dump relies on it
 	};
 
