@@ -410,6 +410,25 @@ void mdecWrite1(u32 data)
 }
 
 u32 mdecRead0(void) { return mdec.command; }
+
+/* MDEC_STATUS (0x1f801824) is a stub: mdec.status is cleared in
+ * mdecInit and never written afterwards, so this always reads zero.
+ *
+ * The hardware puts real state here -- bit 31 cmdBusy, 30 dataInFifoFull,
+ * 29 dataOutFifoEmpty, 28 and 27 the DMA request lines, 25..23 the output
+ * depth and flags, 18..16 the block counter, and a word counter in the
+ * low half. JaCzekanski's ps1-tests mdec/step-by-step-log traces a decode
+ * register by register on a console and reports 280 distinct values of it
+ * across one image; every one of them reads back as zero here.
+ *
+ * Nothing in PS2 mode touches the MDEC, so this costs nothing today: it
+ * is reachable only through the PS1 hardware map in ps2/Iop/IopHwRead.cpp
+ * and would matter to PS1 software polling the register between blocks,
+ * which is what that trace does. Implementing it means modelling the two
+ * FIFOs and the block counter rather than filling in a formula, so it is
+ * recorded here rather than guessed at -- and the trace above is the
+ * oracle to do it against if anyone wants to.
+ */
 u32 mdecRead1(void) { return mdec.status;  }
 
 void psxDma0(u32 adr, u32 bcr, u32 chcr)
