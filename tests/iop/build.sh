@@ -19,3 +19,12 @@ if [ -f "$EXPECTED" ]; then
 else
 	echo "  skipped: set PS2AUTOTESTS to a ps2autotests checkout to run this"
 fi
+
+echo "== IOP ALU vs console =="
+EXPECTED="${PS2AUTOTESTS:-}/tests/cpu/iop/alu.expected"
+if [ -f "$EXPECTED" ]; then
+	"$CC" -O1 -g -Wall $SANFLAGS -o "$DIR/iop_hwalu" "$DIR/hwalu.c"
+	"$DIR/iop_hwalu" "$EXPECTED"
+else
+	echo "  skipped: set PS2AUTOTESTS to a ps2autotests checkout to run this"
+fi
