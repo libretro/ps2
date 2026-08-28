@@ -263,12 +263,31 @@ void C_LT() {
 void CFC1() {
 	if (!_Rt_) return;
 
-	if (_Fs_ == 31)
-		cpuRegs.GPR.r[_Rt_].SD[0] = (s32)fpuRegs.fprc[31];	// force sign extension to 64 bit
-	else if (_Fs_ == 0)
-		cpuRegs.GPR.r[_Rt_].SD[0] = 0x2E00;
+	/* Only FCR0 and FCR31 exist. The console decodes a single bit of the
+	 * register number, so 0-15 all read as FCR0 and 16-31 all read as
+	 * FCR31, rather than the others reading zero.
+	 *
+	 * FCR0 is read out of fprc[0] rather than from a literal. cpuReset in
+	 * R5900.cpp already puts the revision there, and the literal that used
+	 * to be here said 0x2E00 where both that initialiser and the console
+	 * say 0x00002E30 -- so the right value was sitting in the struct while
+	 * this returned a different one. Scored against the Initial: line of
+	 * ps2autotests tests/cpu/ee_fpu/fcr.expected, which prints all
+	 * thirty-two after reset, that was 1 of 32.
+	 *
+	 * The FCR31 read drops the always-zero bits and sets the always-one
+	 * ones, which recCFC1 in x86/iFPU.cpp has always done and this had not,
+	 * so the two engines disagreed on any value written by CTC1. The mask
+	 * is confirmed by the capture: writing 0xffffffff and reading back
+	 * gives 0x0183c079, which is exactly (0xffffffff & 0x0083c078) |
+	 * 0x01000001.
+	 *
+	 * Both halves sign-extend into the full 64 bits, as FCR31 always did. */
+	if (_Fs_ & 0x10)
+		cpuRegs.GPR.r[_Rt_].SD[0] =
+			(s32)((fpuRegs.fprc[31] & 0x0083c078u) | 0x01000001u);
 	else
-		cpuRegs.GPR.r[_Rt_].SD[0] = 0;
+		cpuRegs.GPR.r[_Rt_].SD[0] = (s32)fpuRegs.fprc[0];
 }
 
 void CTC1() {
