@@ -127,7 +127,21 @@ static bool checkDivideByZero(u32& xReg, u32 yDivisorReg, u32 zDividendReg, u32 
 
 	if ( (yDivisorReg & 0x7F800000) == 0 ) {
 		_ContVal_ |= ( (zDividendReg & 0x7F800000) == 0 ) ? cFlagsToSet2 : cFlagsToSet1;
-		xReg = ( (yDivisorReg ^ zDividendReg) & 0x80000000 ) | posFmax;
+		/* The PS2's largest float is 0x7fffffff, not the largest IEEE
+		 * finite one: its exponent field goes to 255 as an ordinary value
+		 * because the format has no infinities. posFmax is the right
+		 * constant when clamping something that stays a host float --
+		 * which is what the recompiler's g_maxvals is for -- but this
+		 * result goes straight to the guest register.
+		 *
+		 * ps2f_div already returns the correct value for a zero divisor,
+		 * with the divide-by-zero flag set; this shortcut was overwriting
+		 * it with the smaller one. Against ps2autotests
+		 * tests/cpu/ee_fpu/muldiv.expected that was 27 of 36 on DIV, all
+		 * nine misses being zero divisors, while ps2float.c called
+		 * directly scores 36. */
+		xReg = ( (yDivisorReg ^ zDividendReg) & 0x80000000 )
+		     | PS2F_MAX_FLOATING_POINT_VALUE;
 		return true;
 	}
 

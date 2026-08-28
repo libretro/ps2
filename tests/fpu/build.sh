@@ -40,3 +40,17 @@ if [ -f "$EXPECTED" ]; then
 else
 	echo "  skipped: set PS2AUTOTESTS to a ps2autotests checkout to run this"
 fi
+
+echo "== EE FPU driven through FPU.cpp vs console =="
+EXPECTED="${PS2AUTOTESTS:-}/tests/cpu/ee_fpu"
+if [ -d "$EXPECTED" ]; then
+	${CXX:-c++} -std=c++17 -O1 -w -frounding-math $SANFLAGS \
+		-I "$ROOT" -I "$ROOT/pcsx2" -I "$ROOT/common" \
+		-I "$ROOT/common/include" -I "$ROOT/3rdparty/include" \
+		-I "$ROOT/libretro/libretro-common/include" \
+		-o "$DIR/fpu_hwrealfpu" "$DIR/hwrealfpu.cpp" \
+		"$ROOT/pcsx2/FPU.cpp" "$ROOT/pcsx2/ps2float.c"
+	"$DIR/fpu_hwrealfpu" "$EXPECTED"
+else
+	echo "  skipped: set PS2AUTOTESTS to a ps2autotests checkout to run this"
+fi
