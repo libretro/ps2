@@ -90,3 +90,10 @@ if [ -f "$EXPECTED" ]; then
 else
 	echo "  skipped: set PS2AUTOTESTS to a ps2autotests checkout to run this"
 fi
+
+echo "== GS SIGNAL and LABEL merges vs console =="
+${CXX:-c++} -std=c++17 -O1 -w $SANFLAGS -I "$ROOT" -I "$ROOT/pcsx2" \
+	-I "$ROOT/common" -I "$ROOT/common/include" -I "$ROOT/3rdparty/include" \
+	-I "$ROOT/libretro/libretro-common/include" \
+	-o "$DIR/ee_hwgslabel" "$DIR/hwgslabel.cpp" "$ROOT/pcsx2/Gif_Unit.cpp"
+"$DIR/ee_hwgslabel"
