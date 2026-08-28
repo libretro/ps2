@@ -53,8 +53,7 @@ bool GSInterface::init(Vulkan::Device *device, const GSOptions &options)
 
 	set_super_sampling_rate(options.super_sampling,
 	                        options.ordered_super_sampling,
-	                        options.super_sampled_textures,
-	                        options.super_sampled_quads);
+	                        options.super_sampled_textures);
 
 	renderer.reserve_primitive_buffers(MaxPrimitivesPerFlush);
 	render_pass.positions = renderer.get_reserved_vertex_positions();
@@ -64,12 +63,9 @@ bool GSInterface::init(Vulkan::Device *device, const GSOptions &options)
 }
 
 void GSInterface::set_super_sampling_rate(SuperSampling super_sampling,
-                                          bool ordered_grid, bool super_sampled_textures_,
-                                          bool super_sampled_quads_)
+                                          bool ordered_grid, bool super_sampled_textures_)
 {
 	super_sampled_textures = super_sampled_textures_;
-	super_sampled_quads = super_sampled_quads_;
-	renderer.set_super_sampled_quads(super_sampled_quads_);
 	super_sampling = SuperSampling(std::min<uint32_t>(
 			uint32_t(super_sampling), uint32_t(renderer.get_max_supported_super_sampling())));
 
@@ -2691,64 +2687,8 @@ void GSInterface::drawing_kick_append()
 	{
 		prim_attr.state |= 1u << STATE_BIT_PARALLELOGRAM;
 		prim_attr.state |= 1u << STATE_BIT_SPRITE;
-
-		// Textured sprites are snapped to the native grid by default,
-		// which is right for UI drawn at 1:1 but throws away detail when
-		// a larger texture is scaled down through the quad. With
-		// super-sampled quads on, keep the sprite on the sample grid.
-		// The arrayed (per-sample) case is left alone here; the
-		// triangle_setup path handles that one.
-		bool super_sample_this_sprite = false;
-		const bool sprite_is_per_sample = (prim_attr.tex & TEX_PER_SAMPLE_BIT) != 0;
-		if (super_sampled_quads && prim.desc.TME && !sprite_is_per_sample)
-		{
-			// Only minifying sprites have detail to recover. A sprite at
-			// 1:1 -- which is most UI, and all bitmap-font text -- has
-			// exactly one texel per pixel, so per-sample interpolation
-			// gains nothing and instead lets samples within the pixel
-			// straddle a texel boundary. With NEAREST filtering and a 4x
-			// scanout, where one sample IS one output pixel, that shows
-			// up as hard neighbouring texels punched through the glyph
-			// edges rather than as a soft fringe.
-			//
-			// uv_bb bounds are inclusive texel indices, so a 1:1 sprite
-			// spanning N pixels covers N + 1 of them; require more than
-			// that before calling it minification.
-			ivec4 sprite_uv_bb;
-			compute_uv_bb<quad, num_vertices, false>(attr, ctx, prim.desc, sprite_uv_bb, nullptr, nullptr);
-
-			const int texels_x = sprite_uv_bb.z - sprite_uv_bb.x + 1;
-			const int texels_y = sprite_uv_bb.w - sprite_uv_bb.y + 1;
-			const int pixels_x = (pre_snap_hi.x - pre_snap_lo.x) >> int(PGS_SUBPIXEL_BITS);
-			const int pixels_y = (pre_snap_hi.y - pre_snap_lo.y) >> int(PGS_SUBPIXEL_BITS);
-
-			const bool minifies = (pixels_x > 0 && texels_x > pixels_x + 1) ||
-			                      (pixels_y > 0 && texels_y > pixels_y + 1);
-
-			// Per-sample interpolation also moves samples outward at the
-			// primitive's edges, by up to a texel past the span a snapped
-			// sprite would touch. Where the sampler clamps, that is
-			// harmless; where it does not, the overshoot reads whatever
-			// sits next to the sprite's window in the texture, which for
-			// nearest filtering arrives as a whole foreign texel -- a hard
-			// line down the edge rather than a soft fringe. Require either
-			// a clamping sampler or a texel of margin inside the texture,
-			// on both axes, since unsnapping affects both.
-			const int tex_width = 1 << int(ctx.tex0.desc.TW);
-			const int tex_height = 1 << int(ctx.tex0.desc.TH);
-			const bool safe_u = ctx.clamp.desc.has_horizontal_clamp() ||
-			                    (sprite_uv_bb.x >= 1 && sprite_uv_bb.z <= tex_width - 2);
-			const bool safe_v = ctx.clamp.desc.has_vertical_clamp() ||
-			                    (sprite_uv_bb.y >= 1 && sprite_uv_bb.w <= tex_height - 2);
-
-			super_sample_this_sprite = minifies && safe_u && safe_v;
-		}
-
-		if (!super_sample_this_sprite)
-		{
-			prim_attr.state |= 1u << STATE_BIT_SNAP_RASTER;
-			prim_attr.state |= 1u << STATE_BIT_SNAP_ATTRIBUTE;
-		}
+		prim_attr.state |= 1u << STATE_BIT_SNAP_RASTER;
+		prim_attr.state |= 1u << STATE_BIT_SNAP_ATTRIBUTE;
 		prim_attr.state &= ~(1u << STATE_BIT_MULTISAMPLE);
 	}
 	else if (is_line)
