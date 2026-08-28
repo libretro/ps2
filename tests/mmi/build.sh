@@ -45,3 +45,12 @@ echo "== divide execution (emit and run) =="
 	-I "$ROOT" -I "$ROOT/common" -I "$ROOT/pcsx2" \
 	-o "$DIR/mmi_divcheck" "$DIR/divcheck.c"
 "$DIR/mmi_divcheck"
+
+echo "== PMFHL family vs console =="
+EXPECTED="${PS2AUTOTESTS:-}/tests/cpu/ee_simd/muldiv.expected"
+if [ -f "$EXPECTED" ]; then
+	"$CC" -O1 -g -Wall $SANFLAGS -o "$DIR/mmi_hwpmfhl" "$DIR/hwpmfhl.c"
+	"$DIR/mmi_hwpmfhl" "$EXPECTED"
+else
+	echo "  skipped: set PS2AUTOTESTS to a ps2autotests checkout to run this"
+fi
