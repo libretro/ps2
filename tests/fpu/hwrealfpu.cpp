@@ -53,6 +53,9 @@ namespace R5900 { namespace Interpreter { namespace OpcodeImpl { namespace COP1 
 	void CVT_W(); void CVT_S();
 	void C_EQ(); void C_LT(); void C_LE(); void C_F();
 	void CFC1(); void CTC1();
+	void ABS_S(); void NEG_S(); void MOV_S(); void MAX_S(); void MIN_S();
+	void ADDA_S(); void SUBA_S(); void MULA_S();
+	void MADDA_S(); void MSUBA_S();
 } } } }
 using namespace R5900::Interpreter::OpcodeImpl::COP1;
 
@@ -69,7 +72,9 @@ static void set_code(u32 fs, u32 ft, u32 fd)
 
 /* ---- the arithmetic and compares -------------------------------------- */
 
-enum Kind { ARITH, ARITH_ACC, CONVERT, COMPARE };
+/* ARITH writes fd; ACC_DST writes the accumulator; ARITH_ACC reads the
+ * accumulator and writes fd. */
+enum Kind { ARITH, ARITH_ACC, CONVERT, COMPARE, ACC_DST, ACC_BOTH };
 
 static const struct { const char* name; const char* file; void (*fn)();
                       Kind kind; int operands; }
@@ -85,6 +90,17 @@ kOps[] = {
 	{ "msub",  "muldiv",     MSUB_S,  ARITH_ACC, 2 },
 	{ "cvt.w.s", "convert",  CVT_W,   CONVERT, 1 },
 	{ "cvt.s.w", "convert",  CVT_S,   CONVERT, 1 },
+	{ "abs",   "arithmetic", ABS_S,   ARITH, 1 },
+	{ "neg",   "arithmetic", NEG_S,   ARITH, 1 },
+	{ "mov",   "arithmetic", MOV_S,   ARITH, 1 },
+	{ "max",   "arithmetic", MAX_S,   ARITH, 2 },
+	{ "min",   "arithmetic", MIN_S,   ARITH, 2 },
+	/* The A forms write the accumulator rather than fd. */
+	{ "adda",  "arithmetic", ADDA_S,  ACC_DST, 2 },
+	{ "suba",  "arithmetic", SUBA_S,  ACC_DST, 2 },
+	{ "mula",  "muldiv",     MULA_S,  ACC_DST, 2 },
+	{ "madda", "muldiv",     MADDA_S, ACC_BOTH, 2 },
+	{ "msuba", "muldiv",     MSUBA_S, ACC_BOTH, 2 },
 	{ "eq",    "compare",    C_EQ,    COMPARE, 2 },
 	{ "lt",    "compare",    C_LT,    COMPARE, 2 },
 	{ "le",    "compare",    C_LE,    COMPARE, 2 },
@@ -154,7 +170,8 @@ int main(int argc, char** argv)
 			if (buf[0] != ' ') break;
 
 			p = buf + 2 + strlen(kOps[op].name);
-			if (kOps[op].kind == ARITH_ACC && !operand(&p, &acc)) continue;
+			if ((kOps[op].kind == ARITH_ACC || kOps[op].kind == ACC_BOTH)
+			 && !operand(&p, &acc)) continue;
 			if (!operand(&p, &a)) continue;
 			if (kOps[op].operands == 2 && !operand(&p, &b)) continue;
 			while (*p && *p != ':') p++;
@@ -192,6 +209,8 @@ int main(int argc, char** argv)
 					got = (fpuRegs.fprc[31] & FPUflagC) ? 1u : 0u;
 				else if (kOps[op].kind == ARITH_ACC)
 					got = fpuRegs.fpr[FD].UL;   /* MADD_S writes fd */
+				else if (kOps[op].kind == ACC_DST || kOps[op].kind == ACC_BOTH)
+					got = fpuRegs.ACC.UL;       /* the A forms write ACC */
 				else
 					got = fpuRegs.fpr[FD].UL;
 				if (got == want) pass++;

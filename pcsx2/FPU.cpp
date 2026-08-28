@@ -134,6 +134,13 @@ static bool checkDivideByZero(u32& xReg, u32 yDivisorReg, u32 zDividendReg, u32 
 		 * which is what the recompiler's g_maxvals is for -- but this
 		 * result goes straight to the guest register.
 		 *
+		 * The x86 soft-float recompiler already had this right: SetMaxValue
+		 * in x86/iFPUd.cpp ORs s_const.pos[0], which is 0x7fffffff. The
+		 * native-float paths deliberately use the smaller constant instead
+		 * -- g_maxvals in x86/iFPU.cpp, and the arm64 EmitDivS -- because
+		 * there the value stays a host float and 0x7fffffff would read as a
+		 * NaN. Those are not the same bug and should not be "fixed".
+		 *
 		 * ps2f_div already returns the correct value for a zero divisor,
 		 * with the divide-by-zero flag set; this shortcut was overwriting
 		 * it with the smaller one. Against ps2autotests
