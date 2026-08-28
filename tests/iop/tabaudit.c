@@ -14,9 +14,15 @@
  *  psxNULL: an encoding that should be NULL but is not, or the reverse,
  *  is exactly as wrong as a mismatched pair.
  *
- *  Run from anywhere; it takes the path to R3000AOpcodeTables.cpp.
+ *  The recompiler has its own copies of the same three tables in
+ *  x86/iR3000Atables.cpp, named with an r prefix and pointing at the
+ *  emitters, and they are checked against the same reference. A
+ *  recompiler that dispatches an encoding to the wrong emitter is the
+ *  same catastrophe as the interpreter doing it, and equally invisible to
+ *  a test that calls the implementations directly. The prefix is the only
+ *  difference, so one reference serves both.
  *
- *  Usage: tests/iop/tabaudit <path-to-R3000AOpcodeTables.cpp>
+ *  Usage: tests/iop/tabaudit <R3000AOpcodeTables.cpp> [iR3000Atables.cpp]
  */
 
 #include <stdio.h>
@@ -57,9 +63,26 @@ static const char* const kREG[32] = {
 };
 
 /* Pull one table's initialiser out of the file and split it on commas. */
+/* Find the table's definition, not one of its extern declarations: the
+ * recompiler forward-declares all of these at the top of the file, and
+ * an extern has no initialiser, so anchoring on the first match reads a
+ * single token and reports a bogus size mismatch. */
+static const char* find_def(const char* src, const char* decl)
+{
+	const char* p = src;
+	while ((p = strstr(p, decl)) != NULL)
+	{
+		const char* q = p + strlen(decl);
+		while (*q == ' ' || *q == '\t' || *q == '\n' || *q == '(' || *q == ')') q++;
+		if (*q == '=') return p;
+		p += strlen(decl);
+	}
+	return NULL;
+}
+
 static int read_table(const char* src, const char* decl, char out[][32], int n)
 {
-	const char* p = strstr(src, decl);
+	const char* p = find_def(src, decl);
 	const char* end;
 	int count = 0;
 	if (!p) return -1;
@@ -86,6 +109,47 @@ static int read_table(const char* src, const char* decl, char out[][32], int n)
 		p = q;
 	}
 	return count;
+}
+
+/* Compare an entry against the reference, allowing the recompiler's
+ * prefixes: rpsx for psx, rgte for gte. */
+static int same_entry(const char* got, const char* want, const char* prefix)
+{
+	char expect[40];
+	if (!prefix) return !strcmp(got, want);
+	if (!strncmp(want, "psx", 3))
+		snprintf(expect, sizeof(expect), "rpsx%s", want + 3);
+	else if (!strncmp(want, "gte", 3))
+		snprintf(expect, sizeof(expect), "rgte%s", want + 3);
+	else
+		snprintf(expect, sizeof(expect), "%s", want);
+	return !strcmp(got, expect);
+}
+
+static int check_p(const char* what, char got[][32], int got_n,
+                   const char* const* want, int want_n, const char* prefix)
+{
+	int i, bad = 0;
+	if (got_n != want_n)
+	{ printf("  %s: read %d entries, expected %d\n", what, got_n, want_n); return 1; }
+	for (i = 0; i < want_n; i++)
+		if (!same_entry(got[i], want[i], prefix))
+		{
+			/* Report the name this table should hold, prefix and all. */
+			char expect[40];
+			if (prefix && !strncmp(want[i], "psx", 3))
+				snprintf(expect, sizeof(expect), "rpsx%s", want[i] + 3);
+			else if (prefix && !strncmp(want[i], "gte", 3))
+				snprintf(expect, sizeof(expect), "rgte%s", want[i] + 3);
+			else
+				snprintf(expect, sizeof(expect), "%s", want[i]);
+			printf("  %s[%d]: table has %s, the encoding says %s\n",
+			       what, i, got[i], expect);
+			bad++;
+		}
+	printf("%-12s %3d/%-3d entries match the MIPS I encoding\n",
+	       what, want_n - bad, want_n);
+	return bad;
 }
 
 static int check(const char* what, char got[][32], int got_n,
@@ -134,8 +198,31 @@ int main(int argc, char** argv)
 	n = read_table(src, "psxREG[32])", reg, 32);
 	bad += (n < 0) ? (printf("  could not read psxREG\n"), 1)
 	               : check("psxREG", reg, n, kREG, 32);
-
 	free(src);
+
+	/* The recompiler's copies, if a path was given. */
+	if (argc > 2)
+	{
+		f = fopen(argv[2], "rb");
+		if (!f) { fprintf(stderr, "cannot open %s\n", argv[2]); return 2; }
+		fseek(f, 0, SEEK_END); len = ftell(f); fseek(f, 0, SEEK_SET);
+		src = (char*)malloc((size_t)len + 1);
+		if (!src || fread(src, 1, (size_t)len, f) != (size_t)len) { fclose(f); return 2; }
+		src[len] = '\0';
+		fclose(f);
+
+		n = read_table(src, "rpsxBSC[64])", bsc, 64);
+		bad += (n < 0) ? (printf("  could not read rpsxBSC\n"), 1)
+		               : check_p("rpsxBSC", bsc, n, kBSC, 64, "r");
+		n = read_table(src, "rpsxSPC[64])", spc, 64);
+		bad += (n < 0) ? (printf("  could not read rpsxSPC\n"), 1)
+		               : check_p("rpsxSPC", spc, n, kSPC, 64, "r");
+		n = read_table(src, "rpsxREG[32])", reg, 32);
+		bad += (n < 0) ? (printf("  could not read rpsxREG\n"), 1)
+		               : check_p("rpsxREG", reg, n, kREG, 32, "r");
+		free(src);
+	}
+
 	printf("iop tabaudit: %s\n", bad ? "MISMATCHES FOUND" : "dispatch matches the encoding");
 	return bad != 0;
 }
