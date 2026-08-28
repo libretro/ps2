@@ -55,3 +55,12 @@ if [ -f "$EXPECTED" ]; then
 else
 	echo "  skipped: set PS2AUTOTESTS to a ps2autotests checkout to run this"
 fi
+
+echo "== VU0 macro control register round trips vs console =="
+EXPECTED="${PS2AUTOTESTS:-}/tests/cpu/vu0_macro/transfer.expected"
+if [ -f "$EXPECTED" ]; then
+	"$CC" -O1 -g -Wall $SANFLAGS -o "$DIR/vu_hwctc2" "$DIR/hwctc2.c"
+	"$DIR/vu_hwctc2" "$EXPECTED"
+else
+	echo "  skipped: set PS2AUTOTESTS to a ps2autotests checkout to run this"
+fi
