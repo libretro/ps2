@@ -73,6 +73,14 @@ void psxBGEZ()         // Branch if Rs >= 0
 
 void psxBGEZAL()   // Branch if Rs >= 0 and link
 {
+	/* The link is written before the condition is read, so with rs == 31
+	 * the test sees the return address rather than the old value. That is
+	 * deliberate, not the JALR bug in a different place: MIPS leaves r31 as
+	 * the source of a linking branch undefined, and all four engines agree
+	 * here -- both recompilers set the link before reading rs too, the EE
+	 * one in iR5900Branch.cpp and the IOP one in iR3000Atables.cpp.
+	 * Reordering it to match JALR would break that agreement rather than
+	 * fix anything, and the engines are switchable at run time. */
 	_SetLink(31);
 	if (_i32(_rRs_) >= 0)
 	{
