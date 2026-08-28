@@ -2193,6 +2193,18 @@ int lrps2_ingame_patches(const char *serial,
 						LoadPatchesFromString(patches[i]);
 					log_cb(RETRO_LOG_INFO, "[PATCH] [Grand Theft Auto: Vice City (NTSC-U)]: 60fps patch applied.\n");
 				}
+				else if (game_crc == 0x248E6126)
+				{
+					/* v4.00 pressing: the same poke against its vsync-wait
+					 * (lw v0,-0x12e4(gp); slti v0,v0,2; bnez), relocated from
+					 * 272204 to 277B8C in this ELF. */
+					static const char *const patches_v400[] = {
+						"patch=1,EE,20277B8C,extended,28420001"
+					};
+					for (size_t i = 0; i < sizeof(patches_v400) / sizeof(patches_v400[0]); i++)
+						LoadPatchesFromString(patches_v400[i]);
+					log_cb(RETRO_LOG_INFO, "[PATCH] [Grand Theft Auto: Vice City (NTSC-U) v4.00]: 60fps patch applied.\n");
+				}
 				else
 					log_cb(RETRO_LOG_INFO, "[PATCH] [Grand Theft Auto: Vice City (NTSC-U)]: 60fps patch skipped, no patch for this revision (CRC %08X).\n", game_crc);
 			}
@@ -3890,6 +3902,32 @@ int lrps2_ingame_patches(const char *serial,
 						LoadPatchesFromString(patches[i]);
 					log_cb(RETRO_LOG_INFO, "[PATCH] [Grand Theft Auto: Vice City (NTSC-U)]: 16:9 Widescreen patch applied.\n");
 			}
+				else if (game_crc == 0x248E6126)
+				{
+					/* v4.00 pressing. Same transform against this ELF's layout:
+					 * the aspect setter is jr ra; swc1 f12,-0x7908(gp) at
+					 * 1324C0/C4 with three words of padding before it; the scale
+					 * sequence goes in that padding and the caller at 2485DC is
+					 * redirected to it. The other two callers (27579C, 275D6C)
+					 * keep the plain entry, written out explicitly like the
+					 * 20B19E49 entry above. All nine words verified against the
+					 * ELF and a running image. */
+					static const char *const patches_v400[] = {
+						/* 16:9 */
+						"patch=1,EE,001324B4,word,3C013F9D",
+						"patch=1,EE,001324B8,word,44810000",
+						"patch=1,EE,001324BC,word,46006302",
+						"patch=1,EE,001324C0,word,03E00008",
+						"patch=1,EE,001324C4,word,E78C86F8",
+
+						"patch=1,EE,002485DC,word,0C04C92D",
+						"patch=1,EE,0027579C,word,0C04C930",
+						"patch=1,EE,00275D6C,word,0C04C930"
+					};
+					for (size_t i = 0; i < sizeof(patches_v400) / sizeof(patches_v400[0]); i++)
+						LoadPatchesFromString(patches_v400[i]);
+					log_cb(RETRO_LOG_INFO, "[PATCH] [Grand Theft Auto: Vice City (NTSC-U) v4.00]: 16:9 Widescreen patch applied.\n");
+				}
 				else
 					log_cb(RETRO_LOG_INFO, "[PATCH] [Grand Theft Auto: Vice City (NTSC-U)]: 16:9 Widescreen patch skipped, no patch for this revision (CRC %08X).\n", game_crc);
 			}
