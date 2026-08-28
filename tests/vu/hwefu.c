@@ -27,6 +27,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
+#include <math.h>
 
 #include "ps2float.h"
 
@@ -109,8 +110,87 @@ static int lookup(const char* tok, u32* out)
  * exists to catch a regression to the unreduced form, which scored 0. */
 #define EATAN_MIN_PASS 8
 
-enum { E_ESQRT, E_ERSQRT, E_ERCPR, E_EATAN, E_COUNT };
-static const char* const kOpName[E_COUNT] = { "ESQRT", "ERSQRT", "ERCPR", "EATAN" };
+/* ESIN and EEXP are pinned at what they achieve rather than held to
+ * exactness. Both are curve fits whose residual error is in the
+ * coefficients, not the structure: hardware runs the same unreduced series
+ * and is itself inaccurate -- the console's ESIN of 3.0 is 0.142953 where
+ * sin(3) is 0.141120 -- so there is no more-correct formula to move to.
+ * Alternatives were measured against these captures, not guessed:
+ *
+ *   ESIN  pow/double 7/13 (kept)   float 4-5   ps2float 6-7   chop 5
+ *   EEXP  pow/double 5/13          float 4-5   ps2float 8     chop 8 (kept)
+ *
+ * EEXP now uses the chopping helpers, matching the exact software float
+ * path's 8 at 67ns against its 521ns, and beating the pow() form it
+ * replaced on both counts. ESIN keeps pow() because the same treatment
+ * takes it from 7 down to 5.
+ *
+ * Of the two helpers only the multiply is load-bearing for EEXP: swapping
+ * the chopped adds back to plain float ones still scores 8, while dropping
+ * the chopped multiplies as well falls to 4. The adds are kept anyway,
+ * since the pair is what makes the sequence PS2 arithmetic rather than a
+ * coincidence that happens to hold for these thirteen inputs. */
+#define ESIN_MIN_PASS 7
+#define EEXP_MIN_PASS 8
+
+/* Mirrors _vuChop/_vuPsMul/_vuPsAdd in pcsx2/VUops.cpp: round toward zero
+ * at 24 bits, no infinities, no denormals. */
+static float pschop(double d)
+{
+	uint64_t u; u32 b; float f;
+	memcpy(&u, &d, sizeof(u));
+	u &= ~((uint64_t)((1ULL << 29) - 1));
+	memcpy(&d, &u, sizeof(d));
+	f = (float)d;
+	memcpy(&b, &f, sizeof(b));
+	if ((b & 0x7f800000u) == 0x7f800000u) b = (b & 0x80000000u) | 0x7f7fffffu;
+	else if ((b & 0x7f800000u) == 0) b &= 0x80000000u;
+	memcpy(&f, &b, sizeof(f));
+	return f;
+}
+static float psmul(float a, float b) { return pschop((double)a * (double)b); }
+static float psadd(float a, float b) { return pschop((double)a + (double)b); }
+
+/* Mirrors _vuESIN in pcsx2/VUops.cpp, doubles and all. */
+static u32 esin(u32 in)
+{
+	static const float c[5] = { 1.0f, -0.166666567325592f, 0.008333025500178f,
+		-0.000198074136279f, 0.000002601886990f };
+	float p; u32 v = in, out;
+	if ((v & 0x7f800000u) == 0) v &= 0x80000000u;
+	memcpy(&p, &v, 4);
+	p = (c[0]*p) + (c[1]*pow(p,3)) + (c[2]*pow(p,5)) + (c[3]*pow(p,7))
+	  + (c[4]*pow(p,9));
+	memcpy(&out, &p, 4);
+	if ((out & 0x7f800000u) == 0) out &= 0x80000000u;
+	return out;
+}
+
+/* Mirrors _vuEEXP in pcsx2/VUops.cpp. */
+static u32 eexp(u32 in)
+{
+	static const float c[6] = { 0.249998688697815f, 0.031257584691048f,
+		0.002591371303424f, 0.000171562001924f, 0.000005430199963f,
+		0.000000690600018f };
+	float x, q, p; u32 v = in, out; int i;
+	if ((v & 0x7f800000u) == 0) v &= 0x80000000u;
+	memcpy(&x, &v, 4);
+	q = x;
+	p = psadd(1.0f, psmul(c[0], x));
+	for (i = 1; i < 6; i++) { q = psmul(q, x); p = psadd(p, psmul(c[i], q)); }
+	p = psmul(p, p);
+	p = psmul(p, p);
+	p = pschop(1.0 / (double)p);
+	memcpy(&out, &p, 4);
+	return out;
+}
+
+enum { E_ESQRT, E_ERSQRT, E_ERCPR, E_EATAN, E_ESIN, E_EEXP, E_COUNT };
+static const char* const kOpName[E_COUNT] =
+	{ "ESQRT", "ERSQRT", "ERCPR", "EATAN", "ESIN", "EEXP" };
+/* Ops held to a floor rather than a clean sweep; 0 means exact. */
+static const int kMinPass[E_COUNT] =
+	{ 0, 0, 0, EATAN_MIN_PASS, ESIN_MIN_PASS, EEXP_MIN_PASS };
 
 static u32 apply(int op, u32 v)
 {
@@ -120,6 +200,8 @@ static u32 apply(int op, u32 v)
 	case E_ERSQRT: return ps2f_raw(ps2f_ersqrt(v));
 	case E_ERCPR:  return ps2f_raw(ps2f_ercpr(v));
 	case E_EATAN:  return eatan(v);
+	case E_ESIN:   return esin(v);
+	case E_EEXP:   return eexp(v);
 	}
 	return 0;
 }
@@ -174,17 +256,17 @@ int main(int argc, char** argv)
 
 			got = apply(op, in);
 			if (close_enough(op, got, (u32)want)) pass++;
-			else if (op != E_EATAN && failures++ < 8)
+			else if (!kMinPass[op] && failures++ < 8)
 				printf("  %s %-18s console %08x  ours %08x\n",
 				       kOpName[op], args, want, got);
 			cases++;
 		}
 		fclose(f);
-		if (op == E_EATAN)
+		if (kMinPass[op])
 		{
-			printf("%-7s %2d/%2d console cases (within %d ULP, floor %d)\n",
-			       kOpName[op], pass, cases, EATAN_TOLERANCE_ULP, EATAN_MIN_PASS);
-			if (pass < EATAN_MIN_PASS) failures++;
+			printf("%-7s %2d/%2d console cases (floor %d)\n",
+			       kOpName[op], pass, cases, kMinPass[op]);
+			if (pass < kMinPass[op]) failures++;
 		}
 		else
 		{

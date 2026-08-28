@@ -41,7 +41,7 @@ EXPECTED="${PS2AUTOTESTS:-}/tests/vu/lower/efu.expected"
 if [ -f "$EXPECTED" ]; then
 	# Links pcsx2/ps2float.c, so this exercises the real implementation.
 	"$CC" -O1 -g -Wall $SANFLAGS -I "$ROOT" -I "$ROOT/pcsx2" -I "$ROOT/common" \
-		-o "$DIR/vu_hwefu" "$DIR/hwefu.c" "$ROOT/pcsx2/ps2float.c"
+		-o "$DIR/vu_hwefu" "$DIR/hwefu.c" "$ROOT/pcsx2/ps2float.c" -lm
 	"$DIR/vu_hwefu" "$EXPECTED"
 else
 	echo "  skipped: set PS2AUTOTESTS to a ps2autotests checkout to run this"
