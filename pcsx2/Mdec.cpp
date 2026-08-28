@@ -477,10 +477,18 @@ void mdecWrite0(u32 data)
 		 * cmdBusy and raising dataOutReq: there is now something to read.
 		 * The 32-word unit is what the trace's phase boundaries are all
 		 * multiples of. */
-		/* A block completes every 32 words -- one 8x8 block at 15bpp --
-		 * and the console reports it by advancing currentBlock and
-		 * dropping the output FIFO's empty flag: there is now something
-		 * to read. cmdBusy stays set for the whole command. */
+		/* Approximate: a block's OUTPUT is 32 words at 15bpp, but its
+		 * input is run-length coded and varies per block, so the console
+		 * does not advance on a fixed input count. It goes 4 to 1 after
+		 * the first 32 words here and then holds through the next 64,
+		 * which no fixed rule reproduces without decoding the RL stream.
+		 *
+		 * Advancing every 32 input words gets the rate right if not the
+		 * timing, and measurably so: the block field is correct on 284 of
+		 * the trace's 777 reads with this and 131 without. It is kept for
+		 * that reason and marked so nobody reads it as the hardware rule.
+		 * The exact timing needs the decoder consuming RL codes at its own
+		 * rate, which is the same thing the output FIFO needs. */
 		if ((mdec.consumed % MDEC_BLOCK_WORDS) == 0)
 		{
 			mdec.block_idx = (mdec.block_idx + 1) & 7u;
@@ -548,6 +556,12 @@ u32 mdecRead0(void)
  * 32 reads took this from 88 of 777 to 154, which is the evidence for it.
  * The field also reaches 5, so it walks all six blocks rather than the
  * four-plus-two the input side suggests.
+ *
+ * The input side also advances the counter here, and that part is an
+ * approximation rather than a rule -- see the note at the write. A block
+ * emits 32 words but consumes a variable number, so no fixed input count
+ * reproduces the console's timing; the fixed one gets the rate right and
+ * is worth 153 reads over not advancing at all.
  *
  * Nothing in PS2 mode touches the MDEC: it is reachable only through the
  * PS1 hardware map in ps2/Iop/IopHwRead.cpp, and matters to PS1 software
