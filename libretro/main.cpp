@@ -509,7 +509,11 @@ static void check_variables(bool first_run)
 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 		{
 			u8 pgs_high_res_scanout_prev = setting_pgs_high_res_scanout;
-			setting_pgs_high_res_scanout = !strcmp(var.value, "enabled");
+			/* Value is the scanout scale log2: 0 = off, 1 = 2x, 2 = 4x. */
+			if (!strcmp(var.value, "enabled (4x)"))
+				setting_pgs_high_res_scanout = 2;
+			else
+				setting_pgs_high_res_scanout = !strcmp(var.value, "enabled");
 
 			if (first_run)
 				s_settings_interface.SetUIntValue("EmuCore/GS", "pgsHighResScanout", setting_pgs_high_res_scanout);
@@ -1912,7 +1916,7 @@ unsigned retro_get_region(void)
 
 void retro_get_system_av_info(retro_system_av_info* info)
 {
-	unsigned upscale_mul       = (setting_renderer == "paraLLEl-GS" && setting_pgs_high_res_scanout) ? 2 : setting_upscale_multiplier;
+	unsigned upscale_mul       = (setting_renderer == "paraLLEl-GS" && setting_pgs_high_res_scanout) ? (1u << setting_pgs_high_res_scanout) : setting_upscale_multiplier;
 
 	switch (gsVideoMode)
 	{

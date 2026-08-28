@@ -190,7 +190,9 @@ struct VSyncInfo
 	// and the result will look like pixelated nearest-neighbor upscaling instead.
 	// Requires a minimum of 4x SSAA to work. 8x SSAA and 16x SSAA adds some super-sampling over the double resolution scanout.
 	// For best results, force_progressive must also be used.
-	bool high_resolution_scanout;
+	// Requested log2 of the scanout upsample factor (0 = off, 1 = 2x, 2 = 4x).
+	// Clamped internally to what the super-sampling grid can feed.
+	uint32_t high_resolution_scanout;
 
 	// If using interlaced, defer any attempt to deinterlace and just return the raw output as-is with phase information.
 	// User is responsible for deinterlacing in whatever way is appropriate.

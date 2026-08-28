@@ -504,7 +504,8 @@ void GSRendererPGS::VSync(u32 field, bool registers_written)
 	// The scaling blur is technically a blur ...
 	info.adapt_to_internal_horizontal_resolution = GSConfig.PCRTCAntiBlur;
 	info.raw_circuit_scanout                     = true;
-	info.high_resolution_scanout                 = GSConfig.PGSHighResScanout != 0;
+	// Config value is the scale log2: 0 = off, 1 = 2x, 2 = 4x.
+	info.high_resolution_scanout                 = GSConfig.PGSHighResScanout;
 	auto vsync                                   = iface.vsync(info);
 
 	auto stats = iface.consume_flush_stats();
