@@ -64,3 +64,16 @@ if [ -f "$EXPECTED" ]; then
 else
 	echo "  skipped: set PS2AUTOTESTS to a ps2autotests checkout to run this"
 fi
+
+echo "== VU EFU driven through VUops.cpp vs console =="
+EXPECTED="${PS2AUTOTESTS:-}/tests/vu/lower/efu.expected"
+if [ -f "$EXPECTED" ]; then
+	${CXX:-c++} -std=c++17 -O1 -w $SANFLAGS -I "$ROOT" -I "$ROOT/pcsx2" \
+		-I "$ROOT/common" -I "$ROOT/common/include" -I "$ROOT/3rdparty/include" \
+		-I "$ROOT/libretro/libretro-common/include" \
+		-o "$DIR/vu_hwrealvu" "$DIR/hwrealvu.cpp" \
+		"$ROOT/pcsx2/VUops.cpp" "$ROOT/pcsx2/ps2float.c"
+	"$DIR/vu_hwrealvu" "$EXPECTED" | tail -3
+else
+	echo "  skipped: set PS2AUTOTESTS to a ps2autotests checkout to run this"
+fi
