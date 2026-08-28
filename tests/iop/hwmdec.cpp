@@ -10,6 +10,21 @@
  *  This links Mdec.cpp rather than transcribing it, so it cannot drift
  *  from the implementation it scores.
  *
+ *  The 512 output words are reported but cannot be won as written, and
+ *  that is a property of the capture rather than of the emulator. The
+ *  trace's own header says so: "Decoded blocks are copied manually
+ *  WITHOUT swizzling, blocks are copied as 16x4 instead of 8x8". The words
+ *  it prints are in the order its own copy loop produced, not the raster
+ *  order yuv2rgb15 writes, so a word-by-word comparison fails however
+ *  correct the decode is. Scoring them means replicating that copy order
+ *  here first.
+ *
+ *  What was checked while establishing that, since it bears on the rest:
+ *  the whole input stream does decode cleanly, 473 of its 512 RL codes
+ *  making exactly four macroblocks, and the decoder produces real pixels
+ *  once mdecInit has set up the IDCT tables. So the remaining gap is not
+ *  the decoder failing on this data.
+ *
  *  Three things are checked separately, because they fail independently
  *  and lumping them together would hide which part is wrong:
  *    - the status register after each step,

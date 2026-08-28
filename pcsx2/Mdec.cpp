@@ -418,7 +418,15 @@ static void yuv2rgb24(int *blk,unsigned char *image)
  * itself produce output. The console answers reads anyway and the first
  * 83 words it returns are zero, which suggests it serves the FIFO before
  * conversion finishes rather than stalling. That is the behaviour to pin
- * down next, and it is a question about the hardware. */
+ * down next, and it is a question about the hardware.
+ *
+ * One thing that is settled: the decoder is not what is failing on this
+ * data. The trace's whole input stream decodes cleanly -- 473 of its 512
+ * RL codes make exactly four macroblocks -- and produces real pixels once
+ * the IDCT tables are up. The output words the trace prints cannot be
+ * compared against them word for word, because it copies decoded blocks
+ * as 16x4 rather than 8x8 and says so in its own header, so its ordering
+ * is the test program's and not the hardware's. */
 static unsigned short* rl2blk_one(int *blk, unsigned short *mdec_rl, int which)
 {
 	int k, q_scale, rl;
