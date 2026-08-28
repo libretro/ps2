@@ -63,3 +63,15 @@ if [ -f "$EXPECTED" ]; then
 else
 	echo "  skipped: set PS2AUTOTESTS to a ps2autotests checkout to run this"
 fi
+
+echo "== MMI driven through MMI.cpp vs console =="
+EXPECTED="${PS2AUTOTESTS:-}/tests/cpu/ee_simd"
+if [ -d "$EXPECTED" ]; then
+	${CXX:-c++} -std=c++17 -O1 -w $SANFLAGS -I "$ROOT" -I "$ROOT/pcsx2" \
+		-I "$ROOT/common" -I "$ROOT/common/include" -I "$ROOT/3rdparty/include" \
+		-I "$ROOT/libretro/libretro-common/include" \
+		-o "$DIR/mmi_hwreal" "$DIR/hwreal.cpp" "$ROOT/pcsx2/MMI.cpp"
+	"$DIR/mmi_hwreal" "$EXPECTED"
+else
+	echo "  skipped: set PS2AUTOTESTS to a ps2autotests checkout to run this"
+fi
