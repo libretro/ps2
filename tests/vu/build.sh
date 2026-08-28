@@ -14,6 +14,7 @@
 # Usage: sh tests/vu/build.sh
 set -e
 DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+ROOT=$(CDPATH= cd -- "$DIR/../.." && pwd)
 CC=${CC:-cc}
 SANFLAGS=""
 [ -n "$SANITIZER" ] && SANFLAGS="-fsanitize=$SANITIZER"
@@ -31,6 +32,17 @@ EXPECTED="${PS2AUTOTESTS:-}/tests/vu/lower/integer.expected"
 if [ -f "$EXPECTED" ]; then
 	"$CC" -O1 -g -Wall $SANFLAGS -o "$DIR/vu_hwint" "$DIR/hwint.c"
 	"$DIR/vu_hwint" "$EXPECTED"
+else
+	echo "  skipped: set PS2AUTOTESTS to a ps2autotests checkout to run this"
+fi
+
+echo "== VU EFU results vs console =="
+EXPECTED="${PS2AUTOTESTS:-}/tests/vu/lower/efu.expected"
+if [ -f "$EXPECTED" ]; then
+	# Links pcsx2/ps2float.c, so this exercises the real implementation.
+	"$CC" -O1 -g -Wall $SANFLAGS -I "$ROOT" -I "$ROOT/pcsx2" -I "$ROOT/common" \
+		-o "$DIR/vu_hwefu" "$DIR/hwefu.c" "$ROOT/pcsx2/ps2float.c"
+	"$DIR/vu_hwefu" "$EXPECTED"
 else
 	echo "  skipped: set PS2AUTOTESTS to a ps2autotests checkout to run this"
 fi
