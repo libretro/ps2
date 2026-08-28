@@ -489,6 +489,59 @@ int main(int argc, char** argv)
 		  failures++; }
 	}
 
+	/* ---- cases the capture cannot supply -------------------------------
+	 *
+	 * MIPS splits the immediate forms: the arithmetic and compare ones --
+	 * ADDIU, DADDIU, SLTI, SLTIU -- sign-extend their immediate, and the
+	 * logical ones -- ANDI, ORI, XORI -- zero-extend it. Getting that
+	 * split wrong is a classic implementation mistake and the capture
+	 * cannot see it: not one of the 144 lines across those seven ops in
+	 * tests/cpu/ee/alu.expected uses a negative or high-bit immediate, so
+	 * swapping _Imm_ for _ImmU_ in SLTIU passes all 814 console cases.
+	 *
+	 * These come from the MIPS definition rather than from hardware, and
+	 * every one uses an immediate with bit 15 set, which is the only place
+	 * the two extensions differ.
+	 */
+	{
+		static const struct { const char* name; void (*fn)(); u64 rs; u32 imm; u64 want; }
+		kSpec[] = {
+			/* Sign-extending: 0xffff means -1. */
+			{ "addiu",  ADDIU,  0x0000000000000001ull, 0xFFFFu, 0x0000000000000000ull },
+			{ "addiu",  ADDIU,  0x0000000000000000ull, 0xFFFFu, 0xFFFFFFFFFFFFFFFFull },
+			{ "daddiu", DADDIU, 0x0000000000000001ull, 0xFFFFu, 0x0000000000000000ull },
+			{ "slti",   SLTI,   0xFFFFFFFFFFFFFFFEull, 0xFFFFu, 1 },  /* -2 < -1 */
+			{ "slti",   SLTI,   0x0000000000000000ull, 0xFFFFu, 0 },
+			{ "sltiu",  SLTIU,  0x0000000000000000ull, 0xFFFFu, 1 },  /* 0 < ffff..ff */
+			{ "sltiu",  SLTIU,  0x0000000000010000ull, 0xFFFFu, 1 },  /* zero-ext says 0 */
+			/* Zero-extending: 0xffff means 65535, not -1. */
+			{ "andi",   ANDI,   0xFFFFFFFFFFFFFFFFull, 0xFFFFu, 0x000000000000FFFFull },
+			{ "ori",    ORI,    0x0000000000000000ull, 0xFFFFu, 0x000000000000FFFFull },
+			{ "xori",   XORI,   0x0000000000000000ull, 0xFFFFu, 0x000000000000FFFFull },
+		};
+		const int n = (int)(sizeof(kSpec)/sizeof(kSpec[0]));
+		int i, pass = 0;
+
+		for (i = 0; i < n; i++)
+		{
+			memset(&cpuRegs.GPR, 0, sizeof(cpuRegs.GPR));
+			cpuRegs.GPR.r[RS].UD[0] = kSpec[i].rs;
+			cpuRegs.code = ((u32)RS << 21) | ((u32)RT << 16) | kSpec[i].imm;
+			kSpec[i].fn();
+			if (cpuRegs.GPR.r[RT].UD[0] == kSpec[i].want) pass++;
+			else
+				printf("  %-7s %016llx, 0xffff: MIPS says %016llx, ours %016llx\n",
+				       kSpec[i].name,
+				       (unsigned long long)kSpec[i].rs,
+				       (unsigned long long)kSpec[i].want,
+				       (unsigned long long)cpuRegs.GPR.r[RT].UD[0]);
+		}
+		total += n;
+		printf("spec    %2d/%-3d immediate-extension cases from the MIPS definition\n",
+		       pass, n);
+		if (pass != n) failures++;
+	}
+
 	printf("hwrealee: %d cases across %d ops, driven through R5900OpcodeImpl.cpp\n",
 	       total, NOPS);
 	return failures != 0;
