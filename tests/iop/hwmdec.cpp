@@ -28,6 +28,16 @@
  *  interleaved with the writes, at word granularity, rather than in
  *  batches. The status bits then follow from that state.
  *
+ *  The unit to build it around is the 8x8 block, not the macroblock.
+ *  Every phase boundary in the trace lands on a multiple of 32 words:
+ *  the input phases run 96, 32, 64, 32 and 32, and the output phases 96,
+ *  96, 64, 128 and 128. Thirty-two words is one block at 15bpp -- 64
+ *  pixels of two bytes -- so the FIFOs fill and drain a block at a time
+ *  and the phase switches never fall inside one. That also explains why
+ *  the output phases do not divide into 128-word macroblocks: draining
+ *  stops when the FIFO empties, which happens mid-macroblock whenever the
+ *  decoder has not yet been fed enough to finish the next block.
+ *
  *  So this is the oracle for that work rather than a passing test, and it
  *  is wired into build.sh as a report rather than a gate. The bit layout
  *  is in the log itself, spelled out beside every value: 31 cmdBusy, 30
