@@ -47,3 +47,12 @@ if [ -f "$EXPECTED" ]; then
 else
 	echo "  skipped: set PS2AUTOTESTS to a ps2autotests checkout to run this"
 fi
+
+echo "== EE branch conditions vs console =="
+EXPECTED="${PS2AUTOTESTS:-}/tests/cpu/ee/branch.expected"
+if [ -f "$EXPECTED" ]; then
+	"$CC" -O1 -g -Wall $SANFLAGS -o "$DIR/ee_hwbranch" "$DIR/hwbranch.c"
+	"$DIR/ee_hwbranch" "$EXPECTED"
+else
+	echo "  skipped: set PS2AUTOTESTS to a ps2autotests checkout to run this"
+fi
