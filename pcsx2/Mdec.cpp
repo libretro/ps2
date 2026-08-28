@@ -697,16 +697,67 @@ void psxDma1(u32 adr, u32 bcr, u32 chcr)
 
 	image = (u16*)mdecArr2;//(u16*)PSXM(0); //image = (u16*)PSXM(adr);
 
-	if (mdec.command&0x08000000) {
+	/* The decode command's bits 28..27 select the output depth: 0 is
+	 * 4-bit, 1 is 8-bit, 2 is 24-bit and 3 is 15-bit. This used to test
+	 * bit 27 alone, which reads 8-bit as 15-bit and 4-bit as 24-bit --
+	 * both monochrome modes decoded as colour, and neither had ever been
+	 * implemented.
+	 *
+	 * The two monochrome modes are a different shape from the colour ones:
+	 * there is no chroma in the stream, so a macroblock is not six blocks
+	 * but one, and the output is the luma clamped and packed rather than
+	 * run through a colour conversion. rl2blk_one is what makes that
+	 * expressible.
+	 *
+	 * The routing is right; the pixel values are not yet verified. Against
+	 * ps1-tests mdec/4bit, a single 8x8 block whose log hexdumps the 32
+	 * output bytes, this matches 2 of 32. That is the same value
+	 * difference the 15-bit path has against mdec/step-by-step-log, and the
+	 * 4-bit trace is the better place to chase it: one block, no chroma, no
+	 * colour conversion, 32 bytes. What has been ruled out: swapping the
+	 * nibble order scores 1, dropping the +128 offset scores 0, transposing
+	 * the block scores 1, and running the guest IDCT matrix scores 0. The
+	 * difference is in the coefficient stage, not the packing or the
+	 * transform. */
+	switch ((mdec.command >> 27) & 3)
+	{
+	case 3:  /* 15-bit */
 		for (;size>0;size-=(16*16)/2,image+=(16*16)) {
 			mdec.rl = rl2blk(blk,mdec.rl);
 			yuv2rgb15(blk,image);
 		}
-	} else {
+		break;
+
+	case 2:  /* 24-bit */
 		for (;size>0;size-=(24*16)/2,image+=(24*16)) {
 			mdec.rl = rl2blk(blk,mdec.rl);
 			yuv2rgb24(blk,(u8 *)image);
 		}
+		break;
+
+	case 1:  /* 8-bit monochrome: one byte a pixel, 64 to a block */
+		for (;size>0;size-=DCTSIZE2/4,image+=DCTSIZE2/2) {
+			u8* p = (u8*)image;
+			int i;
+			mdec.rl = rl2blk_one(blk, mdec.rl, 2);
+			for (i = 0; i < DCTSIZE2; i++)
+				p[i] = (u8)RANGE(blk[i] + 128);
+		}
+		break;
+
+	default: /* 4-bit monochrome: two pixels a byte, low nibble first */
+		for (;size>0;size-=DCTSIZE2/8,image+=DCTSIZE2/4) {
+			u8* p = (u8*)image;
+			int i;
+			mdec.rl = rl2blk_one(blk, mdec.rl, 2);
+			for (i = 0; i < DCTSIZE2; i += 2)
+			{
+				const int a = RANGE(blk[i + 0] + 128) >> 4;
+				const int b = RANGE(blk[i + 1] + 128) >> 4;
+				p[i / 2] = (u8)((a & 0xF) | ((b & 0xF) << 4));
+			}
+		}
+		break;
 	}
 
 	for (int i = 0; i<(size2); i++)
