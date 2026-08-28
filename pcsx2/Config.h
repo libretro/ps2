@@ -556,6 +556,7 @@ struct Pcsx2Config
 		u8 PGSSuperSampling = 0;
 		u8 PGSHighResScanout = 0;
 		u8 PGSDisableMipmaps = 0;
+		u8 PGSForcedMipmaps = 0;
 		u8 PGSSuperSampleTextures = 0;
 		u8 PGSSharpBackbuffer = 0;
 

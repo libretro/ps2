@@ -248,6 +248,10 @@ CONSTEXPR int TEX_SAMPLER_CLAMP_S_BIT = 1 << 19;
 CONSTEXPR int TEX_SAMPLER_CLAMP_T_BIT = 1 << 20;
 CONSTEXPR int TEX_MAX_MIP_LEVEL_OFFSET = 21;
 CONSTEXPR int TEX_MAX_MIP_LEVEL_BITS = 3;
+// Synthesized mip chain: LOD comes from analytic screen derivatives
+// instead of the PS2 Q formula. Only ever set by the forced-mipmaps
+// option for textures the game samples without mips.
+CONSTEXPR int TEX_SAMPLER_FORCED_MIP_BIT = 1 << 24;
 CONSTEXPR int TEX_PER_SAMPLE_BIT = 1 << 24;
 CONSTEXPR int TEX_SAMPLE_MAPPING_BIT = 1 << 25;
 CONSTEXPR int TEX_SAMPLE_RESOLVED_BIT = 1 << 26;

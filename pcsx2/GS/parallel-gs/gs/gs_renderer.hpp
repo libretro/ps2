@@ -320,6 +320,7 @@ public:
 
 	SuperSampling get_max_supported_super_sampling() const;
 
+	void set_forced_mipmaps(bool enable) { forced_mipmaps = enable; }
 	void set_field_aware_super_sampling(bool enable);
 
 private:
@@ -394,6 +395,7 @@ private:
 	static_assert(sizeof(TextureAnalysis) * MaxTextures <= Vulkan::VULKAN_MAX_UBO_SIZE, "Too large analysis struct.");
 
 	std::vector<TextureUpload> texture_uploads;
+	bool forced_mipmaps = false;
 	std::vector<TextureAnalysis> texture_analysis;
 
 	struct

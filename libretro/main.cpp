@@ -122,6 +122,7 @@ static u8 setting_plugin_type                  = 0;
 static u8 setting_pgs_super_sampling           = 0;
 static u8 setting_pgs_high_res_scanout         = 0;
 static u8 setting_pgs_disable_mipmaps          = 0;
+static u8 setting_pgs_forced_mipmaps           = 0;
 static u8 setting_pgs_ss_tex                   = 0;
 static u8 setting_pgs_deblur                   = 0;
 static u8 setting_deinterlace_mode             = 0;
@@ -535,6 +536,19 @@ static void check_variables(bool first_run)
 
 	// Options for both paraLLEl-GS and GSdx HW/SW
 	{
+		var.key = "pcsx2_pgs_forced_mipmaps";
+		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+		{
+			u8 pgs_forced_mipmaps_prev = setting_pgs_forced_mipmaps;
+			setting_pgs_forced_mipmaps = !strcmp(var.value, "enabled");
+
+			if (first_run || setting_pgs_forced_mipmaps != pgs_forced_mipmaps_prev)
+			{
+				s_settings_interface.SetUIntValue("EmuCore/GS", "pgsForcedMipmaps", setting_pgs_forced_mipmaps);
+				updated = true;
+			}
+		}
+
 		var.key = "pcsx2_pgs_disable_mipmaps";
 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 		{

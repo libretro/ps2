@@ -220,6 +220,9 @@ struct Hacks
 	// Forces LOD0 to be read. Can break games which don't populate LOD0 with meaningful data.
 	// Can be useful when up-scaling to retain more texture detail.
 	bool disable_mipmaps = false;
+	// Synthesize mip chains for textures the game samples without mips,
+	// with derivative-driven LOD. Off means bit-identical behavior.
+	bool forced_mipmaps = false;
 
 	// Disables FIFO readbacks if sync is required and replace them with all zero bytes.
 	// Will mostly likely cause wrong/glitched results,

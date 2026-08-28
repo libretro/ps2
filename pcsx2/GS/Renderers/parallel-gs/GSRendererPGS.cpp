@@ -260,6 +260,7 @@ bool GSRendererPGS::Init()
 	 * forces a full GPU flush + wait_timeline stall in init_transfer,
 	 * which serialises the GS and EE threads via WaitGS and tanks the
 	 * frame rate on readback-heavy screens. */
+	hacks.forced_mipmaps = GSConfig.PGSForcedMipmaps != 0;
 	hacks.unsynced_readbacks =
 		(GSConfig.HWDownloadMode >= GSHardwareDownloadMode::Unsynchronized);
 	iface.set_hacks(hacks);
@@ -288,6 +289,7 @@ void GSRendererPGS::UpdateConfig()
 	Hacks hacks;
 	hacks.disable_mipmaps = GSConfig.PGSDisableMipmaps != 0;
 	hacks.backbuffer_promotion = GSConfig.PGSSharpBackbuffer != 0;
+	hacks.forced_mipmaps = GSConfig.PGSForcedMipmaps != 0;
 	hacks.unsynced_readbacks =
 		(GSConfig.HWDownloadMode >= GSHardwareDownloadMode::Unsynchronized);
 	iface.set_hacks(hacks);

@@ -1321,19 +1321,33 @@ Vulkan::ImageHandle GSRenderer::create_cached_texture(const TextureDescriptor &d
 
 	assert(desc.rect.width && desc.rect.height);
 
-	Vulkan::ImageHandle img = pull_image_handle_from_slab(desc.rect.width, desc.rect.height, desc.rect.levels, desc.samples);
+	// With forced mipmaps, textures the game samples without a mip chain
+	// (rect.levels == 1 after the MXL normalization) get a synthesized
+	// chain: level 0 uploads as before and the rest are downsampled on
+	// the GPU. SSAA-arrayed textures are left alone. With the option off,
+	// image_levels == desc.rect.levels and nothing changes.
+	uint32_t image_levels = desc.rect.levels;
+	if (forced_mipmaps && desc.rect.levels == 1 && desc.samples == 1)
+	{
+		uint32_t max_dim_levels = uint32_t(Util::floor_log2(std::min(desc.rect.width, desc.rect.height))) + 1u;
+		image_levels = std::min<uint32_t>(max_dim_levels, TEX0Bits::MAX_LEVELS);
+	}
+
+	Vulkan::ImageHandle img = pull_image_handle_from_slab(desc.rect.width, desc.rect.height, image_levels, desc.samples);
 
 	if (!img)
 	{
 		Vulkan::ImageCreateInfo info = Vulkan::ImageCreateInfo::immutable_2d_image(
 			desc.rect.width, desc.rect.height, VK_FORMAT_R8G8B8A8_UNORM);
 
-		info.levels = desc.rect.levels;
+		info.levels = image_levels;
 		info.layers = desc.samples;
 		if (desc.samples > 1)
 			info.layers++;
 		info.initial_layout = VK_IMAGE_LAYOUT_UNDEFINED;
 		info.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+		if (image_levels > desc.rect.levels)
+			info.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 		info.misc |= Vulkan::IMAGE_MISC_CREATE_PER_MIP_LEVEL_VIEWS_BIT;
 
 		// Ignore mips. This is just a crude heuristic.
@@ -3462,7 +3476,10 @@ void GSRenderer::upload_texture(const TextureUpload &upload)
 	auto &scratch = upload.scratch;
 	auto &cmd = *direct_cmd;
 
-	uint32_t levels = img.get_create_info().levels;
+	// Synthesized mip levels are generated, not uploaded; only the
+	// VRAM-sourced levels run the upload shader. Without forced mipmaps
+	// these are always equal.
+	uint32_t levels = std::min(img.get_create_info().levels, upload.desc.rect.levels);
 	cmd.set_program(shaders.upload[int(upload.desc.samples > 1)]);
 	if (scratch.buffer)
 		cmd.set_storage_buffer(0, 0, *scratch.buffer, scratch.offset, scratch.size);
@@ -3852,6 +3869,25 @@ void GSRenderer::flush_cache_upload()
 	dep.imageMemoryBarrierCount = post_image_barriers.size();
 	dep.pImageMemoryBarriers = post_image_barriers.data();
 	cmd.barrier(dep);
+
+	// Downsample the synthesized chains. Runs strictly after the upload
+	// barrier above, on the same command buffer, and only for images
+	// whose level count exceeds what the descriptor uploaded.
+	for (auto &upload : texture_uploads)
+	{
+		auto &img = *upload.image;
+		if (img.get_create_info().levels <= upload.desc.rect.levels)
+			continue;
+
+		cmd.begin_region("forced-mipgen");
+		cmd.barrier_prepare_generate_mipmap(img, VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
+		                                    VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, 0, true);
+		cmd.generate_mipmap(img);
+		cmd.image_barrier(img, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
+		                  VK_PIPELINE_STAGE_2_BLIT_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
+		                  VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
+		cmd.end_region();
+	}
 
 	texture_uploads.clear();
 	pre_image_barriers.clear();
