@@ -4054,7 +4054,7 @@ void GSRenderer::transfer_overlap_barrier()
 
 void GSRenderer::sample_crtc_circuit(Vulkan::CommandBuffer &cmd, const Vulkan::Image &img, const DISPFBBits &dispfb,
                                      const SamplingRect &rect, uint32_t super_samples,
-                                     uint32_t scale_log2, const Vulkan::Image *promoted)
+                                     uint32_t scale_x_log2, uint32_t scale_y_log2, const Vulkan::Image *promoted)
 {
 	cmd.image_barrier(img, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
 	                  0, 0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT);
@@ -4077,8 +4077,8 @@ void GSRenderer::sample_crtc_circuit(Vulkan::CommandBuffer &cmd, const Vulkan::I
 	auto valid_extent = rect.valid_extent;
 	if (super_samples > 1)
 	{
-		valid_extent.width <<= scale_log2;
-		valid_extent.height <<= scale_log2;
+		valid_extent.width <<= scale_x_log2;
+		valid_extent.height <<= scale_y_log2;
 	}
 	cmd.set_scissor({{ 0, 0 }, valid_extent });
 
@@ -4102,9 +4102,10 @@ void GSRenderer::sample_crtc_circuit(Vulkan::CommandBuffer &cmd, const Vulkan::I
 	push.dbx = uint32_t(dispfb.DBX);
 	push.dby = uint32_t(dispfb.DBY);
 	push.phase = rect.phase_offset;
-	// The upper half of phase_stride carries the scanout scale log2 so the
-	// push layout (and the serialized reflection for it) stays unchanged.
-	push.phase_stride = rect.phase_stride | (scale_log2 << 16);
+	// The upper half of phase_stride carries the per-axis scanout scale
+	// log2s (X in bits 16..19, Y in bits 20..23) so the push layout (and
+	// the serialized reflection for it) stays unchanged.
+	push.phase_stride = rect.phase_stride | (scale_x_log2 << 16) | (scale_y_log2 << 20);
 	cmd.push_constants(&push, 0, sizeof(push));
 
 	cmd.checkpoint("sample-crtc");
@@ -4237,12 +4238,21 @@ ScanoutResult GSRenderer::vsync(const PrivRegisterState &priv, const VSyncInfo &
 	// resolves per axis: 2x needs one extra position bit per axis (4x SSAA
 	// ordered and up), 4x needs two (16x SSAA ordered). Clamp rather than
 	// reject so a too-low grid degrades to the old behavior.
+	uint32_t scanout_scale_x_log2 = high_resolution_scanout;
+	uint32_t scanout_scale_y_log2 = high_resolution_scanout;
 	if (high_resolution_scanout)
 	{
-		uint32_t max_scale_log2 = sampling_rate_x_log2 < sampling_rate_y_log2 ?
-		                          sampling_rate_x_log2 : sampling_rate_y_log2;
-		if (high_resolution_scanout > max_scale_log2)
-			high_resolution_scanout = max_scale_log2;
+		if (scanout_scale_x_log2 > sampling_rate_x_log2)
+			scanout_scale_x_log2 = sampling_rate_x_log2;
+		if (scanout_scale_y_log2 > sampling_rate_y_log2)
+			scanout_scale_y_log2 = sampling_rate_y_log2;
+		// A taller Y than X never helps a square output pixel, so outside
+		// the field-aware case keep Y capped to X even on sparse grids
+		// where the Y axis has more position bits.
+		if (scanout_scale_y_log2 > scanout_scale_x_log2)
+			scanout_scale_y_log2 = scanout_scale_x_log2;
+		high_resolution_scanout = scanout_scale_x_log2 > scanout_scale_y_log2 ?
+		                          scanout_scale_x_log2 : scanout_scale_y_log2;
 	}
 
 	bool field_aware_rendering = high_resolution_scanout &&
@@ -4251,10 +4261,17 @@ ScanoutResult GSRenderer::vsync(const PrivRegisterState &priv, const VSyncInfo &
 	                             priv.smode2.INT &&
 	                             priv.smode1.CMOD != SMODE1Bits::CMOD_PROGRESSIVE;
 
-	// The field-aware path pairs lines against fields; it is built around a
-	// 2x vertical relationship, so cap the factor there.
-	if (field_aware_rendering && high_resolution_scanout > 1)
-		high_resolution_scanout = 1;
+	// The field-aware path pairs lines against fields: the vertical axis
+	// spends its sample bit on field reconstruction, so cap Y at the 2x
+	// line pairing. The horizontal axis is untouched by field logic and
+	// keeps the full factor -- field-rendered games get 4x width with
+	// field-doubled height.
+	if (field_aware_rendering && scanout_scale_y_log2 > 1)
+	{
+		scanout_scale_y_log2 = 1;
+		high_resolution_scanout = scanout_scale_x_log2 > scanout_scale_y_log2 ?
+		                          scanout_scale_x_log2 : scanout_scale_y_log2;
+	}
 
 	uint32_t super_samples = 1;
 	if (high_resolution_scanout)
@@ -4364,6 +4381,8 @@ ScanoutResult GSRenderer::vsync(const PrivRegisterState &priv, const VSyncInfo &
 
 		// Scanning out high-res with these resolutions is somewhat bogus.
 		high_resolution_scanout = 0;
+		scanout_scale_x_log2 = 0;
+		scanout_scale_y_log2 = 0;
 		field_aware_rendering = false;
 		super_samples = 1;
 	}
@@ -4575,11 +4594,12 @@ ScanoutResult GSRenderer::vsync(const PrivRegisterState &priv, const VSyncInfo &
 		{
 			if (high_resolution_scanout)
 			{
-				image_info.width <<= high_resolution_scanout;
-				image_info.height <<= high_resolution_scanout;
+				image_info.width <<= scanout_scale_x_log2;
+				image_info.height <<= scanout_scale_y_log2;
 			}
 			circuit1 = device->create_image(image_info);
-			sample_crtc_circuit(cmd, *circuit1, priv.dispfb1, rect, super_samples, high_resolution_scanout, promoted1);
+			sample_crtc_circuit(cmd, *circuit1, priv.dispfb1, rect, super_samples,
+			                    scanout_scale_x_log2, scanout_scale_y_log2, promoted1);
 			device->set_name(*circuit1, "Circuit1");
 		}
 
@@ -4633,11 +4653,12 @@ ScanoutResult GSRenderer::vsync(const PrivRegisterState &priv, const VSyncInfo &
 		{
 			if (high_resolution_scanout)
 			{
-				image_info.width <<= high_resolution_scanout;
-				image_info.height <<= high_resolution_scanout;
+				image_info.width <<= scanout_scale_x_log2;
+				image_info.height <<= scanout_scale_y_log2;
 			}
 			circuit2 = device->create_image(image_info);
-			sample_crtc_circuit(cmd, *circuit2, priv.dispfb2, rect, super_samples, high_resolution_scanout, promoted2);
+			sample_crtc_circuit(cmd, *circuit2, priv.dispfb2, rect, super_samples,
+			                    scanout_scale_x_log2, scanout_scale_y_log2, promoted2);
 			device->set_name(*circuit2, "Circuit2");
 		}
 
@@ -4695,8 +4716,8 @@ ScanoutResult GSRenderer::vsync(const PrivRegisterState &priv, const VSyncInfo &
 		// Need to do all the CRTC offset math in single sampled domain to avoid lots of confusing cases later.
 		if (high_resolution_scanout)
 		{
-			horiz_resolution0 >>= high_resolution_scanout;
-			horiz_resolution1 >>= high_resolution_scanout;
+			horiz_resolution0 >>= scanout_scale_x_log2;
+			horiz_resolution1 >>= scanout_scale_x_log2;
 		}
 
 		uint32_t magh1 = priv.display1.MAGH + 1;
@@ -4743,8 +4764,8 @@ ScanoutResult GSRenderer::vsync(const PrivRegisterState &priv, const VSyncInfo &
 
 		if (high_resolution_scanout)
 		{
-			effective_mode_width <<= high_resolution_scanout;
-			effective_mode_height <<= high_resolution_scanout;
+			effective_mode_width <<= scanout_scale_x_log2;
+			effective_mode_height <<= scanout_scale_y_log2;
 		}
 
 		bool is_raw_circuit1 =
@@ -4767,8 +4788,8 @@ ScanoutResult GSRenderer::vsync(const PrivRegisterState &priv, const VSyncInfo &
 			                  VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
 			                  info.dst_stage, info.dst_access);
 
-			result.internal_width = result.image->get_width() >> int(high_resolution_scanout);
-			result.internal_height = result.image->get_height() >> int(high_resolution_scanout);
+			result.internal_width = result.image->get_width() >> scanout_scale_x_log2;
+			result.internal_height = result.image->get_height() >> scanout_scale_y_log2;
 			result.double_strike = double_strike;
 
 			flush_submit(0);
@@ -4778,8 +4799,8 @@ ScanoutResult GSRenderer::vsync(const PrivRegisterState &priv, const VSyncInfo &
 
 	result.internal_width = mode_width;
 	result.internal_height = mode_height;
-	image_info.width = mode_width << int(high_resolution_scanout);
-	image_info.height = mode_height << int(high_resolution_scanout);
+	image_info.width = mode_width << scanout_scale_x_log2;
+	image_info.height = mode_height << scanout_scale_y_log2;
 
 	if (field_aware_rendering)
 	{
@@ -4850,11 +4871,12 @@ ScanoutResult GSRenderer::vsync(const PrivRegisterState &priv, const VSyncInfo &
 
 			if (high_resolution_scanout)
 			{
-				const float hrs_scale = float(1u << high_resolution_scanout);
-				vp.x *= hrs_scale;
-				vp.y *= hrs_scale;
-				vp.width *= hrs_scale;
-				vp.height *= hrs_scale;
+				const float hrs_scale_x = float(1u << scanout_scale_x_log2);
+				const float hrs_scale_y = float(1u << scanout_scale_y_log2);
+				vp.x *= hrs_scale_x;
+				vp.y *= hrs_scale_y;
+				vp.width *= hrs_scale_x;
+				vp.height *= hrs_scale_y;
 
 				if (field_aware_rendering && !info.phase)
 					vp.y -= 1.0f;
@@ -4884,11 +4906,12 @@ ScanoutResult GSRenderer::vsync(const PrivRegisterState &priv, const VSyncInfo &
 
 			if (high_resolution_scanout)
 			{
-				const float hrs_scale = float(1u << high_resolution_scanout);
-				vp.x *= hrs_scale;
-				vp.y *= hrs_scale;
-				vp.width *= hrs_scale;
-				vp.height *= hrs_scale;
+				const float hrs_scale_x = float(1u << scanout_scale_x_log2);
+				const float hrs_scale_y = float(1u << scanout_scale_y_log2);
+				vp.x *= hrs_scale_x;
+				vp.y *= hrs_scale_y;
+				vp.width *= hrs_scale_x;
+				vp.height *= hrs_scale_y;
 
 				if (field_aware_rendering && !info.phase)
 					vp.y -= 1.0f;

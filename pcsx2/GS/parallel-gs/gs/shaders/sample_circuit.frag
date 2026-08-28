@@ -97,17 +97,22 @@ bool super_sample_is_valid(uint addr)
 
 void main()
 {
-    // Upper half of phase_stride carries the scanout scale log2 (1 = 2x,
-    // 2 = 4x) so the push constant layout stays identical to the original.
-    uint scale_log2 = registers.phase_stride >> 16u;
-    if (scale_log2 == 0u)
-        scale_log2 = 1u;
+    // The upper half of phase_stride carries the per-axis scanout scale
+    // log2s (X in bits 16..19, Y in bits 20..23; 1 = 2x, 2 = 4x) so the
+    // push constant layout stays identical to the original. Field-aware
+    // scanout caps Y at 1 while X may still be 2.
+    uint scale_x_log2 = (registers.phase_stride >> 16u) & 0xfu;
+    uint scale_y_log2 = (registers.phase_stride >> 20u) & 0xfu;
+    if (scale_x_log2 == 0u)
+        scale_x_log2 = 1u;
+    if (scale_y_log2 == 0u)
+        scale_y_log2 = scale_x_log2;
     uint phase_stride = registers.phase_stride & 0xffffu;
 
     uvec2 super_sampled_coord = uvec2(gl_FragCoord.xy);
     uvec2 single_sampled_coord;
     if (SUPER_SAMPLES >= 4)
-        single_sampled_coord = super_sampled_coord >> scale_log2;
+        single_sampled_coord = super_sampled_coord >> uvec2(scale_x_log2, scale_y_log2);
     else
         single_sampled_coord = super_sampled_coord;
 
@@ -128,7 +133,7 @@ void main()
         // SUPER_SAMPLES == 2 forces 1 path.
         FragColor = sample_vram(addr, 0);
     }
-    else if (SUPER_SAMPLES == 16 && scale_log2 == 2u)
+    else if (SUPER_SAMPLES == 16 && scale_x_log2 == 2u && scale_y_log2 == 2u)
     {
         // 4x scanout over the ordered 4x4 grid: every output pixel maps to
         // exactly one sample layer. The rasterizer orders layers with the
@@ -141,6 +146,23 @@ void main()
             uvec2 g = super_sampled_coord & 3u;
             uint slice = (g.y & 1u) | ((g.x & 1u) << 1u) | ((g.y >> 1u) << 2u) | ((g.x >> 1u) << 3u);
             FragColor = sample_vram(addr, BASE_SSAA_LAYER + slice);
+        }
+        else
+            FragColor = sample_vram(addr, 0);
+    }
+    else if (SUPER_SAMPLES == 16 && scale_x_log2 == 2u && scale_y_log2 == 1u)
+    {
+        // Asymmetric 4x-wide scanout for field-aware rendering on the
+        // ordered 4x4 grid: X resolves both position bits (grid x from the
+        // two low output x bits), Y only its quadrant bit (the fine y bit
+        // went to field reconstruction), so average the two fine-y layers.
+        if (super_sample_is_valid(addr))
+        {
+            uint gx = super_sampled_coord.x & 3u;
+            uint gy = super_sampled_coord.y & 1u;
+            uint base = ((gx & 1u) << 1u) | (gy << 2u) | ((gx >> 1u) << 3u);
+            FragColor = 0.5 * (sample_vram(addr, BASE_SSAA_LAYER + base) +
+                               sample_vram(addr, BASE_SSAA_LAYER + base + 1u));
         }
         else
             FragColor = sample_vram(addr, 0);
