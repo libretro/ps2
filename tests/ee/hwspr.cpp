@@ -21,17 +21,17 @@
  *  They are stubbed; eeMem and the scratchpad are real arrays, since the
  *  transfer's whole result is what it leaves in them.
  *
- *  Only the uploads are scored, and only their address arithmetic. Two
- *  mutations confirm that much bites: making madr skip by SQWC alone
- *  rather than SQWC plus the transfer fails 29 rows, and making sadr skip
- *  as well as madr fails 41.
+ *  Both directions are scored, and only their address arithmetic. Each
+ *  direction is mutation-checked on its own function, since they are
+ *  separate code: for the uploads, making madr skip by SQWC alone rather
+ *  than SQWC plus the transfer fails 29 rows and making sadr skip as well
+ *  fails 41; for the downloads the same two changes to _SPR0interleave
+ *  fail 48 and 25.
  *
- *  One does not. Changing the TQWC == 0 default from qwc to 1 leaves all
- *  240 passing, because no upload case in the capture leaves TQWC zero --
- *  the disabled case is the only one that would, and it is driven with
- *  TQWC zero and SQWC zero together, where either default gives the same
- *  contiguous copy. The download half of the capture is not scored here
- *  either.
+ *  One mutation does not bite. Changing the TQWC == 0 default from qwc to
+ *  1 leaves everything passing, because no case in the capture leaves
+ *  TQWC zero on its own -- the disabled ones are driven with TQWC and
+ *  SQWC both zero, where either default gives the same contiguous copy.
  *
  *  Usage: tests/ee/hwspr <path-to-dma/spr/interleave.expected>
  */
@@ -119,6 +119,36 @@ static void run_upload(u16 skip, u16 transfer, u16 qwc, u32* out, int outqw)
 	for (i = 0; i < outqw * 4 && i < 0x400; i++) out[i] = spr[i];
 }
 
+/* The other direction: SPR0 reads the scratchpad and writes main memory,
+ * so the skip lands on madr there too but the roles of the two buffers
+ * swap. The test prefills main memory with 0xcccccccc and prints it. */
+static void run_download(u16 skip, u16 transfer, u16 qwc, u32* out, int outw)
+{
+	u32* dst = (u32*)eeMem->Main;
+	u32* spr = (u32*)eeMem->Scratch;
+	int i;
+
+	for (i = 0; i < 0x1000; i++)
+	{
+		const u32 c = (u32)i & 0xFFu;
+		spr[i] = c | (c << 8) | (c << 16) | (c << 24);
+		if (i > 256) spr[i] |= 0xFF000000u;
+	}
+	for (i = 0; i < 0x1000; i++) dst[i] = 0xCCCCCCCCu;
+
+	memset(&spr0ch, 0, sizeof(spr0ch));
+	spr0ch.qwc  = qwc;
+	spr0ch.madr = 0;
+	spr0ch.sadr = 0;
+	dmacRegs.sqwc.SQWC = skip;
+	dmacRegs.sqwc.TQWC = transfer;
+	dmacRegs.ctrl.MFD = 0;
+
+	_SPR0interleave();
+
+	for (i = 0; i < outw && i < 0x1000; i++) out[i] = dst[i];
+}
+
 int main(int argc, char** argv)
 {
 	const char* path = (argc > 1) ? argv[1] : "interleave.expected";
@@ -156,6 +186,28 @@ int main(int argc, char** argv)
 	};
 	const int nup = (int)(sizeof(kUp)/sizeof(kUp[0]));
 
+	/* The download half, from the printTestInterleaveFrom calls. Same
+	 * parameters as the uploads apart from the labels. */
+	static const struct { const char* title; u16 skip, transfer, qwc; int enabled; }
+	kDown[] = {
+		{ "(disabled, count 3)",              1,   1,   3,   0 },
+		{ "(skip 0, count 3)",                0,   1,   3,   1 },
+		{ "(skip 1, count 3)",                1,   1,   3,   1 },
+		{ "(skip 2, count 3)",                2,   1,   3,   1 },
+		{ "(skip 3, count 3)",                3,   1,   3,   1 },
+		{ "(transfer 1, count 3)",            1,   1,   3,   1 },
+		{ "(transfer 2, count 4)",            1,   2,   4,   1 },
+		{ "(transfer 3, count 6)",            1,   3,   6,   1 },
+		{ "(transfer 2, skip 2, count 6)",    2,   2,   6,   1 },
+		{ "(transfer 3, skip 3, count 9)",    3,   3,   9,   1 },
+		{ "(transfer 1, skip 14, count 2)",  14,   1,   2,   1 },
+		{ "(transfer 1, skip 128, count 2)",128,   1,   2,   1 },
+		{ "(transfer 1, skip 256, count 2)",256,   1,   2,   1 },
+		{ "(transfer 1, skip 257, count 2)",257,   1,   2,   1 },
+	};
+	const int ndown = (int)(sizeof(kDown)/sizeof(kDown[0]));
+	int is_down = 0;
+
 	if (!f) { fprintf(stderr, "cannot open %s\n", path); return 2; }
 
 	while (fgets(buf, sizeof(buf), f))
@@ -164,23 +216,41 @@ int main(int argc, char** argv)
 		char* p;
 
 		/* "Interleave upload (enabled, skip = 1, transfer = 2, count = 6):" */
-		if (!strncmp(buf, "Interleave upload ", 18))
+		if (!strncmp(buf, "Interleave upload ", 18)
+		 || !strncmp(buf, "Interleave download ", 20))
 		{
+			const int down = (buf[11] == 'd');
 			int i;
 			active = 0;
 			cur = -1;
-			for (i = 0; i < nup; i++)
-				if (strstr(buf, kUp[i].title)) { cur = i; break; }
-			if (cur >= 0)
+			is_down = down;
+			if (down)
 			{
-				active = 1;
-				have = 0;
-				/* A disabled transfer is a plain copy: no skipping, so the
-				 * whole count lands contiguously. SPR.cpp models that as
-				 * TQWC = 0, which _SPR1interleave turns into qwc. */
-				run_upload(kUp[cur].enabled ? kUp[cur].skip : 0,
-				           kUp[cur].enabled ? kUp[cur].transfer : 0,
-				           kUp[cur].qwc, got, 0x100);
+				for (i = 0; i < ndown; i++)
+					if (strstr(buf, kDown[i].title)) { cur = i; break; }
+				if (cur >= 0)
+				{
+					active = 1; have = 0;
+					run_download(kDown[cur].enabled ? kDown[cur].skip : 0,
+					             kDown[cur].enabled ? kDown[cur].transfer : 0,
+					             kDown[cur].qwc, got, 0x400);
+				}
+			}
+			else
+			{
+				for (i = 0; i < nup; i++)
+					if (strstr(buf, kUp[i].title)) { cur = i; break; }
+				if (cur >= 0)
+				{
+					active = 1; have = 0;
+					/* A disabled transfer is a plain copy: no skipping, so
+					 * the whole count lands contiguously. SPR.cpp models
+					 * that as TQWC = 0, which the interleave turns into
+					 * qwc. */
+					run_upload(kUp[cur].enabled ? kUp[cur].skip : 0,
+					           kUp[cur].enabled ? kUp[cur].transfer : 0,
+					           kUp[cur].qwc, got, 0x100);
+				}
 			}
 			continue;
 		}
@@ -204,6 +274,7 @@ int main(int argc, char** argv)
 		 * scores 188 of 240 -- which looks like a short transfer rather
 		 * than a misread label. */
 		if (idx + 3 >= 0x400) continue;
+		(void)is_down;
 
 		cases++;
 		if (got[idx + 0] == w0 && got[idx + 1] == w1
@@ -211,8 +282,10 @@ int main(int argc, char** argv)
 		else if (shown++ < 6)
 			printf("  skip %u transfer %u qwc %u, row %02x:"
 			       " console %08x %08x %08x %08x  ours %08x %08x %08x %08x\n",
-			       (unsigned)kUp[cur].skip, (unsigned)kUp[cur].transfer,
-			       (unsigned)kUp[cur].qwc, idx, w0, w1, w2, w3,
+			       (unsigned)(is_down ? kDown[cur].skip : kUp[cur].skip),
+			       (unsigned)(is_down ? kDown[cur].transfer : kUp[cur].transfer),
+			       (unsigned)(is_down ? kDown[cur].qwc : kUp[cur].qwc),
+			       idx, w0, w1, w2, w3,
 			       got[idx + 0], got[idx + 1], got[idx + 2], got[idx + 3]);
 		have++;
 	}
