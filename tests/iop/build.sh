@@ -94,3 +94,10 @@ if [ -d "$EXPECTED" ]; then
 else
 	echo "  skipped: set PS2AUTOTESTS to a ps2autotests checkout to run this"
 fi
+
+echo "== MDEC per-block decode equals the original loop =="
+${CXX:-c++} -std=c++17 -O1 -w $SANFLAGS -I "$ROOT" -I "$ROOT/pcsx2" \
+	-I "$ROOT/common" -I "$ROOT/common/include" -I "$ROOT/3rdparty/include" \
+	-I "$ROOT/libretro/libretro-common/include" \
+	-o "$DIR/iop_rleq" "$DIR/rleq_probe.cpp"
+"$DIR/iop_rleq"

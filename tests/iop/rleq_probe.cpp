@@ -673,3 +673,68 @@ void psxDma1(u32 adr, u32 bcr, u32 chcr)
 //	return 0;
 //
 //}
+
+/* The DMA and memory paths this probe never enters. */
+alignas(16) u8 iopHw[0x10000];
+static uptr s_rlut_store[0x10000];
+const uptr* psxMemRLUT = s_rlut_store;
+u32 iopMemRead32_slow(u32) { return 0; }
+void iopMemWrite32(u32, u32) { }
+void psxDmaInterrupt(int) { }
+
+/* The pre-split implementation, kept here only to compare against. */
+static unsigned short* rl2blk_orig(int *blk,unsigned short *mdec_rl) {
+	int i,k,q_scale,rl;
+	int *iqtab;
+
+	memset (blk, 0, 6*DCTSIZE2*4);
+	iqtab = iq_uv;
+	for(i=0;i<6;i++) {
+		if (i>1) iqtab = iq_y;
+		rl = *mdec_rl++;
+		q_scale = RUNOF(rl);
+		blk[0] = iqtab[0]*VALOF(rl);
+		for(k = 0;;) {
+			rl = *mdec_rl++;
+			if (rl==NOP) break;
+			k += RUNOF(rl)+1;
+			if (k > 63) break;
+			blk[zscan[k]] = (VALOF(rl) * iqtab[k] * q_scale) / 8;
+		}
+
+		idct(blk,k+1);
+		blk+=DCTSIZE2;
+	}
+	return mdec_rl;
+}
+
+int main(void)
+{
+	static unsigned short rl[1 << 16];
+	int a[DCTSIZE2*6], b[DCTSIZE2*6];
+	unsigned seed = 12345, trial;
+	int bad = 0, n = 0;
+
+	/* Quant tables as a decode command would leave them. */
+	{ unsigned char q[128]; unsigned i;
+	  for (i = 0; i < 128; i++) q[i] = (unsigned char)(1 + (i % 63));
+	  iqtab_init(iq_y, q); iqtab_init(iq_uv, q + 64); }
+
+	for (trial = 0; trial < 4000; trial++)
+	{
+		unsigned i;
+		unsigned short *ea, *eb;
+		for (i = 0; i < 4096; i++)
+		{ seed = seed * 1103515245u + 12345u; rl[i] = (unsigned short)(seed >> 16); }
+		/* Sprinkle terminators so blocks end at varied points. */
+		for (i = 0; i < 4096; i += 7 + (trial % 11)) rl[i] = NOP;
+
+		ea = rl2blk_orig(a, rl);
+		eb = rl2blk(b, rl);
+		n++;
+		if (ea != eb || memcmp(a, b, sizeof(a)))
+		{ bad++; if (bad < 4) printf("  trial %u differs\n", trial); }
+	}
+	printf("rl2blk split: %d/%d streams identical to the original loop\n", n - bad, n);
+	return bad != 0;
+}
