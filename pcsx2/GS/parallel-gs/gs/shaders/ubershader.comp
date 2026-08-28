@@ -887,12 +887,9 @@ ShadeResultEarly shade_early(uint primitive_index)
 			i = bary.x;
 			j = bary.y;
 		}
-		else if (snap_state == SNAP_RASTER_BIT)
+		else if (HAS_TEXTURE_ARRAY && snap_state == SNAP_RASTER_BIT)
 		{
 			// For SSAA textured sprites, we may snap coverage, but we want per-sample interpolation.
-			// Not restricted to arrayed textures: the supersampled-quad option asks for exactly this
-			// pairing on ordinary cached textures, and no primitive reaches here unless something
-			// deliberately cleared the attribute snap while leaving the raster snap set.
 			vec2 bary = evaluate_barycentric_ij(prim.b, prim.c, prim.inv_area,
 				prim.error_i, prim.error_j, tile.fb_pixel, SAMPLING_RATE_DIM_LOG2);
 			i = bary.x;
@@ -1224,7 +1221,56 @@ vec4 sample_texture(uint tex_word, uint filtering, vec2 uv, float q, bool perspe
 
 		// The sampler may be divergent if we have MMIN != MMAG. Most likely it will not.
 		// With newer Vulkan spec clarification, we don't need nonuniformEXT here as long as it's subgroup uniform :)
-		if (sampler_index != 0)
+		if ((tex_word & TEX_SAMPLER_EDGE_FILTER_BIT) != 0)
+		{
+			// Edge-directed magnification (EPX/Scale2x rules). A magnified 2D
+			// quad has more pixels than texels, and the choices are normally
+			// nearest -- which steps -- or linear, which blends a glyph's edge
+			// texel with whatever is beside it in the atlas and shows up as a
+			// seam. This instead looks at the four texels around the sample and
+			// *selects* one of them per sub-texel quadrant, so every result is a
+			// colour the texture already contains and no seam colour exists to
+			// be produced.
+			vec2 texel = uv_1 * size.xy - 0.5;
+			vec2 base = floor(texel + 0.5);
+			vec2 frac_uv = texel + 0.5 - base;
+			vec2 inv = size.zw;
+
+			vec4 P = textureLod(sampler2D(bindless_textures[tex_index], nearest_sampler), base * inv, LOD_1);
+			vec4 A = textureLod(sampler2D(bindless_textures[tex_index], nearest_sampler), (base + vec2(0.0, -1.0)) * inv, LOD_1);
+			vec4 B = textureLod(sampler2D(bindless_textures[tex_index], nearest_sampler), (base + vec2(1.0, 0.0)) * inv, LOD_1);
+			vec4 C = textureLod(sampler2D(bindless_textures[tex_index], nearest_sampler), (base + vec2(-1.0, 0.0)) * inv, LOD_1);
+			vec4 D = textureLod(sampler2D(bindless_textures[tex_index], nearest_sampler), (base + vec2(0.0, 1.0)) * inv, LOD_1);
+
+			bool ca = all(equal(C, A)), ab = all(equal(A, B));
+			bool bd = all(equal(B, D)), dc = all(equal(D, C));
+
+			vec4 res = P;
+			if (frac_uv.x < 0.5)
+			{
+				if (frac_uv.y < 0.5)
+				{
+					if (ca && !dc && !ab) res = A;
+				}
+				else
+				{
+					if (dc && !bd && !ca) res = D;
+				}
+			}
+			else
+			{
+				if (frac_uv.y < 0.5)
+				{
+					if (ab && !ca && !bd) res = B;
+				}
+				else
+				{
+					if (bd && !ab && !dc) res = D;
+				}
+			}
+			color_1 = res;
+		}
+		else if (sampler_index != 0)
 			color_1 = textureLod(sampler2D(bindless_textures[tex_index], linear_sampler), uv_1, LOD_1);
 		else
 			color_1 = textureLod(sampler2D(bindless_textures[tex_index], nearest_sampler), uv_1, LOD_1);

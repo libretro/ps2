@@ -250,6 +250,10 @@ CONSTEXPR int TEX_MAX_MIP_LEVEL_OFFSET = 21;
 CONSTEXPR int TEX_MAX_MIP_LEVEL_BITS = 3;
 CONSTEXPR int TEX_PER_SAMPLE_BIT = 1 << 24;
 CONSTEXPR int TEX_SAMPLE_MAPPING_BIT = 1 << 25;
+// Edge-directed magnification for 2D quads. Selects among the texels around
+// the sample instead of blending them, so the result is always a colour that
+// already exists in the texture -- no seam colour can be invented.
+CONSTEXPR int TEX_SAMPLER_EDGE_FILTER_BIT = 1 << 27;
 CONSTEXPR int TEX_SAMPLE_RESOLVED_BIT = 1 << 26;
 /////
 

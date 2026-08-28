@@ -2691,51 +2691,39 @@ void GSInterface::drawing_kick_append()
 		prim_attr.state |= 1u << STATE_BIT_PARALLELOGRAM;
 		prim_attr.state |= 1u << STATE_BIT_SPRITE;
 
-		// Sprites snap both coverage and attributes: coverage so the
-		// primitive lands on whole native pixels, attributes so UVs are
-		// never interpolated toward the right or bottom of a pixel, where
-		// a game's atlas does not expect to be sampled.
+		// Sprites stay fully snapped: coverage on whole pixels, attributes
+		// never interpolated toward the right or bottom of a pixel. Moving the
+		// samples is what produced the text and menu artifacts in Tekken Tag,
+		// Ridge Racer V and SSX3; nothing here moves them.
 		//
-		// The supersampled-quad option relaxes the second of those, and
-		// only for sprites that minify. Coverage stays snapped, so the
-		// sprite covers exactly the pixels it did before and cannot grow
-		// an extra column or row -- the shader has this pairing already,
-		// as "we may snap coverage, but we want per-sample
-		// interpolation". Within those pixels the samples then walk
-		// across the texture instead of all reading one texel, which is
-		// the detail a scaled-down texture has to give.
-		//
-		// Minification is what makes that safe as well as useful: with
-		// more texels than pixels the walk stays inside the span the
-		// sprite already maps, while at 1:1 it would step into the
-		// neighbouring texel and, with nearest filtering, show it whole.
-		bool super_sample_this_sprite = false;
+		// A magnified 2D quad has more pixels than texels, and its two normal
+		// choices are both bad: nearest steps, and linear blends a glyph's edge
+		// texel with whatever sits beside it in the atlas -- the seam. The
+		// option asks the sampler for an edge-directed reconstruction instead,
+		// which selects among the surrounding texels rather than mixing them,
+		// so no colour that is not already in the texture can appear.
+		prim_attr.state |= 1u << STATE_BIT_SNAP_RASTER;
+		prim_attr.state |= 1u << STATE_BIT_SNAP_ATTRIBUTE;
+
 		const bool sprite_is_per_sample = (prim_attr.tex & TEX_PER_SAMPLE_BIT) != 0;
-		// Only sprites the game already lets the hardware filter are safe:
-		// with NEAREST the game is choosing one exact texel per pixel, and
-		// walking the samples across the cell shows its neighbours, which
-		// for atlas UI are the cell's border texels.
-		const bool sprite_is_linear = ctx.tex1.desc.MMAG == TEX1Bits::LINEAR;
-		if (super_sampled_quads && prim.desc.TME && !sprite_is_per_sample && sprite_is_linear)
+		if (super_sampled_quads && prim.desc.TME && !sprite_is_per_sample)
 		{
 			ivec4 sprite_uv_bb;
 			compute_uv_bb<quad, num_vertices, false>(attr, ctx, prim.desc, sprite_uv_bb, nullptr, nullptr);
 
-			// uv_bb bounds are inclusive texel indices, so a 1:1 sprite
-			// spanning N pixels covers N + 1 of them; require more than
-			// that before calling it minification.
+			// uv_bb bounds are inclusive texel indices, so a 1:1 sprite spanning
+			// N pixels covers N + 1 of them. Magnification is the case this
+			// filter is for: strictly fewer texels than pixels.
 			const int texels_x = sprite_uv_bb.z - sprite_uv_bb.x + 1;
 			const int texels_y = sprite_uv_bb.w - sprite_uv_bb.y + 1;
 			const int pixels_x = (pre_snap_hi.x - pre_snap_lo.x) >> int(PGS_SUBPIXEL_BITS);
 			const int pixels_y = (pre_snap_hi.y - pre_snap_lo.y) >> int(PGS_SUBPIXEL_BITS);
 
-			super_sample_this_sprite = (pixels_x > 0 && texels_x > pixels_x + 1) ||
-			                           (pixels_y > 0 && texels_y > pixels_y + 1);
+			if ((pixels_x > 0 && texels_x + 1 < pixels_x) ||
+			    (pixels_y > 0 && texels_y + 1 < pixels_y))
+				prim_attr.tex |= TEX_SAMPLER_EDGE_FILTER_BIT;
 		}
 
-		prim_attr.state |= 1u << STATE_BIT_SNAP_RASTER;
-		if (!super_sample_this_sprite)
-			prim_attr.state |= 1u << STATE_BIT_SNAP_ATTRIBUTE;
 		prim_attr.state &= ~(1u << STATE_BIT_MULTISAMPLE);
 	}
 	else if (is_line)
