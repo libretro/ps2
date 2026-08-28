@@ -389,7 +389,15 @@ namespace COP0 {
 						break;
 					// Updates PCRs and sets the PCCR.
 					COP0_UpdatePCCR();
-					cpuRegs.PERF.n.pccr.val = cpuRegs.GPR.r[_Rt_].UL[0];
+					/* PCCR has implemented bits 1-9 and 11-19 (the two
+					 * counters' mode and event fields) plus CTE at 31; the
+					 * rest read back as zero. ps2autotests
+					 * tests/cpu/ee_cop0/performance.expected writes
+					 * 0x7fffffff and reads 0x000ffbfe, which is exactly
+					 * those two field runs with CTE left clear. Bit 31 is
+					 * kept on the strength of the PERFregs bitfield rather
+					 * than that capture, which never sets it. */
+					cpuRegs.PERF.n.pccr.val = cpuRegs.GPR.r[_Rt_].UL[0] & 0x800ffbfeu;
 				}
 				else if (0 == (_Imm_ & 2)) // MTPC 0, only LSB of register matters
 				{

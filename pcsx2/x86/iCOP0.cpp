@@ -439,7 +439,9 @@ void recMTC0()
 					  xe_add64_ri(XE_AX, sbc_); }
 					xe_mov64_mr(&cpuRegs.cycle, XE_AX); // update cycles
 					xe_fastcall0(COP0_UpdatePCCR);
-					xe_mov32_mi(&cpuRegs.PERF.n.pccr, g_cpuConstRegs[_Rt_].UL[0]);
+					/* Same PCCR mask the interpreter applies; see COP0.cpp. */
+					xe_mov32_mi(&cpuRegs.PERF.n.pccr,
+						g_cpuConstRegs[_Rt_].UL[0] & 0x800ffbfeu);
 				}
 				else if (0 == (_Imm_ & 2)) // MTPC 0, only LSB of register matters
 				{
@@ -506,7 +508,9 @@ void recMTC0()
 					  xe_add64_ri(XE_AX, sbc_); }
 					xe_mov64_mr(&cpuRegs.cycle, XE_AX); // update cycles
 					xe_fastcall0(COP0_UpdatePCCR);
+					/* Same PCCR mask the interpreter applies; see COP0.cpp. */
 					_eeMoveGPRtoM((uptr)&cpuRegs.PERF.n.pccr, _Rt_);
+					xe_and32_mi(&cpuRegs.PERF.n.pccr, 0x800ffbfeu);
 				}
 				else if (0 == (_Imm_ & 2)) // MTPC 0, only LSB of register matters
 				{
