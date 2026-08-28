@@ -250,6 +250,39 @@ static int operand(const char* p, Q* out, int* named)
 	}
 }
 
+/* How many case lines a block actually has in the capture. Comparing this
+ * against what the harness parsed is a stronger check than "did anything
+ * parse": every under-coverage bug in this series was partial, not total
+ * -- a missing constant dropping eight lines a block, an operand shape
+ * matching some lines and not others, an op name typo'd so one block never
+ * opened. Each was found by counting by hand afterwards. This counts every
+ * time. */
+static int block_lines(const char* path, const char* name)
+{
+	FILE* f = fopen(path, "r");
+	char buf[512];
+	int in = 0, n = 0;
+	if (!f) return -1;
+	while (fgets(buf, sizeof(buf), f))
+	{
+		if (buf[0] != ' ')
+		{
+			char* c = strchr(buf, ':');
+			if (in) break;
+			if (c && c[1] == '\n')
+			{ *c = '\0'; in = !strcmp(buf, name); *c = ':'; }
+			continue;
+		}
+		if (!in) continue;
+		/* Writes to $0 are discarded by the hardware and the harness skips
+		 * them deliberately, so they are not missing coverage. */
+		if (strstr(buf, "-> $0")) continue;
+		n++;
+	}
+	fclose(f);
+	return n;
+}
+
 int main(int argc, char** argv)
 {
 	const char* dir = (argc > 1) ? argv[1] : ".";
@@ -419,10 +452,19 @@ int main(int argc, char** argv)
 		total += cases;
 		/* A block that matched no lines is a harness bug, not a pass:
 		 * 0 of 0 looks the same as success in a summary line. */
-		if (cases == 0)
-		{ printf("%-7s parsed no cases; the block name or operand shape"
-		         " does not match the capture\n", kOps[op].name);
-		  failures++; }
+		{
+			const int have = block_lines(path, kOps[op].name);
+			if (have > 0 && cases != have)
+			{ printf("%-7s parsed %d of the %d lines its block has;"
+			         " some operand shape does not match\n",
+			         kOps[op].name, cases, have);
+			  failures++; }
+			else if (have == 0)
+			{ printf("%-7s parsed no cases; the block name or operand shape"
+			         " does not match the capture\n", kOps[op].name);
+			  failures++; }
+		}
+		if (cases == 0) { }
 		else if (pass != cases)
 		{ printf("%-7s %2d/%-3d console cases\n", kOps[op].name, pass, cases);
 		  failures++; }

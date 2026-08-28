@@ -489,10 +489,18 @@ int main(int argc, char** argv)
 		}
 		fclose(f);
 		total += cases;
-		/* A block that matched no lines is a harness bug, not a pass. The
-		 * multiply blocks scored 0/0 here for exactly that reason and the
-		 * run still reported success. */
-		if (cases == 0)
+		/* block_total is already the number of case lines the block has --
+		 * it is computed above for the store seed's midpoint -- so compare
+		 * against it rather than only checking for zero. Every
+		 * under-coverage bug in this series was partial: a missing
+		 * constant, an operand shape matching some lines and not others.
+		 * Checking "did anything parse" would have caught none of them. */
+		if (block_total > 0 && cases != block_total)
+		{ printf("%-7s parsed %d of the %d lines its block has;"
+		         " some operand shape does not match\n",
+		         kOps[op].name, cases, block_total);
+		  failures++; }
+		else if (cases == 0)
 		{ printf("%-7s parsed no cases; the block name or line shape changed\n",
 		         kOps[op].name);
 		  failures++; }
