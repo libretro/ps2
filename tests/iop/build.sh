@@ -37,3 +37,12 @@ if [ -f "$EXPECTED" ]; then
 else
 	echo "  skipped: set PS2AUTOTESTS to a ps2autotests checkout to run this"
 fi
+
+echo "== IOP branch conditions vs console =="
+EXPECTED="${PS2AUTOTESTS:-}/tests/cpu/iop/branch.expected"
+if [ -f "$EXPECTED" ]; then
+	"$CC" -O1 -g -Wall $SANFLAGS -o "$DIR/iop_hwbranch" "$DIR/hwbranch.c"
+	"$DIR/iop_hwbranch" "$EXPECTED"
+else
+	echo "  skipped: set PS2AUTOTESTS to a ps2autotests checkout to run this"
+fi
