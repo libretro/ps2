@@ -76,3 +76,7 @@ if [ -f "$MDECLOG" ]; then
 else
 	echo "  skipped: set PS1TESTS to a ps1-tests checkout to run this"
 fi
+
+echo "== IOP dispatch tables vs the MIPS I encoding =="
+"$CC" -O1 -g -Wall $SANFLAGS -o "$DIR/iop_tabaudit" "$DIR/tabaudit.c"
+"$DIR/iop_tabaudit" "$ROOT/pcsx2/R3000AOpcodeTables.cpp"
