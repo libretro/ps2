@@ -300,6 +300,10 @@ static int run_integer(const char* dir, int* total)
 		}
 		fclose(f);
 		*total += cases;
+		/* A block that matched no lines is a harness bug, not a pass. */
+		if (cases == 0)
+		{ printf("%-7s parsed no cases; the block name or line shape does"
+		         " not match the capture\n", kIOps[op].name); bad++; }
 		printf("%-7s %2d/%-3d console cases\n", kIOps[op].name, pass, cases);
 		if (pass != cases) bad++;
 	}

@@ -157,6 +157,8 @@ int main(int argc, char** argv)
 				       kName[op], a, b, want, got);
 		}
 		fclose(f);
+		if (cases == 0)
+		{ printf("  a block parsed no cases; its name or line shape does not match the capture\n"); failures++; }
 		printf("%-6s %2d/%-3d console cases\n", kName[op], pass, cases);
 		total += cases;
 		if (pass != cases) failures++;

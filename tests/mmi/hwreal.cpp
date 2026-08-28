@@ -112,7 +112,10 @@ kOps[] = {
 	{ "pextuw","shuffle",PEXTUW,A_TWO },{ "pextuh","shuffle",PEXTUH,A_TWO },
 	{ "pextub","shuffle",PEXTUB,A_TWO },
 	{ "pcpyld","shuffle",PCPYLD,A_TWO },{ "pcpyud","shuffle",PCPYUD,A_TWO },
-	{ "pcpyh","shuffle",PCPYH,A_TWO },{ "prevh","shuffle",PREVH,A_TWO },
+	/* Single-source, and their lines carry one operand: "pcpyh 0: ...".
+	 * Marked A_TWO the parser demands a comma, finds none and skips the
+	 * whole block -- both scored 0 of 0 while the run passed. */
+	{ "pcpyh","shuffle",PCPYH,A_ONE },{ "prevh","shuffle",PREVH,A_ONE },
 	{ "ppacw","shuffle",PPACW,A_TWO },{ "ppach","shuffle",PPACH,A_TWO },
 	{ "ppacb","shuffle",PPACB,A_TWO },
 	{ "pabsw","arithmetic",PABSW,A_ONE },{ "pabsh","arithmetic",PABSH,A_ONE },
@@ -414,7 +417,13 @@ int main(int argc, char** argv)
 		}
 		fclose(f);
 		total += cases;
-		if (pass != cases)
+		/* A block that matched no lines is a harness bug, not a pass:
+		 * 0 of 0 looks the same as success in a summary line. */
+		if (cases == 0)
+		{ printf("%-7s parsed no cases; the block name or operand shape"
+		         " does not match the capture\n", kOps[op].name);
+		  failures++; }
+		else if (pass != cases)
 		{ printf("%-7s %2d/%-3d console cases\n", kOps[op].name, pass, cases);
 		  failures++; }
 	}
