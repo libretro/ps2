@@ -144,6 +144,69 @@ int main(void)
 	CASE("mov eax, 0x12345678",  xe_mov32_ri(0, 0x12345678));
 	CASE("mov r15d, 0x1",        xe_mov32_ri(15, 1));
 
+	/* 64-bit forms: the REX.W prefix, and mov64_ri's choice between the
+	 * sign-extended 32-bit form and the full ten-byte immediate. */
+	CASE("mov rax, rcx",         xe_mov64_rr(0, 1));
+	CASE("mov r8, r9",           xe_mov64_rr(8, 9));
+	CASE("add rax, rcx",         xe_add64_rr(0, 1));
+	CASE("add r10, r11",         xe_add64_rr(10, 11));
+	CASE("cmp rax, rcx",         xe_cmp64_rr(0, 1));
+	CASE("movsxd rax, ecx",      xe_movsxd_rr(0, 1));
+	CASE("movsxd r8, r9d",       xe_movsxd_rr(8, 9));
+
+	/* Shifts by an immediate, including the one-bit short form. */
+	CASE("shl eax, 1",           xe_shl32_ri(0, 1));
+	CASE("shl eax, 5",           xe_shl32_ri(0, 5));
+	CASE("shl r12d, 31",         xe_shl32_ri(12, 31));
+	CASE("shr eax, 1",           xe_shr32_ri(0, 1));
+	CASE("shr ecx, 7",           xe_shr32_ri(1, 7));
+	CASE("sar eax, 1",           xe_sar32_ri(0, 1));
+	CASE("sar r13d, 12",         xe_sar32_ri(13, 12));
+	CASE("shl rax, 1",           xe_shl64_ri(0, 1));
+	CASE("shl rax, 40",          xe_shl64_ri(0, 40));
+	CASE("shr rcx, 33",          xe_shr64_ri(1, 33));
+	CASE("sar rdx, 63",          xe_sar64_ri(2, 63));
+
+	/* Unary forms and test, which the branch paths lean on. */
+	CASE("not eax",              xe_not32_r(0));
+	CASE("not r14d",             xe_not32_r(14));
+	CASE("neg eax",              xe_neg32_r(0));
+	CASE("neg r11d",             xe_neg32_r(11));
+	CASE("not rax",              xe_not64_r(0));
+	CASE("test eax, eax",        xe_test32_rr(0, 0));
+	CASE("test ecx, edx",        xe_test32_rr(1, 2));
+	CASE("test r8d, r9d",        xe_test32_rr(8, 9));
+	CASE("test rax, rax",        xe_test64_rr(0, 0));
+
+	/* Sign and zero extension, where the operand widths differ. */
+	CASE("movzx eax, cl",        xe_movzx32_r8(0, 1));
+	CASE("movzx eax, cx",        xe_movzx32_r16(0, 1));
+	CASE("movzx r8d, r9b",       xe_movzx32_r8(8, 9));
+
+	/* imul32_r is the one-operand form: edx:eax = eax * r. */
+	CASE("imul ecx",             xe_imul32_r(1));
+	CASE("imul r11d",            xe_imul32_r(11));
+
+	/* SSE. The recompilers emit far more of this than of the integer ALU,
+	 * and the register-extension bit lands in a different place from the
+	 * general-purpose forms. */
+	CASE("movaps xmm0, xmm1",        xe_movaps_xx(0, 1));
+	CASE("movaps xmm8, xmm9",        xe_movaps_xx(8, 9));
+	CASE("movdqa xmm0, xmm1",        xe_movdqa_xx(0, 1));
+	CASE("movdqa xmm10, xmm11",      xe_movdqa_xx(10, 11));
+	CASE("paddd xmm0, xmm1",         xe_paddd_xx(0, 1));
+	CASE("paddd xmm12, xmm13",       xe_paddd_xx(12, 13));
+	CASE("psubd xmm0, xmm1",         xe_psubd_xx(0, 1));
+	CASE("pand xmm2, xmm3",          xe_pand_xx(2, 3));
+	CASE("por xmm4, xmm5",           xe_por_xx(4, 5));
+	CASE("pxor xmm6, xmm7",          xe_pxor_xx(6, 7));
+	CASE("pxor xmm15, xmm15",        xe_pxor_xx(15, 15));
+	CASE("punpckldq xmm0, xmm1",     xe_punpckldq_xx(0, 1));
+	CASE("punpckhdq xmm0, xmm1",     xe_punpckhdq_xx(0, 1));
+	CASE("punpcklqdq xmm8, xmm9",    xe_punpcklqdq_xx(8, 9));
+	CASE("punpcklbw xmm0, xmm1",     xe_punpcklbw_xx(0, 1));
+	CASE("punpckhwd xmm2, xmm3",     xe_punpckhwd_xx(2, 3));
+
 	printf("hwas: %d/%d C emitter macros match GNU as\n",
 	       cases - failures, cases);
 	return failures != 0;
