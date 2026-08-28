@@ -53,8 +53,7 @@ bool GSInterface::init(Vulkan::Device *device, const GSOptions &options)
 
 	set_super_sampling_rate(options.super_sampling,
 	                        options.ordered_super_sampling,
-	                        options.super_sampled_textures,
-	                        options.super_sampled_quads);
+	                        options.super_sampled_textures);
 
 	renderer.reserve_primitive_buffers(MaxPrimitivesPerFlush);
 	render_pass.positions = renderer.get_reserved_vertex_positions();
@@ -64,11 +63,9 @@ bool GSInterface::init(Vulkan::Device *device, const GSOptions &options)
 }
 
 void GSInterface::set_super_sampling_rate(SuperSampling super_sampling,
-                                          bool ordered_grid, bool super_sampled_textures_,
-                                          bool super_sampled_quads_)
+                                          bool ordered_grid, bool super_sampled_textures_)
 {
 	super_sampled_textures = super_sampled_textures_;
-	super_sampled_quads = super_sampled_quads_;
 	super_sampling = SuperSampling(std::min<uint32_t>(
 			uint32_t(super_sampling), uint32_t(renderer.get_max_supported_super_sampling())));
 
@@ -2690,40 +2687,8 @@ void GSInterface::drawing_kick_append()
 	{
 		prim_attr.state |= 1u << STATE_BIT_PARALLELOGRAM;
 		prim_attr.state |= 1u << STATE_BIT_SPRITE;
-
-		// Sprites stay fully snapped: coverage on whole pixels, attributes
-		// never interpolated toward the right or bottom of a pixel. Moving the
-		// samples is what produced the text and menu artifacts in Tekken Tag,
-		// Ridge Racer V and SSX3; nothing here moves them.
-		//
-		// A magnified 2D quad has more pixels than texels, and its two normal
-		// choices are both bad: nearest steps, and linear blends a glyph's edge
-		// texel with whatever sits beside it in the atlas -- the seam. The
-		// option asks the sampler for an edge-directed reconstruction instead,
-		// which selects among the surrounding texels rather than mixing them,
-		// so no colour that is not already in the texture can appear.
 		prim_attr.state |= 1u << STATE_BIT_SNAP_RASTER;
 		prim_attr.state |= 1u << STATE_BIT_SNAP_ATTRIBUTE;
-
-		const bool sprite_is_per_sample = (prim_attr.tex & TEX_PER_SAMPLE_BIT) != 0;
-		if (super_sampled_quads && prim.desc.TME && !sprite_is_per_sample)
-		{
-			ivec4 sprite_uv_bb;
-			compute_uv_bb<quad, num_vertices, false>(attr, ctx, prim.desc, sprite_uv_bb, nullptr, nullptr);
-
-			// uv_bb bounds are inclusive texel indices, so a 1:1 sprite spanning
-			// N pixels covers N + 1 of them. Magnification is the case this
-			// filter is for: strictly fewer texels than pixels.
-			const int texels_x = sprite_uv_bb.z - sprite_uv_bb.x + 1;
-			const int texels_y = sprite_uv_bb.w - sprite_uv_bb.y + 1;
-			const int pixels_x = (pre_snap_hi.x - pre_snap_lo.x) >> int(PGS_SUBPIXEL_BITS);
-			const int pixels_y = (pre_snap_hi.y - pre_snap_lo.y) >> int(PGS_SUBPIXEL_BITS);
-
-			if ((pixels_x > 0 && texels_x + 1 < pixels_x) ||
-			    (pixels_y > 0 && texels_y + 1 < pixels_y))
-				prim_attr.tex |= TEX_SAMPLER_EDGE_FILTER_BIT;
-		}
-
 		prim_attr.state &= ~(1u << STATE_BIT_MULTISAMPLE);
 	}
 	else if (is_line)

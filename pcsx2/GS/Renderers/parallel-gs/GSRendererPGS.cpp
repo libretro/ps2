@@ -245,14 +245,11 @@ bool GSRendererPGS::Init()
 	opts.ordered_super_sampling = parsed.ordered;
 	opts.dynamic_super_sampling = true;
 	opts.super_sampled_textures = GSConfig.PGSSuperSampleTextures != 0;
-	opts.super_sampled_quads    = GSConfig.PGSSuperSampleQuads != 0;
 	if (!iface.init(&dev, opts))
 		return false;
 
 	current_super_sampling         = opts.super_sampling;
 	current_ordered_super_sampling = opts.ordered_super_sampling;
-	current_super_sample_textures  = opts.super_sampled_textures;
-	current_super_sample_quads     = opts.super_sampled_quads;
 
 	Hacks hacks;
 	hacks.disable_mipmaps = GSConfig.PGSDisableMipmaps;
@@ -280,15 +277,12 @@ void GSRendererPGS::UpdateConfig()
 	auto parsed = parse_super_sampling_options(GSConfig.PGSSuperSampling);
 
 	if (parsed.super_sampling != current_super_sampling || parsed.ordered != current_ordered_super_sampling ||
-	    current_super_sample_textures != bool(GSConfig.PGSSuperSampleTextures) ||
-	    current_super_sample_quads != bool(GSConfig.PGSSuperSampleQuads))
+	    current_super_sample_textures != bool(GSConfig.PGSSuperSampleTextures))
 	{
-		iface.set_super_sampling_rate(parsed.super_sampling, parsed.ordered, GSConfig.PGSSuperSampleTextures != 0,
-		                              GSConfig.PGSSuperSampleQuads != 0);
+		iface.set_super_sampling_rate(parsed.super_sampling, parsed.ordered, GSConfig.PGSSuperSampleTextures != 0);
 		current_super_sampling = parsed.super_sampling;
 		current_ordered_super_sampling = parsed.ordered;
 		current_super_sample_textures = bool(GSConfig.PGSSuperSampleTextures);
-		current_super_sample_quads = bool(GSConfig.PGSSuperSampleQuads);
 	}
 
 	Hacks hacks;

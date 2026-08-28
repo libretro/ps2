@@ -346,20 +346,6 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       "disabled"
    },
    {
-      "pcsx2_pgs_ss_quads",
-      "Video > paraLLEl supersample 2D quads",
-      "paraLLEl supersample 2D quads",
-      "Interpolate scaled-down 2D quads and sprites across the supersample grid instead of reading a single texel per pixel. Recovers detail when a large texture is drawn through a smaller primitive, most visibly on HUD and menu art. Sprites drawn at 1:1, which is most UI, are left exactly as they are. Requires supersampling to be enabled to do anything.",
-      NULL,
-      "video",
-      {
-         { "enabled", NULL },
-         { "disabled", NULL },
-         { NULL, NULL },
-      },
-      "disabled"
-   },
-   {
       "pcsx2_pgs_deblur",
       "Video > paraLLEl experimental sharp backbuffer",
       "paraLLEl experimental sharp backbuffer",
