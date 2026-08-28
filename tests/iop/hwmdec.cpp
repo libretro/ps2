@@ -10,20 +10,26 @@
  *  This links Mdec.cpp rather than transcribing it, so it cannot drift
  *  from the implementation it scores.
  *
- *  The 512 output words are reported but cannot be won as written, and
- *  that is a property of the capture rather than of the emulator. The
- *  trace's own header says so: "Decoded blocks are copied manually
- *  WITHOUT swizzling, blocks are copied as 16x4 instead of 8x8". The words
- *  it prints are in the order its own copy loop produced, not the raster
- *  order yuv2rgb15 writes, so a word-by-word comparison fails however
- *  correct the decode is. Scoring them means replicating that copy order
- *  here first.
+ *  The 512 output words are directly comparable -- main.cpp logs what
+ *  mdec_read() returned, unmodified. (Its header's line about copying
+ *  blocks "as 16x4 instead of 8x8" describes the VRAM write it does
+ *  afterwards, not the words it prints; an earlier note here read that as
+ *  applying to the log and was wrong.)
  *
- *  What was checked while establishing that, since it bears on the rest:
- *  the whole input stream does decode cleanly, 473 of its 512 RL codes
- *  making exactly four macroblocks, and the decoder produces real pixels
- *  once mdecInit has set up the IDCT tables. So the remaining gap is not
- *  the decoder failing on this data.
+ *  They score zero for a substantive reason. Decoding the trace's own
+ *  input with its own quantisation table gives 1 of 512 words positionally
+ *  and 25 of 512 present in both streams in any order, so the values
+ *  differ rather than the ordering. The cause is the transform: the PS1
+ *  MDEC multiplies by an IDCT matrix the guest uploads -- the trace
+ *  uploads one with command 3<<29, sixty-four entries -- and Mdec.cpp has
+ *  no table to upload it into. idct() here is a fixed jpeg-style integer
+ *  transform, and psxDma0 handles only the quantisation table and the
+ *  decode command, ignoring the matrix entirely.
+ *
+ *  So bit-exact output needs a table-driven IDCT, which is a change to the
+ *  transform rather than to the FIFO or the register. What is not the
+ *  problem: the input stream decodes cleanly, 473 of its 512 RL codes
+ *  making exactly four macroblocks.
  *
  *  Three things are checked separately, because they fail independently
  *  and lumping them together would hide which part is wrong:

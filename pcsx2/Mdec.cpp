@@ -420,13 +420,20 @@ static void yuv2rgb24(int *blk,unsigned char *image)
  * conversion finishes rather than stalling. That is the behaviour to pin
  * down next, and it is a question about the hardware.
  *
- * One thing that is settled: the decoder is not what is failing on this
- * data. The trace's whole input stream decodes cleanly -- 473 of its 512
- * RL codes make exactly four macroblocks -- and produces real pixels once
- * the IDCT tables are up. The output words the trace prints cannot be
- * compared against them word for word, because it copies decoded blocks
- * as 16x4 rather than 8x8 and says so in its own header, so its ordering
- * is the test program's and not the hardware's. */
+ * The output words the trace prints are directly comparable -- it logs
+ * what the read returned -- and they do not match, for a reason worth
+ * recording here. The PS1 MDEC applies an IDCT matrix the guest uploads,
+ * with command 3<<29 followed by sixty-four entries, and there is no
+ * table here to upload it into: idct() is a fixed jpeg-style integer
+ * transform and psxDma0 handles only the quantisation table and the
+ * decode. Decoding the trace's input with its own quantisation table
+ * gives 1 of 512 words positionally and 25 in any order, so the values
+ * differ rather than the ordering.
+ *
+ * Bit-exact output therefore needs a table-driven transform, which is a
+ * change to idct() rather than to this register or to the FIFO. The RL
+ * decode itself is not implicated: the trace's input consumes 473 of its
+ * 512 codes into exactly four macroblocks. */
 static unsigned short* rl2blk_one(int *blk, unsigned short *mdec_rl, int which)
 {
 	int k, q_scale, rl;
