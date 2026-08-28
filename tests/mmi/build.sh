@@ -54,3 +54,12 @@ if [ -f "$EXPECTED" ]; then
 else
 	echo "  skipped: set PS2AUTOTESTS to a ps2autotests checkout to run this"
 fi
+
+echo "== shift-amount register vs console =="
+EXPECTED="${PS2AUTOTESTS:-}/tests/cpu/ee_simd/funnel.expected"
+if [ -f "$EXPECTED" ]; then
+	"$CC" -O1 -g -Wall $SANFLAGS -o "$DIR/mmi_hwsa" "$DIR/hwsa.c"
+	"$DIR/mmi_hwsa" "$EXPECTED"
+else
+	echo "  skipped: set PS2AUTOTESTS to a ps2autotests checkout to run this"
+fi

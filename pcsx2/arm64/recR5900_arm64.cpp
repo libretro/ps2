@@ -2939,7 +2939,10 @@ namespace {
 						}
 						return true;
 					case 0x29:
+						// MTSA: sa is four bits (a byte count for QFSRV), so
+						// mask like recMTSA and the interpreter do.
 						LoadGpr(m, x0, gpr, rs);
+						m.And(w0, w0, 0xf);
 						m.Str(w0, RegsField(&cpuRegs.sa));
 						return true;
 					// MOVZ/MOVN: rd = rs when rt ==/!= 0 (full 64-bit compare),

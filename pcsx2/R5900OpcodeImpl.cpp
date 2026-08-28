@@ -970,7 +970,13 @@ void MFSA() {
 }
 
 void MTSA() {
-	cpuRegs.sa = (u32)cpuRegs.GPR.r[_Rs_].UD[0];
+	/* SA is four bits, a byte count for QFSRV. recMTSA in
+	 * x86/iR5900Misc.cpp has always masked it -- its comment says so --
+	 * and this had not, so the two engines disagreed for any value above
+	 * 15 and QFSRV then shifted by sa * 8 with a count it cannot take.
+	 * ps2autotests tests/cpu/ee_simd/funnel.expected settles it: MTSA of
+	 * 16 reads back 0 and of 0xffff reads back 0xf. */
+	cpuRegs.sa = (u32)cpuRegs.GPR.r[_Rs_].UD[0] & 0xf;
 }
 
 // SNY supports three basic modes, two which synchronize memory accesses (related
