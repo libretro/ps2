@@ -207,6 +207,38 @@ int main(void)
 	CASE("punpcklbw xmm0, xmm1",     xe_punpcklbw_xx(0, 1));
 	CASE("punpckhwd xmm2, xmm3",     xe_punpckhwd_xx(2, 3));
 
+	/* Memory operands. This is where an x86 encoder is easiest to get
+	 * wrong -- ModRM, the SIB byte and the displacement all interact --
+	 * and the register-only cases above would not catch any of it.
+	 *
+	 * The addresses here are absolute and fit in 32 bits, which the
+	 * emitter encodes with the no-base SIB form (modrm 04, sib 25). The
+	 * ds: prefix in the oracle text is how Intel syntax spells the same
+	 * thing to as; without it, as assembles a RIP-relative operand and
+	 * every case disagrees for a reason that has nothing to do with the
+	 * emitter. */
+	CASE("add eax, DWORD PTR ds:0x12345678", xe_add32_rm(0, 0x12345678));
+	CASE("add ecx, DWORD PTR ds:0x100",      xe_add32_rm(1, 0x100));
+	CASE("add r8d, DWORD PTR ds:0x12345678", xe_add32_rm(8, 0x12345678));
+	CASE("sub eax, DWORD PTR ds:0x12345678", xe_sub32_rm(0, 0x12345678));
+	CASE("cmp eax, DWORD PTR ds:0x12345678", xe_cmp32_rm(0, 0x12345678));
+	CASE("mov eax, DWORD PTR ds:0x12345678", xe_mov32_rm(0, 0x12345678));
+	CASE("mov r15d, DWORD PTR ds:0x40",      xe_mov32_rm(15, 0x40));
+	CASE("mov DWORD PTR ds:0x12345678, ecx", xe_mov32_mr(0x12345678, 1));
+	CASE("mov DWORD PTR ds:0x40, r14d",      xe_mov32_mr(0x40, 14));
+	CASE("sub DWORD PTR ds:0x12345678, edx", xe_sub32_mr(0x12345678, 2));
+	CASE("mov rax, QWORD PTR ds:0x12345678", xe_mov64_rm(0, 0x12345678));
+	CASE("mov QWORD PTR ds:0x12345678, rcx", xe_mov64_mr(0x12345678, 1));
+	CASE("add rax, QWORD PTR ds:0x12345678", xe_add64_rm(0, 0x12345678));
+
+	/* Immediates to memory, where the operand size has to be spelled out
+	 * because neither side can infer it. */
+	CASE("mov DWORD PTR ds:0x12345678, 0x1",        xe_mov32_mi(0x12345678, 1));
+	CASE("mov DWORD PTR ds:0x100, 0xdeadbeef",      xe_mov32_mi(0x100, 0xdeadbeef));
+	CASE("cmp DWORD PTR ds:0x12345678, 0x7f",       xe_cmp32_mi(0x12345678, 0x7f));
+	CASE("cmp DWORD PTR ds:0x12345678, 0x12345678", xe_cmp32_mi(0x12345678, 0x12345678));
+	CASE("sub DWORD PTR ds:0x100, 0x10",            xe_sub32_mi(0x100, 0x10));
+
 	printf("hwas: %d/%d C emitter macros match GNU as\n",
 	       cases - failures, cases);
 	return failures != 0;
