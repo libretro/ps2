@@ -288,8 +288,13 @@ static int run_special(int op, char* buf, int* cases, int* pass, int* failures,
 		if (!operand(&q, &qa, &na)) return 0;
 		if (!operand(&q, &qb, &nb)) return 0;
 		a = qa.w[0]; b = qb.w[0];
-		q = strchr(buf, ':');
-		if (!q || sscanf(q + 1, " H: %llx %llx L: %llx %llx",
+		/* Anchor on the H: marker rather than the first colon. The
+		 * multiply lines print rd between the two -- "mult a, b: <quad>
+		 * H: ... L: ..." -- while the divide lines go straight to H:, so
+		 * scanning from the colon parses div and drops every mult and
+		 * multu line. They scored 0 of 0 and the run still passed. */
+		q = strstr(buf, "H: ");
+		if (!q || sscanf(q, "H: %llx %llx L: %llx %llx",
 		                 &wh, &wh1, &wl, &wl1) != 4) return 0;
 
 		cpuRegs.HI.UD[0] = HI0; cpuRegs.HI.UD[1] = HI1;
@@ -484,7 +489,14 @@ int main(int argc, char** argv)
 		}
 		fclose(f);
 		total += cases;
-		if (pass != cases)
+		/* A block that matched no lines is a harness bug, not a pass. The
+		 * multiply blocks scored 0/0 here for exactly that reason and the
+		 * run still reported success. */
+		if (cases == 0)
+		{ printf("%-7s parsed no cases; the block name or line shape changed\n",
+		         kOps[op].name);
+		  failures++; }
+		else if (pass != cases)
 		{ printf("%-7s %2d/%-3d console cases\n", kOps[op].name, pass, cases);
 		  failures++; }
 	}

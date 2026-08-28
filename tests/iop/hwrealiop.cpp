@@ -229,7 +229,12 @@ int main(int argc, char** argv)
 			case MULDIV:
 				if (!operand(&p, &a) || !operand(&p, &b)) continue;
 				p = strchr(buf, ':');
-				if (!p || sscanf(p + 1, " H: %x L: %x", &wh, &wl) != 2) continue;
+				/* Anchored on the marker rather than the first colon. The
+				 * IOP lines have no rd quad so either works here, but the
+				 * EE ones do, and scanning from the colon silently dropped
+				 * every mult case there. */
+				p = strstr(buf, "H: ");
+				if (!p || sscanf(p, "H: %x L: %x", &wh, &wl) != 2) continue;
 				psxRegs.GPR.r[RS] = a; psxRegs.GPR.r[RT] = b;
 				psxRegs.code = ((u32)RS << 21) | ((u32)RT << 16);
 				kOps[op].fn();
@@ -330,7 +335,12 @@ int main(int argc, char** argv)
 		}
 		fclose(f);
 		total += cases;
-		if (pass != cases)
+		/* A block that matched no lines is a harness bug, not a pass. */
+		if (cases == 0)
+		{ printf("%-6s parsed no cases; the block name or line shape changed\n",
+		         kOps[op].name);
+		  failures++; }
+		else if (pass != cases)
 		{ printf("%-6s %2d/%-3d console cases\n", kOps[op].name, pass, cases);
 		  failures++; }
 	}
