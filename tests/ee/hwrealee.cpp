@@ -111,10 +111,13 @@ namespace R5900 { namespace Interpreter { namespace OpcodeImpl {
 	void SB(); void SH(); void SW(); void SD(); void SQ();
 	void SWL(); void SWR(); void SDL(); void SDR();
 	void DIV(); void DIVU(); void MULT(); void MULTU();
+	void MFHI(); void MFLO(); void MTHI(); void MTLO();
 } } }
 using namespace R5900::Interpreter::OpcodeImpl;
 
-enum Shape { RRR, RRI, RRS, RI, LOAD, STORE, MULDIV };
+/* HILO_MOVE: one operand, and the result is a pipeline register or rd
+ * depending on the direction. */
+enum Shape { RRR, RRI, RRS, RI, LOAD, STORE, MULDIV, HILO_MOVE };
 
 static const struct { const char* name; void (*fn)(); Shape shape; int swap; }
 kOps[] = {
@@ -143,6 +146,11 @@ kOps[] = {
 	{ "sd",SD,STORE,0 },{ "sq",SQ,STORE,0 },
 	{ "div",DIV,MULDIV,0 },{ "divu",DIVU,MULDIV,0 },
 	{ "mult",MULT,MULDIV,0 },{ "multu",MULTU,MULDIV,0 },
+	/* The HI/LO moves. Nothing in the tree scored these either -- the
+	 * audit that turned up the second pipeline found them in the same
+	 * pass. */
+	{ "mfhi",MFHI,HILO_MOVE,0 },{ "mflo",MFLO,HILO_MOVE,0 },
+	{ "mthi",MTHI,HILO_MOVE,0 },{ "mtlo",MTLO,HILO_MOVE,0 },
 };
 
 /* C_PATTERN from the lsu harness, and the two bases its load and store
@@ -278,6 +286,69 @@ static int run_special(int op, char* buf, int* cases, int* pass, int* failures,
 	p = buf + 2;
 	while (*p && *p != ' ') p++;
 
+	if (kOps[op].shape == HILO_MOVE)
+	{
+		/* "mfhi <n>: <rd quad> H: hi hi1 L: lo lo1". The MF forms write rd
+		 * from a pipeline register and the MT forms write the pipeline from
+		 * rs, so both directions are covered by comparing rd and the
+		 * pipelines together -- which is also what tells a move from HI
+		 * apart from a move from LO. */
+		unsigned long long wh, wh1, wl, wl1;
+		unsigned q3, q2, q1, q0;
+		Q rs_q;
+		char* q = strstr(buf, "H: ");
+		const int is_mt = kOps[op].name[1] == 't';
+		if (!q) return 0;
+		if (sscanf(q, "H: %llx %llx L: %llx %llx", &wh, &wh1, &wl, &wl1) != 4)
+			return 0;
+		{
+			char* c = strchr(buf, ':');
+			if (!c || sscanf(c + 2, "%x %x %x %x", &q3, &q2, &q1, &q0) != 4)
+				return 0;
+			/* Half these lines name a constant rather than a decimal --
+			 * "mthi C_NEGONE:" -- and strtol reads those as zero, which
+			 * makes the MT forms score 8 of 18 while looking like a
+			 * pipeline-write bug. operand() resolves both. */
+			{
+				char* ap = p;
+				int dummy = 0;
+				if (!operand(&ap, &rs_q, &dummy)) return 0;
+			}
+		}
+
+		memset(&cpuRegs.GPR, 0, sizeof(cpuRegs.GPR));
+		cpuRegs.HI.UD[0] = HI0; cpuRegs.HI.UD[1] = HI1;
+		cpuRegs.LO.UD[0] = LO0; cpuRegs.LO.UD[1] = LO1;
+		cpuRegs.GPR.r[RS].UL[0] = rs_q.w[0];
+		cpuRegs.GPR.r[RS].UL[1] = rs_q.w[1];
+		cpuRegs.GPR.r[RS].UL[2] = rs_q.w[2];
+		cpuRegs.GPR.r[RS].UL[3] = rs_q.w[3];
+		/* rd carries the same seed the ee/muldiv program leaves. */
+		cpuRegs.GPR.r[RD].UD[1] = 0x0000133A00001339ull;
+		cpuRegs.code = ((u32)RS << 21) | ((u32)RD << 11);
+		kOps[op].fn();
+
+		(*cases)++;
+		{
+			const int hilo_ok = cpuRegs.HI.UD[0] == wh && cpuRegs.HI.UD[1] == wh1
+			                 && cpuRegs.LO.UD[0] == wl && cpuRegs.LO.UD[1] == wl1;
+			/* The MT forms leave rd alone, so only the pipelines are the
+			 * result there. */
+			const int rd_ok = is_mt
+			               || (cpuRegs.GPR.r[RD].UL[0] == q0
+			                && cpuRegs.GPR.r[RD].UL[1] == q1);
+			if (hilo_ok && rd_ok) (*pass)++;
+			else if ((*failures)++ < 6)
+				printf("  %-5s %d: console rd %08x %08x  H %016llx %016llx\n"
+				       "           ours    rd %08x %08x  H %016llx %016llx\n",
+				       kOps[op].name, (int)rs_q.w[0], q1, q0, wh, wh1,
+				       cpuRegs.GPR.r[RD].UL[1], cpuRegs.GPR.r[RD].UL[0],
+				       (unsigned long long)cpuRegs.HI.UD[0],
+				       (unsigned long long)cpuRegs.HI.UD[1]);
+		}
+		return 0;
+	}
+
 	if (kOps[op].shape == MULDIV)
 	{
 		u32 a, b;
@@ -391,7 +462,8 @@ int main(int argc, char** argv)
 
 		snprintf(path, sizeof(path), "%s/%s.expected", dir,
 		         (kOps[op].shape == LOAD || kOps[op].shape == STORE) ? "lsu"
-		       : (kOps[op].shape == MULDIV) ? "muldiv" : "alu");
+		       : (kOps[op].shape == MULDIV
+		       || kOps[op].shape == HILO_MOVE) ? "muldiv" : "alu");
 		f = fopen(path, "r");
 		if (!f) { fprintf(stderr, "cannot open %s\n", path); return 2; }
 		snprintf(head, sizeof(head), "%s:", kOps[op].name);
@@ -412,7 +484,7 @@ int main(int argc, char** argv)
 			if (strstr(buf, "-> $0")) continue;
 
 			if (kOps[op].shape == LOAD || kOps[op].shape == STORE
-			 || kOps[op].shape == MULDIV)
+			 || kOps[op].shape == MULDIV || kOps[op].shape == HILO_MOVE)
 			{
 				if (!run_special(op, buf, &cases, &pass, &failures, block_total)) continue;
 				continue;
