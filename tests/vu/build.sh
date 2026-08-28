@@ -34,3 +34,12 @@ if [ -f "$EXPECTED" ]; then
 else
 	echo "  skipped: set PS2AUTOTESTS to a ps2autotests checkout to run this"
 fi
+
+echo "== VU FDIV latencies vs console =="
+EXPECTED="${PS2AUTOTESTS:-}/tests/vu/lower/fdivdelay.expected"
+if [ -f "$EXPECTED" ]; then
+	"$CC" -O1 -g -Wall $SANFLAGS -o "$DIR/vu_hwfdiv" "$DIR/hwfdiv.c"
+	"$DIR/vu_hwfdiv" "$EXPECTED"
+else
+	echo "  skipped: set PS2AUTOTESTS to a ps2autotests checkout to run this"
+fi
