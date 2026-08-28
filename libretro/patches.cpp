@@ -2224,11 +2224,19 @@ int lrps2_ingame_patches(const char *serial,
 				 * (verified against it: 39B53C holds li a0,2). */
 				if (game_crc == 0x399A49CA)
 				{
-					/* 60fps uncapped. Need EE Overclock at 180%. */
+					/* 60fps uncapped. Need EE Overclock at 180%.
+					 * A fourth line, "patch=1,EE,D066804C,word,10000001",
+					 * was dropped: a raw-format D-conditional transcribed
+					 * with type word, making it a literal read/write of
+					 * unmapped 0xD066804C every frame. Measured inert (the
+					 * unmapped access is absorbed and every other poke in
+					 * the set still lands), but it only works by leaning on
+					 * that absorption, and as the conditional it was meant
+					 * to be it merely re-tested the flag the line above
+					 * writes. */
 					static const char *const patches[] = {
 						"patch=0,EE,2039B53C,extended,24040001", /* Set VSync Mode to 60 FPS */
 						"patch=1,EE,0066804C,word,10000001",
-						"patch=1,EE,D066804C,word,10000001",
 						"patch=1,EE,006678CC,extended,00000001" /* Framerate boost */
 					};
 					for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
