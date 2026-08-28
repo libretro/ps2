@@ -74,3 +74,7 @@ if [ -d "$EXPECTED" ]; then
 else
 	echo "  skipped: set PS2AUTOTESTS to a ps2autotests checkout to run this"
 fi
+
+echo "== EE performance-counter decode vs console =="
+${CC:-cc} -O1 -g -Wall $SANFLAGS -o "$DIR/ee_hwperf" "$DIR/hwperf.c"
+"$DIR/ee_hwperf"
