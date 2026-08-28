@@ -97,3 +97,10 @@ ${CXX:-c++} -std=c++17 -O1 -w $SANFLAGS -I "$ROOT" -I "$ROOT/pcsx2" \
 	-I "$ROOT/libretro/libretro-common/include" \
 	-o "$DIR/ee_hwgslabel" "$DIR/hwgslabel.cpp" "$ROOT/pcsx2/Gif_Unit.cpp"
 "$DIR/ee_hwgslabel"
+
+echo "== DMAC CPCOND0 vs console =="
+${CXX:-c++} -std=c++17 -O1 -w $SANFLAGS -I "$ROOT" -I "$ROOT/pcsx2" \
+	-I "$ROOT/common" -I "$ROOT/common/include" -I "$ROOT/3rdparty/include" \
+	-I "$ROOT/libretro/libretro-common/include" \
+	-o "$DIR/ee_hwcpcond" "$DIR/hwcpcond.cpp" "$ROOT/pcsx2/COP0.cpp"
+"$DIR/ee_hwcpcond"
