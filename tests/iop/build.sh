@@ -7,6 +7,7 @@
 # Usage: sh tests/iop/build.sh
 set -e
 DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+ROOT=$(CDPATH= cd -- "$DIR/../.." && pwd)
 CC=${CC:-cc}
 SANFLAGS=""
 [ -n "$SANITIZER" ] && SANFLAGS="-fsanitize=$SANITIZER"
@@ -50,3 +51,16 @@ fi
 echo "== GTE divider self-checks (no capture needed) =="
 "$CC" -O1 -g -Wall $SANFLAGS -o "$DIR/iop_hwgte" "$DIR/hwgte.c"
 "$DIR/iop_hwgte"
+
+echo "== GTE vs PS1 console captures =="
+# https://github.com/JaCzekanski/ps1-tests -- point PS1TESTS at a checkout.
+GTELOG="${PS1TESTS:-}/gte-fuzz/gte_valid_0xc0ffee_50.log"
+if [ -f "$GTELOG" ]; then
+	${CXX:-c++} -std=c++17 -O1 -w $SANFLAGS -I "$ROOT" -I "$ROOT/pcsx2" \
+		-I "$ROOT/common" -I "$ROOT/common/include" -I "$ROOT/3rdparty/include" \
+		-I "$ROOT/libretro/libretro-common/include" \
+		-o "$DIR/iop_hwgtefuzz" "$DIR/hwgtefuzz.cpp" "$ROOT/pcsx2/IopGte.cpp"
+	"$DIR/iop_hwgtefuzz" "$GTELOG" | tail -1
+else
+	echo "  skipped: set PS1TESTS to a ps1-tests checkout to run this"
+fi
