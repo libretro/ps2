@@ -300,7 +300,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       "pcsx2_pgs_ssaa",
       "Video > paraLLEl super sampling",
       "paraLLEl super sampling",
-      "Apply supersampled anti-aliasing (SSAA). Unlike straight upscaling, supersampling retains a coherent visual look where 3D elements have similar resolution as UI elements. For high-res scanout upscaling to work, you need at least '4x SSAA ordered' (or higher). Setting this to 'Native' disables super sampling.",
+      "Apply supersampled anti-aliasing (SSAA). Unlike straight upscaling, supersampling retains a coherent visual look where 3D elements have similar resolution as UI elements. For 2x high-res scanout you need at least '4x SSAA ordered' (or higher); 4x high-res scanout needs '16x SSAA (ordered)' specifically -- the plain 16x mode uses a sparse grid that only supports 2x. Setting this to 'Native' disables super sampling.",
       NULL,
       "video",
       {
@@ -310,6 +310,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
          { "4x SSAA (ordered, can high-res)", NULL },
          { "8x SSAA (can high-res)", NULL },
          { "16x SSAA (can high-res)", NULL },
+         { "16x SSAA (ordered, can high-res 4x)", NULL },
          { NULL, NULL },
       },
       "Native"

@@ -199,8 +199,17 @@ static ParsedSuperSampling parse_super_sampling_options(u8 super_sampling)
 {
 	ParsedSuperSampling parsed = {};
 
-	if (super_sampling > 5)
-		super_sampling = 5;
+	if (super_sampling > 6)
+		super_sampling = 6;
+
+	// Setting 6 is the ordered 16x grid: the only layout that resolves
+	// two position bits per axis, which the 4x high-res scanout needs.
+	if (super_sampling == 6)
+	{
+		parsed.ordered = true;
+		parsed.super_sampling = SuperSampling::X16;
+		return parsed;
+	}
 
 	parsed.ordered = super_sampling == 3;
 

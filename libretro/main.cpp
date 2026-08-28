@@ -471,6 +471,8 @@ static void check_variables(bool first_run)
 				setting_pgs_super_sampling = 4;
 			else if (!strcmp(var.value, "16x SSAA (can high-res)"))
 				setting_pgs_super_sampling = 5;
+			else if (!strcmp(var.value, "16x SSAA (ordered, can high-res 4x)"))
+				setting_pgs_super_sampling = 6;
 
 			if (first_run || setting_pgs_super_sampling != pgs_super_sampling_prev)
 			{
