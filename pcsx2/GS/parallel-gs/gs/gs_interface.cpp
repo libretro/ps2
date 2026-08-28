@@ -2711,7 +2711,12 @@ void GSInterface::drawing_kick_append()
 		// neighbouring texel and, with nearest filtering, show it whole.
 		bool super_sample_this_sprite = false;
 		const bool sprite_is_per_sample = (prim_attr.tex & TEX_PER_SAMPLE_BIT) != 0;
-		if (super_sampled_quads && prim.desc.TME && !sprite_is_per_sample)
+		// Only sprites the game already lets the hardware filter are safe:
+		// with NEAREST the game is choosing one exact texel per pixel, and
+		// walking the samples across the cell shows its neighbours, which
+		// for atlas UI are the cell's border texels.
+		const bool sprite_is_linear = ctx.tex1.desc.MMAG == TEX1Bits::LINEAR;
+		if (super_sampled_quads && prim.desc.TME && !sprite_is_per_sample && sprite_is_linear)
 		{
 			ivec4 sprite_uv_bb;
 			compute_uv_bb<quad, num_vertices, false>(attr, ctx, prim.desc, sprite_uv_bb, nullptr, nullptr);
