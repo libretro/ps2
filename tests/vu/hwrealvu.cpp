@@ -424,6 +424,80 @@ static int run_random(int* total)
 	return pass != cases;
 }
 
+/* ---- CLIP -------------------------------------------------------------
+ *
+ * CLIP is an upper op, so it goes through VU0_UPPER_OPCODE[code & 0x3f]
+ * rather than the lower table. It compares each of fs's x, y and z
+ * against +ft.w and -ft.w and shifts six bits into the clip flag, which
+ * the capture reads back with FCGET.
+ *
+ * The scenarios and their expected flags are the fourteen basic cases in
+ * ps2autotests tests/vu/upper/clip.cpp, the same ones tests/vu/hwclip.c
+ * inlines; these go through VUops.cpp instead of a copy.
+ *
+ * What they cover is the comparison: relaxing one of the six tests from
+ * greater-than to greater-or-equal fails a case. What they do not cover is
+ * anything about how the flag accumulates or about denormals. Each case
+ * runs CLIP once from a cleared flag, so the six-bit shift never shows --
+ * changing it to five leaves all fourteen passing -- and none of the
+ * operands has a denormal w, so dropping the clamp that pins one to the
+ * largest denormal passes too. Both are worth saying: 14 of 14 reads like
+ * the op is covered, and two thirds of it is not. */
+
+#define OP_CLIP 0x1FF
+
+static const u32 CV_FULLPOS[4]  = {0x40000000u,0x40000000u,0x40000000u,0x40000000u};
+static const u32 CV_FULLNEG[4]  = {0xC0000000u,0xC0000000u,0xC0000000u,0xC0000000u};
+static const u32 CV_HALFPOS[4]  = {0x40000000u,0xC0000000u,0x40000000u,0xC0000000u};
+static const u32 CV_HALFNEG[4]  = {0xC0000000u,0x40000000u,0xC0000000u,0x40000000u};
+static const u32 CV_WZERO[4]    = {0,0,0,0};
+static const u32 CV_WNEGZERO[4] = {0x80000000u,0x80000000u,0x80000000u,0x80000000u};
+static const u32 CV_WNEGONE[4]  = {0xBF800000u,0xBF800000u,0xBF800000u,0xBF800000u};
+static const u32 CV_MAX[4]      = {0x7FFFFFFFu,0x7FFFFFFFu,0x7FFFFFFFu,0x7FFFFFFFu};
+static const u32 CV_MIN[4]      = {0xFFFFFFFFu,0xFFFFFFFFu,0xFFFFFFFFu,0xFFFFFFFFu};
+
+static int run_clip(int* total)
+{
+	static const struct { const char* name; const u32* s; const u32* t; u32 want; }
+	kCases[] = {
+		{ "FULL POS x -1",       CV_FULLPOS,  CV_WNEGONE,  0x0015 },
+		{ "FULL NEG x -1",       CV_FULLNEG,  CV_WNEGONE,  0x002a },
+		{ "HALF POS x -1",       CV_HALFPOS,  CV_WNEGONE,  0x0019 },
+		{ "HALF NEG x -1",       CV_HALFNEG,  CV_WNEGONE,  0x0026 },
+		{ "HALF NEG x  0",       CV_HALFNEG,  CV_WZERO,    0x0026 },
+		{ "HALF NEG x -0",       CV_HALFNEG,  CV_WNEGZERO, 0x0026 },
+		{ " 0 x -0",             CV_WZERO,    CV_WNEGZERO, 0x0000 },
+		{ "-0 x  0",             CV_WNEGZERO, CV_WZERO,    0x0000 },
+		{ "FULL POS x FULL POS", CV_FULLPOS,  CV_FULLPOS,  0x0000 },
+		{ "HALF NEG x HALF NEG", CV_HALFNEG,  CV_HALFNEG,  0x0000 },
+		{ "MIN x 0",             CV_MIN,      CV_WZERO,    0x002a },
+		{ "MAX x 0",             CV_MAX,      CV_WZERO,    0x0015 },
+		{ "0 x MIN",             CV_WZERO,    CV_MIN,      0x0000 },
+		{ "0 x MAX",             CV_WZERO,    CV_MAX,      0x0000 },
+	};
+	const int n = (int)(sizeof(kCases)/sizeof(kCases[0]));
+	int i, pass = 0, shown = 0;
+
+	for (i = 0; i < n; i++)
+	{
+		u32 got;
+		memset(&vuRegs[0], 0, sizeof(vuRegs[0]));
+		memcpy(&vuRegs[0].VF[1], kCases[i].s, 16);
+		memcpy(&vuRegs[0].VF[2], kCases[i].t, 16);
+		vuRegs[0].code = DEST(0xE) | VT(2) | VS(1) | OP_CLIP;
+		VU0_UPPER_OPCODE[vuRegs[0].code & 0x3f]();
+		got = vuRegs[0].clipflag & 0xFFFFFF;
+
+		if (got == kCases[i].want) pass++;
+		else if (shown++ < 4)
+			printf("  CLIP %-20s console %04x  ours %04x\n",
+			       kCases[i].name, kCases[i].want, got);
+	}
+	*total += n;
+	printf("clip    %2d/%-3d console cases\n", pass, n);
+	return pass != n;
+}
+
 int main(int argc, char** argv)
 {
 	const char* path = (argc > 1) ? argv[1] : "efu.expected";
@@ -508,8 +582,9 @@ int main(int argc, char** argv)
 		failures += run_integer(slash ? dir : ".", &total);
 	}
 	failures += run_random(&total);
+	failures += run_clip(&total);
 
 	printf("hwrealvu: %d cases across %d ops, driven through VUops.cpp\n",
-	       total, NOPS + NIOPS + 4);
+	       total, NOPS + NIOPS + 5);
 	return failures != 0;
 }
