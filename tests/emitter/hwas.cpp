@@ -32,69 +32,109 @@
 /* Somewhere to emit into. */
 static uint8_t s_buf[256];
 
-/* Assemble one Intel-syntax instruction and return its encoding. */
-static int assemble(const char* insn, uint8_t* out, int max)
+/* Cases are collected first and assembled in one batch. Running as and
+ * objdump per instruction costs two processes a case, which is fine for a
+ * handful and not for the exhaustive register sweeps below -- batching
+ * takes the whole run to two processes total, which is what makes covering
+ * every register pair affordable.
+ *
+ * One source line assembles to one instruction for everything here, so
+ * objdump's Nth line is case N. That assumption is checked: if the counts
+ * disagree the run stops rather than comparing misaligned pairs. */
+
+#define MAXCASES 8192
+
+static char*   s_text[MAXCASES];
+static uint8_t s_got[MAXCASES][16];
+static int     s_gotlen[MAXCASES];
+static int     s_ncases;
+
+static void add_case(const char* text, void (*emit)(void))
 {
-	char cmd[1024];
+	if (s_ncases >= MAXCASES) { printf("  case table full\n"); return; }
+	x86Ptr = s_buf;
+	emit();
+	s_gotlen[s_ncases] = (int)(x86Ptr - s_buf);
+	memcpy(s_got[s_ncases], s_buf, (size_t)s_gotlen[s_ncases]);
+	s_text[s_ncases] = strdup(text);
+	s_ncases++;
+}
+
+static int failures, shown;
+
+static int run_batch(void)
+{
 	FILE* f;
-	int n = 0;
-	unsigned v;
+	char line[512];
+	int i;
 
 	f = fopen("/tmp/xe_oracle.s", "w");
 	if (!f) return -1;
-	fprintf(f, ".intel_syntax noprefix\n%s\n", insn);
+	fprintf(f, ".intel_syntax noprefix\n");
+	for (i = 0; i < s_ncases; i++)
+		fprintf(f, "%s\n", s_text[i]);
 	fclose(f);
 
-	if (system("as -o /tmp/xe_oracle.o /tmp/xe_oracle.s 2>/dev/null") != 0)
+	if (system("as -o /tmp/xe_oracle.o /tmp/xe_oracle.s 2>/tmp/xe_oracle.err") != 0)
+	{
+		printf("  as rejected the batch; first errors:\n");
+		f = fopen("/tmp/xe_oracle.err", "r");
+		if (f)
+		{
+			int n = 0;
+			while (n++ < 5 && fgets(line, sizeof(line), f)) printf("    %s", line);
+			fclose(f);
+		}
 		return -1;
+	}
 
-	snprintf(cmd, sizeof(cmd),
-	         "objdump -d --insn-width=16 /tmp/xe_oracle.o"
-	         " | sed -n 's/^ *[0-9a-f]*:\\t\\([0-9a-f ]*\\)\\t.*/\\1/p'");
-	f = popen(cmd, "r");
+	f = popen("objdump -d --insn-width=16 /tmp/xe_oracle.o"
+	          " | sed -n 's/^ *[0-9a-f]*:\\t\\([0-9a-f ]*\\)\\t.*/\\1/p'", "r");
 	if (!f) return -1;
-	while (n < max && fscanf(f, "%2x", &v) == 1)
-		out[n++] = (uint8_t)v;
+
+	i = 0;
+	while (i < s_ncases && fgets(line, sizeof(line), f))
+	{
+		uint8_t want[16];
+		int nwant = 0;
+		char* p = line;
+		unsigned v;
+		int consumed;
+
+		while (nwant < 16 && sscanf(p, " %2x%n", &v, &consumed) == 1)
+		{ want[nwant++] = (uint8_t)v; p += consumed; }
+		if (nwant == 0) continue;
+
+		if (s_gotlen[i] != nwant || memcmp(s_got[i], want, (size_t)nwant))
+		{
+			failures++;
+			if (shown++ < 12)
+			{
+				int k;
+				printf("  %-40s as:", s_text[i]);
+				for (k = 0; k < nwant; k++) printf(" %02x", want[k]);
+				printf("   macro:");
+				for (k = 0; k < s_gotlen[i]; k++) printf(" %02x", s_got[i][k]);
+				printf("\n");
+			}
+		}
+		i++;
+	}
 	pclose(f);
-	return n;
-}
 
-static int failures, cases, shown;
-
-static void check(const char* insn, void (*emit)(void))
-{
-	uint8_t want[64];
-	int nwant, ngot, i;
-
-	nwant = assemble(insn, want, (int)sizeof(want));
-	if (nwant <= 0)
+	if (i != s_ncases)
 	{
-		printf("  %-32s could not be assembled; skipped\n", insn);
-		return;
+		printf("  objdump returned %d instructions for %d cases;"
+		       " something assembled to more than one\n", i, s_ncases);
+		return -1;
 	}
-
-	x86Ptr = s_buf;
-	emit();
-	ngot = (int)(x86Ptr - s_buf);
-
-	cases++;
-	if (ngot == nwant && !memcmp(s_buf, want, (size_t)nwant)) return;
-
-	failures++;
-	if (shown++ < 12)
-	{
-		printf("  %-32s as:", insn);
-		for (i = 0; i < nwant; i++) printf(" %02x", want[i]);
-		printf("   macro:");
-		for (i = 0; i < ngot; i++) printf(" %02x", s_buf[i]);
-		printf("\n");
-	}
+	return 0;
 }
 
 /* Each case is the instruction text and a thunk that emits it. Kept
  * side by side so a mismatch names the instruction rather than a line. */
 #define CASE(text, body) \
-	do { struct L { static void f(void) { body; } }; check(text, &L::f); } while (0)
+	do { struct L { static void f(void) { body; } }; add_case(text, &L::f); } while (0)
 
 int main(void)
 {
@@ -239,7 +279,88 @@ int main(void)
 	CASE("cmp DWORD PTR ds:0x12345678, 0x12345678", xe_cmp32_mi(0x12345678, 0x12345678));
 	CASE("sub DWORD PTR ds:0x100, 0x10",            xe_sub32_mi(0x100, 0x10));
 
+	/* Exhaustive register sweeps. The hand-written cases above pick a few
+	 * registers each, which catches an opcode mistake but not one that
+	 * only shows for a particular encoding -- rsp and rbp are the classic
+	 * pair, since 4 and 5 in a ModRM field mean "SIB follows" and "disp32,
+	 * no base", and r12 and r13 inherit the same treatment through REX.
+	 * These loops cover all 256 pairs for each op instead. */
+	{
+		static const char* const r32[16] = {
+			"eax","ecx","edx","ebx","esp","ebp","esi","edi",
+			"r8d","r9d","r10d","r11d","r12d","r13d","r14d","r15d" };
+		static const char* const r64[16] = {
+			"rax","rcx","rdx","rbx","rsp","rbp","rsi","rdi",
+			"r8","r9","r10","r11","r12","r13","r14","r15" };
+		static const char* const rxmm[16] = {
+			"xmm0","xmm1","xmm2","xmm3","xmm4","xmm5","xmm6","xmm7",
+			"xmm8","xmm9","xmm10","xmm11","xmm12","xmm13","xmm14","xmm15" };
+		char t[96];
+		int d, e;
+
+		for (d = 0; d < 16; d++)
+			for (e = 0; e < 16; e++)
+			{
+				snprintf(t, sizeof(t), "add %s, %s", r32[d], r32[e]);
+				{ const int dd = d, ee = e;
+				  x86Ptr = s_buf; xe_add32_rr(dd, ee);
+				  s_gotlen[s_ncases] = (int)(x86Ptr - s_buf);
+				  memcpy(s_got[s_ncases], s_buf, (size_t)s_gotlen[s_ncases]);
+				  s_text[s_ncases++] = strdup(t); }
+
+				/* E_MOV_RR elides a move from a register to itself and
+				 * emits nothing; E_MOV_RR_RAW exists for callers that need
+				 * the bytes. as always emits the instruction, so the
+				 * diagonal is not a case -- comparing it would be asserting
+				 * the elision is absent. */
+				if (d != e)
+				{
+				snprintf(t, sizeof(t), "mov %s, %s", r64[d], r64[e]);
+				{ const int dd = d, ee = e;
+				  x86Ptr = s_buf; xe_mov64_rr(dd, ee);
+				  s_gotlen[s_ncases] = (int)(x86Ptr - s_buf);
+				  memcpy(s_got[s_ncases], s_buf, (size_t)s_gotlen[s_ncases]);
+				  s_text[s_ncases++] = strdup(t); }
+				}
+
+				snprintf(t, sizeof(t), "movaps %s, %s", rxmm[d], rxmm[e]);
+				{ const int dd = d, ee = e;
+				  x86Ptr = s_buf; xe_movaps_xx(dd, ee);
+				  s_gotlen[s_ncases] = (int)(x86Ptr - s_buf);
+				  memcpy(s_got[s_ncases], s_buf, (size_t)s_gotlen[s_ncases]);
+				  s_text[s_ncases++] = strdup(t); }
+
+				snprintf(t, sizeof(t), "paddd %s, %s", rxmm[d], rxmm[e]);
+				{ const int dd = d, ee = e;
+				  x86Ptr = s_buf; xe_paddd_xx(dd, ee);
+				  s_gotlen[s_ncases] = (int)(x86Ptr - s_buf);
+				  memcpy(s_got[s_ncases], s_buf, (size_t)s_gotlen[s_ncases]);
+				  s_text[s_ncases++] = strdup(t); }
+			}
+
+		/* And every register against a memory operand, which is where the
+		 * rsp/rbp encodings actually bite. */
+		for (d = 0; d < 16; d++)
+		{
+			snprintf(t, sizeof(t), "mov %s, DWORD PTR ds:0x12345678", r32[d]);
+			{ const int dd = d;
+			  x86Ptr = s_buf; xe_mov32_rm(dd, 0x12345678);
+			  s_gotlen[s_ncases] = (int)(x86Ptr - s_buf);
+			  memcpy(s_got[s_ncases], s_buf, (size_t)s_gotlen[s_ncases]);
+			  s_text[s_ncases++] = strdup(t); }
+
+			snprintf(t, sizeof(t), "mov DWORD PTR ds:0x12345678, %s", r32[d]);
+			{ const int dd = d;
+			  x86Ptr = s_buf; xe_mov32_mr(0x12345678, dd);
+			  s_gotlen[s_ncases] = (int)(x86Ptr - s_buf);
+			  memcpy(s_got[s_ncases], s_buf, (size_t)s_gotlen[s_ncases]);
+			  s_text[s_ncases++] = strdup(t); }
+		}
+	}
+
+	if (run_batch() != 0) return 2;
+
 	printf("hwas: %d/%d C emitter macros match GNU as\n",
-	       cases - failures, cases);
+	       s_ncases - failures, s_ncases);
 	return failures != 0;
 }
