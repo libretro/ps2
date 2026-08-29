@@ -4311,14 +4311,6 @@ void GSInterface::gif_transfer(uint32_t path_index, const void *data, size_t siz
 
 	uint32_t nreg = path.tag.NREG == 0 ? 16 : path.tag.NREG;
 
-	// REGS is a packed nibble list, and the descriptor for a qword was being
-	// re-extracted with a shift and mask on every qword. It only changes when
-	// a tag is loaded, so unpack it once here and once per tag below. A
-	// transfer that resumes mid-packet re-derives it from the retained tag.
-	uint8_t reg_descs[16];
-	for (uint32_t r = 0; r < 16; r++)
-		reg_descs[r] = uint8_t((path.tag.REGS >> (4 * r)) & 0xf);
-
 	for (size_t i = 0; i < size; )
 	{
 		bool needs_gif_tag = path.loop == path.tag.NLOOP;
@@ -4338,8 +4330,6 @@ void GSInterface::gif_transfer(uint32_t path_index, const void *data, size_t siz
 			path.reg = 0;
 			i++;
 			nreg = path.tag.NREG == 0 ? 16 : path.tag.NREG;
-			for (uint32_t r = 0; r < 16; r++)
-				reg_descs[r] = uint8_t((path.tag.REGS >> (4 * r)) & 0xf);
 
 			if (path.tag.NLOOP)
 				registers.internal_q = 1.0f;
@@ -4359,42 +4349,26 @@ void GSInterface::gif_transfer(uint32_t path_index, const void *data, size_t siz
 			}
 			else if (path.tag.FLG == GIFTagBits::PACKED)
 			{
-				// Drain the descriptors this packet can supply without going
-				// back around the outer loop for each qword. The outer
-				// conditions -- whether a tag is due, and whether the batched
-				// draw handler applies -- can only change when a loop ends at
-				// reg 0, so re-testing them per qword was pure overhead.
-				uint32_t loop = path.loop;
-				uint32_t reg = path.reg;
+				auto addr = uint32_t(path.tag.REGS >> (4 * path.reg)) & 0xf;
+				path.reg++;
 
-				do
+				if (GIFAddr(addr) == GIFAddr::A_D)
 				{
-					const uint32_t addr = reg_descs[reg];
-					reg++;
+					PROFILE_SCOPE(ZONE_GS_REGWRITE);
+					auto *ad = reinterpret_cast<const Reg128<PackedADBits> *>(&qwords[i]);
+					write_register(RegisterAddr(ad->desc.ADDR), ad->desc.data);
+				}
+				else
+					(this->*packed_handlers[addr])(&qwords[i]);
 
-					if (GIFAddr(addr) == GIFAddr::A_D)
-					{
-						PROFILE_SCOPE(ZONE_GS_REGWRITE);
-						auto *ad = reinterpret_cast<const Reg128<PackedADBits> *>(&qwords[i]);
-						write_register(RegisterAddr(ad->desc.ADDR), ad->desc.data);
-					}
-					else
-						(this->*packed_handlers[addr])(&qwords[i]);
+				i++;
 
-					i++;
-
-					if (reg == nreg)
-					{
-						loop++;
-						reg = 0;
-						// A completed loop can hand the rest of the packet to
-						// the batched handler, so hand control back.
-						break;
-					}
-				} while (i < size && loop < path.tag.NLOOP);
-
-				path.loop = loop;
-				path.reg = reg;
+				bool end_of_loop = path.reg == nreg;
+				if (end_of_loop)
+				{
+					path.loop++;
+					path.reg = 0;
+				}
 			}
 			else if (path.tag.FLG == GIFTagBits::REGLIST)
 			{
