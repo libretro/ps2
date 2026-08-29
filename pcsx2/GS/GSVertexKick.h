@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <cfloat> /* FLT_MIN, for the zero-Q substitution */
+
 #include "GS/GSVector.h"
 #include "GS/GSRegs.h"
 
