@@ -4377,10 +4377,7 @@ void GSInterface::gif_transfer(uint32_t path_index, const void *data, size_t siz
 
 				for (uint32_t j = 0; j < 2; j++)
 				{
-					// Same descriptor cache the packed path uses: REGS only
-					// changes on a tag load, so the shift and mask per
-					// register was redundant here too.
-					const uint32_t addr = reg_descs[path.reg];
+					auto addr = uint32_t(path.tag.REGS >> (4 * path.reg)) & 0xf;
 					path.reg++;
 					(this->*reglist_handlers[addr])(word64[2 * i + j]);
 
