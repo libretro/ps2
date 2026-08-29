@@ -3247,13 +3247,29 @@ void GSInterface::init_transfer()
 	}
 	else if (XDIR == LOCAL_TO_HOST)
 	{
-		uint32_t required_bytes = (transfer_state.copy.trxreg.desc.RRW *
-		                           transfer_state.copy.trxreg.desc.RRH *
-		                           get_bits_per_pixel(transfer_state.copy.bitbltbuf.desc.SPSM)) / 8;
+		// RRW, RRH and the pixel size all come from the guest, so the product
+		// is only as sane as the transfer descriptor. A stale or malformed
+		// LOCAL_TO_HOST descriptor can ask for far more than the GS can hold;
+		// the reserve then fails, and every later read sources from a buffer
+		// that was never allocated. Bound it by what a transfer can actually
+		// address -- the whole of local memory -- and treat anything past that
+		// as an empty readback, which the zero-fill path below already covers.
+		const uint32_t max_readback_bytes = 4 * 1024 * 1024;
 
-		transfer_state.fifo_readback.reserve(required_bytes);
+		uint64_t wide_bytes = (uint64_t)transfer_state.copy.trxreg.desc.RRW *
+		                      (uint64_t)transfer_state.copy.trxreg.desc.RRH *
+		                      (uint64_t)get_bits_per_pixel(transfer_state.copy.bitbltbuf.desc.SPSM) / 8;
+
+		uint32_t required_bytes = wide_bytes > (uint64_t)max_readback_bytes ? 0 : (uint32_t)wide_bytes;
+
+		if (required_bytes && !transfer_state.fifo_readback.reserve(required_bytes))
+			required_bytes = 0;
+
 		transfer_state.fifo_readback_128b_offset = 0;
 		transfer_state.fifo_readback_128b_size = required_bytes / 16;
+
+		if (!required_bytes)
+			return;
 
 		auto src_rect = compute_page_rect(transfer_state.copy.bitbltbuf.desc.SBP,
 										  transfer_state.copy.trxpos.desc.SSAX,

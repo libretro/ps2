@@ -38,21 +38,37 @@ public:
 	static_assert(std::is_trivially_default_constructible<T>::value, "T must be trivially constructible.");
 	static_assert(std::is_trivially_destructible<T>::value, "T must be trivially destructible.");
 
-	void reserve(size_t n)
+	// Returns false if the allocation failed, leaving the array untouched.
+	// The old code reset buffer to whatever memalign_alloc returned without
+	// checking it, so a failed allocation left data() null for good and every
+	// later read memcpy'd from a null-derived pointer. Seen as an access
+	// violation inside read_transfer_fifo, copying from a wild source into the
+	// fixed EE mapping, after a transfer asked for an implausible size.
+	bool reserve(size_t n)
 	{
-		if (n > N)
-		{
-			n = std::max<size_t>(n, N * 3 / 2);
+		size_t grown;
+		size_t align;
+		T *new_ptr;
 
-			auto *new_ptr = static_cast<T *>(
-				memalign_alloc(std::max<size_t>(64, alignof(T)), n * sizeof(T)));
+		if (n <= N)
+			return true;
 
-			if (buffer)
-				memcpy(new_ptr, buffer.get(), N * sizeof(T));
+		grown = N * 3 / 2;
+		if (grown > n)
+			n = grown;
 
-			buffer.reset(new_ptr);
-			N = n;
-		}
+		align = alignof(T) > 64 ? alignof(T) : 64;
+
+		new_ptr = static_cast<T *>(memalign_alloc(align, n * sizeof(T)));
+		if (!new_ptr)
+			return false;
+
+		if (buffer)
+			memcpy(new_ptr, buffer.get(), N * sizeof(T));
+
+		buffer.reset(new_ptr);
+		N = n;
+		return true;
 	}
 
 	T &operator[](size_t index) { return buffer.get()[index]; }
