@@ -24,8 +24,8 @@ namespace PCSX2Profiler
 {
 	u64 g_zone_ticks[ZONE_COUNT];
 	u64 g_zone_calls[ZONE_COUNT];
-	int g_current = -1;
-	u64 g_last;
+	thread_local int g_current = -1;
+	thread_local u64 g_last;
 
 	static const char* const s_zone_names[ZONE_COUNT] =
 	{
@@ -125,14 +125,16 @@ namespace PCSX2Profiler
 				        g_zone_calls[i] ? (double)g_zone_ticks[i] * s_ns_per_tick / (double)g_zone_calls[i] : 0.0);
 			}
 
-			/* Everything not inside a zone: EE dispatch and recompiled EE
-			 * code, DMA, counters, and the frontend. The EE is not scoped
-			 * directly because the libretro core enters VMManager::Execute
-			 * once and stays there, so a scope around it would span the whole
-			 * session rather than a frame. */
-			fprintf(stderr, "[profile]   %-12s %8.2f ms      %6.2f%%  (derived: EE dispatch, DMA, frontend)\n",
-			        "EE + rest", wall_ms - measured_ms,
-			        wall_ms > 0.0 ? 100.0 * (wall_ms - measured_ms) / wall_ms : 0.0);
+			/* Not a remainder any more, and deliberately not presented as
+			 * one: zones run on two threads, so their busy times can sum to
+			 * more than wall without anything being wrong, and subtracting
+			 * them from wall is meaningless. Report the sum instead and let
+			 * the reader compare it to wall themselves -- above 100% means
+			 * the two threads overlapped, below means both had idle time.
+			 * Which thread was waiting is the [overlap] line's job. */
+			fprintf(stderr, "[profile]   %-12s %8.2f ms      %6.2f%% of wall (two threads; >100%% means overlap)\n",
+			        "zones total", measured_ms,
+			        wall_ms > 0.0 ? 100.0 * measured_ms / wall_ms : 0.0);
 			fprintf(stderr, "[profile]   instrument   %8.2f ms      %6.2f%%  at %llu ns/scope -- subtracted from the net column\n",
 			        measured_overhead_ms,
 			        wall_ms > 0.0 ? 100.0 * measured_overhead_ms / wall_ms : 0.0,

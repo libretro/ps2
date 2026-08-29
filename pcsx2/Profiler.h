@@ -70,8 +70,16 @@ namespace PCSX2Profiler
 	 * first version of this reported -1.4%. Each zone is charged only the
 	 * time when it is innermost, so the columns are exclusive and the
 	 * remainder is real. */
-	extern int g_current;   /* innermost open zone, -1 for none */
-	extern u64 g_last;      /* when the innermost zone last started accruing */
+	/* Per-thread, not global. Two threads run zones concurrently -- the EE
+	 * thread (IOP, VU, VIF, SPU2) and the frontend thread that consumes the
+	 * MTGS ring (GS transfer, drawkick, vsync) -- and a shared cursor lets
+	 * one thread's open zone be closed by the other's, scrambling the
+	 * attribution while still summing to roughly wall time, which makes the
+	 * result look plausible and be wrong. Each thread now tracks its own
+	 * innermost zone; the accumulators stay shared, since a zone's total is
+	 * wanted across threads and the adds are per-thread disjoint in practice. */
+	extern thread_local int g_current;
+	extern thread_local u64 g_last;
 
 	/* The timestamp has to be cheap, because the hottest zone is entered tens
 	 * of thousands of times a frame: with clock_gettime this instrument cost
