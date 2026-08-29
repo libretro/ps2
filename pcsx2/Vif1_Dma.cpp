@@ -74,7 +74,10 @@ void vif1TransferToMemory(void)
 	// Drop any blocks covering the destination first, exactly as the other
 	// DMAs that write behind the recompiler's back already do: psxCpu->Clear
 	// for IOP DMA, CpuVU0/1->Clear for SPR.
-	Cpu->Clear(vif1ch.madr, size * 4);
+	// Not Cpu->Clear: that invalidates the blocks but leaves the page
+	// read-only, so the memcpy still faults. The protection itself has to come
+	// off, the same way a write fault would take it off.
+	mmap_UnprotectRamRange(vif1ch.madr & 0x1ffffff0, size * 16);
 
 	MTGS::InitAndReadFIFO(reinterpret_cast<u8*>(pMem), size);
 

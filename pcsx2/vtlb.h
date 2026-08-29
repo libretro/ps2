@@ -259,6 +259,7 @@ enum vtlb_ProtectionMode
 extern vtlb_ProtectionMode mmap_GetRamPageInfo(u32 paddr);
 extern void mmap_MarkCountedRamPage(u32 paddr);
 extern void mmap_ResetBlockTracking();
+extern void mmap_UnprotectRamRange(u32 paddr, u32 size);
 
 // --------------------------------------------------------------------------------------
 //  Goemon game fix

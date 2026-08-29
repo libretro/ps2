@@ -1568,6 +1568,33 @@ static __fi void mmap_ClearCpuBlock(uint offset)
 	Cpu->Clear(m_PageProtectInfo[rampage].ReverseRamMap, __pagesize / 4);
 }
 
+// Unprotect a range of main RAM the way a write fault would, for writers that
+// reach EE memory without going through the fault handler: the reverse VIF1
+// download has the GS memcpy straight into RAM from the MTGS consumer thread,
+// where a protected page faults with no recompiled instruction behind it and
+// no handler on that thread, so it goes unhandled instead of being fixed up.
+// Invalidating the blocks is not enough on its own -- the protection has to
+// come off too, which is what mmap_ClearCpuBlock does.
+void mmap_UnprotectRamRange(u32 paddr, u32 size)
+{
+	u32 offset;
+	u32 end;
+
+	if (!eeMem || size == 0)
+		return;
+
+	paddr &= ~__pagemask;
+	end = paddr + size;
+	if (end > Ps2MemSize::MainRam)
+		end = Ps2MemSize::MainRam;
+
+	for (offset = paddr; offset < end; offset += __pagesize)
+	{
+		if (m_PageProtectInfo[offset >> __pageshift].Mode == ProtMode_Write)
+			mmap_ClearCpuBlock(offset);
+	}
+}
+
 static bool vtlb_PageFaultHandler(const PageFaultInfo& info)
 {
 	u32 vaddr;
