@@ -34,6 +34,58 @@ structure to the consumer would save nothing measurable.
 
 The cost is vertex assembly, not tag walking.
 
+Hardware data, seven games, correct attribution
+-----------------------------------------------
+The figures below the next heading were taken before the profiler's zone
+cursor was made thread-local, so their split between zones was scrambled --
+see the commit that fixed it. These are the corrected numbers, captured on a
+9950X3D with a 5090 across NFSU2, Ridge Racer V, Tekken Tag Tournament, DMC3,
+Silent Hill 2, FFX-2 and Black.
+
+Two things hold in every one of them:
+
+  GS gpu wait     0.00 ms, 0 calls        the GPU is never the limit
+  EE blocked      66-96% of wall          the producer thread is idle
+
+The games fall into three shapes, and they want different things:
+
+  parse-bound     NFSU2 (GS transfer 32-39%, kick tex 7-8%), Black
+  texture-bound   Ridge Racer V (kick tex 38-41%, up to 3400 ns/call)
+  not GS-bound    FFX-2, DMC3, Silent Hill 2 (zone totals 12-22% of wall)
+
+So the case for moving assembly to the producer rests specifically on the
+parse-bound shape. On NFSU2 the device-independent work -- GS transfer plus
+drawkick -- is about 42% of a 21.7 ms frame, roughly 9 ms, against kick tex at
+7-8%. That is close to what the earlier local probe suggested and is the
+number the project turns on.
+
+Ridge Racer V is the counter-example worth keeping in view: its cost is
+texture-cache resolution, which cannot leave the consumer, so this work would
+do nothing for it. An outlier of 3400 ns/call against NFSU2's 50 ns is
+probably a bug in its own right and is a cheaper thing to chase.
+
+What the vsync path turned out to be
+------------------------------------
+GS vsync reads 3-10% of frame in all seven games, including ones that draw
+almost nothing, which looked like a fixed cost worth attacking. Broken into
+phases on hardware it is not a cost at all:
+
+  GS vs flush     0.00 ms, 0 calls        never waiting on queued draw work
+  GS vs circ      ~110 us/call, steady    the actual scanout shading
+  GS vs image     88-105 us/call, flat    allocation, not a cache miss
+  GS vs merge     58 us to 936 us/call    16x swing, inversely with GS load
+
+Merge takes longest when the GS thread has least to do -- 936 us/call in an
+FFX-2 block where transfer and drawkick were near idle, 59 us/call in a block
+of the same game with five times the draw work. Work does not behave that way;
+waiting does. The merge render pass is where the GS thread absorbs the frame's
+slack against the display, i.e. it is the frame pacing. Confirmed by a hitching
+block at 83 ms/frame where EE blocked collapsed to 19% and merge stayed at
+182 us: no slack, no wait.
+
+There is nothing to optimize there, and GS idle and merge-wait are two names
+for the same thing.
+
 What can move, and what cannot
 ------------------------------
 drawing_kick_append splits cleanly in two. Timing drawing_kick_update_texture
