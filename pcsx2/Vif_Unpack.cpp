@@ -16,6 +16,7 @@
 #include <cstring>
 
 #include "Common.h"
+#include "Profiler.h"
 #include "Vif.h"
 #include "Vif_Dma.h"
 #include "Vif_Dynarec.h"
@@ -359,6 +360,7 @@ void resetNewVif(int idx)
 
 _vifT int nVifUnpack(const u8* data)
 {
+	PROFILE_SCOPE(ZONE_VIF_UNPACK);
 	nVifStruct&   v       = nVif[idx];
 	vifStruct&    vif     = GetVifX;
 	VIFregisters& vifRegs = vifXRegs;

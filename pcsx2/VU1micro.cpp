@@ -18,6 +18,7 @@
 // of the VU0 micro.
 
 #include "Common.h"
+#include "Profiler.h"
 #include <cmath>
 #include "VUmicro.h"
 #include "MTVU.h"
@@ -50,6 +51,7 @@ void vu1Finish(bool add_cycles)
 
 void vu1ExecMicro(u32 addr)
 {
+	PROFILE_SCOPE(ZONE_VU1);
 	if (THREAD_VU1)
 	{
 		vuRegs[0].VI[REG_VPU_STAT].UL &= ~0xFF00;

@@ -16,6 +16,14 @@ target_compile_options(parallel-gs PRIVATE ${PARALLEL_GS_CXX_FLAGS})
 target_link_libraries(parallel-gs PUBLIC granite-vulkan granite-math)
 target_include_directories(parallel-gs PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
+# The profiler header lives in the emulator tree, not this vendored one. Only
+# reach for it when the profiler is actually being built, so the library keeps
+# its own include set in every normal build.
+if(PROFILER)
+	target_include_directories(parallel-gs PRIVATE ${CMAKE_SOURCE_DIR})
+	target_compile_definitions(parallel-gs PRIVATE ENABLE_PCSX2_PROFILER)
+endif()
+
 if (PARALLEL_GS_DEBUG)
     target_compile_definitions(parallel-gs PRIVATE PARALLEL_GS_DEBUG=1)
 endif()

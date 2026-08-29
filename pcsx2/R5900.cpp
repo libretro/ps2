@@ -19,6 +19,7 @@
 #include <compat/strl.h>
 
 #include "Common.h"
+#include "Profiler.h"
 
 #include "../common/StringUtil.h"
 
@@ -397,6 +398,7 @@ __fi void _cpuEventTest_Shared(void)
 
 	if (iopEventAction)
 	{
+		PROFILE_SCOPE(ZONE_IOP_EXEC);
 		EEsCycle = psxCpu->ExecuteBlock(EEsCycle);
 
 		iopEventAction = false;

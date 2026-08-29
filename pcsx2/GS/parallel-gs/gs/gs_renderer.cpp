@@ -4,6 +4,14 @@
 // SPDX-License-Identifier: LGPL-3.0+
 
 #include "gs_renderer.hpp"
+/* The profiler lives in the emulator tree, which this vendored library does
+ * not otherwise include. Only reach for it when profiling is being built;
+ * otherwise define the macro away so the library stays self-contained. */
+#ifdef ENABLE_PCSX2_PROFILER
+#include "pcsx2/Profiler.h"
+#else
+#define PROFILE_SCOPE(z) do {} while (0)
+#endif
 #include "logging.hpp"
 #include "gs_interface.hpp"
 #include "gs_registers_debug.hpp"
@@ -1036,6 +1044,9 @@ GSRenderer::~GSRenderer()
 
 void GSRenderer::wait_timeline(uint64_t value)
 {
+	/* Blocking on the GPU, not doing work. Split out so the transfer zone
+	 * reports CPU cost rather than stall. */
+	PROFILE_SCOPE(ZONE_GS_SYNC);
 	std::unique_lock<std::mutex> holder{timeline_lock};
 	timeline_cond.wait(holder, [this, value]() {
 		return timeline_value.load(std::memory_order_relaxed) >= value;
