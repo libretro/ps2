@@ -57,6 +57,7 @@ namespace PCSX2Profiler
 		ZONE_GS_SYNC,     /* blocked waiting for the GPU, not working */
 		ZONE_GS_DRAWKICK, /* batched packed-vertex handler inside a transfer */
 		ZONE_GS_REGWRITE, /* per-register writes inside a transfer */
+		ZONE_GS_KICKTEX,  /* texture-cache resolution inside a drawing kick */
 		ZONE_COUNT
 	};
 

@@ -1824,7 +1824,18 @@ void GSInterface::drawing_kick_update_state(FBFeedbackMode feedback_mode, const 
 
 	if (prim.desc.TME)
 	{
-		uint32_t tex_index = drawing_kick_update_texture(feedback_mode, uv_bb, bb);
+		// The half of the kick that needs the device: it consults the texture
+		// cache, which owns GPU images. Everything else in the kick -- assembly,
+		// snapping, cull, bounding boxes -- needs neither the cache nor Vulkan,
+		// and is what could in principle run on the producer thread. Splitting
+		// the two decides whether that is worth doing, and the ratio inverts
+		// between games: measured here, NFSU2 is 15% texture and 85% assembly,
+		// Tekken Tag is 81% texture and 19% assembly.
+		uint32_t tex_index;
+		{
+			PROFILE_SCOPE(ZONE_GS_KICKTEX);
+			tex_index = drawing_kick_update_texture(feedback_mode, uv_bb, bb);
+		}
 		p.tex = tex_index << TEX_TEXTURE_INDEX_OFFSET;
 		p.tex |= ctx.tex1.desc.MMAG == TEX1Bits::LINEAR ? TEX_SAMPLER_MAG_LINEAR_BIT : 0;
 		p.tex |= ctx.clamp.desc.has_horizontal_clamp() ? TEX_SAMPLER_CLAMP_S_BIT : 0;
