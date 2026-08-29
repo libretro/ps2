@@ -36,7 +36,14 @@ __fi void vif1FLUSH(void)
 
 void vif1TransferToMemory(void)
 {
-	u128* pMem = (u128*)dmaGetAddr(vif1ch.madr, false);
+	// Reverse VIF1 is a download: the GS writes into this buffer, so the
+	// address has to be resolved for writing. dmaGetAddr hands back a
+	// different placeholder for the two cases when madr falls outside main
+	// RAM -- eeMem->ZeroWrite for writers, the read-only eeMem->ZeroRead for
+	// readers -- so asking for the read one here yields a page that faults
+	// the moment the readback copies into it. SPR0, the other DMA that
+	// writes into EE memory, already passes true.
+	u128* pMem = (u128*)dmaGetAddr(vif1ch.madr, true);
 
 	// VIF from gsMemory
 	if (pMem == NULL)
