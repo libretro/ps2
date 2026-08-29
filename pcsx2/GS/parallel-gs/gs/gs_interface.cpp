@@ -1,3 +1,4 @@
+#include <cstdio>
 // SPDX-FileCopyrightText: 2024 Arntzen Software AS
 // SPDX-FileContributor: Hans-Kristian Arntzen
 // SPDX-FileContributor: Runar Heyer
@@ -3188,9 +3189,41 @@ void GSInterface::read_transfer_fifo(void *data, uint32_t num_128b_words)
 
 	if (to_copy)
 	{
-		memcpy(data,
-		       transfer_state.fifo_readback.data() + 16 * transfer_state.fifo_readback_128b_offset,
-		       to_copy * 16);
+		const uint8_t *src = transfer_state.fifo_readback.data();
+		uintptr_t src_bits = (uintptr_t)src;
+
+		// Two crash dumps from Final Fantasy X-2 fault in the memcpy below
+		// with a source that is neither null nor any reachable offset from a
+		// valid base: 0xffff81da01a12d30 and 0xffff8228fc9b89b0, against a
+		// destination that was identical in both (the fixed EE mapping
+		// GSInitAndReadFIFO passes in). Checking the allocation and bounding
+		// the size did not stop it, so the array's own pointer is being
+		// corrupted from outside, and copying through it takes the process
+		// down before anything can be learned.
+		//
+		// Refuse the copy when the base cannot be a user-mode pointer and say
+		// so once. The zero-fill below then covers the read, which is what a
+		// short FIFO already does, and the frame survives to be looked at.
+		if (!src || (src_bits >> 47) != 0)
+		{
+			static bool reported = false;
+			if (!reported)
+			{
+				reported = true;
+				fprintf(stderr,
+				        "[paraLLEl-GS] FIFO readback base is not a valid pointer: %p "
+				        "(offset %u, size %u, requested %u qwords). Returning zeroes.\n",
+				        (const void *)src,
+				        transfer_state.fifo_readback_128b_offset,
+				        transfer_state.fifo_readback_128b_size,
+				        num_128b_words);
+			}
+			to_copy = 0;
+		}
+		else
+		{
+			memcpy(data, src + 16 * transfer_state.fifo_readback_128b_offset, to_copy * 16);
+		}
 	}
 
 	// Assume we'll read 0 if we read past the FIFO.
