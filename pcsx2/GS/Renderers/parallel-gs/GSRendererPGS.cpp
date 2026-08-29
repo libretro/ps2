@@ -160,8 +160,7 @@ bool pgs_create_device2(
 	factory.opaque = opaque;
 	vulkan_ctx->set_device_factory(&factory);
 
-	if (!vulkan_ctx->init_device(gpu, surface, nullptr, 0, Vulkan::CONTEXT_CREATION_ENABLE_PUSH_DESCRIPTOR_BIT |
-			Vulkan::CONTEXT_CREATION_ENABLE_ROBUSTNESS_2_BIT))
+	if (!vulkan_ctx->init_device(gpu, surface, nullptr, 0, Vulkan::CONTEXT_CREATION_ENABLE_PUSH_DESCRIPTOR_BIT))
 		return false;
 
 	vulkan_ctx->release_device();
