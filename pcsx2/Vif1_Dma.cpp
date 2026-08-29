@@ -66,17 +66,16 @@ void vif1TransferToMemory(void)
 	// plain memcpy. If the recompiler has marked those pages read-only to
 	// catch self-modifying code, that store faults -- and unlike a fault from
 	// recompiled EE code there is no instruction behind it and no handler on
-	// that thread, so it goes unhandled and takes the process down. Observed
-	// as an access violation writing a COMMIT/MAPPED page whose allocation
-	// protection was READWRITE but whose current protection was READONLY,
-	// which is the recompiler's page protection and nothing else.
+	// that thread, so it goes unhandled and takes the process down. Seen as an
+	// access violation writing a COMMIT/MAPPED page whose allocation
+	// protection was READWRITE and whose current protection was READONLY,
+	// which is mmap_MarkCountedRamPage's doing and nothing else's.
 	//
-	// Drop any blocks covering the destination first, exactly as the other
-	// DMAs that write behind the recompiler's back already do: psxCpu->Clear
-	// for IOP DMA, CpuVU0/1->Clear for SPR.
-	// Not Cpu->Clear: that invalidates the blocks but leaves the page
-	// read-only, so the memcpy still faults. The protection itself has to come
-	// off, the same way a write fault would take it off.
+	// Cpu->Clear is not enough on its own, which cost a round to find out: it
+	// invalidates the blocks but never calls MemProtect, so the page stays
+	// read-only and the memcpy still faults. The protection has to come off
+	// as well, which is what the fault handler's mmap_ClearCpuBlock does and
+	// what mmap_UnprotectRamRange applies over a range.
 	mmap_UnprotectRamRange(vif1ch.madr & 0x1ffffff0, size * 16);
 
 	MTGS::InitAndReadFIFO(reinterpret_cast<u8*>(pMem), size);
