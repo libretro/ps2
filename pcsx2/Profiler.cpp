@@ -42,6 +42,7 @@ namespace PCSX2Profiler
 		"GS vs flush",
 		"GS vs circ",
 		"GS vs merge",
+		"GS vs image",
 	};
 
 	/* The instrument is not free, and for a zone entered tens of thousands of

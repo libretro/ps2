@@ -61,6 +61,7 @@ namespace PCSX2Profiler
 		ZONE_GS_VS_FLUSH, /* flush_submit inside vsync: draining pending GS work */
 		ZONE_GS_VS_CIRC,  /* building the scanout circuits */
 		ZONE_GS_VS_MERGE, /* merge render pass and present handoff */
+		ZONE_GS_VS_IMG,   /* allocating the merged scanout image */
 		ZONE_COUNT
 	};
 

@@ -4845,7 +4845,16 @@ ScanoutResult GSRenderer::vsync(const PrivRegisterState &priv, const VSyncInfo &
 	}
 
 	PROFILE_SCOPE(ZONE_GS_VS_MERGE);
-	auto merged = device->create_image(image_info);
+
+	// Allocation split out from the render pass: on hardware this phase costs
+	// 3-6x more in a game drawing almost nothing (FFX-2, 532-927 us/call) than
+	// in one drawing a great deal (NFSU2, 144-180 us/call), which is the shape
+	// of a wait or an allocator miss rather than work.
+	Vulkan::ImageHandle merged;
+	{
+		PROFILE_SCOPE(ZONE_GS_VS_IMG);
+		merged = device->create_image(image_info);
+	}
 
 	device->set_name(*merged, "Merged field");
 
