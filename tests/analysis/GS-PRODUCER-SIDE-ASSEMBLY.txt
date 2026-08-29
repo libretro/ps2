@@ -1,0 +1,114 @@
+Moving GS vertex assembly onto the producer thread
+==================================================
+
+Why this is being considered
+----------------------------
+Need for Speed Underground 2 runs at ~50 fps on a 9950X3D with a 5090 and
+paraLLEl-GS. Profiled on that hardware from a savestate of a race in progress:
+
+  GS thread idle          1.0 - 2.1%   (saturated)
+  EE thread blocked       68.6 - 75.2% (idle, waiting in WaitGS)
+  GS gpu wait             0.00 ms, 0 calls
+  frame                   20.3 ms
+
+The GPU is never waited on. The frame is limited by one CPU thread -- the
+libretro frontend thread, which is also the MTGS consumer -- while the thread
+that runs the EE, IOP, VU, VIF and SPU2 is idle for roughly 70% of every frame.
+
+That thread's per-frame budget:
+
+  GS transfer (parse loop)   9.8 ms   2923 calls
+  GS drawkick (assembly)     5.7 ms  12622 calls
+  GS vsync                   0.8 ms
+
+Reaching 60 fps needs about 3.6 ms moved off it.
+
+What is not worth moving
+------------------------
+The producer already decodes GIF tags: Gif_Tag::analyzeTag walks them to find
+packet boundaries and EOP, and the consumer then walks the same tags again in
+gif_transfer. That duplication is real but worthless to remove -- instrumented
+per-path inside gif_transfer, tag handling netted to zero against 1341480
+calls, all of it instrument overhead. Handing the producer's decoded tag
+structure to the consumer would save nothing measurable.
+
+The cost is vertex assembly, not tag walking.
+
+What can move, and what cannot
+------------------------------
+drawing_kick_append splits cleanly in two. Timing drawing_kick_update_texture
+against the whole kick, 200000 calls per sample:
+
+  NFSU2         15.2% texture resolution, 84.8% device-independent
+  Tekken Tag    81.4% texture resolution, 18.6% device-independent
+
+The device-independent part -- position and attribute assembly, snapping, the
+UV bounding box, culling and the primitive bounding box -- needs no Vulkan
+device and no texture cache. The rest does:
+
+  drawing_kick_update_texture   consults the renderer's texture cache, which
+                                owns GPU images
+  render_pass.instances[...]    appends into an in-progress render pass, tied
+                                to framebuffer allocation and hazard tracking
+
+So the split is: assembly and cull on the producer, texture resolution and
+render-pass append on the consumer.
+
+Note the ratio is game-dependent and inverts between these two titles. This is
+not a general speedup. It is worth ~4.8 ms/frame on a geometry-heavy title like
+NFSU2 and approximately nothing on a texture-heavy one like Tekken Tag.
+
+What the producer needs
+-----------------------
+Vertex assembly reads RegisterState: two ContextState blocks (tex0, tex1,
+clamp, xyoffset, miptbp x2, scissor, alpha, test, fba, frame, zbuf) plus prim,
+rgbaq, st, uv, fog, prmodecont, texclut, texa, fogcol, dimx, dthe, colclamp,
+pabe, bitbltbuf, trxpos, trxreg, trxdir, scanmsk, internal_q and cached_cbp.
+Roughly 42 64-bit registers, a few hundred bytes, plain POD with no pointers.
+
+The GIF stream is deterministic, so a shadow of this state driven by the same
+packets in the same order is correct by construction. The producer would
+maintain that shadow and assemble primitives against it; register writes are
+carried in the same stream, so the shadow must be advanced in stream order,
+interleaved with assembly, exactly as the consumer does today.
+
+The hard parts, in the order they will bite
+-------------------------------------------
+1. The MTGS contract widens from "bytes at an offset" to a primitive IR:
+   assembled vertices plus the register snapshot they were kicked under. Ring
+   entries currently carry offset and size into the path buffer; the IR needs
+   its own storage and lifetime.
+
+2. Partial packets. A GIF packet can span transfers, so the producer's shadow
+   and its assembly must suspend and resume across calls, as gif_transfer's
+   tag/loop/reg state does now.
+
+3. Path switches. NFSU2's traffic alternates constantly -- measured, 1997 of
+   2000 merge-run breaks were path switches -- and GS commands must be
+   processed in submission order, so per-path assembly cannot be reordered.
+
+4. WaitGS barriers, savestate freeze/defrost and MTVU each assume the GS state
+   lives on one side. Any state that moves has to be captured, restored and
+   handed over at those points.
+
+5. Texture-dependent decisions inside assembly. Anything the device-independent
+   half computes that depends on the resolved texture (feedback mode, the
+   arrayed/per-sample paths) has to be either deferred to the consumer or
+   proven independent of it.
+
+How to evaluate it without building all of it
+---------------------------------------------
+The measurements above cost one instrumented run each and killed the cheap
+variant outright. The same discipline applies to the expensive one: before the
+IR is designed, confirm on hardware that NFSU2's 84.8% device-independent share
+holds there. This host is a software rasterizer, where a texture cache miss
+runs an upload on the CPU and inflates the texture side -- Tekken's 81.4% is
+probably overstated, and NFSU2's 15.2% is the one more likely to survive.
+
+And throughput cannot be validated here at all. Local timing has a +/-14%
+run-to-run spread, and the software rasterizer never enters the regime where
+the consumer keeps up. A previous packet-merging attempt passed every
+correctness check here -- byte-identical frames, byte-identical audio, clean
+software renderer regression -- and cost 170 -> 140 fps on hardware, because
+its failure mode only appears when the consumer is fast. Every stage of this
+work needs a build benchmarked on the target machine before it lands.
