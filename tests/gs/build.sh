@@ -9,3 +9,12 @@ g++ -O2 -std=c++17 -msse4.1 -o "$DIR/gs_vertex_oracle" "$DIR/gs_vertex_oracle.cp
     -I"$ROOT/3rdparty" -I"$ROOT/3rdparty/include" \
     -I"$ROOT/libretro/libretro-common/include"
 "$DIR/gs_vertex_oracle"
+
+# Micro-benchmark: is the vector accept/cull decision worth replacing on this
+# host? Prints ns/prim for the shipped kernel and for the scalar-outcode form
+# GV-3 proposes, after checking the two agree.
+g++ -O2 -std=c++17 -msse4.1 -o "$DIR/gs_vertex_bench" "$DIR/gs_vertex_bench.cpp" \
+    -I"$ROOT" -I"$ROOT/common" -I"$ROOT/common/include" -I"$ROOT/pcsx2" \
+    -I"$ROOT/3rdparty" -I"$ROOT/3rdparty/include" \
+    -I"$ROOT/libretro/libretro-common/include"
+"$DIR/gs_vertex_bench"
