@@ -3294,70 +3294,13 @@ __forceinline void GSState::VertexKick(u32 skip, u32& maxcount)
 	GSVector4i pmin, pmax;
 	if (skip == 0)
 	{
-		const GSVector4i v0 = xy; // reuse register — same as m_vertex.xy[(xy_tail - 1) & 3]
+		const GSVector4i v0 = xy; /* reuse register -- same as m_vertex.xy[(xy_tail - 1) & 3] */
 		const GSVector4i v1 = m_vertex.xy[(xy_tail - 2) & 3];
 		const GSVector4i v2 = (prim == GS_TRIANGLEFAN) ? m_vertex.xyhead : m_vertex.xy[(xy_tail - 3) & 3];
 
-		switch (prim)
-		{
-			case GS_POINTLIST:
-				pmin = v0;
-				pmax = v0;
-				break;
-			case GS_LINELIST:
-			case GS_LINESTRIP:
-			case GS_SPRITE:
-				pmin = v0.min_i32(v1);
-				pmax = v0.max_i32(v1);
-				break;
-			case GS_TRIANGLELIST:
-			case GS_TRIANGLESTRIP:
-			case GS_TRIANGLEFAN:
-				pmin = v0.min_i32(v1.min_i32(v2));
-				pmax = v0.max_i32(v1.max_i32(v2));
-				break;
-			default:
-				break;
-		}
-
-		GSVector4i test = pmax.lt32(m_scissor_cull_min) | pmin.gt32(m_scissor_cull_max);
-
-		switch (prim)
-		{
-			case GS_TRIANGLELIST:
-			case GS_TRIANGLESTRIP:
-			case GS_TRIANGLEFAN:
-			case GS_SPRITE:
-			{
-				// Discard degenerate triangles which don't cover at least one pixel. Since the vertices are in native
-				// resolution space, we can use the integer locations. When upscaling, we can't, because a primitive which
-				// does not span a single pixel at 1x may span multiple pixels at higher resolutions.
-				const GSVector4i degen_test = pmin.eq32(pmax);
-				test |= m_nativeres ? degen_test.zwzw() : degen_test;
-			}
-			break;
-			default:
-				break;
-		}
-
-		switch (prim)
-		{
-			case GS_TRIANGLELIST:
-			case GS_TRIANGLESTRIP:
-			case GS_TRIANGLEFAN:
-				test = (test | v0.eq64(v1)) | (v1.eq64(v2) | v0.eq64(v2));
-				break;
-			default:
-				break;
-		}
-
-#if defined(_M_ARM64) || defined(__aarch64__)
-		// mask() is slow on ARM, so just pull the bits out instead, thankfully we only care about the first 4 bytes.
-		skip |= (static_cast<u64>(test.extract64<0>()) & UINT64_C(0x8080808080808080)) != 0;
-#else
-		// We only care about the xy passing the skip test. zw is the offset coordinates for native culling.
-		skip |= test.mask() & 0xff;
-#endif
+		GSVertexKernels::BuildPrimBBox<prim>(v0, v1, v2, pmin, pmax);
+		skip |= GSVertexKernels::CullSkipTest<prim>(pmin, pmax, v0, v1, v2,
+			m_scissor_cull_min, m_scissor_cull_max, m_nativeres);
 	}
 
 	if (skip != 0)

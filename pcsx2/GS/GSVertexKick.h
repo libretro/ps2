@@ -123,4 +123,93 @@ namespace GSVertexKernels
 
 		return xyz.upl64(GSVector4i::loadl(uv_ptr));
 	}
+
+	/* Per-primitive accept/cull decision, lifted out of VertexKick.
+	 *
+	 * Returns non-zero when the primitive is to be skipped. The three tests are
+	 * the original ones, unchanged: the bbox of the primitive lying wholly
+	 * outside the cull rect, a degenerate extent that covers no pixel (native
+	 * resolution only -- upscaled, a primitive spanning no pixel at 1x may
+	 * span several), and, for triangles, two coincident vertices.
+	 *
+	 * Templated on prim so the per-primitive selection folds away exactly as it
+	 * did when this was written inline.
+	 */
+	/* Bounding box of the primitive's vertices. Kept separate from the cull
+	 * test because the caller also feeds it to the draw rect. */
+	template <u32 prim>
+	__forceinline void BuildPrimBBox(const GSVector4i& v0, const GSVector4i& v1, const GSVector4i& v2,
+		GSVector4i& pmin, GSVector4i& pmax)
+	{
+		switch (prim)
+		{
+			case GS_POINTLIST:
+				pmin = v0;
+				pmax = v0;
+				break;
+			case GS_LINELIST:
+			case GS_LINESTRIP:
+			case GS_SPRITE:
+				pmin = v0.min_i32(v1);
+				pmax = v0.max_i32(v1);
+				break;
+			case GS_TRIANGLELIST:
+			case GS_TRIANGLESTRIP:
+			case GS_TRIANGLEFAN:
+				pmin = v0.min_i32(v1.min_i32(v2));
+				pmax = v0.max_i32(v1.max_i32(v2));
+				break;
+			default:
+				break;
+		}
+	}
+
+	template <u32 prim>
+	__forceinline u32 CullSkipTest(const GSVector4i& pmin, const GSVector4i& pmax,
+		const GSVector4i& v0, const GSVector4i& v1, const GSVector4i& v2,
+		const GSVector4i& cull_min, const GSVector4i& cull_max, bool nativeres)
+	{
+		GSVector4i test;
+
+		test = pmax.lt32(cull_min) | pmin.gt32(cull_max);
+
+		switch (prim)
+		{
+			case GS_TRIANGLELIST:
+			case GS_TRIANGLESTRIP:
+			case GS_TRIANGLEFAN:
+			case GS_SPRITE:
+			{
+				/* Discard primitives that do not cover a pixel. Only valid at
+				 * native resolution, where the integer positions are the pixel
+				 * grid. */
+				const GSVector4i degen_test = pmin.eq32(pmax);
+				test |= nativeres ? degen_test.zwzw() : degen_test;
+			}
+			break;
+			default:
+				break;
+		}
+
+		switch (prim)
+		{
+			case GS_TRIANGLELIST:
+			case GS_TRIANGLESTRIP:
+			case GS_TRIANGLEFAN:
+				test = (test | v0.eq64(v1)) | (v1.eq64(v2) | v0.eq64(v2));
+				break;
+			default:
+				break;
+		}
+
+#if defined(_M_ARM64) || defined(__aarch64__)
+		/* mask() is slow on ARM, so pull the bits out instead; only the first
+		 * four bytes matter. */
+		return (u32)(((u64)test.extract64<0>() & UINT64_C(0x8080808080808080)) != 0);
+#else
+		/* Only xy has to pass the skip test; zw holds the offset coordinates
+		 * used for native culling. */
+		return (u32)(test.mask() & 0xff);
+#endif
+	}
 } // namespace GSVertexKernels
