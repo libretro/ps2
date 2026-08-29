@@ -1,3 +1,4 @@
+#include <cstdio>
 /*  PCSX2 - PS2 Emulator for PCs
  *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
@@ -52,6 +53,19 @@ union PacketTagType
 // =====================================================================================================
 
 alignas(__cachelinesize) static u128 m_Ring[MTGS_RINGBUFFERSIZE];
+
+#ifdef ENABLE_PCSX2_PROFILER
+/* Which side of the handoff is waiting? Each counter is written by exactly
+ * one thread -- idle by the GS/frontend thread, wait by the EE thread -- so
+ * no synchronisation is needed; they are only read together at the report.
+ *
+ * GS idle high  => the GS is starved and the EE is the limit.
+ * EE wait high  => the GS is the limit and the EE has headroom.
+ * Both low      => both saturated, genuinely overlapped.
+ * Both high     => neither is saturated; the frame is paced elsewhere. */
+alignas(64) static u64 g_gs_idle_ticks;
+alignas(64) static u64 g_ee_wait_ticks;
+#endif
 
 extern struct retro_hw_render_callback hw_render;
 
@@ -110,6 +124,24 @@ void MTGS::PostVsyncStart()
 	tag.data[0]                       = 0;
 
 	retro_atomic_store_release_int(&s_WritePos, (writepos + 1) & RINGBUFFERMASK);
+
+#ifdef ENABLE_PCSX2_PROFILER
+	{
+		static u64 last_wall, last_idle, last_wait;
+		static unsigned long frames;
+		const u64 now = __builtin_ia32_rdtsc();
+		if ((++frames % 60) == 0)
+		{
+			const double wall = (double)(now - last_wall);
+			fprintf(stderr, "[overlap] 60 frames: GS idle %.1f%% of wall, EE blocked in WaitGS %.1f%%\n",
+			        wall > 0 ? 100.0 * (double)(g_gs_idle_ticks - last_idle) / wall : 0.0,
+			        wall > 0 ? 100.0 * (double)(g_ee_wait_ticks - last_wait) / wall : 0.0);
+			last_wall = now; last_idle = g_gs_idle_ticks; last_wait = g_ee_wait_ticks;
+		}
+		else if (frames == 1)
+			last_wall = now;
+	}
+#endif
 
 	// Remove extra frame input lag. With VsyncQueueSize hard-locked to 0 in
 	// the libretro topology, this WaitGS IS the frame-pacing mechanism: it
@@ -178,8 +210,18 @@ bool MTGS::MainLoop(bool flush_all)
 			 * producer degrades to duped frames with a live frontend,
 			 * never a frozen process.  100ms only fires when the EE has
 			 * genuinely stopped delivering vsyncs. */
+#ifdef ENABLE_PCSX2_PROFILER
+			{
+				const u64 t0 = __builtin_ia32_rdtsc();
+				const bool got = s_sem_event.WaitForWorkTimed(100);
+				g_gs_idle_ticks += __builtin_ia32_rdtsc() - t0;
+				if (!got)
+					return false;
+			}
+#else
 			if (!s_sem_event.WaitForWorkTimed(100))
 				return false;
+#endif
 		}
 
 		if (!retro_atomic_load_acquire_int(&s_open_flag))
@@ -402,6 +444,11 @@ void MTGS::WaitGS(bool isMTVU)
 	}
 	if (!IsOpen()) /* WaitGS issued on a closed thread! */
 		return;
+
+#ifdef ENABLE_PCSX2_PROFILER
+	const u64 t_wait0 = __builtin_ia32_rdtsc();
+	struct WaitTimer { u64 t; ~WaitTimer() { g_ee_wait_ticks += __builtin_ia32_rdtsc() - t; } } wait_timer{t_wait0};
+#endif
 
 	s_sem_event.NotifyOfWork();
 	if (isMTVU)
