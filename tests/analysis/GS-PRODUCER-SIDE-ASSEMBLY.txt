@@ -164,3 +164,43 @@ correctness check here -- byte-identical frames, byte-identical audio, clean
 software renderer regression -- and cost 170 -> 140 fps on hardware, because
 its failure mode only appears when the consumer is fast. Every stage of this
 work needs a build benchmarked on the target machine before it lands.
+
+
+Texture resolution: where the calls come from, and how redundant they are
+-------------------------------------------------------------------------
+drawing_kick_update_texture opens with a fast path that returns the previous
+texture index when STATE_DIRTY_TEX_BIT is clear. Measured, it never fires:
+0 hits in 100000 calls on NFSU2, 0 in 18000 on Ridge Racer V.
+
+Tallying which site sets the bit, per 100000 kicks on NFSU2:
+
+  framebuffer feedback (gs_interface.cpp:2169)   87308
+  mark_texture_state_dirty                        6222
+  miptbl / texture state                           0 / 1
+
+So the fast path is not broken. It is bypassed by design: the game samples the
+render target it is writing, and in feedback mode the code deliberately
+rechecks texture state every draw, as its own comment says it must.
+
+But the recheck is mostly redundant. Comparing each resolution's result with
+the previous one, 93.9% return the identical texture index -- the full
+descriptor walk and hazard analysis runs ~38000 times a frame on NFSU2 to
+produce the same answer nineteen times out of twenty.
+
+That suggests a narrower fast path than the existing one: memoize on the
+descriptor inputs (tex0, tex1, clamp, feedback mode, and the sampled window)
+rather than on a dirty flag, and invalidate when VRAM in the sampled region is
+actually written rather than on every draw while feedback is active. The
+difficulty is exactly the part that makes feedback correct today -- in
+feedback the framebuffer is being written by the draws themselves, so
+"actually written" has to be tracked at a finer grain than "a draw happened".
+
+Not attempted here. It is a change to the hazard model in the path that keeps
+Ridge Racer V rendering correctly where hardware renderers corrupt it, and
+this sandbox can verify correctness but not throughput.
+
+Ridge Racer V, for the record, marks 73% of its resolutions long-term
+cacheable against NFSU2's 12%, so it is not failing to cache -- it caches and
+is then invalidated, which matches the game overwriting VRAM in one format and
+reading it back in another. Its 3400 ns/call is likely the price of modelling
+that correctly rather than a bug.
