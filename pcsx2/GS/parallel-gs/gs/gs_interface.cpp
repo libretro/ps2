@@ -3326,27 +3326,8 @@ void GSInterface::update_optimized_gif_handler(uint32_t path)
 
 	auto &gif_path = paths[path];
 
-	auto &reglist_hand = optimized_reglist_handler[path];
-	reglist_hand = nullptr;
-
-	if (gif_path.tag.NLOOP == 0)
-		return;
-
-	if (gif_path.tag.FLG == GIFTagBits::REGLIST)
-	{
-		constexpr uint64_t PRIM_UV_XYZ2_Mask =
-				(uint64_t(GIFAddr::PRIM) << 0) |
-				(uint64_t(GIFAddr::UV) << 4) |
-				(uint64_t(GIFAddr::XYZ2) << 8) |
-				(uint64_t(GIFAddr::UV) << 12) |
-				(uint64_t(GIFAddr::XYZ2) << 16);
-
-		if (gif_path.tag.NREG == 5 && (gif_path.tag.REGS & 0xfffff) == PRIM_UV_XYZ2_Mask)
-			reglist_hand = &GSInterface::reglist_PRIM_UV_XYZ2;
-		return;
-	}
-
-	if (gif_path.tag.FLG != GIFTagBits::PACKED)
+	// Only care about PACKED
+	if (gif_path.tag.FLG != GIFTagBits::PACKED || gif_path.tag.NLOOP == 0)
 		return;
 
 	static const OptimizedPacketHandler STQRGBAXYZHandlers[] = {
@@ -4312,26 +4293,6 @@ void GSInterface::packed_ADONLY(const void *words, uint32_t num_loops)
 			write_register(RegisterAddr(ad->desc.ADDR), ad->desc.data);
 }
 
-// Batched form of the one REGLIST pattern that carries essentially all of the
-// REGLIST traffic: {PRIM, UV, XYZ2, UV, XYZ2}, i.e. a two-vertex primitive with
-// its PRIM re-stated per loop. Measured on a Tekken Tag frame, PRIM/UV/XYZ2
-// appear in an exact 1:2:2 ratio and account for ~99% of registers reaching the
-// per-register dispatch, which had no batched path at all.
-//
-// The calls made, and their order, are identical to the slow path -- this only
-// removes five indirect dispatches and the surrounding bookkeeping per loop.
-void GSInterface::reglist_PRIM_UV_XYZ2(const uint64_t *words, uint32_t nloops)
-{
-	for (uint32_t i = 0; i < nloops; i++, words += 5)
-	{
-		a_d_PRIM(words[0]);
-		a_d_UV(words[1]);
-		a_d_XYZ2(words[2]);
-		a_d_UV(words[3]);
-		a_d_XYZ2(words[4]);
-	}
-}
-
 void GSInterface::gif_transfer(uint32_t path_index, const void *data, size_t size)
 {
 	// Transfers are in units of 128 bits.
@@ -4437,27 +4398,6 @@ void GSInterface::gif_transfer(uint32_t path_index, const void *data, size_t siz
 			}
 			else if (path.tag.FLG == GIFTagBits::REGLIST)
 			{
-				if (path.reg == 0 && optimized_reglist_handler[path_index])
-				{
-					// Whole loops only, and an even number of them: NREG is
-					// odd here, so loops pack tightly across qwords and only
-					// an even count lands back on a qword boundary. Anything
-					// left over falls through to the per-register path below,
-					// which resumes from reg 0 exactly as before.
-					const size_t words_avail = (size - i) * 2;
-					uint32_t nloops = uint32_t(std::min<size_t>(words_avail / 5,
-					                                            path.tag.NLOOP - path.loop));
-					nloops &= ~1u;
-
-					if (nloops)
-					{
-						(this->*optimized_reglist_handler[path_index])(word64 + 2 * i, nloops);
-						i += (size_t(nloops) * 5) / 2;
-						path.loop += nloops;
-						continue;
-					}
-				}
-
 				// Number of 128-bit words is ceil(NLOOP * NREG / 2).
 				// Loops can be tightly packed if NREG is odd.
 

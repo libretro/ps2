@@ -505,13 +505,6 @@ private:
 	// One per GIFPath.
 	OptimizedPacketHandler optimized_draw_handler[4] = {};
 
-	// REGLIST equivalent of optimized_draw_handler. Separate because the
-	// payload is 64-bit words packed two per qword rather than one register
-	// per qword, so the consumption math differs.
-	using OptimizedRegListHandler = void (GSInterface::*)(const uint64_t *words, uint32_t nloops);
-	OptimizedRegListHandler optimized_reglist_handler[4] = {};
-	void reglist_PRIM_UV_XYZ2(const uint64_t *words, uint32_t nloops);
-
 	// Optimized handlers.
 	template <bool FOG, PRIMType PRIM, int factor>
 	void packed_STQRGBAXYZ(const void *words, uint32_t num_vertices);
