@@ -26,6 +26,7 @@
 
 #include "GSState.h"
 #include "GSUtil.h"
+#include "GSVertexKick.h"
 
 int GSState::s_n = 0;
 int GSState::s_last_transfer_draw_n = 0;
@@ -553,20 +554,8 @@ void GSState::GIFPackedRegHandlerSTQRGBAXYZF2(const GIFPackedReg* RESTRICT r, u3
 	{
 		__prefetch_r(r + 6);
 
-		const GSVector4i st = GSVector4i::loadl(&r[0].U64[0]);
-		GSVector4i q = GSVector4i::loadl(&r[0].U64[1]);
-		const GSVector4i rgba = (GSVector4i::load<false>(&r[1]) & GSVector4i::x000000ff()).ps32().pu16();
-
-		q = q.blend8(GSVector4i::cast(GSVector4(FLT_MIN)), q == GSVector4i::zero()); // see GIFPackedRegHandlerSTQ
-
-		m_v.m[0] = st.upl64(rgba.upl32(q)); // TODO: only store the last one
-
-		GSVector4i xy = GSVector4i::loadl(&r[2].U64[0]);
-		GSVector4i zf = GSVector4i::loadl(&r[2].U64[1]);
-		xy = xy.upl16(xy.srl<4>()).upl32(GSVector4i::load((int)m_v.UV));
-		zf = zf.srl32<4>() & GSVector4i::x00ffffff().upl32(GSVector4i::x000000ff());
-
-		m_v.m[1] = xy.upl32(zf); // TODO: only store the last one
+		/* TODO: only store the last one */
+		GSVertexKernels::ParsePackedSTQRGBAXYZF2(r, m_v.UV, m_v.m);
 
 		const bool skip = r[2].XYZF2.Skip();
 		if (!flushes_checked && !skip)
@@ -600,19 +589,8 @@ void GSState::GIFPackedRegHandlerSTQRGBAXYZ2(const GIFPackedReg* RESTRICT r, u32
 	{
 		__prefetch_r(r + 6);
 
-		const GSVector4i st = GSVector4i::loadl(&r[0].U64[0]);
-		GSVector4i q = GSVector4i::loadl(&r[0].U64[1]);
-		const GSVector4i rgba = (GSVector4i::load<false>(&r[1]) & GSVector4i::x000000ff()).ps32().pu16();
-
-		q = q.blend8(GSVector4i::cast(GSVector4(FLT_MIN)), q == GSVector4i::zero()); // see GIFPackedRegHandlerSTQ
-
-		m_v.m[0] = st.upl64(rgba.upl32(q)); // TODO: only store the last one
-
-		const GSVector4i xy = GSVector4i::loadl(&r[2].U64[0]);
-		const GSVector4i z = GSVector4i::loadl(&r[2].U64[1]);
-		const GSVector4i xyz = xy.upl16(xy.srl<4>()).upl32(z);
-
-		m_v.m[1] = xyz.upl64(GSVector4i::loadl(&m_v.UV)); // TODO: only store the last one
+		/* TODO: only store the last one */
+		GSVertexKernels::ParsePackedSTQRGBAXYZ2(r, &m_v.UV, m_v.m);
 
 		const bool skip = r[2].XYZF2.Skip();
 		if (!flushes_checked && !skip)
