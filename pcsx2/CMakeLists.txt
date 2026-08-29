@@ -963,3 +963,12 @@ source_group(System/Ps2/DEV9 REGULAR_EXPRESSION DEV9/*)
 source_group(System/Ps2/PAD FILES ${pcsx2PADSources} ${pcsx2PADHeaders})
 source_group(System/Ps2/SPU2 REGULAR_EXPRESSION SPU2/*)
 source_group(System/Ps2/USB REGULAR_EXPRESSION USB/*)
+
+# The subsystem profiler is opt-in at configure time: -DPROFILER=ON. When off,
+# neither the source nor the definition is part of the build, so the header's
+# macros expand to nothing and no accumulators, clock reads or branches exist
+# anywhere in the binary.
+if(PROFILER)
+	target_sources(PCSX2 PRIVATE Profiler.cpp Profiler.h)
+	target_compile_definitions(PCSX2 PRIVATE ENABLE_PCSX2_PROFILER)
+endif()

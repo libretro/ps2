@@ -14,6 +14,7 @@
  */
 
 #include "../../common/Console.h"
+#include "Profiler.h"
 #include <cerrno>
 #include "../../common/FileSystem.h"
 #include "../../common/Path.h"
@@ -423,6 +424,7 @@ void GSReadLocalMemoryUnsync(u8* mem, u32 qwc, u64 BITBLITBUF, u64 TRXPOS, u64 T
 
 void GSgifTransfer(const u8* mem, u32 size)
 {
+	PROFILE_SCOPE(ZONE_GS_TRANSFER);
 #ifdef HAVE_PARALLEL_GS
 	if (g_pgs_renderer)
 		g_pgs_renderer->Transfer(mem, size);
@@ -434,6 +436,8 @@ void GSgifTransfer(const u8* mem, u32 size)
 
 void GSvsync(u32 field, bool registers_written)
 {
+	PROFILE_SCOPE(ZONE_GS_VSYNC);
+	PROFILE_FRAME_END();
 #ifdef HAVE_PARALLEL_GS
 	if (g_pgs_renderer)
 		g_pgs_renderer->VSync(field, registers_written);

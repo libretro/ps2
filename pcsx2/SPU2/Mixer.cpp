@@ -16,6 +16,7 @@
 #include <algorithm>
 
 #include "Global.h"
+#include "Profiler.h"
 #include "spu2.h"
 #include "interpolate_table.h"
 
@@ -541,6 +542,7 @@ __fi
 #endif
 void Mix(short *out_left, short *out_right)
 {
+	PROFILE_SCOPE(ZONE_SPU2_MIX);
 	StereoOut32 Out;
 	StereoOut32 empty;
 	StereoOut32 Ext;
