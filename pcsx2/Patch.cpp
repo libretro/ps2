@@ -47,7 +47,8 @@ enum patch_data_type {
 	EXTENDED_T,
 	SHORT_LE_T,
 	WORD_LE_T,
-	DOUBLE_LE_T
+	DOUBLE_LE_T,
+	BYTES_T      /* arbitrary-length payload; see IniPatch::bytes */
 };
 
 
@@ -536,6 +537,24 @@ void _ApplyPatch(IniPatch *p)
 		case CPU_EE:
 			switch (p->type)
 			{
+				case BYTES_T:
+				{
+					/* Written a byte at a time from the payload. The
+					 * read-before-write the other cases do is per byte
+					 * here, which keeps a patch that is already applied
+					 * from dirtying memory it did not change -- these
+					 * patches are usually code, and are re-applied every
+					 * frame when the place is PPT_CONTINUOUSLY. */
+					size_t i;
+					for (i = 0; i < p->bytes.size(); i++)
+					{
+						const u32 a = p->addr + (u32)i;
+						if (memRead8(a) != p->bytes[i])
+							memWrite8(a, p->bytes[i]);
+					}
+					break;
+				}
+
 				case BYTE_T:
 					if (memRead8(p->addr) != (u8)p->data)
 						memWrite8(p->addr, (u8)p->data);
@@ -586,6 +605,17 @@ void _ApplyPatch(IniPatch *p)
 		case CPU_IOP:
 			switch (p->type)
 			{
+				case BYTES_T:
+				{
+					size_t k;
+					for (k = 0; k < p->bytes.size(); k++)
+					{
+						const u32 a = p->addr + (u32)k;
+						if (iopMemRead8(a) != p->bytes[k])
+							iopMemWrite8(a, p->bytes[k]);
+					}
+					break;
+				}
 				case BYTE_T:
 					if (iopMemRead8(p->addr) != (u8)p->data)
 						iopMemWrite8(p->addr, (u8)p->data);
@@ -654,6 +684,7 @@ static const PatchTextTable dataType[] =
 		{6, "leshort", nullptr},
 		{7, "leword", nullptr},
 		{8, "ledouble", nullptr},
+		{9, "bytes", nullptr},
 		{0, nullptr, nullptr} // Array Terminator
 };
 
@@ -969,7 +1000,39 @@ namespace PatchFunc
 		iPatch.cpu = (patch_cpu_type)PatchTableExecute(pieces[1], std::string_view(), cpuCore);
 		iPatch.addr = StringUtil::FromChars<u32>(pieces[2], 16).value_or(0);
 		iPatch.type = (patch_data_type)PatchTableExecute(pieces[3], std::string_view(), dataType);
-		iPatch.data = StringUtil::FromChars<u64>(pieces[4], 16).value_or(0);
+
+		if (iPatch.type == BYTES_T)
+		{
+			/* A hex string of whole bytes, applied as written rather than
+			 * byte-swapped: the payload is a byte sequence, not a value of
+			 * some width, so there is no endianness to apply to it. */
+			const std::string_view hex = pieces[4];
+			size_t i;
+
+			if (hex.empty() || (hex.size() & 1))
+			{
+				PATCH_ERROR("'bytes' payload must be whole bytes: '%.*s'",
+				            static_cast<int>(hex.size()), hex.data());
+				return;
+			}
+
+			iPatch.bytes.reserve(hex.size() / 2);
+			for (i = 0; i < hex.size(); i += 2)
+			{
+				const std::optional<u8> b =
+					StringUtil::FromChars<u8>(hex.substr(i, 2), 16);
+				if (!b.has_value())
+				{
+					PATCH_ERROR("'bytes' payload is not hex: '%.*s'",
+					            static_cast<int>(hex.size()), hex.data());
+					return;
+				}
+				iPatch.bytes.push_back(b.value());
+			}
+			iPatch.data = 0;
+		}
+		else
+			iPatch.data = StringUtil::FromChars<u64>(pieces[4], 16).value_or(0);
 
 		if (iPatch.cpu == 0)
 		{

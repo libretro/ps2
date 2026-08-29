@@ -72,6 +72,11 @@ struct IniPatch
 	int placetopatch;
 	u32 addr;
 	u64 data;
+	/* For the "bytes" operand size, whose payload is a hex string of
+	 * arbitrary length rather than a value: data cannot hold it, so the
+	 * bytes live here and `data` is left zero. Empty for every other
+	 * type, which keeps the common case a plain integer. */
+	std::vector<u8> bytes;
 };
 
 struct DynamicPatchEntry
