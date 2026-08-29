@@ -237,6 +237,15 @@ bool MTGS::MainLoop(bool flush_all)
 							    next.data[0] != offset + merged)
 								break;
 
+							// Release each merged packet's space as it is
+							// absorbed, not once at the end: readAmount is how
+							// the producer computes free space in the path
+							// buffer, and a long run (Ridge Racer reaches 2595
+							// packets) would otherwise leave the buffer looking
+							// full for the whole merged transfer and stall the
+							// EE against it.
+							retro_atomic_fetch_sub_int(&path.readAmount, next.data[1]);
+
 							merged += next.data[1];
 							local_ReadPos = peek;
 							retro_atomic_store_release_int(&s_ReadPos, local_ReadPos);
@@ -244,7 +253,9 @@ bool MTGS::MainLoop(bool flush_all)
 
 						if (offset != ~0u)
 							GSgifTransfer((u8*)&path.buffer[offset], merged / 16);
-						retro_atomic_fetch_sub_int(&path.readAmount, merged);
+						// Only this entry's own size: the merged ones were
+						// released above as they were absorbed.
+						retro_atomic_fetch_sub_int(&path.readAmount, size);
 					}
 					break;
 
