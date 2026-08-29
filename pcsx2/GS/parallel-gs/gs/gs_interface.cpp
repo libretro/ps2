@@ -4,6 +4,12 @@
 // SPDX-License-Identifier: LGPL-3.0+
 
 #include "page_tracker.hpp"
+/* See gs_renderer.cpp: only reach into the emulator tree when profiling. */
+#ifdef ENABLE_PCSX2_PROFILER
+#include "pcsx2/Profiler.h"
+#else
+#define PROFILE_SCOPE(z) do {} while (0)
+#endif
 #include "gs_interface.hpp"
 #include "gs_util.hpp"
 #include "shaders/swizzle_utils.h"
@@ -4334,7 +4340,10 @@ void GSInterface::gif_transfer(uint32_t path_index, const void *data, size_t siz
 			{
 				// Should this divide be optimized to use divide by constant trick?
 				uint32_t nloops_to_run = std::min<uint32_t>(size / nreg, path.tag.NLOOP - path.loop);
-				(this->*optimized_draw_handler[path_index])(&qwords[i], nloops_to_run);
+				{
+					PROFILE_SCOPE(ZONE_GS_DRAWKICK);
+					(this->*optimized_draw_handler[path_index])(&qwords[i], nloops_to_run);
+				}
 				i += nloops_to_run * nreg;
 				path.loop += nloops_to_run;
 			}
@@ -4345,6 +4354,7 @@ void GSInterface::gif_transfer(uint32_t path_index, const void *data, size_t siz
 
 				if (GIFAddr(addr) == GIFAddr::A_D)
 				{
+					PROFILE_SCOPE(ZONE_GS_REGWRITE);
 					auto *ad = reinterpret_cast<const Reg128<PackedADBits> *>(&qwords[i]);
 					write_register(RegisterAddr(ad->desc.ADDR), ad->desc.data);
 				}

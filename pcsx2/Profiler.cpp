@@ -36,6 +36,8 @@ namespace PCSX2Profiler
 		"GS transfer",
 		"GS vsync",
 		"GS gpu wait",
+		"GS drawkick",
+		"GS regwrite",
 	};
 
 	/* The instrument is not free, and for a zone entered tens of thousands of
