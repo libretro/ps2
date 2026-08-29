@@ -193,7 +193,7 @@ bool MTGS::MainLoop(bool flush_all)
 		const int snapshot_WritePos = retro_atomic_load_acquire_int(&s_WritePos);
 		while (retro_atomic_load_acquire_int(&s_ReadPos) != snapshot_WritePos)
 		{
-			const int local_ReadPos = retro_atomic_load_acquire_int(&s_ReadPos);
+			int local_ReadPos = retro_atomic_load_acquire_int(&s_ReadPos);
 			const PacketTagType& tag = (PacketTagType&)m_Ring[local_ReadPos];
 
 			switch (tag.command)
@@ -203,9 +203,48 @@ bool MTGS::MainLoop(bool flush_all)
 						Gif_Path& path = gifUnit.gifPath[tag.data[2]];
 						u32 offset     = tag.data[0];
 						u32 size       = tag.data[1];
+
+						// Consecutive packets from one path are almost always
+						// contiguous in that path's buffer -- measured at 98.8%
+						// (Tekken Tag) and 99.9% (Ridge Racer V), in runs
+						// averaging 83 and 1176 entries. Each was handed to
+						// GSgifTransfer separately, so the GIF parser restarted
+						// per packet and its batched draw handler could never
+						// see past one packet's worth of qwords.
+						//
+						// Merge the run into a single call. The parser keeps its
+						// tag state across calls anyway -- that is how partial
+						// packets already work -- so one call over the union is
+						// equivalent to N calls over the pieces, and it lets the
+						// batched handler consume across former packet edges.
+						u32 merged = size;
+						for (;;)
+						{
+							const unsigned int peek = (local_ReadPos + 1) & RINGBUFFERMASK;
+
+							// The slot being peeked must itself be inside the
+							// snapshot: testing the current entry instead would
+							// read one slot past WritePos, which the producer
+							// has not written yet.
+							if ((int)peek == snapshot_WritePos)
+								break;
+
+							const PacketTagType& next = (PacketTagType&)m_Ring[peek];
+
+							if (next.command != GS_RINGTYPE_GSPACKET ||
+							    next.data[2] != tag.data[2] ||
+							    next.data[0] == ~0u || offset == ~0u ||
+							    next.data[0] != offset + merged)
+								break;
+
+							merged += next.data[1];
+							local_ReadPos = peek;
+							retro_atomic_store_release_int(&s_ReadPos, local_ReadPos);
+						}
+
 						if (offset != ~0u)
-							GSgifTransfer((u8*)&path.buffer[offset], size / 16);
-						retro_atomic_fetch_sub_int(&path.readAmount, size);
+							GSgifTransfer((u8*)&path.buffer[offset], merged / 16);
+						retro_atomic_fetch_sub_int(&path.readAmount, merged);
 					}
 					break;
 
