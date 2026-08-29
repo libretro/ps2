@@ -58,6 +58,9 @@ namespace PCSX2Profiler
 		ZONE_GS_DRAWKICK, /* batched packed-vertex handler inside a transfer */
 		ZONE_GS_REGWRITE, /* per-register writes inside a transfer */
 		ZONE_GS_KICKTEX,  /* texture-cache resolution inside a drawing kick */
+		ZONE_GS_VS_FLUSH, /* flush_submit inside vsync: draining pending GS work */
+		ZONE_GS_VS_CIRC,  /* building the scanout circuits */
+		ZONE_GS_VS_MERGE, /* merge render pass and present handoff */
 		ZONE_COUNT
 	};
 

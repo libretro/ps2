@@ -4446,7 +4446,7 @@ ScanoutResult GSRenderer::vsync(const PrivRegisterState &priv, const VSyncInfo &
 	{
 		LOGW("Unknown video format.\n");
 		cmd.end_region();
-		flush_submit(0);
+		{ PROFILE_SCOPE(ZONE_GS_VS_FLUSH); flush_submit(0); }
 		return {};
 	}
 
@@ -4633,7 +4633,7 @@ ScanoutResult GSRenderer::vsync(const PrivRegisterState &priv, const VSyncInfo &
 				image_info.width <<= scanout_scale_x_log2;
 				image_info.height <<= scanout_scale_y_log2;
 			}
-			circuit1 = device->create_image(image_info);
+			{ PROFILE_SCOPE(ZONE_GS_VS_CIRC); circuit1 = device->create_image(image_info); }
 			sample_crtc_circuit(cmd, *circuit1, priv.dispfb1, rect, super_samples,
 			                    scanout_scale_x_log2, scanout_scale_y_log2, scanout_filtered, promoted1);
 			device->set_name(*circuit1, "Circuit1");
@@ -4692,7 +4692,7 @@ ScanoutResult GSRenderer::vsync(const PrivRegisterState &priv, const VSyncInfo &
 				image_info.width <<= scanout_scale_x_log2;
 				image_info.height <<= scanout_scale_y_log2;
 			}
-			circuit2 = device->create_image(image_info);
+			{ PROFILE_SCOPE(ZONE_GS_VS_CIRC); circuit2 = device->create_image(image_info); }
 			sample_crtc_circuit(cmd, *circuit2, priv.dispfb2, rect, super_samples,
 			                    scanout_scale_x_log2, scanout_scale_y_log2, scanout_filtered, promoted2);
 			device->set_name(*circuit2, "Circuit2");
@@ -4828,7 +4828,7 @@ ScanoutResult GSRenderer::vsync(const PrivRegisterState &priv, const VSyncInfo &
 			result.internal_height = result.image->get_height() >> scanout_scale_y_log2;
 			result.double_strike = double_strike;
 
-			flush_submit(0);
+			{ PROFILE_SCOPE(ZONE_GS_VS_FLUSH); flush_submit(0); }
 			return result;
 		}
 	}
@@ -4844,6 +4844,7 @@ ScanoutResult GSRenderer::vsync(const PrivRegisterState &priv, const VSyncInfo &
 		image_info.height--;
 	}
 
+	PROFILE_SCOPE(ZONE_GS_VS_MERGE);
 	auto merged = device->create_image(image_info);
 
 	device->set_name(*merged, "Merged field");

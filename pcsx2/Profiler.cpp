@@ -39,6 +39,9 @@ namespace PCSX2Profiler
 		"GS drawkick",
 		"GS regwrite",
 		"GS kick tex",
+		"GS vs flush",
+		"GS vs circ",
+		"GS vs merge",
 	};
 
 	/* The instrument is not free, and for a zone entered tens of thousands of
