@@ -1,0 +1,102 @@
+Reverse VIF1 downloads and recompiler page protection
+=====================================================
+
+The bug
+-------
+Final Fantasy X-2 crashed at the transition out of an FMV, but only when the
+movie had actually played in that session. A savestate taken once it was over
+never reproduced it, and it did not happen every time.
+
+Reverse VIF1 is a GS-to-EE download. Vif1_Dma.cpp resolves the destination in
+EE main RAM and hands the pointer to MTGS::InitAndReadFIFO, which queues it and
+waits; the frontend thread then drains the ring and paraLLEl-GS memcpys the
+readback into that pointer.
+
+If the recompiler has marked those pages read-only to catch self-modifying
+code, that store faults. A fault from recompiled EE code is fine -- the vtlb
+page fault handler runs mmap_ClearCpuBlock, which restores read-write, resets
+the page mode and clears the blocks, and the write is retried. This store has
+no recompiled instruction behind it and arrives on the MTGS consumer thread, so
+nothing handles the fault and the process dies.
+
+It needs the movie because a movie is what gets the destination pages holding
+recompiled code in the first place, and it is intermittent because it depends
+on whether a download happens to land on a page that is currently protected.
+
+What the dumps said
+-------------------
+Four minidumps, all identical in the parts that mattered:
+
+  code    c0000005 ACCESS_VIOLATION
+  pc      msvcrt!memcpy
+  access  WRITE to 0x7ffdd1b05000
+  dst     0x7ffdd1b05020, len 0x30
+
+The destination was byte-identical across separate processes and did not move
+when Application Verifier page heap was enabled. That rules out a heap
+allocation: it is a fixed mapping. The MemoryInfoList stream then named it
+outright:
+
+  state       COMMIT
+  protect     READONLY
+  alloc prot  READWRITE
+  type        MAPPED
+
+A page allocated writable and later made read-only is mmap_MarkCountedRamPage
+and nothing else in the emulator. That single fact was in the first dump.
+
+The fix
+-------
+Cpu->Clear is not sufficient. It invalidates blocks but never calls
+HostSys::MemProtect and never touches m_PageProtectInfo, so the page stays
+read-only and the memcpy still faults -- confirmed by a dump taken from a build
+that called it.
+
+mmap_UnprotectRamRange walks the pages of a range and applies mmap_ClearCpuBlock
+to any in ProtMode_Write, which is exactly what the fault handler does, for
+writers that reach EE memory without faulting. Vif1_Dma.cpp calls it before
+handing the pointer to MTGS.
+
+Other callers of MTGS::InitAndReadFIFO were checked. ReadFIFO_VIF1 in FiFo.cpp
+passes &result from Hw.cpp, a mem128_t on the EE thread's stack; host stack
+memory is never protected, so it has no exposure. Vif1_Dma.cpp was the only
+caller passing a pointer into protected guest RAM.
+
+Dead ends, and why they looked right
+------------------------------------
+Six attempts preceded the fix. They are listed here because each one looked
+well-founded at the time and someone will otherwise try them again.
+
+1. Clamping the FIFO readback offset in read_transfer_fifo. The remaining count
+   was a bare uint32_t subtraction that can wrap, which is a real defect and
+   worth having fixed, but the offset was never out of range here.
+
+2. Checking the DynamicArray allocation. reserve() ignored memalign_alloc's
+   return value and would leave data() null on failure -- again a real defect,
+   again not this one; the allocation was not failing.
+
+3. Guarding read_transfer_fifo's source pointer. This came from reading the
+   rdx register in the dump as memcpy's source argument. The pc was 0x7b36b
+   into msvcrt's memcpy, far past the prologue, so rdx was scratch by then.
+   The fault was on the destination the whole time. Three rounds went into
+   paraLLEl-GS on the strength of that misreading.
+
+4. dmaGetAddr(vif1ch.madr, false) for a download. dmaGetAddr returns
+   eeMem->ZeroRead for readers and eeMem->ZeroWrite for writers when the
+   address falls outside main RAM, so a writer asking for the read mapping gets
+   a read-only page. Correct to fix, and kept, but the faulting page was in
+   Main, not the placeholder.
+
+5. Cpu->Clear on the destination range: right mechanism, wrong function, as
+   above.
+
+The reconstruction that cost the most was the stack. Minidumps here were read
+by scanning the thread stack for values inside the module and resolving them
+against nm output, which surfaces stale return addresses from earlier calls
+alongside live frames. It named read_transfer_fifo correctly, but it offered no
+way to tell which frames were real, and it invited three fixes in a function
+that was only ever the victim. A real unwind (cdb -c "kb") would have settled
+in one command what took six rounds.
+
+The lesson worth keeping: when a dump gives both a register-derived guess and a
+page protection, believe the page protection.
