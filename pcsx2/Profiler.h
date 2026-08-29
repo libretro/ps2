@@ -54,6 +54,7 @@ namespace PCSX2Profiler
 		ZONE_SPU2_MIX,    /* SPU2 voice mixing */
 		ZONE_GS_TRANSFER, /* GIF packets handed to whichever renderer */
 		ZONE_GS_VSYNC,    /* end-of-frame renderer work */
+		ZONE_GS_SYNC,     /* blocked waiting for the GPU, not working */
 		ZONE_COUNT
 	};
 

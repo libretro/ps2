@@ -35,6 +35,7 @@ namespace PCSX2Profiler
 		"SPU2 mix",
 		"GS transfer",
 		"GS vsync",
+		"GS gpu wait",
 	};
 
 	/* The instrument is not free, and for a zone entered tens of thousands of
