@@ -3170,7 +3170,21 @@ void GSInterface::flush_pending_transfer(bool keep_alive)
 
 void GSInterface::read_transfer_fifo(void *data, uint32_t num_128b_words)
 {
-	uint32_t to_copy = std::min<uint32_t>(num_128b_words, transfer_state.fifo_readback_128b_size - transfer_state.fifo_readback_128b_offset);
+	// The remaining count has to be computed from a checked comparison, not
+	// from a bare subtraction: both operands are uint32_t, so once the offset
+	// passes the size -- which it can, since the offset advances on every read
+	// while the size is only set when a readback is initialised -- the
+	// subtraction wraps to a huge value, min() then picks num_128b_words, and
+	// the memcpy below reads from data() + 16 * offset, far outside the
+	// vector. Observed as an access violation on the frontend thread with a
+	// sign-extended source pointer, reached from GSInitAndReadFIFO.
+	uint32_t remaining = 0;
+	uint32_t to_copy;
+
+	if (transfer_state.fifo_readback_128b_offset < transfer_state.fifo_readback_128b_size)
+		remaining = transfer_state.fifo_readback_128b_size - transfer_state.fifo_readback_128b_offset;
+
+	to_copy = num_128b_words < remaining ? num_128b_words : remaining;
 
 	if (to_copy)
 	{
