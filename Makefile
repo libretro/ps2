@@ -60,6 +60,13 @@ SET_HAVE_HW = 0
 CORE_DEFINE :=
 TARGET_NAME := pcsx2
 
+# Per-subsystem wall-time profiler. Off by default; PROFILER=1 adds the source
+# and the define, matching -DPROFILER=ON in the CMake build. With it off
+# neither is part of the build, so the macros in Profiler.h expand to nothing.
+ifeq ($(PROFILER), 1)
+   FLAGS += -DENABLE_PCSX2_PROFILER
+endif
+
 ifeq ($(HAVE_HW), 1)
    HAVE_VULKAN = 1
    HAVE_OPENGL = 1

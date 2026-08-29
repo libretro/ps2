@@ -738,3 +738,9 @@ endif
 ifneq ($(STATIC_LINKING), 1)
 SOURCES_C += $(LIBRETRO_COMM_DIR)/vfs/vfs_hybrid.c
 endif
+
+# Opt-in profiler source (see PROFILER=1 in the top-level Makefile).
+ifeq ($(PROFILER), 1)
+SOURCES_CXX += \
+	$(LRPS2_DIR)/Profiler.cpp
+endif
