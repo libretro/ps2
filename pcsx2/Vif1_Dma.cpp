@@ -62,6 +62,20 @@ void vif1TransferToMemory(void)
 	// completely and execute the transfer there-after.
 	const u32 size = pcsx2_min_u(vif1.GSLastDownloadSize, (u32)vif1ch.qwc);
 
+	// The GS writes into EE RAM here, from the MTGS consumer thread, with a
+	// plain memcpy. If the recompiler has marked those pages read-only to
+	// catch self-modifying code, that store faults -- and unlike a fault from
+	// recompiled EE code there is no instruction behind it and no handler on
+	// that thread, so it goes unhandled and takes the process down. Observed
+	// as an access violation writing a COMMIT/MAPPED page whose allocation
+	// protection was READWRITE but whose current protection was READONLY,
+	// which is the recompiler's page protection and nothing else.
+	//
+	// Drop any blocks covering the destination first, exactly as the other
+	// DMAs that write behind the recompiler's back already do: psxCpu->Clear
+	// for IOP DMA, CpuVU0/1->Clear for SPR.
+	Cpu->Clear(vif1ch.madr, size * 4);
+
 	MTGS::InitAndReadFIFO(reinterpret_cast<u8*>(pMem), size);
 
 	g_vif1Cycles += size * 2;
