@@ -29,9 +29,8 @@
 
 #include "Host.h"
 
-// Mask to apply to ring buffer indices to wrap the pointer from end to
-// start (the wrapping is what makes it a ringbuffer, yo!)
-static const unsigned int RINGBUFFERMASK = MTGS_RINGBUFFERSIZE - 1;
+#include <retro_spsc.h>
+#include "common/Console.h"
 
 union PacketTagType
 {
@@ -52,7 +51,47 @@ union PacketTagType
 //  MTGS Threaded Class Implementation
 // =====================================================================================================
 
-alignas(__cachelinesize) static u128 m_Ring[MTGS_RINGBUFFERSIZE];
+/* The command ring is a byte SPSC of 16-byte PacketTagType records: the
+ * EE thread produces, the libretro (= MTGS) thread consumes, and the
+ * libretro-thread writers (ResetGS, Freeze, InitAndReadFIFO on its
+ * synchronous paths) only run with the EE quiesced, so the single-producer
+ * contract holds serially.  The capacity is a whole number of records, so
+ * a record never straddles the wrap and the framing is sizeof(PacketTagType).
+ *
+ * Allocated once in TryOpenGS and kept for the life of the process, which
+ * is the same lifetime the static array it replaces had.  retro_spsc pads
+ * its own cursors onto separate cache lines, so the alignas gymnastics the
+ * old cursor pair needed live inside the queue now. */
+static retro_spsc_t s_Ring;
+static bool s_RingOk = false;
+
+static_assert(sizeof(PacketTagType) == 16, "command ring framing is one 16-byte record per packet");
+
+/* Reserve one record.  Backpressure on a full ring: the consumer is the
+ * libretro thread, which the frontend keeps pumping through retro_run, so
+ * a full ring drains and progress is guaranteed.  The old open-coded ring
+ * had no full check at all - a lapped writer silently dropped an entire
+ * ring of commands - so waiting is strictly safer.  Occupancy was measured
+ * at ~22k records worst-case against 65536 capacity (see GS.h), so the
+ * wait should never fire outside a wedged consumer.
+ *
+ * Returns NULL only when the ring never allocated (TryOpenGS failed and
+ * logged); the caller drops the command, which is the degraded mode the
+ * MTVU packet queue already uses for the same impossible allocation. */
+static __fi PacketTagType* RingWriteBegin(void)
+{
+	void* dst;
+	if (!s_RingOk)
+		return NULL;
+	while (retro_spsc_write_begin(&s_Ring, &dst) < sizeof(PacketTagType))
+		;
+	return (PacketTagType*)dst;
+}
+
+static __fi void RingWriteEnd(void)
+{
+	retro_spsc_write_end(&s_Ring, sizeof(PacketTagType));
+}
 
 #ifdef ENABLE_PCSX2_PROFILER
 /* Which side of the handoff is waiting? Each counter is written by exactly
@@ -71,18 +110,6 @@ extern struct retro_hw_render_callback hw_render;
 
 namespace MTGS
 {
-	// note: when s_ReadPos == s_WritePos, the fifo is empty
-	// Threading info: s_ReadPos is updated by the MTGS thread. s_WritePos is updated by the EE thread
-
-	// s_WritePos and s_ReadPos sit on separate cache lines to avoid
-	// false sharing between producer (cpu_thread writes WritePos, reads
-	// ReadPos) and consumer (libretro thread writes ReadPos, reads
-	// WritePos). Without the padding, every ring push from one side
-	// invalidates the cached counter on the other side's core, forcing a
-	// coherence transaction on the next access.
-	alignas(__cachelinesize) static retro_atomic_int_t s_WritePos = RETRO_ATOMIC_INT_INITIALIZER(0); // cur pos ee thread is writing to
-	alignas(__cachelinesize) static retro_atomic_int_t s_ReadPos  = RETRO_ATOMIC_INT_INITIALIZER(0); // cur pos gs is reading from
-
 	static Threading::WorkSema s_sem_event;
 
 	static uintptr_t s_thread;
@@ -97,18 +124,20 @@ void MTGS::ResetGS(bool hardware_reset)
 	//  * clear the ringbuffer.
 	//  * Signal a reset.
 	//  * clear the path and byRegs structs (used by GIFtagDummy)
-	if (hardware_reset)
-		s_ReadPos             = s_WritePos.load();
+	/* Discarding pending entries requires both sides quiesced: the EE is
+	 * paused across a reset, and the consumer is this very thread. */
+	if (hardware_reset && s_RingOk)
+		retro_spsc_clear(&s_Ring);
 
-	const unsigned int writepos = retro_atomic_load_acquire_int(&s_WritePos);
-	PacketTagType& tag          = (PacketTagType&)m_Ring[writepos];
-
-	tag.command                 = GS_RINGTYPE_RESET;
-	tag.data[0]                 = static_cast<int>(hardware_reset);
-	tag.data[1]                 = 0;
-	tag.data[2]                 = 0;
-
-	retro_atomic_store_release_int(&s_WritePos, (writepos + 1) & RINGBUFFERMASK);
+	PacketTagType* tag = RingWriteBegin();
+	if (tag)
+	{
+		tag->command = GS_RINGTYPE_RESET;
+		tag->data[0] = static_cast<int>(hardware_reset);
+		tag->data[1] = 0;
+		tag->data[2] = 0;
+		RingWriteEnd();
+	}
 
 	if (hardware_reset)
 		s_sem_event.NotifyOfWork();
@@ -118,12 +147,13 @@ void MTGS::PostVsyncStart()
 {
 	// Command qword: Low word is the command, and the high word is the packet
 	// length in SIMDs (128 bits).
-	const unsigned int writepos       = retro_atomic_load_acquire_int(&s_WritePos);
-	PacketTagType& tag                = (PacketTagType&)m_Ring[writepos];
-	tag.command                       = GS_RINGTYPE_VSYNC;
-	tag.data[0]                       = 0;
-
-	retro_atomic_store_release_int(&s_WritePos, (writepos + 1) & RINGBUFFERMASK);
+	PacketTagType* tag = RingWriteBegin();
+	if (tag)
+	{
+		tag->command = GS_RINGTYPE_VSYNC;
+		tag->data[0] = 0;
+		RingWriteEnd();
+	}
 
 #ifdef ENABLE_PCSX2_PROFILER
 	{
@@ -165,20 +195,28 @@ void MTGS::InitAndReadFIFO(u8* mem, u32 qwc)
 		return;
 	}
 
-	const unsigned int writepos = retro_atomic_load_acquire_int(&s_WritePos);
-	PacketTagType& tag          = (PacketTagType&)m_Ring[writepos];
-
-	tag.command                 = GS_RINGTYPE_INIT_AND_READ_FIFO;
-	tag.data[0]                 = qwc;
-	tag.pointer                 = (uptr)mem;
-
-	retro_atomic_store_release_int(&s_WritePos, (writepos + 1) & RINGBUFFERMASK);
+	PacketTagType* tag = RingWriteBegin();
+	if (tag)
+	{
+		tag->command = GS_RINGTYPE_INIT_AND_READ_FIFO;
+		tag->data[0] = qwc;
+		tag->pointer = (uptr)mem;
+		RingWriteEnd();
+	}
 	WaitGS(false);
 }
 
 void MTGS::TryOpenGS(void)
 {
 	s_thread = sthread_get_current_thread_id();
+
+	if (!s_RingOk)
+	{
+		s_RingOk = retro_spsc_init(&s_Ring,
+			(size_t)MTGS_RINGBUFFERSIZE * sizeof(PacketTagType));
+		if (!s_RingOk)
+			Console.Error("MTGS: command ring allocation failed; GS commands will be dropped");
+	}
 
 	GSopen(EmuConfig.GS, EmuConfig.GS.Renderer, hw_render.context_type, PS2MEM_GS);
 
@@ -189,7 +227,6 @@ bool MTGS::MainLoop(bool flush_all)
 {
 
 	// Threading info: run in MTGS thread
-	// s_ReadPos is only update by the MTGS thread so it is safe to load it with a relaxed atomic
 
 	/* MTVU handoff needs no lock: the WaitGS(isMTVU) rendezvous this
 	 * loop used to serve is now a real sleep on
@@ -227,16 +264,30 @@ bool MTGS::MainLoop(bool flush_all)
 		if (!retro_atomic_load_acquire_int(&s_open_flag))
 			break;
 
-		// note: s_ReadPos is intentionally not volatile, because it should only
-		// ever be modified by this thread.
-		// Snapshot s_WritePos once per batch to avoid re-acquiring the EE's
-		// cache line on every packet.  New packets added during processing
-		// are picked up on the next outer-loop iteration.
-		const int snapshot_WritePos = retro_atomic_load_acquire_int(&s_WritePos);
-		while (retro_atomic_load_acquire_int(&s_ReadPos) != snapshot_WritePos)
+		/* Drain in contiguous spans.  read_begin acquires the head once
+		 * per span - the same single-acquire-per-batch the old snapshot
+		 * of s_WritePos bought - and hands back a stable pointer into
+		 * the ring.  Consumed records are committed in one read_end per
+		 * span instead of one cursor store per record: the only
+		 * cross-thread reader of the tail is the producer's full check,
+		 * and the WaitGS emptiness contract lives entirely in WorkSema,
+		 * so batching the commit changes nothing anyone can observe.
+		 * The vsync early-return commits before leaving.
+		 *
+		 * The inner loop runs spans until the queue reports empty:
+		 * WorkSema wakes are not 1:1 with records (a soft-reset tag is
+		 * written with no notify and rides along on the next one), so
+		 * exiting to the sema with buffered records - as a wrap split
+		 * could otherwise cause - would strand them.  That is also why
+		 * the old loop compared cursors instead of trusting the sema. */
+		size_t span;
+		const void* span_ptr;
+		while (s_RingOk && (span = retro_spsc_read_begin(&s_Ring, &span_ptr)) >= sizeof(PacketTagType))
 		{
-			const int local_ReadPos = retro_atomic_load_acquire_int(&s_ReadPos);
-			const PacketTagType& tag = (PacketTagType&)m_Ring[local_ReadPos];
+		size_t consumed = 0;
+		while (consumed < span)
+		{
+			const PacketTagType& tag = *(const PacketTagType*)((const u8*)span_ptr + consumed);
 
 			switch (tag.command)
 			{
@@ -332,11 +383,11 @@ bool MTGS::MainLoop(bool flush_all)
 					break;
 			}
 
-			uint newringpos = (local_ReadPos + 1) & RINGBUFFERMASK;
-			retro_atomic_store_release_int(&s_ReadPos, newringpos);
+			consumed += sizeof(PacketTagType);
 
 			if (!flush_all && tag.command == GS_RINGTYPE_VSYNC)
 			{
+				retro_spsc_read_end(&s_Ring, consumed);
 				/* Returning mid-ring: the batch acknowledge at the top of
 				 * the outer loop already consumed the notifies for any
 				 * entries still queued behind this vsync.  WorkSema's
@@ -353,16 +404,18 @@ bool MTGS::MainLoop(bool flush_all)
 				 * late into memory the EE may have reused.  A notify
 				 * racing a concurrent enqueue at worst doubles up; the
 				 * state machine absorbs spurious wakes by design. */
-				if (retro_atomic_load_acquire_int(&s_ReadPos) !=
-					retro_atomic_load_acquire_int(&s_WritePos))
+				if (retro_spsc_read_avail(&s_Ring) != 0)
 					s_sem_event.NotifyOfWork();
 				return true;
 			}
 		}
+		retro_spsc_read_end(&s_Ring, consumed);
+		}
 	}
 
 	// Unblock any threads in WaitGS in case MTGS gets cancelled while still processing work
-	retro_atomic_store_release_int(&s_ReadPos, retro_atomic_load_acquire_int(&s_WritePos));
+	if (s_RingOk)
+		retro_spsc_skip(&s_Ring, retro_spsc_read_avail(&s_Ring));
 	/* Wake a WaitGS(isMTVU) sleeper too; its loop re-checks
 	 * s_open_flag and exits.  The old rendezvous spin hung here
 	 * with pending packets, so this path is strictly safer now. */
@@ -408,9 +461,9 @@ void MTGS::WaitGS(bool isMTVU)
 		// We will stop waiting on the MTGS thread if the
 		// MTGS thread has processed a vu1 xgkick packet, or is pending on
 		// its final vu1 xgkick packet (!curP1Packs)...
-		// Note: s_WritePos doesn't seem to have proper atomic write
-		// code, so reading it from the MTVU thread might be dangerous;
-		// hence it has been avoided...
+		// Note: the command ring's cursors belong to the EE and MTGS
+		// threads; this MTVU-thread path deliberately never reads them
+		// and keys off the packet queue instead.
 		u32 startP1Packs = path.GetPendingGSPackets();
 		if (startP1Packs)
 		{
@@ -475,14 +528,14 @@ void MTGS::WaitForClose()
 
 void MTGS::Freeze(FreezeAction mode, MTGS_FreezeData& data)
 {
-	const unsigned int writepos = retro_atomic_load_acquire_int(&s_WritePos);
-	PacketTagType& tag          = (PacketTagType&)m_Ring[writepos];
-
-	tag.command                 = GS_RINGTYPE_FREEZE;
-	tag.data[0]                 = (int)mode;
-	tag.pointer                 = (uptr)&data;
-
-	retro_atomic_store_release_int(&s_WritePos, (writepos + 1) & RINGBUFFERMASK);
+	PacketTagType* tag = RingWriteBegin();
+	if (tag)
+	{
+		tag->command = GS_RINGTYPE_FREEZE;
+		tag->data[0] = (int)mode;
+		tag->pointer = (uptr)&data;
+		RingWriteEnd();
+	}
 	WaitGS(false);
 }
 
@@ -512,25 +565,26 @@ void MTGS::SwitchRenderer(GSRendererType renderer, GSInterlaceMode interlace)
 // Adds a finished GS Packet to the MTGS ring buffer
 void Gif_AddCompletedGSPacket(GS_Packet& _gsPack, GIF_PATH _path)
 {
-	const unsigned int writepos = retro_atomic_load_acquire_int(&MTGS::s_WritePos);
-	PacketTagType& tag          = (PacketTagType&)m_Ring[writepos];
+	PacketTagType* tag = RingWriteBegin();
+	if (!tag)
+		return;
 	if (_gsPack.size == ~0u)
 	{
 		// Used in MTVU mode... MTVU will later complete a real packet
-		tag.command                 = GS_RINGTYPE_MTVU_GSPACKET;
-		tag.data[0]                 = 0;
-		tag.data[1]                 = (int)0;
+		tag->command = GS_RINGTYPE_MTVU_GSPACKET;
+		tag->data[0] = 0;
+		tag->data[1] = (int)0;
 	}
 	else
 	{
-		tag.command                 = GS_RINGTYPE_GSPACKET;
-		tag.data[0]                 = (int)_gsPack.offset;
-		tag.data[1]                 = (int)_gsPack.size;
+		tag->command = GS_RINGTYPE_GSPACKET;
+		tag->data[0] = (int)_gsPack.offset;
+		tag->data[1] = (int)_gsPack.size;
 
 		retro_atomic_fetch_add_int(&gifUnit.gifPath[_path].readAmount, _gsPack.size);
 	}
-	tag.data[2]                         = (int)_path;
-	retro_atomic_store_release_int(&MTGS::s_WritePos, (writepos + 1) & RINGBUFFERMASK);
+	tag->data[2] = (int)_path;
+	RingWriteEnd();
 	MTGS::s_sem_event.NotifyOfWork();
 }
 
@@ -545,15 +599,16 @@ void Gif_AddBlankGSPacket(u32 _size, GIF_PATH _path)
 		return;
 
 	retro_atomic_fetch_add_int(&gifUnit.gifPath[_path].readAmount, _size);
-	const unsigned int writepos = retro_atomic_load_acquire_int(&MTGS::s_WritePos);
-	PacketTagType& tag          = (PacketTagType&)m_Ring[writepos];
+	PacketTagType* tag = RingWriteBegin();
+	if (!tag)
+		return;
 
-	tag.command                 = GS_RINGTYPE_GSPACKET;
-	tag.data[0]                 = (int)~0u;
-	tag.data[1]                 = (int)_size;
-	tag.data[2]                 = (int)_path;
+	tag->command = GS_RINGTYPE_GSPACKET;
+	tag->data[0] = (int)~0u;
+	tag->data[1] = (int)_size;
+	tag->data[2] = (int)_path;
 
-	retro_atomic_store_release_int(&MTGS::s_WritePos, (writepos + 1) & RINGBUFFERMASK);
+	RingWriteEnd();
 	MTGS::s_sem_event.NotifyOfWork();
 }
 
