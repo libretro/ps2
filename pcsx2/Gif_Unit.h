@@ -15,11 +15,12 @@
 
 #pragma once
 #include <retro_atomic.h>
+#include <retro_spsc.h>
 #include <deque>
 #include <cstring> /* memset */
 
+#include "../common/AlignedMalloc.h"
 #include "../common/VectorIntrin.h"
-#include "../common/boost_spsc_queue.hpp"
 
 #include "Gif.h"
 #include "Vif.h"
@@ -201,12 +202,29 @@ struct Gif_Path_MTVU
 	// Set a size based on MTGS but keep a factor 2 to avoid too waste to much
 	// memory overhead. Note the struct is instantied 3 times (for each gif
 	// path)
-	ringbuffer_base<GS_Packet, RINGBUFFERSIZE / 2> gsPackQueue;
-	Gif_Path_MTVU() { Reset(); }
+	//
+	// One GS_Packet per record.  The byte capacity is a whole number of
+	// packets, so a record never straddles the wrap and every avail count
+	// the queue reports is a whole number of packets - which is what lets
+	// the framing be nothing more than sizeof(GS_Packet).
+	retro_spsc_t gsPackQueue;
+	bool gsPackQueueOk;
+	Gif_Path_MTVU()
+	{
+		gsPackQueueOk = retro_spsc_init(&gsPackQueue,
+			(RINGBUFFERSIZE / 2) * sizeof(GS_Packet));
+		Reset();
+	}
+	~Gif_Path_MTVU() { retro_spsc_free(&gsPackQueue); }
+	Gif_Path_MTVU(const Gif_Path_MTVU&) = delete;
+	Gif_Path_MTVU& operator=(const Gif_Path_MTVU&) = delete;
 	void Reset()
 	{
 		fakePackets = 0;
-		gsPackQueue.reset();
+		/* Both sides are quiesced at a VM reset, which is the only
+		 * caller besides construction. */
+		if (gsPackQueueOk)
+			retro_spsc_clear(&gsPackQueue);
 		fakePacket.offset     = 0;
 		fakePacket.size       = ~0u; // Used to indicate that its a fake packet
 		fakePacket.cycles     = 0;
@@ -498,8 +516,17 @@ struct Gif_Path
 		// Performance note: fetch_add atomic operation might create some stall for atomic
 		// operation in gsPack.push
 		retro_atomic_fetch_add_int(&readAmount, gsPack.size + gsPack.readAmount);
-		while (!mtvu.gsPackQueue.push(gsPack))
-			;
+		/* Wait for room for a whole packet before writing any of it:
+		 * a short write would put a partial record in the queue and
+		 * every packet after it would be read off by one. */
+		if (mtvu.gsPackQueueOk)
+		{
+			void* dst;
+			while (retro_spsc_write_begin(&mtvu.gsPackQueue, &dst) < sizeof(GS_Packet))
+				;
+			memcpy(dst, &gsPack, sizeof(GS_Packet));
+			retro_spsc_write_end(&mtvu.gsPackQueue, sizeof(GS_Packet));
+		}
 
 		gsPack.offset     = curOffset;
 		gsPack.size       = 0;
@@ -511,22 +538,30 @@ struct Gif_Path
 	GS_Packet GetGSPacketMTVU()
 	{
 		// FIXME is the error path useful ?
-		if (!mtvu.gsPackQueue.empty())
-			return mtvu.gsPackQueue.front();
+		const void* src;
+		if (retro_spsc_read_begin(&mtvu.gsPackQueue, &src) >= sizeof(GS_Packet))
+		{
+			GS_Packet pkt;
+			memcpy(&pkt, src, sizeof(GS_Packet));
+			return pkt;
+		}
 		return GS_Packet(); // gsPack.size will be 0
 	}
 
 	// MTVU: Gets called by MTGS thread
 	void PopGSPacketMTVU()
 	{
-		mtvu.gsPackQueue.pop();
+		/* The span was already established by the GetGSPacketMTVU
+		 * that precedes every pop; skip commits it without deriving
+		 * it a second time. */
+		retro_spsc_skip(&mtvu.gsPackQueue, sizeof(GS_Packet));
 	}
 
 	// MTVU: Returns the amount of pending
 	// GS Packets that MTGS hasn't yet processed
 	u32 GetPendingGSPackets()
 	{
-		return mtvu.gsPackQueue.size();
+		return (u32)(retro_spsc_read_avail(&mtvu.gsPackQueue) / sizeof(GS_Packet));
 	}
 };
 
