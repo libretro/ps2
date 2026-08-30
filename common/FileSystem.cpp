@@ -189,18 +189,6 @@ int64_t rfwrite(void const* buffer,
 }
 #endif
 
-#ifdef _WIN32
-static std::time_t ConvertFileTimeToUnixTime(const FILETIME& ft)
-{
-	/* based off https://stackoverflow.com/a/6161842 */
-	static constexpr s64 WINDOWS_TICK = 10000000;
-	static constexpr s64 SEC_TO_UNIX_EPOCH = 11644473600LL;
-
-	const s64 full = static_cast<s64>((static_cast<u64>(ft.dwHighDateTime) << 32) | static_cast<u64>(ft.dwLowDateTime));
-	return static_cast<std::time_t>(full / WINDOWS_TICK - SEC_TO_UNIX_EPOCH);
-}
-#endif
-
 template <typename T>
 static inline void PathAppendString(std::string& dst, const T& src)
 {
@@ -610,6 +598,21 @@ std::optional<std::string> FileSystem::ReadFileToString(const char* filename)
 }
 
 #ifdef _WIN32
+static void TranslateStat64(struct stat* st, const struct _stat64& st64)
+{
+	static constexpr __int64 MAX_SIZE = static_cast<__int64>(std::numeric_limits<decltype(st->st_size)>::max());
+	st->st_dev = st64.st_dev;
+	st->st_ino = st64.st_ino;
+	st->st_mode = st64.st_mode;
+	st->st_nlink = st64.st_nlink;
+	st->st_uid = st64.st_uid;
+	st->st_rdev = st64.st_rdev;
+	st->st_size = static_cast<decltype(st->st_size)>((st64.st_size > MAX_SIZE) ? MAX_SIZE : st64.st_size);
+	st->st_atime = static_cast<time_t>(st64.st_atime);
+	st->st_mtime = static_cast<time_t>(st64.st_mtime);
+	st->st_ctime = static_cast<time_t>(st64.st_ctime);
+}
+
 bool FileSystem::StatFile(const char* path, struct stat* st)
 {
 	struct _stat64 st64;
