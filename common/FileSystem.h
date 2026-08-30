@@ -87,7 +87,6 @@ namespace FileSystem
 
 	std::optional<std::vector<u8>> ReadBinaryFile(const char* filename);
 	std::optional<std::string> ReadFileToString(const char* filename);
-	bool WriteBinaryFile(const char* filename, const void* data, size_t data_length);
 
 	/// Removes a directory.
 	bool DeleteDirectory(const char* path);

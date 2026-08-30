@@ -608,20 +608,6 @@ std::optional<std::string> FileSystem::ReadFileToString(const char* filename)
 	return res;
 }
 
-bool FileSystem::WriteBinaryFile(const char* filename, const void* data, size_t data_length)
-{
-	RFILE *fp = OpenFile(filename, "wb");
-	if (!fp)
-		return false;
-	if (data_length > 0 && static_cast<size_t>(rfwrite(data, 1u, data_length, fp)) != data_length)
-	{
-		rfclose(fp);
-		return false;
-	}
-	rfclose(fp);
-	return true;
-}
-
 #ifdef _WIN32
 static u32 RecursiveFindFiles(const char* origin_path, const char* parent_path, const char* path, const char* pattern,
 	u32 flags, FileSystem::FindResultsArray* results)
