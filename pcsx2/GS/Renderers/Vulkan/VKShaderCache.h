@@ -119,7 +119,11 @@ class VKShaderCache
 		CacheIndex m_index;
 
 		VkPipelineCache m_pipeline_cache = VK_NULL_HANDLE;
+		/* Hash of the bytes the pipeline cache file is known to hold,
+		 * valid only while m_pipeline_cache_on_disk is set. */
+		u64 m_pipeline_cache_disk_hash = 0;
 		bool m_pipeline_cache_dirty = false;
+		bool m_pipeline_cache_on_disk = false;
 };
 
 extern std::unique_ptr<VKShaderCache> g_vulkan_shader_cache;

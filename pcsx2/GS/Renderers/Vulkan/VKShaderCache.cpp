@@ -16,6 +16,7 @@
 #include <cstring>
 
 #include <file/file_path.h>
+#include <streams/file_stream.h>
 
 #include "VKShaderCache.h"
 #include "GSDeviceVK.h"
@@ -437,6 +438,9 @@ bool VKShaderCache::CreateNewPipelineCache()
 		FileSystem::DeleteFilePath(m_pipeline_cache_filename.c_str());
 	}
 
+	m_pipeline_cache_on_disk = false;
+	m_pipeline_cache_disk_hash = 0;
+
 	const VkPipelineCacheCreateInfo ci{VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO, nullptr, 0, 0, nullptr};
 	VkResult res = vkCreatePipelineCache(vk_init_info.device, &ci, nullptr, &m_pipeline_cache);
 	if (res != VK_SUCCESS)
@@ -469,6 +473,9 @@ bool VKShaderCache::ReadExistingPipelineCache()
 	if (res != VK_SUCCESS)
 		return false;
 
+	m_pipeline_cache_disk_hash = XXH3_64bits(data->data(), data->size());
+	m_pipeline_cache_on_disk = true;
+
 	return true;
 }
 
@@ -489,16 +496,24 @@ bool VKShaderCache::FlushPipelineCache()
 
 	data.resize(data_size);
 
-	// Save disk writes if it hasn't changed, think of the poor SSDs.
-	int32_t sd_size = path_get_size(m_pipeline_cache_filename.c_str());
-	if (sd_size == -1 || sd_size != static_cast<s64>(data_size))
+	// Save disk writes if it hasn't changed, think of the poor SSDs.  The
+	// comparison is on content: a file whose length happens to match is not
+	// the file we wrote, and the one case where that matters is the one
+	// worth spending a write on - a truncated cache that a later run would
+	// hand to the driver.
+	const u64 hash = XXH3_64bits(data.data(), data.size());
+	if (!m_pipeline_cache_on_disk || hash != m_pipeline_cache_disk_hash)
 	{
 		Console.WriteLn("Writing %zu bytes to '%s'", data_size, m_pipeline_cache_filename.c_str());
-		if (!FileSystem::WriteBinaryFile(m_pipeline_cache_filename.c_str(), data.data(), data.size()))
+		if (!filestream_write_file_atomic(m_pipeline_cache_filename.c_str(), data.data(),
+					static_cast<int64_t>(data.size())))
 		{
 			Console.Error("Failed to write pipeline cache to '%s'", m_pipeline_cache_filename.c_str());
 			return false;
 		}
+
+		m_pipeline_cache_disk_hash = hash;
+		m_pipeline_cache_on_disk = true;
 	}
 	else
 	{
