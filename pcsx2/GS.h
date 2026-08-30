@@ -352,16 +352,19 @@ extern u64 gsRead64(u32 mem);
 extern retro_atomic_int_t s_GSRegistersWritten;
 
 // Size of the ringbuffer as a power of 2 -- size is a multiple of simd128s.
-// (actual size is 1<<m_RingBufferSizeFactor simd vectors [128-bit values])
-// A value of 19 is a 8meg ring buffer.  18 would be 4 megs, and 20 would be 16 megs.
-// Default was 2mb, but some games with lots of MTGS activity want 8mb to run fast (rama)
-// size of the ringbuffer in simd128's. RingBufferSize = 1 << RINGBUFFERSIZEFACTOR
+// MTVU GS-packet queue size in GS_Packet records (must be a power of two).
 //
-// NB: this constant now only sizes Gif_Path_MTVU::gsPackQueue (RINGBUFFERSIZE/2,
-// instantiated per GIF path). The MTGS command ring uses MTGS_RINGBUFFERSIZE
-// below, which is sized for the libretro topology where PostVsyncStart pacing
-// keeps occupancy far lower than the upstream multithreaded GS thread case.
-#define RINGBUFFERSIZE 524288
+// One queue exists: GIF path 1 is the only path MTVU drives, and the only
+// one that allocates it. Its old size was inherited from the upstream 8 MiB
+// MTGS ring ("based on MTGS", factor 2) - a ring that no longer exists here.
+// MTGS_RINGBUFFERSIZE below bounds how many MTVU placeholder tags the EE can
+// have outstanding, and each drains the packet queue until a final packet,
+// so occupancy tracks the same PostVsyncStart pacing that keeps the command
+// ring at ~22k entries worst-observed. 65536 records (1 MiB) matches the
+// command ring's bound-with-margin. No measured peak exists for this queue
+// yet: build with MTVU_GSPACK_QUEUE_HIGH_WATER (Gif_Unit.h) to record one
+// and tighten this.
+#define MTVU_GSPACK_QUEUE_RECORDS 65536
 
 // MTGS command-ring size in u128 qwords (must be a power of two).
 //

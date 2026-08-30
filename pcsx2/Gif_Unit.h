@@ -195,29 +195,59 @@ struct GS_FINISH
 	bool gsFINISHPending;
 };
 
+/* Define to 1 to record the packet queue's peak occupancy.  Producer-side
+ * only, one compare per push; the peak is logged and rearmed at every
+ * Reset(), so each session prints what it actually used.  Exists so
+ * MTVU_GSPACK_QUEUE_RECORDS (GS.h) can be tightened from a measurement
+ * instead of a guess. */
+#define MTVU_GSPACK_QUEUE_HIGH_WATER 0
+#if MTVU_GSPACK_QUEUE_HIGH_WATER
+#include "../common/Console.h"
+#endif
+
 struct Gif_Path_MTVU
 {
 	u32 fakePackets; // Fake packets pending to be sent to MTGS
 	GS_Packet fakePacket;
-	// Set a size based on MTGS but keep a factor 2 to avoid too waste to much
-	// memory overhead. Note the struct is instantied 3 times (for each gif
-	// path)
-	//
 	// One GS_Packet per record.  The byte capacity is a whole number of
 	// packets, so a record never straddles the wrap and every avail count
 	// the queue reports is a whole number of packets - which is what lets
 	// the framing be nothing more than sizeof(GS_Packet).
+	//
+	// Only GIF path 1 ever runs through MTVU, so only path 1 allocates
+	// the queue: InitQueue(true) from Gif_Path::Init.  On the other two
+	// paths every member of this struct except fakePackets/fakePacket
+	// stays idle, and the queue stays a pair of null pointers.
 	retro_spsc_t gsPackQueue;
 	bool gsPackQueueOk;
+#if MTVU_GSPACK_QUEUE_HIGH_WATER
+	u32 gsPackQueuePeak; /* producer thread only */
+#endif
 	Gif_Path_MTVU()
 	{
-		gsPackQueueOk = retro_spsc_init(&gsPackQueue,
-			(RINGBUFFERSIZE / 2) * sizeof(GS_Packet));
+		/* The queue struct stays untouched until InitQueue(); every
+		 * path through it - producer, consumer, clear, free - is
+		 * gated on gsPackQueueOk, so nothing reads it first. */
+		gsPackQueueOk = false;
+#if MTVU_GSPACK_QUEUE_HIGH_WATER
+		gsPackQueuePeak = 0;
+#endif
 		Reset();
 	}
-	~Gif_Path_MTVU() { retro_spsc_free(&gsPackQueue); }
+	~Gif_Path_MTVU()
+	{
+		if (gsPackQueueOk)
+			retro_spsc_free(&gsPackQueue);
+	}
 	Gif_Path_MTVU(const Gif_Path_MTVU&) = delete;
 	Gif_Path_MTVU& operator=(const Gif_Path_MTVU&) = delete;
+	void InitQueue(bool use_queue)
+	{
+		if (gsPackQueueOk)
+			retro_spsc_free(&gsPackQueue);
+		gsPackQueueOk = use_queue && retro_spsc_init(&gsPackQueue,
+			MTVU_GSPACK_QUEUE_RECORDS * sizeof(GS_Packet));
+	}
 	void Reset()
 	{
 		fakePackets = 0;
@@ -225,6 +255,12 @@ struct Gif_Path_MTVU
 		 * caller besides construction. */
 		if (gsPackQueueOk)
 			retro_spsc_clear(&gsPackQueue);
+#if MTVU_GSPACK_QUEUE_HIGH_WATER
+		if (gsPackQueuePeak)
+			Console.WriteLn("MTVU gsPackQueue peak occupancy: %u of %u records",
+				gsPackQueuePeak, (u32)MTVU_GSPACK_QUEUE_RECORDS);
+		gsPackQueuePeak = 0;
+#endif
 		fakePacket.offset     = 0;
 		fakePacket.size       = ~0u; // Used to indicate that its a fake packet
 		fakePacket.cycles     = 0;
@@ -256,6 +292,9 @@ struct Gif_Path
 		buffSize = _buffSize;
 		buffLimit = _buffSize - _buffSafeZone;
 		buffer = (u8*)_aligned_malloc(buffSize, 16);
+		/* MTVU only ever drives path 1 (MTVU.cpp posts exclusively to
+		 * gifPath[GIF_PATH_1]), so the packet queue exists only there. */
+		mtvu.InitQueue(_idx == GIF_PATH_1);
 		Reset();
 	}
 
@@ -526,6 +565,14 @@ struct Gif_Path
 				;
 			memcpy(dst, &gsPack, sizeof(GS_Packet));
 			retro_spsc_write_end(&mtvu.gsPackQueue, sizeof(GS_Packet));
+#if MTVU_GSPACK_QUEUE_HIGH_WATER
+			{
+				const u32 occ = (u32)((MTVU_GSPACK_QUEUE_RECORDS * sizeof(GS_Packet)
+					- retro_spsc_write_avail(&mtvu.gsPackQueue)) / sizeof(GS_Packet));
+				if (occ > mtvu.gsPackQueuePeak)
+					mtvu.gsPackQueuePeak = occ;
+			}
+#endif
 		}
 
 		gsPack.offset     = curOffset;
@@ -539,7 +586,7 @@ struct Gif_Path
 	{
 		// FIXME is the error path useful ?
 		const void* src;
-		if (retro_spsc_read_begin(&mtvu.gsPackQueue, &src) >= sizeof(GS_Packet))
+		if (mtvu.gsPackQueueOk && retro_spsc_read_begin(&mtvu.gsPackQueue, &src) >= sizeof(GS_Packet))
 		{
 			GS_Packet pkt;
 			memcpy(&pkt, src, sizeof(GS_Packet));
@@ -554,13 +601,16 @@ struct Gif_Path
 		/* The span was already established by the GetGSPacketMTVU
 		 * that precedes every pop; skip commits it without deriving
 		 * it a second time. */
-		retro_spsc_skip(&mtvu.gsPackQueue, sizeof(GS_Packet));
+		if (mtvu.gsPackQueueOk)
+			retro_spsc_skip(&mtvu.gsPackQueue, sizeof(GS_Packet));
 	}
 
 	// MTVU: Returns the amount of pending
 	// GS Packets that MTGS hasn't yet processed
 	u32 GetPendingGSPackets()
 	{
+		if (!mtvu.gsPackQueueOk)
+			return 0;
 		return (u32)(retro_spsc_read_avail(&mtvu.gsPackQueue) / sizeof(GS_Packet));
 	}
 };
