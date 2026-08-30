@@ -58,7 +58,6 @@ enum FILESYSTEM_FIND_FLAGS
 
 struct FILESYSTEM_FIND_DATA
 {
-	std::time_t ModificationTime;
 	std::string FileName;
 	s64 Size;
 	u32 Attributes;

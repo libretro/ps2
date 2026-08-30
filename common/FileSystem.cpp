@@ -26,6 +26,7 @@
 #include <utility>
 
 #include <file/file_path.h>
+#include <retro_dirent.h>
 #include <encodings/utf.h>
 #include <string/stdstring.h>
 
@@ -609,146 +610,6 @@ std::optional<std::string> FileSystem::ReadFileToString(const char* filename)
 }
 
 #ifdef _WIN32
-static u32 RecursiveFindFiles(const char* origin_path, const char* parent_path, const char* path, const char* pattern,
-	u32 flags, FileSystem::FindResultsArray* results)
-{
-	std::string tempStr;
-	if (path)
-	{
-		if (parent_path)
-			tempStr = StringUtil::StdStringFromFormat("%s\\%s\\%s\\*", origin_path, parent_path, path);
-		else
-			tempStr = StringUtil::StdStringFromFormat("%s\\%s\\*", origin_path, path);
-	}
-	else
-		tempStr = StringUtil::StdStringFromFormat("%s\\*", origin_path);
-
-	/* holder for utf-8 conversion */
-	WIN32_FIND_DATAW wfd;
-	std::string utf8_filename;
-	utf8_filename.reserve((sizeof(wfd.cFileName) / sizeof(wfd.cFileName[0])) * 2);
-	wchar_t *path_wide = utf8_to_utf16_string_alloc((tempStr).c_str());
-	HANDLE hFind = FindFirstFileW(path_wide, &wfd);
-	free(path_wide);
-	if (hFind == INVALID_HANDLE_VALUE)
-		return 0;
-
-	/* small speed optimization for '*' case */
-	bool hasWildCards     = false;
-	bool wildCardMatchAll = false;
-	u32 nFiles = 0;
-	if (std::strpbrk(pattern, "*?"))
-	{
-		hasWildCards = true;
-		wildCardMatchAll = !(std::strcmp(pattern, "*"));
-	}
-
-	/* iterate results */
-	do
-	{
-		if (wfd.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN && !(flags & FILESYSTEM_FIND_HIDDEN_FILES))
-			continue;
-
-		if (wfd.cFileName[0] == L'.')
-		{
-			if (wfd.cFileName[1] == L'\0' || (wfd.cFileName[1] == L'.' && wfd.cFileName[2] == L'\0'))
-				continue;
-		}
-
-		if (!StringUtil::WideStringToUTF8String(utf8_filename, wfd.cFileName))
-			continue;
-
-		FILESYSTEM_FIND_DATA outData;
-		outData.Attributes = 0;
-
-		if (wfd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-		{
-			if (flags & FILESYSTEM_FIND_RECURSIVE)
-			{
-				/* recurse into this directory */
-				if (parent_path)
-				{
-					const std::string recurseDir = StringUtil::StdStringFromFormat("%s\\%s", parent_path, path);
-					nFiles += RecursiveFindFiles(origin_path, recurseDir.c_str(), utf8_filename.c_str(), pattern, flags, results);
-				}
-				else
-					nFiles += RecursiveFindFiles(origin_path, path, utf8_filename.c_str(), pattern, flags, results);
-			}
-
-			if (!(flags & FILESYSTEM_FIND_FOLDERS))
-				continue;
-
-			outData.Attributes |= FILESYSTEM_FILE_ATTRIBUTE_DIRECTORY;
-		}
-		else
-		{
-			if (!(flags & FILESYSTEM_FIND_FILES))
-				continue;
-		}
-
-		if (wfd.dwFileAttributes & FILE_ATTRIBUTE_READONLY)
-			outData.Attributes |= FILESYSTEM_FILE_ATTRIBUTE_READ_ONLY;
-
-		/* match the filename */
-		if (hasWildCards)
-		{
-			if (!wildCardMatchAll && !StringUtil::WildcardMatch(utf8_filename.c_str(), pattern))
-				continue;
-		}
-		else
-		{
-			if (std::strcmp(utf8_filename.c_str(), pattern) != 0)
-				continue;
-		}
-
-		/* add file to list */
-		/* TODO string formatter, clean this mess.. */
-		if (!(flags & FILESYSTEM_FIND_RELATIVE_PATHS))
-		{
-			if (parent_path)
-				outData.FileName =
-					StringUtil::StdStringFromFormat("%s\\%s\\%s\\%s", origin_path, parent_path, path, utf8_filename.c_str());
-			else if (path)
-				outData.FileName = StringUtil::StdStringFromFormat("%s\\%s\\%s", origin_path, path, utf8_filename.c_str());
-			else
-				outData.FileName = StringUtil::StdStringFromFormat("%s\\%s", origin_path, utf8_filename.c_str());
-		}
-		else
-		{
-			if (parent_path)
-				outData.FileName = StringUtil::StdStringFromFormat("%s\\%s\\%s", parent_path, path, utf8_filename.c_str());
-			else if (path)
-				outData.FileName = StringUtil::StdStringFromFormat("%s\\%s", path, utf8_filename.c_str());
-			else
-				outData.FileName = utf8_filename;
-		}
-
-		outData.ModificationTime = ConvertFileTimeToUnixTime(wfd.ftLastWriteTime);
-		outData.Size = (static_cast<u64>(wfd.nFileSizeHigh) << 32) | static_cast<u64>(wfd.nFileSizeLow);
-
-		nFiles++;
-		results->push_back(std::move(outData));
-	} while (FindNextFileW(hFind, &wfd) == TRUE);
-	FindClose(hFind);
-
-	return nFiles;
-}
-
-static void TranslateStat64(struct stat* st, const struct _stat64& st64)
-{
-	static constexpr __int64 MAX_SIZE = static_cast<__int64>(std::numeric_limits<decltype(st->st_size)>::max());
-	st->st_dev = st64.st_dev;
-	st->st_ino = st64.st_ino;
-	st->st_mode = st64.st_mode;
-	st->st_nlink = st64.st_nlink;
-	st->st_uid = st64.st_uid;
-	st->st_rdev = st64.st_rdev;
-	st->st_size = static_cast<decltype(st->st_size)>((st64.st_size > MAX_SIZE) ? MAX_SIZE : st64.st_size);
-	st->st_atime = static_cast<time_t>(st64.st_atime);
-	st->st_mtime = static_cast<time_t>(st64.st_mtime);
-	st->st_ctime = static_cast<time_t>(st64.st_ctime);
-}
-
 bool FileSystem::StatFile(const char* path, struct stat* st)
 {
 	struct _stat64 st64;
@@ -789,131 +650,6 @@ bool FileSystem::DeleteDirectory(const char* path)
 	return ret;
 }
 #else
-static u32 RecursiveFindFiles(const char* OriginPath, const char* ParentPath, const char* Path, const char* Pattern,
-	u32 Flags, FileSystem::FindResultsArray* pResults)
-{
-	std::string tempStr;
-	if (Path)
-	{
-		if (ParentPath)
-			tempStr = StringUtil::StdStringFromFormat("%s/%s/%s", OriginPath, ParentPath, Path);
-		else
-			tempStr = StringUtil::StdStringFromFormat("%s/%s", OriginPath, Path);
-	}
-	else
-		tempStr = StringUtil::StdStringFromFormat("%s", OriginPath);
-
-	DIR* pDir = opendir(tempStr.c_str());
-	if (pDir == nullptr)
-		return 0;
-
-	/* small speed optimization for '*' case */
-	bool hasWildCards     = false;
-	bool wildCardMatchAll = false;
-	u32 nFiles = 0;
-	if (std::strpbrk(Pattern, "*?"))
-	{
-		hasWildCards = true;
-		wildCardMatchAll = (std::strcmp(Pattern, "*") == 0);
-	}
-
-	/* iterate results */
-	struct dirent* pDirEnt;
-	while ((pDirEnt = readdir(pDir)))
-	{
-		if (pDirEnt->d_name[0] == '.')
-		{
-			if (pDirEnt->d_name[1] == '\0' || (pDirEnt->d_name[1] == '.' && pDirEnt->d_name[2] == '\0'))
-				continue;
-
-			if (!(Flags & FILESYSTEM_FIND_HIDDEN_FILES))
-				continue;
-		}
-
-		std::string full_path;
-		if (ParentPath)
-			full_path = StringUtil::StdStringFromFormat("%s/%s/%s/%s", OriginPath, ParentPath, Path, pDirEnt->d_name);
-		else if (Path)
-			full_path = StringUtil::StdStringFromFormat("%s/%s/%s", OriginPath, Path, pDirEnt->d_name);
-		else
-			full_path = StringUtil::StdStringFromFormat("%s/%s", OriginPath, pDirEnt->d_name);
-
-		FILESYSTEM_FIND_DATA outData;
-		outData.Attributes = 0;
-
-#if defined(__HAIKU__) || defined(__APPLE__) || defined(__FreeBSD__)
-		struct stat sDir;
-		if (stat(full_path.c_str(), &sDir) < 0)
-			continue;
-
-#else
-		struct stat64 sDir;
-		if (stat64(full_path.c_str(), &sDir) < 0)
-			continue;
-#endif
-
-		if (S_ISDIR(sDir.st_mode))
-		{
-			if (Flags & FILESYSTEM_FIND_RECURSIVE)
-			{
-				/* recurse into this directory */
-				if (ParentPath)
-				{
-					std::string recursiveDir = StringUtil::StdStringFromFormat("%s/%s", ParentPath, Path);
-					nFiles += RecursiveFindFiles(OriginPath, recursiveDir.c_str(), pDirEnt->d_name, Pattern, Flags, pResults);
-				}
-				else
-					nFiles += RecursiveFindFiles(OriginPath, Path, pDirEnt->d_name, Pattern, Flags, pResults);
-			}
-
-			if (!(Flags & FILESYSTEM_FIND_FOLDERS))
-				continue;
-
-			outData.Attributes |= FILESYSTEM_FILE_ATTRIBUTE_DIRECTORY;
-		}
-		else
-		{
-			if (!(Flags & FILESYSTEM_FIND_FILES))
-				continue;
-		}
-
-		outData.Size = static_cast<u64>(sDir.st_size);
-		outData.ModificationTime = sDir.st_mtime;
-
-		/* match the filename */
-		if (hasWildCards)
-		{
-			if (!wildCardMatchAll && !StringUtil::WildcardMatch(pDirEnt->d_name, Pattern))
-				continue;
-		}
-		else
-		{
-			if (std::strcmp(pDirEnt->d_name, Pattern) != 0)
-				continue;
-		}
-
-		/* add file to list */
-		/* TODO string formatter, clean this mess.. */
-		if (!(Flags & FILESYSTEM_FIND_RELATIVE_PATHS))
-			outData.FileName = std::move(full_path);
-		else
-		{
-			if (ParentPath)
-				outData.FileName = StringUtil::StdStringFromFormat("%s/%s/%s", ParentPath, Path, pDirEnt->d_name);
-			else if (Path)
-				outData.FileName = StringUtil::StdStringFromFormat("%s/%s", Path, pDirEnt->d_name);
-			else
-				outData.FileName = pDirEnt->d_name;
-		}
-
-		nFiles++;
-		pResults->push_back(std::move(outData));
-	}
-
-	closedir(pDir);
-	return nFiles;
-}
-
 bool FileSystem::StatFile(const char* path, struct stat* st)
 {
 	return stat(path, st) == 0;
@@ -938,11 +674,101 @@ bool FileSystem::DeleteDirectory(const char* path)
 }
 #endif
 
-bool FileSystem::FindFiles(const char* Path, const char* Pattern, u32 Flags, FindResultsArray* pResults)
+/* One directory walk for every platform.  retro_dirent answers "is this a
+ * directory" out of the directory entry itself wherever the filesystem
+ * fills d_type (ext4, APFS) and out of WIN32_FIND_DATA on Windows, so
+ * classification costs no syscall, and a size is fetched only for the
+ * entries that survive the filters rather than for everything the walk
+ * passes over. */
+static u32 RecursiveFindFiles(const std::string& dir_path, const std::string& rel_prefix,
+	const char* pattern, u32 flags, FileSystem::FindResultsArray* results)
 {
-	if (Path[0] == '\0')
+	struct RDIR* dir = retro_opendir_include_hidden(dir_path.c_str(), true);
+	if (!dir)
+		return 0;
+	if (retro_dirent_error(dir))
+	{
+		retro_closedir(dir);
+		return 0;
+	}
+
+	/* Small speed optimization for the '*' case. */
+	const bool has_wildcards = (std::strpbrk(pattern, "*?") != nullptr);
+	const bool match_all     = has_wildcards && !std::strcmp(pattern, "*");
+	u32 found                = 0;
+
+	while (retro_readdir(dir))
+	{
+		const char* name = retro_dirent_get_name(dir);
+
+		if (name[0] == '.')
+		{
+			if (name[1] == '\0' || (name[1] == '.' && name[2] == '\0'))
+				continue;
+			if (!(flags & FILESYSTEM_FIND_HIDDEN_FILES))
+				continue;
+		}
+
+		const bool is_dir = retro_dirent_is_dir(dir, nullptr);
+		std::string full_path(dir_path);
+		full_path += FS_OSPATH_SEPARATOR_CHARACTER;
+		full_path += name;
+
+		if (is_dir)
+		{
+			if (flags & FILESYSTEM_FIND_RECURSIVE)
+			{
+				std::string child_prefix(rel_prefix);
+				child_prefix += name;
+				child_prefix += FS_OSPATH_SEPARATOR_CHARACTER;
+				found += RecursiveFindFiles(full_path, child_prefix, pattern, flags, results);
+			}
+
+			if (!(flags & FILESYSTEM_FIND_FOLDERS))
+				continue;
+		}
+		else if (!(flags & FILESYSTEM_FIND_FILES))
+			continue;
+
+		if (has_wildcards)
+		{
+			if (!match_all && !StringUtil::WildcardMatch(name, pattern))
+				continue;
+		}
+		else if (std::strcmp(name, pattern) != 0)
+			continue;
+
+		/* Only an entry that survived the filters is sized, and an
+		 * entry that cannot be sized is not an entry - a broken
+		 * symlink has nothing behind it to report. */
+		const s64 size = (s64)path_get_size(full_path.c_str());
+		if (size < 0)
+			continue;
+
+		FILESYSTEM_FIND_DATA out_data;
+		out_data.Attributes = is_dir ? FILESYSTEM_FILE_ATTRIBUTE_DIRECTORY : 0;
+		out_data.Size       = size;
+		if (flags & FILESYSTEM_FIND_RELATIVE_PATHS)
+		{
+			out_data.FileName = rel_prefix;
+			out_data.FileName += name;
+		}
+		else
+			out_data.FileName = std::move(full_path);
+
+		results->push_back(std::move(out_data));
+		found++;
+	}
+
+	retro_closedir(dir);
+	return found;
+}
+
+bool FileSystem::FindFiles(const char* path, const char* pattern, u32 flags, FindResultsArray* results)
+{
+	if (path[0] == '\0')
 		return false;
-	if (!(Flags & FILESYSTEM_FIND_KEEP_ARRAY))
-		pResults->clear();
-	return (RecursiveFindFiles(Path, nullptr, nullptr, Pattern, Flags, pResults) > 0);
+	if (!(flags & FILESYSTEM_FIND_KEEP_ARRAY))
+		results->clear();
+	return RecursiveFindFiles(path, std::string(), pattern, flags, results) > 0;
 }
