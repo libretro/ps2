@@ -925,7 +925,10 @@ int LoadPatchesFromDir(const std::string& crc, const std::string& folder, const 
 	}
 
 	FileSystem::FindResultsArray files;
-	FileSystem::FindFiles(folder.c_str(), StringUtil::StdStringFromFormat("*.pnach", crc.c_str()).c_str(),
+	/* The CRC filter happens below, on the results: filenames are
+	 * matched by prefix so "ABCD1234 - fix.pnach" styles all load.
+	 * The pattern itself is every pnach in the folder. */
+	FileSystem::FindFiles(folder.c_str(), "*.pnach",
 		FILESYSTEM_FIND_FILES | FILESYSTEM_FIND_HIDDEN_FILES, &files);
 
 	if (show_error_when_missing && files.empty())
