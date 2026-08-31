@@ -8,6 +8,17 @@
 
 #include "data_structures.h"
 
+/* INLINE is a generic enough name that other headers claim it too --
+ * libretro-common's retro_inline.h defines it as plain "inline", and
+ * rthreads.h drags that in wherever Granite's thread_prims.hpp is used.
+ * Neither definer guards, so without the #undef the winner depends on
+ * include order, and the two are not equivalent: these helpers want
+ * internal linkage in every translation unit that pulls the header in.
+ * Undefine first so the answer is the same everywhere. */
+#ifdef INLINE
+#undef INLINE
+#endif
+
 #ifdef __cplusplus
 #define INLINE static inline
 namespace ParallelGS {
