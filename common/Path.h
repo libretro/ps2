@@ -23,16 +23,8 @@
 
 namespace Path
 {
-	/// Converts any forward slashes to backslashes on Win32.
-	std::string ToNativePath(const std::string_view& path);
-	void ToNativePath(std::string* path);
-
 	/// Joins path components together, producing a new path.
 	std::string Combine(const std::string_view& base, const std::string_view& next);
-
-	/// Removes all .. and . components from a path.
-	std::string Canonicalize(const std::string_view& path);
-	void Canonicalize(std::string* path);
 
 	/// Returns true if the specified path is an absolute path (C:\Path on Windows or /path on Unix).
 	bool IsAbsolute(const std::string_view& path);
@@ -49,6 +41,4 @@ namespace Path
 	/// Splits a path into its components, handling both Windows and Unix separators.
 	std::vector<std::string_view> SplitWindowsPath(const std::string_view& path);
 
-	/// Splits a path into its components, only handling native separators.
-	std::vector<std::string_view> SplitNativePath(const std::string_view& path);
 } // namespace Path

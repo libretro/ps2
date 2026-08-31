@@ -244,76 +244,6 @@ bool Path::IsAbsolute(const std::string_view& path)
 #endif
 }
 
-std::string Path::ToNativePath(const std::string_view& path)
-{
-	std::string ret;
-	PathAppendString(ret, path);
-
-	/* remove trailing slashes */
-	if (ret.length() > 1)
-	{
-		while (ret.back() == FS_OSPATH_SEPARATOR_CHARACTER)
-			ret.pop_back();
-	}
-
-	return ret;
-}
-
-void Path::ToNativePath(std::string* path)
-{
-	*path = Path::ToNativePath(*path);
-}
-
-/* Joins a string together using the specified delimiter. */
-template <typename T>
-static inline std::string JoinString(const T& start, const T& end, char delimiter)
-{
-	std::string ret;
-	for (auto it = start; it != end; ++it)
-	{
-		if (it != start)
-			ret += delimiter;
-		ret.append(*it);
-	}
-	return ret;
-}
-
-std::string Path::Canonicalize(const std::string_view& path)
-{
-	std::vector<std::string_view> components = Path::SplitNativePath(path);
-	std::vector<std::string_view> new_components;
-	new_components.reserve(components.size());
-	for (const std::string_view& component : components)
-	{
-		if (component == ".")
-		{
-			/* current directory, so it can be skipped, unless it's the only component */
-			if (components.size() == 1)
-				new_components.push_back(std::move(component));
-		}
-		else if (component == "..")
-		{
-			/* parent directory, pop one off if we're not at the beginning, otherwise preserve. */
-			if (!new_components.empty())
-				new_components.pop_back();
-			else
-				new_components.push_back(std::move(component));
-		}
-		else
-		{
-			/* anything else, preserve */
-			new_components.push_back(std::move(component));
-		}
-	}
-
-	return JoinString(new_components.begin(), new_components.end(), FS_OSPATH_SEPARATOR_CHARACTER);
-}
-
-void Path::Canonicalize(std::string* path)
-{
-	*path = Canonicalize(*path);
-}
-
 std::string Path::ReplaceExtension(const std::string_view& path, const std::string_view& new_extension)
 {
 	const std::string_view::size_type pos = path.rfind('.');
@@ -396,40 +326,6 @@ std::vector<std::string_view> Path::SplitWindowsPath(const std::string_view& pat
 	return parts;
 }
 
-std::vector<std::string_view> Path::SplitNativePath(const std::string_view& path)
-{
-#ifdef _WIN32
-	return SplitWindowsPath(path);
-#else
-	std::vector<std::string_view> parts;
-
-	std::string::size_type start = 0;
-	std::string::size_type pos = 0;
-	while (pos < path.size())
-	{
-		if (path[pos] != '/')
-		{
-			pos++;
-			continue;
-		}
-
-		/* skip consecutive separators
-		 * for unix, we create an empty element at the beginning when it's an absolute path
-		 * that way, when it's re-joined later, we preserve the starting slash. */
-		if (pos != start || pos == 0)
-			parts.push_back(path.substr(start, pos - start));
-
-		pos++;
-		start = pos;
-	}
-
-	if (start != pos)
-		parts.push_back(path.substr(start));
-
-	return parts;
-#endif
-}
-
 std::string Path::Combine(const std::string_view& base, const std::string_view& next)
 {
 	std::string ret;
@@ -447,19 +343,6 @@ std::string Path::Combine(const std::string_view& base, const std::string_view& 
 	return ret;
 }
 
-int FileSystem::OpenFDFile(const char* filename, int flags, int mode)
-{
-#ifdef _WIN32
-	if (string_is_empty(filename))
-		return -1;
-	wchar_t *wfilename = utf8_to_utf16_string_alloc(filename);
-	int ret = _wopen(wfilename, flags, mode);
-	free(wfilename);
-	return ret;
-#else
-	return open(filename, flags, mode);
-#endif
-}
 
 RFILE* FileSystem::OpenFile(const char *filename, const char *mode)
 {

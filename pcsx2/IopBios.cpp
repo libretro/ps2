@@ -95,8 +95,9 @@ typedef struct
 
 static char hostRoot[PCSX2_PATH_MAX];
 
-/* Lexical canonicalise: a port of Path::Canonicalize, checked against it
- * in tests/path/canon_test.c over that table and 200,000 generated paths. */
+/* Lexical canonicalise: a port of the since-removed Path::Canonicalize,
+ * checked against it in tests/path/canon_test.c over that table and
+ * 200,000 generated paths before the original was deleted. */
 static void iop_canonicalize(char *s)
 {
 	char       *comps[128];
@@ -107,8 +108,9 @@ static void iop_canonicalize(char *s)
 	char       *starts[128];
 	int         nstart  = 0;
 
-	/* Split exactly as SplitNativePath does, including the empty leading
-	 * component for an absolute path. */
+	/* Split on the native separator, including the empty leading
+	 * component for an absolute path (the rule the since-removed
+	 * Path::SplitNativePath followed). */
 	{
 		size_t start = 0, pos = 0;
 		const size_t len = strlen(s);
