@@ -26,7 +26,7 @@
 
 #include "common/Align.h"
 #include "common/Console.h"
-#include "common/FileSystem.h"
+#include "HostFS.h"
 #include "common/Path.h"
 #include "common/StringUtil.h"
 
@@ -539,7 +539,7 @@ static bool ParseDDSHeader(RFILE* fp, DDSLoadInfo* info)
 
 	// Check for truncated or corrupted files.
 	info->base_image_offset = sizeof(magic) + header_size;
-	if (info->base_image_offset >= FileSystem::FSize64(fp))
+	if (info->base_image_offset >= filestream_get_size(fp))
 		return false;
 
 	return true;
@@ -572,7 +572,7 @@ static bool ReadDDSMipLevel(RFILE* fp, const std::string& filename, u32 mip_leve
 
 bool DDSLoader(const std::string& filename, GSTextureReplacements::ReplacementTexture* tex, bool only_base_image)
 {
-	RFILE *fp = FileSystem::OpenFile(filename.c_str(), "rb");
+	RFILE *fp = filestream_open(filename.c_str(), RETRO_VFS_FILE_ACCESS_READ, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 	if (!fp)
 		return false;
 
@@ -584,7 +584,7 @@ bool DDSLoader(const std::string& filename, GSTextureReplacements::ReplacementTe
 	}
 
 	// always load the base image
-	if (FileSystem::FSeek64(fp, info.base_image_offset, SEEK_SET) != 0)
+	if (filestream_seek(fp, info.base_image_offset, RETRO_VFS_SEEK_POSITION_START) != 0)
 	{
 		filestream_close(fp);
 		return false;

@@ -23,7 +23,7 @@
 #include <file/file_path.h>
 
 #include "../common/Console.h"
-#include "../common/FileSystem.h"
+#include "HostFS.h"
 #include "../common/FPControl.h"
 #include "../common/SettingsWrapper.h"
 #include "../common/StringUtil.h" /* StdStringFromFormat */

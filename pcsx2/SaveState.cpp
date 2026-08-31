@@ -19,7 +19,7 @@
 
 #include "SaveState.h"
 
-#include "../common/FileSystem.h"
+#include "HostFS.h"
 #include "../common/Path.h"
 #include "../common/StringUtil.h"
 

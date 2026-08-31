@@ -26,7 +26,7 @@
 #include "ShaderCacheVersion.h"
 
 #include "common/Console.h"
-#include "common/FileSystem.h"
+#include "HostFS.h"
 #include "common/Path.h"
 #include "common/StringUtil.h"
 
@@ -297,15 +297,15 @@ bool VKShaderCache::CreateNewShaderCache(const std::string& index_filename, cons
 	if (path_is_valid(index_filename.c_str()))
 	{
 		Console.Warning("Removing existing index file '%s'", index_filename.c_str());
-		FileSystem::DeleteFilePath(index_filename.c_str());
+		filestream_delete(index_filename.c_str());
 	}
 	if (path_is_valid(blob_filename.c_str()))
 	{
 		Console.Warning("Removing existing blob file '%s'", blob_filename.c_str());
-		FileSystem::DeleteFilePath(blob_filename.c_str());
+		filestream_delete(blob_filename.c_str());
 	}
 
-	m_index_file = FileSystem::OpenFile(index_filename.c_str(), "wb");
+	m_index_file = filestream_open(index_filename.c_str(), RETRO_VFS_FILE_ACCESS_WRITE, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 	if (!m_index_file)
 	{
 		Console.Error("Failed to open index file '%s' for writing", index_filename.c_str());
@@ -322,17 +322,17 @@ bool VKShaderCache::CreateNewShaderCache(const std::string& index_filename, cons
 		Console.Error("Failed to write header to index file '%s'", index_filename.c_str());
 		rfclose(m_index_file);
 		m_index_file = nullptr;
-		FileSystem::DeleteFilePath(index_filename.c_str());
+		filestream_delete(index_filename.c_str());
 		return false;
 	}
 
-	m_blob_file = FileSystem::OpenFile(blob_filename.c_str(), "w+b");
+	m_blob_file = filestream_open(blob_filename.c_str(), RETRO_VFS_FILE_ACCESS_READ_WRITE, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 	if (!m_blob_file)
 	{
 		Console.Error("Failed to open blob file '%s' for writing", blob_filename.c_str());
 		rfclose(m_index_file);
 		m_index_file = nullptr;
-		FileSystem::DeleteFilePath(index_filename.c_str());
+		filestream_delete(index_filename.c_str());
 		return false;
 	}
 
@@ -341,7 +341,7 @@ bool VKShaderCache::CreateNewShaderCache(const std::string& index_filename, cons
 
 bool VKShaderCache::ReadExistingShaderCache(const std::string& index_filename, const std::string& blob_filename)
 {
-	m_index_file = FileSystem::OpenFile(index_filename.c_str(), "r+b");
+	m_index_file = filestream_open(index_filename.c_str(), RETRO_VFS_FILE_ACCESS_READ_WRITE | RETRO_VFS_FILE_ACCESS_UPDATE_EXISTING, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 	if (!m_index_file)
 	{
 		// special case here: when there's a sharing violation (i.e. two instances running),
@@ -373,7 +373,11 @@ bool VKShaderCache::ReadExistingShaderCache(const std::string& index_filename, c
 		return false;
 	}
 
-	m_blob_file = FileSystem::OpenFile(blob_filename.c_str(), "a+b");
+	m_blob_file = filestream_open(blob_filename.c_str(),
+		RETRO_VFS_FILE_ACCESS_READ_WRITE | RETRO_VFS_FILE_ACCESS_UPDATE_EXISTING,
+		RETRO_VFS_FILE_ACCESS_HINT_NONE);
+	if (m_blob_file) /* "a+b": append semantics = start at the end */
+		filestream_seek(m_blob_file, 0, RETRO_VFS_SEEK_POSITION_END);
 	if (!m_blob_file)
 	{
 		Console.Error("Blob file '%s' is missing", blob_filename.c_str());
@@ -435,7 +439,7 @@ bool VKShaderCache::CreateNewPipelineCache()
 	if (!m_pipeline_cache_filename.empty() && path_is_valid(m_pipeline_cache_filename.c_str()))
 	{
 		Console.Warning("Removing existing pipeline cache '%s'", m_pipeline_cache_filename.c_str());
-		FileSystem::DeleteFilePath(m_pipeline_cache_filename.c_str());
+		filestream_delete(m_pipeline_cache_filename.c_str());
 	}
 
 	m_pipeline_cache_on_disk = false;
@@ -452,7 +456,16 @@ bool VKShaderCache::CreateNewPipelineCache()
 
 bool VKShaderCache::ReadExistingPipelineCache()
 {
-	std::optional<std::vector<u8>> data = FileSystem::ReadBinaryFile(m_pipeline_cache_filename.c_str());
+	void* data_buf = nullptr;
+	int64_t data_len = 0;
+	std::optional<std::vector<u8>> data;
+	if (filestream_read_file(m_pipeline_cache_filename.c_str(), &data_buf, &data_len))
+	{
+		data.emplace();
+		if (data_len > 0)
+			data->assign(static_cast<const u8*>(data_buf), static_cast<const u8*>(data_buf) + data_len);
+		free(data_buf);
+	}
 	if (!data.has_value())
 		return false;
 

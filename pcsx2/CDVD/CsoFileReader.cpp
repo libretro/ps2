@@ -18,7 +18,7 @@
 
 #include "../../common/Pcsx2Types.h"
 #include "../../common/Console.h"
-#include "../../common/FileSystem.h"
+#include "HostFS.h"
 #include "../../common/StringUtil.h"
 
 #include "CsoFileReader.h"
@@ -137,7 +137,7 @@ bool CsoFileReader::Open2(const char* fileName)
 {
 	Close2();
 	strlcpy(m_filename, fileName, sizeof(m_filename));
-	m_src = FileSystem::OpenFile(m_filename, "rb");
+	m_src = filestream_open(m_filename, RETRO_VFS_FILE_ACCESS_READ, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 
 	bool success = false;
 	if (m_src && ReadFileHeader() && InitializeBuffers())
@@ -155,7 +155,7 @@ bool CsoFileReader::ReadFileHeader()
 {
 	CsoHeader hdr = {};
 
-	if (FileSystem::FSeek64(m_src, m_dataoffset, SEEK_SET) != 0 || rfread(&hdr, 1, sizeof(hdr), m_src) != sizeof(hdr))
+	if (filestream_seek(m_src, m_dataoffset, RETRO_VFS_SEEK_POSITION_START) != 0 || rfread(&hdr, 1, sizeof(hdr), m_src) != sizeof(hdr))
 	{
 		Console.Error("Failed to read CSO file header.");
 		return false;
@@ -290,7 +290,7 @@ int CsoFileReader::ReadChunk(void *dst, s64 chunkID)
 	if (!compressed)
 	{
 		// Just read directly, easy.
-		if (FileSystem::FSeek64(m_src, frameRawPos, SEEK_SET) != 0)
+		if (filestream_seek(m_src, frameRawPos, RETRO_VFS_SEEK_POSITION_START) != 0)
 		{
 			Console.Error("Unable to seek to uncompressed CSO data.");
 			return 0;
@@ -299,7 +299,7 @@ int CsoFileReader::ReadChunk(void *dst, s64 chunkID)
 	}
 	else
 	{
-		if (FileSystem::FSeek64(m_src, frameRawPos, SEEK_SET) != 0)
+		if (filestream_seek(m_src, frameRawPos, RETRO_VFS_SEEK_POSITION_START) != 0)
 		{
 			Console.Error("Unable to seek to compressed CSO data.");
 			return 0;

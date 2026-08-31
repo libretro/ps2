@@ -203,7 +203,8 @@ SOURCES_CXX += \
 	$(COMMON_DIR)/AlignedMalloc.cpp \
 	$(COMMON_DIR)/Console.cpp \
 	$(COMMON_DIR)/FastJmp.cpp \
-	$(COMMON_DIR)/FileSystem.cpp \
+	$(LRPS2_DIR)/HostFS.cpp \
+	$(COMMON_DIR)/Path.cpp \
 	$(COMMON_DIR)/HostSys.cpp \
 	$(COMMON_DIR)/MemorySettingsInterface.cpp \
 	$(COMMON_DIR)/Semaphore.cpp \

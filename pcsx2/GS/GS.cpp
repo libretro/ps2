@@ -16,7 +16,7 @@
 #include "../../common/Console.h"
 #include "Profiler.h"
 #include <cerrno>
-#include "../../common/FileSystem.h"
+#include "HostFS.h"
 #include "../../common/Path.h"
 
 #include "GS.h"

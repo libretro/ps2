@@ -31,7 +31,7 @@
 #include <memory>
 
 #include "../../common/Console.h"
-#include "../../common/FileSystem.h"
+#include "HostFS.h"
 #include "../../common/MemorySettingsInterface.h"
 #include "../../common/Path.h"
 #include "../../common/StringUtil.h"
@@ -200,7 +200,7 @@ void cdvdLoadNVRAM(void)
 {
 	char nvmfile[PCSX2_PATH_MAX];
 	cdvdBiosSiblingPath(nvmfile, sizeof(nvmfile), "nvm");
-	RFILE *fp = FileSystem::OpenFile(nvmfile, "rb");
+	RFILE *fp = filestream_open(nvmfile, RETRO_VFS_FILE_ACCESS_READ, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 	if (!fp || rfread(s_nvram, sizeof(s_nvram), 1, fp) != 1)
 	{
 		Console.Warning("Failed to open or read NVRAM: %s", nvmfile);
@@ -231,7 +231,7 @@ void cdvdLoadNVRAM(void)
 
 	char mecfile[PCSX2_PATH_MAX];
 	cdvdBiosSiblingPath(mecfile, sizeof(mecfile), "mec");
-	fp = FileSystem::OpenFile(mecfile, "rb");
+	fp = filestream_open(mecfile, RETRO_VFS_FILE_ACCESS_READ, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 	if (!fp || rfread(&s_mecha_version, sizeof(s_mecha_version), 1, fp) != 1)
 	{
 		s_mecha_version = DEFAULT_MECHA_VERSION;
@@ -240,7 +240,7 @@ void cdvdLoadNVRAM(void)
 		 * the reopen below would drop it. */
 		if (fp)
 			filestream_close(fp);
-		fp = FileSystem::OpenFile(mecfile, "w+b");
+		fp = filestream_open(mecfile, RETRO_VFS_FILE_ACCESS_READ_WRITE, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 		if (!fp || rfwrite(&s_mecha_version, sizeof(s_mecha_version), 1, fp) != 1)
 			Console.Error("Failed to write MEC file. Check your BIOS setup/permission settings.");
 	}
@@ -252,7 +252,7 @@ void cdvdSaveNVRAM(void)
 {
 	char nvmfile[PCSX2_PATH_MAX];
 	cdvdBiosSiblingPath(nvmfile, sizeof(nvmfile), "nvm");
-	RFILE *fp = FileSystem::OpenFile(nvmfile, "w+b");
+	RFILE *fp = filestream_open(nvmfile, RETRO_VFS_FILE_ACCESS_READ_WRITE, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 	if (!fp)
 	{
 		Console.Error("Failed to open NVRAM for updating: %s...", nvmfile);
@@ -268,7 +268,7 @@ void cdvdSaveNVRAM(void)
 		return;
 	}
 
-	if (FileSystem::FSeek64(fp, 0, SEEK_SET) == 0 &&
+	if (filestream_seek(fp, 0, RETRO_VFS_SEEK_POSITION_START) == 0 &&
 		rfwrite(s_nvram, NVRAM_SIZE, 1, fp) == 1)
 	{
 		Console.WriteLn("NVRAM saved to %s.", nvmfile);

@@ -15,7 +15,7 @@
 
 #pragma once
 
-#include "common/FileSystem.h"
+#include "HostFS.h"
 
 #include "ThreadedFileReader.h"
 #include <encodings/deflate.h>

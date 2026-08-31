@@ -21,7 +21,7 @@
 #include <file/file_path.h>
 
 #include "../common/Console.h"
-#include "../common/FileSystem.h"
+#include "HostFS.h"
 #include "../common/Path.h"
 #include "../common/StringUtil.h"
 
@@ -87,18 +87,18 @@ static u32 CalculateECC(u8* buf)
 static bool ConvertNoECCtoRAW(const char* file_in, const char* file_out)
 {
 	u8 buffer[512];
-	RFILE *fin = FileSystem::OpenFile(file_in, "rb");
+	RFILE *fin = filestream_open(file_in, RETRO_VFS_FILE_ACCESS_READ, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 	if (!fin)
 		return false;
 
-	RFILE *fout = FileSystem::OpenFile(file_out, "wb");
+	RFILE *fout = filestream_open(file_out, RETRO_VFS_FILE_ACCESS_WRITE, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 	if (!fout)
 	{
 		filestream_close(fin);
 		return false;
 	}
 
-	const s64 size = FileSystem::FSize64(fin);
+	const s64 size = filestream_get_size(fin);
 
 	for (s64 i = 0; i < (size / 512); i++)
 	{
@@ -141,15 +141,15 @@ static bool ConvertRAWtoNoECC(const char* file_in, const char* file_out)
 {
 	u8 buffer[512];
 	u8 checksum[16];
-	RFILE *fin = FileSystem::OpenFile(file_in, "rb");
+	RFILE *fin = filestream_open(file_in, RETRO_VFS_FILE_ACCESS_READ, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 	if (!fin)
 		return false;
 
-	RFILE *fout = FileSystem::OpenFile(file_out, "wb");
+	RFILE *fout = filestream_open(file_out, RETRO_VFS_FILE_ACCESS_WRITE, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 	if (!fout)
 		return false;
 
-	const s64 size = FileSystem::FSize64(fin);
+	const s64 size = filestream_get_size(fin);
 
 	for (s64 i = 0; i < (size / 528); i++)
 	{
@@ -346,19 +346,19 @@ void FileMemoryCard::Open()
 			}
 			if (!ConvertNoECCtoRAW(fname, newname))
 			{
-				FileSystem::DeleteFilePath(newname);
+				filestream_delete(newname);
 				continue;
 			}
 
 			// store the original filename
-			m_file[slot] = FileSystem::OpenFile(newname, "r+b");
+			m_file[slot] = filestream_open(newname, RETRO_VFS_FILE_ACCESS_READ_WRITE | RETRO_VFS_FILE_ACCESS_UPDATE_EXISTING, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 		}
 		else
-			m_file[slot] = FileSystem::OpenFile(fname, "r+b");
+			m_file[slot] = filestream_open(fname, RETRO_VFS_FILE_ACCESS_READ_WRITE | RETRO_VFS_FILE_ACCESS_UPDATE_EXISTING, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 
 		if (m_file[slot]) // Load the whole card into RAM
 		{
-			m_fileSize[slot]  = FileSystem::FSize64(m_file[slot]);
+			m_fileSize[slot]  = filestream_get_size(m_file[slot]);
 			m_filenames[slot] = std::move(fname);
 			m_ispsx[slot]     = m_fileSize[slot] == 0x20000;
 			m_chkaddr = 0x210;
@@ -372,7 +372,7 @@ void FileMemoryCard::Open()
 			{
 				m_cardSize[slot] = static_cast<size_t>(m_fileSize[slot]);
 				m_cardData[slot] = new u8[m_cardSize[slot]];
-				FileSystem::FSeek64(m_file[slot], 0, SEEK_SET);
+				filestream_seek(m_file[slot], 0, RETRO_VFS_SEEK_POSITION_START);
 				if (rfread(m_cardData[slot], m_cardSize[slot], 1, m_file[slot]) != 1)
 					Console.Error("Error reading memcard.");
 			}
@@ -394,7 +394,7 @@ void FileMemoryCard::Close()
 			continue;
 
 		// Store checksum
-		if (!m_ispsx[slot] && FileSystem::FSeek64(m_file[slot], m_chkaddr, SEEK_SET) == 0)
+		if (!m_ispsx[slot] && filestream_seek(m_file[slot], m_chkaddr, RETRO_VFS_SEEK_POSITION_START) == 0)
 			rfwrite(&m_chksum[slot], sizeof(m_chksum[slot]), 1, m_file[slot]);
 
 		rfclose(m_file[slot]);
@@ -404,7 +404,7 @@ void FileMemoryCard::Close()
 		{
 			const std::string name_in(m_filenames[slot] + 'x');
 			if (ConvertRAWtoNoECC(name_in.c_str(), m_filenames[slot].c_str()))
-				FileSystem::DeleteFilePath(name_in.c_str());
+				filestream_delete(name_in.c_str());
 		}
 
 		/* Release the RAM card image (also freed in the destructor; NULL
@@ -421,14 +421,14 @@ void FileMemoryCard::Close()
 // Returns FALSE if the seek failed (is outside the bounds of the file).
 bool FileMemoryCard::Seek(RFILE* f, u32 adr)
 {
-	return (FileSystem::FSeek64(f, adr, SEEK_SET) == 0);
+	return (filestream_seek(f, adr, RETRO_VFS_SEEK_POSITION_START) == 0);
 }
 
 // returns FALSE if an error occurred (either permission denied or disk full)
 bool FileMemoryCard::Create(const char* mcdFile, uint sizeInMB)
 {
 	u8 buf[MC2_ERASE_SIZE];
-	RFILE *fp = FileSystem::OpenFile(mcdFile, "wb");
+	RFILE *fp = filestream_open(mcdFile, RETRO_VFS_FILE_ACCESS_WRITE, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 	if (!fp)
 		return false;
 

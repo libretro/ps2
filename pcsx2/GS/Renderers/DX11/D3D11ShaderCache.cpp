@@ -21,7 +21,7 @@
 
 #include "ShaderCacheVersion.h"
 
-#include "common/FileSystem.h"
+#include "HostFS.h"
 #include "common/Console.h"
 #include "common/Path.h"
 #include <array>
@@ -117,15 +117,15 @@ bool D3D11ShaderCache::CreateNew(const std::string& index_filename, const std::s
 	if (path_is_valid(index_filename.c_str()))
 	{
 		Console.Warning("Removing existing index file '%s'", index_filename.c_str());
-		FileSystem::DeleteFilePath(index_filename.c_str());
+		filestream_delete(index_filename.c_str());
 	}
 	if (path_is_valid(blob_filename.c_str()))
 	{
 		Console.Warning("Removing existing blob file '%s'", blob_filename.c_str());
-		FileSystem::DeleteFilePath(blob_filename.c_str());
+		filestream_delete(blob_filename.c_str());
 	}
 
-	m_index_file = FileSystem::OpenFile(index_filename.c_str(), "wb");
+	m_index_file = filestream_open(index_filename.c_str(), RETRO_VFS_FILE_ACCESS_WRITE, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 	if (!m_index_file)
 	{
 		Console.Error("Failed to open index file '%s' for writing", index_filename.c_str());
@@ -138,17 +138,17 @@ bool D3D11ShaderCache::CreateNew(const std::string& index_filename, const std::s
 		Console.Error("Failed to write version to index file '%s'", index_filename.c_str());
 		filestream_close(m_index_file);
 		m_index_file = nullptr;
-		FileSystem::DeleteFilePath(index_filename.c_str());
+		filestream_delete(index_filename.c_str());
 		return false;
 	}
 
-	m_blob_file = FileSystem::OpenFile(blob_filename.c_str(), "w+b");
+	m_blob_file = filestream_open(blob_filename.c_str(), RETRO_VFS_FILE_ACCESS_READ_WRITE, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 	if (!m_blob_file)
 	{
 		Console.Error("Failed to open blob file '%s' for writing", blob_filename.c_str());
 		filestream_close(m_index_file);
 		m_index_file = nullptr;
-		FileSystem::DeleteFilePath(index_filename.c_str());
+		filestream_delete(index_filename.c_str());
 		return false;
 	}
 
@@ -157,7 +157,7 @@ bool D3D11ShaderCache::CreateNew(const std::string& index_filename, const std::s
 
 bool D3D11ShaderCache::ReadExisting(const std::string& index_filename, const std::string& blob_filename)
 {
-	m_index_file = FileSystem::OpenFile(index_filename.c_str(), "r+b");
+	m_index_file = filestream_open(index_filename.c_str(), RETRO_VFS_FILE_ACCESS_READ_WRITE | RETRO_VFS_FILE_ACCESS_UPDATE_EXISTING, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 	if (!m_index_file)
 	{
 		// special case here: when there's a sharing violation (i.e. two instances running),
@@ -181,7 +181,11 @@ bool D3D11ShaderCache::ReadExisting(const std::string& index_filename, const std
 		return false;
 	}
 
-	m_blob_file = FileSystem::OpenFile(blob_filename.c_str(), "a+b");
+	m_blob_file = filestream_open(blob_filename.c_str(),
+		RETRO_VFS_FILE_ACCESS_READ_WRITE | RETRO_VFS_FILE_ACCESS_UPDATE_EXISTING,
+		RETRO_VFS_FILE_ACCESS_HINT_NONE);
+	if (m_blob_file) /* "a+b": append semantics = start at the end */
+		filestream_seek(m_blob_file, 0, RETRO_VFS_SEEK_POSITION_END);
 	if (!m_blob_file)
 	{
 		Console.Error("Blob file '%s' is missing", blob_filename.c_str());

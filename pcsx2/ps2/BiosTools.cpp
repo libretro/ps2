@@ -21,7 +21,7 @@
 #include <streams/file_stream.h>
 
 #include "../../common/Console.h"
-#include "../../common/FileSystem.h"
+#include "HostFS.h"
 #include "../../common/Path.h"
 #include "../../common/StringUtil.h"
 
@@ -73,7 +73,7 @@ static bool LoadBiosVersion(RFILE* fp, u32& version, char* description, size_t d
 	}
 
 	s64 fileOffset = 0;
-	s64 fileSize = FileSystem::FSize64(fp);
+	s64 fileSize = filestream_get_size(fp);
 	bool foundRomVer = false;
 	char romver[14 + 1] = {}; // ascii version loaded from disk.
 	char extinfo[15 + 1] = {}; // ascii version loaded from disk.
@@ -83,9 +83,9 @@ static bool LoadBiosVersion(RFILE* fp, u32& version, char* description, size_t d
 	{
 		if (strncmp(rd.fileName, "EXTINFO", sizeof(rd.fileName)) == 0)
 		{
-			s64 pos = FileSystem::FTell64(fp);
-			if (FileSystem::FSeek64(fp, fileOffset + 0x10, SEEK_SET) != 0 ||
-				rfread(extinfo, 15, 1, fp) != 1 || FileSystem::FSeek64(fp, pos, SEEK_SET) != 0)
+			s64 pos = filestream_tell(fp);
+			if (filestream_seek(fp, fileOffset + 0x10, RETRO_VFS_SEEK_POSITION_START) != 0 ||
+				rfread(extinfo, 15, 1, fp) != 1 || filestream_seek(fp, pos, RETRO_VFS_SEEK_POSITION_START) != 0)
 				break;
 			strlcpy(serial, extinfo, serial_size);
 		}
@@ -93,9 +93,9 @@ static bool LoadBiosVersion(RFILE* fp, u32& version, char* description, size_t d
 		if (strncmp(rd.fileName, "ROMVER", sizeof(rd.fileName)) == 0)
 		{
 
-			s64 pos = FileSystem::FTell64(fp);
-			if (FileSystem::FSeek64(fp, fileOffset, SEEK_SET) != 0 ||
-				rfread(romver, 14, 1, fp) != 1 || FileSystem::FSeek64(fp, pos, SEEK_SET) != 0)
+			s64 pos = filestream_tell(fp);
+			if (filestream_seek(fp, fileOffset, RETRO_VFS_SEEK_POSITION_START) != 0 ||
+				rfread(romver, 14, 1, fp) != 1 || filestream_seek(fp, pos, RETRO_VFS_SEEK_POSITION_START) != 0)
 				break;
 
 			foundRomVer = true;
@@ -211,7 +211,7 @@ static void LoadExtraRom(const char* ext, u8 (&dest)[_size])
 		}
 	}
 
-	RFILE *fp = FileSystem::OpenFile(Bios1.c_str(), "rb");
+	RFILE *fp = filestream_open(Bios1.c_str(), RETRO_VFS_FILE_ACCESS_READ, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 	if (!fp || rfread(dest, static_cast<size_t>(pcsx2_min_s64(_size, filesize)), 1, fp) != 1)
 		Console.Warning("BIOS Warning: %s could not be read (permission denied?)", ext);
 	filestream_close(fp);
@@ -219,11 +219,11 @@ static void LoadExtraRom(const char* ext, u8 (&dest)[_size])
 
 static void LoadIrx(const std::string& filename, u8* dest, size_t maxSize)
 {
-	RFILE *fp = FileSystem::OpenFile(filename.c_str(), "rb");
+	RFILE *fp = filestream_open(filename.c_str(), RETRO_VFS_FILE_ACCESS_READ, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 	if (!fp)
 		return;
 
-	const s64 filesize = FileSystem::FSize64(fp);
+	const s64 filesize = filestream_get_size(fp);
 	const s64 readSize = pcsx2_min_s64(filesize, static_cast<s64>(maxSize));
 	if (rfread(dest, readSize, 1, fp) == 1)
 	{
@@ -291,11 +291,11 @@ bool LoadBIOS(void)
 		}
 	}
 
-	RFILE *fp = FileSystem::OpenFile(path, "rb");
+	RFILE *fp = filestream_open(path, RETRO_VFS_FILE_ACCESS_READ, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 	if (!fp)
 		return false;
 
-	const s64 filesize = FileSystem::FSize64(fp);
+	const s64 filesize = filestream_get_size(fp);
 	if (filesize <= 0)
 	{
 		filestream_close(fp);
@@ -307,7 +307,7 @@ bool LoadBIOS(void)
 	LoadBiosVersion(fp, BiosVersion, BiosDescription, sizeof(BiosDescription),
 			BiosRegion, zone, sizeof(zone), BiosSerial, sizeof(BiosSerial));
 
-	if (FileSystem::FSeek64(fp, 0, SEEK_SET) ||
+	if (filestream_seek(fp, 0, RETRO_VFS_SEEK_POSITION_START) ||
 		rfread(eeMem->ROM, static_cast<size_t>(pcsx2_min_s64(Ps2MemSize::Rom, filesize)), 1, fp) != 1)
 	{
 		filestream_close(fp);
@@ -339,7 +339,7 @@ bool LoadBIOS(void)
 bool IsBIOS(const char* filename, u32& version, char* description, size_t description_size, u32& region, char* zone, size_t zone_size)
 {
 	char serial[BIOS_SERIAL_MAX];
-	RFILE *fp = FileSystem::OpenFile(filename, "rb");
+	RFILE *fp = filestream_open(filename, RETRO_VFS_FILE_ACCESS_READ, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 	if (!fp)
 		return false;
 	// FPS2BIOS is smaller and of variable size

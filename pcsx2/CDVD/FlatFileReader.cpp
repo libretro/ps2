@@ -5,7 +5,7 @@
 #include "FlatFileReader.h"
 
 #include "../../common/Console.h"
-#include "../../common/FileSystem.h"
+#include "HostFS.h"
 
 #include <streams/file_stream.h>
 
@@ -57,7 +57,7 @@ bool FlatFileReader::Open2(const char* filename)
 	if (!m_file)
 		return false;
 
-	const s64 filesize = FileSystem::FSize64(m_file);
+	const s64 filesize = filestream_get_size(m_file);
 	if (filesize <= 0)
 	{
 		/* Named, because the caller can only report that the VM failed
@@ -104,7 +104,7 @@ int FlatFileReader::ReadChunk(void* dst, s64 blockID)
 		return -1;
 
 	const u64 file_offset = static_cast<u64>(blockID) * CHUNK_SIZE;
-	if (FileSystem::FSeek64(m_file, file_offset, SEEK_SET) != 0)
+	if (filestream_seek(m_file, file_offset, RETRO_VFS_SEEK_POSITION_START) != 0)
 		return -1;
 
 	const u32 read_size = static_cast<u32>(pcsx2_min_u64(m_file_size - file_offset, CHUNK_SIZE));

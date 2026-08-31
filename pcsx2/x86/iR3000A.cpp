@@ -36,7 +36,7 @@
 #include "../Config.h"
 
 #include "../../common/AlignedMalloc.h"
-#include "../../common/FileSystem.h"
+#include "HostFS.h"
 #include "../../common/Path.h"
 extern void psxBREAK();
 

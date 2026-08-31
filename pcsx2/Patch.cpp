@@ -16,7 +16,7 @@
 #define _PC_ // disables MIPS opcode macros.
 
 #include "../common/Console.h"
-#include "../common/FileSystem.h"
+#include "HostFS.h"
 #include "../common/Path.h"
 #include "../common/StringUtil.h"
 #include <encodings/deflate.h>
@@ -947,7 +947,16 @@ int LoadPatchesFromDir(const std::string& crc, const std::string& folder, const 
 
 		Console.WriteLn("Found %s file: '%.*s'", friendly_name, static_cast<int>(name.size()), name.data());
 
-		const std::optional<std::string> pnach_data(FileSystem::ReadFileToString(fd.FileName.c_str()));
+		void* pnach_buf = nullptr;
+		int64_t pnach_len = 0;
+		std::optional<std::string> pnach_data;
+		if (filestream_read_file(fd.FileName.c_str(), &pnach_buf, &pnach_len))
+		{
+			pnach_data.emplace();
+			if (pnach_len > 0)
+				pnach_data->assign(static_cast<const char*>(pnach_buf), static_cast<size_t>(pnach_len));
+			free(pnach_buf);
+		}
 		if (!pnach_data.has_value())
 			continue;
 

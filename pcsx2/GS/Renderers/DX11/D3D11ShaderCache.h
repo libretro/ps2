@@ -16,7 +16,7 @@
 #pragma once
 #include "common/Pcsx2Defs.h"
 #include "GS/Renderers/DX11/D3D.h"
-#include "common/FileSystem.h"
+#include "HostFS.h"
 #include "common/HashCombine.h"
 #include "common/RedtapeWindows.h"
 #include "common/RedtapeWilCom.h"

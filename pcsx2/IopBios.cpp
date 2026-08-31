@@ -33,7 +33,7 @@
 #endif
 
 #include "../common/Console.h"
-#include "../common/FileSystem.h"
+#include "HostFS.h"
 #include "../common/Path.h"
 #include "../common/StringUtil.h"
 
@@ -41,6 +41,11 @@
 #include "R5900.h" // for g_GameStarted
 #include <streams/file_stream.h>
 #include "IopBios.h"
+
+#include <limits>
+#ifdef _WIN32
+#include <encodings/utf.h>
+#endif
 #include "IopMem.h"
 #include "iR3000A.h"
 #include "ps2/BiosTools.h"
@@ -310,6 +315,50 @@ namespace R3000A
 		}
 	}
 
+	/* The fio stat HLE needs the full struct stat - mode bits, the three
+	 * timestamps, symlink detection - which libretro's VFS stat (size +
+	 * directory flag) cannot carry.  This was FileSystem::StatFile's only
+	 * caller, so the platform stat lives here now, verbatim. */
+#ifdef _WIN32
+	static void TranslateStat64(struct stat* st, const struct _stat64& st64)
+	{
+		static constexpr __int64 MAX_SIZE = static_cast<__int64>(std::numeric_limits<decltype(st->st_size)>::max());
+		st->st_dev = st64.st_dev;
+		st->st_ino = st64.st_ino;
+		st->st_mode = st64.st_mode;
+		st->st_nlink = st64.st_nlink;
+		st->st_uid = st64.st_uid;
+		st->st_rdev = st64.st_rdev;
+		st->st_size = static_cast<decltype(st->st_size)>((st64.st_size > MAX_SIZE) ? MAX_SIZE : st64.st_size);
+		st->st_atime = static_cast<time_t>(st64.st_atime);
+		st->st_mtime = static_cast<time_t>(st64.st_mtime);
+		st->st_ctime = static_cast<time_t>(st64.st_ctime);
+	}
+
+	static bool host_stat_file(const char* path, struct stat* st)
+	{
+		struct _stat64 st64;
+		if (path[0] == '\0')
+			return false;
+		wchar_t* wpath = utf8_to_utf16_string_alloc(path);
+		if (_wstat64(wpath, &st64) != 0)
+		{
+			free(wpath);
+			return false;
+		}
+		free(wpath);
+		TranslateStat64(st, st64);
+		return true;
+	}
+#else
+	static bool host_stat_file(const char* path, struct stat* st)
+	{
+		if (path[0] == '\0')
+			return false;
+		return stat(path, st) == 0;
+	}
+#endif
+
 	static int host_stat(const char* path, fio_stat_t* host_stats, fio_stat_flags& stat = ioman_stat)
 	{
 		struct stat file_stats;
@@ -317,7 +366,7 @@ namespace R3000A
 
 		host_path(file_path, sizeof(file_path), path, 1);
 
-		if (!FileSystem::StatFile(file_path, &file_stats))
+		if (!host_stat_file(file_path, &file_stats))
 			return -IOP_ENOENT;
 
 		host_stats->size = (uint32_t)file_stats.st_size;
@@ -920,7 +969,12 @@ namespace R3000A
 				char file_path[PCSX2_PATH_MAX];
 
 				host_path(file_path, sizeof(file_path), colon ? colon + 1 : full_path, 0);
-				const bool succeeded = FileSystem::DeleteFilePath(file_path);
+				/* The PS2 kernel's remove refuses directories; keep that
+				 * split here, since filestream_delete itself would take
+				 * an empty directory out. Guard and delete go through
+				 * the same VFS, so both see the same filesystem. */
+				const bool succeeded = !path_is_directory(file_path) &&
+					filestream_delete(file_path) == 0;
 				if (!succeeded)
 					Console.Warning("IOPHLE remove_HLE failed for '%s'", file_path);
 				v0 = succeeded ? 0 : -IOP_EIO;
@@ -988,7 +1042,9 @@ namespace R3000A
 				char folder_path[PCSX2_PATH_MAX];
 
 				host_path(folder_path, sizeof(folder_path), colon ? colon + 1 : full_path, 0); // NOTE: Don't allow removing the elf directory itself.
-				const bool succeeded = FileSystem::DeleteDirectory(folder_path);
+				/* rmdir's inverse guard: only a directory may go. */
+				const bool succeeded = path_is_directory(folder_path) &&
+					filestream_delete(folder_path) == 0;
 				if (!succeeded)
 					Console.Warning("IOPHLE rmdir_HLE failed for '%s'", folder_path);
 				v0 = succeeded ? 0 : -IOP_EIO;

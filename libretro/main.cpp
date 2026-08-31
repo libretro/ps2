@@ -30,7 +30,7 @@
 #include "../pcsx2/Host.h"
 
 #include "../common/Path.h"
-#include "../common/FileSystem.h"
+#include "HostFS.h"
 #include "../common/MemorySettingsInterface.h"
 
 #include "../pcsx2/GS/Renderers/Common/GSRenderer.h"
@@ -3129,7 +3129,16 @@ std::optional<std::vector<u8>> Host::ReadResourceFile(const char* filename)
 	char path[PCSX2_PATH_MAX];
 
 	pcsx2_path_join(path, sizeof(path), EmuFolders::Resources, filename);
-	std::optional<std::vector<u8>> ret(FileSystem::ReadBinaryFile(path));
+	void* fbuf = nullptr;
+	int64_t flen = 0;
+	std::optional<std::vector<u8>> ret;
+	if (filestream_read_file(path, &fbuf, &flen))
+	{
+		ret.emplace();
+		if (flen > 0)
+			ret->assign(static_cast<const u8*>(fbuf), static_cast<const u8*>(fbuf) + flen);
+		free(fbuf);
+	}
 	if (!ret.has_value())
 		log_cb(RETRO_LOG_ERROR, "Failed to read resource file '%s', path '%s'\n", filename, path);
 	return ret;
@@ -3151,7 +3160,16 @@ std::optional<std::string> Host::ReadResourceFileToString(const char* filename)
 			char path[PCSX2_PATH_MAX];
 
 			pcsx2_path_join(path, sizeof(path), EmuFolders::Resources, filename);
-			std::optional<std::string> ext(FileSystem::ReadFileToString(path));
+			void* ebuf = nullptr;
+			int64_t elen = 0;
+			std::optional<std::string> ext;
+			if (filestream_read_file(path, &ebuf, &elen))
+			{
+				ext.emplace();
+				if (elen > 0)
+					ext->assign(static_cast<const char*>(ebuf), static_cast<size_t>(elen));
+				free(ebuf);
+			}
 			if (ext.has_value())
 				return ext;
 			log_cb(RETRO_LOG_INFO,
@@ -3165,7 +3183,16 @@ std::optional<std::string> Host::ReadResourceFileToString(const char* filename)
 	char path[PCSX2_PATH_MAX];
 
 	pcsx2_path_join(path, sizeof(path), EmuFolders::Resources, filename);
-	std::optional<std::string> ret(FileSystem::ReadFileToString(path));
+	void* rbuf = nullptr;
+	int64_t rlen = 0;
+	std::optional<std::string> ret;
+	if (filestream_read_file(path, &rbuf, &rlen))
+	{
+		ret.emplace();
+		if (rlen > 0)
+			ret->assign(static_cast<const char*>(rbuf), static_cast<size_t>(rlen));
+		free(rbuf);
+	}
 	if (!ret.has_value())
 	{
 		std::string str = std::string(filename) + " is missing, expect bugs.";

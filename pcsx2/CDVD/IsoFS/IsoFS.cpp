@@ -17,7 +17,7 @@
 #include "IsoFile.h"
 
 #include "common/Console.h"
-#include "common/FileSystem.h"
+#include "HostFS.h"
 #include "common/Path.h"
 
 #include <memory>

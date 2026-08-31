@@ -13,7 +13,7 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "../../common/FileSystem.h"
+#include "HostFS.h"
 #include "../../common/Path.h"
 #include "../Frontend/LayeredSettingsInterface.h"
 #include "../GS.h"

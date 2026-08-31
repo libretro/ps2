@@ -18,7 +18,7 @@
 #include <file/file_path.h>
 
 #include "../common/Console.h"
-#include "../common/FileSystem.h"
+#include "HostFS.h"
 #include "../common/StringUtil.h"
 
 #include "GS.h"			// for sending game crc to mtgs
@@ -71,7 +71,7 @@ bool ElfObject::OpenFile(std::string srcfile)
 	if (!CheckElfSize(sd_size))
 		return false;
 
-	fp = FileSystem::OpenFile(srcfile.c_str(), "rb");
+	fp = filestream_open(srcfile.c_str(), RETRO_VFS_FILE_ACCESS_READ, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 	if (!fp)
 		return false;
 

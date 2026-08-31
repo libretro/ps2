@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2021  PCSX2 Dev Team
+ *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -13,23 +13,19 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+/* Host filesystem policy that has no libretro-common equivalent, plus the
+ * transitional rf* CRT-style veneer over filestream_*.
+ *
+ * Everything here is built on libretro-common only.  The veneer exists so
+ * the tree's fread-shaped call sites keep working while they are burned
+ * down to direct filestream_* calls; do not add new rf* users. */
+
 #pragma once
+
 #include "Pcsx2Defs.h"
-#include <ctime>
-#include <memory>
-#include <optional>
 #include <string>
 #include <vector>
-#include <sys/stat.h>
-
 #include <streams/file_stream.h>
-
-#ifndef stat64
-#define stat64 stat
-#endif
-#ifndef fstat64
-#define fstat64 fstat
-#endif
 
 #ifdef _WIN32
 #define FS_OSPATH_SEPARATOR_CHARACTER '\\'
@@ -69,33 +65,13 @@ namespace FileSystem
 
 	/// Search for files
 	bool FindFiles(const char* path, const char* pattern, u32 flags, FindResultsArray* results);
-
-	/// Stat file
-	bool StatFile(const char* path, struct stat* st);
-
-	/// Delete file
-	bool DeleteFilePath(const char* path);
-
-	/// open files
-	RFILE *OpenFile(const char* filename, const char* mode);
-	int FSeek64(RFILE* fp, s64 offset, int whence);
-	s64 FTell64(RFILE* fp);
-	s64 FSize64(RFILE* fp);
-
-
-	std::optional<std::vector<u8>> ReadBinaryFile(const char* filename);
-	std::optional<std::string> ReadFileToString(const char* filename);
-
-	/// Removes a directory.
-	bool DeleteDirectory(const char* path);
 }; // namespace FileSystem
-   
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 int rferror(RFILE* stream);
-RFILE* rfopen(const char *path, const char *mode);
 int rfclose(RFILE* stream);
 int64_t rftell(RFILE* stream);
 int64_t rfseek(RFILE* stream, int64_t offset, int origin);
@@ -103,9 +79,6 @@ int64_t rfwrite(void const* buffer,
    size_t elem_size, size_t elem_count, RFILE* stream);
 int64_t rfread(void* buffer,
    size_t elem_size, size_t elem_count, RFILE* stream);
-int rfgetc(RFILE* stream);
-int rfeof(RFILE* stream);
-char *rfgets(char *buffer, int maxCount, RFILE* stream);
 
 #ifdef __cplusplus
 }

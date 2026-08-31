@@ -108,7 +108,7 @@ Comments) 1950 to 1952 in the files http://tools.ietf.org/html/rfc1950
 #define ZIDX_DATA_ERROR (-3)
 #define ZIDX_MEM_ERROR  (-4)
 
-#include "../../common/FileSystem.h"
+#include "HostFS.h"
 
 //#define SPAN (1048576L)  /* desired distance between access points */
 #define WINSIZE 32768U    /* sliding window size */
@@ -255,7 +255,7 @@ static inline int build_index(RFILE* in, s64 span, struct access** built)
 	{
 		if (in_used == in_avail)
 		{
-			chunk_base = FileSystem::FTell64(in);
+			chunk_base = filestream_tell(in);
 			in_avail = rfread(input, 1, CHUNK, in);
 			in_used = 0;
 			if (rferror(in))
@@ -393,7 +393,7 @@ static inline int extract(RFILE* in, struct access* index, s64 offset,
 		/* sequential continuation: the live stream is positioned right
 		   where the previous extract stopped */
 		state->isValid = 0;
-		FileSystem::FSeek64(in, state->in_offset, SEEK_SET);
+		filestream_seek(in, state->in_offset, RETRO_VFS_SEEK_POSITION_START);
 		offset = 0;
 		skip = 1;
 	}
@@ -408,7 +408,7 @@ static inline int extract(RFILE* in, struct access* index, s64 offset,
 		state->strm = rinflate_new(-15); /* raw inflate */
 		if (!state->strm)
 			return ZIDX_MEM_ERROR;
-		ret = FileSystem::FSeek64(in, here->in - (here->bits ? 1 : 0), SEEK_SET);
+		ret = filestream_seek(in, here->in - (here->bits ? 1 : 0), RETRO_VFS_SEEK_POSITION_START);
 		if (ret == -1)
 		{
 			ret = ZIDX_ERRNO;
@@ -457,7 +457,7 @@ static inline int extract(RFILE* in, struct access* index, s64 offset,
 		{
 			if (in_used == in_avail)
 			{
-				state->in_offset = FileSystem::FTell64(in);
+				state->in_offset = filestream_tell(in);
 				in_avail = rfread(input, 1, CHUNK, in);
 				in_used = 0;
 				if (rferror(in))

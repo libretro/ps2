@@ -15,7 +15,7 @@
 
 #pragma once
 #include "common/Pcsx2Defs.h"
-#include "common/FileSystem.h"
+#include "HostFS.h"
 #include "common/HashCombine.h"
 
 #include "GLProgram.h"

@@ -15,7 +15,7 @@
 
 #include <compat/strl.h>
 #include "../../common/Console.h"
-#include "../../common/FileSystem.h"
+#include "HostFS.h"
 #include "../../common/Path.h"
 #include "../../common/StringUtil.h"
 
@@ -39,11 +39,11 @@
 static Access* ReadIndexFromFile(const char* filename)
 {
 	s64 size;
-	RFILE *fp = FileSystem::OpenFile(filename, "rb");
+	RFILE *fp = filestream_open(filename, RETRO_VFS_FILE_ACCESS_READ, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 	if (!fp)
 		return nullptr;
 
-	if ((size = FileSystem::FSize64(fp)) <= 0)
+	if ((size = filestream_get_size(fp)) <= 0)
 	{
 		filestream_close(fp);
 		return nullptr;
@@ -102,7 +102,7 @@ static Access* ReadIndexFromFile(const char* filename)
 
 static void WriteIndexToFile(Access* index, const char* filename)
 {
-	RFILE *fp = FileSystem::OpenFile(filename, "wb");
+	RFILE *fp = filestream_open(filename, RETRO_VFS_FILE_ACCESS_WRITE, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 	if (!fp)
 		return;
 
@@ -253,11 +253,11 @@ bool GzippedFileReader::LoadOrCreateIndex()
 	// No valid index file. Generate an index
 	Console.Warning("This may take a while (but only once). Scanning compressed file to generate a quick access index...");
 
-	const s64 prevoffset = FileSystem::FTell64(m_src);
+	const s64 prevoffset = filestream_tell(m_src);
 	Access* index = nullptr;
 	int len = build_index(m_src, GZFILE_SPAN_DEFAULT, &index);
 	printf("\n"); // build_index prints progress without \n's
-	FileSystem::FSeek64(m_src, prevoffset, SEEK_SET);
+	filestream_seek(m_src, prevoffset, RETRO_VFS_SEEK_POSITION_START);
 
 	/* build_index returns the number of access points, and zero is not
 	 * success: it takes that path when no point was ever added, and on
@@ -284,7 +284,7 @@ bool GzippedFileReader::Open2(const char* filename)
 	Close();
 
 	strlcpy(m_filename, filename, sizeof(m_filename));
-	if (!(m_src = FileSystem::OpenFile(m_filename, "rb")) || !LoadOrCreateIndex())
+	if (!(m_src = filestream_open(m_filename, RETRO_VFS_FILE_ACCESS_READ, RETRO_VFS_FILE_ACCESS_HINT_NONE)) || !LoadOrCreateIndex())
 	{
 		Close();
 		return false;

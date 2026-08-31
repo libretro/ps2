@@ -5,7 +5,7 @@
 
 #include "../../common/Pcsx2Defs.h"
 
-#include "../../common/FileSystem.h"
+#include "HostFS.h"
 
 #include "ThreadedFileReader.h"
 

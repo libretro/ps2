@@ -16,7 +16,7 @@
 #include <compat/strl.h>
 #include <float.h>
 #include <stdint.h>
-#include "../common/FileSystem.h"
+#include "HostFS.h"
 #include "../common/Path.h"
 #include "../common/SettingsInterface.h"
 #include "../common/SettingsWrapper.h"
