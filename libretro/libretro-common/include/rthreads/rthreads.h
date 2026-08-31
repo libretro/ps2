@@ -81,6 +81,34 @@ sthread_t *sthread_create(void (*thread_func)(void*), void *userdata);
 sthread_t *sthread_create_with_priority(void (*thread_func)(void*), void *userdata, int thread_priority);
 
 /**
+ * Asks the operating system to schedule the calling thread ahead of
+ * ordinary threads - a time-critical class on Windows, the audio
+ * priority band on Android, real-time round-robin where the POSIX
+ * scheduler and the process's limits allow it. Best effort: where the
+ * request is refused or the platform has no such thing, the thread
+ * keeps its default priority and this returns false. Never fails the
+ * thread. Meant for a thread that feeds an audio device on a deadline.
+ *
+ * @return Whether the priority was changed.
+ */
+bool sthread_raise_current_priority(void);
+
+/**
+ * Labels the calling thread for debuggers, crash dumps and system
+ * thread listings.
+ *
+ * Threads that are never labelled inherit the name of whichever thread
+ * created them, which on Android leaves several identically-named
+ * entries in an ANR report and an unnamed thread id in a tombstone.
+ *
+ * @param name Label to apply. Keep it under 16 bytes including the
+ * terminator: that is the kernel's limit on Linux and Android, and
+ * longer names are truncated to fit rather than rejected.
+ * @warn Does nothing on platforms with no thread-naming interface.
+ */
+void sthread_setname(const char *name);
+
+/**
  * Detaches the given thread.
  *
  * When a detached thread terminates,
