@@ -82,14 +82,17 @@ namespace VMManager
 	/// Reloads settings, and applies any changes present.
 	void ApplySettings();
 
-	/// Returns true if a game is loaded whose GameDB fixes (gamefixes / GS
-	/// hardware fixes) have not yet been applied this session. This happens when
-	/// a savestate is loaded before the game has booted far enough for the normal
-	/// boot path (UpdateRunningGame) to run the GameDB apply - e.g. RetroArch's
-	/// Auto Load State. Cheap: no config rebuild, just a serial lookup + counter
-	/// check. Used to gate a one-shot ApplySettings() after state load so the fix
-	/// only runs when it is actually missing, not on every unserialize.
-	bool GameFixesNeedApplying();
+	/// Re-derives the running-game identity (serial, ELF CRC, GameDB entry)
+	/// from the current VM state and re-applies per-game settings if the
+	/// identity changed. Called after loading a savestate: the state restores
+	/// ElfCRC and the game-started flags, but the boot-path hook that normally
+	/// runs the GameDB apply (UpdateRunningGame) has already fired at the BIOS,
+	/// leaving stale identity and no per-game fixes - e.g. RetroArch's Auto
+	/// Load State (issue #127). Internally guarded: when the identity is
+	/// unchanged (mid-session load of the same game) it returns without
+	/// rebuilding any configuration, so it is safe to call on every
+	/// unserialize.
+	void RefreshRunningGameAfterStateLoad();
 
 	/// Reloads cheats/patches. If verbose is set, the number of patches loaded will be shown in the OSD.
 	void ReloadPatches();

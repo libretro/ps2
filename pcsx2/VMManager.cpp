@@ -316,25 +316,12 @@ void VMManager::ApplyGameFixes()
 	s_active_game_fixes += game->applyGSHardwareFixes(EmuConfig.GS);
 }
 
-bool VMManager::GameFixesNeedApplying()
+void VMManager::RefreshRunningGameAfterStateLoad()
 {
-	// If fixes were already applied this session (normal boot path ran
-	// UpdateRunningGame -> ApplyGameFixes), s_active_game_fixes is non-zero for
-	// any game that has fixes; nothing to do.
-	if (s_active_game_fixes != 0)
-		return false;
-
-	// No game identified yet (still at BIOS, CRC unknown): can't look up fixes.
-	if (s_game_crc == 0)
-		return false;
-
-	// Only "necessary" if the loaded game actually has GameDB fixes to apply;
-	// otherwise a re-apply would be pure overhead for no behavioural change.
-	const GameDatabaseSchema::GameEntry* game = GameDatabase::findGame(s_game_serial);
-	if (!game)
-		return false;
-
-	return !game->gameFixes.empty() || !game->gsHWFixes.empty();
+	// The savestate has restored ElfCRC, g_GameStarted and g_GameLoading;
+	// UpdateRunningGame re-derives the serial from the disc and the CRC from
+	// the restored globals, and early-returns when nothing changed.
+	UpdateRunningGame(false, false, false);
 }
 
 bool VMManager::UpdateGameSettingsLayer(void) { return true; }
