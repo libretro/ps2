@@ -805,7 +805,14 @@ u32 GameDatabaseSchema::GameEntry::applyGSHardwareFixes(Pcsx2Config::GSOptions& 
 
 			case GSHWFixId::Mipmap:
 				if (value >= 0 && value < static_cast<int>(GSHWMipmapMode::MaxCount))
+				{
 					config.HWMipmapMode = static_cast<GSHWMipmapMode>(value > 0);
+					// Mipmapping is split across HWMipmapMode and the Mipmap master
+					// switch (consumed by GSState::UpdateSettings into m_mipmap). A
+					// database mipmap fix must drive both, or the renderer-level
+					// gate keeps LOD sampling disabled regardless of the mode.
+					config.Mipmap = (value > 0);
+				}
 				break;
 
 			case GSHWFixId::TrilinearFiltering:

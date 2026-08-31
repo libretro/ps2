@@ -9670,6 +9670,7 @@ SCUS-97113:
     halfPixelOffset: 4 # Fixes misaligned bloom.
     nativeScaling: 2 # Fixes post effects.
     moveHandler: "MV_Ico" # Fixes depth buffer post-processing.
+    mipmap: 1 # Title screen glow/post-processing store content in the mip chain and select it via LOD; LOD0-only sampling loses it.
 SCUS-97114:
   name: "NBA ShootOut 2001"
   region: "NTSC-U"
