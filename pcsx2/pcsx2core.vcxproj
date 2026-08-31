@@ -521,9 +521,6 @@
     <ProjectReference Include="..\3rdparty\d3d12memalloc\d3d12memalloc.vcxproj">
       <Project>{d45cec7a-3171-40dd-975d-e1544cf16139}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\common\common.vcxproj">
-      <Project>{4639972e-424e-4e13-8b07-ca403c481346}</Project>
-    </ProjectReference>
     <ProjectReference Include="..\3rdparty\glad\glad.vcxproj">
       <Project>{c0293b32-5acf-40f0-aa6c-e6da6f3bf33a}</Project>
     </ProjectReference>
