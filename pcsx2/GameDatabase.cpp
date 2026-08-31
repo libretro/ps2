@@ -421,6 +421,7 @@ static const char* s_gs_hw_fix_names[] = {
 	"getSkipCount",
 	"beforeDraw",
 	"moveHandler",
+	"limit24BitDepth",
 };
 
 const char* GameDatabaseSchema::getHWFixName(GSHWFixId id)
@@ -651,6 +652,9 @@ bool GameDatabaseSchema::GameEntry::configMatchesHWFix(const Pcsx2Config::GSOpti
 		case GSHWFixId::Mipmap:
 			return (static_cast<int>(config.HWMipmapMode) == value);
 
+		case GSHWFixId::Limit24BitDepth:
+			return (static_cast<int>(config.UserHacks_Limit24BitDepth) == value);
+
 		case GSHWFixId::TrilinearFiltering:
 			return (config.TriFilter == TriFiltering::Automatic || static_cast<int>(config.TriFilter) == value);
 
@@ -813,6 +817,11 @@ u32 GameDatabaseSchema::GameEntry::applyGSHardwareFixes(Pcsx2Config::GSOptions& 
 					// gate keeps LOD sampling disabled regardless of the mode.
 					config.Mipmap = (value > 0);
 				}
+				break;
+
+			case GSHWFixId::Limit24BitDepth:
+				if (value >= 0 && value <= static_cast<int>(GSLimit24BitDepth::PrioritizeLower))
+					config.UserHacks_Limit24BitDepth = static_cast<GSLimit24BitDepth>(value);
 				break;
 
 			case GSHWFixId::TrilinearFiltering:

@@ -241,6 +241,13 @@ enum class BiFiltering : u8
 	Forced_But_Sprite,
 };
 
+enum class GSLimit24BitDepth : u8
+{
+	Disabled,
+	PrioritizeUpper,
+	PrioritizeLower,
+};
+
 enum class GSHWMipmapMode : u8
 {
 	Disabled,
@@ -551,6 +558,7 @@ struct Pcsx2Config
 		GSGPUTargetCLUTMode UserHacks_GPUTargetCLUTMode = GSGPUTargetCLUTMode::Disabled;
 		GSTextureInRtMode UserHacks_TextureInsideRt = GSTextureInRtMode::Disabled;
 		GSBilinearDirtyMode UserHacks_BilinearHack = GSBilinearDirtyMode::Automatic;
+		GSLimit24BitDepth UserHacks_Limit24BitDepth = GSLimit24BitDepth::Disabled;
 		TriFiltering TriFilter = TriFiltering::Automatic;
 		s8 OverrideTextureBarriers = -1;
 		u8 PGSSuperSampling = 0;

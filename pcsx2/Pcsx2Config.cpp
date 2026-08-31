@@ -452,6 +452,7 @@ Pcsx2Config::GSOptions::GSOptions()
 	UserHacks_ForceEvenSpritePosition = false;
 	UserHacks_BilinearHack = GSBilinearDirtyMode::Automatic;
 	UserHacks_NativePaletteDraw = false;
+	UserHacks_Limit24BitDepth = GSLimit24BitDepth::Disabled;
 
 	LoadTextureReplacements = false;
 	LoadTextureReplacementsAsync = true;
@@ -505,6 +506,7 @@ bool Pcsx2Config::GSOptions::OptionsAreEqual(const GSOptions& right) const
 		OpEqu(UserHacks_GPUTargetCLUTMode) &&
 		OpEqu(UserHacks_TextureInsideRt) &&
 		OpEqu(UserHacks_BilinearHack) &&
+		OpEqu(UserHacks_Limit24BitDepth) &&
 		OpEqu(OverrideTextureBarriers) &&
 		OpEqu(Adapter) &&
 		OpEqu(PGSSuperSampling) &&
@@ -571,6 +573,7 @@ void Pcsx2Config::GSOptions::LoadSave(SettingsWrapper& wrap)
 	SettingsWrapBitBoolEx(UserHacks_MergePPSprite, "UserHacks_merge_pp_sprite");
 	SettingsWrapBitBoolEx(UserHacks_ForceEvenSpritePosition, "UserHacks_ForceEvenSpritePosition");
 	SettingsWrapIntEnumEx(UserHacks_BilinearHack, "UserHacks_BilinearHack");
+	SettingsWrapIntEnumEx(UserHacks_Limit24BitDepth, "UserHacks_Limit24BitDepth");
 	SettingsWrapBitBoolEx(UserHacks_NativePaletteDraw, "UserHacks_NativePaletteDraw");
 	SettingsWrapIntEnumEx(UserHacks_TextureInsideRt, "UserHacks_TextureInsideRt");
 	SettingsWrapBitBoolEx(UserHacks_EstimateTextureRegion, "UserHacks_EstimateTextureRegion");
@@ -618,6 +621,7 @@ void Pcsx2Config::GSOptions::MaskUserHacks()
 	UserHacks_MergePPSprite = false;
 	UserHacks_ForceEvenSpritePosition = false;
 	UserHacks_NativePaletteDraw = false;
+	UserHacks_Limit24BitDepth = GSLimit24BitDepth::Disabled;
 	UserHacks_DisableSafeFeatures = false;
 	UserHacks_DisableRenderFixes = false;
 	UserHacks_HalfPixelOffset = GSHalfPixelOffset::Off;
@@ -653,6 +657,7 @@ void Pcsx2Config::GSOptions::MaskUpscalingHacks()
 	UserHacks_ForceEvenSpritePosition = false;
 	UserHacks_BilinearHack = GSBilinearDirtyMode::Automatic;
 	UserHacks_NativePaletteDraw = false;
+	UserHacks_Limit24BitDepth = GSLimit24BitDepth::Disabled;
 	UserHacks_HalfPixelOffset = GSHalfPixelOffset::Off;
 	UserHacks_RoundSprite = 0;
 	UserHacks_NativeScaling = GSNativeScaling::NativeScaling_Normal;

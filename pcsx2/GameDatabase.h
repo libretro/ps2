@@ -82,6 +82,7 @@ namespace GameDatabaseSchema
 		GetSkipCount,
 		BeforeDraw,
 		MoveHandler,
+		Limit24BitDepth,
 
 		Count
 	};
