@@ -76,8 +76,8 @@
     <ClCompile Include="SettingsWrapper.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="FileSystem.cpp">
-      <Filter>Source Files\GL</Filter>
+    <ClCompile Include="Path.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="StringUtil.cpp">
       <Filter>Source Files</Filter>
@@ -91,9 +91,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="emitter\implement\bmi.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="boost_spsc_queue.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Console.h">
@@ -212,9 +209,6 @@
     </ClInclude>
     <ClInclude Include="WindowInfo.h">
       <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="FileSystem.h">
-      <Filter>Header Files\GL</Filter>
     </ClInclude>
     <ClInclude Include="StringUtil.h">
       <Filter>Header Files</Filter>

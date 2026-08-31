@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include "Pcsx2Defs.h"
+#include "common/Pcsx2Defs.h"
 #include <string>
 #include <vector>
 #include <streams/file_stream.h>

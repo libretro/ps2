@@ -18,7 +18,7 @@
  * platform or IO dependency beyond the separator macro. */
 
 #include "Path.h"
-#include "HostFS.h" /* FS_OSPATH_SEPARATOR_CHARACTER */
+#include "pcsx2/HostFS.h" /* FS_OSPATH_SEPARATOR_CHARACTER */
 
 #include <cstring>
 

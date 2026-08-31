@@ -56,8 +56,8 @@
     <ClCompile Include="FastJmp.cpp">
       <ExcludedFromBuild>true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="FileSystem.cpp" />
     <ClCompile Include="MemorySettingsInterface.cpp" />
+    <ClCompile Include="Path.cpp" />
     <ClCompile Include="ReadbackSpinManager.cpp" />
     <ClCompile Include="StackWalker.cpp" />
     <ClCompile Include="StringUtil.cpp" />
@@ -91,9 +91,7 @@
     <ClInclude Include="CpuFeatures.h" />
     <ClInclude Include="CrashHandler.h" />
     <ClInclude Include="FPControl.h" />
-    <ClInclude Include="boost_spsc_queue.hpp" />
     <ClInclude Include="FastJmp.h" />
-    <ClInclude Include="FileSystem.h" />
     <ClInclude Include="HashCombine.h" />
     <ClInclude Include="MemorySettingsInterface.h" />
     <ClInclude Include="StackWalker.h" />

@@ -11,8 +11,8 @@ target_sources(common PRIVATE
 	AlignedMalloc.cpp
 	Console.cpp
 	FastJmp.cpp
-	FileSystem.cpp
 	MemorySettingsInterface.cpp
+	Path.cpp
 	Semaphore.cpp
 	SettingsWrapper.cpp
 	StringUtil.cpp
@@ -60,11 +60,9 @@ endif()
 target_sources(common PRIVATE
 	Align.h
 	AlignedMalloc.h
-	boost_spsc_queue.hpp
 	Console.h
 	CpuFeatures.h
 	FastJmp.h
-	FileSystem.h
 	General.h
 	HashCombine.h
 	MemorySettingsInterface.h

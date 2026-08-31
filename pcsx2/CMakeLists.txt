@@ -109,6 +109,7 @@ set(pcsx2Sources
 	Gif.cpp
 	Gif_Unit.cpp
 	GS.cpp
+	HostFS.cpp
 	Hw.cpp
 	Interpreter.cpp
 	IopBios.cpp
@@ -176,6 +177,7 @@ set(pcsx2Headers
 	GS.h
 	Hardware.h
 	Host.h
+	HostFS.h
 	Hw.h
 	IopBios.h
 	IopCounters.h

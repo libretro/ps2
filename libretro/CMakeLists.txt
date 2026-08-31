@@ -7,6 +7,7 @@ target_sources(pcsx2_libretro PRIVATE
    ${CMAKE_SOURCE_DIR}/libretro/USB.cpp
    ${CMAKE_SOURCE_DIR}/libretro/libretro-common/compat/compat_strl.c
    ${CMAKE_SOURCE_DIR}/libretro/libretro-common/compat/compat_posix_string.c
+   ${CMAKE_SOURCE_DIR}/libretro/libretro-common/compat/compat_fnmatch.c
    ${CMAKE_SOURCE_DIR}/libretro/libretro-common/compat/fopen_utf8.c
    ${CMAKE_SOURCE_DIR}/libretro/libretro-common/encodings/encoding_utf.c
    ${CMAKE_SOURCE_DIR}/libretro/libretro-common/file/file_path.c
