@@ -337,7 +337,13 @@ void FileMemoryCard::Open()
 		{
 			char newname[PCSX2_PATH_MAX];
 
-			snprintf(newname, sizeof(newname), "%sx", fname);
+			if (snprintf(newname, sizeof(newname), "%sx", fname) >= (int)sizeof(newname))
+			{
+				/* Truncation folds newname back onto fname and the
+				 * converter would read and write the same file. */
+				Console.Error("Memcard: path too long to stage ECC conversion: %s", fname);
+				continue;
+			}
 			if (!ConvertNoECCtoRAW(fname, newname))
 			{
 				FileSystem::DeleteFilePath(newname);

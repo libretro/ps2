@@ -190,7 +190,7 @@ namespace InternalServers
 		}
 		else
 		{
-			Console.Error("DEV9: Unexpected DNS OPCode, Code: %s", dns.GetOpCode());
+			Console.Error("DEV9: Unexpected DNS OPCode, Code: %u", (unsigned)dns.GetOpCode());
 			return true;
 		}
 	}

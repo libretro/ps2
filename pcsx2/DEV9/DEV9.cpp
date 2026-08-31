@@ -324,7 +324,7 @@ u8 DEV9read8(u32 addr)
 	u8 hard;
 	if (addr >= ATA_DEV9_HDD_BASE && addr < ATA_DEV9_HDD_END)
 	{
-		Console.Error("DEV9: ATA does not support 8bit reads %lx", addr);
+		Console.Error("DEV9: ATA does not support 8bit reads %x", addr);
 		return 0;
 	}
 	if (addr >= SMAP_REGBASE && addr < FLASH_REGBASE)
@@ -377,7 +377,7 @@ u8 DEV9read8(u32 addr)
 
 		default:
 			hard = dev9Ru8(addr);
-			Console.Error("DEV9: Unknown 8bit read at address %lx value %x", addr, hard);
+			Console.Error("DEV9: Unknown 8bit read at address %x value %x", addr, hard);
 			return hard;
 	}
 }
@@ -517,7 +517,7 @@ u16 DEV9read16(u32 addr)
 			return dev9.if_ctrl;
 		default:
 			hard = dev9Ru16(addr);
-			Console.Error("DEV9: Unknown 16bit read at address %lx value %x", addr, hard);
+			Console.Error("DEV9: Unknown 16bit read at address %x value %x", addr, hard);
 			return hard;
 	}
 }
@@ -530,7 +530,7 @@ u32 DEV9read32(u32 addr)
 	u32 hard;
 	if (addr >= ATA_DEV9_HDD_BASE && addr < ATA_DEV9_HDD_END)
 	{
-		Console.Error("DEV9: ATA does not support 32bit reads %lx", addr);
+		Console.Error("DEV9: ATA does not support 32bit reads %x", addr);
 		return 0;
 	}
 	if (addr >= SMAP_REGBASE && addr < FLASH_REGBASE)
@@ -544,7 +544,7 @@ u32 DEV9read32(u32 addr)
 	}
 
 	hard = dev9Ru32(addr);
-	Console.Error("DEV9: Unknown 32bit read at address %lx value %x", addr, hard);
+	Console.Error("DEV9: Unknown 32bit read at address %x value %x", addr, hard);
 	return hard;
 }
 
@@ -655,7 +655,7 @@ void DEV9write8(u32 addr, u8 value)
 			return;
 		default:
 			dev9Ru8(addr) = value;
-			Console.Error("DEV9: Unknown 8bit write at address %lx value %x", addr, value);
+			Console.Error("DEV9: Unknown 8bit write at address %x value %x", addr, value);
 			return;
 	}
 }
@@ -965,7 +965,7 @@ void DEV9write16(u32 addr, u16 value)
 
 		default:
 			dev9Ru16(addr) = value;
-			Console.Error("DEV9: *Unknown 16bit write at address %lx value %x", addr, value);
+			Console.Error("DEV9: *Unknown 16bit write at address %x value %x", addr, value);
 			return;
 	}
 }
@@ -1001,7 +1001,7 @@ void DEV9write32(u32 addr, u32 value)
 			break;
 		default:
 			dev9Ru32(addr) = value;
-			Console.Error("DEV9: Unknown 32bit write at address %lx write %x", addr, value);
+			Console.Error("DEV9: Unknown 32bit write at address %x write %x", addr, value);
 			return;
 	}
 }

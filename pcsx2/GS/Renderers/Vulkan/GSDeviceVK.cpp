@@ -1445,8 +1445,7 @@ bool GSDeviceVK::CheckFeatures()
 		vkGetPhysicalDeviceFormatProperties(vk_init_info.gpu, vkfmt, &props);
 		if ((props.optimalTilingFeatures & bits) != bits)
 		{
-			Console.Error("Vulkan Renderer Unavailable",
-				"Required format %u is missing bits, you may need to update your driver. (vk:%u, has:0x%x, needs:0x%x)",
+			Console.Error("Vulkan Renderer Unavailable: required format %u is missing bits, you may need to update your driver. (vk:%u, has:0x%x, needs:0x%x)",
 				fmt, static_cast<unsigned>(vkfmt), props.optimalTilingFeatures, bits);
 			return false;
 		}

@@ -528,8 +528,10 @@ namespace R3000A
 				strlcpy(hostcontent->name, dir->FileName.c_str(), sizeof(hostcontent->name));
 				{
 					char joined[PCSX2_PATH_MAX];
-					snprintf(joined, sizeof(joined), "%s/%s", basedir, dir->FileName.c_str());
-					host_stat(joined, &hostcontent->stat);
+					/* A truncated join names some other file; better an
+					 * empty stat than a stat of the wrong path. */
+					if (snprintf(joined, sizeof(joined), "%s/%s", basedir, dir->FileName.c_str()) < (int)sizeof(joined))
+						host_stat(joined, &hostcontent->stat);
 				}
 			}
 			else
@@ -538,8 +540,10 @@ namespace R3000A
 				strlcpy(hostcontent->name, dir->FileName.c_str(), sizeof(hostcontent->name));
 				{
 					char joined[PCSX2_PATH_MAX];
-					snprintf(joined, sizeof(joined), "%s/%s", basedir, dir->FileName.c_str());
-					host_stat(joined, &hostcontent->stat);
+					/* A truncated join names some other file; better an
+					 * empty stat than a stat of the wrong path. */
+					if (snprintf(joined, sizeof(joined), "%s/%s", basedir, dir->FileName.c_str()) < (int)sizeof(joined))
+						host_stat(joined, &hostcontent->stat);
 				}
 			}
 

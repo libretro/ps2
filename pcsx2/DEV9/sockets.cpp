@@ -357,7 +357,7 @@ void SocketAdapter::reset()
 {
 	//Adapter Reset
 	std::vector<ConnectionKey> keys = connections.GetKeys();
-	DevCon.WriteLn("DEV9: Socket: Reset %d Connections", keys.size());
+	DevCon.WriteLn("DEV9: Socket: Reset %zu Connections", keys.size());
 	for (size_t i = 0; i < keys.size(); i++)
 	{
 		ConnectionKey key = keys[i];
@@ -604,7 +604,7 @@ SocketAdapter::~SocketAdapter()
 {
 	//Force close all sessions
 	std::vector<ConnectionKey> keys = connections.GetKeys();
-	DevCon.WriteLn("DEV9: Socket: Closing %d Connections", keys.size());
+	DevCon.WriteLn("DEV9: Socket: Closing %zu Connections", keys.size());
 	for (size_t i = 0; i < keys.size(); i++)
 	{
 		const ConnectionKey key = keys[i];

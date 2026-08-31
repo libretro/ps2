@@ -356,7 +356,7 @@ bool GSDeviceOGL::Create()
 		glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &m_uniform_buffer_alignment);
 		if (!m_vertex_stream_buffer || !m_index_stream_buffer || !m_vertex_uniform_stream_buffer || !m_fragment_uniform_stream_buffer)
 		{
-			Console.Error("GS", "Failed to create vertex/index/uniform streaming buffers");
+			Console.Error("GS: Failed to create vertex/index/uniform streaming buffers");
 			return false;
 		}
 

@@ -743,8 +743,6 @@ ifeq ($(IS_WIN_MINGW),1)
                -Wno-attributes \
                -Wno-unused-parameter \
                -Wno-unused-value \
-               -Wno-format \
-               -Wno-format-security \
                -Wno-missing-field-initializers \
                -Wno-parentheses \
                -Wno-missing-braces \

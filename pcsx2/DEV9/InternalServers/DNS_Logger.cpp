@@ -117,47 +117,47 @@ namespace InternalServers
 		Console.WriteLn("DEV9: DNS: Is Truncated? %s", dns->GetTC() ? "True" : "False");
 		Console.WriteLn("DEV9: DNS: Recursion Desired? %s", dns->GetRD() ? "True" : "False");
 		Console.WriteLn("DEV9: DNS: Recursion Available? %s", dns->GetRA() ? "True" : "False");
-		Console.WriteLn("DEV9: DNS: Zero %i", dns->GetZ0());
+		Console.WriteLn("DEV9: DNS: Zero %zu", dns->GetZ0());
 		Console.WriteLn("DEV9: DNS: Authenticated Data? %s", dns->GetAD() ? "True" : "False");
 		Console.WriteLn("DEV9: DNS: Checking Disabled? %s", dns->GetCD() ? "True" : "False");
-		Console.WriteLn("DEV9: DNS: Result %s (%i)", RCodeToString((DNS_RCode)dns->GetRCode()), dns->GetRCode());
+		Console.WriteLn("DEV9: DNS: Result %s (%zu)", RCodeToString((DNS_RCode)dns->GetRCode()), dns->GetRCode());
 
-		Console.WriteLn("DEV9: DNS: Question Count %i", dns->questions.size());
-		Console.WriteLn("DEV9: DNS: Answer Count %i", dns->answers.size());
-		Console.WriteLn("DEV9: DNS: Authority Count %i", dns->authorities.size());
-		Console.WriteLn("DEV9: DNS: Additional Count %i", dns->additional.size());
+		Console.WriteLn("DEV9: DNS: Question Count %zu", dns->questions.size());
+		Console.WriteLn("DEV9: DNS: Answer Count %zu", dns->answers.size());
+		Console.WriteLn("DEV9: DNS: Authority Count %zu", dns->authorities.size());
+		Console.WriteLn("DEV9: DNS: Additional Count %zu", dns->additional.size());
 
 		for (size_t i = 0; i < dns->questions.size(); i++)
 		{
 			DNS_QuestionEntry entry = dns->questions[i];
-			Console.WriteLn("DEV9: DNS: Q%i Name %s", i, entry.name.c_str());
-			Console.WriteLn("DEV9: DNS: Q%i Type %i", i, entry.entryType);
-			Console.WriteLn("DEV9: DNS: Q%i Class %i", i, entry.entryClass);
+			Console.WriteLn("DEV9: DNS: Q%zu Name %s", i, entry.name.c_str());
+			Console.WriteLn("DEV9: DNS: Q%zu Type %zu", i, entry.entryType);
+			Console.WriteLn("DEV9: DNS: Q%zu Class %zu", i, entry.entryClass);
 		}
 		for (size_t i = 0; i < dns->answers.size(); i++)
 		{
 			DNS_ResponseEntry entry = dns->answers[i];
-			Console.WriteLn("DEV9: DNS: Ans%i Name %s", i, entry.name.c_str());
-			Console.WriteLn("DEV9: DNS: Ans%i Type %i", i, entry.entryType);
-			Console.WriteLn("DEV9: DNS: Ans%i Class %i", i, entry.entryClass);
-			Console.WriteLn("DEV9: DNS: Ans%i TTL %i", i, entry.timeToLive);
-			Console.WriteLn("DEV9: DNS: Ans%i Data %s", i, VectorToString(entry.data).c_str());
+			Console.WriteLn("DEV9: DNS: Ans%zu Name %s", i, entry.name.c_str());
+			Console.WriteLn("DEV9: DNS: Ans%zu Type %zu", i, entry.entryType);
+			Console.WriteLn("DEV9: DNS: Ans%zu Class %zu", i, entry.entryClass);
+			Console.WriteLn("DEV9: DNS: Ans%zu TTL %zu", i, entry.timeToLive);
+			Console.WriteLn("DEV9: DNS: Ans%zu Data %s", i, VectorToString(entry.data).c_str());
 		}
 		for (size_t i = 0; i < dns->authorities.size(); i++)
 		{
 			DNS_ResponseEntry entry = dns->authorities[i];
-			Console.WriteLn("DEV9: DNS: Auth%i Name %s", i, entry.name.c_str());
-			Console.WriteLn("DEV9: DNS: Auth%i Type %i", i, entry.entryType);
-			Console.WriteLn("DEV9: DNS: Auth%i Class %i", i, entry.entryClass);
-			Console.WriteLn("DEV9: DNS: Auth%i TTL %i", i, entry.timeToLive);
-			Console.WriteLn("DEV9: DNS: Auth%i Data %s", i, VectorToString(entry.data).c_str());
+			Console.WriteLn("DEV9: DNS: Auth%zu Name %s", i, entry.name.c_str());
+			Console.WriteLn("DEV9: DNS: Auth%zu Type %zu", i, entry.entryType);
+			Console.WriteLn("DEV9: DNS: Auth%zu Class %zu", i, entry.entryClass);
+			Console.WriteLn("DEV9: DNS: Auth%zu TTL %zu", i, entry.timeToLive);
+			Console.WriteLn("DEV9: DNS: Auth%zu Data %s", i, VectorToString(entry.data).c_str());
 		}
 		for (size_t i = 0; i < dns->additional.size(); i++)
 		{
 			DNS_ResponseEntry entry = dns->additional[i];
-			Console.WriteLn("DEV9: DNS: Add%i Name %s", i, entry.name.c_str());
-			Console.WriteLn("DEV9: DNS: Add%i Type %i", i, entry.entryType);
-			Console.WriteLn("DEV9: DNS: Add%i Class %i", i, entry.entryClass);
+			Console.WriteLn("DEV9: DNS: Add%zu Name %s", i, entry.name.c_str());
+			Console.WriteLn("DEV9: DNS: Add%zu Type %zu", i, entry.entryType);
+			Console.WriteLn("DEV9: DNS: Add%zu Class %zu", i, entry.entryClass);
 			Console.WriteLn("DEV9: DNS: Add%i TTL %i", i, entry.timeToLive);
 			Console.WriteLn("DEV9: DNS: Add%i Data %s", i, VectorToString(entry.data).c_str());
 		}

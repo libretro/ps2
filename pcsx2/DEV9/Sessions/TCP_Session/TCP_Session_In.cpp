@@ -106,7 +106,7 @@ namespace Sessions
 			if (err != SOCKET_ERROR)
 			{
 				if (available > maxSize)
-					Console.WriteLn("DEV9: TCP: Got a lot of data: %d Using: %d", available, maxSize);
+					Console.WriteLn("DEV9: TCP: Got a lot of data: %lu Using: %d", available, maxSize);
 
 				buffer = std::make_unique<u8[]>(maxSize);
 				recived = recv(client, (char*)buffer.get(), maxSize, 0);
