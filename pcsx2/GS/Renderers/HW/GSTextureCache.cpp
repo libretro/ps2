@@ -5202,8 +5202,17 @@ void GSTextureCache::Read(Target* t, const GSVector4i& r)
 	if (write_mask == 0)
 		return;
 
-	const GSVector4 src(GSVector4(r) * GSVector4(t->m_scale) / GSVector4(t->m_texture->GetSize()).xyxy());
-	const GSVector4i drc(0, 0, r.width(), r.height());
+	// Clamp the read to the target's allocated area. An out-of-range source box in
+	// CopyFromTexture is undefined behavior at the API level (D3D11 documents it as
+	// undefined, in Vulkan it is invalid usage) and can surface as a driver-side GPU
+	// fault. Guest data past the texture has no defined content to read anyway; the
+	// unclamped remainder keeps whatever local memory already holds.
+	const GSVector4i tr = r.rintersect(GSVector4i(0, 0, t->m_unscaled_size.x, t->m_unscaled_size.y));
+	if (tr.rempty())
+		return;
+
+	const GSVector4 src(GSVector4(tr) * GSVector4(t->m_scale) / GSVector4(t->m_texture->GetSize()).xyxy());
+	const GSVector4i drc(0, 0, tr.width(), tr.height());
 	const bool direct_read = t->m_type == RenderTarget && t->m_scale == 1.0f && ps_shader == ShaderConvert::COPY;
 
 	if (!PrepareDownloadTexture(drc.z, drc.w, fmt, dltex))
@@ -5211,7 +5220,7 @@ void GSTextureCache::Read(Target* t, const GSVector4i& r)
 
 	if (direct_read)
 	{
-		dltex->get()->CopyFromTexture(drc, t->m_texture, r, 0, true);
+		dltex->get()->CopyFromTexture(drc, t->m_texture, tr, 0, true);
 	}
 	else
 	{
@@ -5241,13 +5250,13 @@ void GSTextureCache::Read(Target* t, const GSVector4i& r)
 		case PSMZ32:
 		case PSMCT24:
 		case PSMZ24:
-			g_gs_renderer->m_mem.WritePixel32(bits, pitch, off, r, write_mask);
+			g_gs_renderer->m_mem.WritePixel32(bits, pitch, off, tr, write_mask);
 			break;
 		case PSMCT16:
 		case PSMCT16S:
 		case PSMZ16:
 		case PSMZ16S:
-			g_gs_renderer->m_mem.WritePixel16(bits, pitch, off, r);
+			g_gs_renderer->m_mem.WritePixel16(bits, pitch, off, tr);
 			break;
 
 		default:
@@ -5260,22 +5269,24 @@ void GSTextureCache::Read(Target* t, const GSVector4i& r)
 
 void GSTextureCache::Read(Source* t, const GSVector4i& r)
 {
-	if (r.rempty())
+	// Same clamp as the Target variant: keep the source box inside the texture.
+	const GSVector4i tr = r.rintersect(GSVector4i(0, 0, t->m_texture->GetWidth(), t->m_texture->GetHeight()));
+	if (tr.rempty())
 		return;
 
-	const GSVector4i drc(0, 0, r.width(), r.height());
+	const GSVector4i drc(0, 0, tr.width(), tr.height());
 
 	if (!PrepareDownloadTexture(drc.z, drc.w, GSTexture::Format::Color, &m_color_download_texture))
 		return;
 
-	m_color_download_texture->CopyFromTexture(drc, t->m_texture, r, 0, true);
+	m_color_download_texture->CopyFromTexture(drc, t->m_texture, tr, 0, true);
 	m_color_download_texture->Flush();
 
 	if (m_color_download_texture->Map(drc))
 	{
 		const GSOffset off = g_gs_renderer->m_mem.GetOffset(t->m_TEX0.TBP0, t->m_TEX0.TBW, t->m_TEX0.PSM);
 		g_gs_renderer->m_mem.WritePixel32(
-			const_cast<u8*>(m_color_download_texture->GetMapPointer()), m_color_download_texture->GetMapPitch(), off, r);
+			const_cast<u8*>(m_color_download_texture->GetMapPointer()), m_color_download_texture->GetMapPitch(), off, tr);
 		m_color_download_texture->Unmap();
 	}
 }
