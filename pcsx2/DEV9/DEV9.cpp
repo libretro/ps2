@@ -189,6 +189,7 @@ s32 DEV9init()
 void DEV9shutdown()
 {
 	DevCon.WriteLn("DEV9: DEV9shutdown");
+	FLASHsave();
 	ata_free(dev9.ata);
 	dev9.ata = nullptr;
 }

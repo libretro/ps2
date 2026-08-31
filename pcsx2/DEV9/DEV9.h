@@ -637,6 +637,7 @@ static flash_info_t devices[] = {
 extern void dev9Irq(int cycles);
 
 void FLASHinit();
+void FLASHsave();
 s32 DEV9init();
 void DEV9close();
 s32 DEV9open();

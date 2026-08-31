@@ -16,6 +16,11 @@
 // The code has been designed for 64Mb flash and uses as file support the second memory card
 #include <stdio.h>
 #include "DEV9.h"
+#include "ps2/BiosTools.h"
+
+#include <compat/strl.h>
+#include <file/file_path.h>
+#include <streams/file_stream.h>
 
 #define PAGE_SIZE_BITS 9
 #define PAGE_SIZE (1 << PAGE_SIZE_BITS)
@@ -29,6 +34,37 @@
 
 static volatile u32 ctrl, cmd = (u32)-1, address, id, counter, addrbyte;
 static u8 data[PAGE_SIZE_ECC], file[CARD_SIZE_ECC];
+/* Set by the one place a programmed page lands in the image; cleared by
+ * load and by a successful save.  The image is 8.25 MiB, so writes only
+ * happen when the PS2 side actually reprogrammed something. */
+static bool file_dirty;
+
+/* The flash image lives next to the BIOS like the NVRAM and MEC files
+ * do: per-BIOS, inside the system directory, reachable through the VFS.
+ * The old code fopen()'d a bare "flash.dat" - whatever directory the
+ * frontend happened to be started from, invisible to the VFS and to
+ * Android storage - and never wrote anything back at all. */
+static void FlashFilePath(char* out, size_t out_size)
+{
+	strlcpy(out, BiosPath.c_str(), out_size);
+	path_remove_extension(out);
+	strlcat(out, ".flash", out_size);
+}
+
+void FLASHsave()
+{
+	char path[PCSX2_PATH_MAX];
+	if (!file_dirty)
+		return;
+	FlashFilePath(path, sizeof(path));
+	if (filestream_write_file_atomic(path, file, CARD_SIZE_ECC))
+	{
+		file_dirty = false;
+		Console.WriteLn("DEV9: flash image saved to %s", path);
+	}
+	else
+		Console.Error("DEV9: failed to save flash image to %s", path);
+}
 
 static void xfromman_call20_calculateXors(unsigned char buffer[128], unsigned char blah[4]);
 
@@ -72,8 +108,6 @@ static const char* getCmdName(u32 cmd)
 
 void FLASHinit()
 {
-	FILE* fd;
-
 	id = FLASH_ID_64MBIT;
 	counter = 0;
 	addrbyte = 0;
@@ -83,21 +117,31 @@ void FLASHinit()
 	calculateECC(data);
 	ctrl = FLASH_PP_READY;
 
-	fd = fopen("flash.dat", "rb");
-	if (fd != NULL)
+	/* A game-issued flash reset re-enters here and reloads from disk;
+	 * flush programmed pages first so the reload cannot drop them.
+	 * At boot this is a no-op (nothing is dirty yet). */
+	FLASHsave();
+
 	{
-		size_t ret;
-
-		ret = fread(file, 1, CARD_SIZE_ECC, fd);
-		if (ret != CARD_SIZE_ECC)
+		char path[PCSX2_PATH_MAX];
+		RFILE* fd;
+		FlashFilePath(path, sizeof(path));
+		fd = filestream_open(path, RETRO_VFS_FILE_ACCESS_READ, RETRO_VFS_FILE_ACCESS_HINT_NONE);
+		/* Legacy location: a bare "flash.dat" relative to the process
+		 * working directory, from the plugin era.  Read-only migration
+		 * courtesy; new saves always go to the per-BIOS path. */
+		if (!fd)
+			fd = filestream_open("flash.dat", RETRO_VFS_FILE_ACCESS_READ, RETRO_VFS_FILE_ACCESS_HINT_NONE);
+		if (fd)
 		{
-			DevCon.WriteLn("DEV9: Reading error.");
+			if (filestream_read(fd, file, CARD_SIZE_ECC) != (int64_t)CARD_SIZE_ECC)
+				DevCon.WriteLn("DEV9: Reading error.");
+			filestream_close(fd);
 		}
-
-		fclose(fd);
+		else
+			memset(file, 0xFF, CARD_SIZE_ECC);
+		file_dirty = false;
 	}
-	else
-		memset(file, 0xFF, CARD_SIZE_ECC);
 }
 
 u32 FLASHread32(u32 addr, int size)
@@ -247,7 +291,7 @@ void FLASHwrite32(u32 addr, u32 value, int size)
 					ctrl &= ~FLASH_PP_READY;
 					calculateECC(data);
 					memcpy(file + (address / PAGE_SIZE) * PAGE_SIZE_ECC, data, PAGE_SIZE_ECC);
-					/*write2file*/
+					file_dirty = true; /* the write2file the plugin never did */
 					ctrl |= FLASH_PP_READY;
 					break;
 				case SM_CMD_GETSTATUS:
