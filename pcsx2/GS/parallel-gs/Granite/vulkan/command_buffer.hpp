@@ -23,7 +23,6 @@
 #pragma once
 
 #include "buffer.hpp"
-#include "rtas.hpp"
 #include "buffer_pool.hpp"
 #include "vulkan_headers.hpp"
 #include "image.hpp"
@@ -37,7 +36,6 @@
 namespace Vulkan
 {
 class DebugChannelInterface;
-class IndirectLayout;
 
 static inline VkPipelineStageFlags convert_vk_stage2(VkPipelineStageFlags2 stages)
 {
@@ -452,19 +450,6 @@ public:
 
 	// Pipeline state must not change between calling this and dispatching.
 	// Ideally it's called right before execute indirect commands.
-	// The execution set handle is only valid as long as the creating command buffer is alive.
-
-	struct ExecutionSetSpecializationConstants
-	{
-		uint32_t mask;
-		uint32_t constants[VULKAN_NUM_USER_SPEC_CONSTANTS];
-	};
-
-	VkIndirectExecutionSetEXT bake_and_set_program_group(
-			Program * const *programs, unsigned num_programs,
-			const ExecutionSetSpecializationConstants *spec_constants,
-			const PipelineLayout *layout);
-
 #ifdef GRANITE_VULKAN_SYSTEM_HANDLES
 	// Convenience functions for one-off shader binds.
 	void set_program(const std::string &task, const std::string &mesh, const std::string &fragment,
@@ -494,7 +479,6 @@ public:
 	void set_storage_buffer(unsigned set, unsigned binding, const Buffer &buffer);
 	void set_storage_buffer(unsigned set, unsigned binding, const Buffer &buffer, VkDeviceSize offset,
 	                        VkDeviceSize range);
-	void set_rtas(unsigned set, unsigned binding, const RTAS &rtas);
 
 	void set_bindless(unsigned set, const BindlessDescriptorSet &handle);
 
@@ -547,20 +531,6 @@ public:
 	void draw_mesh_tasks_indirect(const Buffer &buffer, VkDeviceSize offset, uint32_t draw_count, uint32_t stride);
 	void draw_mesh_tasks_multi_indirect(const Buffer &buffer, VkDeviceSize offset, uint32_t draw_count, uint32_t stride,
 										const Buffer &count, VkDeviceSize count_offset);
-	void execute_indirect_commands(VkIndirectExecutionSetEXT execution_set,
-	                               const IndirectLayout *indirect_layout,
-	                               uint32_t sequences,
-	                               const Buffer &indirect, VkDeviceSize offset,
-	                               const Buffer *count, size_t count_offset,
-	                               CommandBuffer &preprocess);
-
-	void begin_rtas_batch();
-	void build_rtas(BuildMode mode, const RTAS &rtas, const BottomRTASCreateInfo &info);
-	void build_rtas(BuildMode mode, const RTAS &rtas, const TopRTASCreateInfo &info);
-	void write_compacted_rtas_size(const RTAS &rtas, const QueryPoolResult &query);
-	void compact_rtas(const RTAS &dst, const RTAS &src);
-	void end_rtas_batch();
-
 	void set_opaque_state();
 	void set_quad_state();
 	void set_opaque_sprite_state();
@@ -997,31 +967,6 @@ private:
 		bool active = false;
 	} barrier_batch;
 
-	struct RTASBatch
-	{
-		struct Range { VkAccelerationStructureKHR dst, src; VkDeviceSize scratch; size_t start, count; };
-		struct Query { VkAccelerationStructureKHR rtas; VkQueryPool pool; uint32_t index; };
-
-		Util::SmallVector<VkAccelerationStructureGeometryKHR, 4> geometries_conv;
-		Util::SmallVector<VkAccelerationStructureBuildGeometryInfoKHR, 4> geom_info;
-		Util::SmallVector<VkAccelerationStructureBuildRangeInfoKHR, 4> range_infos;
-		Util::SmallVector<const VkAccelerationStructureBuildRangeInfoKHR *, 4> range_info_ptrs;
-
-		Util::SmallVector<BottomRTASGeometry, 4> geometries; // BLAS
-		Util::SmallVector<RTASInstance, 4> instances; // TLAS
-		Util::SmallVector<Range, 4> ranges;
-		Util::SmallVector<BuildMode, 4> build_modes;
-		Util::SmallVector<BLASMode, 4> blas_modes;
-		Util::SmallVector<Query, 4> queries;
-
-		BufferHandle scratch;
-		bool in_batch = false;
-	} rtas_batch;
-
-	void build_blas_batch();
-	void build_tlas_batch();
-	void setup_batch(VkAccelerationStructureTypeKHR rtas_type);
-	void emit_scratch_barrier();
 
 	template <typename T, typename... Ts> void checkpoint(Ts &&... ts);
 	template <typename T, typename... Ts> void checkpoint_with_signal(Ts &&... ts);

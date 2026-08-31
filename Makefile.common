@@ -593,12 +593,10 @@ SOURCES_CXX += \
 	$(GRANITE_DIR)/vulkan/fence.cpp \
 	$(GRANITE_DIR)/vulkan/fence_manager.cpp \
 	$(GRANITE_DIR)/vulkan/image.cpp \
-	$(GRANITE_DIR)/vulkan/indirect_layout.cpp \
 	$(GRANITE_DIR)/vulkan/memory_allocator.cpp \
 	$(GRANITE_DIR)/vulkan/pipeline_cache.cpp \
 	$(GRANITE_DIR)/vulkan/query_pool.cpp \
 	$(GRANITE_DIR)/vulkan/render_pass.cpp \
-	$(GRANITE_DIR)/vulkan/rtas.cpp \
 	$(GRANITE_DIR)/vulkan/sampler.cpp \
 	$(GRANITE_DIR)/vulkan/semaphore.cpp \
 	$(GRANITE_DIR)/vulkan/semaphore_manager.cpp \

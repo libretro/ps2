@@ -38,7 +38,6 @@
 #include "context.hpp"
 #include "query_pool.hpp"
 #include "buffer_pool.hpp"
-#include "indirect_layout.hpp"
 #include "pipeline_cache.hpp"
 #include "breadcrumbs.hpp"
 #include <memory>
@@ -97,7 +96,6 @@ struct InitialImageBuffer
 struct HandlePool
 {
 	VulkanObjectPool<Buffer> buffers;
-	VulkanObjectPool<RTAS> rtas;
 	VulkanObjectPool<Image> images;
 	VulkanObjectPool<LinearHostImage> linear_images;
 	VulkanObjectPool<ImageView> image_views;
@@ -182,8 +180,6 @@ public:
 	friend class ImmutableYcbcrConversion;
 	friend class Buffer;
 	friend struct BufferDeleter;
-	friend class RTAS;
-	friend struct RTASDeleter;
 	friend class BufferView;
 	friend struct BufferViewDeleter;
 	friend class ImageView;
@@ -325,8 +321,6 @@ public:
 	Program *request_program(Shader *task, Shader *mesh, Shader *fragment, const ImmutableSamplerBank *sampler_bank = nullptr);
 	Program *request_program(Shader *vertex, Shader *fragment, const ImmutableSamplerBank *sampler_bank = nullptr);
 	Program *request_program(Shader *compute, const ImmutableSamplerBank *sampler_bank = nullptr);
-	const IndirectLayout *request_indirect_layout(const PipelineLayout *layout, const IndirectLayoutToken *tokens,
-	                                              uint32_t num_tokens, uint32_t stride);
 
 	const ImmutableYcbcrConversion *request_immutable_ycbcr_conversion(const VkSamplerYcbcrConversionCreateInfo &info);
 	const ImmutableSampler *request_immutable_sampler(const SamplerCreateInfo &info, const ImmutableYcbcrConversion *ycbcr);
@@ -352,14 +346,6 @@ public:
 	ImageHandle wrap_image(const ImageCreateInfo &info, VkImage img);
 	DeviceAllocationOwnerHandle take_device_allocation_ownership(Image &image);
 	DeviceAllocationOwnerHandle allocate_memory(const MemoryAllocateInfo &info);
-
-	// If cmd is not null, the RTAS is immediately built.
-	// If compacted_size is not null, a compacted size query will be made. info.mode must be compatible with compaction.
-	RTASHandle create_rtas(const BottomRTASCreateInfo &info, CommandBuffer *cmd, QueryPoolHandle *compacted_size);
-	RTASHandle create_rtas(const TopRTASCreateInfo &info, CommandBuffer *cmd);
-	// Generic creation methods.
-	RTASHandle create_rtas(VkAccelerationStructureTypeKHR type, VkDeviceSize size);
-	RTASHandle create_rtas(VkAccelerationStructureTypeKHR type, BufferHandle buffer, VkDeviceSize offset, VkDeviceSize size);
 
 	// Create staging buffers for images.
 
@@ -651,7 +637,7 @@ private:
 		VkSemaphore timeline_semaphores[QUEUE_INDEX_COUNT] = {};
 		uint64_t timeline_fences[QUEUE_INDEX_COUNT] = {};
 
-		QueryPool query_pool_ts, query_pool_rtas;
+		QueryPool query_pool_ts;
 
 		std::vector<BufferBlock> vbo_blocks;
 		std::vector<BufferBlock> ibo_blocks;
@@ -667,13 +653,11 @@ private:
 		std::vector<CachedBufferView> destroyed_buffer_views;
 		std::vector<VkImage> destroyed_images;
 		std::vector<VkBuffer> destroyed_buffers;
-		std::vector<VkAccelerationStructureKHR> destroyed_rtas;
 		std::vector<VkDescriptorPool> destroyed_descriptor_pools;
 		Util::SmallVector<CommandBufferHandle> submissions[QUEUE_INDEX_COUNT];
 		std::vector<VkSemaphore> recycled_semaphores;
 		std::vector<VkSemaphore> destroyed_semaphores;
 		std::vector<VkSemaphore> consumed_semaphores;
-		std::vector<VkIndirectExecutionSetEXT> destroyed_execution_sets;
 		std::vector<DescriptorBufferAllocation> descriptor_buffer_allocs;
 		std::vector<CachedDescriptorPayload> cached_descriptor_payloads;
 		std::vector<BufferMarkerHandle> breadcrumbs;
@@ -778,7 +762,6 @@ private:
 	VulkanCache<Program> programs;
 	VulkanCache<ImmutableSampler> immutable_samplers;
 	VulkanCache<ImmutableYcbcrConversion> immutable_ycbcr_conversions;
-	VulkanCache<IndirectLayout> indirect_layouts;
 
 	FramebufferAllocator framebuffer_allocator;
 	TransientAttachmentAllocator transient_allocator;
@@ -809,7 +792,6 @@ private:
 	VkResult queue_submit(VkQueue queue, uint32_t count, const VkSubmitInfo2 *submits, VkFence fence);
 
 	void destroy_buffer(VkBuffer buffer);
-	void destroy_rtas(VkAccelerationStructureKHR rtas);
 	void destroy_image(VkImage image);
 	void destroy_image_view(const CachedImageView &view);
 	void destroy_buffer_view(const CachedBufferView &view);
@@ -821,12 +803,10 @@ private:
 	void free_memory(const DeviceAllocation &alloc);
 	void reset_fence(VkFence fence, bool observed_wait);
 	void destroy_descriptor_pool(VkDescriptorPool desc_pool);
-	void destroy_indirect_execution_set(VkIndirectExecutionSetEXT exec_set);
 	void free_descriptor_buffer_allocation(const DescriptorBufferAllocation &alloc);
 	void free_cached_descriptor_payload(const CachedDescriptorPayload &payload);
 
 	void destroy_buffer_nolock(VkBuffer buffer);
-	void destroy_rtas_nolock(VkAccelerationStructureKHR rtas);
 	void destroy_image_nolock(VkImage image);
 	void destroy_image_view_nolock(const CachedImageView &view);
 	void destroy_buffer_view_nolock(const CachedBufferView &view);
@@ -838,7 +818,6 @@ private:
 	void free_memory_nolock(const DeviceAllocation &alloc);
 	void destroy_descriptor_pool_nolock(VkDescriptorPool desc_pool);
 	void reset_fence_nolock(VkFence fence, bool observed_wait);
-	void destroy_indirect_execution_set_nolock(VkIndirectExecutionSetEXT exec_set);
 	void free_descriptor_buffer_allocation_nolock(const DescriptorBufferAllocation &alloc);
 	void free_cached_descriptor_payload_nolock(const CachedDescriptorPayload &payload);
 
