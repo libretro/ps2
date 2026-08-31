@@ -22,6 +22,7 @@
 
 #pragma once
 
+#include "thread_prims.hpp"
 #include <stddef.h>
 #include "vulkan_headers.hpp"
 #include "small_vector.hpp"
@@ -73,7 +74,7 @@ private:
 
 	bool place_binary(VkPipelineBinaryKHR binary, Util::Hash *hash);
 	bool parse(const void *payload, size_t size);
-	std::atomic_bool new_entries;
+	PGS::atomic_bool new_entries;
 
 	Util::Hash get_create_info_key(const void *create_info) const;
 	bool find_pipeline_binaries(Util::Hash hash,

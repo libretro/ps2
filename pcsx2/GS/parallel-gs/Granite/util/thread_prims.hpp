@@ -40,12 +40,139 @@
 #ifndef PGS_THREAD_PRIMS_HPP
 #define PGS_THREAD_PRIMS_HPP
 
+#include <retro_atomic.h>
 #include <rthreads/rthreads.h>
 
+#include <stdint.h>
 #include <utility>
 
 namespace PGS
 {
+/* std::memory_order stand-in.  retro_atomic offers acquire loads, release
+ * stores and full-barrier read-modify-writes, all at least as strong as
+ * anything these call sites request, so the argument is accepted for
+ * diff-with-std readability and otherwise ignored. */
+enum memory_order
+{
+	memory_order_relaxed,
+	memory_order_consume,
+	memory_order_acquire,
+	memory_order_release,
+	memory_order_acq_rel,
+	memory_order_seq_cst
+};
+
+/* The std::atomic surface Granite uses, over retro_atomic.  Only the
+ * operations with call sites are offered; fetch_add and fetch_sub on the
+ * 64-bit type are CAS loops because retro_atomic has no 64-bit fetch-add
+ * primitive. */
+class atomic_uint32_t
+{
+	retro_atomic_int_t v;
+
+public:
+	atomic_uint32_t() { retro_atomic_int_init(&v, 0); }
+	explicit atomic_uint32_t(uint32_t init) { retro_atomic_int_init(&v, (int)init); }
+	atomic_uint32_t(const atomic_uint32_t &) = delete;
+	atomic_uint32_t &operator=(const atomic_uint32_t &) = delete;
+
+	uint32_t load(memory_order = memory_order_seq_cst) const
+	{
+		return (uint32_t)retro_atomic_load_acquire_int(const_cast<retro_atomic_int_t *>(&v));
+	}
+	void store(uint32_t value, memory_order = memory_order_seq_cst)
+	{
+		retro_atomic_store_release_int(&v, (int)value);
+	}
+	uint32_t fetch_add(uint32_t value, memory_order = memory_order_seq_cst)
+	{
+		return (uint32_t)retro_atomic_fetch_add_int(&v, (int)value);
+	}
+	uint32_t fetch_sub(uint32_t value, memory_order = memory_order_seq_cst)
+	{
+		return (uint32_t)retro_atomic_fetch_sub_int(&v, (int)value);
+	}
+	uint32_t fetch_and(uint32_t value, memory_order = memory_order_seq_cst)
+	{
+		return (uint32_t)retro_atomic_fetch_and_int(&v, (int)value);
+	}
+	bool compare_exchange_weak(uint32_t &expected, uint32_t desired,
+	                           memory_order = memory_order_seq_cst,
+	                           memory_order = memory_order_seq_cst)
+	{
+		if (retro_atomic_cas_int(&v, (int)expected, (int)desired))
+			return true;
+		expected = load();
+		return false;
+	}
+	bool compare_exchange_strong(uint32_t &expected, uint32_t desired,
+	                             memory_order = memory_order_seq_cst,
+	                             memory_order = memory_order_seq_cst)
+	{
+		return compare_exchange_weak(expected, desired);
+	}
+};
+
+class atomic_uint64_t
+{
+	retro_atomic_64_t v;
+
+public:
+	atomic_uint64_t() { retro_atomic_64_init(&v, 0); }
+	explicit atomic_uint64_t(uint64_t init) { retro_atomic_64_init(&v, (int64_t)init); }
+	atomic_uint64_t(const atomic_uint64_t &) = delete;
+	atomic_uint64_t &operator=(const atomic_uint64_t &) = delete;
+
+	uint64_t load(memory_order = memory_order_seq_cst) const
+	{
+		return (uint64_t)retro_atomic_load_acquire_64(const_cast<retro_atomic_64_t *>(&v));
+	}
+	void store(uint64_t value, memory_order = memory_order_seq_cst)
+	{
+		retro_atomic_store_release_64(&v, (int64_t)value);
+	}
+	uint64_t fetch_add(uint64_t value, memory_order = memory_order_seq_cst)
+	{
+		for (;;)
+		{
+			const uint64_t old = load();
+			if (retro_atomic_cas_64(&v, (int64_t)old, (int64_t)(old + value)))
+				return old;
+		}
+	}
+	uint64_t operator=(uint64_t value)
+	{
+		store(value);
+		return value;
+	}
+};
+
+class atomic_bool
+{
+	retro_atomic_int_t v;
+
+public:
+	atomic_bool() { retro_atomic_int_init(&v, 0); }
+	atomic_bool(bool init) { retro_atomic_int_init(&v, init ? 1 : 0); }
+	atomic_bool(const atomic_bool &) = delete;
+	atomic_bool &operator=(const atomic_bool &) = delete;
+
+	bool load(memory_order = memory_order_seq_cst) const
+	{
+		return retro_atomic_load_acquire_int(const_cast<retro_atomic_int_t *>(&v)) != 0;
+	}
+	void store(bool value, memory_order = memory_order_seq_cst)
+	{
+		retro_atomic_store_release_int(&v, value ? 1 : 0);
+	}
+	bool operator=(bool value)
+	{
+		store(value);
+		return value;
+	}
+	operator bool() const { return load(); }
+};
+
 class mutex
 {
 public:

@@ -450,7 +450,7 @@ void GSRenderer::drain_compilation_tasks_nonblock()
 	                          [](std::unique_ptr<CompilationTask> &task) {
 		/* The worker publishes done last, so acquiring it means its
 		 * writes are visible and the join below cannot block. */
-		if (!task->done.load(std::memory_order_acquire))
+		if (!task->done.load(PGS::memory_order_acquire))
 			return false;
 		task->thread.join();
 		return true;
@@ -739,7 +739,7 @@ void GSRenderer::kick_compilation_tasks()
 
 		auto async_task = std::unique_ptr<CompilationTask>(new CompilationTask);
 		auto *task_state = async_task.get();
-		task_state->done.store(false, std::memory_order_relaxed);
+		task_state->done.store(false, PGS::memory_order_relaxed);
 
 		task_state->thread = PGS::thread([this, task_state, moved_tasks = std::move(deferred)]()
 		{
@@ -754,7 +754,7 @@ void GSRenderer::kick_compilation_tasks()
 						device, task, Vulkan::CommandBuffer::CompileMode::AsyncThread);
 			}
 			// Published last: the non-blocking drain joins on seeing this.
-			task_state->done.store(true, std::memory_order_release);
+			task_state->done.store(true, PGS::memory_order_release);
 		});
 
 		compilation_tasks.push_back(std::move(async_task));
@@ -784,7 +784,7 @@ GSRenderer::GSRenderer(PageTracker &tracker_)
 
 			{
 				PGS::lock_guard holder{timeline_lock};
-				timeline_value.store(last_waited, std::memory_order_release);
+				timeline_value.store(last_waited, PGS::memory_order_release);
 				timeline_cond.notify_all();
 			}
 		}
@@ -1056,7 +1056,7 @@ void GSRenderer::wait_timeline(uint64_t value)
 	PROFILE_SCOPE(ZONE_GS_SYNC);
 	PGS::unique_lock holder{timeline_lock};
 	timeline_cond.wait(holder, [this, value]() {
-		return timeline_value.load(std::memory_order_relaxed) >= value;
+		return timeline_value.load(PGS::memory_order_relaxed) >= value;
 	});
 }
 
@@ -1076,7 +1076,7 @@ uint64_t GSRenderer::query_timeline()
 {
 	// Actually spam-calling vkGetSemaphoreValue a ton of times has serious CPU overhead.
 	// We need to transition into kernel to do that.
-	return timeline_value.load(std::memory_order_acquire);
+	return timeline_value.load(PGS::memory_order_acquire);
 }
 
 void GSRenderer::flush_qword_clears()

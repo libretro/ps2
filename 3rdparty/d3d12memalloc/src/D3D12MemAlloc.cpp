@@ -5713,7 +5713,9 @@ class AllocatorPimpl
     friend class Allocator;
     friend class Pool;
 public:
-    std::atomic_uint32_t m_RefCount{1};
+    // libretro: this one bypassed the D3D12MA_ATOMIC_UINT32 config point the
+    // rest of the file honours; route it through the macro like the others.
+    D3D12MA_ATOMIC_UINT32 m_RefCount{1};
     CurrentBudgetData m_Budget;
 
     AllocatorPimpl(const ALLOCATION_CALLBACKS& allocationCallbacks, const ALLOCATOR_DESC& desc);

@@ -51,7 +51,6 @@
 #include "resource_manager.hpp"
 #endif
 
-#include <atomic>
 
 #ifdef GRANITE_VULKAN_FOSSILIZE
 #include "fossilize.hpp"
@@ -536,7 +535,7 @@ private:
 	QueueInfo queue_info;
 	unsigned num_thread_indices = 1;
 
-	std::atomic_uint64_t cookie;
+	PGS::atomic_uint64_t cookie;
 
 	uint64_t allocate_cookie();
 	void bake_program(Program &program, const ImmutableSamplerBank *sampler_bank);

@@ -22,7 +22,7 @@
 
 #pragma once
 
-#include <atomic>
+#include "thread_prims.hpp"
 
 #ifdef __SSE2__
 #include <emmintrin.h>
@@ -41,19 +41,19 @@ public:
 
 	inline void lock_read()
 	{
-		unsigned v = counter.fetch_add(Reader, std::memory_order_acquire);
+		unsigned v = counter.fetch_add(Reader, PGS::memory_order_acquire);
 		while ((v & Writer) != 0)
 		{
 #ifdef __SSE2__
 			_mm_pause();
 #endif
-			v = counter.load(std::memory_order_acquire);
+			v = counter.load(PGS::memory_order_acquire);
 		}
 	}
 
 	inline bool try_lock_read()
 	{
-		unsigned v = counter.fetch_add(Reader, std::memory_order_acquire);
+		unsigned v = counter.fetch_add(Reader, PGS::memory_order_acquire);
 		if ((v & Writer) != 0)
 		{
 			unlock_read();
@@ -65,15 +65,15 @@ public:
 
 	inline void unlock_read()
 	{
-		counter.fetch_sub(Reader, std::memory_order_release);
+		counter.fetch_sub(Reader, PGS::memory_order_release);
 	}
 
 	inline void lock_write()
 	{
 		uint32_t expected = 0;
 		while (!counter.compare_exchange_weak(expected, Writer,
-		                                      std::memory_order_acquire,
-		                                      std::memory_order_relaxed))
+		                                      PGS::memory_order_acquire,
+		                                      PGS::memory_order_relaxed))
 		{
 #ifdef __SSE2__
 			_mm_pause();
@@ -86,21 +86,21 @@ public:
 	{
 		uint32_t expected = 0;
 		return counter.compare_exchange_strong(expected, Writer,
-		                                       std::memory_order_acquire,
-		                                       std::memory_order_relaxed);
+		                                       PGS::memory_order_acquire,
+		                                       PGS::memory_order_relaxed);
 	}
 
 	inline void unlock_write()
 	{
-		counter.fetch_and(~Writer, std::memory_order_release);
+		counter.fetch_and(~Writer, PGS::memory_order_release);
 	}
 
 	inline void promote_reader_to_writer()
 	{
 		uint32_t expected = Reader;
 		if (!counter.compare_exchange_strong(expected, Writer,
-		                                     std::memory_order_acquire,
-		                                     std::memory_order_relaxed))
+		                                     PGS::memory_order_acquire,
+		                                     PGS::memory_order_relaxed))
 		{
 			unlock_read();
 			lock_write();
@@ -108,7 +108,7 @@ public:
 	}
 
 private:
-	std::atomic_uint32_t counter;
+	PGS::atomic_uint32_t counter;
 };
 
 class RWSpinLockReadHolder

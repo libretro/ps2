@@ -5124,7 +5124,7 @@ VkFormat Device::get_default_depth_format() const
 uint64_t Device::allocate_cookie()
 {
 	// Reserve lower bits for "special purposes".
-	return cookie.fetch_add(32, std::memory_order_relaxed) + 32;
+	return cookie.fetch_add(32, PGS::memory_order_relaxed) + 32;
 }
 
 const RenderPass &Device::request_render_pass(const RenderPassInfo &info, bool compatible)

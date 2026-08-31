@@ -14,7 +14,6 @@
 #include "shaders/data_structures.h"
 #include "shaders/slangmosh_iface.hpp"
 #include <queue>
-#include <atomic>
 #include <memory>
 
 namespace ParallelGS
@@ -337,7 +336,7 @@ private:
 	Vulkan::Semaphore timeline;
 	PGS::thread timeline_thread;
 	uint64_t last_submitted_timeline = 0;
-	std::atomic<uint64_t> timeline_value;
+	PGS::atomic_uint64_t timeline_value;
 	PGS::condition_variable timeline_cond;
 	PGS::mutex timeline_lock;
 
@@ -545,7 +544,7 @@ private:
 	void drain_compilation_tasks();
 	void drain_compilation_tasks_nonblock();
 	void kick_compilation_tasks();
-	std::atomic_bool compilation_tasks_active;
+	PGS::atomic_bool compilation_tasks_active;
 
 	/* std::async's future was asked for three things here: run the batch
 	 * on another thread, ask whether it has finished without blocking
@@ -556,7 +555,7 @@ private:
 	struct CompilationTask
 	{
 		PGS::thread thread;
-		std::atomic_bool done;
+		PGS::atomic_bool done;
 	};
 	std::vector<std::unique_ptr<CompilationTask>> compilation_tasks;
 

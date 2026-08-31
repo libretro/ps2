@@ -22,10 +22,10 @@
 
 #pragma once
 
+#include "thread_prims.hpp"
 #include <stddef.h>
 #include <utility>
 #include <memory>
-#include <atomic>
 #include <type_traits>
 
 namespace Util
@@ -52,22 +52,22 @@ class MultiThreadCounter
 public:
 	MultiThreadCounter()
 	{
-		count.store(1, std::memory_order_relaxed);
+		count.store(1, PGS::memory_order_relaxed);
 	}
 
 	inline void add_ref()
 	{
-		count.fetch_add(1, std::memory_order_relaxed);
+		count.fetch_add(1, PGS::memory_order_relaxed);
 	}
 
 	inline bool release()
 	{
-		auto result = count.fetch_sub(1, std::memory_order_acq_rel);
+		auto result = count.fetch_sub(1, PGS::memory_order_acq_rel);
 		return result == 1;
 	}
 
 private:
-	std::atomic_uint32_t count;
+	PGS::atomic_uint32_t count;
 };
 
 template <typename T>

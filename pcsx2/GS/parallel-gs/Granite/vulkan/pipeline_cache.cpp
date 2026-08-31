@@ -152,7 +152,7 @@ void PipelineCache::place_pipeline(Util::Hash hash, VkPipeline pipeline)
 			return;
 
 	binary_mapping.emplace_yield(hash, std::move(keys));
-	new_entries.store(true, std::memory_order_release);
+	new_entries.store(true, PGS::memory_order_release);
 }
 
 bool PipelineCache::find_pipeline_binaries_from_internal_cache(const void *pso_create_info,
@@ -381,7 +381,7 @@ bool PipelineCache::parse(const void *payload_, size_t size)
 
 bool PipelineCache::has_new_binary_entries() const
 {
-	return new_entries.load(std::memory_order_acquire);
+	return new_entries.load(PGS::memory_order_acquire);
 }
 
 size_t PipelineCache::get_serialized_size() const
