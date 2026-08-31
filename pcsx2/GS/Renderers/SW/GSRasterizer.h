@@ -16,9 +16,11 @@
 #pragma once
 
 #include <retro_atomic.h>
-#include "common/boost_spsc_queue.hpp"
+#include <new>
+#include <retro_spsc.h>
 #include "common/General.h"
 #include "common/Threading.h"
+#include "common/Console.h"
 
 #include <functional>
 
@@ -28,16 +30,35 @@
 #include "../../GSRingHeap.h"
 #include "../../MultiISA.h"
 
+/* SPSC job queue over retro_spsc, carrying real C++ objects: Push
+ * placement-constructs the item into the ring's bytes, and the worker
+ * runs it and destroys it in place.  The object never moves once
+ * constructed - no bitwise relocation, no requirements on T beyond a
+ * copy constructor - so a refcounted handle like GSRingHeap::SharedPtr
+ * rides through with its count held by the in-ring copy.  The
+ * write_end release / read_begin acquire pair orders construction
+ * before the worker touches the object, exactly as it orders plain
+ * bytes.
+ *
+ * Records are sizeof(T) bytes: capacity is a whole number of records,
+ * so no record straddles the wrap, and every offset is a multiple of
+ * sizeof(T) into a malloc'd base - which is where the alignment
+ * static_assert below comes from. */
 template <class T, int CAPACITY>
 class GSJobQueue final
 {
+	static_assert((CAPACITY & (CAPACITY - 1)) == 0, "capacity must be a power of two");
+	static_assert(alignof(T) <= sizeof(T) && (sizeof(T) & (alignof(T) - 1)) == 0,
+		"record offsets are sizeof(T) multiples and must land T-aligned");
+
 private:
 	Threading::Thread m_thread;
 	std::function<void()> m_startup;
 	std::function<void(T&)> m_func;
 	std::function<void()> m_shutdown;
 	retro_atomic_int_t m_exit;
-	ringbuffer_base<T, CAPACITY> m_queue;
+	retro_spsc_t m_queue;
+	bool m_queue_ok;
 
 	Threading::WorkSema m_sema;
 
@@ -51,8 +72,29 @@ private:
 			m_sema.WaitForWork();
 			if (retro_atomic_load_acquire_int(&m_exit))
 				break;
-			while (m_queue.consume_one(*this))
-				;
+			/* Span drain, batch commit: the object is destroyed
+			 * before its record is released, so the producer can
+			 * never reuse bytes that still hold a live item.  The
+			 * spans loop until the queue reports empty so a wrap
+			 * split can't strand records behind a sema park. */
+			size_t span;
+			const void* span_ptr;
+			while (m_queue_ok && (span = retro_spsc_read_begin(&m_queue, &span_ptr)) >= sizeof(T))
+			{
+				size_t consumed = 0;
+				while (consumed < span)
+				{
+					/* The bytes are ours between read_begin and
+					 * read_end; const_cast because retro_spsc's
+					 * read side hands out const. */
+					T* item = reinterpret_cast<T*>(const_cast<u8*>(
+						static_cast<const u8*>(span_ptr) + consumed));
+					m_func(*item);
+					item->~T();
+					consumed += sizeof(T);
+				}
+				retro_spsc_read_end(&m_queue, consumed);
+			}
 		}
 
 		if (m_shutdown)
@@ -66,6 +108,9 @@ public:
 		, m_shutdown(std::move(shutdown))
 		, m_exit(RETRO_ATOMIC_INT_INITIALIZER(0))
 	{
+		m_queue_ok = retro_spsc_init(&m_queue, (size_t)CAPACITY * sizeof(T));
+		if (!m_queue_ok)
+			Console.Error("GSJobQueue: ring allocation failed; jobs will run on the calling thread");
 		m_thread.Start([this]() { ThreadProc(); });
 	}
 
@@ -74,17 +119,49 @@ public:
 		retro_atomic_store_release_int(&m_exit, 1);
 		m_sema.NotifyOfWork();
 		m_thread.Join();
+		if (m_queue_ok)
+		{
+			/* The worker is gone; anything still buffered is
+			 * destroyed without being run, which is what the old
+			 * ringbuffer's destructor did with leftover items. */
+			size_t span;
+			const void* span_ptr;
+			while ((span = retro_spsc_read_begin(&m_queue, &span_ptr)) >= sizeof(T))
+			{
+				size_t consumed = 0;
+				while (consumed < span)
+				{
+					reinterpret_cast<T*>(const_cast<u8*>(
+						static_cast<const u8*>(span_ptr) + consumed))->~T();
+					consumed += sizeof(T);
+				}
+				retro_spsc_read_end(&m_queue, consumed);
+			}
+			retro_spsc_free(&m_queue);
+		}
 	}
 
 	bool IsEmpty()
 	{
-		return m_queue.empty();
+		return !m_queue_ok || retro_spsc_read_avail(&m_queue) == 0;
 	}
 
 	void Push(const T& item)
 	{
-		while (!m_queue.push(item))
+		void* dst;
+		if (!m_queue_ok)
+		{
+			/* Degraded mode for an impossible 512K allocation
+			 * failure: run the job synchronously rather than
+			 * dropping a draw. */
+			T local(item);
+			m_func(local);
+			return;
+		}
+		while (retro_spsc_write_begin(&m_queue, &dst) < sizeof(T))
 			Threading::Timeslice();
+		new (dst) T(item);
+		retro_spsc_write_end(&m_queue, sizeof(T));
 		m_sema.NotifyOfWork();
 	}
 

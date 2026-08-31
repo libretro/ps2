@@ -491,9 +491,9 @@ void MTGS::WaitGS(bool isMTVU)
 			{
 				if (path.GetPendingGSPackets() != startP1Packs)
 				{
-					/* ringbuffer_base::size() reads both cursors RELAXED, so
+					/* The packet count derives from the queue's cursors, so
 					 * on weak memory the changed count can be observed before
-					 * MTGS's pop-side writes (the release store to read_index
+					 * MTGS's pop-side writes (the release store on the tail
 					 * and the readAmount subtract).  Acquire-fence here to
 					 * pair with that release before we act on the count.  The
 					 * old code got this incidentally from the slock acquire
