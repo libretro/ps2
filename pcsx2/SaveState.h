@@ -143,6 +143,11 @@ public:
 		}
 	}
 
+	int GetCurrentPos() const
+	{
+		return m_idx;
+	}
+
 	u8* GetBlockPtr()
 	{
 		return &m_memory[m_idx];

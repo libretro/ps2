@@ -3073,17 +3073,52 @@ bool retro_unserialize(const void* data, size_t size)
 	PADfreeze(FreezeAction::Load, &fP);
 	loadme.CommitBlock(fP.size);
 
-	fP.size = 0;
-	fP.data = nullptr;
-	GSfreeze(FreezeAction::Size, &fP);
-	loadme.PrepBlock(fP.size);
+	/* GS is the final block: hand Defrost the actual remaining payload
+	 * rather than this session's freeze-size expectation. The saved GS
+	 * block's length depends on the version and configuration of the
+	 * session that wrote it; Defrost walks the payload by the version
+	 * header inside it, and its own size guard must judge the real bytes
+	 * present, not our recomputation. A mismatch here used to slice the
+	 * wrong span silently. Also check the result: a rejected defrost
+	 * (newer state version, truncated payload) previously "succeeded"
+	 * into a reset, empty GS. */
+	fP.size = static_cast<int>(size) - loadme.GetCurrentPos();
+	if (fP.size <= 0)
+	{
+		cpu_thread_resume();
+		log_cb(RETRO_LOG_ERROR, "retro_unserialize: no GS payload left "
+			"(offset=%d size=%zu)\n", loadme.GetCurrentPos(), size);
+		return false;
+	}
 	fP.data = loadme.GetBlockPtr();
-	GSfreeze(FreezeAction::Load, &fP);
+	if (GSfreeze(FreezeAction::Load, &fP) != 0)
+	{
+		cpu_thread_resume();
+		log_cb(RETRO_LOG_ERROR, "retro_unserialize: GS state rejected "
+			"(payload=%d bytes)\n", fP.size);
+		return false;
+	}
 	loadme.CommitBlock(fP.size);
 
 	/* Discard buffered audio: any pre-load samples in the buffer no
 	 * longer match the SPU2 state we just restored. */
 	discard_buffered_audio();
+
+	/* If the state was loaded before the game booted far enough for the normal
+	 * boot path to apply GameDB settings (e.g. RetroArch Auto Load State), the
+	 * game identity VMManager caches is still the BIOS one: the per-game
+	 * fixes were never applied and the game can render incorrectly (issue
+	 * #127). The state has just restored ElfCRC and the game-started flags,
+	 * so re-derive the identity from them; the call early-returns when the
+	 * identity is unchanged, keeping repeat unserializes cheap.
+	 *
+	 * This must happen while the CPU thread is still paused: the identity
+	 * change runs ApplySettings, whose config diff can reset the EE
+	 * recompiler and execution caches, which is only safe with the EE
+	 * thread quiescent. Doing it after cpu_thread_resume() raced the
+	 * running JIT and caused intermittent SIGILL/aborts and timing slips
+	 * after state loads. */
+	VMManager::RefreshRunningGameAfterStateLoad();
 
 	cpu_thread_resume();
 	if (!loadme.IsOkay())
@@ -3093,14 +3128,6 @@ bool retro_unserialize(const void* data, size_t size)
 		return false;
 	}
 
-	/* If the state was loaded before the game booted far enough for the normal
-	 * boot path to apply GameDB settings (e.g. RetroArch Auto Load State), the
-	 * game identity VMManager caches is still the BIOS one: the per-game
-	 * fixes were never applied and the game can render incorrectly (issue
-	 * #127). The state has just restored ElfCRC and the game-started flags,
-	 * so re-derive the identity from them; the call early-returns when the
-	 * identity is unchanged, keeping repeat unserializes cheap. */
-	VMManager::RefreshRunningGameAfterStateLoad();
 
 	return true;
 }
