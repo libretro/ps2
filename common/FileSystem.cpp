@@ -546,55 +546,36 @@ s64 FileSystem::FSize64(RFILE* fp)
 	return -1;
 }
 
+/* Both readers sit on filestream_read_file: one open/size/read/close
+ * sequence maintained in libretro-common instead of two hand-rolled
+ * copies here, plus its hardened paths - a stream that reports size 0
+ * is read to EOF instead of trusted, and the allocation is checked
+ * against size_t overflow before it happens.  The copy out of the
+ * malloc'd buffer into the C++ container is the price, paid on cold
+ * paths (pipeline cache and patch loading) where it is noise. */
 std::optional<std::vector<u8>> FileSystem::ReadBinaryFile(const char* filename)
 {
-	int64_t size;
-	RFILE *fp = OpenFile(filename, "rb");
-	if (!fp)
+	void* buf   = NULL;
+	int64_t len = 0;
+	if (!filestream_read_file(filename, &buf, &len))
 		return std::nullopt;
-	rfseek(fp, 0, SEEK_END);
-	size = rftell(fp);
-	rfseek(fp, 0, SEEK_SET);
-	if (size < 0)
-	{
-		rfclose(fp);
-		return std::nullopt;
-	}
-
-	std::vector<u8> res(static_cast<size_t>(size));
-	if (size > 0 && static_cast<size_t>(rfread(res.data(), 1u, static_cast<size_t>(size), fp)) != static_cast<size_t>(size))
-	{
-		rfclose(fp);
-		return std::nullopt;
-	}
-	rfclose(fp);
+	std::vector<u8> res;
+	if (len > 0)
+		res.assign(static_cast<const u8*>(buf), static_cast<const u8*>(buf) + len);
+	free(buf);
 	return res;
 }
 
 std::optional<std::string> FileSystem::ReadFileToString(const char* filename)
 {
-	int64_t size;
+	void* buf   = NULL;
+	int64_t len = 0;
+	if (!filestream_read_file(filename, &buf, &len))
+		return std::nullopt;
 	std::string res;
-	RFILE *fp = OpenFile(filename, "rb");
-	if (!fp)
-		return std::nullopt;
-	rfseek(fp, 0, SEEK_END);
-	size = rftell(fp);
-	rfseek(fp, 0, SEEK_SET);
-	if (size < 0)
-	{
-		rfclose(fp);
-		return std::nullopt;
-	}
-
-	res.resize(static_cast<size_t>(size));
-	/* NOTE - assumes mode 'rb', for example, this will fail over missing Windows carriage return bytes */
-	if (size > 0 && static_cast<size_t>(rfread(res.data(), 1u, static_cast<size_t>(size), fp)) != static_cast<size_t>(size))
-	{
-		rfclose(fp);
-		return std::nullopt;
-	}
-	rfclose(fp);
+	if (len > 0)
+		res.assign(static_cast<const char*>(buf), static_cast<size_t>(len));
+	free(buf);
 	return res;
 }
 
