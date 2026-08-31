@@ -22,10 +22,10 @@
 
 #pragma once
 
+#include "thread_prims.hpp"
 #include "slab_allocator.hpp"
 #include "vulkan_headers.hpp"
 #include "vulkan_common.hpp"
-#include <mutex>
 #include <assert.h>
 #include <stdio.h>
 
@@ -194,7 +194,7 @@ private:
 	Device *device = nullptr;
 	bool active = false;
 	Buffer *amd_marker_buffer = nullptr;
-	std::mutex lock;
+	PGS::mutex lock;
 	bool reported = false;
 
 	struct Checkpoint

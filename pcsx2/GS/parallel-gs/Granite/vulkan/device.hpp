@@ -22,6 +22,7 @@
 
 #pragma once
 
+#include "thread_prims.hpp"
 #include "buffer.hpp"
 #include "command_buffer.hpp"
 #include "command_pool.hpp"
@@ -53,8 +54,6 @@
 #endif
 
 #include <atomic>
-#include <mutex>
-#include <condition_variable>
 
 #ifdef GRANITE_VULKAN_FOSSILIZE
 #include "fossilize.hpp"
@@ -630,9 +629,9 @@ private:
 
 	struct
 	{
-		std::mutex memory_lock;
-		std::mutex lock;
-		std::condition_variable cond;
+		PGS::mutex memory_lock;
+		PGS::mutex lock;
+		PGS::condition_variable cond;
 		Util::RWSpinLock read_only_cache;
 		unsigned counter = 0;
 		bool async_frame_context = false;

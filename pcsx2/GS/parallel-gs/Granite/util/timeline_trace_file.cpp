@@ -20,6 +20,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include "thread_prims.hpp"
 #include "logging.hpp"
 #include "timeline_trace_file.hpp"
 #include "thread_name.hpp"
@@ -80,7 +81,7 @@ TimelineTraceFile::Event *TimelineTraceFile::allocate_event()
 
 void TimelineTraceFile::submit_event(Event *e)
 {
-	std::lock_guard<std::mutex> holder{lock};
+	PGS::lock_guard holder{lock};
 	queued_events.push(e);
 	cond.notify_one();
 }
@@ -93,7 +94,7 @@ void TimelineTraceFile::end_event(Event *e)
 
 TimelineTraceFile::TimelineTraceFile(const std::string &path)
 {
-	thr = std::thread(&TimelineTraceFile::looper, this, path);
+	thr = PGS::thread([this, path]() { looper(path); });
 }
 
 void TimelineTraceFile::looper(std::string path)
@@ -113,7 +114,7 @@ void TimelineTraceFile::looper(std::string path)
 	{
 		Event *e;
 		{
-			std::unique_lock<std::mutex> holder{lock};
+			PGS::unique_lock holder{lock};
 			cond.wait(holder, [this]() {
 				return !queued_events.empty();
 			});

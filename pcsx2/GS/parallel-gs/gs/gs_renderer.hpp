@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include "thread_prims.hpp"
 #include "gs_registers.hpp"
 #include "muglm/muglm.hpp"
 #include "device.hpp"
@@ -13,10 +14,8 @@
 #include "shaders/data_structures.h"
 #include "shaders/slangmosh_iface.hpp"
 #include <queue>
-#include <future>
 #include <atomic>
-#include <condition_variable>
-#include <thread>
+#include <memory>
 
 namespace ParallelGS
 {
@@ -336,11 +335,11 @@ private:
 	uint32_t base_clut_instance = 0;
 
 	Vulkan::Semaphore timeline;
-	std::thread timeline_thread;
+	PGS::thread timeline_thread;
 	uint64_t last_submitted_timeline = 0;
 	std::atomic<uint64_t> timeline_value;
-	std::condition_variable timeline_cond;
-	std::mutex timeline_lock;
+	PGS::condition_variable timeline_cond;
+	PGS::mutex timeline_lock;
 
 	bool last_clut_update_is_read = false;
 	bool field_aware_super_sampling = false;
@@ -547,7 +546,19 @@ private:
 	void drain_compilation_tasks_nonblock();
 	void kick_compilation_tasks();
 	std::atomic_bool compilation_tasks_active;
-	std::vector<std::future<void>> compilation_tasks;
+
+	/* std::async's future was asked for three things here: run the batch
+	 * on another thread, ask whether it has finished without blocking
+	 * (drain_compilation_tasks_nonblock), and join
+	 * (drain_compilation_tasks).  A PGS::thread plus a flag the worker
+	 * releases as its last act covers all three.  Held by pointer because
+	 * the flag is neither copyable nor movable and the vector grows. */
+	struct CompilationTask
+	{
+		PGS::thread thread;
+		std::atomic_bool done;
+	};
+	std::vector<std::unique_ptr<CompilationTask>> compilation_tasks;
 
 	uint64_t query_timeline(const Vulkan::SemaphoreHolder &sem) const;
 

@@ -21,6 +21,7 @@
  */
 
 #define NOMINMAX
+#include "thread_prims.hpp"
 #include "render_pass.hpp"
 #include "stack_allocator.hpp"
 #include "device.hpp"
@@ -30,7 +31,7 @@
 
 using namespace Util;
 
-#define LOCK() std::lock_guard<std::mutex> holder__{lock}
+#define LOCK() PGS::lock_guard holder__{lock}
 
 namespace Vulkan
 {

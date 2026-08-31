@@ -21,11 +21,11 @@
  */
 
 #pragma once
+#include "thread_prims.hpp"
 #include <stdint.h>
 #include <stdlib.h>
 #include <memory>
 #include <vector>
-#include <mutex>
 #include "aligned_alloc.hpp"
 
 namespace Util
@@ -58,11 +58,11 @@ public:
 	ThreadSafeSlabAllocator() = default;
 	void init(size_t object_size);
 
-	inline uint8_t *allocate() { std::lock_guard<std::mutex> holder{lock}; return slab.allocate(); }
-	inline void free(uint8_t *ptr) { std::lock_guard<std::mutex> holder{lock}; slab.free(ptr); }
+	inline uint8_t *allocate() { PGS::lock_guard holder{lock}; return slab.allocate(); }
+	inline void free(uint8_t *ptr) { PGS::lock_guard holder{lock}; slab.free(ptr); }
 
 private:
 	SlabAllocator slab;
-	std::mutex lock;
+	PGS::mutex lock;
 };
 }

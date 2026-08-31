@@ -22,10 +22,8 @@
 
 #pragma once
 
+#include "thread_prims.hpp"
 #include <string>
-#include <thread>
-#include <condition_variable>
-#include <mutex>
 #include <memory>
 #include <queue>
 #include "object_pool.hpp"
@@ -73,9 +71,9 @@ public:
 
 private:
 	void looper(std::string path);
-	std::thread thr;
-	std::mutex lock;
-	std::condition_variable cond;
+	PGS::thread thr;
+	PGS::mutex lock;
+	PGS::condition_variable cond;
 
 	ThreadSafeObjectPool<Event> event_pool;
 	std::queue<Event *> queued_events;

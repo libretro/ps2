@@ -22,11 +22,11 @@
 
 #pragma once
 
+#include "thread_prims.hpp"
 #include "vulkan_common.hpp"
 #include "vulkan_headers.hpp"
 #include "object_pool.hpp"
 #include "cookie.hpp"
-#include <mutex>
 
 namespace Vulkan
 {
@@ -74,7 +74,7 @@ private:
 	VkSemaphore timeline_semaphore;
 	uint64_t timeline_value;
 	bool observed_wait = false;
-	std::mutex lock;
+	PGS::mutex lock;
 };
 
 using Fence = Util::IntrusivePtr<FenceHolder>;

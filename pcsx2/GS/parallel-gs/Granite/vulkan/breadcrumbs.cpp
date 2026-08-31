@@ -20,6 +20,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include "thread_prims.hpp"
 #include "breadcrumbs.hpp"
 #include "shader.hpp"
 #include "device.hpp"
@@ -135,7 +136,7 @@ BufferMarkerHandle BreadcrumbsTracker::allocate_command_buffer(VkCommandBuffer c
 	if (!active)
 		return {};
 
-	std::lock_guard<std::mutex> holder{lock};
+	PGS::lock_guard holder{lock};
 
 	if (vacant_command_buffers.empty())
 		return {};
@@ -151,7 +152,7 @@ void BreadcrumbsTracker::free_command_buffer(BufferMarkerHandle handle)
 	if (handle.index == BufferMarkerHandle::Invalid)
 		return;
 
-	std::lock_guard<std::mutex> holder{lock};
+	PGS::lock_guard holder{lock};
 	assert(handle.index < MaxCommandBuffers);
 	vacant_command_buffers.push_back(handle.index);
 	reset_command_buffer(command_buffers[handle.index]);
@@ -337,7 +338,7 @@ void BreadcrumbsTracker::notify_device_hung()
 	if (!active)
 		return;
 
-	std::lock_guard<std::mutex> holder{lock};
+	PGS::lock_guard holder{lock};
 	if (reported)
 		return;
 

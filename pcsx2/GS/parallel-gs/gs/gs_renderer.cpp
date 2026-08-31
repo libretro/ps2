@@ -3,6 +3,8 @@
 // SPDX-FileContributor: Runar Heyer
 // SPDX-License-Identifier: LGPL-3.0+
 
+#include "thread_prims.hpp"
+#include <features/features_cpu.h>
 #include "gs_renderer.hpp"
 /* The profiler lives in the emulator tree, which this vendored library does
  * not otherwise include. Only reach for it when profiling is being built;
@@ -438,21 +440,20 @@ void GSRenderer::drain_compilation_tasks()
 {
 	compilation_tasks_active = false;
 	for (auto &task : compilation_tasks)
-		if (task.valid())
-			task.get();
+		task->thread.join();
 	compilation_tasks.clear();
 }
 
 void GSRenderer::drain_compilation_tasks_nonblock()
 {
-	auto itr = std::remove_if(compilation_tasks.begin(), compilation_tasks.end(), [](std::future<void> &fut) {
-		if (fut.valid() && fut.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
-		{
-			fut.get();
-			return true;
-		}
-		else
+	auto itr = std::remove_if(compilation_tasks.begin(), compilation_tasks.end(),
+	                          [](std::unique_ptr<CompilationTask> &task) {
+		/* The worker publishes done last, so acquiring it means its
+		 * writes are visible and the join below cannot block. */
+		if (!task->done.load(std::memory_order_acquire))
 			return false;
+		task->thread.join();
+		return true;
 	});
 	compilation_tasks.erase(itr, compilation_tasks.end());
 }
@@ -726,7 +727,7 @@ void GSRenderer::kick_compilation_tasks()
 	}
 
 	size_t num_tasks = tasks.size();
-	size_t target_threads = (std::thread::hardware_concurrency() + 1) / 2;
+	size_t target_threads = (cpu_features_get_core_amount() + 1) / 2;
 	size_t tasks_per_thread = num_tasks / target_threads;
 
 	for (size_t thread_index = 0; thread_index < target_threads; thread_index++)
@@ -736,7 +737,11 @@ void GSRenderer::kick_compilation_tasks()
 			tasks.data() + std::min<size_t>((thread_index + 1) * tasks_per_thread, tasks.size())
 		);
 
-		auto async_task = std::async(std::launch::async, [this, moved_tasks = std::move(deferred)]()
+		auto async_task = std::unique_ptr<CompilationTask>(new CompilationTask);
+		auto *task_state = async_task.get();
+		task_state->done.store(false, std::memory_order_relaxed);
+
+		task_state->thread = PGS::thread([this, task_state, moved_tasks = std::move(deferred)]()
 		{
 			// Just shuts up warnings.
 			Util::register_thread_index(0);
@@ -748,6 +753,8 @@ void GSRenderer::kick_compilation_tasks()
 				Vulkan::CommandBuffer::build_compute_pipeline(
 						device, task, Vulkan::CommandBuffer::CompileMode::AsyncThread);
 			}
+			// Published last: the non-blocking drain joins on seeing this.
+			task_state->done.store(true, std::memory_order_release);
 		});
 
 		compilation_tasks.push_back(std::move(async_task));
@@ -758,14 +765,14 @@ GSRenderer::GSRenderer(PageTracker &tracker_)
 	: tracker(tracker_), compilation_tasks_active(false)
 {
 	timeline_value = 0;
-	timeline_thread = std::thread([this]() {
+	timeline_thread = PGS::thread([this]() {
 		Util::set_current_thread_name("PGS-Waiter");
 		uint64_t last_waited = 0;
 
 		for (;;)
 		{
 			{
-				std::unique_lock<std::mutex> holder{timeline_lock};
+				PGS::unique_lock holder{timeline_lock};
 				timeline_cond.wait(holder, [&]() { return last_waited < last_submitted_timeline; });
 			}
 
@@ -776,7 +783,7 @@ GSRenderer::GSRenderer(PageTracker &tracker_)
 			timeline->wait_timeline(last_waited);
 
 			{
-				std::lock_guard<std::mutex> holder{timeline_lock};
+				PGS::lock_guard holder{timeline_lock};
 				timeline_value.store(last_waited, std::memory_order_release);
 				timeline_cond.notify_all();
 			}
@@ -1031,7 +1038,7 @@ GSRenderer::~GSRenderer()
 	drain_compilation_tasks();
 
 	{
-		std::lock_guard<std::mutex> holder{timeline_lock};
+		PGS::lock_guard holder{timeline_lock};
 		last_submitted_timeline = UINT64_MAX;
 		timeline_cond.notify_all();
 	}
@@ -1047,7 +1054,7 @@ void GSRenderer::wait_timeline(uint64_t value)
 	/* Blocking on the GPU, not doing work. Split out so the transfer zone
 	 * reports CPU cost rather than stall. */
 	PROFILE_SCOPE(ZONE_GS_SYNC);
-	std::unique_lock<std::mutex> holder{timeline_lock};
+	PGS::unique_lock holder{timeline_lock};
 	timeline_cond.wait(holder, [this, value]() {
 		return timeline_value.load(std::memory_order_relaxed) >= value;
 	});
@@ -1181,7 +1188,7 @@ void GSRenderer::flush_submit(uint64_t value)
 		auto binary = device->request_timeline_semaphore_as_binary(*timeline, value);
 		device->submit_empty(Vulkan::CommandBuffer::Type::Generic, nullptr, binary.get());
 		{
-			std::lock_guard<std::mutex> holder{timeline_lock};
+			PGS::lock_guard holder{timeline_lock};
 			last_submitted_timeline = value;
 			timeline_cond.notify_all();
 		}

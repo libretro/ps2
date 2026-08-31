@@ -22,6 +22,7 @@
 
 #pragma once
 
+#include "thread_prims.hpp"
 #include "intrusive.hpp"
 #include "object_pool.hpp"
 #include "slab_allocator.hpp"
@@ -407,7 +408,7 @@ private:
 	Util::SliceBackingAllocatorVA backing_va;
 	VkDeviceSize alignment = 0;
 	VkDeviceSize sub_block_size = 0;
-	std::mutex lock;
+	PGS::mutex lock;
 
 	HeapInfo resource_heap = {}, sampler_heap = {};
 

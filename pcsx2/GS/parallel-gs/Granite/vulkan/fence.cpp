@@ -20,6 +20,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include "thread_prims.hpp"
 #include "fence.hpp"
 #include "device.hpp"
 
@@ -47,7 +48,7 @@ void FenceHolder::wait()
 
 	// Waiting for the same VkFence in parallel is not allowed, and there seems to be some shenanigans on Intel
 	// when waiting for a timeline semaphore in parallel with same value as well.
-	std::lock_guard<std::mutex> holder{lock};
+	PGS::lock_guard holder{lock};
 
 	if (observed_wait)
 		return;
@@ -111,7 +112,7 @@ bool FenceHolder::wait_timeout(uint64_t timeout)
 
 	// Waiting for the same VkFence in parallel is not allowed, and there seems to be some shenanigans on Intel
 	// when waiting for a timeline semaphore in parallel with same value as well.
-	std::lock_guard<std::mutex> holder{lock};
+	PGS::lock_guard holder{lock};
 
 	if (observed_wait)
 		return true;

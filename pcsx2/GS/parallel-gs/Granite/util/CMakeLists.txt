@@ -25,8 +25,16 @@ add_granite_internal_lib(granite-util
         arena_allocator.cpp arena_allocator.hpp
         environment.cpp environment.hpp
         slab_allocator.cpp slab_allocator.hpp
+        thread_prims.hpp
        )
 target_include_directories(granite-util PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+# thread_prims.hpp is Granite's threading on rthreads rather than <thread>,
+# so libretro-common's headers have to be reachable. PUBLIC because
+# granite-vulkan links granite-util and parallel-gs links granite-vulkan, and
+# both include thread_prims.hpp. The static Makefile already has
+# -I$(LIBRETRO_COMM_DIR)/include globally, so only CMake needed telling.
+target_include_directories(granite-util PUBLIC
+        ${CMAKE_SOURCE_DIR}/libretro/libretro-common/include)
 target_link_libraries(granite-util PUBLIC granite-application-global-interface)
 if (NOT WIN32)
     target_link_libraries(granite-util PUBLIC dl)

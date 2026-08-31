@@ -21,6 +21,7 @@
  */
 
 #define NOMINMAX
+#include "thread_prims.hpp"
 #include "device.hpp"
 #ifdef GRANITE_VULKAN_FOSSILIZE
 #include "device_fossilize.hpp"
@@ -31,6 +32,7 @@
 #include "quirks.hpp"
 #include "timer.hpp"
 #include <algorithm>
+#include <limits>
 #include <string.h>
 #include <stdlib.h>
 
@@ -48,11 +50,11 @@ static unsigned get_thread_index()
 {
 	return Util::get_current_thread_index();
 }
-#define LOCK() std::lock_guard<std::mutex> _holder_##__COUNTER__{lock.lock}
-#define LOCK_MEMORY() std::lock_guard<std::mutex> _holder_##__COUNTER__{lock.memory_lock}
+#define LOCK() PGS::lock_guard _holder_##__COUNTER__{lock.lock}
+#define LOCK_MEMORY() PGS::lock_guard _holder_##__COUNTER__{lock.memory_lock}
 #define LOCK_CACHE() ::Util::RWSpinLockReadHolder _holder_##__COUNTER__{lock.read_only_cache}
 #define DRAIN_FRAME_LOCK() \
-	std::unique_lock<std::mutex> _holder{lock.lock}; \
+	PGS::unique_lock _holder{lock.lock}; \
 	lock.cond.wait(_holder, [&]() { \
 		return lock.counter == 0; \
 	})
@@ -3024,7 +3026,7 @@ void Device::PerFrame::begin()
 
 	if (!allocations.empty())
 	{
-		std::lock_guard<std::mutex> holder{device.lock.memory_lock};
+		PGS::lock_guard holder{device.lock.memory_lock};
 		for (auto &alloc : allocations)
 			alloc.free_immediate(managers.memory);
 	}

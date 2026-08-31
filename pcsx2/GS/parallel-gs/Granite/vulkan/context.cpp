@@ -21,13 +21,13 @@
  */
 
 #define NOMINMAX
+#include "thread_prims.hpp"
 #include "context.hpp"
 #include "limits.hpp"
 #include "small_vector.hpp"
 #include "environment.hpp"
 #include "bitops.hpp"
 #include <vector>
-#include <mutex>
 #include <algorithm>
 #include <string.h>
 
@@ -200,7 +200,7 @@ bool Context::init_instance_and_device(const char * const *instance_ext, uint32_
 	return true;
 }
 
-static std::mutex loader_init_lock;
+static PGS::mutex loader_init_lock;
 static bool loader_init_once;
 static PFN_vkGetInstanceProcAddr instance_proc_addr;
 
@@ -211,7 +211,7 @@ PFN_vkGetInstanceProcAddr Context::get_instance_proc_addr()
 
 bool Context::init_loader(PFN_vkGetInstanceProcAddr addr, bool force_reload)
 {
-	std::lock_guard<std::mutex> holder(loader_init_lock);
+	PGS::lock_guard holder(loader_init_lock);
 	if (loader_init_once && !force_reload && !addr)
 		return true;
 

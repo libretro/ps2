@@ -20,6 +20,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include "thread_prims.hpp"
 #include "memory_allocator.hpp"
 #include "timeline_trace_file.hpp"
 #include "device.hpp"
@@ -1041,13 +1042,13 @@ void DescriptorBufferAllocator::init_copy_func(DescriptorTypeInfo &info, VkDescr
 
 void DescriptorBufferAllocator::free(const DescriptorBufferAllocation &alloc)
 {
-	std::lock_guard<std::mutex> holder{lock};
+	PGS::lock_guard holder{lock};
 	Util::SliceAllocator::free(alloc.backing_slice);
 }
 
 void DescriptorBufferAllocator::free(const DescriptorBufferAllocation *alloc, size_t count)
 {
-	std::lock_guard<std::mutex> holder{lock};
+	PGS::lock_guard holder{lock};
 	for (size_t i = 0; i < count; i++)
 	{
 		total_size -= alloc[i].backing_slice.count;
@@ -1059,7 +1060,7 @@ DescriptorBufferAllocation DescriptorBufferAllocator::allocate(VkDeviceSize size
 {
 	size = (size + alignment - 1) & ~(alignment - 1);
 
-	std::lock_guard<std::mutex> holder{lock};
+	PGS::lock_guard holder{lock};
 
 	DescriptorBufferAllocation alloc = {};
 	if (!Util::SliceAllocator::allocate(size, &alloc.backing_slice))
@@ -1104,7 +1105,7 @@ VkSampler DescriptorBufferAllocator::create_sampler(const VkSamplerCreateInfo *i
 	{
 		uint32_t index;
 		{
-			std::lock_guard<std::mutex> holder{lock};
+			PGS::lock_guard holder{lock};
 			if (heap_sampler_indices.empty())
 				return VK_NULL_HANDLE;
 
@@ -1138,7 +1139,7 @@ void DescriptorBufferAllocator::destroy_sampler(VkSampler sampler)
 		if (sampler)
 		{
 			VK_ASSERT(((uint64_t)sampler) >> 63);
-			std::lock_guard<std::mutex> holder{lock};
+			PGS::lock_guard holder{lock};
 			heap_sampler_indices.push_back((uint64_t)sampler);
 		}
 	}
@@ -1150,7 +1151,7 @@ void DescriptorBufferAllocator::destroy_sampler(VkSampler sampler)
 
 uint32_t DescriptorBufferAllocator::allocate_single_resource_heap_entry()
 {
-	std::lock_guard<std::mutex> holder{lock};
+	PGS::lock_guard holder{lock};
 	if (heap_resource_indices.empty())
 	{
 		LOGE("Resource heap is empty.\n");
@@ -1164,7 +1165,7 @@ uint32_t DescriptorBufferAllocator::allocate_single_resource_heap_entry()
 
 void DescriptorBufferAllocator::free_single_resource_heap_entry(uint32_t index)
 {
-	std::lock_guard<std::mutex> holder{lock};
+	PGS::lock_guard holder{lock};
 	heap_resource_indices.push_back(index);
 }
 
