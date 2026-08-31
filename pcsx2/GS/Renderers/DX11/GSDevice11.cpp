@@ -1266,6 +1266,45 @@ void GSDevice11::RenderHW(GSHWDrawConfig& config)
 {
 	GSVector2i rtsize = (config.rt ? config.rt : config.ds)->GetSize();
 
+	GSTexture* hdr_rt = g_gs_device->GetColorClipTexture();
+
+	if (hdr_rt)
+	{
+		if (config.colclip_mode == GSHWDrawConfig::ColClipMode::EarlyResolve)
+		{
+			const GSVector2i size = config.rt->GetSize();
+			const GSVector4 dRect(config.colclip_update_area);
+			const GSVector4 sRect = dRect / GSVector4(size.x, size.y).xyxy();
+			StretchRect(hdr_rt, sRect, config.rt, dRect, ShaderConvert::COLCLIP_RESOLVE, false);
+			Recycle(hdr_rt);
+
+			g_gs_device->SetColorClipTexture(nullptr);
+
+			hdr_rt = nullptr;
+		}
+		else
+			config.ps.colclip_hw = 1;
+	}
+
+	if (config.ps.colclip_hw)
+	{
+		if (!hdr_rt)
+		{
+			config.colclip_update_area = config.drawarea;
+
+			const GSVector4 dRect = GSVector4((config.colclip_mode == GSHWDrawConfig::ColClipMode::ConvertOnly) ? GSVector4i::loadh(rtsize) : config.drawarea);
+			const GSVector4 sRect = dRect / GSVector4(rtsize.x, rtsize.y).xyxy();
+			hdr_rt = CreateRenderTarget(rtsize.x, rtsize.y, GSTexture::Format::ColorClip);
+			if (!hdr_rt)
+				return;
+
+			g_gs_device->SetColorClipTexture(hdr_rt);
+			// Warning: StretchRect must be called before BeginScene otherwise
+			// vertices will be overwritten. Trust me you don't want to do that.
+			StretchRect(config.rt, sRect, hdr_rt, dRect, ShaderConvert::COLCLIP_INIT, false);
+		}
+	}
+
 	GSTexture* primid_tex = nullptr;
 	if (config.destination_alpha == GSHWDrawConfig::DestinationAlphaMode::PrimIDTracking)
 	{
@@ -1273,7 +1312,7 @@ void GSDevice11::RenderHW(GSHWDrawConfig& config)
 		if (!primid_tex)
 			return;
 
-		StretchRect(config.rt, GSVector4(config.drawarea) / GSVector4(rtsize).xyxy(),
+		StretchRect(hdr_rt ? hdr_rt : config.rt, GSVector4(config.drawarea) / GSVector4(rtsize).xyxy(),
 			primid_tex, GSVector4(config.drawarea),
 			m_date.primid_init_ps[static_cast<u8>(config.datm)].get(), nullptr, false);
 	}
@@ -1290,21 +1329,7 @@ void GSDevice11::RenderHW(GSHWDrawConfig& config)
 			{GSVector4(dst.z, -dst.w, 0.5f, 1.0f), GSVector2(src.z, src.w)},
 		};
 
-		SetupDATE(config.rt, config.ds, vertices, config.datm);
-	}
-
-	GSTexture* hdr_rt = nullptr;
-	if (config.ps.colclip_hw)
-	{
-		const GSVector4 dRect(config.drawarea);
-		const GSVector4 sRect = dRect / GSVector4(rtsize.x, rtsize.y).xyxy();
-		hdr_rt = CreateRenderTarget(rtsize.x, rtsize.y, GSTexture::Format::ColorClip);
-		if (!hdr_rt)
-			return;
-
-		// Warning: StretchRect must be called before BeginScene otherwise
-		// vertices will be overwritten. Trust me you don't want to do that.
-		StretchRect(config.rt, sRect, hdr_rt, dRect, ShaderConvert::COLCLIP_INIT, false);
+		SetupDATE(hdr_rt ? hdr_rt : config.rt, config.ds, vertices, config.datm);
 	}
 
 	if (config.vs.expand != GSHWDrawConfig::VSExpand::None)
@@ -1368,7 +1393,7 @@ void GSDevice11::RenderHW(GSHWDrawConfig& config)
 		// Do not always bind the rt when it's not needed,
 		// only bind it when effects use it such as fbmask emulation currently
 		// because we copy the frame buffer and it is quite slow.
-		CloneTexture(config.rt, &rt_copy, config.drawarea);
+		CloneTexture(hdr_rt ? hdr_rt : config.rt, &rt_copy, config.drawarea);
 		if (rt_copy)
 		{
 			if (config.require_one_barrier)
@@ -1434,12 +1459,21 @@ void GSDevice11::RenderHW(GSHWDrawConfig& config)
 
 	if (hdr_rt)
 	{
-		const GSVector2i size = config.rt->GetSize();
-		const GSVector4 dRect(config.drawarea);
-		const GSVector4 sRect = dRect / GSVector4(size.x, size.y).xyxy();
-		StretchRect(hdr_rt, sRect, config.rt, dRect, ShaderConvert::COLCLIP_RESOLVE, false);
-		Recycle(hdr_rt);
+		config.colclip_update_area = config.colclip_update_area.runion(config.drawarea);
+
+		if (config.colclip_mode == GSHWDrawConfig::ColClipMode::ResolveOnly || config.colclip_mode == GSHWDrawConfig::ColClipMode::ConvertAndResolve)
+		{
+			const GSVector2i size = config.rt->GetSize();
+			const GSVector4 dRect(config.colclip_update_area);
+			const GSVector4 sRect = dRect / GSVector4(size.x, size.y).xyxy();
+			StretchRect(hdr_rt, sRect, config.rt, dRect, ShaderConvert::COLCLIP_RESOLVE, false);
+			Recycle(hdr_rt);
+
+			g_gs_device->SetColorClipTexture(nullptr);
+		}
 	}
+
+	config.colclip_mode = GSHWDrawConfig::ColClipMode::NoModify;
 }
 
 void GSDevice11::ResetAPIState()
