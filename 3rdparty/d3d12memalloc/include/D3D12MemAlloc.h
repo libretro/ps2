@@ -113,8 +113,8 @@ If providing your own implementation, you need to implement a subset of std::ato
 // treatment vk_mem_alloc.h received, so the allocator carries no <atomic>
 // dependency.  The member surface is the subset D3D12MA uses on these
 // counters: brace/value construction, pre-increment and pre-decrement with
-// the new value returned, compound add and subtract, plain assignment, and
-// implicit conversion for reads.  All retro_atomic read-modify-writes are
+// the new value returned, compound add and subtract, plain assignment,
+// load/store, and implicit conversion for reads.  All retro_atomic read-modify-writes are
 // full barriers, at least as strong as the defaulted seq_cst these members
 // relied on.
 #if !defined(D3D12MA_ATOMIC_UINT32) || !defined(D3D12MA_ATOMIC_UINT64)
@@ -134,6 +134,9 @@ public:
     RetroAtomicU32& operator=(const RetroAtomicU32&) = delete;
     UINT operator++() { return (UINT)retro_atomic_fetch_add_int(&m_v, 1) + 1; }
     UINT operator--() { return (UINT)retro_atomic_fetch_sub_int(&m_v, 1) - 1; }
+    UINT load(int = 0) const
+        { return (UINT)retro_atomic_load_acquire_int(const_cast<retro_atomic_int_t*>(&m_v)); }
+    void store(UINT v, int = 0) { retro_atomic_store_release_int(&m_v, (int)v); }
     RetroAtomicU32& operator=(UINT v) { retro_atomic_store_release_int(&m_v, (int)v); return *this; }
     operator UINT() const
         { return (UINT)retro_atomic_load_acquire_int(const_cast<retro_atomic_int_t*>(&m_v)); }
@@ -155,6 +158,9 @@ public:
     RetroAtomicU64& operator=(const RetroAtomicU64&) = delete;
     RetroAtomicU64& operator=(UINT64 v)
         { retro_atomic_store_release_64(&m_v, (int64_t)v); return *this; }
+    UINT64 load(int = 0) const
+        { return (UINT64)retro_atomic_load_acquire_64(const_cast<retro_atomic_64_t*>(&m_v)); }
+    void store(UINT64 v, int = 0) { retro_atomic_store_release_64(&m_v, (int64_t)v); }
     RetroAtomicU64& operator+=(UINT64 v)
     {
         for (;;)
