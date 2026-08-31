@@ -784,6 +784,19 @@ protected:
 	GSTexture* m_weavebob = nullptr;
 	GSTexture* m_blend = nullptr;
 	GSTexture* m_mad = nullptr;
+	/* Textures that have been handed to the frontend by reference (the
+	 * merge/interlace chain the present registers) cannot be destroyed
+	 * the moment a resize replaces them: the frontend samples the
+	 * registered image in its own submissions and may replay it for
+	 * pause or screenshots, none of which our fences observe. Retire
+	 * them through this ring instead; entries die once enough frames
+	 * have passed for every frontend reference to be gone. */
+	static constexpr u32 NUM_RETIRED_PRESENT_TEXTURES = 8;
+	static constexpr u32 RETIRED_PRESENT_MIN_AGE = 8;
+	GSTexture* m_retired_present[NUM_RETIRED_PRESENT_TEXTURES] = {};
+	u32 m_retired_present_age[NUM_RETIRED_PRESENT_TEXTURES] = {};
+	u32 m_retired_present_slot = 0;
+	u32 m_present_age = 0;
 	GSTexture* m_target_tmp = nullptr;
 	GSTexture* m_current = nullptr;
 	GSTexture* m_colclip_rt = nullptr; ///< Temp hw colclip texture
@@ -890,7 +903,8 @@ public:
 	void Merge(GSTexture* sTex[3], GSVector4* sRect, GSVector4* dRect, const GSVector2i& fs, const GSRegPMODE& PMODE, const GSRegEXTBUF& EXTBUF, u32 c);
 	void Interlace(const GSVector2i& ds, int field, int mode, float yoffset);
 
-	bool ResizeRenderTarget(GSTexture** t, int w, int h, bool preserve_contents, bool recycle);
+	bool ResizeRenderTarget(GSTexture** t, int w, int h, bool preserve_contents, bool recycle, bool defer_destroy = false);
+	void RetirePresentTexture(GSTexture* t);
 
 	bool IsRBSwapped() { return m_rbswapped; }
 

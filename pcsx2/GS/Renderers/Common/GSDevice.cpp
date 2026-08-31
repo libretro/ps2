@@ -264,6 +264,17 @@ void GSDevice::Recycle(GSTexture* t)
 
 void GSDevice::AgePool()
 {
+	/* Retired present textures only need to outlive the frontend's frame
+	 * queue; drop them once enough presents have passed. */
+	m_present_age++;
+	for (u32 i = 0; i < NUM_RETIRED_PRESENT_TEXTURES; i++)
+	{
+		if (m_retired_present[i] && (m_present_age - m_retired_present_age[i]) > RETIRED_PRESENT_MIN_AGE)
+		{
+			delete m_retired_present[i];
+			m_retired_present[i] = nullptr;
+		}
+	}
 	m_frame++;
 
 	// Toss out textures when they're not too-recently used.
@@ -345,6 +356,12 @@ void GSDevice::ClearCurrent()
 {
 	m_current = nullptr;
 
+	for (u32 i = 0; i < NUM_RETIRED_PRESENT_TEXTURES; i++)
+	{
+		delete m_retired_present[i];
+		m_retired_present[i] = nullptr;
+	}
+
 	delete m_merge;
 	delete m_weavebob;
 	delete m_blend;
@@ -360,7 +377,7 @@ void GSDevice::ClearCurrent()
 
 void GSDevice::Merge(GSTexture* sTex[3], GSVector4* sRect, GSVector4* dRect, const GSVector2i& fs, const GSRegPMODE& PMODE, const GSRegEXTBUF& EXTBUF, u32 c)
 {
-	if (ResizeRenderTarget(&m_merge, fs.x, fs.y, false, false))
+	if (ResizeRenderTarget(&m_merge, fs.x, fs.y, false, false, true))
 		DoMerge(sTex, sRect, m_merge, dRect, PMODE, EXTBUF, c, GSConfig.PCRTCOffsets);
 
 	m_current = m_merge;
@@ -399,20 +416,20 @@ void GSDevice::Interlace(const GSVector2i& ds, int field, int mode, float yoffse
 	switch (mode)
 	{
 		case 0: // Weave
-			ResizeRenderTarget(&m_weavebob, ds.x, ds.y, true, false);
+			ResizeRenderTarget(&m_weavebob, ds.x, ds.y, true, false, true);
 			do_interlace(m_merge, m_weavebob, ShaderInterlace::WEAVE, false, offset, field);
 			m_current = m_weavebob;
 			break;
 		case 1: // Bob
 			// Field is reversed here as we are countering the bounce.
-			ResizeRenderTarget(&m_weavebob, ds.x, ds.y, true, false);
+			ResizeRenderTarget(&m_weavebob, ds.x, ds.y, true, false, true);
 			do_interlace(m_merge, m_weavebob, ShaderInterlace::BOB, true, yoffset * (1 - field), 0);
 			m_current = m_weavebob;
 			break;
 		case 2: // Blend
-			ResizeRenderTarget(&m_weavebob, ds.x, ds.y, true, false);
+			ResizeRenderTarget(&m_weavebob, ds.x, ds.y, true, false, true);
 			do_interlace(m_merge, m_weavebob, ShaderInterlace::WEAVE, false, offset, field);
-			ResizeRenderTarget(&m_blend, ds.x, ds.y, true, false);
+			ResizeRenderTarget(&m_blend, ds.x, ds.y, true, false, true);
 			do_interlace(m_weavebob, m_blend, ShaderInterlace::BLEND, false, 0, 0);
 			m_current = m_blend;
 			break;
@@ -421,9 +438,9 @@ void GSDevice::Interlace(const GSVector2i& ds, int field, int mode, float yoffse
 			bufIdx &= ~1;
 			bufIdx |= field;
 			bufIdx &= 3;
-			ResizeRenderTarget(&m_mad, ds.x, ds.y * 2.0f, true, false);
+			ResizeRenderTarget(&m_mad, ds.x, ds.y * 2.0f, true, false, true);
 			do_interlace(m_merge, m_mad, ShaderInterlace::MAD_BUFFER, false, offset, bufIdx);
-			ResizeRenderTarget(&m_weavebob, ds.x, ds.y, true, false);
+			ResizeRenderTarget(&m_weavebob, ds.x, ds.y, true, false, true);
 			do_interlace(m_mad, m_weavebob, ShaderInterlace::MAD_RECONSTRUCT, false, 0, bufIdx);
 			m_current = m_weavebob;
 			break;
@@ -433,7 +450,21 @@ void GSDevice::Interlace(const GSVector2i& ds, int field, int mode, float yoffse
 	}
 }
 
-bool GSDevice::ResizeRenderTarget(GSTexture** t, int w, int h, bool preserve_contents, bool recycle)
+void GSDevice::RetirePresentTexture(GSTexture* t)
+{
+	if (!t)
+		return;
+
+	/* One trip around the ring is NUM_RETIRED_PRESENT_TEXTURES presents;
+	 * by then no frontend reference to the texture can remain live. */
+	const u32 slot = m_retired_present_slot;
+	m_retired_present_slot = (slot + 1) % NUM_RETIRED_PRESENT_TEXTURES;
+	delete m_retired_present[slot];
+	m_retired_present[slot] = t;
+	m_retired_present_age[slot] = m_present_age;
+}
+
+bool GSDevice::ResizeRenderTarget(GSTexture** t, int w, int h, bool preserve_contents, bool recycle, bool defer_destroy)
 {
 	GSTexture* orig_tex = *t;
 	if (orig_tex && orig_tex->GetWidth() == w && orig_tex->GetHeight() == h)
@@ -463,7 +494,9 @@ bool GSDevice::ResizeRenderTarget(GSTexture** t, int w, int h, bool preserve_con
 
 	if (orig_tex)
 	{
-		if (recycle)
+		if (defer_destroy)
+			RetirePresentTexture(orig_tex);
+		else if (recycle)
 			Recycle(orig_tex);
 		else
 			delete orig_tex;
