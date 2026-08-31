@@ -9533,6 +9533,11 @@ SCPS-56016:
   gameFixes:
     - GIFFIFOHack
   gsHWFixes:
+    halfPixelOffset: 2 # Fixes post processing position.
+    nativeScaling: 2 # Fixes post effects.
+    recommendedBlendingLevel: 4 # Fixes car shadows but addeds about 5000 barriers, might impact slower machines.
+    gpuTargetCLUT: 2 # Fixes light flicker.
+    getSkipCount: "GSC_DTGames"
     estimateTextureRegion: 1 # Improves performance and reduces hash cache size.
     gpuPaletteConversion: 2 # Improves performance and reduces hash cache size.
     autoFlush: 1 # Corrects shadows (Currently still broken even with this).
@@ -23316,6 +23321,10 @@ SLES-53904:
   clampModes:
     vuClampMode: 0 # Fixes black artifacts on tracks
   gsHWFixes:
+    halfPixelOffset: 2 # Fixes post processing position.
+    nativeScaling: 2 # Fixes post effects.
+    gpuTargetCLUT: 2 # Fixes light flicker.
+    getSkipCount: "GSC_DTGames"
     estimateTextureRegion: 1 # Improves performance and reduces hash cache size.
     gpuPaletteConversion: 2 # Improves performance and reduces hash cache size.
     autoFlush: 1 # Corrects shadows (Currently still broken even with this).
@@ -57595,6 +57604,10 @@ SLUS-21095:
   region: "NTSC-U"
   compat: 5
   gsHWFixes:
+    halfPixelOffset: 2 # Fixes post processing position.
+    nativeScaling: 2 # Fixes post effects.
+    gpuTargetCLUT: 2 # Fixes light flicker.
+    getSkipCount: "GSC_DTGames"
     estimateTextureRegion: 1 # Improves performance and reduces hash cache size.
     gpuPaletteConversion: 2 # Improves performance and reduces hash cache size.
     autoFlush: 1 # Corrects shadows (Currently still broken even with this).
@@ -61809,10 +61822,12 @@ SLUS-21793:
   compat: 3
   gsHWFixes:
     halfPixelOffset: 2 # Fixes post processing position.
-    nativeScaling: 1 # Fixes post effects.
+    nativeScaling: 2 # Fixes post effects.
     estimateTextureRegion: 1 # Improves performance and reduces hash cache size.
     gpuPaletteConversion: 2 # Improves performance and reduces hash cache size.
     autoFlush: 1 # Corrects shadows (Currently still broken even with this).
+    gpuTargetCLUT: 2 # Fixes light flicker.
+    getSkipCount: "GSC_DTGames"
 SLUS-21794:
   name: "Go, Diego, Go! Great Dinosaur Rescue"
   region: "NTSC-U"
