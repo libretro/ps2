@@ -4144,14 +4144,14 @@ void GSRendererHW::EmulateBlending(int rt_alpha_min, int rt_alpha_max, const boo
 		const bool AA1 = PRIM->AA1 && (m_vt.m_primclass == GS_LINE_CLASS || m_vt.m_primclass == GS_TRIANGLE_CLASS);
 		// PABE: Check condition early as an optimization, no blending when As < 128.
 		// For Cs*As + Cd*(1 - As) if As is 128 then blending can be disabled as well.
-		const bool PABE = PRIM->ABE && m_draw_env->PABE.PABE &&
+		const bool PABE_skip = PRIM->ABE && m_draw_env->PABE.PABE &&
 			((GetAlphaMinMax().max < 128) || (GetAlphaMinMax().max == 128 && ALPHA.A == 0 && ALPHA.B == 1 && ALPHA.C == 0 && ALPHA.D == 1));
 		// FBMASK: Color is not written, no need to do blending.
 		const u32 temp_fbmask = m_conf.ps.dst_fmt == GSLocalMemory::PSM_FMT_16 ? 0x00F8F8F8 : 0x00FFFFFF;
-		const bool FBMASK = (m_cached_ctx.FRAME.FBMSK & temp_fbmask) == temp_fbmask;
+		const bool FBMASK_skip = (m_cached_ctx.FRAME.FBMSK & temp_fbmask) == temp_fbmask;
 
 		// No blending or coverage anti-aliasing so early exit
-		if (FBMASK || PABE || !(PRIM->ABE || AA1))
+		if (FBMASK_skip || PABE_skip || !(PRIM->ABE || AA1))
 		{
 			m_conf.blend = {};
 			m_conf.ps.no_color1 = true;
@@ -4300,9 +4300,12 @@ void GSRendererHW::EmulateBlending(int rt_alpha_min, int rt_alpha_max, const boo
 	bool color_dest_blend = !!(blend_flag & BLEND_CD);
 
 	// HW blend can handle it, no need for sw blend or hdr, Cd*Alpha or Cd*(1 - Alpha) where Alpha <= 128, Alpha is As or Af.
-	bool color_dest_blend2 = !m_draw_env->PABE.PABE && ((m_conf.ps.blend_a == 1 && m_conf.ps.blend_b == 2 && m_conf.ps.blend_d == 2) || ((m_conf.ps.blend_b == 1 && m_conf.ps.blend_d == 1) && m_conf.ps.blend_a == 2)) &&
+	// Per pixel alpha blending.
+	const bool PABE = m_draw_env->PABE.PABE && GetAlphaMinMax().min < 128;
+
+	bool color_dest_blend2 = !PABE && ((m_conf.ps.blend_a == 1 && m_conf.ps.blend_b == 2 && m_conf.ps.blend_d == 2) || ((m_conf.ps.blend_b == 1 && m_conf.ps.blend_d == 1) && m_conf.ps.blend_a == 2)) &&
 		(alpha_eq_less_one || (alpha_c1_eq_less_max_one && new_rt_alpha_scale));
-	bool blend_zero_to_one_range = !m_draw_env->PABE.PABE && (((m_conf.ps.blend_b == 1 && m_conf.ps.blend_d == 1) && m_conf.ps.blend_a == 0) || (blend_flag & BLEND_MIX3)) &&
+	bool blend_zero_to_one_range = !PABE && (((m_conf.ps.blend_b == 1 && m_conf.ps.blend_d == 1) && m_conf.ps.blend_a == 0) || (blend_flag & BLEND_MIX3)) &&
 		(alpha_eq_less_one || (alpha_c1_eq_less_max_one && new_rt_alpha_scale));
 
 	// Do the multiplication in shader for blending accumulation: Cs*As + Cd or Cs*Af + Cd
@@ -4513,7 +4516,7 @@ void GSRendererHW::EmulateBlending(int rt_alpha_min, int rt_alpha_max, const boo
 	}
 
 	// Per pixel alpha blending
-	if (m_draw_env->PABE.PABE && GetAlphaMinMax().min < 128)
+	if (PABE)
 	{
 		// Breath of Fire Dragon Quarter, Strawberry Shortcake, Super Robot Wars, Cartoon Network Racing, Simple 2000 Series Vol.81, SOTC.
 
@@ -4543,7 +4546,7 @@ void GSRendererHW::EmulateBlending(int rt_alpha_min, int rt_alpha_max, const boo
 				// HDR mode should be disabled when doing sw blend, swap with sw colclip.
 				if (m_conf.ps.colclip_hw)
 				{
-					bool has_colclip_texture = g_gs_device->GetColorClipTexture() != nullptr;
+					const bool has_colclip_texture = g_gs_device->GetColorClipTexture() != nullptr;
 					m_conf.ps.colclip_hw     = 0;
 					m_conf.ps.colclip = 1;
 					m_conf.colclip_mode = has_colclip_texture ? GSHWDrawConfig::ColClipMode::EarlyResolve : GSHWDrawConfig::ColClipMode::NoModify;
