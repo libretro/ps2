@@ -45,23 +45,35 @@ set(GRANITE_RENDERDOC_CAPTURE OFF CACHE BOOL "" FORCE)
 # Vulkan::WSI, so wsi.cpp / wsi_dxgi.cpp are not vendored. Force it off.
 set(GRANITE_VULKAN_DXGI_INTEROP OFF CACHE BOOL "" FORCE)
 
-if (PARALLEL_GS_STANDALONE)
-    set(GRANITE_RENDERER OFF CACHE BOOL "" FORCE)
-    set(GRANITE_VULKAN_SPIRV_CROSS OFF CACHE BOOL "" FORCE)
-    set(GRANITE_VULKAN_SHADER_MANAGER_RUNTIME_COMPILER OFF CACHE BOOL "" FORCE)
-    set(GRANITE_VULKAN_SYSTEM_HANDLES OFF CACHE BOOL "" FORCE)
-    set(GRANITE_SHADER_COMPILER_OPTIMIZE OFF CACHE BOOL "" FORCE)
-    set(GRANITE_SHIPPING ON CACHE BOOL "" FORCE)
-    set(GRANITE_PLATFORM "null" CACHE STRING "" FORCE)
-else()
-    set(GRANITE_RENDERER ON CACHE BOOL "" FORCE)
-    set(GRANITE_VULKAN_SPIRV_CROSS ON CACHE BOOL "" FORCE)
-    set(GRANITE_VULKAN_SHADER_MANAGER_RUNTIME_COMPILER ON CACHE BOOL "" FORCE)
-    set(GRANITE_VULKAN_SYSTEM_HANDLES ON CACHE BOOL "" FORCE)
-    set(GRANITE_SHADER_COMPILER_OPTIMIZE ON CACHE BOOL "" FORCE)
-    set(GRANITE_SHIPPING OFF CACHE BOOL "" FORCE)
-    set(GRANITE_PLATFORM "SDL" CACHE STRING "" FORCE)
-endif()
+# Vendored libretro subset: one configuration, and it is the lean one.
+#
+# This used to branch on PARALLEL_GS_STANDALONE, with the OFF path -- the one
+# the libretro core takes -- turning everything ON: the shader manager and its
+# runtime GLSL compiler, SPIRV-Cross reflection, the higher-level renderer,
+# system handles, and GRANITE_SHIPPING OFF, on an "SDL" platform.  None of that
+# is in the core.  Makefile.common builds 39 Granite/parallel-gs translation
+# units with -DGRANITE_SHIPPING and no other GRANITE_* define, links, and runs;
+# CMake was compiling those 39 plus six more (managers/shader_manager.cpp,
+# managers/resource_manager.cpp, texture/memory_mapped_texture.cpp,
+# texture/texture_files.cpp, texture/texture_decoder.cpp, mesh/meshlet.cpp) and
+# dragging in granite-filesystem, granite-threading, granite-rapidjson and
+# granite-stb behind GRANITE_VULKAN_SYSTEM_HANDLES.  So the two build systems
+# were producing different binaries from the same tree, which is the thing the
+# per-commit both-build-systems rule exists to prevent.
+#
+# parallel-gs gets its shaders from slangmosh as pre-compiled SPIR-V, so the
+# shader manager and the runtime compiler have nothing to do; glslang's only
+# consumer in this tree is pcsx2's own GS/Renderers/Vulkan/VKShaderCache.cpp,
+# not Granite.  GRANITE_PLATFORM is "libretro" rather than "null" or "SDL":
+# Granite's own CMakeLists already knows that platform, and it is what selects
+# -fvisibility=hidden and position-independent code for a core.
+set(GRANITE_RENDERER OFF CACHE BOOL "" FORCE)
+set(GRANITE_VULKAN_SPIRV_CROSS OFF CACHE BOOL "" FORCE)
+set(GRANITE_VULKAN_SHADER_MANAGER_RUNTIME_COMPILER OFF CACHE BOOL "" FORCE)
+set(GRANITE_VULKAN_SYSTEM_HANDLES OFF CACHE BOOL "" FORCE)
+set(GRANITE_SHADER_COMPILER_OPTIMIZE OFF CACHE BOOL "" FORCE)
+set(GRANITE_SHIPPING ON CACHE BOOL "" FORCE)
+set(GRANITE_PLATFORM "libretro" CACHE STRING "" FORCE)
 
 add_subdirectory(Granite EXCLUDE_FROM_ALL)
 

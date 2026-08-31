@@ -10,7 +10,6 @@
 #include "gs_interface.hpp"
 #include "device.hpp"
 #include "context.hpp"
-#include "wsi.hpp"
 
 #include <libretro_vulkan.h>
 
