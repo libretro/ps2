@@ -27,7 +27,6 @@
 #include "buffer_pool.hpp"
 #include "vulkan_headers.hpp"
 #include "image.hpp"
-#include "pipeline_event.hpp"
 #include "query_pool.hpp"
 #include "render_pass.hpp"
 #include "sampler.hpp"
@@ -391,8 +390,6 @@ public:
 	void barrier(VkPipelineStageFlags2 src_stage, VkAccessFlags2 src_access,
 	             VkPipelineStageFlags2 dst_stage, VkAccessFlags2 dst_access);
 
-	PipelineEvent signal_event(const VkDependencyInfo &dep);
-	void wait_events(uint32_t num_events, const PipelineEvent *events, const VkDependencyInfo *deps);
 
 	// Full expressive barrier.
 	void barrier(const VkDependencyInfo &dep);

@@ -1934,38 +1934,6 @@ VkPipeline CommandBuffer::get_current_graphics_pipeline()
 	return flush_render_state(true);
 }
 
-void CommandBuffer::wait_events(uint32_t count, const PipelineEvent *events, const VkDependencyInfo *deps)
-{
-	VK_ASSERT(!framebuffer);
-	VK_ASSERT(!actual_render_pass);
-
-	Util::SmallVector<VkEvent> vk_events;
-	vk_events.reserve(count);
-	for (uint32_t i = 0; i < count; i++)
-		vk_events.push_back(events[i]->get_event());
-
-	if (device->get_workarounds().emulate_event_as_pipeline_barrier)
-	{
-		for (uint32_t i = 0; i < count; i++)
-			barrier(deps[i]);
-	}
-	else
-	{
-		table.vkCmdWaitEvents2(cmd, count, vk_events.data(), deps);
-	}
-}
-
-PipelineEvent CommandBuffer::signal_event(const VkDependencyInfo &dep)
-{
-	VK_ASSERT(!framebuffer);
-	VK_ASSERT(!actual_render_pass);
-	auto event = device->begin_signal_event();
-
-	if (!device->get_workarounds().emulate_event_as_pipeline_barrier)
-		table.vkCmdSetEvent2(cmd, event->get_event(), &dep);
-	return event;
-}
-
 void CommandBuffer::set_vertex_attrib(uint32_t attrib, uint32_t binding, VkFormat format, VkDeviceSize offset)
 {
 	VK_ASSERT(attrib < VULKAN_NUM_VERTEX_ATTRIBS);

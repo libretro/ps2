@@ -34,7 +34,6 @@
 #include "sampler.hpp"
 #include "semaphore.hpp"
 #include "semaphore_manager.hpp"
-#include "event_manager.hpp"
 #include "shader.hpp"
 #include "context.hpp"
 #include "query_pool.hpp"
@@ -106,7 +105,6 @@ struct HandlePool
 	VulkanObjectPool<Sampler> samplers;
 	VulkanObjectPool<FenceHolder> fences;
 	VulkanObjectPool<SemaphoreHolder> semaphores;
-	VulkanObjectPool<EventHolder> events;
 	VulkanObjectPool<QueryPoolResult> query;
 	VulkanObjectPool<CommandBuffer> command_buffers;
 	VulkanObjectPool<BindlessDescriptorPool> bindless_descriptor_pool;
@@ -174,8 +172,6 @@ public:
 	// Don't want to expose a lot of internal guts to make this work.
 	friend class QueryPool;
 	friend struct QueryPoolResultDeleter;
-	friend class EventHolder;
-	friend struct EventHolderDeleter;
 	friend class SemaphoreHolder;
 	friend struct SemaphoreHolderDeleter;
 	friend class FenceHolder;
@@ -527,7 +523,6 @@ public:
 	QueryPoolHandle write_calibrated_timestamp();
 
 	// A split version of VkEvent handling which lets us record a wait command before signal is recorded.
-	PipelineEvent begin_signal_event();
 
 	const Context::SystemHandles &get_system_handles() const
 	{
@@ -619,7 +614,6 @@ private:
 		DeviceAllocator memory;
 		FenceManager fence;
 		SemaphoreManager semaphore;
-		EventManager event;
 		BufferPool vbo, ibo, ubo, staging;
 		TimestampIntervalManager timestamps;
 		DescriptorBufferAllocator descriptor_buffer;
@@ -677,7 +671,6 @@ private:
 		std::vector<VkDescriptorPool> destroyed_descriptor_pools;
 		Util::SmallVector<CommandBufferHandle> submissions[QUEUE_INDEX_COUNT];
 		std::vector<VkSemaphore> recycled_semaphores;
-		std::vector<VkEvent> recycled_events;
 		std::vector<VkSemaphore> destroyed_semaphores;
 		std::vector<VkSemaphore> consumed_semaphores;
 		std::vector<VkIndirectExecutionSetEXT> destroyed_execution_sets;
@@ -796,7 +789,6 @@ private:
 	void flush_pipeline_cache();
 
 	PerformanceQueryPool &get_performance_query_pool(QueueIndices physical_type);
-	PipelineEvent request_pipeline_event();
 
 	std::function<void ()> queue_lock_callback;
 	std::function<void ()> queue_unlock_callback;
@@ -826,7 +818,6 @@ private:
 	void destroy_semaphore(VkSemaphore semaphore);
 	void consume_semaphore(VkSemaphore semaphore);
 	void recycle_semaphore(VkSemaphore semaphore);
-	void destroy_event(VkEvent event);
 	void free_memory(const DeviceAllocation &alloc);
 	void reset_fence(VkFence fence, bool observed_wait);
 	void destroy_descriptor_pool(VkDescriptorPool desc_pool);
@@ -844,7 +835,6 @@ private:
 	void destroy_semaphore_nolock(VkSemaphore semaphore);
 	void consume_semaphore_nolock(VkSemaphore semaphore);
 	void recycle_semaphore_nolock(VkSemaphore semaphore);
-	void destroy_event_nolock(VkEvent event);
 	void free_memory_nolock(const DeviceAllocation &alloc);
 	void destroy_descriptor_pool_nolock(VkDescriptorPool desc_pool);
 	void reset_fence_nolock(VkFence fence, bool observed_wait);

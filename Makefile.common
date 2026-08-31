@@ -574,9 +574,12 @@ SOURCES_CXX += \
 # and does not call any Vulkan::WSI methods. Excluding wsi.cpp also avoids the
 # vkAcquireFullScreenExclusiveModeEXT / vkGetPhysicalDeviceSurfacePresentModes2EXT
 # undefineds it pulls in.
-# pipeline_event is excluded: nm shows nothing references EventHolder /
-# EventHolderDeleter externally; paraLLEl-GS does not use Vulkan events for
-# inter-pass synchronisation.
+# pipeline_event and event_manager are gone rather than merely excluded: the
+# comment here used to claim pipeline_event was excluded while line 597 built
+# it anyway. paraLLEl-GS does not use Vulkan events for inter-pass
+# synchronisation, and every signal_event / wait_events / begin_signal_event /
+# request_pipeline_event occurrence in the subtree was a definition, never a
+# call, so the whole mechanism and its two source files were removed.
 SOURCES_CXX += \
 	$(GRANITE_DIR)/vulkan/breadcrumbs.cpp \
 	$(GRANITE_DIR)/vulkan/buffer.cpp \
@@ -587,14 +590,12 @@ SOURCES_CXX += \
 	$(GRANITE_DIR)/vulkan/cookie.cpp \
 	$(GRANITE_DIR)/vulkan/descriptor_set.cpp \
 	$(GRANITE_DIR)/vulkan/device.cpp \
-	$(GRANITE_DIR)/vulkan/event_manager.cpp \
 	$(GRANITE_DIR)/vulkan/fence.cpp \
 	$(GRANITE_DIR)/vulkan/fence_manager.cpp \
 	$(GRANITE_DIR)/vulkan/image.cpp \
 	$(GRANITE_DIR)/vulkan/indirect_layout.cpp \
 	$(GRANITE_DIR)/vulkan/memory_allocator.cpp \
 	$(GRANITE_DIR)/vulkan/pipeline_cache.cpp \
-	$(GRANITE_DIR)/vulkan/pipeline_event.cpp \
 	$(GRANITE_DIR)/vulkan/query_pool.cpp \
 	$(GRANITE_DIR)/vulkan/render_pass.cpp \
 	$(GRANITE_DIR)/vulkan/rtas.cpp \

@@ -979,7 +979,6 @@ void Device::set_context(const Context &context)
 	managers.memory.init(this);
 	managers.semaphore.init(this);
 	managers.fence.init(this);
-	managers.event.init(this);
 	managers.vbo.init(this, 4 * 1024, 16, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
 	managers.ibo.init(this, 4 * 1024, 16, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
 	managers.ubo.init(this, 256 * 1024, std::max<VkDeviceSize>(16u, gpu_props.limits.minUniformBufferOffsetAlignment),
@@ -2390,12 +2389,6 @@ void Device::destroy_buffer_view(const CachedBufferView &view)
 	destroy_buffer_view_nolock(view);
 }
 
-void Device::destroy_event(VkEvent event)
-{
-	LOCK();
-	destroy_event_nolock(event);
-}
-
 void Device::destroy_framebuffer(VkFramebuffer framebuffer)
 {
 	LOCK();
@@ -2484,12 +2477,6 @@ void Device::recycle_semaphore_nolock(VkSemaphore semaphore)
 	frame().recycled_semaphores.push_back(semaphore);
 }
 
-void Device::destroy_event_nolock(VkEvent event)
-{
-	VK_ASSERT(!exists(frame().recycled_events, event));
-	frame().recycled_events.push_back(event);
-}
-
 void Device::reset_fence_nolock(VkFence fence, bool observed_wait)
 {
 	if (observed_wait)
@@ -2509,11 +2496,6 @@ void Device::free_descriptor_buffer_allocation_nolock(const DescriptorBufferAllo
 void Device::free_cached_descriptor_payload_nolock(const CachedDescriptorPayload &payload)
 {
 	frame().cached_descriptor_payloads.push_back(payload);
-}
-
-PipelineEvent Device::request_pipeline_event()
-{
-	return PipelineEvent(handle_pool.events.allocate(this, managers.event.request_cleared_event()));
 }
 
 void Device::destroy_image_nolock(VkImage image)
@@ -3015,8 +2997,6 @@ void Device::PerFrame::begin()
 		table.vkDestroyIndirectExecutionSetEXT(vkdevice, exec_set, nullptr);
 	for (auto &semaphore : recycled_semaphores)
 		managers.semaphore.recycle(semaphore);
-	for (auto &event : recycled_events)
-		managers.event.recycle(event);
 	managers.descriptor_buffer.free(descriptor_buffer_allocs.data(), descriptor_buffer_allocs.size());
 	managers.descriptor_buffer.free_cached_descriptors(
 			cached_descriptor_payloads.data(), cached_descriptor_payloads.size());
@@ -3042,7 +3022,6 @@ void Device::PerFrame::begin()
 	destroyed_semaphores.clear();
 	destroyed_descriptor_pools.clear();
 	recycled_semaphores.clear();
-	recycled_events.clear();
 	allocations.clear();
 	descriptor_buffer_allocs.clear();
 	cached_descriptor_payloads.clear();
@@ -5736,11 +5715,6 @@ int64_t Device::convert_timestamp_to_absolute_nsec(const QueryPoolResult &handle
 		ts = calibrated_timestamp_host + int64_t(double(ts - calibrated_timestamp_device) * gpu_props.limits.timestampPeriod);
 	}
 	return ts;
-}
-
-PipelineEvent Device::begin_signal_event()
-{
-	return request_pipeline_event();
 }
 
 #ifdef GRANITE_VULKAN_SYSTEM_HANDLES
