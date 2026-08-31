@@ -3523,6 +3523,8 @@ void GSRendererHW::Draw()
 	if (rt)
 		rt->m_last_draw = s_n;
 
+	if (ds)
+		ds->m_last_draw = s_n;
 #ifdef DISABLE_HW_TEXTURE_CACHE
 	if (rt)
 		g_texture_cache->Read(rt, real_rect);
