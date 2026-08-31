@@ -1260,10 +1260,10 @@ SCAJ-20068:
   region: "NTSC-Unk"
   clampModes:
     eeClampMode: 3 # Fixes animations.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes brightness and overlapping subtitles.
   gsHWFixes:
     roundSprite: 1 # Fixes font artifacts.
+    autoFlush: 1 # Fixes missing blur.
+    textureInsideRT: 1 # Fixes broken FMVs.
 SCAJ-20069:
   name: "Gallop Racer - Lucky 7"
   region: "NTSC-Unk"
@@ -38180,10 +38180,10 @@ SLPM-65478:
   clampModes:
     eeClampMode: 3 # Fixes animations.
   compat: 5
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes brightness and overlapping subtitles.
   gsHWFixes:
     roundSprite: 1 # Fixes font artifacts.
+    autoFlush: 1 # Fixes missing blur.
+    textureInsideRT: 1 # Fixes broken FMVs.
 SLPM-65479:
   name: "Sims, The - Bustin' Out"
   region: "NTSC-J"
@@ -43298,10 +43298,10 @@ SLPM-66678:
   region: "NTSC-J"
   clampModes:
     eeClampMode: 3 # Fixes animations.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes brightness and overlapping subtitles.
   gsHWFixes:
     roundSprite: 1 # Fixes font artifacts.
+    autoFlush: 1 # Fixes missing blur.
+    textureInsideRT: 1 # Fixes broken FMVs.
 SLPM-66679:
   name: "Devil Summoner - Kuzunoha Raidou tai Abaddon Ou [Plus]"
   region: "NTSC-J"
