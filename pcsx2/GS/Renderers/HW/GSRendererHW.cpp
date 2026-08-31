@@ -1852,7 +1852,7 @@ bool GSRendererHW::IsDepthAlwaysPassing()
 	// Depth is always pass/fail (no read) and write are discarded.
 	return (!m_cached_ctx.TEST.ZTE || m_cached_ctx.TEST.ZTST <= ZTST_ALWAYS) ||
 		// Depth test will always pass
-		(m_cached_ctx.TEST.ZTST == ZTST_GEQUAL && m_vt.m_eq.z && pcsx2_min_i(m_vertex.buff[check_index].XYZ.Z, max_z) == max_z);
+		(m_cached_ctx.TEST.ZTST == ZTST_GEQUAL && m_vt.m_eq.z && pcsx2_min_u(m_vertex.buff[check_index].XYZ.Z, max_z) == max_z);
 }
 
 bool GSRendererHW::IsUsingCsInBlend()
@@ -1891,7 +1891,7 @@ bool GSRendererHW::IsTBPFrameOrZ(u32 tbp, bool frame_only)
 						   // Depth is always pass/fail (no read) and write are discarded.
 						   (zm != 0 && m_cached_ctx.TEST.ZTST <= ZTST_ALWAYS) ||
 						   // Depth test will always pass
-						   (zm != 0 && m_cached_ctx.TEST.ZTST == ZTST_GEQUAL && m_vt.m_eq.z && pcsx2_min_i(m_vertex.buff[0].XYZ.Z, max_z) == max_z) ||
+						   (zm != 0 && m_cached_ctx.TEST.ZTST == ZTST_GEQUAL && m_vt.m_eq.z && pcsx2_min_u(m_vertex.buff[0].XYZ.Z, max_z) == max_z) ||
 						   // Depth will be written through the RT
 						   (!no_rt && m_cached_ctx.FRAME.FBP == m_cached_ctx.ZBUF.ZBP && !PRIM->TME && zm == 0 && (fm & fm_mask) == 0 && m_cached_ctx.TEST.ZTE)) ||
 					   // No color or Z being written.
@@ -6960,7 +6960,7 @@ bool GSRendererHW::TryTargetClear(GSTextureCache::Target* rt, GSTextureCache::Ta
 		if (ds && !preserve_depth && m_r.rintersect(ds->m_valid).eq(ds->m_valid))
 		{
 			const u32 max_z = 0xFFFFFFFF >> (GSLocalMemory::m_psm[m_cached_ctx.ZBUF.PSM].fmt * 8);
-			const u32 z = pcsx2_min_i(max_z, m_vertex.buff[1].XYZ.Z);
+			const u32 z = pcsx2_min_u(max_z, m_vertex.buff[1].XYZ.Z);
 			const float d = static_cast<float>(z) * (g_gs_device->Features().clip_control ? 0x1p-32f : 0x1p-24f);
 			g_gs_device->ClearDepth(ds->m_texture, d);
 			ds->m_dirty.clear();
@@ -7377,7 +7377,7 @@ u32 GSRendererHW::GetConstantDirectWriteMemClearColor() const
 u32 GSRendererHW::GetConstantDirectWriteMemClearDepth() const
 {
 	const u32 max_z = (0xFFFFFFFF >> (GSLocalMemory::m_psm[m_cached_ctx.ZBUF.PSM].fmt * 8));
-	return pcsx2_min_i(m_vertex.buff[1].XYZ.Z, max_z);
+	return pcsx2_min_u(m_vertex.buff[1].XYZ.Z, max_z);
 }
 
 bool GSRendererHW::IsReallyDithered() const
