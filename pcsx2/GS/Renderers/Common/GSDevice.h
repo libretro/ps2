@@ -624,6 +624,15 @@ struct alignas(16) GSHWDrawConfig
 		Full,           ///< Full emulation (using barriers / ROV)
 	};
 
+	enum class ColClipMode : u8
+	{
+		NoModify = 0,
+		ConvertOnly = 1,
+		ResolveOnly = 2,
+		ConvertAndResolve = 3,
+		EarlyResolve = 4
+	};
+
 	GSTexture* rt;        ///< Render target
 	GSTexture* ds;        ///< Depth stencil
 	GSTexture* tex;       ///< Source texture
@@ -676,6 +685,11 @@ struct alignas(16) GSHWDrawConfig
 
 	VSConstantBuffer cb_vs;
 	PSConstantBuffer cb_ps;
+
+	// These are here as they need to be preserved between draws, and the state clear only does up to the constant buffers.
+	ColClipMode colclip_mode;
+	GIFRegFRAME colclip_frame;
+	GSVector4i colclip_update_area; ///< Area in the framebuffer which the hw colclip will modify;
 };
 
 class GSDevice : public GSAlignedClass<32>
@@ -772,6 +786,7 @@ protected:
 	GSTexture* m_mad = nullptr;
 	GSTexture* m_target_tmp = nullptr;
 	GSTexture* m_current = nullptr;
+	GSTexture* m_colclip_rt = nullptr; ///< Temp hw colclip texture
 
 	struct
 	{
@@ -809,6 +824,10 @@ public:
 	__fi s32 GetWindowHeight() const { return static_cast<s32>(m_window_info.surface_height); }
 	__fi GSVector2i GetWindowSize() const { return GSVector2i(static_cast<s32>(m_window_info.surface_width), static_cast<s32>(m_window_info.surface_height)); }
 	__fi GSTexture* GetCurrent() const { return m_current; }
+
+	GSTexture* GetColorClipTexture() const { return m_colclip_rt; }
+
+	void SetColorClipTexture(GSTexture* tex) { m_colclip_rt = tex; }
 
 	void Recycle(GSTexture* t);
 

@@ -125,6 +125,7 @@ private:
 	void SetTCOffset();
 
 	bool IsSinglePageDraw() const;
+	bool NextDrawColClip() const;
 	bool IsPossibleChannelShuffle() const;
 	bool NextDrawMatchesShuffle() const;
 	bool IsSplitTextureShuffle(GSTextureCache::Target* rt);

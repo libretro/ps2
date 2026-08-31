@@ -938,6 +938,21 @@ bool GSRendererHW::IsSinglePageDraw() const
 	return false;
 }
 
+bool GSRendererHW::NextDrawColClip() const
+{
+	const int get_next_ctx = (m_state_flush_reason == CONTEXTCHANGE) ? m_env.PRIM.CTXT : m_backed_up_ctx;
+	const GSDrawingContext& next_ctx = m_env.CTXT[get_next_ctx];
+
+	// If it wasn't a context change we can't guarantee the next draw is going to be set up
+	if (m_state_flush_reason != GSFlushReason::CONTEXTCHANGE || m_env.COLCLAMP.CLAMP != 0 || m_env.PRIM.ABE == 0 ||
+		(m_context->FRAME.U64 ^ next_ctx.FRAME.U64) != 0 || (m_env.PRIM.TME && next_ctx.TEX0.TBP0 == m_context->FRAME.Block()))
+	{
+		return false;
+	}
+
+	return true;
+}
+
 bool GSRendererHW::IsPossibleChannelShuffle() const
 {
 	if (!PRIM->TME || m_cached_ctx.TEX0.PSM != PSMT8 || // 8-bit texture draw
@@ -2434,6 +2449,31 @@ void GSRendererHW::Draw()
 
 	if (no_rt && no_ds)
 		return;
+
+	// I hate that I have to do this, but some games (like Pac-Man World Rally) troll us by causing a flush with degenerate triangles, so we don't have all available information about the next draw.
+	// So we have to check when the next draw happens if our frame has changed or if it's become recursive.
+	const bool has_colclip_texture = g_gs_device->GetColorClipTexture() != nullptr;
+	if (!no_rt && has_colclip_texture && (m_conf.colclip_frame.FBP != m_cached_ctx.FRAME.FBP || m_conf.colclip_frame.Block() == m_cached_ctx.TEX0.TBP0))
+	{
+		GIFRegTEX0 FRAME;
+		FRAME.TBP0 = m_conf.colclip_frame.Block();
+		FRAME.TBW = m_conf.colclip_frame.FBW;
+		FRAME.PSM = m_conf.colclip_frame.PSM;
+
+		GSTextureCache::Target* old_rt = g_texture_cache->LookupTarget(FRAME, GSVector2i(1, 1), GetTextureScaleFactor(), GSTextureCache::RenderTarget, true,
+			fm, false, false, true, true, GSVector4i(0, 0, 1, 1), true, false, false);
+
+		if (old_rt)
+		{
+			GSTexture* colclip_texture = g_gs_device->GetColorClipTexture();
+			g_gs_device->StretchRect(colclip_texture, GSVector4(m_conf.colclip_update_area) / GSVector4(GSVector4i(colclip_texture->GetSize()).xyxy()), old_rt->m_texture, GSVector4(m_conf.colclip_update_area),
+				ShaderConvert::COLCLIP_RESOLVE, false);
+
+			g_gs_device->Recycle(colclip_texture);
+
+			g_gs_device->SetColorClipTexture(nullptr);
+		}
+	}
 
 	const bool draw_sprite_tex = PRIM->TME && (m_vt.m_primclass == GS_SPRITE_CLASS);
 
@@ -4411,12 +4451,33 @@ void GSRendererHW::EmulateBlending(int rt_alpha_min, int rt_alpha_max, const boo
 	// Color clip
 	if (COLCLAMP.CLAMP == 0)
 	{
-		const bool free_colclip = features.framebuffer_fetch || no_prim_overlap || blend_non_recursive;
+		bool has_colclip_texture = g_gs_device->GetColorClipTexture() != nullptr;
+
+		// Don't know any game that resizes the RT mid colclip, but gotta be careful.
+		if (has_colclip_texture)
+		{
+			GSTexture* colclip_texture = g_gs_device->GetColorClipTexture();
+
+			if (colclip_texture->GetSize() != rt->m_texture->GetSize())
+			{
+				g_gs_device->StretchRect(colclip_texture, GSVector4(m_conf.colclip_update_area) / GSVector4(GSVector4i(colclip_texture->GetSize()).xyxy()), rt->m_texture, GSVector4(m_conf.colclip_update_area),
+					ShaderConvert::COLCLIP_RESOLVE, false);
+
+				g_gs_device->Recycle(colclip_texture);
+
+				g_gs_device->SetColorClipTexture(nullptr);
+
+				has_colclip_texture = false;
+			}
+		}
+
+		const bool free_colclip = !has_colclip_texture && (features.framebuffer_fetch || no_prim_overlap || blend_non_recursive);
 
 		if (color_dest_blend || color_dest_blend2 || blend_zero_to_one_range)
 		{
 			// No overflow, disable colclip.
 			sw_blending = false;
+			m_conf.colclip_mode = (has_colclip_texture && !NextDrawColClip()) ? GSHWDrawConfig::ColClipMode::ResolveOnly : GSHWDrawConfig::ColClipMode::NoModify;
 		}
 		else if (free_colclip)
 		{
@@ -4426,22 +4487,29 @@ void GSRendererHW::EmulateBlending(int rt_alpha_min, int rt_alpha_max, const boo
 			// Disable the HDR algo
 			accumulation_blend = false;
 			blend_mix          = false;
+			m_conf.colclip_mode = (has_colclip_texture && !NextDrawColClip()) ? GSHWDrawConfig::ColClipMode::ResolveOnly : GSHWDrawConfig::ColClipMode::NoModify;
 		}
 		else if (accumulation_blend)
 		{
 			// A fast algo that requires 2 passes
 			m_conf.ps.colclip_hw = 1;
 			sw_blending = true; // Enable sw blending for the HDR algo
+
+			m_conf.colclip_mode = has_colclip_texture ? (NextDrawColClip() ? GSHWDrawConfig::ColClipMode::NoModify : GSHWDrawConfig::ColClipMode::ResolveOnly) : (NextDrawColClip() ? GSHWDrawConfig::ColClipMode::ConvertOnly : GSHWDrawConfig::ColClipMode::ConvertAndResolve);
 		}
 		else if (sw_blending)
 		{
 			// A slow algo that could requires several passes (barely used)
 			m_conf.ps.colclip = 1;
+			m_conf.colclip_mode = (has_colclip_texture && !NextDrawColClip()) ? GSHWDrawConfig::ColClipMode::ResolveOnly : GSHWDrawConfig::ColClipMode::NoModify;
 		}
 		else
 		{
 			m_conf.ps.colclip_hw = 1;
+			m_conf.colclip_mode = has_colclip_texture ? (NextDrawColClip() ? GSHWDrawConfig::ColClipMode::NoModify : GSHWDrawConfig::ColClipMode::ResolveOnly) : (NextDrawColClip() ? GSHWDrawConfig::ColClipMode::ConvertOnly : GSHWDrawConfig::ColClipMode::ConvertAndResolve);
 		}
+
+		m_conf.colclip_frame = m_cached_ctx.FRAME;
 	}
 
 	// Per pixel alpha blending
@@ -4475,8 +4543,10 @@ void GSRendererHW::EmulateBlending(int rt_alpha_min, int rt_alpha_max, const boo
 				// HDR mode should be disabled when doing sw blend, swap with sw colclip.
 				if (m_conf.ps.colclip_hw)
 				{
+					bool has_colclip_texture = g_gs_device->GetColorClipTexture() != nullptr;
 					m_conf.ps.colclip_hw     = 0;
 					m_conf.ps.colclip = 1;
+					m_conf.colclip_mode = has_colclip_texture ? GSHWDrawConfig::ColClipMode::EarlyResolve : GSHWDrawConfig::ColClipMode::NoModify;
 				}
 			}
 			else
