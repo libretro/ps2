@@ -102,8 +102,8 @@ static bool ConvertNoECCtoRAW(const char* file_in, const char* file_out)
 
 	for (s64 i = 0; i < (size / 512); i++)
 	{
-		if (rfread(buffer, sizeof(buffer), 1, fin) != 1 ||
-			rfwrite(buffer, sizeof(buffer), 1, fout) != 1)
+		if (filestream_read(fin, buffer, sizeof(buffer)) != (int64_t)(sizeof(buffer)) ||
+			filestream_write(fout, buffer, sizeof(buffer)) != (int64_t)(sizeof(buffer)))
 		{
 			filestream_close(fin);
 			filestream_close(fout);
@@ -113,7 +113,7 @@ static bool ConvertNoECCtoRAW(const char* file_in, const char* file_out)
 		for (int j = 0; j < 4; j++)
 		{
 			u32 checksum = CalculateECC(&buffer[j * 128]);
-			if (rfwrite(&checksum, 3, 1, fout) != 1)
+			if (filestream_write(fout, &checksum, 3) != (int64_t)(3))
 			{
 				filestream_close(fin);
 				filestream_close(fout);
@@ -122,7 +122,7 @@ static bool ConvertNoECCtoRAW(const char* file_in, const char* file_out)
 		}
 
 		u32 nullbytes = 0;
-		if (rfwrite(&nullbytes, sizeof(nullbytes), 1, fout) != 1)
+		if (filestream_write(fout, &nullbytes, sizeof(nullbytes)) != (int64_t)(sizeof(nullbytes)))
 		{
 			filestream_close(fin);
 			filestream_close(fout);
@@ -153,9 +153,9 @@ static bool ConvertRAWtoNoECC(const char* file_in, const char* file_out)
 
 	for (s64 i = 0; i < (size / 528); i++)
 	{
-		if (rfread(buffer, sizeof(buffer), 1, fin) != 1 ||
-			rfwrite(buffer, sizeof(buffer), 1, fout) != 1 ||
-			rfread(checksum, sizeof(checksum), 1, fin) != 1)
+		if (filestream_read(fin, buffer, sizeof(buffer)) != (int64_t)(sizeof(buffer)) ||
+			filestream_write(fout, buffer, sizeof(buffer)) != (int64_t)(sizeof(buffer)) ||
+			filestream_read(fin, checksum, sizeof(checksum)) != (int64_t)(sizeof(checksum)))
 		{
 			filestream_close(fin);
 			filestream_close(fout);
@@ -373,7 +373,7 @@ void FileMemoryCard::Open()
 				m_cardSize[slot] = static_cast<size_t>(m_fileSize[slot]);
 				m_cardData[slot] = new u8[m_cardSize[slot]];
 				filestream_seek(m_file[slot], 0, RETRO_VFS_SEEK_POSITION_START);
-				if (rfread(m_cardData[slot], m_cardSize[slot], 1, m_file[slot]) != 1)
+				if (filestream_read(m_file[slot], m_cardData[slot], m_cardSize[slot]) != (int64_t)(m_cardSize[slot]))
 					Console.Error("Error reading memcard.");
 			}
 
@@ -395,9 +395,9 @@ void FileMemoryCard::Close()
 
 		// Store checksum
 		if (!m_ispsx[slot] && filestream_seek(m_file[slot], m_chkaddr, RETRO_VFS_SEEK_POSITION_START) == 0)
-			rfwrite(&m_chksum[slot], sizeof(m_chksum[slot]), 1, m_file[slot]);
+			filestream_write(m_file[slot], &m_chksum[slot], sizeof(m_chksum[slot]));
 
-		rfclose(m_file[slot]);
+		filestream_close(m_file[slot]);
 		m_file[slot] = nullptr;
 
 		if (StringUtil::EndsWith(m_filenames[slot], ".bin"))
@@ -436,7 +436,7 @@ bool FileMemoryCard::Create(const char* mcdFile, uint sizeInMB)
 
 	for (uint i = 0; i < (MC2_MBSIZE * sizeInMB) / sizeof(buf); i++)
 	{
-		if (rfwrite(buf, sizeof(buf), 1, fp) != 1)
+		if (filestream_write(fp, buf, sizeof(buf)) != (int64_t)(sizeof(buf)))
 		{
 			filestream_close(fp);
 			return false;
@@ -523,7 +523,7 @@ s32 FileMemoryCard::Save(uint slot, const u8* src, u32 adr, int size)
 	if (!Seek(m_file[slot], adr))
 		return 0;
 
-	if (rfwrite(dst, size, 1, m_file[slot]) == 1)
+	if (filestream_write(m_file[slot], dst, size) == (int64_t)(size))
 		return 1;
 
 	return 0;
@@ -543,7 +543,7 @@ s32 FileMemoryCard::EraseBlock(uint slot, u32 adr)
 
 	if (!Seek(m_file[slot], adr))
 		return 0;
-	return rfwrite(m_cardData[slot] + adr, MC2_ERASE_SIZE, 1, m_file[slot]) == 1;
+	return filestream_write(m_file[slot], m_cardData[slot] + adr, MC2_ERASE_SIZE) == (int64_t)(MC2_ERASE_SIZE);
 }
 
 u64 FileMemoryCard::GetCRC(uint slot)
@@ -568,7 +568,7 @@ u64 FileMemoryCard::GetCRC(uint slot)
 		const uint filesize = static_cast<uint>(mcfpsize) / sizeof(buffer);
 		for (uint i = filesize; i; --i)
 		{
-			if (rfread(buffer, sizeof(buffer), 1, mcfp) != 1)
+			if (filestream_read(mcfp, buffer, sizeof(buffer)) != (int64_t)(sizeof(buffer)))
 				return 0;
 
 			for (uint t = 0; t < C89_ARRAY_SIZE(buffer); ++t)

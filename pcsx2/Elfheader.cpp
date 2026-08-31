@@ -76,7 +76,7 @@ bool ElfObject::OpenFile(std::string srcfile)
 		return false;
 
 	data.resize(static_cast<size_t>(sd_size));
-	if (rfread(data.data(), data.size(), 1, fp) != 1)
+	if (filestream_read(fp, data.data(), data.size()) != (int64_t)(data.size()))
 	{
 		filestream_close(fp);
 		return false;

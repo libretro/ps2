@@ -65,7 +65,7 @@ static bool LoadBiosVersion(RFILE* fp, u32& version, char* description, size_t d
 	romdir rd;
 	for (u32 i = 0; i < 512 * 1024; i++)
 	{
-		if (rfread(&rd, sizeof(rd), 1, fp) != 1)
+		if (filestream_read(fp, &rd, sizeof(rd)) != (int64_t)(sizeof(rd)))
 			return false;
 
 		if (strncmp(rd.fileName, "RESET", sizeof(rd.fileName)) == 0)
@@ -85,7 +85,7 @@ static bool LoadBiosVersion(RFILE* fp, u32& version, char* description, size_t d
 		{
 			s64 pos = filestream_tell(fp);
 			if (filestream_seek(fp, fileOffset + 0x10, RETRO_VFS_SEEK_POSITION_START) != 0 ||
-				rfread(extinfo, 15, 1, fp) != 1 || filestream_seek(fp, pos, RETRO_VFS_SEEK_POSITION_START) != 0)
+				filestream_read(fp, extinfo, 15) != (int64_t)(15) || filestream_seek(fp, pos, RETRO_VFS_SEEK_POSITION_START) != 0)
 				break;
 			strlcpy(serial, extinfo, serial_size);
 		}
@@ -95,7 +95,7 @@ static bool LoadBiosVersion(RFILE* fp, u32& version, char* description, size_t d
 
 			s64 pos = filestream_tell(fp);
 			if (filestream_seek(fp, fileOffset, RETRO_VFS_SEEK_POSITION_START) != 0 ||
-				rfread(romver, 14, 1, fp) != 1 || filestream_seek(fp, pos, RETRO_VFS_SEEK_POSITION_START) != 0)
+				filestream_read(fp, romver, 14) != (int64_t)(14) || filestream_seek(fp, pos, RETRO_VFS_SEEK_POSITION_START) != 0)
 				break;
 
 			foundRomVer = true;
@@ -106,7 +106,7 @@ static bool LoadBiosVersion(RFILE* fp, u32& version, char* description, size_t d
 		else
 			fileOffset += (rd.fileSize + 0x10) & 0xfffffff0;
 
-		if (rfread(&rd, sizeof(rd), 1, fp) != 1)
+		if (filestream_read(fp, &rd, sizeof(rd)) != (int64_t)(sizeof(rd)))
 			break;
 	}
 
@@ -212,9 +212,11 @@ static void LoadExtraRom(const char* ext, u8 (&dest)[_size])
 	}
 
 	RFILE *fp = filestream_open(Bios1.c_str(), RETRO_VFS_FILE_ACCESS_READ, RETRO_VFS_FILE_ACCESS_HINT_NONE);
-	if (!fp || rfread(dest, static_cast<size_t>(pcsx2_min_s64(_size, filesize)), 1, fp) != 1)
+	const size_t want = static_cast<size_t>(pcsx2_min_s64(_size, filesize));
+	if (!fp || filestream_read(fp, dest, want) != (int64_t)want)
 		Console.Warning("BIOS Warning: %s could not be read (permission denied?)", ext);
-	filestream_close(fp);
+	if (fp)
+		filestream_close(fp);
 }
 
 static void LoadIrx(const std::string& filename, u8* dest, size_t maxSize)
@@ -225,7 +227,7 @@ static void LoadIrx(const std::string& filename, u8* dest, size_t maxSize)
 
 	const s64 filesize = filestream_get_size(fp);
 	const s64 readSize = pcsx2_min_s64(filesize, static_cast<s64>(maxSize));
-	if (rfread(dest, readSize, 1, fp) == 1)
+	if (filestream_read(fp, dest, readSize) == (int64_t)(readSize))
 	{
 		filestream_close(fp);
 		return;
@@ -308,7 +310,7 @@ bool LoadBIOS(void)
 			BiosRegion, zone, sizeof(zone), BiosSerial, sizeof(BiosSerial));
 
 	if (filestream_seek(fp, 0, RETRO_VFS_SEEK_POSITION_START) ||
-		rfread(eeMem->ROM, static_cast<size_t>(pcsx2_min_s64(Ps2MemSize::Rom, filesize)), 1, fp) != 1)
+		filestream_read(fp, eeMem->ROM, static_cast<size_t>(pcsx2_min_s64(Ps2MemSize::Rom, filesize))) != (int64_t)pcsx2_min_s64(Ps2MemSize::Rom, filesize))
 	{
 		filestream_close(fp);
 		return false;

@@ -13,12 +13,9 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/* Host filesystem policy that has no libretro-common equivalent, plus the
- * transitional rf* CRT-style veneer over filestream_*.
- *
- * Everything here is built on libretro-common only.  The veneer exists so
- * the tree's fread-shaped call sites keep working while they are burned
- * down to direct filestream_* calls; do not add new rf* users. */
+/* Host filesystem policy that has no libretro-common equivalent: the
+ * recursive directory walker.  Everything else the old FileSystem layer
+ * provided is direct libretro-common calls at the call sites now. */
 
 #pragma once
 
@@ -67,19 +64,3 @@ namespace FileSystem
 	bool FindFiles(const char* path, const char* pattern, u32 flags, FindResultsArray* results);
 }; // namespace FileSystem
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-int rferror(RFILE* stream);
-int rfclose(RFILE* stream);
-int64_t rftell(RFILE* stream);
-int64_t rfseek(RFILE* stream, int64_t offset, int origin);
-int64_t rfwrite(void const* buffer,
-   size_t elem_size, size_t elem_count, RFILE* stream);
-int64_t rfread(void* buffer,
-   size_t elem_size, size_t elem_count, RFILE* stream);
-
-#ifdef __cplusplus
-}
-#endif

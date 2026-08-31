@@ -131,10 +131,10 @@ bool GLShaderCache::CreateNew(const std::string& index_filename, const std::stri
 	}
 
 	const u32 file_version = SHADER_CACHE_VERSION;
-	if (rfwrite(&file_version, sizeof(file_version), 1, m_index_file) != 1)
+	if (filestream_write(m_index_file, &file_version, sizeof(file_version)) != (int64_t)(sizeof(file_version)))
 	{
 		Console.Error("Failed to write version to index file '%s'", index_filename.c_str());
-		rfclose(m_index_file);
+		filestream_close(m_index_file);
 		m_index_file = nullptr;
 		filestream_delete(index_filename.c_str());
 		return false;
@@ -144,7 +144,7 @@ bool GLShaderCache::CreateNew(const std::string& index_filename, const std::stri
 	if (!m_blob_file)
 	{
 		Console.Error("Failed to open blob file '%s' for writing", blob_filename.c_str());
-		rfclose(m_index_file);
+		filestream_close(m_index_file);
 		m_index_file = nullptr;
 		filestream_delete(index_filename.c_str());
 		return false;
@@ -170,10 +170,10 @@ bool GLShaderCache::ReadExisting(const std::string& index_filename, const std::s
 	}
 
 	u32 file_version = 0;
-	if (rfread(&file_version, sizeof(file_version), 1, m_index_file) != 1 || file_version != SHADER_CACHE_VERSION)
+	if (filestream_read(m_index_file, &file_version, sizeof(file_version)) != (int64_t)(sizeof(file_version)) || file_version != SHADER_CACHE_VERSION)
 	{
 		Console.Error("Bad file/data version in '%s'", index_filename.c_str());
-		rfclose(m_index_file);
+		filestream_close(m_index_file);
 		m_index_file = nullptr;
 		return false;
 	}
@@ -186,18 +186,18 @@ bool GLShaderCache::ReadExisting(const std::string& index_filename, const std::s
 	if (!m_blob_file)
 	{
 		Console.Error("Blob file '%s' is missing", blob_filename.c_str());
-		rfclose(m_index_file);
+		filestream_close(m_index_file);
 		m_index_file = nullptr;
 		return false;
 	}
 
-	rfseek(m_blob_file, 0, SEEK_END);
-	const u32 blob_file_size = static_cast<u32>(rftell(m_blob_file));
+	filestream_seek(m_blob_file, 0, RETRO_VFS_SEEK_POSITION_END);
+	const u32 blob_file_size = static_cast<u32>(filestream_tell(m_blob_file));
 
 	for (;;)
 	{
 		CacheIndexEntry entry;
-		if (rfread(&entry, sizeof(entry), 1, m_index_file) != 1 ||
+		if (filestream_read(m_index_file, &entry, sizeof(entry)) != (int64_t)(sizeof(entry)) ||
 				(entry.file_offset + entry.blob_size) > blob_file_size)
 		{
 			if (filestream_eof(m_index_file))
@@ -205,9 +205,9 @@ bool GLShaderCache::ReadExisting(const std::string& index_filename, const std::s
 
 			Console.Error("Failed to read entry from '%s', corrupt file?", index_filename.c_str());
 			m_index.clear();
-			rfclose(m_blob_file);
+			filestream_close(m_blob_file);
 			m_blob_file = nullptr;
-			rfclose(m_index_file);
+			filestream_close(m_index_file);
 			m_index_file = nullptr;
 			return false;
 		}
@@ -228,12 +228,12 @@ void GLShaderCache::Close()
 	m_index.clear();
 	if (m_index_file)
 	{
-		rfclose(m_index_file);
+		filestream_close(m_index_file);
 		m_index_file = nullptr;
 	}
 	if (m_blob_file)
 	{
-		rfclose(m_blob_file);
+		filestream_close(m_blob_file);
 		m_blob_file = nullptr;
 	}
 }
@@ -286,8 +286,8 @@ std::optional<GLProgram> GLShaderCache::GetProgram(const std::string_view vertex
 		return CompileAndAddProgram(key, vertex_shader, fragment_shader, callback);
 
 	std::vector<u8> data(iter->second.blob_size);
-	if (rfseek(m_blob_file, iter->second.file_offset, SEEK_SET) != 0 ||
-			rfread(data.data(), 1, iter->second.blob_size, m_blob_file) != iter->second.blob_size)
+	if (filestream_seek(m_blob_file, iter->second.file_offset, RETRO_VFS_SEEK_POSITION_START) != 0 ||
+			filestream_read(m_blob_file, data.data(), iter->second.blob_size) != (int64_t)iter->second.blob_size)
 	{
 		Console.Error("Read blob from file failed");
 		return {};
@@ -318,11 +318,11 @@ bool GLShaderCache::GetProgram(GLProgram* out_program, const std::string_view ve
 
 bool GLShaderCache::WriteToBlobFile(const CacheIndexKey& key, const std::vector<u8>& prog_data, u32 prog_format)
 {
-	if (!m_blob_file || rfseek(m_blob_file, 0, SEEK_END) != 0)
+	if (!m_blob_file || filestream_seek(m_blob_file, 0, RETRO_VFS_SEEK_POSITION_END) != 0)
 		return false;
 
 	CacheIndexData data;
-	data.file_offset = static_cast<u32>(rftell(m_blob_file));
+	data.file_offset = static_cast<u32>(filestream_tell(m_blob_file));
 	data.blob_size = static_cast<u32>(prog_data.size());
 	data.blob_format = prog_format;
 
@@ -337,8 +337,8 @@ bool GLShaderCache::WriteToBlobFile(const CacheIndexKey& key, const std::vector<
 	entry.blob_size = data.blob_size;
 	entry.blob_format = data.blob_format;
 
-	if (rfwrite(prog_data.data(), 1, entry.blob_size, m_blob_file) != entry.blob_size ||
-			filestream_flush(m_blob_file) != 0 || rfwrite(&entry, sizeof(entry), 1, m_index_file) != 1 ||
+	if (filestream_write(m_blob_file, prog_data.data(), entry.blob_size) != (int64_t)entry.blob_size ||
+			filestream_flush(m_blob_file) != 0 || filestream_write(m_index_file, &entry, sizeof(entry)) != (int64_t)(sizeof(entry)) ||
 			filestream_flush(m_index_file) != 0)
 	{
 		Console.Error("Failed to write shader blob to file");
@@ -415,8 +415,8 @@ std::optional<GLProgram> GLShaderCache::GetComputeProgram(const std::string_view
 		return CompileAndAddComputeProgram(key, glsl, callback);
 
 	std::vector<u8> data(iter->second.blob_size);
-	if (rfseek(m_blob_file, iter->second.file_offset, SEEK_SET) != 0 ||
-			rfread(data.data(), 1, iter->second.blob_size, m_blob_file) != iter->second.blob_size)
+	if (filestream_seek(m_blob_file, iter->second.file_offset, RETRO_VFS_SEEK_POSITION_START) != 0 ||
+			filestream_read(m_blob_file, data.data(), iter->second.blob_size) != (int64_t)iter->second.blob_size)
 	{
 		Console.Error("Read blob from file failed");
 		return {};

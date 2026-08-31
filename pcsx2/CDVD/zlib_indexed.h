@@ -256,9 +256,9 @@ static inline int build_index(RFILE* in, s64 span, struct access** built)
 		if (in_used == in_avail)
 		{
 			chunk_base = filestream_tell(in);
-			in_avail = rfread(input, 1, CHUNK, in);
+			in_avail = filestream_read(in, input, CHUNK);
 			in_used = 0;
-			if (rferror(in))
+			if (filestream_error(in))
 			{
 				ret = ZIDX_ERRNO;
 				goto build_index_error;
@@ -458,9 +458,9 @@ static inline int extract(RFILE* in, struct access* index, s64 offset,
 			if (in_used == in_avail)
 			{
 				state->in_offset = filestream_tell(in);
-				in_avail = rfread(input, 1, CHUNK, in);
+				in_avail = filestream_read(in, input, CHUNK);
 				in_used = 0;
-				if (rferror(in))
+				if (filestream_error(in))
 				{
 					ret = ZIDX_ERRNO;
 					goto extract_ret;

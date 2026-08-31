@@ -316,11 +316,11 @@ bool VKShaderCache::CreateNewShaderCache(const std::string& index_filename, cons
 	VK_PIPELINE_CACHE_HEADER header;
 	FillPipelineCacheHeader(&header);
 
-	if (rfwrite(&file_version, sizeof(file_version), 1, m_index_file) != 1 ||
-		rfwrite(&header, sizeof(header), 1, m_index_file) != 1)
+	if (filestream_write(m_index_file, &file_version, sizeof(file_version)) != (int64_t)(sizeof(file_version)) ||
+		filestream_write(m_index_file, &header, sizeof(header)) != (int64_t)(sizeof(header)))
 	{
 		Console.Error("Failed to write header to index file '%s'", index_filename.c_str());
-		rfclose(m_index_file);
+		filestream_close(m_index_file);
 		m_index_file = nullptr;
 		filestream_delete(index_filename.c_str());
 		return false;
@@ -330,7 +330,7 @@ bool VKShaderCache::CreateNewShaderCache(const std::string& index_filename, cons
 	if (!m_blob_file)
 	{
 		Console.Error("Failed to open blob file '%s' for writing", blob_filename.c_str());
-		rfclose(m_index_file);
+		filestream_close(m_index_file);
 		m_index_file = nullptr;
 		filestream_delete(index_filename.c_str());
 		return false;
@@ -356,19 +356,19 @@ bool VKShaderCache::ReadExistingShaderCache(const std::string& index_filename, c
 	}
 
 	u32 file_version = 0;
-	if (rfread(&file_version, sizeof(file_version), 1, m_index_file) != 1 || file_version != SHADER_CACHE_VERSION)
+	if (filestream_read(m_index_file, &file_version, sizeof(file_version)) != (int64_t)(sizeof(file_version)) || file_version != SHADER_CACHE_VERSION)
 	{
 		Console.Error("Bad file/data version in '%s'", index_filename.c_str());
-		rfclose(m_index_file);
+		filestream_close(m_index_file);
 		m_index_file = nullptr;
 		return false;
 	}
 
 	VK_PIPELINE_CACHE_HEADER header;
-	if (rfread(&header, sizeof(header), 1, m_index_file) != 1 || !ValidatePipelineCacheHeader(header))
+	if (filestream_read(m_index_file, &header, sizeof(header)) != (int64_t)(sizeof(header)) || !ValidatePipelineCacheHeader(header))
 	{
 		Console.Error("Mismatched pipeline cache header in '%s' (GPU/driver changed?)", index_filename.c_str());
-		rfclose(m_index_file);
+		filestream_close(m_index_file);
 		m_index_file = nullptr;
 		return false;
 	}
@@ -381,18 +381,18 @@ bool VKShaderCache::ReadExistingShaderCache(const std::string& index_filename, c
 	if (!m_blob_file)
 	{
 		Console.Error("Blob file '%s' is missing", blob_filename.c_str());
-		rfclose(m_index_file);
+		filestream_close(m_index_file);
 		m_index_file = nullptr;
 		return false;
 	}
 
-	rfseek(m_blob_file, 0, SEEK_END);
-	const u32 blob_file_size = static_cast<u32>(rftell(m_blob_file));
+	filestream_seek(m_blob_file, 0, RETRO_VFS_SEEK_POSITION_END);
+	const u32 blob_file_size = static_cast<u32>(filestream_tell(m_blob_file));
 
 	for (;;)
 	{
 		CacheIndexEntry entry;
-		if (rfread(&entry, sizeof(entry), 1, m_index_file) != 1 ||
+		if (filestream_read(m_index_file, &entry, sizeof(entry)) != (int64_t)(sizeof(entry)) ||
 				(entry.file_offset + entry.blob_size) > blob_file_size)
 		{
 			if (filestream_eof(m_index_file))
@@ -400,9 +400,9 @@ bool VKShaderCache::ReadExistingShaderCache(const std::string& index_filename, c
 
 			Console.Error("Failed to read entry from '%s', corrupt file?", index_filename.c_str());
 			m_index.clear();
-			rfclose(m_blob_file);
+			filestream_close(m_blob_file);
 			m_blob_file = nullptr;
-			rfclose(m_index_file);
+			filestream_close(m_index_file);
 			m_index_file = nullptr;
 			return false;
 		}
@@ -414,7 +414,7 @@ bool VKShaderCache::ReadExistingShaderCache(const std::string& index_filename, c
 	}
 
 	// ensure we don't write before seeking
-	rfseek(m_index_file, 0, SEEK_END);
+	filestream_seek(m_index_file, 0, RETRO_VFS_SEEK_POSITION_END);
 
 	Console.WriteLn("Read %zu entries from '%s'", m_index.size(), index_filename.c_str());
 	return true;
@@ -424,12 +424,12 @@ void VKShaderCache::CloseShaderCache()
 {
 	if (m_index_file)
 	{
-		rfclose(m_index_file);
+		filestream_close(m_index_file);
 		m_index_file = nullptr;
 	}
 	if (m_blob_file)
 	{
-		rfclose(m_blob_file);
+		filestream_close(m_blob_file);
 		m_blob_file = nullptr;
 	}
 }
@@ -582,9 +582,10 @@ std::optional<SPIRVCodeVector> VKShaderCache::GetShaderSPV(
 		return CompileAndAddShaderSPV(key, shader_code);
 
 	SPIRVCodeVector spv(iter->second.blob_size);
-	if (rfseek(m_blob_file, iter->second.file_offset, SEEK_SET) != 0 ||
-			rfread(spv.data(), sizeof(SPIRVCodeType), iter->second.blob_size, m_blob_file) !=
-			iter->second.blob_size)
+	if (filestream_seek(m_blob_file, iter->second.file_offset, RETRO_VFS_SEEK_POSITION_START) != 0 ||
+			filestream_read(m_blob_file, spv.data(),
+				sizeof(SPIRVCodeType) * iter->second.blob_size) !=
+			(int64_t)(sizeof(SPIRVCodeType) * iter->second.blob_size))
 	{
 		Console.Error("Read blob from file failed, recompiling");
 		return CompileShader(type, shader_code, GSConfig.UseDebugDevice);
@@ -632,11 +633,11 @@ std::optional<SPIRVCodeVector> VKShaderCache::CompileAndAddShaderSPV(
 	if (!spv.has_value())
 		return {};
 
-	if (!m_blob_file || rfseek(m_blob_file, 0, SEEK_END) != 0)
+	if (!m_blob_file || filestream_seek(m_blob_file, 0, RETRO_VFS_SEEK_POSITION_END) != 0)
 		return spv;
 
 	CacheIndexData data;
-	data.file_offset = static_cast<u32>(rftell(m_blob_file));
+	data.file_offset = static_cast<u32>(filestream_tell(m_blob_file));
 	data.blob_size = static_cast<u32>(spv->size());
 
 	CacheIndexEntry entry = {};
@@ -647,8 +648,8 @@ std::optional<SPIRVCodeVector> VKShaderCache::CompileAndAddShaderSPV(
 	entry.blob_size = data.blob_size;
 	entry.file_offset = data.file_offset;
 
-	if (rfwrite(spv->data(), sizeof(SPIRVCodeType), entry.blob_size, m_blob_file) != entry.blob_size ||
-			filestream_flush(m_blob_file) != 0 || rfwrite(&entry, sizeof(entry), 1, m_index_file) != 1 ||
+	if (filestream_write(m_blob_file, spv->data(), sizeof(SPIRVCodeType) * entry.blob_size) != (int64_t)(sizeof(SPIRVCodeType) * entry.blob_size) ||
+			filestream_flush(m_blob_file) != 0 || filestream_write(m_index_file, &entry, sizeof(entry)) != (int64_t)(sizeof(entry)) ||
 			filestream_flush(m_index_file) != 0)
 	{
 		Console.Error("Failed to write shader blob to file");

@@ -107,7 +107,7 @@ void D3D11ShaderCache::Close()
 	}
 	if (m_blob_file)
 	{
-		rfclose(m_blob_file);
+		filestream_close(m_blob_file);
 		m_blob_file = nullptr;
 	}
 }
@@ -133,7 +133,7 @@ bool D3D11ShaderCache::CreateNew(const std::string& index_filename, const std::s
 	}
 
 	const u32 file_version = SHADER_CACHE_VERSION;
-	if (rfwrite(&file_version, sizeof(file_version), 1, m_index_file) != 1)
+	if (filestream_write(m_index_file, &file_version, sizeof(file_version)) != (int64_t)(sizeof(file_version)))
 	{
 		Console.Error("Failed to write version to index file '%s'", index_filename.c_str());
 		filestream_close(m_index_file);
@@ -173,10 +173,10 @@ bool D3D11ShaderCache::ReadExisting(const std::string& index_filename, const std
 
 	u32 file_version = 0;
 	u32 data_version = 0;
-	if (rfread(&file_version, sizeof(file_version), 1, m_index_file) != 1 || file_version != SHADER_CACHE_VERSION)
+	if (filestream_read(m_index_file, &file_version, sizeof(file_version)) != (int64_t)(sizeof(file_version)) || file_version != SHADER_CACHE_VERSION)
 	{
 		Console.Error("Bad file/data version in '%s'", index_filename.c_str());
-		rfclose(m_index_file);
+		filestream_close(m_index_file);
 		m_index_file = nullptr;
 		return false;
 	}
@@ -189,18 +189,18 @@ bool D3D11ShaderCache::ReadExisting(const std::string& index_filename, const std
 	if (!m_blob_file)
 	{
 		Console.Error("Blob file '%s' is missing", blob_filename.c_str());
-		rfclose(m_index_file);
+		filestream_close(m_index_file);
 		m_index_file = nullptr;
 		return false;
 	}
 
-	rfseek(m_blob_file, 0, SEEK_END);
-	const u32 blob_file_size = static_cast<u32>(rftell(m_blob_file));
+	filestream_seek(m_blob_file, 0, RETRO_VFS_SEEK_POSITION_END);
+	const u32 blob_file_size = static_cast<u32>(filestream_tell(m_blob_file));
 
 	for (;;)
 	{
 		CacheIndexEntry entry;
-		if (rfread(&entry, sizeof(entry), 1, m_index_file) != 1 ||
+		if (filestream_read(m_index_file, &entry, sizeof(entry)) != (int64_t)(sizeof(entry)) ||
 			(entry.file_offset + entry.blob_size) > blob_file_size)
 		{
 			if (filestream_eof(m_index_file))
@@ -208,9 +208,9 @@ bool D3D11ShaderCache::ReadExisting(const std::string& index_filename, const std
 
 			Console.Error("Failed to read entry from '%s', corrupt file?", index_filename.c_str());
 			m_index.clear();
-			rfclose(m_blob_file);
+			filestream_close(m_blob_file);
 			m_blob_file = nullptr;
-			rfclose(m_index_file);
+			filestream_close(m_index_file);
 			m_index_file = nullptr;
 			return false;
 		}
@@ -225,7 +225,7 @@ bool D3D11ShaderCache::ReadExisting(const std::string& index_filename, const std
 	}
 
 	// ensure we don't write before seeking
-	rfseek(m_index_file, 0, SEEK_END);
+	filestream_seek(m_index_file, 0, RETRO_VFS_SEEK_POSITION_END);
 	return true;
 }
 
@@ -297,8 +297,8 @@ wil::com_ptr_nothrow<ID3DBlob> D3D11ShaderCache::GetShaderBlob(D3D::ShaderType t
 
 	wil::com_ptr_nothrow<ID3DBlob> blob;
 	HRESULT hr = D3DCreateBlob(iter->second.blob_size, blob.put());
-	if (FAILED(hr) || rfseek(m_blob_file, iter->second.file_offset, SEEK_SET) != 0 ||
-		rfread(blob->GetBufferPointer(), 1, iter->second.blob_size, m_blob_file) != iter->second.blob_size)
+	if (FAILED(hr) || filestream_seek(m_blob_file, iter->second.file_offset, RETRO_VFS_SEEK_POSITION_START) != 0 ||
+		filestream_read(m_blob_file, blob->GetBufferPointer(), iter->second.blob_size) != (int64_t)iter->second.blob_size)
 	{
 		Console.Error("(GSShaderCache::GetShaderBlob): Read blob from file failed");
 		return {};
@@ -394,11 +394,11 @@ wil::com_ptr_nothrow<ID3DBlob> D3D11ShaderCache::CompileAndAddShaderBlob(const C
 	if (!blob)
 		return {};
 
-	if (!m_blob_file || rfseek(m_blob_file, 0, SEEK_END) != 0)
+	if (!m_blob_file || filestream_seek(m_blob_file, 0, RETRO_VFS_SEEK_POSITION_END) != 0)
 		return blob;
 
 	CacheIndexData data;
-	data.file_offset = static_cast<u32>(rftell(m_blob_file));
+	data.file_offset = static_cast<u32>(filestream_tell(m_blob_file));
 	data.blob_size = static_cast<u32>(blob->GetBufferSize());
 
 	CacheIndexEntry entry = {};
@@ -413,8 +413,8 @@ wil::com_ptr_nothrow<ID3DBlob> D3D11ShaderCache::CompileAndAddShaderBlob(const C
 	entry.blob_size = data.blob_size;
 	entry.file_offset = data.file_offset;
 
-	if (rfwrite(blob->GetBufferPointer(), 1, entry.blob_size, m_blob_file) != entry.blob_size ||
-		filestream_flush(m_blob_file) != 0 || rfwrite(&entry, sizeof(entry), 1, m_index_file) != 1 ||
+	if (filestream_write(m_blob_file, blob->GetBufferPointer(), entry.blob_size) != (int64_t)entry.blob_size ||
+		filestream_flush(m_blob_file) != 0 || filestream_write(m_index_file, &entry, sizeof(entry)) != (int64_t)(sizeof(entry)) ||
 		filestream_flush(m_index_file) != 0)
 	{
 		Console.Error("(D3D11ShaderCache::CompileAndAddShaderBlob) Failed to write shader blob to file");

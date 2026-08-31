@@ -391,12 +391,12 @@ struct DDSLoadInfo
 static bool ParseDDSHeader(RFILE* fp, DDSLoadInfo* info)
 {
 	u32 magic;
-	if (rfread(&magic, sizeof(magic), 1, fp) != 1 || magic != DDS_MAGIC)
+	if (filestream_read(fp, &magic, sizeof(magic)) != (int64_t)(sizeof(magic)) || magic != DDS_MAGIC)
 		return false;
 
 	DDS_HEADER header;
 	u32 header_size = sizeof(header);
-	if (rfread(&header, header_size, 1, fp) != 1 || header.dwSize < header_size)
+	if (filestream_read(fp, &header, header_size) != (int64_t)(header_size) || header.dwSize < header_size)
 		return false;
 
 	// We should check for DDS_HEADER_FLAGS_TEXTURE here, but some tools don't seem
@@ -438,7 +438,7 @@ static bool ParseDDSHeader(RFILE* fp, DDSLoadInfo* info)
 		if (header.ddspf.dwFourCC == MAKEFOURCC('D', 'X', '1', '0'))
 		{
 			DDS_HEADER_DXT10 dxt10_header;
-			if (rfread(&dxt10_header, sizeof(dxt10_header), 1, fp) != 1)
+			if (filestream_read(fp, &dxt10_header, sizeof(dxt10_header)) != (int64_t)(sizeof(dxt10_header)))
 				return false;
 
 			// Can't handle array textures here. Doesn't make sense to use them, anyway.
@@ -560,7 +560,7 @@ static bool ReadDDSMipLevel(RFILE* fp, const std::string& filename, u32 mip_leve
 	}
 
 	data.resize(size);
-	if (rfread(data.data(), size, 1, fp) != 1)
+	if (filestream_read(fp, data.data(), size) != (int64_t)(size))
 		return false;
 
 	// Apply conversion function for uncompressed textures.
