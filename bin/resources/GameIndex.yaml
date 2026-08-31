@@ -2141,10 +2141,10 @@ SCAJ-25012:
   region: "NTSC-Unk"
   clampModes:
     eeClampMode: 3 # Fixes animations.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes brightness and overlapping subtitles.
   gsHWFixes:
     roundSprite: 1 # Fixes font artifacts.
+    autoFlush: 1 # Fixes missing blur.
+    textureInsideRT: 1 # Fixes broken FMVs.
 SCAJ-25026:
   name: "Kunoichi Shinobi"
   region: "NTSC-Unk"
@@ -11793,10 +11793,10 @@ SLAJ-25012:
   region: "NTSC-Unk"
   clampModes:
     eeClampMode: 3 # Fixes animations.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes brightness and overlapping subtitles.
   gsHWFixes:
     roundSprite: 1 # Fixes font artifacts.
+    autoFlush: 1 # Fixes missing blur.
+    textureInsideRT: 1 # Fixes broken FMVs.
 SLAJ-25014:
   name: "Cyber Troopers - Virtual-On Marz"
   region: "NTSC-Unk"
@@ -12367,10 +12367,10 @@ SLED-51921:
   region: "PAL-Unk"
   clampModes:
     eeClampMode: 3 # Fixes animations.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes brightness and overlapping subtitles.
   gsHWFixes:
     roundSprite: 1 # Fixes font artifacts.
+    autoFlush: 1 # Fixes missing blur.
+    textureInsideRT: 1 # Fixes broken FMVs.
 SLED-51961:
   name: "Prince of Persia - The Sands of Time [Demo]"
   region: "PAL-E"
@@ -17240,48 +17240,48 @@ SLES-51815:
   compat: 5
   clampModes:
     eeClampMode: 3 # Fixes animations.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes brightness and overlapping subtitles.
   gsHWFixes:
     roundSprite: 1 # Fixes font artifacts.
+    autoFlush: 1 # Fixes missing blur.
+    textureInsideRT: 1 # Fixes broken FMVs.
 SLES-51816:
   name: "Final Fantasy X-2"
   region: "PAL-F"
   clampModes:
     eeClampMode: 3 # Fixes animations.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes brightness and overlapping subtitles.
   gsHWFixes:
     roundSprite: 1 # Fixes font artifacts.
+    autoFlush: 1 # Fixes missing blur.
+    textureInsideRT: 1 # Fixes broken FMVs.
 SLES-51817:
   name: "Final Fantasy X-2"
   region: "PAL-G"
   compat: 5
   clampModes:
     eeClampMode: 3 # Fixes animations.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes brightness and overlapping subtitles.
   gsHWFixes:
     roundSprite: 1 # Fixes font artifacts.
+    autoFlush: 1 # Fixes missing blur.
+    textureInsideRT: 1 # Fixes broken FMVs.
 SLES-51818:
   name: "Final Fantasy X-2"
   region: "PAL-I"
   clampModes:
     eeClampMode: 3 # Fixes animations.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes brightness and overlapping subtitles.
   gsHWFixes:
     roundSprite: 1 # Fixes font artifacts.
+    autoFlush: 1 # Fixes missing blur.
+    textureInsideRT: 1 # Fixes broken FMVs.
 SLES-51819:
   name: "Final Fantasy X-2"
   region: "PAL-S"
   compat: 5
   clampModes:
     eeClampMode: 3 # Fixes animations.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes brightness and overlapping subtitles.
   gsHWFixes:
     roundSprite: 1 # Fixes font artifacts.
+    autoFlush: 1 # Fixes missing blur.
+    textureInsideRT: 1 # Fixes broken FMVs.
 SLES-51820:
   name: "Sniper Elite"
   region: "PAL-M5"
@@ -29833,10 +29833,10 @@ SLKA-25144:
   compat: 5
   clampModes:
     eeClampMode: 3 # Fixes animations.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes brightness and overlapping subtitles.
   gsHWFixes:
     roundSprite: 1 # Fixes font artifacts.
+    autoFlush: 1 # Fixes missing blur.
+    textureInsideRT: 1 # Fixes broken FMVs.
 SLKA-25145:
   name: ".hack//Outbreak Part 3"
   region: "NTSC-K"
@@ -40805,10 +40805,10 @@ SLPM-66125:
   region: "NTSC-J"
   clampModes:
     eeClampMode: 3 # Fixes animations.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes brightness and overlapping subtitles.
   gsHWFixes:
     roundSprite: 1 # Fixes font artifacts.
+    autoFlush: 1 # Fixes missing blur.
+    textureInsideRT: 1 # Fixes broken FMVs.
 SLPM-66127:
   name: "Harukanaru Toki no Naka de 3 - Izayoiki"
   region: "NTSC-J"
@@ -48242,10 +48242,10 @@ SLPS-25250:
   region: "NTSC-J"
   clampModes:
     eeClampMode: 3 # Fixes animations.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes brightness and overlapping subtitles.
   gsHWFixes:
     roundSprite: 1 # Fixes font artifacts.
+    autoFlush: 1 # Fixes missing blur.
+    textureInsideRT: 1 # Fixes broken FMVs.
 SLPS-25251:
   name: "MVP Baseball 2003"
   region: "NTSC-J"
@@ -55285,10 +55285,10 @@ SLUS-20672:
   compat: 5
   clampModes:
     eeClampMode: 3 # Fixes animations.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes brightness and overlapping subtitles.
   gsHWFixes:
     roundSprite: 1 # Fixes font artifacts.
+    autoFlush: 1 # Fixes missing blur.
+    textureInsideRT: 1 # Fixes broken FMVs.
 SLUS-20673:
   name: "Alias"
   region: "NTSC-U"
