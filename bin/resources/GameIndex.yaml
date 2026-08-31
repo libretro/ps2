@@ -654,6 +654,7 @@ PCPX-96322:
     eeClampMode: 2 # Otherwise freezes in various spots, check full intro.
     vuClampMode: 1 # Otherwise camera does not focus correctly on main character.
   gsHWFixes:
+    mipmap: 1 # Title screen glow/post-processing store content in the mip chain and select it via LOD; LOD0-only sampling loses it.
     halfPixelOffset: 4 # Fixes misaligned bloom.
     nativeScaling: 2 # Fixes post effects.
     moveHandler: "MV_Ico" # Fixes depth buffer post-processing.
@@ -1451,6 +1452,7 @@ SCAJ-20099:
     eeClampMode: 2 # Otherwise freezes in various spots, check full intro.
     vuClampMode: 1 # Otherwise camera does not focus correctly on main character.
   gsHWFixes:
+    mipmap: 1 # Title screen glow/post-processing store content in the mip chain and select it via LOD; LOD0-only sampling loses it.
     halfPixelOffset: 4 # Fixes misaligned bloom.
     nativeScaling: 2 # Fixes post effects.
     moveHandler: "MV_Ico" # Fixes depth buffer post-processing.
@@ -2295,6 +2297,7 @@ SCCS-40005:
     eeClampMode: 2 # Otherwise freezes in various spots, check full intro.
     vuClampMode: 1 # Otherwise camera does not focus correctly on main character.
   gsHWFixes:
+    mipmap: 1 # Title screen glow/post-processing store content in the mip chain and select it via LOD; LOD0-only sampling loses it.
     halfPixelOffset: 4 # Fixes misaligned bloom.
     nativeScaling: 2 # Fixes post effects.
     moveHandler: "MV_Ico" # Fixes depth buffer post-processing.
@@ -2638,6 +2641,7 @@ SCED-50844:
     eeClampMode: 2 # Otherwise freezes in various spots, check full intro.
     vuClampMode: 1 # Otherwise camera does not focus correctly on main character.
   gsHWFixes:
+    mipmap: 1 # Title screen glow/post-processing store content in the mip chain and select it via LOD; LOD0-only sampling loses it.
     halfPixelOffset: 4 # Fixes misaligned bloom.
     nativeScaling: 2 # Fixes post effects.
     moveHandler: "MV_Ico" # Fixes depth buffer post-processing.
@@ -4198,6 +4202,17 @@ SCED-55120:
 SCED-55432:
   name: "Buzz! Junior - Ace Racers [Demo]"
   region: "PAL-M15"
+SCES-00000:
+  name: "Ico [Preview]"
+  region: "PAL-M5"
+  compat: 5
+  clampModes:
+    eeClampMode: 2 # Otherwise freezes in various spots, check full intro.
+    vuClampMode: 1 # Otherwise camera does not focus correctly on main character.
+  gsHWFixes:
+    mipmap: 1
+    halfPixelOffset: 1 # Fixes effect misalignment.
+    moveHandler: "MV_Ico" # Fixes depth buffer post-processing.
 SCES-50000:
   name: "Ridge Racer V"
   region: "PAL-M5"
@@ -4536,6 +4551,7 @@ SCES-50760:
     eeClampMode: 2 # Otherwise freezes in various spots, check full intro.
     vuClampMode: 1 # Otherwise camera does not focus correctly on main character.
   gsHWFixes:
+    mipmap: 1 # Title screen glow/post-processing store content in the mip chain and select it via LOD; LOD0-only sampling loses it.
     halfPixelOffset: 4 # Fixes misaligned bloom.
     nativeScaling: 2 # Fixes post effects.
     moveHandler: "MV_Ico" # Fixes depth buffer post-processing.
@@ -6754,6 +6770,7 @@ SCKA-20028:
     eeClampMode: 2 # Otherwise freezes in various spots, check full intro.
     vuClampMode: 1 # Otherwise camera does not focus correctly on main character.
   gsHWFixes:
+    mipmap: 1 # Title screen glow/post-processing store content in the mip chain and select it via LOD; LOD0-only sampling loses it.
     halfPixelOffset: 4 # Fixes misaligned bloom.
     nativeScaling: 2 # Fixes post effects.
     moveHandler: "MV_Ico" # Fixes depth buffer post-processing.
@@ -7443,6 +7460,7 @@ SCKA-20142:
   name: "MLB 11 - The Show"
   region: "NTSC-K"
   gsHWFixes:
+    mipmap: 0 # Currently causes texture corruption.
     textureInsideRT: 1 # Needed for mipmapping to function correctly.
 SCKA-20171:
   name: "Let's Bravo Music"
@@ -7628,6 +7646,7 @@ SCPS-11003:
     eeClampMode: 2 # Otherwise freezes in various spots, check full intro.
     vuClampMode: 1 # Otherwise camera does not focus correctly on main character.
   gsHWFixes:
+    mipmap: 1 # Title screen glow/post-processing store content in the mip chain and select it via LOD; LOD0-only sampling loses it.
     halfPixelOffset: 4 # Fixes misaligned bloom.
     nativeScaling: 2 # Fixes post effects.
     moveHandler: "MV_Ico" # Fixes depth buffer post-processing.
@@ -8636,6 +8655,7 @@ SCPS-19103:
     eeClampMode: 2 # Otherwise freezes in various spots, check full intro.
     vuClampMode: 1 # Otherwise camera does not focus correctly on main character.
   gsHWFixes:
+    mipmap: 1 # Title screen glow/post-processing store content in the mip chain and select it via LOD; LOD0-only sampling loses it.
     halfPixelOffset: 4 # Fixes misaligned bloom.
     nativeScaling: 2 # Fixes post effects.
     moveHandler: "MV_Ico" # Fixes depth buffer post-processing.
@@ -8653,6 +8673,7 @@ SCPS-19151:
     eeClampMode: 2 # Otherwise freezes in various spots, check full intro.
     vuClampMode: 1 # Otherwise camera does not focus correctly on main character.
   gsHWFixes:
+    mipmap: 1 # Title screen glow/post-processing store content in the mip chain and select it via LOD; LOD0-only sampling loses it.
     halfPixelOffset: 4 # Fixes misaligned bloom.
     nativeScaling: 2 # Fixes post effects.
     moveHandler: "MV_Ico" # Fixes depth buffer post-processing.
@@ -9161,6 +9182,7 @@ SCPS-55001:
   gameFixes:
     - SoftwareRendererFMVHack # FMV is cut off to the upper left.
   gsHWFixes:
+    mipmap: 1 # Title screen glow/post-processing store content in the mip chain and select it via LOD; LOD0-only sampling loses it.
     halfPixelOffset: 4 # Fixes misaligned bloom.
     nativeScaling: 2 # Fixes post effects.
     moveHandler: "MV_Ico" # Fixes depth buffer post-processing.
@@ -9452,6 +9474,7 @@ SCPS-56001:
     eeClampMode: 2 # Otherwise freezes in various spots, check full intro.
     vuClampMode: 1 # Otherwise camera does not focus correctly on main character.
   gsHWFixes:
+    mipmap: 1 # Title screen glow/post-processing store content in the mip chain and select it via LOD; LOD0-only sampling loses it.
     halfPixelOffset: 4 # Fixes misaligned bloom.
     nativeScaling: 2 # Fixes post effects.
     moveHandler: "MV_Ico" # Fixes depth buffer post-processing.
@@ -9853,6 +9876,7 @@ SCUS-97159:
     eeClampMode: 2 # Otherwise freezes in various spots, check full intro.
     vuClampMode: 1 # Otherwise camera does not focus correctly on main character.
   gsHWFixes:
+    mipmap: 1 # Title screen glow/post-processing store content in the mip chain and select it via LOD; LOD0-only sampling loses it.
     halfPixelOffset: 4 # Fixes misaligned bloom.
     nativeScaling: 2 # Fixes post effects.
     moveHandler: "MV_Ico" # Fixes depth buffer post-processing.
@@ -11719,6 +11743,7 @@ SCUS-97657:
   region: "NTSC-U"
   compat: 5
   gsHWFixes:
+    mipmap: 0 # Currently causes texture corruption.
     textureInsideRT: 1 # Needed for mipmapping to function correctly.
 SCUS-97660:
   name: "SingStar Latino"
@@ -12086,6 +12111,7 @@ SLAJ-25095:
   name: "Medal of Honor - Vanguard"
   region: "NTSC-HK"
   gsHWFixes:
+    mipmap: 0 # Fixes corrupted textures.
     halfPixelOffset: 2 # Fixes lighting misalignment.
     mergeSprite: 1 # Removes occasional vertical lines.
 SLAJ-25096:
@@ -12602,6 +12628,7 @@ SLED-53330:
   name: "Enthusia - Professional Racing [Demo]"
   region: "PAL"
   gsHWFixes:
+    mipmap: 0 # Currently causes texture flickering.
     alignSprite: 1 # Fixes vertical lines.
     textureInsideRT: 1 # Fixes reflections.
   gameFixes:
@@ -20963,6 +20990,7 @@ SLES-53125:
     eeClampMode: 3 # Corrects crazy car AI and prevents crash.
     vuClampMode: 3 # Stops freezing at race start.
   gsHWFixes:
+    mipmap: 0 # Currently causes texture flickering.
     alignSprite: 1 # Fixes vertical lines.
     textureInsideRT: 1 # Fixes reflections.
   gameFixes:
@@ -21357,6 +21385,7 @@ SLES-53332:
   region: "PAL-M4"
   compat: 5
   gsHWFixes:
+    mipmap: 0 # Fixes corrupted textures.
     recommendedBlendingLevel: 2
     autoFlush: 1 # Fixes sun shinging through surfaces and graphical corruptions.
     halfPixelOffset: 2 # Fixes misaligned blur.
@@ -21366,6 +21395,7 @@ SLES-53333:
   name: "Medal of Honor - Les Faucons de Guerre"
   region: "PAL-F"
   gsHWFixes:
+    mipmap: 0 # Fixes corrupted textures.
     recommendedBlendingLevel: 2
     autoFlush: 1 # Fixes sun shinging through surfaces and graphical corruptions.
     halfPixelOffset: 2 # Fixes misaligned blur.
@@ -21375,6 +21405,7 @@ SLES-53334:
   name: "Medal of Honor - European Assault"
   region: "PAL-G"
   gsHWFixes:
+    mipmap: 0 # Fixes corrupted textures.
     recommendedBlendingLevel: 2
     autoFlush: 1 # Fixes sun shinging through surfaces and graphical corruptions.
     halfPixelOffset: 2 # Fixes misaligned blur.
@@ -21384,6 +21415,7 @@ SLES-53335:
   name: "Medal of Honor - European Assault"
   region: "PAL-I"
   gsHWFixes:
+    mipmap: 0 # Fixes corrupted textures.
     recommendedBlendingLevel: 2
     autoFlush: 1 # Fixes sun shinging through surfaces and graphical corruptions.
     halfPixelOffset: 2 # Fixes misaligned blur.
@@ -21393,6 +21425,7 @@ SLES-53336:
   name: "Medal of Honor - European Assault"
   region: "PAL-S"
   gsHWFixes:
+    mipmap: 0 # Fixes corrupted textures.
     recommendedBlendingLevel: 2
     autoFlush: 1 # Fixes sun shinging through surfaces and graphical corruptions.
     halfPixelOffset: 2 # Fixes misaligned blur.
@@ -25766,6 +25799,7 @@ SLES-54683:
   name: "Medal of Honor - Vanguard"
   region: "PAL-M9"
   gsHWFixes:
+    mipmap: 0 # Fixes corrupted textures.
     halfPixelOffset: 2 # Fixes lighting misalignment.
     mergeSprite: 1 # Removes occasional vertical lines.
 SLES-54684:
@@ -30206,6 +30240,7 @@ SLKA-25243:
   name: "Medal of Honor - European Assault"
   region: "NTSC-K"
   gsHWFixes:
+    mipmap: 0 # Fixes corrupted textures.
     recommendedBlendingLevel: 2
     autoFlush: 1 # Fixes sun shinging through surfaces and graphical corruptions.
     halfPixelOffset: 2 # Fixes misaligned blur.
@@ -31471,6 +31506,7 @@ SLPM-55037:
   name: "Medal of Honor - European Assault [EASY 1980]"
   region: "NTSC-J"
   gsHWFixes:
+    mipmap: 0 # Fixes corrupted textures.
     recommendedBlendingLevel: 2
     autoFlush: 1 # Fixes sun shinging through surfaces and graphical corruptions.
     halfPixelOffset: 2 # Fixes misaligned blur.
@@ -31599,6 +31635,7 @@ SLPM-55076:
   name: "Medal of Honor - Vanguard"
   region: "NTSC-J"
   gsHWFixes:
+    mipmap: 0 # Fixes corrupted textures.
     halfPixelOffset: 2 # Fixes lighting misalignment.
     mergeSprite: 1 # Removes occasional vertical lines.
 SLPM-55077:
@@ -33256,6 +33293,7 @@ SLPM-61110:
     eeClampMode: 3 # Corrects crazy car AI and prevents crash.
     vuClampMode: 3 # Stops freezing at race start.
   gsHWFixes:
+    mipmap: 0 # Currently causes texture flickering.
     alignSprite: 1 # Fixes vertical lines.
     textureInsideRT: 1 # Fixes reflections.
   gameFixes:
@@ -39937,6 +39975,7 @@ SLPM-65948:
     eeClampMode: 3 # Fixes Freezing at the start of the race.
     vuClampMode: 3 # Fixes Freezing at the start of the race.
   gsHWFixes:
+    mipmap: 0 # Currently causes texture flickering.
     alignSprite: 1 # Fixes vertical lines.
     textureInsideRT: 1 # Fixes reflections.
   gameFixes:
@@ -40475,6 +40514,7 @@ SLPM-66079:
   name: "Medal of Honor - Europe Kyoushuu"
   region: "NTSC-J"
   gsHWFixes:
+    mipmap: 0 # Fixes corrupted textures.
     recommendedBlendingLevel: 2
     autoFlush: 1 # Fixes sun shinging through surfaces and graphical corruptions.
     halfPixelOffset: 2 # Fixes misaligned blur.
@@ -41352,6 +41392,7 @@ SLPM-66257:
     eeClampMode: 3 # Corrects crazy car AI and prevents crash.
     vuClampMode: 3 # Stops freezing at race start.
   gsHWFixes:
+    mipmap: 0 # Currently causes texture flickering.
     alignSprite: 1 # Fixes vertical lines.
     textureInsideRT: 1 # Fixes reflections.
   gameFixes:
@@ -42497,6 +42538,7 @@ SLPM-66514:
   name: "Medal of Honor - European Assault [EA Best Hits]"
   region: "NTSC-J"
   gsHWFixes:
+    mipmap: 0 # Fixes corrupted textures.
     recommendedBlendingLevel: 2
     autoFlush: 1 # Fixes sun shinging through surfaces and graphical corruptions.
     halfPixelOffset: 2 # Fixes misaligned blur.
@@ -43542,6 +43584,7 @@ SLPM-66752:
   name: "Medal of Honor - Vanguard"
   region: "NTSC-J"
   gsHWFixes:
+    mipmap: 0 # Fixes corrupted textures.
     halfPixelOffset: 2 # Fixes lighting misalignment.
     mergeSprite: 1 # Removes occasional vertical lines.
 SLPM-66753:
@@ -44870,6 +44913,7 @@ SLPM-68519:
     eeClampMode: 3 # Corrects crazy car AI and prevents crash.
     vuClampMode: 3 # Stops freezing at race start.
   gsHWFixes:
+    mipmap: 0 # Currently causes texture flickering.
     alignSprite: 1 # Fixes vertical lines.
     textureInsideRT: 1 # Fixes reflections.
   gameFixes:
@@ -56839,6 +56883,7 @@ SLUS-20967:
     eeClampMode: 3 # Corrects crazy car AI and prevents crash.
     vuClampMode: 3 # Stops freezing at race start.
   gsHWFixes:
+    mipmap: 0 # Currently causes texture flickering.
     alignSprite: 1 # Fixes vertical lines.
     textureInsideRT: 1 # Fixes reflections.
   gameFixes:
@@ -58203,6 +58248,7 @@ SLUS-21199:
   region: "NTSC-U"
   compat: 5
   gsHWFixes:
+    mipmap: 0 # Fixes corrupted textures.
     recommendedBlendingLevel: 2
     autoFlush: 1 # Fixes sun shinging through surfaces and graphical corruptions.
     halfPixelOffset: 2 # Fixes misaligned blur.
@@ -60681,6 +60727,7 @@ SLUS-21597:
   region: "NTSC-U"
   compat: 5
   gsHWFixes:
+    mipmap: 0 # Fixes corrupted textures.
     halfPixelOffset: 2 # Fixes lighting misalignment.
     mergeSprite: 1 # Removes occasional vertical lines.
 SLUS-21598:
