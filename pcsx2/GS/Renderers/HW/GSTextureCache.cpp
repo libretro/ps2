@@ -3461,6 +3461,24 @@ void GSTextureCache::InvalidateLocalMem(const GSOffset& off, const GSVector4i& r
 	}
 }
 
+void GSTextureCache::CommitOverlappingTargets(u32 bp)
+{
+	// Flush any live target containing bp back to local memory, so CPU-side transfers
+	// reading this region observe current data.
+	for (int type = 0; type < 2; type++)
+	{
+		for (Target* t : m_dst[type])
+		{
+			if (t->m_TEX0.TBP0 <= bp && t->UnwrappedEndBlock() >= bp && !t->m_valid.rempty())
+			{
+				t->Update();
+				t->UnscaleRTAlpha();
+				Read(t, t->m_valid);
+			}
+		}
+	}
+}
+
 bool GSTextureCache::Move(u32 SBP, u32 SBW, u32 SPSM, int sx, int sy, u32 DBP, u32 DBW, u32 DPSM, int dx, int dy, int w, int h)
 {
 	if (SBP == DBP && SPSM == DPSM && !GSLocalMemory::m_psm[SPSM].depth && ShuffleMove(SBP, SBW, SPSM, sx, sy, dx, dy, w, h))

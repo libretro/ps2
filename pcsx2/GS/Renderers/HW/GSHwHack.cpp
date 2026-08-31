@@ -1316,56 +1316,31 @@ bool GSHwHack::MV_Growlanser(GSRendererHW& r)
 
 bool GSHwHack::MV_Ico(GSRendererHW& r)
 {
-	// Ico unswizzles the depth buffer (usually) 0x1800 to (usually) 0x2800 with a Z32->C32 move.
-	// Then it does a bunch of P4 moves to shift the bits in the blue channel to the alpha channel.
-	// The shifted target then gets used as a P8H texture, basically mapping depth bits 16..24 to a LUT.
-	// We can't currently HLE that in the usual move handler, so instead, emulate it with a channel shuffle.
+	// Ico unswizzles the depth buffer (usually) 0x1800 to (usually) 0x2800 with a Z32->C32 move,
+	// then runs a series of in-place P4 moves before sampling the result as a P8H fog LUT index
+	// field. The previous channel-shuffle HLE approximated this on the GPU, but the local memory
+	// it left behind diverged from real-GS evolution (measured against the software renderer),
+	// poisoning anything that later reads this region through CPU paths. Commit the live depth
+	// target instead and let the moves run exactly on local memory.
 
-	// If we've started skipping moves (i.e. HLE'ed the first one), skip the others.
+	// Follow-up P4 shuffle moves of the same sequence: transform the committed memory directly.
 	if (r.s_n == s_last_hacked_move_n && RSPSM == PSMT4 && RDPSM == PSMT4)
-		return true;
+	{
+		r.m_force_cpu_move = true;
+		return false;
+	}
 
-	// 512x448 moves from C32->Z32.
+	// 512x448 moves from Z32->C32.
 	if (RSPSM != PSMZ32 || RDPSM != PSMCT32 || RWIDTH < 512 || RHEIGHT < 448)
 		return false;
 
-	GSTextureCache::Target *src, *dst;
-	if (!GetMoveTargetPair(r, &src, &dst, false, false))
-		return false;
-
-	// Store B -> A using a channel shuffle.
-	u32 pal[256];
-	for (u32 i = 0; i < C89_ARRAY_SIZE(pal); i++)
-		pal[i] = i << 24;	
-	std::shared_ptr<GSTextureCache::Palette> palette = g_texture_cache->LookupPaletteObject(pal, 256, true);
-	if (!palette)
-		return false;
-
-	if (dst->GetUnscaledWidth() < static_cast<int>(RWIDTH) || dst->GetUnscaledHeight() < static_cast<int>(RHEIGHT))
-	{
-		if (!dst->ResizeTexture(pcsx2_max_i(dst->GetUnscaledWidth(), static_cast<int>(RWIDTH)), pcsx2_max_i(dst->GetUnscaledHeight(), static_cast<int>(RHEIGHT))))
-			return false;
-	}
-
-	const GSVector4i draw_rc = GSVector4i(0, 0, RWIDTH, RHEIGHT).rintersect(dst->GetUnscaledRect());
-	dst->UpdateValidChannels(PSMCT32, 0);
-	dst->UpdateValidity(draw_rc);
-
-	dst->UnscaleRTAlpha();
-	dst->m_alpha_min = 0;
-	dst->m_alpha_max = 255;
-
-	GSHWDrawConfig& config = GSRendererHW::GetInstance()->BeginHLEHardwareDraw(
-		dst->GetTexture(), nullptr, dst->GetScale(), src->GetTexture(), src->GetScale(), draw_rc);
-	config.pal = palette->GetPaletteGSTexture();
-	config.ps.channel = ChannelFetch_BLUE;
-	config.ps.depth_fmt = 1;
-	config.ps.tfx = TFX_DECAL; // T -> A.
-	config.ps.tcc = true;
-	GSRendererHW::GetInstance()->EndHLEHardwareDraw(false);
+	// The CPU move below reads local memory, but the depth source lives in a GPU target;
+	// flush it (and anything else overlapping) back first.
+	g_texture_cache->CommitOverlappingTargets(RSBP);
 
 	s_last_hacked_move_n = r.s_n;
-	return true;
+	r.m_force_cpu_move = true;
+	return false;
 }
 
 #undef RBITBLTBUF

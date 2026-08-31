@@ -259,6 +259,9 @@ public:
 	static void GetQuadRasterizedPoints(GSVector4& xy, GSVector4& tex, bool keep_order = true);
 
 	bool m_mipmap = false;
+	// When set, local memory is authoritative for the current Move(): skip reading GPU
+	// targets back over the source region.
+	bool m_move_mem_authoritative = false;
 	bool m_texflush_flag = false;
 	bool m_isPackedUV_HackFlag = false;
 	bool m_channel_shuffle = false;
