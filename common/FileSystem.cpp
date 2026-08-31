@@ -27,6 +27,7 @@
 
 #include <file/file_path.h>
 #include <retro_dirent.h>
+#include <streams/file_stream.h>
 #include <encodings/utf.h>
 #include <string/stdstring.h>
 
@@ -629,42 +630,37 @@ bool FileSystem::StatFile(const char* path, struct stat* st)
 	return true;
 }
 
-bool FileSystem::DeleteFilePath(const char* path)
-{
-	if (path[0] == '\0')
-		return false;
-	wchar_t *wpath             = utf8_to_utf16_string_alloc(path);
-	const DWORD fileAttributes = GetFileAttributesW(wpath);
-	if (fileAttributes == INVALID_FILE_ATTRIBUTES || fileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-	{
-		free(wpath);
-		return false;
-	}
-	bool ret = (DeleteFileW(wpath) == TRUE);
-	free(wpath);
-	return ret;
-}
-
-bool FileSystem::DeleteDirectory(const char* path)
-{
-	wchar_t *wpath = utf8_to_utf16_string_alloc(path);
-	bool ret       = RemoveDirectoryW(wpath);
-	free(wpath);
-	return ret;
-}
 #else
 bool FileSystem::StatFile(const char* path, struct stat* st)
 {
 	return stat(path, st) == 0;
 }
 
+#endif
+
+/* One body per function for every platform, routed through libretro's
+ * VFS: filestream_delete honours a frontend remove callback and the SAF
+ * path on Android scoped storage, where a raw unlink()/DeleteFileW on a
+ * content:// URI can only fail.  path_is_directory goes through the same
+ * VFS stat, so the guard sees the same filesystem the delete does.
+ *
+ * The file/directory split stays enforced here: filestream_delete itself
+ * happily removes an empty directory (_wrmdir on Windows, remove()
+ * elsewhere), and the IOP fileio remove/rmdir pair is game-driven, so
+ * each HLE call must keep touching only its own kind - remove refusing
+ * directories, rmdir refusing files - exactly as the PS2 kernel does.
+ *
+ * This also un-breaks DeleteDirectory everywhere but Windows: the old
+ * body called unlink() on the directory, which fails with EISDIR on
+ * every POSIX platform, so rmdir_HLE has never once succeeded there.
+ * remove() (via the VFS) is the call the old code was reaching for. */
 bool FileSystem::DeleteFilePath(const char* path)
 {
 	if (path[0] == '\0')
 		return false;
 	if (path_is_directory(path))
 		return false;
-	return (unlink(path) == 0);
+	return filestream_delete(path) == 0;
 }
 
 bool FileSystem::DeleteDirectory(const char* path)
@@ -673,9 +669,8 @@ bool FileSystem::DeleteDirectory(const char* path)
 		return false;
 	if (!path_is_directory(path))
 		return false;
-	return (unlink(path) == 0);
+	return filestream_delete(path) == 0;
 }
-#endif
 
 /* One directory walk for every platform.  retro_dirent answers "is this a
  * directory" out of the directory entry itself wherever the filesystem
