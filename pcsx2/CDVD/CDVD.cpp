@@ -201,7 +201,7 @@ void cdvdLoadNVRAM(void)
 	char nvmfile[PCSX2_PATH_MAX];
 	cdvdBiosSiblingPath(nvmfile, sizeof(nvmfile), "nvm");
 	RFILE *fp = filestream_open(nvmfile, RETRO_VFS_FILE_ACCESS_READ, RETRO_VFS_FILE_ACCESS_HINT_NONE);
-	if (!fp || rfread(s_nvram, sizeof(s_nvram), 1, fp) != 1)
+	if (!fp || filestream_read(fp, s_nvram, sizeof(s_nvram)) != (int64_t)sizeof(s_nvram))
 	{
 		Console.Warning("Failed to open or read NVRAM: %s", nvmfile);
 		cdvdCreateNewNVM();
@@ -232,7 +232,7 @@ void cdvdLoadNVRAM(void)
 	char mecfile[PCSX2_PATH_MAX];
 	cdvdBiosSiblingPath(mecfile, sizeof(mecfile), "mec");
 	fp = filestream_open(mecfile, RETRO_VFS_FILE_ACCESS_READ, RETRO_VFS_FILE_ACCESS_HINT_NONE);
-	if (!fp || rfread(&s_mecha_version, sizeof(s_mecha_version), 1, fp) != 1)
+	if (!fp || filestream_read(fp, &s_mecha_version, sizeof(s_mecha_version)) != (int64_t)sizeof(s_mecha_version))
 	{
 		s_mecha_version = DEFAULT_MECHA_VERSION;
 		Console.Error("Failed to open or read MEC file at %s, creating default.", mecfile);
@@ -241,7 +241,7 @@ void cdvdLoadNVRAM(void)
 		if (fp)
 			filestream_close(fp);
 		fp = filestream_open(mecfile, RETRO_VFS_FILE_ACCESS_READ_WRITE, RETRO_VFS_FILE_ACCESS_HINT_NONE);
-		if (!fp || rfwrite(&s_mecha_version, sizeof(s_mecha_version), 1, fp) != 1)
+		if (!fp || filestream_write(fp, &s_mecha_version, sizeof(s_mecha_version)) != (int64_t)sizeof(s_mecha_version))
 			Console.Error("Failed to write MEC file. Check your BIOS setup/permission settings.");
 	}
 	if (fp)
@@ -260,7 +260,7 @@ void cdvdSaveNVRAM(void)
 	}
 
 	u8 existing_nvram[NVRAM_SIZE];
-	if (rfread(existing_nvram, sizeof(existing_nvram), 1, fp) == 1 &&
+	if (filestream_read(fp, existing_nvram, sizeof(existing_nvram)) == (int64_t)sizeof(existing_nvram) &&
 		memcmp(existing_nvram, s_nvram, NVRAM_SIZE) == 0)
 	{
 		Console.Warning("NVRAM has not changed, not writing to disk.");
@@ -269,7 +269,7 @@ void cdvdSaveNVRAM(void)
 	}
 
 	if (filestream_seek(fp, 0, RETRO_VFS_SEEK_POSITION_START) == 0 &&
-		rfwrite(s_nvram, NVRAM_SIZE, 1, fp) == 1)
+		filestream_write(fp, s_nvram, NVRAM_SIZE) == (int64_t)NVRAM_SIZE)
 	{
 		Console.WriteLn("NVRAM saved to %s.", nvmfile);
 	}

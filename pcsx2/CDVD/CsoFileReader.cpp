@@ -23,6 +23,8 @@
 
 #include "CsoFileReader.h"
 
+#include <cstring>
+
 // Implementation of CSO compressed ISO reading, based on:
 // https://github.com/unknownbrackets/maxcso/blob/master/README_CSO.md
 struct CsoHeader
@@ -137,9 +139,17 @@ bool CsoFileReader::Open2(const char* fileName)
 {
 	Close2();
 	strlcpy(m_filename, fileName, sizeof(m_filename));
-	m_src = filestream_open(m_filename, RETRO_VFS_FILE_ACCESS_READ, RETRO_VFS_FILE_ACCESS_HINT_NONE);
+	/* Ask for the frequent-access mapping the flat and CHD readers
+	 * already use: with one, every frame's source bytes are a pointer
+	 * into the page cache and the decoder reads them in place -- no
+	 * seek, no read syscall, no staging copy.  Without one (frontend
+	 * VFS, SAF, 32-bit off_t), the seek+read path below runs exactly
+	 * as before. */
+	m_src = filestream_open(m_filename, RETRO_VFS_FILE_ACCESS_READ, RETRO_VFS_FILE_ACCESS_HINT_FREQUENT_ACCESS);
 
 	bool success = false;
+	if (m_src)
+		m_map_base = filestream_get_mapped_ptr(m_src, &m_map_len);
 	if (m_src && ReadFileHeader() && InitializeBuffers())
 		success = true;
 
@@ -155,7 +165,7 @@ bool CsoFileReader::ReadFileHeader()
 {
 	CsoHeader hdr = {};
 
-	if (filestream_seek(m_src, m_dataoffset, RETRO_VFS_SEEK_POSITION_START) != 0 || rfread(&hdr, 1, sizeof(hdr), m_src) != sizeof(hdr))
+	if (filestream_seek(m_src, m_dataoffset, RETRO_VFS_SEEK_POSITION_START) != 0 || filestream_read(m_src, &hdr, sizeof(hdr)) != (int64_t)sizeof(hdr))
 	{
 		Console.Error("Failed to read CSO file header.");
 		return false;
@@ -208,7 +218,7 @@ bool CsoFileReader::InitializeBuffers()
 
 	const u32 indexSize = numFrames + 1;
 	m_index = new u32[indexSize];
-	if (rfread(m_index, sizeof(u32), indexSize, m_src) != indexSize)
+	if (filestream_read(m_src, m_index, sizeof(u32) * indexSize) != (int64_t)(sizeof(u32) * indexSize))
 	{
 		Console.Error("Unable to read index data from CSO.");
 		return false;
@@ -234,8 +244,10 @@ void CsoFileReader::Close2()
 
 	if (m_src)
 	{
-		rfclose(m_src);
+		filestream_close(m_src);
 		m_src = NULL;
+		m_map_base = nullptr;
+		m_map_len = 0;
 	}
 	if (m_inflate)
 	{
@@ -287,6 +299,45 @@ int CsoFileReader::ReadChunk(void *dst, s64 chunkID)
 	const u64 frameRawPos = (u64)index0 << m_indexShift;
 	const u64 frameRawSize = (u64)(index1 - index0) << m_indexShift;
 
+	/* Mapped source: the frame's bytes are already addressable, so the
+	 * uncompressed case is one memcpy and the compressed case feeds the
+	 * decoder straight from the mapping - the m_readBuffer staging copy
+	 * exists only for the unmapped fallback. */
+	if (m_map_base && frameRawPos < (u64)m_map_len)
+	{
+		const u64 avail = (u64)m_map_len - frameRawPos;
+		if (!compressed)
+		{
+			if (avail < m_frameSize)
+				return 0;
+			std::memcpy(dst, m_map_base + frameRawPos, m_frameSize);
+			return m_frameSize;
+		}
+		/* Last-frame padding: the index positions are aligned, so the
+		 * stored payload may be shorter than frameRawSize - exactly the
+		 * short read the fallback path absorbs via rfread's count. */
+		const u32 rawBytes = (u32)(frameRawSize < avail ? frameRawSize : avail);
+		bool ok = false;
+		if (m_uselz4)
+		{
+			const int64_t res = rlz4_decode(static_cast<uint8_t*>(dst), m_frameSize,
+					m_map_base + frameRawPos, rawBytes);
+			ok = (res > 0);
+		}
+		else
+		{
+			size_t rd = 0, wr = 0;
+			rinflate_set_in(m_inflate, m_map_base + frameRawPos, rawBytes);
+			rinflate_set_out(m_inflate, static_cast<uint8_t*>(dst), m_frameSize);
+			const int status = rinflate_process(m_inflate, &rd, &wr);
+			ok = status == RDEFLATE_PROCESS_END && wr == m_frameSize;
+			rinflate_reset(m_inflate, -15);
+		}
+		if (!ok)
+			Console.Error("Unable to decompress CSO frame from mapped source.");
+		return ok ? m_frameSize : 0;
+	}
+
 	if (!compressed)
 	{
 		// Just read directly, easy.
@@ -295,7 +346,7 @@ int CsoFileReader::ReadChunk(void *dst, s64 chunkID)
 			Console.Error("Unable to seek to uncompressed CSO data.");
 			return 0;
 		}
-		return rfread(dst, 1, m_frameSize, m_src);
+		return filestream_read(m_src, dst, m_frameSize);
 	}
 	else
 	{
@@ -306,7 +357,7 @@ int CsoFileReader::ReadChunk(void *dst, s64 chunkID)
 		}
 		// This might be less bytes than frameRawSize in case of padding on the last frame.
 		// This is because the index positions must be aligned.
-		const u32 readRawBytes = rfread(m_readBuffer, 1, frameRawSize, m_src);
+		const u32 readRawBytes = (u32)filestream_read(m_src, m_readBuffer, frameRawSize);
 		bool success = false;
 
 		if (m_uselz4)

@@ -63,7 +63,7 @@ static Access* ReadIndexFromFile(const char* filename)
 	}
 
 	char fileId[GZIP_ID_LEN + 1] = {0};
-	if (rfread(fileId, GZIP_ID_LEN, 1, fp) != 1 || std::memcmp(fileId, GZIP_ID, 4) != 0)
+	if (filestream_read(fp, fileId, GZIP_ID_LEN) != (int64_t)GZIP_ID_LEN || std::memcmp(fileId, GZIP_ID, 4) != 0)
 	{
 		filestream_close(fp);
 		return nullptr;
@@ -77,7 +77,7 @@ static Access* ReadIndexFromFile(const char* filename)
 	}
 
 	const s64 datasize = size - GZIP_ID_LEN - sizeof(Access);
-	if (rfread(index, sizeof(Access), 1, fp) != 1 ||
+	if (filestream_read(fp, index, sizeof(Access)) != (int64_t)sizeof(Access) ||
 		index->have <= 0 ||
 		datasize != static_cast<s64>(index->have) * static_cast<s64>(sizeof(Point)))
 	{
@@ -87,7 +87,7 @@ static Access* ReadIndexFromFile(const char* filename)
 	}
 
 	char* buffer = static_cast<char*>(std::malloc(datasize));
-	if (!buffer || rfread(buffer, datasize, 1, fp) != 1)
+	if (!buffer || filestream_read(fp, buffer, datasize) != (int64_t)datasize)
 	{
 		filestream_close(fp);
 		std::free(buffer);
@@ -106,14 +106,14 @@ static void WriteIndexToFile(Access* index, const char* filename)
 	if (!fp)
 		return;
 
-	bool success = (rfwrite(GZIP_ID, GZIP_ID_LEN, 1, fp) == 1);
+	bool success = (filestream_write(fp, GZIP_ID, GZIP_ID_LEN) == (int64_t)GZIP_ID_LEN);
 
 	Point* tmp = index->list;
 	index->list = 0; // current pointer is useless on disk, normalize it as 0.
-	rfwrite((char*)index, sizeof(Access), 1, fp);
+	filestream_write(fp, (char*)index, sizeof(Access));
 	index->list = tmp;
 
-	success = success && (rfwrite((char*)index->list, sizeof(Point) * index->have, 1, fp) == 1);
+	success = success && (filestream_write(fp, (char*)index->list, sizeof(Point) * index->have) == (int64_t)(sizeof(Point) * index->have));
 	filestream_close(fp);
 }
 

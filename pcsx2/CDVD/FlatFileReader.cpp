@@ -109,7 +109,7 @@ int FlatFileReader::ReadChunk(void* dst, s64 blockID)
 
 	const u32 read_size = static_cast<u32>(pcsx2_min_u64(m_file_size - file_offset, CHUNK_SIZE));
 
-	return (rfread(dst, read_size, 1, m_file) == 1) ? static_cast<int>(read_size) : 0;
+	return (filestream_read(m_file, dst, read_size) == (int64_t)read_size) ? static_cast<int>(read_size) : 0;
 }
 
 void FlatFileReader::Close2()
