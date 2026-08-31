@@ -27,7 +27,7 @@
 #include "Host.h"
 #include "ShaderCacheVersion.h"
 
-#include <VersionHelpers.h>
+#include <versionhelpers.h>
 #include <d3dcompiler.h>
 
 #include <libretro_d3d.h>
