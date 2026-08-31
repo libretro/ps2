@@ -40,7 +40,6 @@
 #include "Common.h"
 #include "Patch.h"
 #include "common/Console.h"
-#include "common/FileSystem.h"
 #include "common/Path.h"
 
 /* Memory the patch application would reach. The parse path does not use
@@ -70,6 +69,12 @@ const uptr* psxMemRLUT = s_rlut;
 
 /* The loader's other surface; none of it is entered from a string. */
 extern "C" int path_is_directory(const char*) { return 0; }
+#include "HostFS.h"
+namespace FileSystem {
+	bool FindFiles(const char*, const char*, unsigned,
+	               std::vector<FILESYSTEM_FIND_DATA>*) { return false; }
+}
+extern "C" int64_t filestream_read_file(const char*, void**, int64_t*) { return 0; }
 extern "C" {
 	void* rinflate_new(void) { return 0; }
 	void  rinflate_free(void*) { }
@@ -78,12 +83,6 @@ extern "C" {
 	int   rinflate_process(void*, unsigned*, unsigned*) { return -1; }
 	int   rinflate(void*, const void*, unsigned, void*, unsigned, unsigned*)
 	{ return -1; }
-}
-namespace FileSystem {
-	bool FindFiles(const char*, const char*, unsigned,
-	               std::vector<FILESYSTEM_FIND_DATA>*) { return false; }
-	std::optional<std::string> ReadFileToString(const char*)
-	{ return std::nullopt; }
 }
 namespace Path {
 	std::string_view GetFileName(const std::string_view& p) { return p; }
