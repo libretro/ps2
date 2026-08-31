@@ -2554,6 +2554,125 @@ bool GSTextureCache::PreloadTarget(GIFRegTEX0 TEX0, const GSVector2i& size, cons
 	return hw_clear.value_or(false);
 }
 
+// Field-buffer alias coherence.
+//
+// Some games treat one region of GS memory as both a large frame and as
+// stacked sub-buffers with their own base pointers, and rely on writes
+// through one view being visible through the other. FFX-2's FMVs upload
+// the decoded movie with point draws through the full-frame view (FBP 0,
+// rows 0-431), while the per-field composite draw and the second display
+// circuit address the lower half directly (FBP 0x8c0). The software
+// renderer gets this for free because everything reads and writes one
+// local memory; the hardware renderer keeps a distinct texture per
+// target, so content written through one view never reaches the other,
+// and the aliased rows scan out stale or empty.
+//
+// SeedSubTargetFromEnclosing() runs before a draw whose render target is
+// a page-row-aligned sub-view of a larger, more recently drawn target:
+// it copies the enclosing target's aliased rows into the sub-target so
+// the draw composites on top of the data the game expects to be there.
+// SyncSubTargetsForDisplay() is the reverse direction at scanout: a
+// display target whose span contains a newer sub-target gets that
+// sub-target's rows copied in before the merge reads it.
+void GSTextureCache::SeedSubTargetFromEnclosing(Target* rt)
+{
+	if (!rt || rt->m_TEX0.TBW == 0)
+		return;
+
+	const u32 buffer_width = pcsx2_max_i(rt->m_TEX0.TBW, 1U);
+	const GSVector2i& page_size = GSLocalMemory::m_psm[rt->m_TEX0.PSM].pgs;
+
+	for (Target* t : m_dst[RenderTarget])
+	{
+		if (t == rt)
+			continue;
+
+		// Enclosing target: starts before rt and covers rt's base, with an
+		// identical layout so rows translate 1:1.
+		if (t->m_TEX0.TBP0 >= rt->m_TEX0.TBP0 || rt->m_TEX0.TBP0 > t->UnwrappedEndBlock())
+			continue;
+		if (t->m_TEX0.TBW != rt->m_TEX0.TBW || t->m_TEX0.PSM != rt->m_TEX0.PSM)
+			continue;
+		// Only seed when the enclosing target has been drawn to more
+		// recently: its aliased rows are the base the upcoming draw
+		// composites onto. A stale enclosing target must not overwrite
+		// the sub-target's newer content.
+		if (t->m_last_draw <= rt->m_last_draw)
+			continue;
+
+		const u32 page_offset = (rt->m_TEX0.TBP0 - t->m_TEX0.TBP0) >> 5;
+		if (page_offset % buffer_width)
+			continue;
+
+		const int y_offset = (page_offset / buffer_width) * page_size.y;
+		const GSVector4i src_area = GSVector4i(0, y_offset, rt->m_unscaled_size.x, y_offset + rt->m_unscaled_size.y)
+			.rintersect(GSVector4i(0, 0, t->m_unscaled_size.x, t->m_unscaled_size.y));
+		if (src_area.rempty())
+			continue;
+
+		t->Update();
+		rt->Update();
+
+		if (t->m_scale == rt->m_scale)
+			g_gs_device->CopyRect(t->m_texture, rt->m_texture,
+				GSVector4i(GSVector4(src_area) * GSVector4(t->m_scale)), 0, 0);
+		else
+		{
+			const GSVector4 src_rect = GSVector4(src_area) * GSVector4(t->m_scale) / GSVector4(t->m_texture->GetSize()).xyxy();
+			const GSVector4 dst_rect = GSVector4(0, 0, rt->m_unscaled_size.x, src_area.w - src_area.y) * GSVector4(rt->m_scale);
+			g_gs_device->StretchRect(t->m_texture, src_rect, rt->m_texture, dst_rect, ShaderConvert::COPY, false);
+		}
+		rt->m_last_draw = t->m_last_draw;
+		return;
+	}
+}
+
+void GSTextureCache::SyncSubTargetsForDisplay(Target* rt)
+{
+	if (!rt || rt->m_TEX0.TBW == 0)
+		return;
+
+	const u32 buffer_width = pcsx2_max_i(rt->m_TEX0.TBW, 1U);
+	const GSVector2i& page_size = GSLocalMemory::m_psm[rt->m_TEX0.PSM].pgs;
+
+	for (Target* t : m_dst[RenderTarget])
+	{
+		if (t == rt)
+			continue;
+
+		if (t->m_TEX0.TBP0 <= rt->m_TEX0.TBP0 || t->m_TEX0.TBP0 > rt->UnwrappedEndBlock())
+			continue;
+		if (t->m_TEX0.TBW != rt->m_TEX0.TBW || t->m_TEX0.PSM != rt->m_TEX0.PSM)
+			continue;
+		// Only if the sub-target's content is newer than the enclosing
+		// target's: stale sub-targets must not overwrite fresh draws.
+		if (t->m_last_draw <= rt->m_last_draw)
+			continue;
+
+		const u32 page_offset = (t->m_TEX0.TBP0 - rt->m_TEX0.TBP0) >> 5;
+		if (page_offset % buffer_width)
+			continue;
+
+		const int y_offset = (page_offset / buffer_width) * page_size.y;
+		const GSVector4i copy_rect = t->m_valid.rintersect(GSVector4i(0, 0, rt->m_unscaled_size.x, rt->m_unscaled_size.y - y_offset));
+		if (copy_rect.rempty())
+			continue;
+
+		t->Update();
+
+		if (t->m_scale == rt->m_scale)
+			g_gs_device->CopyRect(t->m_texture, rt->m_texture,
+				GSVector4i(GSVector4(copy_rect) * GSVector4(t->m_scale)),
+				static_cast<u32>(copy_rect.x * rt->m_scale), static_cast<u32>((copy_rect.y + y_offset) * rt->m_scale));
+		else
+		{
+			const GSVector4 src_rect = GSVector4(copy_rect) * GSVector4(t->m_scale) / GSVector4(t->m_texture->GetSize()).xyxy();
+			const GSVector4 dst_rect = (GSVector4(copy_rect) + GSVector4(0.0f, static_cast<float>(y_offset), 0.0f, static_cast<float>(y_offset))) * GSVector4(rt->m_scale);
+			g_gs_device->StretchRect(t->m_texture, src_rect, rt->m_texture, dst_rect, ShaderConvert::COPY, false);
+		}
+	}
+}
+
 GSTextureCache::Target* GSTextureCache::LookupDisplayTarget(GIFRegTEX0 TEX0, const GSVector2i& size, float scale, bool is_feedback)
 {
 	Target* dst = LookupTarget(TEX0, size, scale, RenderTarget, true, 0, true);

@@ -505,6 +505,8 @@ public:
 		bool is_frame = false, bool preload = GSConfig.PreloadFrameWithGSData, bool preserve_target = true,
 		const GSVector4i draw_rc = GSVector4i::zero(), GSTextureCache::Source* src = nullptr);
 	Target* LookupDisplayTarget(GIFRegTEX0 TEX0, const GSVector2i& size, float scale, bool is_feedback);
+	void SeedSubTargetFromEnclosing(Target* rt);
+	void SyncSubTargetsForDisplay(Target* rt);
 
 	/// Looks up a target in the cache, and only returns it if the BP/BW match exactly.
 	Target* GetExactTarget(u32 BP, u32 BW, int type, u32 end_bp);

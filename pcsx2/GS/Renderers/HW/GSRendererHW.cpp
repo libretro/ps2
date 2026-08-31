@@ -165,6 +165,7 @@ GSTexture* GSRendererHW::GetOutput(int i, float& scale, int& y_offset)
 	if (GSTextureCache::Target* rt = g_texture_cache->LookupDisplayTarget(TEX0, framebufferSize, GetTextureScaleFactor(), false))
 	{
 		rt->Update();
+		g_texture_cache->SyncSubTargetsForDisplay(rt);
 		t = rt->m_texture;
 		scale = rt->m_scale;
 
@@ -3011,6 +3012,8 @@ void GSRendererHW::Draw()
 
 		rt = g_texture_cache->LookupTarget(FRAME_TEX0, t_size, ((src && src->m_scale != 1) && GSConfig.UserHacks_NativeScaling == GSNativeScaling::NativeScaling_Normal && !possible_shuffle) ? GetTextureScaleFactor() : target_scale, GSTextureCache::RenderTarget, true,
 			fm, false, force_preload, preserve_rt_rgb, preserve_rt_alpha, unclamped_draw_rect, possible_shuffle, is_possible_mem_clear && FRAME_TEX0.TBP0 != m_cached_ctx.ZBUF.Block(), GSConfig.UserHacks_NativeScaling != GSNativeScaling::NativeScaling_Off && preserve_downscale_draw && is_possible_mem_clear != ClearType::NormalClear);
+		if (rt)
+			g_texture_cache->SeedSubTargetFromEnclosing(rt);
 
 		// Draw skipped because it was a clear and there was no target.
 		if (!rt)
