@@ -3929,7 +3929,7 @@ GSTextureCache::Target* GSTextureCache::FindOverlappingTarget(u32 BP, u32 BW, u3
 	return FindOverlappingTarget(BP, end_bp);
 }
 
-GSVector2i GSTextureCache::GetTargetSize(u32 bp, u32 fbw, u32 psm, s32 min_width, s32 min_height)
+GSVector2i GSTextureCache::GetTargetSize(u32 bp, u32 fbw, u32 psm, s32 min_width, s32 min_height, bool can_expand)
 {
 	TargetHeightElem search = {};
 	search.bp = bp;
@@ -3943,8 +3943,11 @@ GSVector2i GSTextureCache::GetTargetSize(u32 bp, u32 fbw, u32 psm, s32 min_width
 		TargetHeightElem& elem = const_cast<TargetHeightElem&>(*it);
 		if (elem.bits == search.bits)
 		{
-			elem.width = pcsx2_max_i(elem.width, min_width);
-			elem.height = pcsx2_max_i(elem.height, min_height);
+			if (can_expand)
+			{
+				elem.width = pcsx2_max_i(elem.width, min_width);
+				elem.height = pcsx2_max_i(elem.height, min_height);
+			}
 
 			m_target_heights.MoveFront(it.Index());
 			elem.age = 0;
