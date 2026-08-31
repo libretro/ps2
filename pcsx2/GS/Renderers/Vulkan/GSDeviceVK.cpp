@@ -3984,28 +3984,11 @@ GSTextureVK* GSDeviceVK::SetupPrimitiveTrackingDATE(GSHWDrawConfig& config)
 
 void GSDeviceVK::RenderHW(GSHWDrawConfig& config)
 {
-	// Destination Alpha Setup
-	switch (config.destination_alpha)
-	{
-		case GSHWDrawConfig::DestinationAlphaMode::Off: // No setup
-		case GSHWDrawConfig::DestinationAlphaMode::Full: // No setup
-		case GSHWDrawConfig::DestinationAlphaMode::PrimIDTracking: // Setup is done below
-			break;
-		case GSHWDrawConfig::DestinationAlphaMode::StencilOne: // setup is done below
-		{
-			// we only need to do the setup here if we don't have barriers, in which case do full DATE.
-			if (!m_features.texture_barrier)
-			{
-				SetupDATE(config.rt, config.ds, config.datm, config.drawarea);
-				config.destination_alpha = GSHWDrawConfig::DestinationAlphaMode::Stencil;
-			}
-		}
-		break;
-
-		case GSHWDrawConfig::DestinationAlphaMode::Stencil:
-			SetupDATE(config.rt, config.ds, config.datm, config.drawarea);
-			break;
-	}
+	const GSVector2i rtsize(config.rt ? config.rt->GetSize() : config.ds->GetSize());
+	GSTextureVK* draw_rt = static_cast<GSTextureVK*>(config.rt);
+	GSTextureVK* draw_ds = static_cast<GSTextureVK*>(config.ds);
+	GSTextureVK* draw_rt_clone = nullptr;
+	GSTextureVK* hdr_rt = static_cast<GSTextureVK*>(g_gs_device->GetColorClipTexture());
 
 	// stream buffer in first, in case we need to exec
 	SetVSConstantBuffer(config.cb_vs);
@@ -4030,60 +4013,102 @@ void GSDeviceVK::RenderHW(GSHWDrawConfig& config)
 	GSTextureVK* date_image = nullptr;
 	if (config.destination_alpha == GSHWDrawConfig::DestinationAlphaMode::PrimIDTracking)
 	{
+		// If we have a colclip in progress, we need to use the colclip texture, but we can't check this later as there's a chicken/egg problem with the pipe setup.
+		GSTexture* backup_rt = config.rt;
+
+		if (hdr_rt)
+			config.rt = hdr_rt;
+
 		date_image = SetupPrimitiveTrackingDATE(config);
 		if (!date_image)
 			return;
+
+		config.rt = backup_rt;
 	}
 
 	// figure out the pipeline
 	PipelineSelector& pipe = m_pipeline_selector;
 	UpdateHWPipelineSelector(config, pipe);
 
-	const GSVector2i rtsize(config.rt ? config.rt->GetSize() : config.ds->GetSize());
-
-	GSTextureVK* draw_rt = static_cast<GSTextureVK*>(config.rt);
-	GSTextureVK* draw_ds = static_cast<GSTextureVK*>(config.ds);
-	GSTextureVK* draw_rt_clone = nullptr;
-	GSTextureVK* hdr_rt = nullptr;
-
-	// Switch to hdr target for colclip rendering
-	if (pipe.ps.colclip_hw)
+	// now blit the colclip texture back to the original target
+	if (hdr_rt)
 	{
-		EndRenderPass();
-
-		hdr_rt = static_cast<GSTextureVK*>(CreateRenderTarget(rtsize.x, rtsize.y, GSTexture::Format::ColorClip, false));
-		if (!hdr_rt)
+		if (config.colclip_mode == GSHWDrawConfig::ColClipMode::EarlyResolve)
 		{
-			if (date_image)
-				Recycle(date_image);
-			return;
-		}
+			EndRenderPass();
+			hdr_rt->TransitionToLayout(GSTextureVK::Layout::ShaderReadOnly);
 
-		// propagate clear value through if the hdr render is the first
-		if (draw_rt->GetState() == GSTexture::State::Cleared)
+			draw_rt = static_cast<GSTextureVK*>(config.rt);
+			OMSetRenderTargets(draw_rt, draw_ds, GSVector4i::loadh(rtsize), static_cast<FeedbackLoopFlag>(pipe.feedback_loop_flags));
+
+			// if this target was cleared and never drawn to, perform the clear as part of the resolve here.
+			if (draw_rt->GetState() == GSTexture::State::Cleared)
+			{
+				alignas(16) VkClearValue cvs[2];
+				u32 cv_count = 0;
+				GSVector4::store<true>(&cvs[cv_count++].color, draw_rt->GetUNormClearColor());
+				if (draw_ds)
+					cvs[cv_count++].depthStencil = {draw_ds->GetClearDepth(), 1};
+
+				BeginClearRenderPass(GetTFXRenderPass(true, pipe.ds, false, false, pipe.IsRTFeedbackLoop(),
+										 pipe.IsTestingAndSamplingDepth(), VK_ATTACHMENT_LOAD_OP_CLEAR,
+										 pipe.ds ? VK_ATTACHMENT_LOAD_OP_LOAD : VK_ATTACHMENT_LOAD_OP_DONT_CARE),
+					draw_rt->GetRect(), cvs, cv_count);
+				draw_rt->SetState(GSTexture::State::Dirty);
+			}
+			else
+			{
+				BeginRenderPass(GetTFXRenderPass(true, pipe.ds, false, false, pipe.IsRTFeedbackLoop(),
+									pipe.IsTestingAndSamplingDepth(), VK_ATTACHMENT_LOAD_OP_LOAD,
+									pipe.ds ? VK_ATTACHMENT_LOAD_OP_LOAD : VK_ATTACHMENT_LOAD_OP_DONT_CARE),
+					draw_rt->GetRect());
+			}
+
+			const GSVector4 drawareaf = GSVector4(config.colclip_update_area);
+			const GSVector4 sRect(drawareaf / GSVector4(rtsize).xyxy());
+			SetPipeline(m_hdr_finish_pipelines[pipe.ds][pipe.IsRTFeedbackLoop()]);
+			SetUtilityTexture(hdr_rt, m_point_sampler);
+			DrawStretchRect(sRect, drawareaf, rtsize);
+
+			Recycle(hdr_rt);
+			g_gs_device->SetColorClipTexture(nullptr);
+
+			hdr_rt = nullptr;
+		}
+		else
 		{
-			hdr_rt->SetState(GSTexture::State::Cleared);
-			hdr_rt->SetClearColor(draw_rt->GetClearColor());
-
-			// If depth is cleared, we need to commit it, because we're only going to draw to the active part of the FB.
-			if (draw_ds && draw_ds->GetState() == GSTexture::State::Cleared && !config.drawarea.eq(GSVector4i::loadh(rtsize)))
-				draw_ds->CommitClear(m_current_command_buffer);
+			pipe.ps.colclip_hw = 1;
+			draw_rt = hdr_rt;
 		}
-		else if (draw_rt->GetState() == GSTexture::State::Dirty)
-		{
-			draw_rt->TransitionToLayout(GSTextureVK::Layout::ShaderReadOnly);
-		}
-
-		// we're not drawing to the RT, so we can use it as a source
-		if (config.require_one_barrier && !m_features.texture_barrier)
-			PSSetShaderResource(2, draw_rt, true);
-
-		draw_rt = hdr_rt;
 	}
-	else if (config.require_one_barrier && !m_features.texture_barrier)
+
+	// Destination Alpha Setup
+	switch (config.destination_alpha)
+	{
+		case GSHWDrawConfig::DestinationAlphaMode::Off: // No setup
+		case GSHWDrawConfig::DestinationAlphaMode::Full: // No setup
+		case GSHWDrawConfig::DestinationAlphaMode::PrimIDTracking: // Setup is done below
+			break;
+		case GSHWDrawConfig::DestinationAlphaMode::StencilOne: // setup is done below
+		{
+			// we only need to do the setup here if we don't have barriers, in which case do full DATE.
+			if (!m_features.texture_barrier)
+			{
+				SetupDATE(draw_rt, config.ds, config.datm, config.drawarea);
+				config.destination_alpha = GSHWDrawConfig::DestinationAlphaMode::Stencil;
+			}
+		}
+		break;
+
+		case GSHWDrawConfig::DestinationAlphaMode::Stencil:
+			SetupDATE(draw_rt, config.ds, config.datm, config.drawarea);
+			break;
+	}
+
+	if (config.require_one_barrier && !m_features.texture_barrier)
 	{
 		// requires a copy of the RT
-		draw_rt_clone = static_cast<GSTextureVK*>(CreateTexture(rtsize.x, rtsize.y, 1, GSTexture::Format::Color, true));
+		draw_rt_clone = static_cast<GSTextureVK*>(CreateTexture(rtsize.x, rtsize.y, 1, hdr_rt ? GSTexture::Format::ColorClip : GSTexture::Format::Color, true));
 		if (draw_rt_clone)
 		{
 			EndRenderPass();
@@ -4091,6 +4116,46 @@ void GSDeviceVK::RenderHW(GSHWDrawConfig& config)
 			CopyRect(draw_rt, draw_rt_clone, config.drawarea, config.drawarea.left, config.drawarea.top);
 			PSSetShaderResource(2, draw_rt_clone, true);
 		}
+	}
+
+	// Switch to colclip target for colclip rendering
+	if (pipe.ps.colclip_hw)
+	{
+		if (!hdr_rt)
+		{
+			config.colclip_update_area = config.drawarea;
+			EndRenderPass();
+
+			hdr_rt = static_cast<GSTextureVK*>(CreateRenderTarget(rtsize.x, rtsize.y, GSTexture::Format::ColorClip, false));
+			if (!hdr_rt)
+			{
+				if (date_image)
+					Recycle(date_image);
+				return;
+			}
+
+			g_gs_device->SetColorClipTexture(static_cast<GSTexture*>(hdr_rt));
+
+			// propagate clear value through if the colclip render is the first
+			if (draw_rt->GetState() == GSTexture::State::Cleared)
+			{
+				hdr_rt->SetState(GSTexture::State::Cleared);
+				hdr_rt->SetClearColor(draw_rt->GetClearColor());
+
+				// If depth is cleared, we need to commit it, because we're only going to draw to the active part of the FB.
+				if (draw_ds && draw_ds->GetState() == GSTexture::State::Cleared && !config.drawarea.eq(GSVector4i::loadh(rtsize)))
+					draw_ds->CommitClear(m_current_command_buffer);
+			}
+			else if (draw_rt->GetState() == GSTexture::State::Dirty)
+			{
+				draw_rt->TransitionToLayout(GSTextureVK::Layout::ShaderReadOnly);
+			}
+
+			// we're not drawing to the RT, so we can use it as a source
+			if (config.require_one_barrier && !m_features.texture_barrier)
+				PSSetShaderResource(2, draw_rt, true);
+		}
+		draw_rt = hdr_rt;
 	}
 
 	// clear texture binding when it's bound to RT or DS
@@ -4102,7 +4167,7 @@ void GSDeviceVK::RenderHW(GSHWDrawConfig& config)
 	}
 
 	// render pass restart optimizations
-	if (hdr_rt)
+	if (hdr_rt && (config.colclip_mode == GSHWDrawConfig::ColClipMode::ConvertAndResolve || config.colclip_mode == GSHWDrawConfig::ColClipMode::ConvertOnly))
 	{
 		// HDR requires blitting.
 		EndRenderPass();
@@ -4160,7 +4225,7 @@ void GSDeviceVK::RenderHW(GSHWDrawConfig& config)
 
 		// Only draw to the active area of the HDR target. Except when depth is cleared, we need to use the full
 		// buffer size, otherwise it'll only clear the draw part of the depth buffer.
-		const GSVector4i render_area = (pipe.ps.colclip_hw && ds_op != VK_ATTACHMENT_LOAD_OP_CLEAR) ? config.drawarea :
+		const GSVector4i render_area = (pipe.ps.colclip_hw && (config.colclip_mode == GSHWDrawConfig::ColClipMode::ConvertAndResolve) && ds_op != VK_ATTACHMENT_LOAD_OP_CLEAR) ? config.drawarea :
 																							   GSVector4i::loadh(rtsize);
 
 		if (is_clearing_rt)
@@ -4203,15 +4268,17 @@ void GSDeviceVK::RenderHW(GSHWDrawConfig& config)
 		vkCmdClearAttachments(m_current_command_buffer, 1, &ca, 1, &rc);
 	}
 
-	// rt -> hdr blit if enabled
-	if (hdr_rt && config.rt->GetState() == GSTexture::State::Dirty)
+	// rt -> colclip blit if enabled
+	if (hdr_rt && (config.colclip_mode == GSHWDrawConfig::ColClipMode::ConvertOnly || config.colclip_mode == GSHWDrawConfig::ColClipMode::ConvertAndResolve) && config.rt->GetState() == GSTexture::State::Dirty)
 	{
+		OMSetRenderTargets(draw_rt, draw_ds, GSVector4i::loadh(rtsize), static_cast<FeedbackLoopFlag>(pipe.feedback_loop_flags));
 		SetUtilityTexture(static_cast<GSTextureVK*>(config.rt), m_point_sampler);
 		SetPipeline(m_hdr_setup_pipelines[pipe.ds][pipe.IsRTFeedbackLoop()]);
-		
-		const GSVector4 drawareaf = GSVector4(config.drawarea);
+
+		const GSVector4 drawareaf = GSVector4((config.colclip_mode == GSHWDrawConfig::ColClipMode::ConvertOnly) ? GSVector4i::loadh(rtsize) : config.drawarea);
 		const GSVector4 sRect(drawareaf / GSVector4(rtsize).xyxy());
 		DrawStretchRect(sRect, drawareaf, rtsize);
+		OMSetRenderTargets(draw_rt, draw_ds, config.scissor, static_cast<FeedbackLoopFlag>(pipe.feedback_loop_flags));
 	}
 
 	// VB/IB upload, if we did DATE setup and it's not HDR this has already been done
@@ -4259,14 +4326,18 @@ void GSDeviceVK::RenderHW(GSHWDrawConfig& config)
 	if (date_image)
 		Recycle(date_image);
 
-	// now blit the hdr texture back to the original target
+	// now blit the colclip texture back to the original target
 	if (hdr_rt)
 	{
+		config.colclip_update_area = config.colclip_update_area.runion(config.drawarea);
+
+		if ((config.colclip_mode == GSHWDrawConfig::ColClipMode::ResolveOnly || config.colclip_mode == GSHWDrawConfig::ColClipMode::ConvertAndResolve))
+		{
 		EndRenderPass();
 		hdr_rt->TransitionToLayout(GSTextureVK::Layout::ShaderReadOnly);
 
 		draw_rt = static_cast<GSTextureVK*>(config.rt);
-		OMSetRenderTargets(draw_rt, draw_ds, config.scissor, static_cast<FeedbackLoopFlag>(pipe.feedback_loop_flags));
+		OMSetRenderTargets(draw_rt, draw_ds, (config.colclip_mode == GSHWDrawConfig::ColClipMode::ResolveOnly) ? GSVector4i::loadh(rtsize) : config.scissor, static_cast<FeedbackLoopFlag>(pipe.feedback_loop_flags));
 
 		// if this target was cleared and never drawn to, perform the clear as part of the resolve here.
 		if (draw_rt->GetState() == GSTexture::State::Cleared)
@@ -4291,14 +4362,18 @@ void GSDeviceVK::RenderHW(GSHWDrawConfig& config)
 				draw_rt->GetRect());
 		}
 
-		const GSVector4 drawareaf = GSVector4(config.drawarea);
+		const GSVector4 drawareaf = GSVector4(config.colclip_update_area);
 		const GSVector4 sRect(drawareaf / GSVector4(rtsize).xyxy());
 		SetPipeline(m_hdr_finish_pipelines[pipe.ds][pipe.IsRTFeedbackLoop()]);
 		SetUtilityTexture(hdr_rt, m_point_sampler);
 		DrawStretchRect(sRect, drawareaf, rtsize);
 
 		Recycle(hdr_rt);
+		g_gs_device->SetColorClipTexture(nullptr);
+		}
 	}
+
+	config.colclip_mode = GSHWDrawConfig::ColClipMode::NoModify;
 }
 
 void GSDeviceVK::UpdateHWPipelineSelector(GSHWDrawConfig& config, PipelineSelector& pipe)
