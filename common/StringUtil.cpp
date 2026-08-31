@@ -62,55 +62,6 @@ namespace StringUtil
 		return ret;
 	}
 
-	bool WildcardMatch(const char* subject, const char* mask, bool case_sensitive /*= true*/)
-	{
-		const auto match_char = [case_sensitive](char m, char s) {
-			return (m == '?') || (case_sensitive ? (m == s) : (std::tolower(m) == std::tolower(s)));
-		};
-
-		const char* cp = nullptr;
-		const char* mp = nullptr;
-
-		while ((*subject) && (*mask != '*'))
-		{
-			if (!match_char(*mask, *subject))
-				return false;
-
-			mask++;
-			subject++;
-		}
-
-		while (*subject)
-		{
-			if (*mask == '*')
-			{
-				if (*++mask == 0)
-					return true;
-
-				mp = mask;
-				cp = subject + 1;
-			}
-			else
-			{
-				if (match_char(*mask, *subject))
-				{
-					mask++;
-					subject++;
-				}
-				else
-				{
-					mask = mp;
-					subject = cp++;
-				}
-			}
-		}
-
-		while (*mask == '*')
-			mask++;
-
-		return *mask == 0;
-	}
-
 	std::string toLower(const std::string_view& input)
 	{
 		std::string newStr;

@@ -25,6 +25,7 @@
 #include <limits>
 #include <utility>
 
+#include <compat/fnmatch.h>
 #include <file/file_path.h>
 #include <retro_dirent.h>
 #include <streams/file_stream.h>
@@ -594,7 +595,7 @@ static u32 RecursiveFindFiles(const std::string& dir_path, const std::string& re
 
 		if (has_wildcards)
 		{
-			if (!match_all && !StringUtil::WildcardMatch(name, pattern))
+			if (!match_all && rl_fnmatch(pattern, name, 0) != 0)
 				continue;
 		}
 		else if (std::strcmp(name, pattern) != 0)

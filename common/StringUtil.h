@@ -55,7 +55,6 @@ namespace StringUtil
 	std::string StdStringFromFormatV(const char* format, std::va_list ap);
 
 	/// Checks if a wildcard matches a search string.
-	bool WildcardMatch(const char* subject, const char* mask, bool case_sensitive = true);
 
 	/// Wrapper around std::from_chars
 	template <typename T, std::enable_if_t<std::is_integral<T>::value, bool> = true>

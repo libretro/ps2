@@ -39,6 +39,8 @@
 
 #include "Ps1CD.h"
 #include "CDVD.h"
+
+#include <compat/fnmatch.h>
 #include "CDVD_internal.h"
 #include "IsoFileFormats.h"
 
@@ -484,8 +486,8 @@ static void ExecutablePathToSerial(char* out, size_t out_size, const char* path)
 	if (semi)
 		*semi = '\0';
 
-	if (   !StringUtil::WildcardMatch(out, "????_???.??*")
-	    && !StringUtil::WildcardMatch(out, "????" "-???.??*")) /* split: trigraph */
+	if (   rl_fnmatch("????_???.??*", out, 0) != 0
+	    && rl_fnmatch("????" "-???.??*", out, 0) != 0) /* split: trigraph */
 	{
 		out[0] = '\0';
 		return;
