@@ -4090,11 +4090,14 @@ __ri bool GSRendererHW::EmulateChannelShuffle(GSTextureCache::Target* src, bool 
 void GSRendererHW::EmulateBlending(int rt_alpha_min, int rt_alpha_max, const bool DATE, bool& DATE_PRIMID, bool& DATE_BARRIER,
 	GSTextureCache::Target* rt, bool can_scale_rt_alpha, bool& new_rt_alpha_scale)
 {
+	const GIFRegALPHA& ALPHA = m_context->ALPHA;
 	{
 		// AA1: Blending needs to be enabled on draw.
 		const bool AA1 = PRIM->AA1 && (m_vt.m_primclass == GS_LINE_CLASS || m_vt.m_primclass == GS_TRIANGLE_CLASS);
-		// PABE: Check condition early as an optimization.
-		const bool PABE = PRIM->ABE && m_draw_env->PABE.PABE && (GetAlphaMinMax().max < 128);
+		// PABE: Check condition early as an optimization, no blending when As < 128.
+		// For Cs*As + Cd*(1 - As) if As is 128 then blending can be disabled as well.
+		const bool PABE = PRIM->ABE && m_draw_env->PABE.PABE &&
+			((GetAlphaMinMax().max < 128) || (GetAlphaMinMax().max == 128 && ALPHA.A == 0 && ALPHA.B == 1 && ALPHA.C == 0 && ALPHA.D == 1));
 		// FBMASK: Color is not written, no need to do blending.
 		const u32 temp_fbmask = m_conf.ps.dst_fmt == GSLocalMemory::PSM_FMT_16 ? 0x00F8F8F8 : 0x00FFFFFF;
 		const bool FBMASK = (m_cached_ctx.FRAME.FBMSK & temp_fbmask) == temp_fbmask;
@@ -4112,7 +4115,6 @@ void GSRendererHW::EmulateBlending(int rt_alpha_min, int rt_alpha_max, const boo
 
 	// Compute the blending equation to detect special case
 	const GSDevice::FeatureSupport features(g_gs_device->Features());
-	const GIFRegALPHA& ALPHA = m_context->ALPHA;
 	const GIFRegCOLCLAMP& COLCLAMP = m_draw_env->COLCLAMP;
 	// AFIX: Afix factor.
 	u8 AFIX = ALPHA.FIX;
@@ -4438,20 +4440,11 @@ void GSRendererHW::EmulateBlending(int rt_alpha_min, int rt_alpha_max, const boo
 	if (m_draw_env->PABE.PABE && GetAlphaMinMax().min < 128)
 	{
 		// Breath of Fire Dragon Quarter, Strawberry Shortcake, Super Robot Wars, Cartoon Network Racing, Simple 2000 Series Vol.81, SOTC.
-		if (GetAlphaMinMax().max == 128 && m_conf.ps.blend_a == 0 && ((blend.dst == GSDevice::INV_SRC1_COLOR)
-			|| (blend.dst == GSDevice::INV_DST_ALPHA)
-			|| (blend.dst == GSDevice::INV_CONST_COLOR)))
-		{
-			// PABE disable blending:
-			// We can disable blending here as an optimization since alpha max is 128
-			// which if alpha is 1 in the formula Cs*Alpha + Cd*(1 - Alpha) will give us a result of Cs.
-			m_conf.blend = {};
-			m_conf.ps.no_color1 = true;
-			m_conf.ps.blend_a = m_conf.ps.blend_b = m_conf.ps.blend_c = m_conf.ps.blend_d = 0;
 
-			return;
-		}
-		else if (sw_blending)
+		// TODO: We can expand pabe hw to Cd*(1 - Alpha) where alpha is As or Af and replace the formula with Cs + 0 when As < 128,
+		// but need to find test cases where it makes a difference,
+		// C 12 Final Resistance triggers it but there's no difference and it's a psx game.
+		if (sw_blending)
 		{
 			if (accumulation_blend && (blend.op != GSDevice::OP_REV_SUBTRACT))
 			{
@@ -4815,9 +4808,9 @@ else if (alpha_c1_high_no_rta_correct && (blend_flag & BLEND_HW6))
 
 		if (m_conf.ps.blend_c == 2 && (m_conf.ps.blend_hw == HW_BLEND_SRC_ALPHA_DST_FACTOR
 			|| m_conf.ps.blend_hw == HW_BLEND_SRC_HALF_ONE_DST_FACTOR
-			|| m_conf.blend_multi_pass.blend_hw == HW_BLEND_SRC_ALPHA_DST_FACTOR
 			|| m_conf.ps.blend_hw == HW_BLEND_SRC_INV_DST_BLEND_HALF
-			|| m_conf.ps.blend_hw == HW_BLEND_INV_SRC_DST_BLEND_HALF))
+			|| m_conf.ps.blend_hw == HW_BLEND_INV_SRC_DST_BLEND_HALF
+			|| m_conf.blend_multi_pass.blend_hw == HW_BLEND_SRC_ALPHA_DST_FACTOR))
 			m_conf.cb_ps.TA_MaxDepth_Af.a = static_cast<float>(AFIX) / 128.0f;
 
 		const GSDevice::BlendFactor src_factor_alpha = m_conf.blend_multi_pass.enable ? GSDevice::CONST_ZERO : GSDevice::CONST_ONE;
