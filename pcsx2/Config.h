@@ -149,7 +149,6 @@ enum GamefixId
 
 	Fix_FpuMultiply = GamefixId_FIRST,
 	Fix_GoemonTlbMiss,
-	Fix_SoftwareRendererFMV,
 	Fix_SkipMpeg,
 	Fix_OPHFlag,
 	Fix_EETiming,
@@ -711,7 +710,6 @@ struct Pcsx2Config
 				bool
 					FpuMulHack    : 1, // Tales of Destiny hangs.
 					GoemonTlbHack : 1, // Goemon TLB miss hack. The game need to access unmapped virtual address. Instead to handle it as exception, TLB are preloaded at startup
-				        SoftwareRendererFMVHack : 1, // Switches to software renderer for FMVs
 				        SkipMPEGHack   : 1, // Skips MPEG videos (Katamari and other games need this)
 				        OPHFlagHack    : 1, // Bleach Blade Battlers
 				        EETimingHack   : 1, // General purpose timing hack.

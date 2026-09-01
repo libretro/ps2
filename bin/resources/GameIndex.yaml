@@ -101,15 +101,11 @@ GUST-00009:
   region: "NTSC-J"
   roundModes:
     eeRoundMode: 0 # Fixes jump issue.
-  gameFixes:
-    - SoftwareRendererFMVHack # Vertical lines in FMV.
   gsHWFixes:
     roundSprite: 1 # Fixes misalignment of textures in the Pause Menu.
 PAPX-90020:
   name: "Ghost in the Shell - Stand Alone Complex [Trial]"
   region: "NTSC-J"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes hash cache disabling itself.
   gsHWFixes:
     recommendedBlendingLevel: 4 # Improves banding and effect emulation.
     autoFlush: 1 # Fixes light bloom intensity.
@@ -164,8 +160,6 @@ PAPX-90210:
 PAPX-90211:
   name: "Extermination [Trial]"
   region: "NTSC-J"
-  gameFixes:
-    - SoftwareRendererFMVHack # Black FMV.
   gsHWFixes:
     halfPixelOffset: 4 # Fixes post processing position.
     nativeScaling: 2 # Fixes post effects.
@@ -256,8 +250,6 @@ PAPX-90236:
 PAPX-90330:
   name: "Saru! Get You! 2 - Ukki Ukki Disc"
   region: "NTSC-J"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes interlacing.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves shine on surfaces and lights.
     halfPixelOffset: 4 # Aligns motion blur more correctly to match software.
@@ -666,8 +658,6 @@ PCPX-96323:
 PCPX-96324:
   name: "Dual Hearts [Trial]"
   region: "NTSC-J"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes flashing FMV.
   gsHWFixes:
     deinterlace: 9 # Game looks better with Adaptive BFF.
     halfPixelOffset: 4 # Improves offset blur.
@@ -836,8 +826,6 @@ PCPX-96657:
   region: "NTSC-J"
   roundModes:
     vu0RoundMode: 2 # Fixes light sabre SPS in specific positions.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes interlacing.
   gsHWFixes:
     preloadFrameData: 1 # Fixes black background in the pause menu.
     halfPixelOffset: 2 # Fixes misaligned blur.
@@ -872,8 +860,6 @@ PDPX-99109:
 PKP2-00702:
   name: "Pandora - Kimi no Namae o Boku ha Shiru [Limited Edition]"
   region: "NTSC-J"
-  gameFixes:
-    - SoftwareRendererFMVHack # Vertical and horizontal lines in FMV.
 PUPX-93033:
   name: "PlayStation Seizou Kensa-you Disc 3 CD-ROM US-ban Ver1.1"
   region: "NTSC-U"
@@ -1280,8 +1266,6 @@ SCAJ-20070:
 SCAJ-20072:
   name: "Ghost in the Shell - Stand Alone Complex"
   region: "NTSC-Unk"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes hash cache disabling itself.
   gsHWFixes:
     recommendedBlendingLevel: 4 # Improves banding and effect emulation.
     autoFlush: 1 # Fixes light bloom intensity.
@@ -1473,8 +1457,6 @@ SCAJ-20102:
 SCAJ-20104:
   name: "Ace Combat 5 - The Unsung War"
   region: "NTSC-Unk"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes FMVs disabling hash cache.
   gsHWFixes:
     recommendedBlendingLevel: 2 # Helps banding when dithering is enabled.
     halfPixelOffset: 3 # Fixes ghosting in foggy maps.
@@ -1703,8 +1685,6 @@ SCAJ-20135:
 SCAJ-20136:
   name: "Ace Combat 5 - The Unsung War [PlayStation 2 the Best]"
   region: "NTSC-Unk"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes FMVs disabling hash cache.
   gsHWFixes:
     recommendedBlendingLevel: 2 # Helps banding when dithering is enabled.
     halfPixelOffset: 3 # Fixes ghosting in foggy maps.
@@ -1721,8 +1701,6 @@ SCAJ-20138:
   region: "NTSC-Unk"
   roundModes:
     vu0RoundMode: 2 # Fixes light sabre SPS in specific positions.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes interlacing.
   gsHWFixes:
     preloadFrameData: 1 # Fixes black background in the pause menu.
     halfPixelOffset: 2 # Fixes misaligned blur.
@@ -1757,8 +1735,6 @@ SCAJ-20144:
   region: "NTSC-C"
   roundModes:
     vu0RoundMode: 2 # Fixes light sabre SPS in specific positions.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes interlacing.
   gsHWFixes:
     preloadFrameData: 1 # Fixes black background in the pause menu.
     halfPixelOffset: 2 # Fixes misaligned blur.
@@ -1766,8 +1742,6 @@ SCAJ-20144:
 SCAJ-20145:
   name: "Tales of Legendia"
   region: "NTSC-J"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes garbage textures presumably from texture cache issue.
   gsHWFixes:
     getSkipCount: "GSC_TalesOfLegendia"
 SCAJ-20146:
@@ -1855,7 +1829,6 @@ SCAJ-20159:
   region: "NTSC-C"
   gameFixes:
     - EETimingHack # Fixes bad colours on character select when in Progressive Scan.
-    - SoftwareRendererFMVHack # Horizontal bottom line in FMV.
   clampModes:
     vuClampMode: 2 # Respawn issues, Fixes SPS, avoids teleporting characters.
   gsHWFixes:
@@ -1921,8 +1894,6 @@ SCAJ-20167:
 SCAJ-20168:
   name: "Rule of Rose"
   region: "NTSC-Unk"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes black FMVs in hardware and hash cache disabling itself.
   gsHWFixes:
     preloadFrameData: 1 # Fixes Black FMV's.
 SCAJ-20169:
@@ -1956,8 +1927,6 @@ SCAJ-20172:
 SCAJ-20173:
   name: "Ace Combat Zero - The Belkan War"
   region: "NTSC-Unk"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes FMVs disabling hash cache.
   gsHWFixes:
     recommendedBlendingLevel: 2 # Helps banding when dithering is enabled.
     halfPixelOffset: 3 # Fixes ghosting in foggy maps.
@@ -2075,8 +2044,6 @@ SCAJ-20195:
   region: "NTSC-C"
   roundModes:
     vu0RoundMode: 2 # Fixes light sabre SPS in specific positions.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes interlacing.
   gsHWFixes:
     preloadFrameData: 1 # Fixes black background in the pause menu.
     halfPixelOffset: 2 # Fixes misaligned blur.
@@ -2277,8 +2244,6 @@ SCAJ-30011:
 SCCS-40001:
   name: "Ape Escape 2"
   region: "NTSC-C"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes interlacing.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves shine on surfaces and lights.
     halfPixelOffset: 4 # Aligns motion blur more correctly to match software.
@@ -2337,8 +2302,6 @@ SCCS-40015:
   region: "NTSC-C"
   gsHWFixes:
     roundSprite: 1 # Aligns text boxes.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes black FMVs.
 SCCS-40016:
   name: "Ape Escape - Pumped & Primed"
   region: "NTSC-C"
@@ -2522,8 +2485,6 @@ SCED-50633:
 SCED-50642:
   name: "Final Fantasy X [Demo] [Final Fantasy VI PS1 - Bonus Disc]"
   region: "PAL-E"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes interlacing.
   roundModes:
     eeRoundMode: 1 # Fixes reverse control and boss in some places.
   clampModes:
@@ -2650,8 +2611,6 @@ SCED-50844:
 SCED-50907:
   name: "Final Fantasy X [Bonus Disc - Beyond Final Fantasy]"
   region: "PAL-Unk"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes interlacing.
   roundModes:
     eeRoundMode: 1 # Fixes reverse control and boss in some places.
   clampModes:
@@ -2790,8 +2749,6 @@ SCED-51359:
 SCED-51366:
   name: "Ape Escape 2 [Demo]"
   region: "PAL-M5"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes interlacing.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves shine on surfaces and lights.
     halfPixelOffset: 4 # Aligns motion blur more correctly to match software.
@@ -3614,8 +3571,6 @@ SCED-53070:
 SCED-53081:
   name: "Ace Combat - Squadron Leader [Demo]"
   region: "PAL-E"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes FMVs disabling hash cache.
   gsHWFixes:
     recommendedBlendingLevel: 2 # Helps banding when dithering is enabled.
     halfPixelOffset: 3 # Fixes ghosting in foggy maps.
@@ -3625,8 +3580,6 @@ SCED-53081:
 SCED-53115:
   name: "Ace Combat - Squadron Leader [Demo]"
   region: "PAL-E"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes FMVs disabling hash cache.
   gsHWFixes:
     recommendedBlendingLevel: 2 # Helps banding when dithering is enabled.
     halfPixelOffset: 3 # Fixes ghosting in foggy maps.
@@ -4294,8 +4247,6 @@ SCES-50139:
 SCES-50240:
   name: "Extermination"
   region: "PAL-M5"
-  gameFixes:
-    - SoftwareRendererFMVHack # Black FMV.
   gsHWFixes:
     halfPixelOffset: 4 # Fixes post processing position.
     nativeScaling: 2 # Fixes post effects.
@@ -4380,8 +4331,6 @@ SCES-50410:
   roundModes:
     eeRoundMode: 0 # Fixes autopilot being silly and crashing the plane.
   compat: 5
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes FMVs disabling hash cache.
   gsHWFixes:
     recommendedBlendingLevel: 2 # Helps banding when dithering is enabled.
     roundSprite: 1 # Fixes font and HUD artifacts.
@@ -4405,8 +4354,6 @@ SCES-50490:
   name: "Final Fantasy X"
   region: "PAL-E"
   compat: 5
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes interlacing.
   roundModes:
     eeRoundMode: 1 # Fixes reverse control and boss in some places.
   clampModes:
@@ -4417,8 +4364,6 @@ SCES-50490:
 SCES-50491:
   name: "Final Fantasy X"
   region: "PAL-F"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes interlacing.
   roundModes:
     eeRoundMode: 1 # Fixes reverse control and boss in some places.
   clampModes:
@@ -4430,8 +4375,6 @@ SCES-50492:
   name: "Final Fantasy X"
   region: "PAL-G"
   compat: 5
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes interlacing.
   roundModes:
     eeRoundMode: 1 # Fixes reverse control and boss in some places.
   clampModes:
@@ -4442,8 +4385,6 @@ SCES-50492:
 SCES-50493:
   name: "Final Fantasy X"
   region: "PAL-I"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes interlacing.
   roundModes:
     eeRoundMode: 1 # Fixes reverse control and boss in some places.
   clampModes:
@@ -4454,8 +4395,6 @@ SCES-50493:
 SCES-50494:
   name: "Final Fantasy X"
   region: "PAL-S"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes interlacing.
   roundModes:
     eeRoundMode: 1 # Fixes reverse control and boss in some places.
   clampModes:
@@ -4590,8 +4529,6 @@ SCES-50878:
 SCES-50885:
   name: "Ape Escape 2"
   region: "PAL-E"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes interlacing.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves shine on surfaces and lights.
     halfPixelOffset: 4 # Aligns motion blur more correctly to match software.
@@ -4737,32 +4674,24 @@ SCES-51041:
 SCES-51102:
   name: "Ape Escape 2"
   region: "PAL-F"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes interlacing.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves shine on surfaces and lights.
     halfPixelOffset: 4 # Aligns motion blur more correctly to match software.
 SCES-51103:
   name: "Ape Escape 2"
   region: "PAL-I"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes interlacing.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves shine on surfaces and lights.
     halfPixelOffset: 4 # Aligns motion blur more correctly to match software.
 SCES-51104:
   name: "Ape Escape 2"
   region: "PAL-G"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes interlacing.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves shine on surfaces and lights.
     halfPixelOffset: 4 # Aligns motion blur more correctly to match software.
 SCES-51105:
   name: "Ape Escape 2"
   region: "PAL-S"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes interlacing.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves shine on surfaces and lights.
     halfPixelOffset: 4 # Aligns motion blur more correctly to match software.
@@ -5214,8 +5143,6 @@ SCES-52424:
   name: "Ace Combat - Squadron Leader"
   region: "PAL-M5"
   compat: 5
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes FMVs disabling hash cache.
   gsHWFixes:
     recommendedBlendingLevel: 2 # Helps banding when dithering is enabled.
     halfPixelOffset: 3 # Fixes ghosting in foggy maps.
@@ -5665,8 +5592,6 @@ SCES-53642:
   compat: 5
   roundModes:
     vu0RoundMode: 2 # Fixes light sabre SPS in specific positions.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes interlacing.
   gsHWFixes:
     preloadFrameData: 1 # Fixes black background in the pause menu.
     halfPixelOffset: 2 # Fixes misaligned blur.
@@ -5810,8 +5735,6 @@ SCES-54025:
 SCES-54041:
   name: "Ace Combat - The Belkan War"
   region: "PAL-M5"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes FMVs disabling hash cache.
   gsHWFixes:
     recommendedBlendingLevel: 2 # Helps banding when dithering is enabled.
     halfPixelOffset: 3 # Fixes ghosting in foggy maps.
@@ -6755,8 +6678,6 @@ SCKA-20027:
   name: "Ghost in the Shell - Stand Alone Complex"
   region: "NTSC-K"
   compat: 5
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes hash cache disabling itself.
   gsHWFixes:
     recommendedBlendingLevel: 4 # Improves banding and effect emulation.
     autoFlush: 1 # Fixes light bloom intensity.
@@ -6864,8 +6785,6 @@ SCKA-20041:
 SCKA-20042:
   name: "Ace Combat 5 - The Unsung War"
   region: "NTSC-K"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes FMVs disabling hash cache.
   gsHWFixes:
     recommendedBlendingLevel: 2 # Helps banding when dithering is enabled.
     halfPixelOffset: 3 # Fixes ghosting in foggy maps.
@@ -7033,8 +6952,6 @@ SCKA-20062:
   region: "NTSC-K"
   roundModes:
     vu0RoundMode: 2 # Fixes light sabre SPS in specific positions.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes interlacing.
   gsHWFixes:
     preloadFrameData: 1 # Fixes black background in the pause menu.
     halfPixelOffset: 2 # Fixes misaligned blur.
@@ -7098,8 +7015,6 @@ SCKA-20069:
 SCKA-20070:
   name: "Ace Combat Zero - The Belkan War"
   region: "NTSC-K"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes FMVs disabling hash cache.
   gsHWFixes:
     recommendedBlendingLevel: 2 # Helps banding when dithering is enabled.
     halfPixelOffset: 3 # Fixes ghosting in foggy maps.
@@ -7178,8 +7093,6 @@ SCKA-20081:
 SCKA-20082:
   name: "Ace Combat 5 - The Unsung War [PlayStation 2 Big Hit Series]"
   region: "NTSC-K"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes FMVs disabling hash cache.
   gsHWFixes:
     recommendedBlendingLevel: 2 # Helps banding when dithering is enabled.
     halfPixelOffset: 3 # Fixes ghosting in foggy maps.
@@ -7281,8 +7194,6 @@ SCKA-20098:
 SCKA-20099:
   name: "Persona 3"
   region: "NTSC-K"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes interlacing.
 SCKA-20100:
   name: "Tales of Destiny"
   region: "NTSC-K"
@@ -7405,8 +7316,6 @@ SCKA-20132:
 SCKA-20133:
   name: "Ace Combat Zero - The Belkan War"
   region: "NTSC-K"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes FMVs disabling hash cache.
   gsHWFixes:
     recommendedBlendingLevel: 2 # Helps banding when dithering is enabled.
     halfPixelOffset: 3 # Fixes ghosting in foggy maps.
@@ -7827,8 +7736,6 @@ SCPS-15010:
 SCPS-15011:
   name: "Extermination"
   region: "NTSC-J"
-  gameFixes:
-    - SoftwareRendererFMVHack # Black FMV.
   gsHWFixes:
     halfPixelOffset: 4 # Fixes post processing position.
     nativeScaling: 2 # Fixes post effects.
@@ -7838,8 +7745,6 @@ SCPS-15012:
 SCPS-15013:
   name: "Poinie's Poin"
   region: "NTSC-J"
-  gameFixes:
-    - SoftwareRendererFMVHack # Prevents ingame flicker due to large clears/copies.
   gsHWFixes:
     textureInsideRT: 1 # Fixes text corruption.
 SCPS-15014:
@@ -7890,8 +7795,6 @@ SCPS-15021:
 SCPS-15022:
   name: "Dual Hearts"
   region: "NTSC-J"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes flashing FMV.
   gsHWFixes:
     deinterlace: 9 # Game looks better with Adaptive BFF.
     halfPixelOffset: 4 # Improves offset blur.
@@ -7911,8 +7814,6 @@ SCPS-15025:
   name: "Saru Get You 2"
   region: "NTSC-J"
   compat: 5
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes interlacing.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves shine on surfaces and lights.
     halfPixelOffset: 4 # Aligns motion blur more correctly to match software.
@@ -8131,8 +8032,6 @@ SCPS-15064:
   name: "Koukaku Kidoutai - Stand Alone Complex"
   region: "NTSC-J"
   compat: 5
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes hash cache disabling itself.
   gsHWFixes:
     recommendedBlendingLevel: 4 # Improves banding and effect emulation.
     autoFlush: 1 # Fixes light bloom intensity.
@@ -8337,8 +8236,6 @@ SCPS-15092:
 SCPS-15093:
   name: "Rule of Rose"
   region: "NTSC-J"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes black FMVs in hardware and hash cache disabling itself.
   compat: 5
   gsHWFixes:
     preloadFrameData: 1 # Fixes Black FMV's.
@@ -8356,8 +8253,6 @@ SCPS-15096:
   compat: 5
   roundModes:
     vu0RoundMode: 2 # Fixes light sabre SPS in specific positions.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes interlacing.
   gsHWFixes:
     preloadFrameData: 1 # Fixes black background in the pause menu.
     halfPixelOffset: 2 # Fixes misaligned blur.
@@ -8682,8 +8577,6 @@ SCPS-19151:
 SCPS-19152:
   name: "Saru Get You! 2 [PlayStation 2 the Best]"
   region: "NTSC-J"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes interlacing.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves shine on surfaces and lights.
     halfPixelOffset: 4 # Aligns motion blur more correctly to match software.
@@ -8702,8 +8595,6 @@ SCPS-19201:
 SCPS-19202:
   name: "Extermination [PlayStation 2 the Best]"
   region: "NTSC-J"
-  gameFixes:
-    - SoftwareRendererFMVHack # Black FMV.
   gsHWFixes:
     halfPixelOffset: 4 # Fixes post processing position.
     nativeScaling: 2 # Fixes post effects.
@@ -8724,8 +8615,6 @@ SCPS-19205:
 SCPS-19206:
   name: "Ape Escape 2 [PlayStation 2 the Best]"
   region: "NTSC-J"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes interlacing.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves shine on surfaces and lights.
     halfPixelOffset: 4 # Aligns motion blur more correctly to match software.
@@ -8880,8 +8769,6 @@ SCPS-19307:
 SCPS-19308:
   name: "Saru Get You 2 [PlayStation 2 the Best]"
   region: "NTSC-J"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes interlacing.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves shine on surfaces and lights.
     halfPixelOffset: 4 # Aligns motion blur more correctly to match software.
@@ -8909,8 +8796,6 @@ SCPS-19311:
   region: "NTSC-J"
   roundModes:
     vu0RoundMode: 2 # Fixes light sabre SPS in specific positions.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes interlacing.
   gsHWFixes:
     preloadFrameData: 1 # Fixes black background in the pause menu.
     halfPixelOffset: 2 # Fixes misaligned blur.
@@ -9065,8 +8950,6 @@ SCPS-19327:
   region: "NTSC-J"
   roundModes:
     vu0RoundMode: 2 # Fixes light sabre SPS in specific positions.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes interlacing.
   gsHWFixes:
     preloadFrameData: 1 # Fixes black background in the pause menu.
     halfPixelOffset: 2 # Fixes misaligned blur.
@@ -9181,8 +9064,6 @@ SCPS-55001:
   clampModes:
     eeClampMode: 2 # Otherwise freezes in various spots, check full intro.
     vuClampMode: 1 # Otherwise camera does not focus correctly on main character.
-  gameFixes:
-    - SoftwareRendererFMVHack # FMV is cut off to the upper left.
   gsHWFixes:
     mipmap: 1 # Title screen glow/post-processing store content in the mip chain and select it via LOD; LOD0-only sampling loses it.
     halfPixelOffset: 4 # Fixes misaligned bloom.
@@ -9234,16 +9115,12 @@ SCPS-55010:
 SCPS-55011:
   name: "Dual Hearts"
   region: "NTSC-J"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes flashing FMV.
   gsHWFixes:
     deinterlace: 9 # Game looks better with Adaptive BFF.
     halfPixelOffset: 4 # Improves offset blur.
 SCPS-55012:
   name: "Grandia II"
   region: "NTSC-J"
-  gameFixes:
-    - SoftwareRendererFMVHack # Vertical Lines in FMV.
 SCPS-55013:
   name: "Soul Reaver 2 - Legacy of Kain"
   region: "NTSC-J"
@@ -9351,8 +9228,6 @@ SCPS-55032:
 SCPS-55035:
   name: "Ape Escape 2"
   region: "NTSC-J"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes interlacing.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves shine on surfaces and lights.
     halfPixelOffset: 4 # Aligns motion blur more correctly to match software.
@@ -9407,8 +9282,6 @@ SCPS-55044:
 SCPS-55045:
   name: "Poinie's Poin"
   region: "NTSC-J"
-  gameFixes:
-    - SoftwareRendererFMVHack # Prevents ingame flicker due to large clears/copies
   gsHWFixes:
     textureInsideRT: 1 # Fixes text corruption.
 SCPS-55046:
@@ -9681,8 +9554,6 @@ SCUS-97112:
   name: "Extermination"
   region: "NTSC-U"
   compat: 5
-  gameFixes:
-    - SoftwareRendererFMVHack # Black FMV.
   gsHWFixes:
     halfPixelOffset: 4 # Fixes post processing position.
     nativeScaling: 2 # Fixes post effects.
@@ -9887,8 +9758,6 @@ SCUS-97159:
 SCUS-97160:
   name: "Extermination [Demo]"
   region: "NTSC-U"
-  gameFixes:
-    - SoftwareRendererFMVHack # Black FMV.
 SCUS-97161:
   name: "Kinetica [Demo]"
   region: "NTSC-U"
@@ -11247,8 +11116,6 @@ SCUS-97501:
   compat: 5
   roundModes:
     vu0RoundMode: 2 # Fixes light sabre SPS in specific positions.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes interlacing.
   gsHWFixes:
     preloadFrameData: 1 # Fixes black background in the pause menu.
     halfPixelOffset: 2 # Fixes misaligned blur.
@@ -11462,8 +11329,6 @@ SCUS-97548:
   region: "NTSC-U"
   roundModes:
     vu0RoundMode: 2 # Fixes light sabre SPS in specific positions.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes interlacing.
   gsHWFixes:
     preloadFrameData: 1 # Fixes black background in the pause menu.
     halfPixelOffset: 2 # Fixes misaligned blur.
@@ -12175,8 +12040,6 @@ SLED-50286:
 SLED-50359:
   name: "Devil May Cry [Demo]"
   region: "PAL-E"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes PAL interlacing issues.
   clampModes:
     vuClampMode: 3 # Fixes out of place polys (COP2).
   gsHWFixes:
@@ -12637,8 +12500,6 @@ SLED-53330:
     mipmap: 0 # Currently causes texture flickering.
     alignSprite: 1 # Fixes vertical lines.
     textureInsideRT: 1 # Fixes reflections.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes upscale lines in FMVs.
 SLED-53359:
   name: "LEGO Star Wars - The Video Game"
   region: "PAL-E"
@@ -12751,8 +12612,6 @@ SLED-53664:
 SLED-53673:
   name: "007 - From Russia with Love [Demo]"
   region: "PAL-E"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes lines in FMVs.
   gsHWFixes:
     textureInsideRT: 1 # Required for complex offset shuffles.
     halfPixelOffset: 4 # Fixes center upscaling line during explosions.
@@ -12886,8 +12745,6 @@ SLED-53983:
 SLED-54022:
   name: "Lara Croft Tomb Raider - Legend [Demo]"
   region: "PAL-E"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes broken FMVs on repeat plays.
   gsHWFixes:
     textureInsideRT: 1 # Needed for post processing effects.
     autoFlush: 1 # Fixes bloom intensity.
@@ -13588,8 +13445,6 @@ SLES-50247:
   name: "Onimusha - Warlords"
   region: "PAL-M3"
   compat: 5
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes flashing FMVs (Req EE cycle rate 50% for them to run).
   gsHWFixes:
     texturePreloading: 1 # Performs much better with partial preload.
   speedHacks:
@@ -13854,8 +13709,6 @@ SLES-50358:
   name: "Devil May Cry"
   region: "PAL-M5"
   compat: 5
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes PAL interlacing issues.
   gsHWFixes:
     disablePartialInvalidation: 1 # Fixes corrupt textures.
     halfPixelOffset: 2 # Alleviates blur from upscaling.
@@ -13863,8 +13716,6 @@ SLES-50358:
 SLES-50362:
   name: "Jonny Moseley Mad Trix"
   region: "PAL-E"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes missing FMVs.
 SLES-50364:
   name: "City Crisis"
   region: "PAL-M4"
@@ -14166,8 +14017,6 @@ SLES-50498:
   name: "Grandia II"
   region: "PAL-E"
   compat: 5
-  gameFixes:
-    - SoftwareRendererFMVHack # Vertical Lines in FMV.
 SLES-50503:
   name: "Weakest Link"
   region: "PAL-E"
@@ -14381,13 +14230,9 @@ SLES-50613:
 SLES-50619:
   name: "Jonny Moseley Mad Trix"
   region: "PAL-F-G"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes missing FMVs.
 SLES-50620:
   name: "Jonny Moseley Mad Trix"
   region: "PAL-I-S"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes missing FMVs.
 SLES-50628:
   name: "Simpsons Road Rage"
   region: "PAL-M5"
@@ -14561,8 +14406,6 @@ SLES-50713:
         // Snow effect has to be removed for this fix (needs accurate emulation).
         // Fixed by rearranging COP2 instructions.
         patch=1,EE,00214aec,word,00000000
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes broken FMVs.
 SLES-50714:
   name: "Defender"
   region: "PAL-M5"
@@ -16487,8 +16330,6 @@ SLES-51434:
   region: "PAL-M5"
   clampModes:
     vuClampMode: 2 # Fixes some lighting/shadow artefacts (most light sources like the Flashlight are unaffected).
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes blackscreen when FMV.
   gsHWFixes:
     recommendedBlendingLevel: 4 # Fixes menu transparancy effects and text.
   memcardFilters:
@@ -16672,8 +16513,6 @@ SLES-51523:
   name: "Conflict - Desert Storm II"
   region: "PAL-M5"
   compat: 5
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes seizure inducing FMVs.
 SLES-51525:
   name: "Fallout - Brotherhood of Steel"
   region: "PAL-M3"
@@ -16806,8 +16645,6 @@ SLES-51618:
 SLES-51619:
   name: "Clock Tower 3"
   region: "PAL-M5"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes brightness and striped lines in FMVs.
   compat: 5
 SLES-51620:
   name: "Black and Bruised"
@@ -17285,8 +17122,6 @@ SLES-51819:
 SLES-51820:
   name: "Sniper Elite"
   region: "PAL-M5"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes flashing menus after intro FMV plays.
   gsHWFixes:
     autoFlush: 2 # Fixes bloom misalignment.
     halfPixelOffset: 2 # Fixes bloom misalignment.
@@ -17454,8 +17289,6 @@ SLES-51861:
 SLES-51862:
   name: "Bass Master Fishing"
   region: "PAL-E"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes flickering FMVs.
 SLES-51863:
   name: "Maze Action"
   region: "PAL-E"
@@ -20603,8 +20436,6 @@ SLES-53017:
 SLES-53020:
   name: "Ghost in the Shell - Stand Alone Complex"
   region: "PAL-M5"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes hash cache disabling itself.
   gsHWFixes:
     recommendedBlendingLevel: 4 # Improves banding and effect emulation.
     autoFlush: 1 # Fixes light bloom intensity.
@@ -21010,8 +20841,6 @@ SLES-53125:
     mipmap: 0 # Currently causes texture flickering.
     alignSprite: 1 # Fixes vertical lines.
     textureInsideRT: 1 # Fixes reflections.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes upscale lines in FMVs.
 SLES-53127:
   name: "Teenage Mutant Ninja Turtles - Mutant Melee"
   region: "PAL-M5"
@@ -22294,8 +22123,6 @@ SLES-53552:
 SLES-53553:
   name: "007 - From Russia with Love"
   region: "PAL-M7"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes lines in FMVs.
   gsHWFixes:
     textureInsideRT: 1 # Required for complex offset shuffles.
     halfPixelOffset: 4 # Fixes center upscaling line during explosions.
@@ -22983,8 +22810,6 @@ SLES-53756:
 SLES-53758:
   name: "Sniper Elite [Pre-Production]"
   region: "PAL-E"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes flashing menus after intro FMV plays.
   gsHWFixes:
     autoFlush: 2 # Fixes bloom misalignment.
     halfPixelOffset: 2 # Fixes bloom misalignment.
@@ -23013,8 +22838,6 @@ SLES-53764:
   region: "PAL-E"
   gsHWFixes:
     roundSprite: 2 # Fixes character portraits when upscaling.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes horizontal lines in FMV and prevents hash cache from disabling itself.
 SLES-53765:
   name: "Stella Deus - The Gate of Eternity"
   region: "PAL-E"
@@ -23391,8 +23214,6 @@ SLES-53906:
 SLES-53908:
   name: "Tomb Raider - Legend"
   region: "PAL-M8"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes broken FMVs on repeat plays.
   compat: 5
   gsHWFixes:
     textureInsideRT: 1 # Needed for post processing effects.
@@ -24298,8 +24119,6 @@ SLES-54217:
 SLES-54218:
   name: "Rule of Rose"
   region: "PAL-M5"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes black FMVs in hardware and hash cache disabling itself.
   gsHWFixes:
     preloadFrameData: 1 # Fixes Black FMV's.
 SLES-54221:
@@ -24856,8 +24675,6 @@ SLES-54384:
 SLES-54385:
   name: "Atelier Iris 2 - The Azoth of Destiny"
   region: "PAL-E"
-  gameFixes:
-    - SoftwareRendererFMVHack # Flickering in FMV.
   gsHWFixes:
     roundSprite: 1 # Fixes font artifacts for health and other sprites.
     texturePreloading: 0 # Improves performance and prevents it disabling itself regardless.
@@ -27047,8 +26864,6 @@ SLES-55018:
   name: "Shin Megami Tensei - Persona 3"
   region: "PAL-E"
   compat: 5
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes interlacing.
 SLES-55019:
   name: "Ratchet & Clank - Size Matters"
   region: "PAL-M13"
@@ -27660,8 +27475,6 @@ SLES-55237:
   compat: 5
   clampModes:
     vuClampMode: 2 # Fixes invisible QTE button prompts and overbright in some scenes.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes vertical lines in FMVs.
   gsHWFixes:
     halfPixelOffset: 2 # Aligns post effects.
     nativeScaling: 2 # Fixes post effects.
@@ -28236,8 +28049,6 @@ SLES-55443:
   compat: 5
   roundModes:
     eeRoundMode: 0 # Fixes jump issue.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes vertical lines in FMVs.
   gsHWFixes:
     roundSprite: 1 # Fixes misalignment of textures in the Pause Menu.
 SLES-55444:
@@ -28331,8 +28142,6 @@ SLES-55480:
 SLES-55481:
   name: "Naruto Shippuden - Ultimate Ninja 4"
   region: "PAL-E-F"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes vertical lines in FMVs.
   gsHWFixes:
     halfPixelOffset: 2 # Aligns post effects.
     nativeScaling: 2 # Fixes post effects.
@@ -28342,8 +28151,6 @@ SLES-55481:
 SLES-55482:
   name: "Naruto Shippuden - Ultimate Ninja 4"
   region: "PAL-G-I-S"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes vertical lines in FMVs.
   gsHWFixes:
     halfPixelOffset: 2 # Aligns post effects.
     nativeScaling: 2 # Fixes post effects.
@@ -28623,8 +28430,6 @@ SLES-55605:
   name: "Naruto Shippuuden - Ultimate Ninja 5"
   region: "PAL-M5"
   compat: 5
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes vertical lines in FMVs.
   gsHWFixes:
     halfPixelOffset: 2 # Aligns post effects.
     nativeScaling: 2 # Fixes post effects.
@@ -29486,8 +29291,6 @@ SLKA-25050:
 SLKA-25051:
   name: "Clock Tower 3"
   region: "NTSC-K"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes brightness and striped lines in FMVs.
   compat: 5
 SLKA-25052:
   name: "Air Ranger 2 - Rescue Helicopter"
@@ -29548,8 +29351,6 @@ SLKA-25065:
   region: "NTSC-K"
   clampModes:
     vuClampMode: 2 # Fixes some lighting/shadow artefacts (most light sources like the Flashlight are unaffected).
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes blackscreen when FMV.
   gsHWFixes:
     recommendedBlendingLevel: 4 # Fixes menu transparancy effects and text.
 SLKA-25066:
@@ -32301,8 +32102,6 @@ SLPM-55268:
 SLPM-55269:
   name: "Pandora - Kimi no Namae o Boku ha Shiru"
   region: "NTSC-J"
-  gameFixes:
-    - SoftwareRendererFMVHack # Vertical and horizontal lines in FMV.
 SLPM-55270:
   name: "Shinkyoku Soukai Polyphonica - After School"
   region: "NTSC-J"
@@ -32378,8 +32177,6 @@ SLPM-55298:
 SLPM-60101:
   name: "0 Story [Trial]"
   region: "NTSC-J"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes removed bloom in FMV.
 SLPM-60102:
   name: "From Software First Previews"
   region: "NTSC-J"
@@ -32511,8 +32308,6 @@ SLPM-60140:
   region: "NTSC-J"
   gsHWFixes:
     roundSprite: 1 # Fixes font artifacts.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes black FMVs.
 SLPM-60141:
   name: "Golful Golf"
   region: "NTSC-J"
@@ -32545,8 +32340,6 @@ SLPM-60149:
   region: "NTSC-J"
   roundModes:
     eeRoundMode: 0 # Fixes autopilot being silly and crashing the plane.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes FMVs disabling hash cache.
   gsHWFixes:
     recommendedBlendingLevel: 2 # Helps banding when dithering is enabled.
     roundSprite: 1 # Fixes font and HUD artifacts.
@@ -33334,8 +33127,6 @@ SLPM-61110:
     mipmap: 0 # Currently causes texture flickering.
     alignSprite: 1 # Fixes vertical lines.
     textureInsideRT: 1 # Fixes reflections.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes upscale lines in FMVs.
 SLPM-61111:
   name: "Dragon Ball Z 3"
   region: "NTSC-J"
@@ -33480,8 +33271,6 @@ SLPM-61135:
   region: "NTSC-J"
   clampModes:
     vuClampMode: 2 # Fixes invisible QTE button prompts and overbright in some scenes.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes vertical lines in FMVs.
   gsHWFixes:
     halfPixelOffset: 2 # Aligns post effects.
     nativeScaling: 2 # Fixes post effects.
@@ -33557,8 +33346,6 @@ SLPM-61154:
 SLPM-61155:
   name: "Lara Croft Tomb Raider - Legend [Trial]"
   region: "NTSC-J"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes broken FMVs on repeat plays.
   gsHWFixes:
     textureInsideRT: 1 # Needed for post processing effects.
     autoFlush: 1 # Fixes bloom intensity.
@@ -33572,8 +33359,6 @@ SLPM-61156:
 SLPM-61157:
   name: "Naruto Shippuuden - Narutimate Accel [Trial]"
   region: "NTSC-J"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes vertical lines in FMVs.
   gsHWFixes:
     halfPixelOffset: 2 # Aligns post effects.
     nativeScaling: 2 # Fixes post effects.
@@ -33686,8 +33471,6 @@ SLPM-62026:
 SLPM-62027:
   name: "Snowboard Heaven"
   region: "NTSC-J"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes FMVs.
   # tex in rt makes videos semi appear in hardware but they are flashy and broken.
 SLPM-62028:
   name: "Greatest Striker"
@@ -34066,8 +33849,6 @@ SLPM-62148:
 SLPM-62150:
   name: "Simple 2000 Series Vol. 3 - The Bass Fishing"
   region: "NTSC-J"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes flickering FMVs.
 SLPM-62151:
   name: "Live GI Stable 2"
   region: "NTSC-J"
@@ -34406,8 +34187,6 @@ SLPM-62262:
 SLPM-62263:
   name: "Snowboard Heaven"
   region: "NTSC-J"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes FMVs.
   # tex in rt makes videos semi appear in hardware but they are flashy and broken.
 SLPM-62264:
   name: "Shin Contra"
@@ -36233,14 +36012,10 @@ SLPM-65002:
   name: "0 Story [Disc 1 of 2]"
   region: "NTSC-J"
   compat: 5
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes removed bloom in FMV.
 SLPM-65003:
   name: "0 Story [Disc 2 of 2]"
   region: "NTSC-J"
   compat: 5
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes removed bloom in FMV.
   memcardFilters:
     - "SLPM-65002"
 SLPM-65004:
@@ -36267,8 +36042,6 @@ SLPM-65010:
   compat: 5
   gsHWFixes:
     texturePreloading: 1 # Performs much better with partial preload.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes FMVs.
 SLPM-65011:
   name: "GUITAR FREAKS 3rd MIX & drummania 2nd MIX"
   region: "NTSC-J"
@@ -36741,8 +36514,6 @@ SLPM-65116:
   region: "NTSC-J"
   gsHWFixes:
     roundSprite: 1 # Fixes font artifacts.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes black FMVs.
 SLPM-65117:
   name: "Kikou Heidan J-Phoenix [Takara The Best]"
   region: "NTSC-J"
@@ -37147,8 +36918,6 @@ SLPM-65220:
 SLPM-65221:
   name: "Clock Tower 3"
   region: "NTSC-J"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes brightness and striped lines in FMVs.
   compat: 5
 SLPM-65222:
   name: "Yu-Gi-Oh! 2 [Konami The Best]"
@@ -37325,8 +37094,6 @@ SLPM-65257:
   compat: 5
   clampModes:
     vuClampMode: 2 # Fixes some lighting/shadow artefacts (most light sources like the Flashlight are unaffected).
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes blackscreen when FMV.
   gsHWFixes:
     recommendedBlendingLevel: 4 # Fixes menu transparancy effects and text.
   memcardFilters:
@@ -37555,8 +37322,6 @@ SLPM-65310:
 SLPM-65311:
   name: "Violet no Atelier - Gramnad no Renkinjutsushi"
   region: "NTSC-J"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes black FMVs.
   gsHWFixes:
     roundSprite: 1 # Aligns text boxes.
 SLPM-65313:
@@ -38600,8 +38365,6 @@ SLPM-65594:
   region: "NTSC-J"
   gsHWFixes:
     roundSprite: 2 # Fixes character portraits when upscaling.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes horizontal lines in FMV and prevents hash cache from disabling itself.
 SLPM-65595:
   name: "Gambler Densetsu Tetsuya 2 [Athena Best]"
   region: "NTSC-J"
@@ -38713,8 +38476,6 @@ SLPM-65622:
   region: "NTSC-J"
   clampModes:
     vuClampMode: 2 # Fixes some lighting/shadow artefacts (most light sources like the Flashlight are unaffected).
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes blackscreen when FMV.
   gsHWFixes:
     recommendedBlendingLevel: 4 # Fixes menu transparancy effects and text.
   memcardFilters:
@@ -38933,8 +38694,6 @@ SLPM-65682:
 SLPM-65683:
   name: "Violet no Atelier - Gramnad no Renkinjutsushi [Gust Best Price]"
   region: "NTSC-J"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes black FMVs.
   gsHWFixes:
     roundSprite: 1 # Aligns text boxes.
 SLPM-65684:
@@ -40016,8 +39775,6 @@ SLPM-65948:
     mipmap: 0 # Currently causes texture flickering.
     alignSprite: 1 # Fixes vertical lines.
     textureInsideRT: 1 # Fixes reflections.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes upscale lines in FMVs.
 SLPM-65949:
   name: "Get Ride! AM Driver - The Truth of Xiangke"
   region: "NTSC-J"
@@ -40228,8 +39985,6 @@ SLPM-65999:
 SLPM-66000:
   name: "Conflict Delta II - Gulf War 1991"
   region: "NTSC-J"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes seizure inducing FMVs.
 SLPM-66001:
   name: "Chocolat - Maid Cafe Curio"
   region: "NTSC-J"
@@ -40296,8 +40051,6 @@ SLPM-66018:
   region: "NTSC-J"
   clampModes:
     vuClampMode: 2 # Fixes some lighting/shadow artefacts (most light sources like the Flashlight are unaffected).
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes blackscreen when FMV.
   gsHWFixes:
     recommendedBlendingLevel: 4 # Fixes menu transparancy effects and text.
   memcardFilters:
@@ -40566,8 +40319,6 @@ SLPM-66081:
   region: "NTSC-J"
   gsHWFixes:
     roundSprite: 2 # Fixes character portraits when upscaling.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes horizontal lines in FMV and prevents hash cache from disabling itself.
 SLPM-66082:
   name: "Fire Pro Wrestling Returns"
   region: "NTSC-J"
@@ -40791,8 +40542,6 @@ SLPM-66123:
 SLPM-66124:
   name: "Final Fantasy X [Ultimate Hits]"
   region: "NTSC-J"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes interlacing.
   roundModes:
     eeRoundMode: 1 # Fixes reverse control and boss in some places.
   clampModes:
@@ -41433,8 +41182,6 @@ SLPM-66257:
     mipmap: 0 # Currently causes texture flickering.
     alignSprite: 1 # Fixes vertical lines.
     textureInsideRT: 1 # Fixes reflections.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes upscale lines in FMVs.
 SLPM-66258:
   name: "Magic Teacher Negima - Honor Version [Konami The Best]"
   region: "NTSC-J"
@@ -41715,8 +41462,6 @@ SLPM-66321:
 SLPM-66322:
   name: "007 - Russia yori Ai o Komete"
   region: "NTSC-J"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes lines in FMVs.
   gsHWFixes:
     textureInsideRT: 1 # Required for complex offset shuffles.
     halfPixelOffset: 4 # Fixes center upscaling line during explosions.
@@ -42229,8 +41974,6 @@ SLPM-66445:
   name: "Persona 3"
   region: "NTSC-J"
   compat: 5
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes interlacing.
 SLPM-66446:
   name: "Beat Down - Fists of Vengeance [CapKore]"
   region: "NTSC-J"
@@ -42515,8 +42258,6 @@ SLPM-66501:
   region: "NTSC-J"
   gsHWFixes:
     texturePreloading: 1 # Performs much better with partial preload.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes FMVs.
 SLPM-66502:
   name: "Devil May Cry [Mega Hits]"
   region: "NTSC-J"
@@ -42663,8 +42404,6 @@ SLPM-66536:
 SLPM-66537:
   name: "Iris no Atelier - Eternal Mana 2 [Gust Best Price]"
   region: "NTSC-J"
-  gameFixes:
-    - SoftwareRendererFMVHack # Horizontal lines in FMV.
   gsHWFixes:
     roundSprite: 1 # Fixes font artifacts for health and other sprites.
     texturePreloading: 0 # Improves performance and prevents it disabling itself regardless.
@@ -42722,8 +42461,6 @@ SLPM-66557:
 SLPM-66558:
   name: "Tomb Raider - Legend"
   region: "NTSC-J"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes broken FMVs on repeat plays.
   gsHWFixes:
     textureInsideRT: 1 # Needed for post processing effects.
     autoFlush: 1 # Fixes bloom intensity.
@@ -43604,7 +43341,6 @@ SLPM-66748:
     eeRoundMode: 0 # Fixes jump issue.
   gameFixes:
     - DMABusyHack
-    - SoftwareRendererFMVHack # Vertical lines in FMV.
 SLPM-66749:
   name: "Wizardry X 2 - Mugen no Gakuto [Wonder Price]"
   region: "NTSC-J"
@@ -44513,7 +44249,6 @@ SLPM-66994:
     eeRoundMode: 0 # Fixes jump issue.
   gameFixes:
     - DMABusyHack
-    - SoftwareRendererFMVHack # Vertical lines in FMV.
 SLPM-66995:
   name: "Beatmania IIDX 14 - Gold"
   region: "NTSC-J"
@@ -44666,8 +44401,6 @@ SLPM-67507:
   region: "NTSC-K"
   gsHWFixes:
     texturePreloading: 1 # Performs much better with partial preload.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes FMVs.
 SLPM-67508:
   name: "Gitaroo Man"
   region: "NTSC-K"
@@ -44884,8 +44617,6 @@ SLPM-68018:
 SLPM-68019:
   name: "Naruto Shippuuden - Narutimate Accel 2"
   region: "NTSC-J"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes vertical lines in FMVs.
   gsHWFixes:
     halfPixelOffset: 2 # Aligns post effects.
     nativeScaling: 2 # Fixes post effects.
@@ -44954,8 +44685,6 @@ SLPM-68519:
     mipmap: 0 # Currently causes texture flickering.
     alignSprite: 1 # Fixes vertical lines.
     textureInsideRT: 1 # Fixes reflections.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes upscale lines in FMVs.
 SLPM-68520:
   name: "Armored Core - Last Raven [Monthly Champion Magazine Special Edition]"
   region: "NTSC-J"
@@ -45074,8 +44803,6 @@ SLPM-74206:
   region: "NTSC-J"
   gsHWFixes:
     texturePreloading: 1 # Performs much better with partial preload.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes FMVs.
 SLPM-74208:
   name: "Tengai Makyou 2 - Manjimaru [PlayStation 2 the Best]"
   region: "NTSC-J"
@@ -45177,8 +44904,6 @@ SLPM-74231:
 SLPM-74232:
   name: "Shin Onimusha - Dawn of Dreams [PlayStation 2 the Best]"
   region: "NTSC-J"
-  gameFixes:
-    - SoftwareRendererFMVHack # Wrong white textures in FMV.
   gsHWFixes:
     halfPixelOffset: 4 # Mostly aligns post processing.
     nativeScaling: 2 # Fixes post processing smoothness and position.
@@ -45540,8 +45265,6 @@ SLPM-74415:
 SLPM-74416:
   name: "Clock Tower 3"
   region: "NTSC-J"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes brightness and striped lines in FMVs.
 SLPM-74420:
   name: "Initial D - Special Stage [PlayStation 2 the Best]"
   region: "NTSC-J"
@@ -47429,8 +47152,6 @@ SLPS-25045:
   region: "NTSC-J"
   gsHWFixes:
     roundSprite: 1 # Fixes font artifacts.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes black FMVs.
 SLPS-25046:
   name: "Golf Navigator Vol.1"
   region: "NTSC-J"
@@ -47444,8 +47165,6 @@ SLPS-25050:
   name: "Final Fantasy X"
   region: "NTSC-J"
   compat: 5
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes interlacing.
   roundModes:
     eeRoundMode: 1 # Fixes reverse control and boss in some places.
   clampModes:
@@ -47462,8 +47181,6 @@ SLPS-25052:
   roundModes:
     eeRoundMode: 0 # Fixes autopilot being silly and crashing the plane.
   compat: 5
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes FMVs disabling hash cache.
   gsHWFixes:
     recommendedBlendingLevel: 2 # Helps banding when dithering is enabled.
     roundSprite: 1 # Fixes font and HUD artifacts.
@@ -48945,8 +48662,6 @@ SLPS-25418:
   name: "Ace Combat 5 - The Unsung War"
   region: "NTSC-J"
   compat: 5
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes FMVs disabling hash cache.
   gsHWFixes:
     recommendedBlendingLevel: 2 # Helps banding when dithering is enabled.
     halfPixelOffset: 3 # Fixes ghosting in foggy maps.
@@ -49647,8 +49362,6 @@ SLPS-25589:
   region: "NTSC-J"
   clampModes:
     vuClampMode: 2 # Fixes invisible QTE button prompts and overbright in some scenes.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes vertical lines in FMVs.
   gsHWFixes:
     halfPixelOffset: 2 # Aligns post effects.
     nativeScaling: 2 # Fixes post effects.
@@ -49788,8 +49501,6 @@ SLPS-25628:
 SLPS-25629:
   name: "Ace Combat Zero - The Belkan War"
   region: "NTSC-J"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes FMVs disabling hash cache.
   gsHWFixes:
     recommendedBlendingLevel: 2 # Helps banding when dithering is enabled.
     halfPixelOffset: 3 # Fixes ghosting in foggy maps.
@@ -50420,8 +50131,6 @@ SLPS-25767:
 SLPS-25768:
   name: "Naruto Shippuuden Narutimate Accel"
   region: "NTSC-J"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes vertical lines in FMVs.
   gsHWFixes:
     halfPixelOffset: 2 # Aligns post effects.
     nativeScaling: 2 # Fixes post effects.
@@ -50696,8 +50405,6 @@ SLPS-25836:
 SLPS-25837:
   name: "Naruto Shippuuden - Narutimate Accel 2"
   region: "NTSC-J"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes vertical lines in FMVs.
   gsHWFixes:
     halfPixelOffset: 2 # Aligns post effects.
     nativeScaling: 2 # Fixes post effects.
@@ -51152,8 +50859,6 @@ SLPS-25944:
 SLPS-25945:
   name: "Lara Croft Tomb Raider - Legend [Best of Spike]"
   region: "NTSC-J"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes broken FMVs on repeat plays.
   gsHWFixes:
     textureInsideRT: 1 # Needed for post processing effects.
     autoFlush: 1 # Fixes bloom intensity.
@@ -51369,8 +51074,6 @@ SLPS-71502:
 SLPS-72501:
   name: "Final Fantasy X [Mega Hits]"
   region: "NTSC-J"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes interlacing.
   roundModes:
     eeRoundMode: 1 # Fixes reverse control and boss in some places.
   clampModes:
@@ -51483,8 +51186,6 @@ SLPS-73205:
   region: "NTSC-J"
   roundModes:
     eeRoundMode: 0 # Fixes autopilot being silly and crashing the plane.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes FMVs disabling hash cache.
   gsHWFixes:
     recommendedBlendingLevel: 2 # Helps banding when dithering is enabled.
     roundSprite: 1 # Fixes font and HUD artifacts.
@@ -51562,8 +51263,6 @@ SLPS-73217:
 SLPS-73218:
   name: "Ace Combat 5 - The Unsung War [PlayStation 2 the Best]"
   region: "NTSC-J"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes FMVs disabling hash cache.
   gsHWFixes:
     recommendedBlendingLevel: 2 # Helps banding when dithering is enabled.
     halfPixelOffset: 3 # Fixes ghosting in foggy maps.
@@ -51814,8 +51513,6 @@ SLPS-73249:
 SLPS-73250:
   name: "Ace Combat Zero - The Belkan War [PlayStation 2 the Best]"
   region: "NTSC-J"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes FMVs disabling hash cache.
   gsHWFixes:
     recommendedBlendingLevel: 2 # Helps banding when dithering is enabled.
     halfPixelOffset: 3 # Fixes ghosting in foggy maps.
@@ -51838,8 +51535,6 @@ SLPS-73251:
   region: "NTSC-J"
   clampModes:
     vuClampMode: 2 # Fixes invisible QTE button prompts and overbright in some scenes.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes vertical lines in FMVs.
   gsHWFixes:
     halfPixelOffset: 2 # Aligns post effects.
     nativeScaling: 2 # Fixes post effects.
@@ -51856,8 +51551,6 @@ SLPS-73253:
 SLPS-73254:
   name: "Makai Senki Disgaea [PlayStation 2 the Best]"
   region: "NTSC-J"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes flickering FMV's.
 SLPS-73255:
   name: "Fatal Frame [PlayStation 2 the Best - Reprint]"
   region: "NTSC-J"
@@ -51959,8 +51652,6 @@ SLPS-73410:
   region: "NTSC-J"
   roundModes:
     eeRoundMode: 0 # Fixes autopilot being silly and crashing the plane.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes FMVs disabling hash cache.
   gsHWFixes:
     recommendedBlendingLevel: 2 # Helps banding when dithering is enabled.
     roundSprite: 1 # Fixes font and HUD artifacts.
@@ -52165,8 +51856,6 @@ SLUS-20018:
   compat: 5
   gsHWFixes:
     texturePreloading: 1 # Performs much better with partial preload.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes FMVs.
 SLUS-20021:
   name: "Kengo - Master of Bushido"
   region: "NTSC-U"
@@ -52202,8 +51891,6 @@ SLUS-20035:
   name: "Baldur's Gate - Dark Alliance"
   region: "NTSC-U"
   compat: 5
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes FMVs.
   gsHWFixes:
     estimateTextureRegion: 1 # Improves performance.
     roundSprite: 1 # Fixes lines in menus.
@@ -52646,8 +52333,6 @@ SLUS-20152:
   roundModes:
     eeRoundMode: 0 # Fixes autopilot being silly and crashing the plane.
   compat: 5
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes FMVs disabling hash cache.
   gsHWFixes:
     recommendedBlendingLevel: 2 # Helps banding when dithering is enabled.
     roundSprite: 1 # Fixes font and HUD artifacts.
@@ -52810,8 +52495,6 @@ SLUS-20194:
   name: "Grandia II"
   region: "NTSC-U"
   compat: 5
-  gameFixes:
-    - SoftwareRendererFMVHack # Vertical Lines in FMV.
 SLUS-20195:
   name: "Dragon Rage"
   region: "NTSC-U"
@@ -53015,8 +52698,6 @@ SLUS-20229:
   name: "Jonny Moseley - Mad Trix"
   region: "NTSC-U"
   compat: 5
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes missing FMVs.
 SLUS-20230:
   name: "Max Payne"
   region: "NTSC-U"
@@ -53261,8 +52942,6 @@ SLUS-20284:
         // Snow effect has to be removed for this fix (and that needs accurate emulation).
         // Fixed by rearranging COP2 instructions.
         patch=1,EE,002131bc,word,00000000
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes broken  FMVs.
 SLUS-20285:
   name: "MotoGP 2"
   region: "NTSC-U"
@@ -53376,8 +53055,6 @@ SLUS-20312:
   name: "Final Fantasy X"
   region: "NTSC-U"
   compat: 5
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes interlacing.
   roundModes:
     eeRoundMode: 1 # Fixes reverse control and boss in some places.
   clampModes:
@@ -53989,8 +53666,6 @@ SLUS-20428:
   name: "Fisherman's Bass Club"
   region: "NTSC-U"
   compat: 5
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes flickering FMVs.
 SLUS-20429:
   name: "Riding Spirits"
   region: "NTSC-U"
@@ -54253,8 +53928,6 @@ SLUS-20475:
   name: "Dual Hearts"
   region: "NTSC-U"
   compat: 5
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes flashing FMV.
   gsHWFixes:
     deinterlace: 9 # Game looks better with Adaptive BFF.
     halfPixelOffset: 4 # Improves offset blur.
@@ -55019,8 +54692,6 @@ SLUS-20622:
   compat: 5
   clampModes:
     vuClampMode: 2 # Fixes some lighting/shadow artefacts (most light sources like the Flashlight are unaffected).
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes blackscreen when FMV.
   gsHWFixes:
     recommendedBlendingLevel: 4 # Fixes menu transparancy effects and text.
   memcardFilters: # Reads Silent Hill 2 for easter egg.
@@ -55074,8 +54745,6 @@ SLUS-20632:
 SLUS-20633:
   name: "Clock Tower 3"
   region: "NTSC-U"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes brightness and striped lines in FMVs.
   compat: 5
 SLUS-20634:
   name: "Summer Heat Beach Volleyball"
@@ -55305,8 +54974,6 @@ SLUS-20675:
   name: "Baldur's Gate - Dark Alliance II"
   region: "NTSC-U"
   compat: 5
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes FMVs.
   gsHWFixes:
     roundSprite: 1 # Fixes lines in sprites but still some lines left.
     estimateTextureRegion: 1 # Improves performance.
@@ -55348,8 +55015,6 @@ SLUS-20685:
   name: "Ape Escape 2"
   region: "NTSC-U"
   compat: 5
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes interlacing.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves shine on surfaces and lights.
     halfPixelOffset: 4 # Aligns motion blur more correctly to match software.
@@ -55384,8 +55049,6 @@ SLUS-20688:
 SLUS-20689:
   name: "Conflict - Desert Storm 2 - Back to Baghdad"
   region: "NTSC-U"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes seizure inducing FMVs.
 SLUS-20690:
   name: "G1 Jockey 3"
   region: "NTSC-U"
@@ -56218,8 +55881,6 @@ SLUS-20851:
   name: "Ace Combat 5 - The Unsung War"
   region: "NTSC-U"
   compat: 5
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes FMVs disabling hash cache.
   gsHWFixes:
     recommendedBlendingLevel: 2 # Helps banding when dithering is enabled.
     halfPixelOffset: 3 # Fixes ghosting in foggy maps.
@@ -56965,8 +56626,6 @@ SLUS-20967:
     mipmap: 0 # Currently causes texture flickering.
     alignSprite: 1 # Fixes vertical lines.
     textureInsideRT: 1 # Fixes reflections.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes upscale lines in FMVs.
 SLUS-20968:
   name: "Karaoke Revolution Volume 2"
   region: "NTSC-U"
@@ -57196,8 +56855,6 @@ SLUS-21006:
   name: "Ghost in the Shell - Stand Alone Complex"
   region: "NTSC-U"
   compat: 5
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes hash cache disabling itself.
   gsHWFixes:
     recommendedBlendingLevel: 4 # Improves banding and effect emulation.
     autoFlush: 1 # Fixes light bloom intensity.
@@ -57769,8 +57426,6 @@ SLUS-21099:
 SLUS-21100:
   name: "NCAA March Madness 2005"
   region: "NTSC-U"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes lines when upscaling.
 SLUS-21101:
   name: "Mortal Kombat - Deception [Premium Pack]"
   region: "NTSC-U"
@@ -57858,8 +57513,6 @@ SLUS-21113:
   region: "NTSC-U"
   gsHWFixes:
     roundSprite: 2 # Fixes character portraits when upscaling.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes horizontal lines in FMV and prevents hash cache from disabling itself.
   compat: 5
 SLUS-21114:
   name: "NHRA Championship Drag Racing"
@@ -58365,8 +58018,6 @@ SLUS-21202:
 SLUS-21203:
   name: "Tomb Raider - Legend"
   region: "NTSC-U"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes broken FMVs on repeat plays.
   compat: 5
   gsHWFixes:
     textureInsideRT: 1 # Needed for post processing effects.
@@ -58554,8 +58205,6 @@ SLUS-21230:
 SLUS-21231:
   name: "Sniper Elite"
   region: "NTSC-U"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes flashing menus after intro FMV plays.
   compat: 5
   gsHWFixes:
     autoFlush: 2 # Fixes bloom misalignment.
@@ -58980,8 +58629,6 @@ SLUS-21282:
   name: "007 - From Russia with Love"
   region: "NTSC-U"
   compat: 5
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes lines in FMVs.
   gsHWFixes:
     textureInsideRT: 1 # Required for complex offset shuffles.
     halfPixelOffset: 4 # Fixes center upscaling line during explosions.
@@ -59399,8 +59046,6 @@ SLUS-21346:
   name: "Ace Combat Zero - The Belkan War"
   region: "NTSC-U"
   compat: 5
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes FMVs disabling hash cache.
   gsHWFixes:
     recommendedBlendingLevel: 2 # Helps banding when dithering is enabled.
     halfPixelOffset: 3 # Fixes ghosting in foggy maps.
@@ -60109,8 +59754,6 @@ SLUS-21447:
 SLUS-21448:
   name: "Rule of Rose"
   region: "NTSC-U"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes black FMVs in hardware and hash cache disabling itself.
   compat: 5
   gsHWFixes:
     preloadFrameData: 1 # Fixes Black FMV's.
@@ -60643,8 +60286,6 @@ SLUS-21569:
   name: "Shin Megami Tensei - Persona 3"
   region: "NTSC-U"
   compat: 5
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes interlacing.
 SLUS-21570:
   name: "Heatseeker"
   region: "NTSC-U"
@@ -61565,8 +61206,6 @@ SLUS-21727:
   compat: 5
   clampModes:
     vuClampMode: 2 # Fixes invisible QTE button prompts and overbright in some scenes.
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes vertical lines in FMVs.
   gsHWFixes:
     halfPixelOffset: 2 # Aligns post effects.
     nativeScaling: 2 # Fixes post effects.
@@ -61628,8 +61267,6 @@ SLUS-21735:
   compat: 5
   roundModes:
     eeRoundMode: 0 # Fixes jump issue.
-  gameFixes:
-    - SoftwareRendererFMVHack # Vertical lines in FMV.
   gsHWFixes:
     roundSprite: 1 # Fixes misalignment of textures in the Pause Menu.
 SLUS-21736:
@@ -62271,8 +61908,6 @@ SLUS-21862:
   name: "Naruto Shippuden - Ultimate Ninja 4"
   region: "NTSC-U"
   compat: 5
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes vertical lines in FMVs.
   gsHWFixes:
     halfPixelOffset: 2 # Aligns post effects.
     nativeScaling: 2 # Fixes post effects.
@@ -62789,8 +62424,6 @@ SLUS-28012:
 SLUS-28013:
   name: "Dual Hearts [Trade Demo]"
   region: "NTSC-U"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes flashing FMV.
   gsHWFixes:
     deinterlace: 9 # Game looks better with Adaptive BFF.
     halfPixelOffset: 4 # Improves offset blur.
@@ -62939,8 +62572,6 @@ SLUS-28062:
 SLUS-28063:
   name: "Rule of Rose [Trade Demo]"
   region: "NTSC-U"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes black FMVs in hardware and hash cache disabling itself.
   gsHWFixes:
     preloadFrameData: 1 # Fixes Black FMV's.
 SLUS-28064:
@@ -62954,8 +62585,6 @@ SLUS-28065:
 SLUS-28067:
   name: "Shin Megami Tensei - Persona 3 [Trade Demo]"
   region: "NTSC-U"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes interlacing.
 SLUS-28068:
   name: "Shin Megami Tensei - Persona 3 FES [Trade Demo]"
   region: "NTSC-U"
@@ -63067,8 +62696,6 @@ SLUS-29032:
 SLUS-29033:
   name: "Dual Hearts [Regular Demo]"
   region: "NTSC-U"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes flashing FMV.
   gsHWFixes:
     deinterlace: 9 # Game looks better with Adaptive BFF.
     halfPixelOffset: 4 # Improves offset blur.
@@ -63366,8 +62993,6 @@ SLUS-29118:
 SLUS-29123:
   name: "Ghost in the Shell - Stand Alone Complex [Demo]"
   region: "NTSC-U"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes hash cache disabling itself.
   gsHWFixes:
     recommendedBlendingLevel: 4 # Improves banding and effect emulation.
     autoFlush: 1 # Fixes light bloom intensity.
@@ -63431,8 +63056,6 @@ SLUS-29134:
 SLUS-29135:
   name: "NCAA March Madness 2005 [Demo]"
   region: "NTSC-U"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes lines when upscaling.
 SLUS-29137:
   name: "Mercenaries - Playground of Destruction [Demo]"
   region: "NTSC-U"
@@ -63593,8 +63216,6 @@ SLUS-29167:
 SLUS-29168:
   name: "007 - From Russia with Love [Demo]"
   region: "NTSC-U"
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes lines in FMVs.
   gsHWFixes:
     textureInsideRT: 1 # Required for complex offset shuffles.
     halfPixelOffset: 4 # Fixes center upscaling line during explosions.

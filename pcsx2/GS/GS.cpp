@@ -562,22 +562,6 @@ void GSUpdateConfig(const Pcsx2Config::GSOptions& new_config, enum retro_hw_cont
 		g_gs_renderer->PurgeTextureCache(true, false, true);
 }
 
-void GSSwitchRenderer(GSRendererType new_renderer, enum retro_hw_context_type api, GSInterlaceMode new_interlace)
-{
-	if (new_renderer == GSRendererType::Auto)
-		new_renderer = GSsetRenderer(api);
-
-	if (!g_gs_renderer || GSConfig.Renderer == new_renderer)
-		return;
-
-	const bool is_software_switch = (new_renderer == GSRendererType::SW || GSConfig.Renderer == GSRendererType::SW);
-	const Pcsx2Config::GSOptions old_config(GSConfig);
-	GSConfig.Renderer = new_renderer;
-	GSConfig.InterlaceMode = new_interlace;
-	if (!GSreopen(!is_software_switch, true, old_config))
-		Console.Error("Failed to reopen GS for renderer switch.");
-}
-
 #ifdef _WIN32
 
 #include "../../common/RedtapeWindows.h"

@@ -469,48 +469,6 @@ void UpdateVSyncRate(bool force)
 	}
 }
 
-// FMV switch stuff
-extern u64 eecount_on_last_vdec;
-extern bool FMVstarted;
-extern bool EnableFMV;
-
-static bool RendererSwitched = false;
-static bool s_last_fmv_state = false;
-
-static __fi void DoFMVSwitch(void)
-{
-	bool new_fmv_state = s_last_fmv_state;
-	if (EnableFMV)
-	{
-		new_fmv_state = true;
-		EnableFMV = false;
-	}
-	else if (FMVstarted)
-	{
-		const int diff = cpuRegs.cycle - eecount_on_last_vdec;
-		if (diff > 60000000)
-		{
-			new_fmv_state = false;
-			FMVstarted = false;
-		}
-	}
-
-	if (new_fmv_state == s_last_fmv_state)
-		return;
-
-	s_last_fmv_state = new_fmv_state;
-
-	if (EmuConfig.Gamefixes.SoftwareRendererFMVHack && (GSConfig.UseHardwareRenderer() || (RendererSwitched && GSConfig.Renderer == GSRendererType::SW)))
-	{
-		RendererSwitched = GSConfig.UseHardwareRenderer();
-
-		// we don't use the sw toggle here, because it'll change back to auto if set to sw
-		MTGS::SwitchRenderer(new_fmv_state ? GSRendererType::SW : EmuConfig.GS.Renderer, new_fmv_state ? GSInterlaceMode::AdaptiveTFF : EmuConfig.GS.InterlaceMode);
-	}
-	else
-		RendererSwitched = false;
-}
-
 static __fi void _cpuTestTarget(int i)
 {
 	if (counters[i].count < counters[i].target)
@@ -615,8 +573,6 @@ static __fi void rcntStartGate(bool isVblank, u64 sCycle)
 static __fi void VSyncStart(u64 sCycle)
 {
 	int i;
-	// Update vibration at the end of a frame.
-	DoFMVSwitch();
 	for (i = 0; static_cast<size_t>(i) < Patch.size(); i++)
 	{
 		int _place = Patch[i].placetopatch;

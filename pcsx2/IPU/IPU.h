@@ -228,11 +228,8 @@ union tIPU_cmd
 
 static IPUregisters& ipuRegs = (IPUregisters&)eeHw[0x2000];
 
-extern bool FMVstarted;
-extern bool EnableFMV;
 
 alignas(16) extern tIPU_cmd ipu_cmd;
-extern u64 eecount_on_last_vdec;
 
 extern void ipuReset();
 

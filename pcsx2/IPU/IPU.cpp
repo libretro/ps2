@@ -52,9 +52,6 @@ alignas(16) const int non_linear_quantizer_scale[32] =
 	56, 64, 72, 80, 88, 96, 104, 112
 };
 
-u64 eecount_on_last_vdec = 0;
-bool FMVstarted = false;
-bool EnableFMV = false;
 
 // Also defined in IPU_MultiISA.cpp, but IPU.cpp is not unshared.
 // whenever reading fractions of bytes. The low bits always come from the next byte

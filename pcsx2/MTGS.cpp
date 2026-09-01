@@ -554,14 +554,6 @@ void MTGS::ApplySettings()
 		WaitGS(false);
 }
 
-void MTGS::SwitchRenderer(GSRendererType renderer, GSInterlaceMode interlace)
-{
-	GSSwitchRenderer(renderer, hw_render.context_type, interlace);
-	// See note in ApplySettings() for reasoning here.
-	if (EmuConfig.GS.HWDownloadMode == GSHardwareDownloadMode::Unsynchronized)
-		WaitGS(false);
-}
-
 // Adds a finished GS Packet to the MTGS ring buffer
 void Gif_AddCompletedGSPacket(GS_Packet& _gsPack, GIF_PATH _path)
 {

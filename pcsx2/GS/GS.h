@@ -76,7 +76,6 @@ int GSfreeze(FreezeAction mode, freezeData* data);
 void GSGameChanged(void);
 
 void GSUpdateConfig(const Pcsx2Config::GSOptions& new_config, enum retro_hw_context_type api);
-void GSSwitchRenderer(GSRendererType new_renderer, enum retro_hw_context_type api, GSInterlaceMode new_interlace);
 
 namespace Host
 {
