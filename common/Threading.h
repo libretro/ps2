@@ -277,6 +277,16 @@ namespace Threading
 	/// Usage:
 	/// - Processing thread loops on `WaitForWork()` followed by processing all work in the queue
 	/// - Threads adding work first add their work to the queue, then call `NotifyOfWork()`
+	///
+	/// This is an eventcount, and libretro-common ships one too --
+	/// retro_eventcount, in rthreads/. Measured on the producer side with
+	/// the consumer awake, which is what the EE pays per GS packet, this
+	/// one is cheaper: NotifyOfWork is 6.2 ns against 8.7-9.6 ns for
+	/// retro_eventcount_notify, because it is a single fetch_add where the
+	/// other does a read-modify-write and then a sequentially-consistent
+	/// load. It also carries what a plain eventcount does not -- WaitForEmpty,
+	/// WaitForWorkTimed, the DEAD state -- and MTGS depends on all three.
+	/// So it stays. The wake side was not compared; that needs two cores.
 	class WorkSema
 	{
 		/// Semaphore for sleeping the worker thread
