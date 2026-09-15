@@ -69,7 +69,7 @@ if [ -d "$EXPECTED" ]; then
 		-I "$ROOT/common" -I "$ROOT/common/include" -I "$ROOT/3rdparty/include" \
 		-I "$ROOT/libretro/libretro-common/include" \
 		-o "$DIR/ee_hwrealee" "$DIR/hwrealee.cpp" "$DIR/hwrealee_stubs.cpp" \
-		"$ROOT/pcsx2/R5900OpcodeImpl.cpp" "$ROOT/pcsx2/R5900OpcodeTables.cpp"
+		"$ROOT/pcsx2/R5900OpcodeImpl.cpp" "$ROOT/pcsx2/R5900OpcodeTables.cpp" "$ROOT/libretro/libretro-common/queues/retro_spsc.c"
 	"$DIR/ee_hwrealee" "$EXPECTED"
 else
 	echo "  skipped: set PS2AUTOTESTS to a ps2autotests checkout to run this"
@@ -85,7 +85,7 @@ if [ -f "$EXPECTED" ]; then
 	${CXX:-c++} -std=c++17 -O1 -w $SANFLAGS -I "$ROOT" -I "$ROOT/pcsx2" \
 		-I "$ROOT/common" -I "$ROOT/common/include" -I "$ROOT/3rdparty/include" \
 		-I "$ROOT/libretro/libretro-common/include" \
-		-o "$DIR/ee_hwspr" "$DIR/hwspr.cpp" "$ROOT/pcsx2/SPR.cpp"
+		-o "$DIR/ee_hwspr" "$DIR/hwspr.cpp" "$ROOT/pcsx2/SPR.cpp" "$ROOT/libretro/libretro-common/queues/retro_spsc.c"
 	"$DIR/ee_hwspr" "$EXPECTED"
 else
 	echo "  skipped: set PS2AUTOTESTS to a ps2autotests checkout to run this"
@@ -95,7 +95,7 @@ echo "== GS SIGNAL and LABEL merges vs console =="
 ${CXX:-c++} -std=c++17 -O1 -w $SANFLAGS -I "$ROOT" -I "$ROOT/pcsx2" \
 	-I "$ROOT/common" -I "$ROOT/common/include" -I "$ROOT/3rdparty/include" \
 	-I "$ROOT/libretro/libretro-common/include" \
-	-o "$DIR/ee_hwgslabel" "$DIR/hwgslabel.cpp" "$ROOT/pcsx2/Gif_Unit.cpp"
+	-o "$DIR/ee_hwgslabel" "$DIR/hwgslabel.cpp" "$ROOT/pcsx2/Gif_Unit.cpp" "$ROOT/libretro/libretro-common/queues/retro_spsc.c"
 "$DIR/ee_hwgslabel"
 
 echo "== DMAC CPCOND0 vs console =="
