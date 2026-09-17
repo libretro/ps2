@@ -10,6 +10,7 @@
 #include "common/Console.h"
 #include "logging.hpp"
 #include <stdarg.h>
+#include <vector>
 
 using namespace Vulkan;
 using namespace ParallelGS;
@@ -145,19 +146,85 @@ bool pgs_create_device2(
 	if (Vulkan::Context::get_instance_proc_addr() != get_instance_proc_addr)
 		return false;
 
+	/* The frontend presents on its own queue when the graphics family
+	 * has one to spare: its vkQueuePresentKHR then holds no lock, and
+	 * this core's submissions - which go through the frontend's
+	 * lock_queue - are never held behind a present that is waiting on
+	 * the display (the exclusive-fullscreen path on NVIDIA waits inside
+	 * the call). Granite creates exactly the queues it uses, so the
+	 * device is created with one more in the graphics family than
+	 * Granite asked for, where the family offers it; Granite never sees
+	 * that queue, and the frontend gets it as presentation_queue. */
 	struct Factory final : Vulkan::DeviceFactory
 	{
 		VkDevice create_device(VkPhysicalDevice gpu, const VkDeviceCreateInfo *info) override
 		{
-			return wrapper(gpu, opaque, info);
+			VkDeviceCreateInfo patched = *info;
+			std::vector<VkDeviceQueueCreateInfo> queues(
+				info->pQueueCreateInfos, info->pQueueCreateInfos + info->queueCreateInfoCount);
+			std::vector<float> priorities;
+
+			extra_present_queue = false;
+			if (family_queue_count)
+			{
+				for (auto &q : queues)
+				{
+					if (q.queueFamilyIndex != graphics_family || q.queueCount + 1 > family_queue_count)
+						continue;
+					priorities.assign(q.pQueuePriorities, q.pQueuePriorities + q.queueCount);
+					priorities.push_back(0.5f);
+					q.queueCount++;
+					q.pQueuePriorities = priorities.data();
+					extra_present_queue = true;
+					break;
+				}
+			}
+			patched.pQueueCreateInfos = queues.data();
+			patched.queueCreateInfoCount = uint32_t(queues.size());
+			return wrapper(gpu, opaque, &patched);
 		}
 
 		retro_vulkan_create_device_wrapper_t wrapper = nullptr;
 		void *opaque = nullptr;
+		uint32_t graphics_family = VK_QUEUE_FAMILY_IGNORED;
+		uint32_t family_queue_count = 0;
+		bool extra_present_queue = false;
 	} factory;
 
 	factory.wrapper = create_device_wrapper;
 	factory.opaque = opaque;
+
+	/* Which family Granite will pick is its choice; the extra queue is
+	 * only requested for the graphics family, and only when the family
+	 * has more queues than the create info asks for. The properties
+	 * are read here, before init_device, through the instance. */
+	{
+		auto gipa = Vulkan::Context::get_instance_proc_addr();
+		auto get_props = reinterpret_cast<PFN_vkGetPhysicalDeviceQueueFamilyProperties>(
+			gipa(instance, "vkGetPhysicalDeviceQueueFamilyProperties"));
+		auto get_present = reinterpret_cast<PFN_vkGetPhysicalDeviceSurfaceSupportKHR>(
+			gipa(instance, "vkGetPhysicalDeviceSurfaceSupportKHR"));
+		if (get_props)
+		{
+			uint32_t count = 0;
+			get_props(gpu, &count, nullptr);
+			std::vector<VkQueueFamilyProperties> props(count);
+			get_props(gpu, &count, props.data());
+			for (uint32_t i = 0; i < count; i++)
+			{
+				VkBool32 present = surface == VK_NULL_HANDLE;
+				if (!present && get_present)
+					get_present(gpu, i, surface, &present);
+				if ((props[i].queueFlags & (VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT)) ==
+				        (VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT) && present)
+				{
+					factory.graphics_family = i;
+					factory.family_queue_count = props[i].queueCount;
+					break;
+				}
+			}
+		}
+	}
 	vulkan_ctx->set_device_factory(&factory);
 
 	if (!vulkan_ctx->init_device(gpu, surface, nullptr, 0, Vulkan::CONTEXT_CREATION_ENABLE_PUSH_DESCRIPTOR_BIT))
@@ -166,10 +233,24 @@ bool pgs_create_device2(
 	vulkan_ctx->release_device();
 	context->gpu = vulkan_ctx->get_gpu();
 	context->device = vulkan_ctx->get_device();
-	context->presentation_queue = vulkan_ctx->get_queue_info().queues[Vulkan::QUEUE_INDEX_GRAPHICS];
-	context->presentation_queue_family_index = vulkan_ctx->get_queue_info().family_indices[Vulkan::QUEUE_INDEX_GRAPHICS];
 	context->queue = vulkan_ctx->get_queue_info().queues[Vulkan::QUEUE_INDEX_GRAPHICS];
 	context->queue_family_index = vulkan_ctx->get_queue_info().family_indices[Vulkan::QUEUE_INDEX_GRAPHICS];
+	context->presentation_queue = context->queue;
+	context->presentation_queue_family_index = context->queue_family_index;
+
+	/* The extra queue sits right after the ones Granite took in that
+	 * family: counts[] is how many it created there. Only when Granite
+	 * chose the family the extra queue was added to. */
+	if (factory.extra_present_queue &&
+	    factory.graphics_family == vulkan_ctx->get_queue_info().family_indices[Vulkan::QUEUE_INDEX_GRAPHICS])
+	{
+		VkQueue present_queue = VK_NULL_HANDLE;
+		vulkan_ctx->get_device_table().vkGetDeviceQueue(
+			context->device, factory.graphics_family,
+			vulkan_ctx->get_queue_info().counts[Vulkan::QUEUE_INDEX_GRAPHICS], &present_queue);
+		if (present_queue != VK_NULL_HANDLE)
+			context->presentation_queue = present_queue;
+	}
 	return true;
 }
 
