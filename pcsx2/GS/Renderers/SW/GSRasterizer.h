@@ -165,7 +165,7 @@ public:
 			return;
 		}
 		while (retro_spsc_write_begin(&m_queue, &dst) < sizeof(T))
-			Threading::Timeslice();
+			sthread_yield();
 		new (dst) T(item);
 		retro_spsc_write_end(&m_queue, sizeof(T));
 		work_eventcount_notify(&m_sema);

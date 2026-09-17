@@ -213,8 +213,7 @@ SOURCES_CXX += \
 	$(COMMON_DIR)/Semaphore.cpp \
 	$(COMMON_DIR)/SettingsWrapper.cpp \
 	$(COMMON_DIR)/StringUtil.cpp \
-	$(COMMON_DIR)/TextureDecompress.cpp \
-	$(COMMON_DIR)/Threads.cpp
+	$(COMMON_DIR)/TextureDecompress.cpp
 
 # common/emitter is the x86-only JIT code emitter. On aarch64 the recompilers
 # that use it are gated out (VIXL is the arm64 emitter instead), so exclude it

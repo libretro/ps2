@@ -43,7 +43,6 @@ namespace Threading
 	//
 	/// Yield the rest of this timeslice to the scheduler (sched_yield /
 	/// SwitchToThread); for bounded producer spins on full queues.
-	extern void Timeslice();
 
 
 }

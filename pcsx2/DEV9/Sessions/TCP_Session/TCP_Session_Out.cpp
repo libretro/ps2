@@ -14,6 +14,7 @@
  */
 
 #include <climits>
+#include <rthreads/rthreads.h>
 
 #include "common/ScanU32.h"
 #include <retro_atomic.h>
@@ -363,7 +364,7 @@ namespace Sessions
 						const int err = errno;
 						if (err == EWOULDBLOCK)
 #endif
-							Threading::Timeslice();
+							sthread_yield();
 						else
 						{
 							CloseByRemoteRST();

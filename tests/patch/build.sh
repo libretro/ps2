@@ -21,7 +21,7 @@ ${CXX:-c++} -std=c++17 -O1 -w $SANFLAGS -I "$ROOT" -I "$ROOT/pcsx2" \
 	-I "$LC/include" \
 	-o "$DIR/patch_dbload" "$DIR/dbload.cpp" \
 	"$ROOT/pcsx2/GameDatabase.cpp" "$ROOT/pcsx2/Pcsx2Config.cpp" \
-	"$ROOT/common/StringUtil.cpp" "$ROOT/common/Threads.cpp" \
+	"$ROOT/common/StringUtil.cpp" \
 	"$ROOT/common/Semaphore.cpp" \
 	"$LC/rthreads/retro_eventcount.c" "$LC/rthreads/retro_procbarrier.c" \
 	"$LC/rthreads/retro_asym_eventcount.c" \

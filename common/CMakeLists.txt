@@ -17,7 +17,6 @@ target_sources(common PRIVATE
 	SettingsWrapper.cpp
 	StringUtil.cpp
 	TextureDecompress.cpp
-	Threads.cpp
 	HostSys.cpp
 )
 

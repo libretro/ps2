@@ -51,6 +51,7 @@
 #include "../pcsx2/SPU2/spu2.h"
 #include "../pcsx2/PAD/PAD.h"
 #include <rthreads/rthreads.h>
+#include <rthreads/retro_eventcount.h>
 
 #ifdef HAVE_PARALLEL_GS
 extern std::unique_ptr<GSRendererPGS> g_pgs_renderer;
@@ -73,6 +74,12 @@ static retro_atomic_int_t cpu_thread_state;
  * Initialize() never waits on MTGS (GS opens lazily from retro_run), so
  * blocking retro_load_game on this cannot deadlock. */
 static retro_atomic_int_t cpu_thread_boot_result;
+/* The boot result is set once by the EE and waited for once by the
+ * frontend. An eventcount, not a poll: the frontend registers,
+ * re-checks, and parks; the EE notifies after it stores. Created on
+ * first use and kept for the process. */
+static retro_eventcount_t cpu_thread_boot_ec;
+static bool               cpu_thread_boot_ec_inited = false;
 static sthread_t* cpu_thread = NULL;
 /* The boot parameters the EE thread starts with. Copied here so the
  * thread's entry takes a plain pointer; it reads them once at start. */
@@ -104,7 +111,21 @@ static void cpu_thread_entry_trampoline(void* arg)
  * issued after the state store is already banked and the Wait returns
  * immediately.  Stale posts from earlier cycles are absorbed by the
  * predicate re-check loop around Wait(). */
-static Threading::KernelSemaphore cpu_thread_resume_sema;
+/* The EE parks here while Paused. An eventcount rather than a counted
+ * semaphore: the predicate is the state word itself, every waker stores
+ * the new state and then notifies, and prepare/commit is what makes a
+ * store that lands between the EE's check and its park a wake rather
+ * than a lost one -- the property the counted post used to provide. */
+static retro_eventcount_t cpu_thread_resume_ec;
+static bool               cpu_thread_resume_ec_inited = false;
+static void cpu_thread_resume_ec_ensure(void)
+{
+	if (!cpu_thread_resume_ec_inited)
+	{
+		retro_eventcount_init(&cpu_thread_resume_ec);
+		cpu_thread_resume_ec_inited = true;
+	}
+}
 
 static freezeData fd = {};
 static std::unique_ptr<u8[]> fd_data;
@@ -381,7 +402,8 @@ static void cpu_thread_pause(void)
 static void cpu_thread_resume(void)
 {
 	VMManager::SetPaused(false);
-	cpu_thread_resume_sema.Post();
+	cpu_thread_resume_ec_ensure();
+	retro_eventcount_notify(&cpu_thread_resume_ec);
 }
 
 /* Renderer-setting helpers. The "Renderer" menu has two SW entries
@@ -2261,9 +2283,11 @@ static void cpu_thread_entry(VMBootParameters boot_params)
 		 * retro_load_game's boot handshake can fail the load. */
 		retro_atomic_store_release_int(&cpu_thread_state, (int)VMState::Shutdown);
 		retro_atomic_store_release_int(&cpu_thread_boot_result, -1);
+		retro_eventcount_notify(&cpu_thread_boot_ec);
 		return;
 	}
 	retro_atomic_store_release_int(&cpu_thread_boot_result, 1);
+	retro_eventcount_notify(&cpu_thread_boot_ec);
 	/* Initialize() left the VM in Paused.  Deliberately do NOT flip it
 	 * to Running here: retro_run opens the GS (MTGS::TryOpenGS) before
 	 * its Paused->resume check, so keeping the EE parked until then
@@ -2312,13 +2336,22 @@ static void cpu_thread_entry(VMBootParameters boot_params)
 
 					case VMState::Paused:
 					{
-						/* Sleep until the libretro thread transitions us out
-						 * of Paused.  Every waker stores the new state first
-						 * and then Posts; the counted post cannot be lost, so
-						 * the re-check loop needs no lock.  A full sleep lets
-						 * a paused core idle instead of waking to re-poll. */
+						/* Park until the libretro thread transitions us out of
+						 * Paused.  Every waker stores the new state and then
+						 * notifies; registering before the re-check is what
+						 * keeps that from being lost.  A full sleep lets a
+						 * paused core idle instead of waking to re-poll. */
+						cpu_thread_resume_ec_ensure();
 						while (VMManager::GetState() == VMState::Paused)
-							cpu_thread_resume_sema.Wait();
+						{
+							int key = retro_eventcount_prepare_wait(&cpu_thread_resume_ec);
+							if (VMManager::GetState() != VMState::Paused)
+							{
+								retro_eventcount_cancel_wait(&cpu_thread_resume_ec);
+								break;
+							}
+							retro_eventcount_commit_wait(&cpu_thread_resume_ec, key);
+						}
 						continue;
 					}
 					default:
@@ -2750,6 +2783,11 @@ bool retro_load_game(const struct retro_game_info* game)
 	 * the MTVU worker already requests - while the Windows default for
 	 * an unadorned thread is half that. */
 	retro_atomic_store_release_int(&cpu_thread_boot_result, 0);
+	if (!cpu_thread_boot_ec_inited)
+	{
+		retro_eventcount_init(&cpu_thread_boot_ec);
+		cpu_thread_boot_ec_inited = true;
+	}
 	cpu_thread_boot_params = boot_params;
 	cpu_thread = sthread_create_with_stack_size(cpu_thread_entry_trampoline, NULL,
 			VMManager::EMU_THREAD_STACK_SIZE);
@@ -2762,9 +2800,10 @@ bool retro_load_game(const struct retro_game_info* game)
 	 * reported to the frontend as a failed load instead of a black
 	 * screen (or, before the cpu_thread_entry guard above, a null
 	 * R5900cpu dereference).  Initialize() is bounded: it performs no
-	 * GS waits, so this terminates. */
+	 * GS waits, so the EE reaches its store and this wakes. */
 	for (;;)
 	{
+		int key;
 		int r = retro_atomic_load_acquire_int(&cpu_thread_boot_result);
 		if (r > 0)
 			break;
@@ -2780,7 +2819,16 @@ bool retro_load_game(const struct retro_game_info* game)
 			libretro_teardown_cpu_thread();
 			return false;
 		}
-		Threading::Timeslice();
+		/* Nothing yet: register, re-check, park. The re-check is what
+		 * makes a store that landed between the load above and the
+		 * registration a wake rather than a lost one. */
+		key = retro_eventcount_prepare_wait(&cpu_thread_boot_ec);
+		if (retro_atomic_load_acquire_int(&cpu_thread_boot_result) != 0)
+		{
+			retro_eventcount_cancel_wait(&cpu_thread_boot_ec);
+			continue;
+		}
+		retro_eventcount_commit_wait(&cpu_thread_boot_ec, key);
 	}
 
 	return true;
@@ -2812,7 +2860,8 @@ void retro_unload_game(void)
 	 * the new state and not sleep) or is already in Wait() (the banked
 	 * post wakes it), the wakeup cannot be lost.  The old mutex+condvar
 	 * version needed a lock across the notify for the same guarantee. */
-	cpu_thread_resume_sema.Post();
+	cpu_thread_resume_ec_ensure();
+	retro_eventcount_notify(&cpu_thread_resume_ec);
 	/* Input goes down before the join, as it always has: the ordering
 	 * here is not this commit's to change.  The teardown helper is
 	 * flagged, so it will not touch input a second time. */

@@ -14,6 +14,7 @@
  */
 
 #include "../common/Threading.h"
+#include <rthreads/rthreads.h>
 #include "Common.h"
 
 #include "Gif_Unit.h"
@@ -127,7 +128,7 @@ void Gif_HandlerAD_MTVU(u8* pMem)
 		{
 			if (!((u32)retro_atomic_load_acquire_int(&vu1Thread.mtvuInterrupts) & VU_Thread::InterruptFlagSignal))
 				break;
-			Threading::Timeslice();
+			sthread_yield();
 		}
 		retro_atomic_store_release_64(&vu1Thread.gsSignal, (int64_t)(((u64)data[1] << 32) | data[0]));
 		retro_atomic_fetch_or_int(&vu1Thread.mtvuInterrupts, VU_Thread::InterruptFlagSignal);
