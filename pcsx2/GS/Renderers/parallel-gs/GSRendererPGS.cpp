@@ -18,7 +18,32 @@ using namespace Granite;
 
 static retro_hw_render_interface_vulkan *hw_render_iface;
 static std::unique_ptr<Vulkan::Context> vulkan_ctx;
-static ImageHandle last_vsync_image;
+
+/* The images handed to the frontend, one per frontend sync index.
+ *
+ * The frontend reads the image it was handed on its own schedule: on
+ * a threaded video path that is a frame or more after set_image(),
+ * and under fast-forward many frames after. Holding only the newest
+ * image let each previous one drop to Granite's deferred delete as
+ * soon as the next VSync replaced it - deferred by Granite's own
+ * frame fences, which cover this core's submissions and not the
+ * frontend's - so the frontend's later read hit a destroyed image: a
+ * GPU page fault, and a device loss. The libretro Vulkan interface's
+ * sync index is the answer to exactly that: the frontend says which
+ * of its slots this frame goes into, wait_sync_index() returns once
+ * it has finished reading whatever that slot held before, and only
+ * then is that image let go. Nothing is copied. */
+static std::vector<ImageHandle> vsync_images;
+/* The retro_vulkan_image the frontend was pointed at, per slot: the
+ * frontend keeps the pointer (a cached-frame replay dereferences it
+ * again), so it must stay valid as long as the slot's image does. */
+static std::vector<retro_vulkan_image> vsync_descs;
+
+static void pgs_release_vsync_images()
+{
+	vsync_images.clear();
+	vsync_descs.clear();
+}
 extern retro_environment_t environ_cb;
 extern retro_video_refresh_t video_cb;
 
@@ -78,7 +103,7 @@ bool pgs_create_device(retro_vulkan_context *context,
 
 void pgs_destroy_device()
 {
-	last_vsync_image.reset();
+	pgs_release_vsync_images();
 	vulkan_ctx.reset();
 	hw_render_iface = nullptr;
 }
@@ -265,7 +290,7 @@ u8 *GSRendererPGS::GetRegsMem()
 
 GSRendererPGS::~GSRendererPGS()
 {
-	last_vsync_image.reset();
+	pgs_release_vsync_images();
 }
 
 struct ParsedSuperSampling
@@ -623,15 +648,26 @@ void GSRendererPGS::VSync(u32 field, bool registers_written)
 			static uint32_t last_base_height = 0;
 			uint32_t new_base_width          = vsync.image->get_width();
 			uint32_t new_base_height         = vsync.image->get_height();
-			/* Storage for the retro_vulkan_image must outlive the
-			 * VSync() call: per the Vulkan HW interface spec, the
-			 * frontend stores the pointer (no deep copy) and may
-			 * dereference it again during cached-frame replay (used
-			 * for pause and HW screenshots). A stack-allocated struct
-			 * here would be a use-after-return for those replays. */
+			/* The frontend's slot for this frame, and the wait that
+			 * says it is done with what the slot held before. Its
+			 * mask is a contiguous run of bits: the ring is sized to
+			 * it once and again if it grows. */
+			uint32_t sync_index = hw_render_iface->get_sync_index(hw_render_iface->handle);
+			uint32_t sync_slots = hw_render_iface->get_sync_index_mask(hw_render_iface->handle) + 1;
+			if (sync_slots < 1)
+				sync_slots = 1;
+			if (sync_index >= sync_slots)
+				sync_index = 0;
+			if (vsync_images.size() < sync_slots)
+			{
+				vsync_images.resize(sync_slots);
+				vsync_descs.resize(sync_slots);
+			}
+			hw_render_iface->wait_sync_index(hw_render_iface->handle);
+
 			dev.flush_frame();
 
-			static retro_vulkan_image vkimage;
+			retro_vulkan_image &vkimage = vsync_descs[sync_index];
 			vkimage = {};
 			vkimage.image_view = vsync.image->get_view().get_unorm_view().view;
 			vkimage.image_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -682,12 +718,10 @@ void GSRendererPGS::VSync(u32 field, bool registers_written)
 
 			hw_render_iface->set_image(hw_render_iface->handle, &vkimage, 0, nullptr, hw_render_iface->queue_index);
 			video_cb(RETRO_HW_FRAME_BUFFER_VALID, new_base_width, new_base_height, 0);
-			/* Do not unregister the image after video_cb: the frontend
-			 * may reuse the pointer for cached-frame replays during
-			 * pause and HW screenshots. The underlying VkImage is kept
-			 * alive by `last_vsync_image`, and the static `vkimage`
-			 * keeps the descriptor pointer valid. */
-			last_vsync_image = vsync.image;
+			/* The image this slot held is let go here, after the wait
+			 * above said the frontend is done with it; the one just
+			 * handed over stays until this slot comes round again. */
+			vsync_images[sync_index] = vsync.image;
 			last_base_width  = new_base_width;
 			last_base_height = new_base_height;
 			last_aspect      = geom.aspect_ratio;
