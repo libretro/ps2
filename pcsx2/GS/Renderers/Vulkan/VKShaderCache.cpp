@@ -16,6 +16,7 @@
 #include <cstring>
 
 #include <file/file_path.h>
+#include <retro_miscellaneous.h>
 #include <streams/file_stream.h>
 
 #include "VKShaderCache.h"
@@ -27,7 +28,6 @@
 
 #include "common/Console.h"
 #include "HostFS.h"
-#include "common/Path.h"
 #include "common/StringUtil.h"
 
 /* xxhash may already be set up by a header included above (HashCombine.h /
@@ -554,7 +554,11 @@ std::string VKShaderCache::GetShaderCacheBaseFileName(bool debug)
 	if (debug)
 		base_filename += "_debug";
 
-	return Path::Combine(EmuFolders::Cache, base_filename);
+{
+		char path[PATH_MAX_LENGTH];
+		fill_pathname_join(path, EmuFolders::Cache, base_filename.c_str(), sizeof(path));
+		return path;
+	}
 }
 
 std::string VKShaderCache::GetPipelineCacheBaseFileName(bool debug)
@@ -563,7 +567,11 @@ std::string VKShaderCache::GetPipelineCacheBaseFileName(bool debug)
 	if (debug)
 		base_filename += "_debug";
 	base_filename += ".bin";
-	return Path::Combine(EmuFolders::Cache, base_filename);
+{
+		char path[PATH_MAX_LENGTH];
+		fill_pathname_join(path, EmuFolders::Cache, base_filename.c_str(), sizeof(path));
+		return path;
+	}
 }
 
 VKShaderCache::CacheIndexKey VKShaderCache::GetCacheKey(ShaderType type, const std::string_view& shader_code)

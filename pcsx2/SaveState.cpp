@@ -20,7 +20,6 @@
 #include "SaveState.h"
 
 #include "HostFS.h"
-#include "../common/Path.h"
 #include "../common/StringUtil.h"
 
 #include "ps2/BiosTools.h"

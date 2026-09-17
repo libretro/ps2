@@ -11,7 +11,6 @@ target_sources(common PRIVATE
 	Console.cpp
 	FastJmp.cpp
 	MemorySettingsInterface.cpp
-	Path.cpp
 	SettingsWrapper.cpp
 	StringUtil.cpp
 	TextureDecompress.cpp
@@ -62,7 +61,6 @@ target_sources(common PRIVATE
 	General.h
 	HashCombine.h
 	MemorySettingsInterface.h
-	Path.h
 	RedtapeWilCom.h
 	RedtapeWindows.h
 	SettingsInterface.h

@@ -33,7 +33,6 @@
 #include "../../common/Console.h"
 #include "HostFS.h"
 #include "../../common/MemorySettingsInterface.h"
-#include "../../common/Path.h"
 #include "../../common/StringUtil.h"
 
 #include "Ps1CD.h"

@@ -23,7 +23,6 @@
 #include "ShaderCacheVersion.h"
 
 #include "common/Console.h"
-#include "common/Path.h"
 
 /* xxhash may already be set up by a header included above (HashCombine.h /
  * GSXXH.h, both behind an XXH_versionNumber guard). Guard our own setup so
@@ -37,6 +36,7 @@
 #include <xxhash.h>
 
 #include <file/file_path.h>
+#include <retro_miscellaneous.h>
 
 namespace {
 #pragma pack(push, 1)
@@ -266,12 +266,20 @@ GLShaderCache::CacheIndexKey GLShaderCache::GetCacheKey(const std::string_view& 
 
 std::string GLShaderCache::GetIndexFileName() const
 {
-	return Path::Combine(EmuFolders::Cache, "gl_programs.idx");
+	{
+		char path[PATH_MAX_LENGTH];
+		fill_pathname_join(path, EmuFolders::Cache, "gl_programs.idx", sizeof(path));
+		return path;
+	}
 }
 
 std::string GLShaderCache::GetBlobFileName() const
 {
-	return Path::Combine(EmuFolders::Cache, "gl_programs.bin");
+	{
+		char path[PATH_MAX_LENGTH];
+		fill_pathname_join(path, EmuFolders::Cache, "gl_programs.bin", sizeof(path));
+		return path;
+	}
 }
 
 std::optional<GLProgram> GLShaderCache::GetProgram(const std::string_view vertex_shader,

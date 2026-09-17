@@ -23,7 +23,6 @@
 
 #include "HostFS.h"
 #include "common/Console.h"
-#include "common/Path.h"
 #include <array>
 
 /* xxhash may already be set up by a header included above (HashCombine.h /
@@ -40,6 +39,7 @@
 #include <d3dcompiler.h>
 
 #include <file/file_path.h>
+#include <retro_miscellaneous.h>
 
 #pragma pack(push, 1)
 struct CacheIndexEntry
@@ -252,7 +252,11 @@ std::string D3D11ShaderCache::GetCacheBaseFileName(D3D_FEATURE_LEVEL feature_lev
 	if (debug)
 		base_filename += "_debug";
 
-	return Path::Combine(EmuFolders::Cache, base_filename);
+	{
+		char path[PATH_MAX_LENGTH];
+		fill_pathname_join(path, EmuFolders::Cache, base_filename.c_str(), sizeof(path));
+		return path;
+	}
 }
 
 D3D11ShaderCache::CacheIndexKey D3D11ShaderCache::GetCacheKey(D3D::ShaderType type, const std::string_view& shader_code,

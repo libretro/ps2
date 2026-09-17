@@ -38,7 +38,6 @@
 #include "../Config.h"
 
 #include "HostFS.h"
-#include "../../common/Path.h"
 extern void psxBREAK();
 
 u32 g_psxMaxRecMem = 0;

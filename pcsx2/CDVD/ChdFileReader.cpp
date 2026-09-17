@@ -9,10 +9,10 @@
 
 #include "../../common/Console.h"
 #include "HostFS.h"
-#include "../../common/Path.h"
 #include "../../common/StringUtil.h"
 
 #include <file/file_path.h>
+#include <retro_miscellaneous.h>
 #include <streams/file_stream.h>
 #include <string/stdstring.h>
 #include <formats/rchd.h>
@@ -220,7 +220,11 @@ bool ChdFileReader::Open2(const char* fileName)
 		}
 
 		bool found = false;
-		dirname = Path::GetDirectory(m_filename);
+		{
+			char dir[PATH_MAX_LENGTH];
+			fill_pathname_basedir(dir, m_filename, sizeof(dir));
+			dirname = dir;
+		}
 		if (FileSystem::FindFiles(dirname.c_str(), "*.*",
 				FILESYSTEM_FIND_FILES | FILESYSTEM_FIND_HIDDEN_FILES, &results))
 		{

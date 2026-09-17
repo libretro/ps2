@@ -17,7 +17,6 @@
 
 #include "../common/Console.h"
 #include "HostFS.h"
-#include "../common/Path.h"
 #include "../common/StringUtil.h"
 #include <encodings/deflate.h>
 
@@ -941,7 +940,7 @@ int LoadPatchesFromDir(const std::string& crc, const std::string& folder, const 
 
 	for (const FILESYSTEM_FIND_DATA& fd : files)
 	{
-		const std::string_view name(Path::GetFileName(fd.FileName));
+		const std::string_view name(path_basename(fd.FileName.c_str()));
 		if (name.length() < crc.length() || Strncasecmp(name.data(), crc.c_str(), crc.size()) != 0)
 			continue;
 

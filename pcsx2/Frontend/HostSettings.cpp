@@ -14,7 +14,6 @@
  */
 
 #include "HostFS.h"
-#include "../../common/Path.h"
 #include "../Frontend/LayeredSettingsInterface.h"
 #include "../GS.h"
 #include "../GS/Renderers/HW/GSTextureReplacements.h"

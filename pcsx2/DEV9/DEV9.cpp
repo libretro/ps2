@@ -13,7 +13,8 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "common/Path.h"
+#include <file/file_path.h>
+#include <retro_miscellaneous.h>
 #include "common/StringUtil.h"
 
 #ifdef _WIN32
@@ -97,8 +98,12 @@ std::string GetHDDPath()
 	if (hddPath.empty())
 		EmuConfig.DEV9.HddEnable = false;
 
-	if (!Path::IsAbsolute(hddPath))
-		hddPath = Path::Combine(EmuFolders::Settings, hddPath);
+	if (!path_is_absolute(hddPath.c_str()))
+	{
+		char joined[PATH_MAX_LENGTH];
+		fill_pathname_join(joined, EmuFolders::Settings, hddPath.c_str(), sizeof(joined));
+		hddPath = joined;
+	}
 
 	return hddPath;
 }

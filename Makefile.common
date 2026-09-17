@@ -208,7 +208,6 @@ SOURCES_CXX += \
 	$(COMMON_DIR)/Console.cpp \
 	$(COMMON_DIR)/FastJmp.cpp \
 	$(LRPS2_DIR)/HostFS.cpp \
-	$(COMMON_DIR)/Path.cpp \
 	$(COMMON_DIR)/HostSys.cpp \
 	$(COMMON_DIR)/MemorySettingsInterface.cpp \
 	$(COMMON_DIR)/SettingsWrapper.cpp \

@@ -29,7 +29,6 @@
 #include "../pcsx2/Counters.h"
 #include "../pcsx2/Host.h"
 
-#include "../common/Path.h"
 #include "HostFS.h"
 #include "../common/MemorySettingsInterface.h"
 
@@ -2405,7 +2404,7 @@ void retro_init(void)
 					continue;
 
 				if (IsBIOS(fd.FileName.c_str(), version, description, sizeof(description), region, zone, sizeof(zone)))
-					bios_info.push_back({ std::string(Path::GetFileName(fd.FileName)), std::string(description) });
+					bios_info.push_back({ std::string(path_basename(fd.FileName.c_str())), std::string(description) });
 			}
 
 			/* Find the BIOS core option and fill its values/labels/default_values */

@@ -23,7 +23,6 @@
 
 #include "../common/Console.h"
 #include "HostFS.h"
-#include "../common/Path.h"
 #include "../common/StringUtil.h"
 
 #include "GameDatabase.h"

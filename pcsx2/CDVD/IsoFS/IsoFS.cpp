@@ -18,7 +18,6 @@
 
 #include "common/Console.h"
 #include "HostFS.h"
-#include "common/Path.h"
 
 #include <memory>
 #include <cstring>
@@ -26,6 +25,40 @@
 //////////////////////////////////////////////////////////////////////////
 // IsoDirectory
 //////////////////////////////////////////////////////////////////////////
+
+/* ISO9660 path splitting, on both separators; UNC prefixes preserved. Was Path::SplitWindowsPath, with one user. */
+static std::vector<std::string_view> SplitWindowsPath(const std::string_view& path)
+{
+	std::vector<std::string_view> parts;
+
+	std::string::size_type start = 0;
+	std::string::size_type pos = 0;
+
+	/* preserve UNC paths */
+	if (path.size() > 2 && path[0] == '\\' && path[1] == '\\')
+		pos = 2;
+
+	while (pos < path.size())
+	{
+		if (path[pos] != '/' && path[pos] != '\\')
+		{
+			pos++;
+			continue;
+		}
+
+		/* skip consecutive separators */
+		if (pos != start)
+			parts.push_back(path.substr(start, pos - start));
+
+		pos++;
+		start = pos;
+	}
+
+	if (start != pos)
+		parts.push_back(path.substr(start));
+
+	return parts;
+}
 
 // Used to load the Root directory from an image
 IsoDirectory::IsoDirectory()
@@ -156,7 +189,7 @@ std::optional<IsoFileDescriptor> IsoDirectory::FindFile(const std::string_view& 
 
 	// DOS-style parser should work fine for ISO 9660 path names.  Only practical difference
 	// is case sensitivity, and that won't matter for path splitting.
-	std::vector<std::string_view> parts(Path::SplitWindowsPath(filePath));
+	std::vector<std::string_view> parts(SplitWindowsPath(filePath));
 	const IsoDirectory* dir = this;
 	IsoDirectory subdir;
 

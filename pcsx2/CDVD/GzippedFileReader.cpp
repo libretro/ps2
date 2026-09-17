@@ -16,7 +16,6 @@
 #include <compat/strl.h>
 #include "../../common/Console.h"
 #include "HostFS.h"
-#include "../../common/Path.h"
 #include "../../common/StringUtil.h"
 
 #include <compat/strl.h>

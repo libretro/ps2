@@ -40,7 +40,6 @@
 #include "Common.h"
 #include "Patch.h"
 #include "common/Console.h"
-#include "common/Path.h"
 
 /* Memory the patch application would reach. The parse path does not use
  * it, but _ApplyPatch does, and applying is how a bytes payload is

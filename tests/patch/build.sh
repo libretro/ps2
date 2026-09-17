@@ -11,7 +11,8 @@ ${CXX:-c++} -std=c++17 -O1 -w $SANFLAGS -I "$ROOT" -I "$ROOT/pcsx2" \
 	-I "$ROOT/common" -I "$ROOT/common/include" -I "$ROOT/3rdparty/include" \
 	-I "$ROOT/libretro/libretro-common/include" \
 	-o "$DIR/patch_dbparse" "$DIR/dbparse.cpp" \
-	"$ROOT/pcsx2/Patch.cpp" "$ROOT/common/StringUtil.cpp"
+	"$ROOT/pcsx2/Patch.cpp" "$ROOT/common/StringUtil.cpp" \
+	"$ROOT/libretro/libretro-common/file/file_path.c" "$ROOT/libretro/libretro-common/string/stdstring.c" "$ROOT/libretro/libretro-common/compat/compat_strl.c" "$ROOT/libretro/libretro-common/encodings/encoding_utf.c" "$ROOT/libretro/libretro-common/time/rtime.c"
 "$DIR/patch_dbparse" "$ROOT/bin/resources/GameIndex.yaml"
 
 echo "== game database entries vs the real parser =="

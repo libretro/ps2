@@ -18,11 +18,11 @@
 #include <utility>
 
 #include <file/file_path.h>
+#include <retro_miscellaneous.h>
 #include <streams/file_stream.h>
 
 #include "../../common/Console.h"
 #include "HostFS.h"
-#include "../../common/Path.h"
 #include "../../common/StringUtil.h"
 
 #include "../Common.h"
@@ -203,7 +203,16 @@ static void LoadExtraRom(const char* ext, u8 (&dest)[_size])
 	if ((filesize = path_get_size(Bios1.c_str())) <= 0)
 	{
 		// Try the name properly extensioned next (name.rom1)
-		Bios1 = Path::ReplaceExtension(BiosPath, ext);
+		if (strrchr(BiosPath.c_str(), '.'))
+		{
+			/* fill_pathname takes the dot with the extension; Path::ReplaceExtension kept the path's own. */
+			char dotext[32], repl[PATH_MAX_LENGTH];
+			snprintf(dotext, sizeof(dotext), ".%s", ext);
+			fill_pathname(repl, BiosPath.c_str(), dotext, sizeof(repl));
+			Bios1 = repl;
+		}
+		else
+			Bios1 = BiosPath;
 		if ((filesize = path_get_size(Bios1.c_str())) <= 0)
 		{
 			Console.WriteLn("BIOS %s module not found, skipping...", ext);

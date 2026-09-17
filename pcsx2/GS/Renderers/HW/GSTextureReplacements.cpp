@@ -14,6 +14,8 @@
  */
 
 #include <cinttypes>
+#include <file/file_path.h>
+#include <retro_miscellaneous.h>
 #include <cstring>
 #include <deque>
 #include <functional>
@@ -24,7 +26,6 @@
 #include "common/Console.h"
 #include "common/HashCombine.h"
 #include "HostFS.h"
-#include "common/Path.h"
 #include "common/TextureDecompress.h"
 
 #include "../../../Config.h"
@@ -288,7 +289,11 @@ if (std::sscanf(filename.c_str(), TEXTURE_FILENAME_REGION_FORMAT_STRING "%c", &r
 
 std::string GSTextureReplacements::GetGameTextureDirectory()
 {
-	return Path::Combine(EmuFolders::Textures, s_current_serial);
+	{
+		char path[PATH_MAX_LENGTH];
+		fill_pathname_join(path, EmuFolders::Textures, s_current_serial.c_str(), sizeof(path));
+		return path;
+	}
 }
 
 void GSTextureReplacements::Initialize()
@@ -330,17 +335,18 @@ void GSTextureReplacements::ReloadReplacementMap()
 	if (s_current_serial.empty() || !GSConfig.LoadTextureReplacements)
 		return;
 
-	const std::string replacement_dir(Path::Combine(GetGameTextureDirectory(), TEXTURE_REPLACEMENT_SUBDIRECTORY_NAME));
+	char replacement_dir[PATH_MAX_LENGTH];
+	fill_pathname_join(replacement_dir, GetGameTextureDirectory().c_str(), TEXTURE_REPLACEMENT_SUBDIRECTORY_NAME, sizeof(replacement_dir));
 
 	FileSystem::FindResultsArray files;
-	if (!FileSystem::FindFiles(replacement_dir.c_str(), "*", FILESYSTEM_FIND_FILES | FILESYSTEM_FIND_HIDDEN_FILES | FILESYSTEM_FIND_RECURSIVE, &files))
+	if (!FileSystem::FindFiles(replacement_dir, "*", FILESYSTEM_FIND_FILES | FILESYSTEM_FIND_HIDDEN_FILES | FILESYSTEM_FIND_RECURSIVE, &files))
 		return;
 
 	std::string filename;
 	for (FILESYSTEM_FIND_DATA& fd : files)
 	{
 		// file format we can handle?
-		filename = Path::GetFileName(fd.FileName);
+		filename = path_basename(fd.FileName.c_str());
 		if (!GetLoader(filename.c_str()))
 			continue;
 

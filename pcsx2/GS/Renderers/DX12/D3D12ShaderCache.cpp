@@ -23,7 +23,6 @@
 
 #include "HostFS.h"
 #include "common/Console.h"
-#include "common/Path.h"
 
 /* xxhash may already be set up by a header included above (HashCombine.h /
  * GSXXH.h, both behind an XXH_versionNumber guard). Guard our own setup so
@@ -39,6 +38,7 @@
 #include <d3dcompiler.h>
 
 #include <file/file_path.h>
+#include <retro_miscellaneous.h>
 
 #pragma pack(push, 1)
 struct CacheIndexEntry
@@ -302,7 +302,11 @@ std::string D3D12ShaderCache::GetCacheBaseFileName(const std::string_view& type,
 	if (debug)
 		base_filename += "_debug";
 
-	return Path::Combine(EmuFolders::Cache, base_filename);
+	{
+		char path[PATH_MAX_LENGTH];
+		fill_pathname_join(path, EmuFolders::Cache, base_filename.c_str(), sizeof(path));
+		return path;
+	}
 }
 
 static D3D12ShaderCache::CacheIndexKey D3D12ShaderCache_GetShaderCacheKey(D3D12ShaderCache::EntryType type, const char *shader_code, size_t shader_len, const D3D_SHADER_MACRO* macros, const char* entry_point)
