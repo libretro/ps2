@@ -40,9 +40,12 @@
 #endif
 #if defined(__APPLE__)
 #include <sys/ucontext.h>
+#include <TargetConditionals.h>
+#if !TARGET_OS_TV
 #include <mach/mach_init.h>
 #include <mach/mach_port.h>
 #include <mach/task.h>
+#endif
 #endif
 #endif
 
@@ -323,9 +326,10 @@ bool retro_faulthandler_install(retro_fault_handler_t handler)
       if (ok && sigaction(SIGSEGV, &sa, &s_old_sigsegv) != 0)
          ok = false;
 #endif
-#if defined(__APPLE__) && defined(__aarch64__)
+#if defined(__APPLE__) && defined(__aarch64__) && !TARGET_OS_TV
       /* Keeps a debugger out of an EXC_BAD_ACCESS loop when the fault
-       * is one we are going to handle. */
+       * is one we are going to handle. tvOS marks the mach task API
+       * unavailable, and there is no debugger to keep out there. */
       if (ok)
          task_set_exception_ports(mach_task_self(), EXC_MASK_BAD_ACCESS,
                MACH_PORT_NULL, EXCEPTION_DEFAULT, 0);

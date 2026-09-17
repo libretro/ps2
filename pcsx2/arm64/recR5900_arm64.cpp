@@ -42,6 +42,7 @@
 // (aVU.cpp TU) + the AsmHelpers thread-locals its emitters write through, and
 // the analysis-flag plumbing they gate on.
 #include "arm64/AsmHelpers.h"
+#include "arm64/ICache.h"
 #include "arm64/aR5900Analysis.h"
 #include "VUmicro.h" // _vu0FinishMicro
 // vu0Sync() lives in VU0.cpp with no header declaration (the interpreter ops call
@@ -4268,7 +4269,7 @@ namespace {
 		masm.FinalizeCode();
 
 		const size_t sz = masm.GetSizeOfCodeGenerated();
-		__builtin___clear_cache(reinterpret_cast<char*>(start), reinterpret_cast<char*>(start + sz));
+		ClearICacheRange(reinterpret_cast<void*>(start), sz);
 
 		// C.50: buffer offsets -> absolute addresses. Blocks are emitted at
 		// increasing s_code_pos and offsets grow within a block, so appending
@@ -4480,7 +4481,7 @@ extern "C" bool eeFastmemFault_arm64(uintptr_t code_address)
 
 	u32* const insn = reinterpret_cast<u32*>(site.code);
 	*insn = 0x14000000u | (static_cast<u32>(delta) & 0x03ffffffu); // B <stub>
-	__builtin___clear_cache(reinterpret_cast<char*>(insn), reinterpret_cast<char*>(insn + 1));
+	ClearICacheRange(insn, sizeof(u32));
 
 	const auto it = std::lower_bound(s_fm_faulting.begin(), s_fm_faulting.end(), site.pc);
 	if (it == s_fm_faulting.end() || *it != site.pc)
