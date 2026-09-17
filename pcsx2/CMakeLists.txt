@@ -127,6 +127,8 @@ set(pcsx2Sources
 	MTGS.cpp
 	MTVU.cpp
 	MultitapProtocol.cpp
+	FormatString.cpp
+	StringView.cpp
 	Patch.cpp
 	Pcsx2Config.cpp
 	PerformanceMetrics.cpp
@@ -192,6 +194,9 @@ set(pcsx2Headers
 	MemoryCardProtocol.h
 	MemoryTypes.h
 	MultitapProtocol.h
+	FormatString.h
+	StringView.h
+	ParseNumber.h
 	Patch.h
 	PerformanceMetrics.h
 	R3000A.h
