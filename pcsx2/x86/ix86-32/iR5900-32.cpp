@@ -14,6 +14,7 @@
  */
 
 #include "Common.h"
+#include <fastjmp.h>
 #include <memalign.h>
 #include "../../HostMem.h"
 #include "CDVD/CDVD.h"
@@ -33,7 +34,6 @@
 #include "common/emitter/c89ops.h"
 #include "x86/iR5900Analysis.h"
 
-#include "common/FastJmp.h"
 
 // Only for MOVQ workaround (reference emitter internals; the C89 build
 // has no such file and no such workaround path).

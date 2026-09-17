@@ -9,7 +9,6 @@ add_library(common)
 
 target_sources(common PRIVATE
 	Console.cpp
-	FastJmp.cpp
 	MemorySettingsInterface.cpp
 	SettingsWrapper.cpp
 	StringUtil.cpp
@@ -57,7 +56,6 @@ target_sources(common PRIVATE
 	Align.h
 	Console.h
 	CpuFeatures.h
-	FastJmp.h
 	General.h
 	HashCombine.h
 	MemorySettingsInterface.h
@@ -77,22 +75,12 @@ target_sources(common PRIVATE
 )
 
 if(WIN32)
-	enable_language(ASM_MASM)
-	target_sources(common PRIVATE FastJmp.asm)
 	target_link_libraries(common PUBLIC winmm)
-	target_sources(common PRIVATE
-		FastJmp.asm
-	)
 endif()
 
 if(APPLE)
 	target_compile_options(common PRIVATE -fobjc-arc)
 	target_link_options(common PRIVATE -fobjc-link-runtime)
-endif()
-
-if (USE_GCC AND CMAKE_INTERPROCEDURAL_OPTIMIZATION)
-	# GCC LTO doesn't work with asm statements
-	set_source_files_properties(FastJmp.cpp PROPERTIES COMPILE_FLAGS -fno-lto)
 endif()
 
 if(UNIX AND NOT APPLE AND TARGET libbacktrace::libbacktrace)

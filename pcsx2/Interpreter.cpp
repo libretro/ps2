@@ -14,10 +14,10 @@
  */
 
 #include "Common.h"
+#include <fastjmp.h>
 #include "R5900OpcodeTables.h"
 #include "Elfheader.h"
 
-#include "../common/FastJmp.h"
 
 #include <float.h>
 #include <unordered_map>
