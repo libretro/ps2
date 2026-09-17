@@ -22,3 +22,20 @@ else
     -o "$DIR/spsc_test_tsan" $SRC -lpthread
   echo "built: $DIR/spsc_test $DIR/spsc_test_tsan"
 fi
+
+# WorkSema contract, on the two-eventcount implementation in common/.
+# Plain and TSan, like the queue above: the two threads share nothing
+# but the primitive, which is exactly what TSan is for.
+if [ "$WINDOWS" != "1" ]; then
+  LC="$ROOT/libretro/libretro-common"
+  WS_SRC="$DIR/worksema.cpp $ROOT/common/Semaphore.cpp $ROOT/common/Threads.cpp \
+    $LC/rthreads/rthreads.c $LC/rthreads/retro_eventcount.c \
+    $LC/rthreads/retro_procbarrier.c $LC/rthreads/retro_asym_eventcount.c"
+  WS_INC="-I $ROOT -I $ROOT/common -I $ROOT/common/include -I $LC/include"
+  ${CXX:-c++} -std=c++17 -O1 -g -w -D_GNU_SOURCE -DHAVE_THREADS $WS_INC \
+    -o "$DIR/spsc_worksema" $WS_SRC -lpthread
+  "$DIR/spsc_worksema"
+  ${CXX:-c++} -std=c++17 -O1 -g -w -fsanitize=thread -D_GNU_SOURCE -DHAVE_THREADS $WS_INC \
+    -o "$DIR/spsc_worksema_tsan" $WS_SRC -lpthread
+  "$DIR/spsc_worksema_tsan"
+fi

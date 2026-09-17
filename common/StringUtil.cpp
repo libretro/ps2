@@ -130,26 +130,6 @@ namespace StringUtil
 		return res;
 	}
 
-	std::string ReplaceAll(const std::string_view& subject, const std::string_view& search, const std::string_view& replacement)
-	{
-		std::string ret(subject);
-		ReplaceAll(&ret, search, replacement);
-		return ret;
-	}
-
-	void ReplaceAll(std::string* subject, const std::string_view& search, const std::string_view& replacement)
-	{
-		if (!subject->empty())
-		{
-			std::string::size_type start_pos = 0;
-			while ((start_pos = subject->find(search, start_pos)) != std::string::npos)
-			{
-				subject->replace(start_pos, search.length(), replacement);
-				start_pos += replacement.length();
-			}
-		}
-	}
-
 	bool ParseAssignmentString(const std::string_view& str, std::string_view* key, std::string_view* value)
 	{
 		const std::string_view::size_type pos = str.find('=');

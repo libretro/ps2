@@ -402,8 +402,6 @@ Threading::Mutex::Mutex() { m_lock = slock_new(); }
 Threading::Mutex::~Mutex() { slock_free(m_lock); }
 void Threading::Mutex::Lock() { slock_lock(m_lock); }
 void Threading::Mutex::Unlock() { slock_unlock(m_lock); }
-bool Threading::Mutex::TryLock() { return slock_try_lock(m_lock); }
-
 Threading::RecursiveMutex::RecursiveMutex()
 	: m_owner(0)
 	, m_depth(0)

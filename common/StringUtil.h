@@ -170,9 +170,6 @@ namespace StringUtil
 	/// Splits a string based on a single character delimiter.
 	std::vector<std::string_view> SplitString(const std::string_view& str, char delimiter, bool skip_empty = true);
 
-	/// Replaces all instances of search in subject with replacement.
-	std::string ReplaceAll(const std::string_view& subject, const std::string_view& search, const std::string_view& replacement);
-	void ReplaceAll(std::string* subject, const std::string_view& search, const std::string_view& replacement);
 
 	/// Parses an assignment string (Key = Value) into its two components.
 	bool ParseAssignmentString(const std::string_view& str, std::string_view* key, std::string_view* value);

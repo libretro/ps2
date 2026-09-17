@@ -69,204 +69,190 @@ s32 Threading::SpinBudget()
 //  Semaphore Implementations
 // --------------------------------------------------------------------------------------
 
-bool Threading::KernelSemaphore::WaitFor(u32 timeout_ms)
+Threading::WorkSema::WorkSema()
 {
-#if defined(_WIN32)
-	return WaitForSingleObject(m_sema, timeout_ms) == WAIT_OBJECT_0;
-#elif defined(__APPLE__)
-	mach_timespec_t ts;
-	ts.tv_sec  = timeout_ms / 1000;
-	ts.tv_nsec = (timeout_ms % 1000) * 1000000;
-	return semaphore_timedwait(m_sema, ts) == KERN_SUCCESS;
-#else
-	struct timespec ts;
-	clock_gettime(CLOCK_REALTIME, &ts);
-	ts.tv_sec  += timeout_ms / 1000;
-	ts.tv_nsec += (long)(timeout_ms % 1000) * 1000000L;
-	if (ts.tv_nsec >= 1000000000L)
-	{
-		ts.tv_sec++;
-		ts.tv_nsec -= 1000000000L;
-	}
-	while (sem_timedwait(&m_sema, &ts) == -1)
-	{
-		if (errno != EINTR)
-			return false;
-	}
+	/* Both inits decide their protocol once and keep it. The work
+	 * eventcount picks asymmetric wherever retro_procbarrier has a tier,
+	 * symmetric elsewhere; a WorkSema never needs to know which. */
+	retro_asym_eventcount_init(&m_work);
+	retro_eventcount_init(&m_empty);
+	retro_atomic_store_relaxed_int(&m_seen, retro_atomic_load_relaxed_int(&m_work.epoch));
+}
+
+Threading::WorkSema::~WorkSema()
+{
+	retro_eventcount_free(&m_empty);
+	retro_asym_eventcount_free(&m_work);
+}
+
+void Threading::WorkSema::GoIdle()
+{
+	/* Order matters for WaitForEmpty's re-check: it reads m_idle, then
+	 * m_seen against the work epoch. Publish idle last, with release, so
+	 * a reader that sees idle=1 also sees the m_seen that goes with it. */
+	retro_atomic_store_release_int(&m_idle, 1);
+	retro_eventcount_notify(&m_empty);
+}
+
+bool Threading::WorkSema::Consume(int epoch)
+{
+	retro_atomic_store_release_int(&m_seen, epoch);
+	retro_atomic_store_release_int(&m_idle, 0);
 	return true;
-#endif
 }
 
 bool Threading::WorkSema::CheckForWork()
 {
-	/* Load-then-attempt: cas_int is strong with no expected-out
-	 * parameter, so each failed attempt re-reads and re-checks the
-	 * death sentinel - the same guarantee the old expected-out refresh
-	 * provided. */
-	s32 value;
-	for (;;)
-	{
-		value = retro_atomic_load_acquire_int(&m_state);
-
-		// Dead semas stay dead: don't let the CAS below silently rewrite
-		// INT_MIN to STATE_RUNNING_0 and resurrect a killed worker.
-		if (value < STATE_SPINNING)
-			return false;
-
-		// we want to switch to the running state, but preserve the waiting empty bit for RUNNING_N -> RUNNING_0
-		// otherwise, we clear the waiting flag (since we're notifying the waiter that we're empty below)
-		if (retro_atomic_cas_int(&m_state, value,
-				((value & (STATE_FLAG_WAITING_EMPTY - 1)) == STATE_RUNNING_0) ? STATE_RUNNING_0 : (value & STATE_FLAG_WAITING_EMPTY)))
-			break;
-	}
-
-	// if we're not empty, we have work to do
-	s32 waiting_empty_cleared = value & (STATE_FLAG_WAITING_EMPTY - 1);
-	if (waiting_empty_cleared != STATE_RUNNING_0)
-		return true;
-
-	// this means we're empty, so notify any waiters
-	if (value & STATE_FLAG_WAITING_EMPTY)
-		m_empty_sema.Post();
-
-	// no work to do
+	int epoch;
+	if (retro_atomic_load_acquire_int(&m_dead))
+		return false;
+	/* The epoch is the asym eventcount's own; reading it is what a
+	 * non-blocking check is, and cheaper than a prepare/cancel pair,
+	 * which would pay the barrier. */
+	epoch = retro_atomic_load_acquire_int(&m_work.epoch);
+	if (epoch != retro_atomic_load_relaxed_int(&m_seen))
+		return Consume(epoch);
+	GoIdle();
 	return false;
 }
 
 void Threading::WorkSema::WaitForWork()
 {
-	// State change:
-	// SLEEPING, SPINNING: This is the worker thread and it's clearly not asleep or spinning, so these states should be impossible
-	// DEAD (any value < STATE_SPINNING): also impossible if invariants hold, but guard so a stray call after Kill()
-	//   doesn't silently resurrect us to STATE_RUNNING_0 and then sleep forever on m_sema.
-	// RUNNING_0: Change state to SPINNING (multi-core) or SLEEPING, wake up thread if WAITING_EMPTY
-	// RUNNING_N: Change state to RUNNING_0 (and preserve WAITING_EMPTY flag)
 	const s32 spin_budget = Threading::SpinBudget();
-	const s32 idle_state  = spin_budget ? STATE_SPINNING : STATE_SLEEPING;
-	s32 value;
-	for (;;)
+	int epoch, key;
+
+	if (retro_atomic_load_acquire_int(&m_dead))
+		return;
+
+	/* Anything already notified: take it and go. */
+	epoch = retro_atomic_load_acquire_int(&m_work.epoch);
+	if (epoch != retro_atomic_load_relaxed_int(&m_seen))
 	{
-		s32 waiting_empty_cleared;
-		s32 new_state;
-		value = retro_atomic_load_acquire_int(&m_state);
-		if (value < STATE_SPINNING)
-			return;
-		/* The empty-waiter flag cannot survive on the (negative) idle
-		 * states; the post below is what consumes it. */
-		waiting_empty_cleared = value & (STATE_FLAG_WAITING_EMPTY - 1);
-		new_state = (waiting_empty_cleared == STATE_RUNNING_0) ? idle_state : (STATE_RUNNING_0 | (value & STATE_FLAG_WAITING_EMPTY));
-		if (retro_atomic_cas_int(&m_state, value, new_state))
-			break;
+		Consume(epoch);
+		return;
 	}
 
-	s32 waiting_empty_cleared = value & (STATE_FLAG_WAITING_EMPTY - 1);
-	if (waiting_empty_cleared == STATE_RUNNING_0)
-	{
-		/* Wake any WaitForEmpty sleeper before idling, never after:
-		 * the producer's wakeup must not wait out the spin window. */
-		if (value & STATE_FLAG_WAITING_EMPTY)
-			m_empty_sema.Post();
+	/* Nothing pending: the worker is idle from here until something
+	 * arrives, and WaitForEmpty callers are told so. */
+	GoIdle();
 
-		if (spin_budget)
+	/* Spin first where it is worth it -- a kernel sleep/wake pair costs
+	 * more than SpinBudget() reads -- and only then park. */
+	if (spin_budget)
+	{
+		s32 spins = spin_budget;
+		while (spins-- > 0)
 		{
-			/* Read-only spin in STATE_SPINNING.  NotifyOfWork's
-			 * fetch_add moves the state to RUNNING and skips the
-			 * kernel post, so a notify inside this window costs
-			 * neither side a syscall.  On timeout, demote to
-			 * SLEEPING and park; a notify racing the demotion makes
-			 * the CAS fail, and the state it left behind is already
-			 * RUNNING. */
-			s32 spins = spin_budget;
-			bool have_work = false;
-			while (spins-- > 0)
+			epoch = retro_atomic_load_acquire_int(&m_work.epoch);
+			if (epoch != retro_atomic_load_relaxed_int(&m_seen))
 			{
-				if (retro_atomic_load_acquire_int(&m_state) != STATE_SPINNING)
-				{
-					have_work = true;
-					break;
-				}
-				THREADING_CPU_RELAX();
+				Consume(epoch);
+				return;
 			}
-			if (!have_work && retro_atomic_cas_int(&m_state, STATE_SPINNING, STATE_SLEEPING))
-				m_sema.Wait();
+			if (retro_atomic_load_relaxed_int(&m_dead))
+				return;
+			THREADING_CPU_RELAX();
 		}
-		else
-			m_sema.Wait();
-
-		// Acknowledge any additional work added between wake up request and getting here
-		retro_atomic_fetch_and_int(&m_state, STATE_FLAG_WAITING_EMPTY);
 	}
+
+	/* Park. prepare_wait is where the process-wide barrier is paid:
+	 * after it, either the producer's notify is visible in the key or
+	 * the producer will see our registration and wake us. */
+	key = retro_asym_eventcount_prepare_wait(&m_work);
+	if (key != retro_atomic_load_relaxed_int(&m_seen)
+	 || retro_atomic_load_acquire_int(&m_dead))
+	{
+		retro_asym_eventcount_cancel_wait(&m_work);
+		if (!retro_atomic_load_acquire_int(&m_dead))
+			Consume(key);
+		return;
+	}
+	retro_asym_eventcount_commit_wait(&m_work, key);
+	if (!retro_atomic_load_acquire_int(&m_dead))
+		Consume(retro_atomic_load_acquire_int(&m_work.epoch));
+}
+
+bool Threading::WorkSema::WaitForWorkTimed(u32 timeout_ms)
+{
+	int epoch, key;
+
+	if (retro_atomic_load_acquire_int(&m_dead))
+		return true;
+
+	epoch = retro_atomic_load_acquire_int(&m_work.epoch);
+	if (epoch != retro_atomic_load_relaxed_int(&m_seen))
+		return Consume(epoch);
+
+	GoIdle();
+
+	key = retro_asym_eventcount_prepare_wait(&m_work);
+	if (key != retro_atomic_load_relaxed_int(&m_seen)
+	 || retro_atomic_load_acquire_int(&m_dead))
+	{
+		retro_asym_eventcount_cancel_wait(&m_work);
+		if (!retro_atomic_load_acquire_int(&m_dead))
+			Consume(key);
+		return true;
+	}
+	if (!retro_asym_eventcount_commit_wait_timeout(&m_work, key,
+			(int64_t)timeout_ms * 1000))
+	{
+		/* Timed out. If something arrived in the meantime it is work,
+		 * not a timeout; only a still-unchanged epoch is the false case. */
+		epoch = retro_atomic_load_acquire_int(&m_work.epoch);
+		if (epoch == key && !retro_atomic_load_acquire_int(&m_dead))
+			return false;
+	}
+	if (!retro_atomic_load_acquire_int(&m_dead))
+		Consume(retro_atomic_load_acquire_int(&m_work.epoch));
+	return true;
 }
 
 bool Threading::WorkSema::WaitForEmpty()
 {
 	for (;;)
 	{
-		const s32 value = retro_atomic_load_acquire_int(&m_state);
-		if (value < 0)
-			return !(value < STATE_SPINNING); // STATE_SPINNING, queue is empty!
-		if (retro_atomic_cas_int(&m_state, value, value | STATE_FLAG_WAITING_EMPTY))
-			break;
-	}
-	m_empty_sema.Wait();
-	return !(retro_atomic_load_acquire_int(&m_state) < STATE_SPINNING);
-}
-
-bool Threading::WorkSema::WaitForWorkTimed(u32 timeout_ms)
-{
-	/* Same state walk as WaitForWork, minus the spin phase (a frontend
-	 * thread must park cheaply, not burn a core), plus a bounded sleep.
-	 * On timeout the state is CASed from SLEEPING back to RUNNING_0
-	 * before returning, so no thread is ever recorded as parked while
-	 * running off - the invariant WaitForEmpty depends on.  If a notify
-	 * wins that CAS it has already posted m_sema; the stray count makes
-	 * one future wait return early, which the state machine absorbs the
-	 * same way it absorbs any spurious wake. */
-	s32 value;
-	for (;;)
-	{
-		s32 waiting_empty_cleared;
-		s32 new_state;
-		value = retro_atomic_load_acquire_int(&m_state);
-		if (value < STATE_SPINNING)
+		int key;
+		if (retro_atomic_load_acquire_int(&m_dead))
+			return false;
+		/* Empty means: the worker is idle AND it went idle having seen
+		 * everything notified so far. Idle alone is not enough -- a notify
+		 * can land after the worker's last check and before its park, and
+		 * that work is still outstanding. */
+		if (retro_atomic_load_acquire_int(&m_idle)
+		 && retro_atomic_load_acquire_int(&m_seen)
+		    == retro_atomic_load_acquire_int(&m_work.epoch))
 			return true;
-		waiting_empty_cleared = value & (STATE_FLAG_WAITING_EMPTY - 1);
-		new_state = (waiting_empty_cleared == STATE_RUNNING_0) ? STATE_SLEEPING : (STATE_RUNNING_0 | (value & STATE_FLAG_WAITING_EMPTY));
-		if (retro_atomic_cas_int(&m_state, value, new_state))
-			break;
-	}
-
-	if ((value & (STATE_FLAG_WAITING_EMPTY - 1)) == STATE_RUNNING_0)
-	{
-		/* Wake any WaitForEmpty sleeper before parking, exactly as
-		 * WaitForWork does. */
-		if (value & STATE_FLAG_WAITING_EMPTY)
-			m_empty_sema.Post();
-
-		if (!m_sema.WaitFor(timeout_ms))
+		key = retro_eventcount_prepare_wait(&m_empty);
+		if (retro_atomic_load_acquire_int(&m_dead))
 		{
-			if (retro_atomic_cas_int(&m_state, STATE_SLEEPING, STATE_RUNNING_0))
-				return false;
-			/* A notify raced the timeout: state is RUNNING and a sema
-			 * post is in flight.  Treat it as a wake. */
+			retro_eventcount_cancel_wait(&m_empty);
+			return false;
 		}
+		if (retro_atomic_load_acquire_int(&m_idle)
+		 && retro_atomic_load_acquire_int(&m_seen)
+		    == retro_atomic_load_acquire_int(&m_work.epoch))
+		{
+			retro_eventcount_cancel_wait(&m_empty);
+			return true;
+		}
+		retro_eventcount_commit_wait(&m_empty, key);
 	}
-
-	/* Acknowledge any additional work added between wake up request and getting here */
-	retro_atomic_fetch_and_int(&m_state, STATE_FLAG_WAITING_EMPTY);
-	return true;
 }
 
 void Threading::WorkSema::Kill()
 {
-	s32 value = retro_atomic_exchange_int(&m_state, INT32_MIN);
-	if (value & STATE_FLAG_WAITING_EMPTY)
-		m_empty_sema.Post();
+	retro_atomic_store_release_int(&m_dead, 1);
+	/* Wake whoever is parked on either side so they see it. */
+	retro_asym_eventcount_notify(&m_work);
+	retro_eventcount_notify(&m_empty);
 }
 
 void Threading::WorkSema::Reset()
 {
-	retro_atomic_store_release_int(&m_state, STATE_RUNNING_0);
+	retro_atomic_store_release_int(&m_dead, 0);
+	retro_atomic_store_release_int(&m_seen, retro_atomic_load_acquire_int(&m_work.epoch));
+	retro_atomic_store_release_int(&m_idle, 1);
 }
 
 Threading::KernelSemaphore::KernelSemaphore()

@@ -16,6 +16,8 @@
 #pragma once
 
 #include <retro_atomic.h>
+#include <rthreads/retro_eventcount.h>
+#include <rthreads/retro_asym_eventcount.h>
 #include "Pcsx2Defs.h"
 #include "General.h"
 
@@ -72,7 +74,6 @@ namespace Threading
 		Mutex& operator=(const Mutex&) = delete;
 		void Lock();
 		void Unlock();
-		bool TryLock();
 		slock_t* Native() { return m_lock; }
 	};
 
@@ -246,7 +247,6 @@ namespace Threading
 		void Post();
 		/// Wait with a timeout.  Returns true if the semaphore was
 		/// acquired, false on timeout.
-		bool WaitFor(u32 timeout_ms);
 		void Wait();
 	};
 
@@ -278,70 +278,84 @@ namespace Threading
 	/// - Processing thread loops on `WaitForWork()` followed by processing all work in the queue
 	/// - Threads adding work first add their work to the queue, then call `NotifyOfWork()`
 	///
-	/// This is an eventcount, and libretro-common ships one too --
-	/// retro_eventcount, in rthreads/. Measured on the producer side with
-	/// the consumer awake, which is what the EE pays per GS packet, this
-	/// one is cheaper: NotifyOfWork is 6.2 ns against 8.7-9.6 ns for
-	/// retro_eventcount_notify, because it is a single fetch_add where the
-	/// other does a read-modify-write and then a sequentially-consistent
-	/// load. It also carries what a plain eventcount does not -- WaitForEmpty,
-	/// WaitForWorkTimed, the DEAD state -- and MTGS depends on all three.
-	/// So it stays. The wake side was not compared; that needs two cores.
+	/// Built on two libretro-common eventcounts, one per direction.
+	///
+	/// Producer to worker -- "work was added" -- is retro_asym_eventcount.
+	/// Its notify is a release store and a relaxed load, no lock prefix,
+	/// and that is the whole reason for the change: NotifyOfWork is what
+	/// the EE pays per GS packet with the GS thread awake, and it measured
+	/// 6.4 ns as a fetch_add-based state machine against 1.2 ns here. The
+	/// symmetric retro_eventcount was measured too and is slower than the
+	/// old code, 9.6 ns, since it pays an RMW and a seq_cst load to serve
+	/// many producers; each WorkSema here has exactly one, so the
+	/// asymmetric one applies. The ordering it drops on the hot side is
+	/// paid on the cold one: WaitForWork's park calls retro_procbarrier
+	/// once before it sleeps, and where no barrier exists the object runs
+	/// the symmetric protocol for its whole life, decided at init.
+	///
+	/// Worker to producer -- "I have drained everything you told me about"
+	/// -- is the plain retro_eventcount. WaitForEmpty is once a frame, so
+	/// its cost does not matter, and its prepare/commit contract is what
+	/// the old STATE_FLAG_WAITING_EMPTY handshake was reinventing.
+	///
+	/// The rest of the old contract is kept exactly: a worker that Kill()s
+	/// itself makes every wait return at once and WaitForEmpty report
+	/// false; Reset() revives it; WaitForWorkTimed returns false only on a
+	/// timeout with nothing pending.
 	class WorkSema
 	{
-		/// Semaphore for sleeping the worker thread
-		KernelSemaphore m_sema;
-		/// Semaphore for sleeping thread waiting on worker queue empty
-		KernelSemaphore m_empty_sema;
-		/// Current state (see enum below)
-		retro_atomic_int_t m_state = RETRO_ATOMIC_INT_INITIALIZER(0);
+		/// Producer -> worker. Its epoch moves once per NotifyOfWork.
+		retro_asym_eventcount_t m_work;
+		/// Worker -> producer. Its epoch moves once per idle transition.
+		retro_eventcount_t m_empty;
+		/// The work epoch the worker has consumed up to. Worker-written,
+		/// producer-read in WaitForEmpty.
+		retro_atomic_int_t m_seen = RETRO_ATOMIC_INT_INITIALIZER(0);
+		/// 1 while the worker is between finding no work and being told of
+		/// some: spinning, parked, or about to be. Worker-written.
+		retro_atomic_int_t m_idle = RETRO_ATOMIC_INT_INITIALIZER(1);
+		/// Set by Kill, cleared by Reset.
+		retro_atomic_int_t m_dead = RETRO_ATOMIC_INT_INITIALIZER(0);
 
-		// Expected call frequency is NotifyOfWork > WaitForWork > WaitForEmpty
-		// So optimize states for fast NotifyOfWork
-		enum
-		{
-			/* Any <-2 state: STATE_DEAD: Thread has crashed and is awaiting revival */
-			STATE_SPINNING = -2, ///< Worker thread is spinning waiting for work
-			STATE_SLEEPING = -1, ///< Worker thread is sleeping on m_sema
-			STATE_RUNNING_0 = 0, ///< Worker thread is processing work, but no work has been added since it last checked for new work
-			/* Any >0 state: STATE_RUNNING_N: Worker thread is processing work, and work has been added since it last checked for new work */
-			STATE_FLAG_WAITING_EMPTY = 1 << 30, ///< Flag to indicate that a thread is sleeping on m_empty_sema (can be applied to any STATE_RUNNING)
-		};
+		/// The worker found nothing to do: publish that for WaitForEmpty.
+		void GoIdle();
+		/// The worker has taken everything up to `epoch`.
+		bool Consume(int epoch);
 
 	public:
-		/// Notify the worker thread that you've added new work to its queue
+		WorkSema();
+		~WorkSema();
+		WorkSema(const WorkSema&) = delete;
+		WorkSema& operator=(const WorkSema&) = delete;
+
+		/// Notify the worker of new work. One release store and one relaxed
+		/// load with the worker awake; a broadcast under a lock only when it
+		/// is parked.
 		void NotifyOfWork()
 		{
-			// State change:
-			// DEAD: Stay in DEAD (starting DEAD state is INT_MIN so we can assume we won't flip over to anything else)
-			// SPINNING: Change state to RUNNING.  Thread will notice and process the new data
-			// SLEEPING: Change state to RUNNING and wake worker.  Thread will wake up and process the new data.
-			// RUNNING_0: Change state to RUNNING_N.
-			// RUNNING_N: Stay in RUNNING_N
-			s32 old = retro_atomic_fetch_add_int(&m_state, 2);
-			if (old == STATE_SLEEPING)
-				m_sema.Post();
+			retro_asym_eventcount_notify(&m_work);
 		}
 
-		/// Checks if there's any work in the queue
+		/// Checks if there's any work to do without blocking. Returns true if
+		/// work was added since the last check or wait; a false return means
+		/// the worker is idle and WaitForEmpty callers are told so.
 		bool CheckForWork();
-		/// Wait for work to be added to the queue
+		/// Wait for work to be added. Spins for SpinBudget() iterations
+		/// first, then parks -- the one place the process-wide barrier is
+		/// paid.
 		void WaitForWork();
-		/// Like WaitForWork, but parks for at most timeout_ms.  Returns
-		/// false on timeout with the state restored to RUNNING_0, so the
-		/// caller can bail out and try again later; the SLEEPING ->
-		/// parked-on-sema invariant that WaitForEmpty relies on is never
-		/// violated by the early exit.  For consumers that must not block
-		/// unboundedly (the libretro frontend thread).
+		/// As WaitForWork, but gives up after `timeout_ms` with nothing
+		/// pending. Returns false only in that case: true means work is
+		/// pending or the worker is dead, and the caller must process.
 		bool WaitForWorkTimed(u32 timeout_ms);
-		/// Wait for the worker thread to finish processing all entries in the queue or die
-		/// Returns false if the thread is dead
+		/// Wait until the worker has consumed every notification so far and
+		/// gone idle. Returns false if the worker is dead, in which case work
+		/// may still be queued.
 		bool WaitForEmpty();
-		/// Called by the worker thread to notify others of its death
-		/// Dead threads don't process work, and WaitForEmpty will return instantly even though there may be work in the queue
+		/// Dead threads don't process work, and WaitForEmpty will return
+		/// instantly even though there may be work in the queue.
 		void Kill();
-		/// Reset the semaphore to the initial state
-		/// Should be called by the worker thread if it restarts after dying
+		/// Reset to the initial state: alive, idle, nothing pending.
 		void Reset();
 	};
 
