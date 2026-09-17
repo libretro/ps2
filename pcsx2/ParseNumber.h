@@ -22,6 +22,7 @@
 #define PCSX2_PARSENUMBER_H
 
 #include <optional>
+#include <system_error>
 #include <string_view>
 #include <string>
 #include <charconv>

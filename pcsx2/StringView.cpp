@@ -1,6 +1,9 @@
 #include "StringView.h"
+#include <string_view>
+#include <string>
 
 #include <algorithm>
+#include <iterator>   /* back_inserter; libstdc++ gets it via <algorithm>, MSVC does not */
 #include <cctype>
 
 namespace StringView

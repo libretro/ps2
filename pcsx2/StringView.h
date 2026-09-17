@@ -8,6 +8,7 @@
 #define PCSX2_STRINGVIEW_H
 
 #include <string>
+#include <cstddef>
 #include <string_view>
 #include <cstring>
 #include "common/Pcsx2Defs.h"
