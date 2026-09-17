@@ -83,6 +83,9 @@ target_link_libraries(common PRIVATE
 
 fixup_file_properties(common)
 target_compile_features(common PUBLIC cxx_std_17)
-target_include_directories(common PUBLIC ../3rdparty/include ../ ../libretro/libretro-common/include)
+# ../pcsx2: common/ is being folded into it and includes its headers
+# (SLockGuard.h, HostMem.h); the Makefile build has always had it on
+# the include path, the CMake build had not.
+target_include_directories(common PUBLIC ../3rdparty/include ../ ../pcsx2 ../libretro/libretro-common/include)
 target_compile_definitions(common PUBLIC "${PCSX2_DEFS}")
 target_compile_options(common PRIVATE "${PCSX2_WARNINGS}")
