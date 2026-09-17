@@ -34,7 +34,11 @@ namespace Util
 void *memalign_alloc(size_t boundary, size_t size)
 {
 #if defined(_WIN32)
-    return memalign_alloc(boundary, size);
+    /* The CRT's, as upstream Granite has it: this is Granite's own
+     * allocator pair, and its pointers never meet libretro-common's
+     * memalign_free. An unqualified memalign_alloc here is this very
+     * function, in namespace Util. */
+    return _aligned_malloc(size, boundary);
 #elif defined(_ISOC11_SOURCE)
     return aligned_alloc(boundary, (size + boundary - 1) & ~(boundary - 1));
 #elif (_POSIX_C_SOURCE >= 200112L) || (_XOPEN_SOURCE >= 600)
@@ -70,7 +74,7 @@ void *memalign_calloc(size_t boundary, size_t size)
 void memalign_free(void *ptr)
 {
 #if defined(_WIN32)
-    memalign_free(ptr);
+    _aligned_free(ptr);
 #elif !defined(_ISOC11_SOURCE) && !((_POSIX_C_SOURCE >= 200112L) || (_XOPEN_SOURCE >= 600))
     if (ptr != nullptr)
     {
