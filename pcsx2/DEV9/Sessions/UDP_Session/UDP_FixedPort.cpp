@@ -31,7 +31,6 @@
 #endif
 
 #include <retro_atomic.h>
-#include "../../../../common/Threading.h"
 #include "UDP_FixedPort.h"
 #include "DEV9/PacketReader/IP/UDP/UDP_Packet.h"
 #include "../../../SLockGuard.h"

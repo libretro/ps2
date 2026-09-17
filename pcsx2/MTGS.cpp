@@ -262,7 +262,7 @@ bool MTGS::MainLoop(bool flush_all)
 	 * loop used to serve is now a real sleep on
 	 * vu1Thread.ecP1Progress, notified once per PopGSPacketMTVU
 	 * below.  The packet queue itself has always run on its own
-	 * atomics + semaXGkick. */
+	 * atomics + ecXGkick. */
 
 	for (;;)
 	{
@@ -341,7 +341,7 @@ bool MTGS::MainLoop(bool flush_all)
 					// buffer would fill mid-program -- continuous VU1
 					// microprograms) followed by the final packet
 					// (cycles == 0). Consume until the final one; each
-					// semaXGkick post pairs with exactly one queue push.
+					// Each ecXGkick notify follows exactly one queue push.
 					Gif_Path& path = gifUnit.gifPath[GIF_PATH_1];
 					for (;;)
 					{
@@ -354,22 +354,26 @@ bool MTGS::MainLoop(bool flush_all)
 						// packet is the dominant per-program cost when
 						// this thread outruns the worker.  A miss
 						// falls through to the same Wait as before.
-#if !defined(__aarch64__)
+						/* Wait for a path-1 packet. The queue's occupancy is
+						 * the condition -- there is no separate credit to take,
+						 * and PopGSPacketMTVU below is the consume. Spin the
+						 * budget first, then register, re-check, park. */
+						if (!path.GetPendingGSPackets())
 						{
 							s32 spins = WorkEventCount_SpinBudget();
-							while (!vu1Thread.semaXGkick.TryWait())
+							while (!path.GetPendingGSPackets() && spins-- > 0)
+								WORK_EVENTCOUNT_RELAX();
+							while (!path.GetPendingGSPackets())
 							{
-								if (--spins <= 0)
+								int key = retro_asym_eventcount_prepare_wait(&vu1Thread.ecXGkick);
+								if (path.GetPendingGSPackets())
 								{
-									vu1Thread.semaXGkick.Wait();
+									retro_asym_eventcount_cancel_wait(&vu1Thread.ecXGkick);
 									break;
 								}
-								WORK_EVENTCOUNT_RELAX();
+								retro_asym_eventcount_commit_wait(&vu1Thread.ecXGkick, key);
 							}
 						}
-#else
-						vu1Thread.semaXGkick.Wait();
-#endif
 						GS_Packet gsPack = path.GetGSPacketMTVU(); // Get vu1 program's xgkick packet(s)
 						if (gsPack.size)
 							GSgifTransfer((u8*)&path.buffer[gsPack.offset], gsPack.size / 16);
@@ -506,7 +510,7 @@ void MTGS::WaitGS(bool isMTVU)
 			 *
 			 * Liveness is unchanged: progress requires MTGS to pop, and
 			 * MTGS notifies at every pop -- including before it blocks in
-			 * semaXGkick.Wait, which it only reaches after popping what
+			 * the ecXGkick park, which it only reaches after popping what
 			 * was available. */
 			for (;;)
 			{

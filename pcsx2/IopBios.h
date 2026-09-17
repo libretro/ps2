@@ -53,12 +53,14 @@ typedef void (*irxDEBUG)();
 namespace R3000A
 {
 	u32 irxImportTableAddr(u32 entrypc);
-	const char* irxImportFuncname(const std::string& libname, u16 index);
-	irxHLE irxImportHLE(const std::string& libnam, u16 index);
-	irxHLE irxImportHLECh(const char* libname, u16 index); /* C89-callable */
-	irxDEBUG irxImportDebug(const std::string& libname, u16 index);
-	void irxImportLog(const std::string& libnameptr, u16 index, const char* funcname);
-	void irxImportLog_rec(u32 import_table, u16 index, const char* funcname);
+	/* An IRX import table names its module in an 8-byte field, NUL-padded.
+	 * irxImportName reads it as two little-endian words with everything
+	 * after the first NUL zeroed, so a short name compares equal to its
+	 * constant regardless of what the padding held; the lookups take those
+	 * two words. No string is built anywhere on this path. */
+	void irxImportName(u32 table, u32* name0, u32* name1);
+	irxHLE irxImportHLE(u32 name0, u32 name1, u16 index);
+	irxDEBUG irxImportDebug(u32 name0, u32 name1, u16 index);
 	int irxImportExec(u32 import_table, u16 index);
 	int irxImportExecCached(u32 stubpc, u16 index); // C.71: cached psxJ hook path
 

@@ -24,7 +24,6 @@
 #include <sys/socket.h>
 #endif
 
-#include "../../../../common/Threading.h"
 #include "DEV9/Sessions/BaseSession.h"
 #include "UDP_BaseSession.h"
 #include "UDP_Session.h"

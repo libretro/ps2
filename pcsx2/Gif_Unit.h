@@ -29,7 +29,7 @@
 
 struct GS_Packet;
 extern void Gif_FinishIRQ();
-extern void Gif_MTVU_KickSema(); // MTVU.cpp: vu1Thread.semaXGkick.Post()
+extern void Gif_MTVU_KickSema(); // MTVU.cpp: notify vu1Thread.ecXGkick
 extern bool Gif_HandlerAD(u8* pMem);
 extern void Gif_HandlerAD_MTVU(u8* pMem);
 extern void Gif_AddBlankGSPacket(u32 size, GIF_PATH path);

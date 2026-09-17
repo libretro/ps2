@@ -14,7 +14,7 @@
  */
 
 #include <retro_timers.h>
-#include "../../common/Threading.h"
+#include "common/Pcsx2Defs.h" /* __POSIX__, tested by the block below */
 #include "common/StringUtil.h"
 
 #ifdef _WIN32

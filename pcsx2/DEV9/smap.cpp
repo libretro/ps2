@@ -18,7 +18,6 @@
 #include "common/RedtapeWindows.h"
 #include <winioctl.h>
 #endif
-#include "common/Threading.h"
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>

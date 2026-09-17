@@ -22,7 +22,6 @@
 #endif
 
 #include <retro_timers.h>
-#include "../../common/Threading.h"
 #include "net.h"
 #include "DEV9.h"
 #ifdef _WIN32

@@ -13,7 +13,6 @@ target_sources(common PRIVATE
 	FastJmp.cpp
 	MemorySettingsInterface.cpp
 	Path.cpp
-	Semaphore.cpp
 	SettingsWrapper.cpp
 	StringUtil.cpp
 	TextureDecompress.cpp
@@ -72,7 +71,6 @@ target_sources(common PRIVATE
 	SettingsWrapper.h
 	StringUtil.h
 	TextureDecompress.h
-	Threading.h
 	VectorIntrin.h
 	WindowInfo.h
 	emitter/c89compat.h

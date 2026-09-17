@@ -36,7 +36,6 @@
 #endif
 
 #include <retro_timers.h>
-#include "../../../common/Threading.h"
 #include "DNS_Server.h"
 #include "DEV9/PacketReader/IP/UDP/UDP_Packet.h"
 #include "DEV9/PacketReader/IP/UDP/DNS/DNS_Packet.h"

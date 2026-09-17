@@ -26,7 +26,6 @@
 #define INVALID_SOCKET -1
 #endif
 
-#include "../../../../common/Threading.h"
 #include "DEV9/SimpleQueue.h"
 #include "DEV9/Sessions/BaseSession.h"
 #include "DEV9/PacketReader/IP/TCP/TCP_Packet.h"

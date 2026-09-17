@@ -15,7 +15,6 @@
 
 #include <cstring> /* memset */
 
-#include "../../common/Threading.h"
 
 #include "../R3000A.h"
 #include "../Common.h"

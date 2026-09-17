@@ -33,7 +33,6 @@
 #define SD_SEND SHUT_WR
 #endif
 
-#include "../../../../common/Threading.h"
 #include "TCP_Session.h"
 
 using namespace PacketReader;

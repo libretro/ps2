@@ -210,7 +210,6 @@ SOURCES_CXX += \
 	$(COMMON_DIR)/Path.cpp \
 	$(COMMON_DIR)/HostSys.cpp \
 	$(COMMON_DIR)/MemorySettingsInterface.cpp \
-	$(COMMON_DIR)/Semaphore.cpp \
 	$(COMMON_DIR)/SettingsWrapper.cpp \
 	$(COMMON_DIR)/StringUtil.cpp \
 	$(COMMON_DIR)/TextureDecompress.cpp

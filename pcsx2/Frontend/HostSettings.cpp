@@ -17,7 +17,6 @@
 #include "../../common/Path.h"
 #include "../Frontend/LayeredSettingsInterface.h"
 #include "../GS.h"
-#include "../../common/Threading.h"
 #include "../GS/Renderers/HW/GSTextureReplacements.h"
 #include "../Host.h"
 #include "../MemoryCardFile.h"

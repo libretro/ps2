@@ -15,7 +15,6 @@
 
 #pragma once
 #include <retro_atomic.h>
-#include "common/Threading.h"
 #include "WorkEventCount.h"
 #include <rthreads/rthreads.h>
 #include "Vif.h"
@@ -45,7 +44,12 @@ class VU_Thread final {
 public:
 	alignas(16)  vifStruct        vif;
 	alignas(16)  VIFregisters     vifRegs;
-	Threading::UserspaceSemaphore semaXGkick;
+	/* VU1 -> GS: "a path-1 packet was pushed to gsPackQueue". An
+	 * eventcount, not a semaphore: the count the semaphore kept was a
+	 * second copy of the queue's occupancy, and the queue is the one
+	 * that cannot drift. notify is a release store, what the VU1 thread
+	 * pays per program. */
+	retro_asym_eventcount_t ecXGkick;
 	/* Posted by MTGS once per PopGSPacketMTVU.  WaitGS(isMTVU=true)
 	 * sleeps on this until MTGS consumes a path-1 packet, replacing
 	 * the old slock rendezvous + Timeslice poll (which protected no

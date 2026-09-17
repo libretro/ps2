@@ -35,7 +35,6 @@
 #include <cstring> /* memset */
 #include <retro_atomic.h>
 
-#include "../common/Threading.h"
 
 #include "../common/Align.h"
 #include "../common/Console.h"

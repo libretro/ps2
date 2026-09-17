@@ -21,7 +21,6 @@
 #include "VMManager.h"
 #include "Vif_Dynarec.h"
 
-#include "../common/Threading.h"
 #include <rthreads/rthreads.h>
 
 VU_Thread vu1Thread;
@@ -102,12 +101,14 @@ VU_Thread::VU_Thread()
 	m_thread = NULL;
 	work_eventcount_init(&semaEvent);
 	retro_asym_eventcount_init(&ecP1Progress);
+	retro_asym_eventcount_init(&ecXGkick);
 }
 
 VU_Thread::~VU_Thread()
 {
 	Close();
 	work_eventcount_free(&semaEvent);
+	retro_asym_eventcount_free(&ecXGkick);
 	retro_asym_eventcount_free(&ecP1Progress);
 }
 
@@ -204,7 +205,7 @@ void VU_Thread::ExecuteRingBuffer(void)
 						vuRegs[0].VI[REG_VPU_STAT].UL |= 0x0100;
 					CpuVU1->Execute(vu1RunCycles);
 					gifUnit.gifPath[GIF_PATH_1].FinishGSPacketMTVU();
-					semaXGkick.Post(); // Tell MTGS a path1 packet is complete
+					retro_asym_eventcount_notify(&ecXGkick); // Tell MTGS a path1 packet is complete
 					retro_atomic_store_release_int(&vuCycles[vuCycleIdx], (int)vuRegs[1].cycle);
 					vuCycleIdx = (vuCycleIdx + 1) & 3;
 					break;
@@ -517,7 +518,7 @@ void VU_Thread::KickPending()
 // partial packet, so MTGS's semaXGkick wait wakes up and drains it.
 void Gif_MTVU_KickSema()
 {
-	vu1Thread.semaXGkick.Post();
+	retro_asym_eventcount_notify(&vu1Thread.ecXGkick);
 }
 
 void VU_Thread::WaitVU()

@@ -19,7 +19,6 @@
 #include <new>
 #include <retro_spsc.h>
 #include "common/General.h"
-#include "common/Threading.h"
 #include "WorkEventCount.h"
 #include "common/Console.h"
 

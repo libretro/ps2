@@ -35,7 +35,6 @@
 #include "../../common/MemorySettingsInterface.h"
 #include "../../common/Path.h"
 #include "../../common/StringUtil.h"
-#include "../../common/Threading.h"
 
 #include "Ps1CD.h"
 #include "CDVD.h"

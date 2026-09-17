@@ -31,7 +31,6 @@
 
 #include "../../GSLocalMemory.h"
 
-#include "../../../../common/Threading.h"
 #include "GSTextureReplacements.h"
 
 #include "../../../VMManager.h"

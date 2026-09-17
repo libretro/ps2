@@ -17,7 +17,6 @@
 
 #include <cstring>
 
-#include "../Threading.h"
 #include "../Pcsx2Defs.h"
 
 static const uint iREGCNT_XMM = 16;

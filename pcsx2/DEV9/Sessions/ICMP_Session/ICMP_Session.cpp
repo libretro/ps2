@@ -41,7 +41,6 @@
 #include <unistd.h>
 #endif
 
-#include "../../../../common/Threading.h"
 #include "ICMP_Session.h"
 #include "DEV9/PacketReader/NetLib.h"
 #include "../../../SLockGuard.h"

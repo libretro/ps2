@@ -595,10 +595,10 @@ static void psxRecompileIrxImport(void)
 	if (!import_table)
 		return;
 
-	char libname[12];
+	u32 name0, name1;
 	irxHLE hle;
-	iopMemReadStringBuf(libname, (int)sizeof(libname), import_table + 12, 8);
-	hle = irxImportHLECh(libname, index);
+	irxImportName(import_table, &name0, &name1);
+	hle = irxImportHLE(name0, name1, index);
 
 	if (!hle)
 		return;

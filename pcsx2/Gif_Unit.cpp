@@ -13,7 +13,6 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "../common/Threading.h"
 #include <rthreads/rthreads.h>
 #include "Common.h"
 

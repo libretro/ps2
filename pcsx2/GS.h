@@ -21,7 +21,6 @@
 #include "GS/GS.h"
 
 #include "../common/SingleRegisterTypes.h"
-#include "../common/Threading.h"
 
 extern double GetVerticalFrequency();
 extern u32 GetVerticalFrequencyMilliHz();

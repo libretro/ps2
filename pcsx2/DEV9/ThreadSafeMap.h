@@ -15,7 +15,6 @@
 
 #pragma once
 
-#include "../../common/Threading.h"
 #include <vector>
 #include <unordered_map>
 #include "../SLockGuard.h"

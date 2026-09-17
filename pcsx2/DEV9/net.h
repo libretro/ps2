@@ -15,7 +15,6 @@
 
 #pragma once
 #include <retro_atomic.h>
-#include "common/Threading.h"
 #include <stdlib.h>
 #include <string>
 #include <cstring>

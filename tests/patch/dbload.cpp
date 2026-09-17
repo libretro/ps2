@@ -46,7 +46,6 @@
 #include "Common.h"
 #include "GameDatabase.h"
 #include "common/Console.h"
-#include "common/Threading.h"
 
 static int g_errors   = 0;
 static int g_warnings = 0;
