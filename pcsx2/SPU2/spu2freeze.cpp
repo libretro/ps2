@@ -14,7 +14,7 @@
  */
 
 #include "Global.h"
-#include "../../common/AlignedMalloc.h"
+#include <memalign.h>
 #include "spu2.h" // hopefully temporary, until I resolve lClocks depdendency
 #include "../IopMem.h"
 
@@ -163,7 +163,7 @@ void SPU2Savestate::FreezeIt(DataBlock& spud)
 		FreezeItImpl(spud);
 		return;
 	}
-	DataBlock* tmp = (DataBlock*)_aligned_malloc(sizeof(DataBlock), alignof(DataBlock));
+	DataBlock* tmp = (DataBlock*)memalign_alloc(alignof(DataBlock), sizeof(DataBlock));
 	if (!tmp)
 	{
 		FreezeItImpl(spud);
@@ -171,19 +171,19 @@ void SPU2Savestate::FreezeIt(DataBlock& spud)
 	}
 	FreezeItImpl(*tmp);
 	memcpy((void*)&spud, tmp, sizeof(DataBlock));
-	_aligned_free(tmp);
+	memalign_free(tmp);
 }
 
 s32 SPU2Savestate::ThawIt(DataBlock& spud)
 {
 	if (((uintptr_t)&spud & (alignof(DataBlock) - 1)) == 0)
 		return ThawItImpl(spud);
-	DataBlock* tmp = (DataBlock*)_aligned_malloc(sizeof(DataBlock), alignof(DataBlock));
+	DataBlock* tmp = (DataBlock*)memalign_alloc(alignof(DataBlock), sizeof(DataBlock));
 	if (!tmp)
 		return ThawItImpl(spud);
 	memcpy(tmp, (const void*)&spud, sizeof(DataBlock));
 	const s32 ret = ThawItImpl(*tmp);
-	_aligned_free(tmp);
+	memalign_free(tmp);
 	return ret;
 }
 

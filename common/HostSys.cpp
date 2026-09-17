@@ -40,7 +40,6 @@
 
 #include <retro_atomic.h>
 #include "Align.h"
-#include "AlignedMalloc.h"
 #include "General.h"
 #ifdef _WIN32
 #include "RedtapeWindows.h"

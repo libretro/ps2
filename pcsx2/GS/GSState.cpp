@@ -14,6 +14,7 @@
  */
 
 #include <cstring> /* memset/memcpy */
+#include <memalign.h>
 #include <limits>
 #include <algorithm> /* clamp */
 #include <cfloat> /* FLT_MAX */
@@ -134,9 +135,9 @@ GSState::GSState()
 GSState::~GSState()
 {
 	if (m_vertex.buff)
-		_aligned_free(m_vertex.buff);
+		memalign_free(m_vertex.buff);
 	if (m_index.buff)
-		_aligned_free(m_index.buff);
+		memalign_free(m_index.buff);
 }
 
 void GSState::Reset(bool hardware_reset)
@@ -2628,22 +2629,22 @@ void GSState::GrowVertexBuffer()
 {
 	const u32 maxcount = pcsx2_max_u(m_vertex.maxcount * 3 / 2, 10000);
 
-	GSVertex* vertex = static_cast<GSVertex*>(_aligned_malloc(sizeof(GSVertex) * maxcount, 32));
+	GSVertex* vertex = static_cast<GSVertex*>(memalign_alloc(32, sizeof(GSVertex) * maxcount));
 	// Worst case index list is a list of points with vs expansion, 6 indices per point
-	u16* index = static_cast<u16*>(_aligned_malloc(sizeof(u16) * maxcount * 6, 32));
+	u16* index = static_cast<u16*>(memalign_alloc(32, sizeof(u16) * maxcount * 6));
 
 	if (m_vertex.buff)
 	{
 		memcpy(vertex, m_vertex.buff, sizeof(GSVertex) * m_vertex.tail);
 
-		_aligned_free(m_vertex.buff);
+		memalign_free(m_vertex.buff);
 	}
 
 	if (m_index.buff)
 	{
 		memcpy(index, m_index.buff, sizeof(u16) * m_index.tail);
 
-		_aligned_free(m_index.buff);
+		memalign_free(m_index.buff);
 	}
 
 	m_vertex.buff = vertex;
@@ -4122,12 +4123,12 @@ GIFRegTEX0 GSState::GetTex0Layer(u32 lod)
 GSState::GSTransferBuffer::GSTransferBuffer()
 {
 	constexpr size_t alloc_size = 1024 * 1024 * 4;
-	buff = reinterpret_cast<u8*>(_aligned_malloc(alloc_size, 32));
+	buff = reinterpret_cast<u8*>(memalign_alloc(32, alloc_size));
 }
 
 GSState::GSTransferBuffer::~GSTransferBuffer()
 {
-	_aligned_free(buff);
+	memalign_free(buff);
 }
 
 void GSState::GSTransferBuffer::Init(int tx, int ty, const GIFRegBITBLTBUF& blit, bool is_write)

@@ -14,6 +14,7 @@
  */
 
 #include <algorithm>
+#include <memalign.h>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
@@ -21,7 +22,6 @@
 
 #include <libretro.h>
 
-#include "common/AlignedMalloc.h"
 #include "common/Console.h"
 #include "common/VectorIntrin.h"
 #include "GS/GSExtra.h"
@@ -951,14 +951,15 @@ namespace
 			const u32 bpp = (format == GSTexture::Format::UNorm8) ? 1 : 4;
 			m_current_pitch = Common::AlignUpPow2(width * bpp, VECTOR_ALIGNMENT);
 			m_buffer_size = m_current_pitch * height;
-			m_buffer = (u8*)_aligned_malloc(m_buffer_size ? m_buffer_size : VECTOR_ALIGNMENT, VECTOR_ALIGNMENT);
+			m_buffer = (u8*)memalign_alloc(VECTOR_ALIGNMENT, m_buffer_size ? m_buffer_size : VECTOR_ALIGNMENT);
 			if (m_buffer && m_buffer_size)
 				memset(m_buffer, 0, m_buffer_size);
 		}
 
 		~GSDownloadTextureSW() override
 		{
-			safe_aligned_free(m_buffer);
+			memalign_free(m_buffer);
+			m_buffer = NULL;
 		}
 
 		void CopyFromTexture(const GSVector4i& /*drc*/, GSTexture* /*stex*/, const GSVector4i& /*src*/,
@@ -993,7 +994,8 @@ GSDeviceSW::GSDeviceSW() = default;
 
 GSDeviceSW::~GSDeviceSW()
 {
-	safe_aligned_free(m_present_buffer);
+	memalign_free(m_present_buffer);
+	m_present_buffer = NULL;
 }
 
 bool GSDeviceSW::Create()
@@ -1015,7 +1017,8 @@ bool GSDeviceSW::Create()
 void GSDeviceSW::Destroy()
 {
 	GSDevice::Destroy();
-	safe_aligned_free(m_present_buffer);
+	memalign_free(m_present_buffer);
+	m_present_buffer = NULL;
 	m_present_buffer = nullptr;
 	m_present_buffer_capacity = 0;
 	m_present_pitch = 0;
@@ -1471,8 +1474,9 @@ void GSDeviceSW::EnsurePresentBuffer(int width, int height)
 
 	if (needed > m_present_buffer_capacity)
 	{
-		safe_aligned_free(m_present_buffer);
-		m_present_buffer = (u8*)_aligned_malloc(needed, VECTOR_ALIGNMENT);
+		memalign_free(m_present_buffer);
+		m_present_buffer = NULL;
+		m_present_buffer = (u8*)memalign_alloc(VECTOR_ALIGNMENT, needed);
 		m_present_buffer_capacity = m_present_buffer ? needed : 0;
 	}
 	m_present_pitch  = pitch;

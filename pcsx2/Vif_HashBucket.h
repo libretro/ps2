@@ -17,10 +17,10 @@
 #define VIF_HASHBUCKET_H
 
 #include <string.h>
+#include <memalign.h>
 
 #ifdef __cplusplus
 #include "../common/Pcsx2Defs.h"
-#include "../common/AlignedMalloc.h"
 #else
 /* C branch: fixed-width aliases from stdint (the u64 alias is why the
  * C89 gate runs with -Wno-long-long), and prototypes for the aligned
@@ -31,13 +31,22 @@ typedef uint8_t u8;
 typedef uint16_t u16;
 typedef uint32_t u32;
 typedef uint64_t u64;
-void* _aligned_malloc(size_t size, size_t align);
-void _aligned_free(void* pmem);
-void* pcsx2_aligned_realloc(void* handle, size_t new_size, size_t align, size_t old_size);
-#ifndef safe_aligned_free
-#define safe_aligned_free(ptr) ((void)(_aligned_free(ptr), (ptr) = NULL))
+void* memalign_alloc(size_t align, size_t size);
+void memalign_free(void* pmem);
 #endif
-#endif
+
+/* Grow an aligned buffer: the only aligned realloc in the tree, over
+ * libretro-common's memalign. */
+static inline void* pcsx2_aligned_realloc(void* handle, size_t new_size, size_t align, size_t old_size)
+{
+	void* newbuf = memalign_alloc(align, new_size);
+	if (newbuf && handle)
+	{
+		memcpy(newbuf, handle, old_size < new_size ? old_size : new_size);
+		memalign_free(handle);
+	}
+	return newbuf;
+}
 
 #if defined(_MSC_VER)
 #define VIF_HASH_INLINE __forceinline
@@ -150,7 +159,8 @@ static void vif_hash_clear(vif_hash_bucket_t* h)
 	for (i = 0; i < VIF_HASH_SIZE; i++)
 	{
 		if (h->bucket[i])
-			safe_aligned_free(h->bucket[i]);
+			memalign_free(h->bucket[i]);
+			h->bucket[i] = NULL;
 	}
 }
 
@@ -161,7 +171,7 @@ static void vif_hash_reset(vif_hash_bucket_t* h)
 	/* Allocate a lone sentinel for every bucket. */
 	for (i = 0; i < VIF_HASH_SIZE; i++)
 	{
-		h->bucket[i] = (nVifBlock*)_aligned_malloc(sizeof(nVifBlock), 16);
+		h->bucket[i] = (nVifBlock*)memalign_alloc(16, sizeof(nVifBlock));
 		memset(h->bucket[i], 0, sizeof(nVifBlock));
 	}
 }

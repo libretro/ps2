@@ -14,7 +14,7 @@
  */
 
 #include <retro_atomic.h>
-#include "../../common/AlignedMalloc.h"
+#include <memalign.h>
 
 #include "GS.h"
 #include "GSRingHeap.h"
@@ -117,7 +117,7 @@ struct GSRingHeap::Buffer
 		if (unlikely(retro_atomic_fetch_sub_size(&m_amt_allocated, amt) == amt))
 		{
 			retro_atomic_thread_fence_acquire();
-			_aligned_free(this);
+			memalign_free(this);
 		}
 	}
 
@@ -164,7 +164,7 @@ struct GSRingHeap::Buffer
 	static Buffer* make(int quadrant_shift)
 	{
 		size_t size = 4ull << quadrant_shift;
-		Buffer* buffer = reinterpret_cast<Buffer*>(_aligned_malloc(size, 32));
+		Buffer* buffer = reinterpret_cast<Buffer*>(memalign_alloc(32, size));
 		buffer->m_size = size;
 		buffer->m_quadrant_shift = quadrant_shift;
 		retro_atomic_store_release_size(&buffer->m_amt_allocated, 1);

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0+
 
 #include <algorithm>
+#include <memalign.h>
 #include <cmath>
 #include <cstring>
 #include <cinttypes>
@@ -35,7 +36,7 @@ GSTextureCache::GSTextureCache()
 	// In theory 4MB is enough but 9MB is safer for overflow (8MB
 	// isn't enough in custom resolution)
 	// Test: onimusha 3 PAL 60Hz
-	s_unswizzle_buffer = (u8*)_aligned_malloc(9 * 1024 * 1024, VECTOR_ALIGNMENT);
+	s_unswizzle_buffer = (u8*)memalign_alloc(VECTOR_ALIGNMENT, 9 * 1024 * 1024);
 
 	m_surface_offset_cache.reserve(S_SURFACE_OFFSET_CACHE_MAX_SIZE);
 }
@@ -45,7 +46,7 @@ GSTextureCache::~GSTextureCache()
 	RemoveAll(true, true, true);
 
 	s_hash_cache_purge_list = {};
-	_aligned_free(s_unswizzle_buffer);
+	memalign_free(s_unswizzle_buffer);
 }
 
 void GSTextureCache::ReadbackAll()
@@ -5462,7 +5463,7 @@ GSTextureCache::Source::Source(const GIFRegTEX0& TEX0, const GIFRegTEXA& TEXA)
 
 GSTextureCache::Source::~Source()
 {
-	_aligned_free(m_write.rect);
+	memalign_free(m_write.rect);
 
 	// Shared textures are pointers copy. Therefore no allocation
 	// to recycle.
@@ -5614,7 +5615,7 @@ void GSTextureCache::Source::UpdateLayer(const GIFRegTEX0& TEX0, const GSVector4
 void GSTextureCache::Source::Write(const GSVector4i& r, int layer, const GSOffset& off)
 {
 	if (!m_write.rect)
-		m_write.rect = static_cast<GSVector4i*>(_aligned_malloc(3 * sizeof(GSVector4i), 16));
+		m_write.rect = static_cast<GSVector4i*>(memalign_alloc(16, 3 * sizeof(GSVector4i)));
 
 	m_write.rect[m_write.count++] = r;
 
@@ -6425,7 +6426,7 @@ GSTextureCache::Palette::Palette(const u32* clut, u16 pal, bool need_gs_texture)
 	, m_pal(pal)
 {
 	const u16 palette_size = pal * sizeof(u32);
-	m_clut = (u32*)_aligned_malloc(palette_size, 64);
+	m_clut = (u32*)memalign_alloc(64, palette_size);
 	memcpy(m_clut, clut, palette_size);
 	if (need_gs_texture)
 	{
@@ -6443,7 +6444,7 @@ GSTextureCache::Palette::~Palette()
 		g_gs_device->Recycle(m_tex_palette);
 	}
 
-	_aligned_free(m_clut);
+	memalign_free(m_clut);
 }
 
 std::pair<u8, u8> GSTextureCache::Palette::GetAlphaMinMax(u8 min_index, u8 max_index) const

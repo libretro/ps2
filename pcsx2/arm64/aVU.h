@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0+
 
 #pragma once
+#include <memalign.h>
 
 // ARM64 microVU recompiler — arch-neutral data structures (Phase 7, task 7.2a).
 //
@@ -34,7 +35,6 @@
 
 #include "Common.h"
 #include "arm64/ArmCompat.h"
-#include "common/AlignedMalloc.h"
 #include "VU.h"
 #include "MTVU.h"
 #include "R5900.h"
@@ -490,14 +490,14 @@ public:
 			microBlockLink* freeI = linkI;
 			safe_delete_array(linkI->block.jumpCache);
 			linkI = linkI->next;
-			_aligned_free(freeI);
+			memalign_free(freeI);
 		}
 		for (microBlockLink* linkI = fBlockList; linkI != nullptr;)
 		{
 			microBlockLink* freeI = linkI;
 			safe_delete_array(linkI->block.jumpCache);
 			linkI = linkI->next;
-			_aligned_free(freeI);
+			memalign_free(freeI);
 		}
 		qListI = fListI = 0;
 		qBlockEnd = qBlockList = nullptr;
@@ -517,7 +517,7 @@ public:
 
 			microBlockLink*& blockList = fullCmp ? fBlockList : qBlockList;
 			microBlockLink*& blockEnd  = fullCmp ? fBlockEnd  : qBlockEnd;
-			microBlockLink*  newBlock  = (microBlockLink*)_aligned_malloc(sizeof(microBlockLink), 32);
+			microBlockLink*  newBlock  = (microBlockLink*)memalign_alloc(32, sizeof(microBlockLink));
 			newBlock->block.jumpCache  = nullptr;
 			newBlock->next             = nullptr;
 

@@ -14,6 +14,7 @@
  */
 
 #include <retro_atomic.h>
+#include <memalign.h>
 #include <cstring> /* memcpy/memset */
 
 #include "GSRendererSW.h"
@@ -35,7 +36,7 @@ GSRendererSW::GSRendererSW(int threads)
 	m_tc = std::make_unique<GSTextureCacheSW>();
 	m_rl = GSRasterizerList::Create(threads);
 
-	m_output = (u8*)_aligned_malloc(1024 * 1024 * sizeof(u32), VECTOR_ALIGNMENT);
+	m_output = (u8*)memalign_alloc(VECTOR_ALIGNMENT, 1024 * 1024 * sizeof(u32));
 
 	for (retro_atomic_int_t& p : m_fzb_pages)
 		retro_atomic_store_release_int(&p, 0);
@@ -74,7 +75,7 @@ void GSRendererSW::Destroy()
 		m_texture[i] = nullptr;
 	}
 
-	_aligned_free(m_output);
+	memalign_free(m_output);
 	m_output = nullptr;
 }
 

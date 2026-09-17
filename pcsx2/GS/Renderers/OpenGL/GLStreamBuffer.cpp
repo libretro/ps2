@@ -14,8 +14,8 @@
  */
 
 #include "GLStreamBuffer.h"
+#include <memalign.h>
 #include "common/Align.h"
-#include "common/AlignedMalloc.h"
 #include <array>
 #include <cstring>
 
@@ -49,7 +49,7 @@ namespace detail
 		public:
 			~BufferSubDataStreamBuffer() override
 			{
-				_aligned_free(m_cpu_buffer);
+				memalign_free(m_cpu_buffer);
 			}
 
 			MappingResult Map(u32 alignment, u32 min_size) override
@@ -95,7 +95,7 @@ namespace detail
 			BufferSubDataStreamBuffer(GLenum target, GLuint buffer_id, u32 size)
 				: GLStreamBuffer(target, buffer_id, size)
 			{
-				m_cpu_buffer = static_cast<u8*>(_aligned_malloc(size, 32));
+				m_cpu_buffer = static_cast<u8*>(memalign_alloc(32, size));
 			}
 
 			u8* m_cpu_buffer;
@@ -107,7 +107,7 @@ namespace detail
 		public:
 			~BufferDataStreamBuffer() override
 			{
-				_aligned_free(m_cpu_buffer);
+				memalign_free(m_cpu_buffer);
 			}
 
 			MappingResult Map(u32 alignment, u32 min_size) override
@@ -153,7 +153,7 @@ namespace detail
 			BufferDataStreamBuffer(GLenum target, GLuint buffer_id, u32 size)
 				: GLStreamBuffer(target, buffer_id, size)
 			{
-				m_cpu_buffer = static_cast<u8*>(_aligned_malloc(size, 32));
+				m_cpu_buffer = static_cast<u8*>(memalign_alloc(32, size));
 			}
 
 			u8* m_cpu_buffer;

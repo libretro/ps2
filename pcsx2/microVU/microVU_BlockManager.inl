@@ -18,7 +18,6 @@
 
 #pragma once
 
-#include "common/AlignedMalloc.h"
 
 /* Per-startPC block table. C89 shape: a plain struct with prefixed
  * functions. quickLookup was a std::vector<microBlockLinkRef>; it is a
@@ -52,7 +51,7 @@ static void mVUbm_reset(struct microBlockManager* m)
 		free(linkI->block.jumpCache);
 		linkI->block.jumpCache = NULL;
 		linkI = linkI->next;
-		_aligned_free(freeI);
+		memalign_free(freeI);
 	}
 	for (linkI = m->fBlockList; linkI != NULL;)
 	{
@@ -60,7 +59,7 @@ static void mVUbm_reset(struct microBlockManager* m)
 		free(linkI->block.jumpCache);
 		linkI->block.jumpCache = NULL;
 		linkI = linkI->next;
-		_aligned_free(freeI);
+		memalign_free(freeI);
 	}
 	m->qBlockEnd = m->qBlockList = NULL;
 	m->fBlockEnd = m->fBlockList = NULL;
@@ -129,7 +128,7 @@ static microBlock* mVUbm_add(struct microBlockManager* m, microVU* mVU, microBlo
 
 		microBlockLink** blockList = fullCmp ? &m->fBlockList : &m->qBlockList;
 		microBlockLink** blockEnd  = fullCmp ? &m->fBlockEnd  : &m->qBlockEnd;
-		microBlockLink*  newBlock  = (microBlockLink*)_aligned_malloc(sizeof(microBlockLink), 32);
+		microBlockLink*  newBlock  = (microBlockLink*)memalign_alloc(32, sizeof(microBlockLink));
 		newBlock->block.jumpCache  = NULL;
 		newBlock->next             = NULL;
 

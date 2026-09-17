@@ -14,6 +14,7 @@
  */
 
 #include <algorithm>
+#include <memalign.h>
 #include <unordered_set>
 
 #include "GS.h"
@@ -248,9 +249,9 @@ GSLocalMemory::~GSLocalMemory()
 		GSFreeWrappedMemory(m_vm8, m_vmsize, 4);
 
 	for (auto& i : m_pomap)
-		_aligned_free(i.second);
+		memalign_free(i.second);
 	for (auto& i : m_po4map)
-		_aligned_free(i.second);
+		memalign_free(i.second);
 
 	for (auto& i : m_p2tmap)
 	{
@@ -280,7 +281,7 @@ GSPixelOffset* GSLocalMemory::GetPixelOffset(const GIFRegFRAME& FRAME, const GIF
 		return it->second;
 	}
 
-	GSPixelOffset* off = (GSPixelOffset*)_aligned_malloc(sizeof(GSPixelOffset), VECTOR_ALIGNMENT);
+	GSPixelOffset* off = (GSPixelOffset*)memalign_alloc(VECTOR_ALIGNMENT, sizeof(GSPixelOffset));
 
 	off->hash = hash;
 	off->fbp = fbp;
@@ -331,7 +332,7 @@ GSPixelOffset4* GSLocalMemory::GetPixelOffset4(const GIFRegFRAME& FRAME, const G
 		return it->second;
 	}
 
-	GSPixelOffset4* off = (GSPixelOffset4*)_aligned_malloc(sizeof(GSPixelOffset4), VECTOR_ALIGNMENT);
+	GSPixelOffset4* off = (GSPixelOffset4*)memalign_alloc(VECTOR_ALIGNMENT, sizeof(GSPixelOffset4));
 
 	off->hash = hash;
 	off->fbp = fbp;

@@ -16,10 +16,10 @@
 // TODO: JIT Draw* (flags: depth, texture, color (+iip), scissor)
 
 #include "GSRasterizer.h"
+#include <memalign.h>
 #include "GSDrawScanline.h"
 #include "../../GSExtra.h"
 
-#include "common/AlignedMalloc.h"
 
 #include "../../../VMManager.h"
 
@@ -48,10 +48,10 @@ GSRasterizer::GSRasterizer(GSDrawScanline* ds, int id, int threads)
 
 	m_thread_height = compute_best_thread_height(threads);
 
-	m_edge.buff     = static_cast<GSVertexSW*>(_aligned_malloc(sizeof(GSVertexSW) * 2048, VECTOR_ALIGNMENT));
+	m_edge.buff     = static_cast<GSVertexSW*>(memalign_alloc(VECTOR_ALIGNMENT, sizeof(GSVertexSW) * 2048));
 	m_edge.count    = 0;
 	int rows        = (2048 >> m_thread_height) + 16;
-	m_scanline      = (u8*)_aligned_malloc(rows, 64);
+	m_scanline      = (u8*)memalign_alloc(64, rows);
 
 	for (int i = 0; i < rows; i++)
 		m_scanline[i] = (i % threads) == id ? 1 : 0;
@@ -59,8 +59,8 @@ GSRasterizer::GSRasterizer(GSDrawScanline* ds, int id, int threads)
 
 GSRasterizer::~GSRasterizer()
 {
-	_aligned_free(m_scanline);
-	_aligned_free(m_edge.buff);
+	memalign_free(m_scanline);
+	memalign_free(m_edge.buff);
 }
 
 static void __fi AddScanlineInfo(GSVertexSW* e, int pixels, int left, int top)
@@ -1137,7 +1137,7 @@ GSRasterizerList::GSRasterizerList(int threads)
 	m_thread_height = compute_best_thread_height(threads);
 
 	const int rows = (2048 >> m_thread_height) + 16;
-	m_scanline = static_cast<u8*>(_aligned_malloc(rows, 64));
+	m_scanline = static_cast<u8*>(memalign_alloc(64, rows));
 
 	for (int i = 0; i < rows; i++)
 		m_scanline[i] = static_cast<u8>(i % threads);
@@ -1145,7 +1145,7 @@ GSRasterizerList::GSRasterizerList(int threads)
 
 GSRasterizerList::~GSRasterizerList()
 {
-	_aligned_free(m_scanline);
+	memalign_free(m_scanline);
 }
 
 void GSRasterizerList::OnWorkerStartup(int i, u64 affinity)

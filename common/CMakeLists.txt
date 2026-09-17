@@ -8,7 +8,6 @@ endif(NOT TOP_CMAKE_WAS_SOURCED)
 add_library(common)
 
 target_sources(common PRIVATE
-	AlignedMalloc.cpp
 	Console.cpp
 	FastJmp.cpp
 	MemorySettingsInterface.cpp
@@ -57,7 +56,6 @@ endif()
 # x86emitter headers
 target_sources(common PRIVATE
 	Align.h
-	AlignedMalloc.h
 	Console.h
 	CpuFeatures.h
 	FastJmp.h

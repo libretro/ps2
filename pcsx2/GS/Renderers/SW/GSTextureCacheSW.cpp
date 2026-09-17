@@ -14,6 +14,7 @@
  */
 
 #include "GSTextureCacheSW.h"
+#include <memalign.h>
 #include "../../GSExtra.h"
 #include "../../GSUtil.h"
 
@@ -159,14 +160,14 @@ GSTextureCacheSW::Texture::Texture(u32 tw0, const GIFRegTEX0& TEX0, const GIFReg
 GSTextureCacheSW::Texture::~Texture()
 {
 	if (m_buff)
-		_aligned_free(m_buff);
+		memalign_free(m_buff);
 }
 
 void GSTextureCacheSW::Texture::Reset(u32 tw0, const GIFRegTEX0& TEX0, const GIFRegTEXA& TEXA)
 {
 	if (m_buff && (m_TEX0.TW != TEX0.TW || m_TEX0.TH != TEX0.TH))
 	{
-		_aligned_free(m_buff);
+		memalign_free(m_buff);
 		m_buff = nullptr;
 	}
 
@@ -219,7 +220,7 @@ bool GSTextureCacheSW::Texture::Update(const GSVector4i& rect)
 		const u32 pitch = (1 << m_tw) << shift;
 		const size_t size = pitch * th * 4;
 
-		m_buff = _aligned_malloc(size, VECTOR_ALIGNMENT);
+		m_buff = memalign_alloc(VECTOR_ALIGNMENT, size);
 		if (!m_buff)
 			return false;
 

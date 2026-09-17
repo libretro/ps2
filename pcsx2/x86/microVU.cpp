@@ -16,6 +16,7 @@
 // Micro VU recompiler! - author: cottonvibes(@gmail.com)
 
 #include <stdio.h>  /* fprintf: dispatcher-cache bound check */
+#include <memalign.h>
 #include <stdlib.h> /* abort */
 #include <string.h> /* memset */
 
@@ -23,7 +24,6 @@
 #include "../HostMem.h"
 #include "ps2float.h"
 
-#include "../../common/AlignedMalloc.h"
 
 //------------------------------------------------------------------
 // Micro VU - Main Functions
@@ -205,13 +205,14 @@ __ri void mVUdeleteProg(microVU* mVU, microProgram** prog)
 	}
 	mvu_rangelist_delete((*prog)->ranges);
 	(*prog)->ranges = NULL;
-	safe_aligned_free(*prog);
+	memalign_free(*prog);
+	*prog = NULL;
 }
 
 // Creates a new Micro Program
 __ri microProgram* mVUcreateProg(microVU* mVU, int startPC)
 {
-	microProgram* prog = (microProgram*)_aligned_malloc(sizeof(microProgram), 64);
+	microProgram* prog = (microProgram*)memalign_alloc(64, sizeof(microProgram));
 	memset(prog, 0, sizeof(microProgram));
 	prog->idx = mVU->prog.total++;
 	prog->ranges = mvu_rangelist_new();

@@ -14,8 +14,8 @@
  */
 
 #pragma once
+#include <memalign.h>
 
-#include "../../common/AlignedMalloc.h"
 
 template <int i>
 class GSAlignedClass
@@ -27,12 +27,12 @@ protected:
 public:
 	void* operator new(size_t size)
 	{
-		return _aligned_malloc(size, i);
+		return memalign_alloc(i, size);
 	}
 
 	void operator delete(void* p)
 	{
-		_aligned_free(p);
+		memalign_free(p);
 	}
 
 	void* operator new(size_t size, void* ptr)
@@ -48,12 +48,12 @@ public:
 
 	void* operator new[](size_t size)
 	{
-		return _aligned_malloc(size, i);
+		return memalign_alloc(i, size);
 	}
 
 	void operator delete[](void* p)
 	{
-		_aligned_free(p);
+		memalign_free(p);
 	}
 };
 

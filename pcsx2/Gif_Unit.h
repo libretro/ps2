@@ -14,12 +14,12 @@
  */
 
 #pragma once
+#include <memalign.h>
 #include <retro_atomic.h>
 #include <retro_spsc.h>
 #include <deque>
 #include <cstring> /* memset */
 
-#include "../common/AlignedMalloc.h"
 #include "../common/VectorIntrin.h"
 
 #include "Gif.h"
@@ -284,14 +284,14 @@ struct Gif_Path
 	Gif_Path_MTVU mtvu;          // Must be last for saved states
 
 	Gif_Path() { Reset(); }
-	~Gif_Path() { _aligned_free(buffer); }
+	~Gif_Path() { memalign_free(buffer); }
 
 	void Init(GIF_PATH _idx, u32 _buffSize, u32 _buffSafeZone)
 	{
 		idx = _idx;
 		buffSize = _buffSize;
 		buffLimit = _buffSize - _buffSafeZone;
-		buffer = (u8*)_aligned_malloc(buffSize, 16);
+		buffer = (u8*)memalign_alloc(16, buffSize);
 		/* MTVU only ever drives path 1 (MTVU.cpp posts exclusively to
 		 * gifPath[GIF_PATH_1]), so the packet queue exists only there. */
 		mtvu.InitQueue(_idx == GIF_PATH_1);

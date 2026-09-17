@@ -117,6 +117,7 @@ SOURCES_C += \
 	$(LIBRETRO_COMM_DIR)/string/stdstring.c \
 	$(LIBRETRO_COMM_DIR)/time/rtime.c \
 	$(LIBRETRO_COMM_DIR)/memmap/memmap.c \
+	$(LIBRETRO_COMM_DIR)/memmap/memalign.c \
 	$(LIBRETRO_COMM_DIR)/rthreads/rthreads.c \
 	$(LIBRETRO_COMM_DIR)/rthreads/retro_eventcount.c \
 	$(LIBRETRO_COMM_DIR)/rthreads/retro_procbarrier.c \
@@ -204,7 +205,6 @@ endif
 # common
 # ============================================================================
 SOURCES_CXX += \
-	$(COMMON_DIR)/AlignedMalloc.cpp \
 	$(COMMON_DIR)/Console.cpp \
 	$(COMMON_DIR)/FastJmp.cpp \
 	$(LRPS2_DIR)/HostFS.cpp \

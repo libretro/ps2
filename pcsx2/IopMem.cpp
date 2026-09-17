@@ -13,9 +13,9 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "../common/AlignedMalloc.h"
 
 #include "R3000A.h"
+#include <memalign.h>
 #include "Common.h"
 #include "ps2/pgif.h" // for PSX kernel TTY in iopMemWrite32
 #include "SPU2/spu2.h"
@@ -41,8 +41,8 @@ iopMemoryReserve::~iopMemoryReserve() { Release(); }
 
 void iopMemoryReserve::Assign(VirtualMemoryManagerPtr allocator)
 {
-	psxMemWLUT = (uptr*)_aligned_malloc(0x2000 * sizeof(uptr) * 2, 16);
-	psxMemRLUT = psxMemWLUT + 0x2000; //(uptr*)_aligned_malloc(0x10000 * sizeof(uptr),16);
+	psxMemWLUT = (uptr*)memalign_alloc(16, 0x2000 * sizeof(uptr) * 2);
+	psxMemRLUT = psxMemWLUT + 0x2000; //(uptr*)memalign_alloc(16, 0x10000 * sizeof(uptr));
 
 	VtlbMemoryReserve::Assign(std::move(allocator), HostMemoryMap::IOPmemOffset, sizeof(*iopMem));
 	iopMem = reinterpret_cast<IopVM_MemoryAllocMess*>(GetPtr());
@@ -52,7 +52,8 @@ void iopMemoryReserve::Release()
 {
 	_parent::Release();
 
-	safe_aligned_free(psxMemWLUT);
+	memalign_free(psxMemWLUT);
+	psxMemWLUT = NULL;
 	psxMemRLUT = nullptr;
 	iopMem = nullptr;
 }

@@ -18,6 +18,7 @@
 // zerofrog(@gmail.com)
 
 #include "iR3000A.h"
+#include <memalign.h>
 #include "../HostMem.h"
 #include "common/emitter/c89ops.h"
 #include "../R3000A.h"
@@ -36,7 +37,6 @@
 
 #include "../Config.h"
 
-#include "../../common/AlignedMalloc.h"
 #include "HostFS.h"
 #include "../../common/Path.h"
 extern void psxBREAK();
@@ -796,7 +796,7 @@ static void recAlloc(void)
 
 	// We're on 64-bit, if these memory allocations fail, we're in real trouble.
 	if (!m_recBlockAlloc)
-		m_recBlockAlloc = (u8*)_aligned_malloc(m_recBlockAllocSize, 4096);
+		m_recBlockAlloc = (u8*)memalign_alloc(4096, m_recBlockAllocSize);
 
 	u8* curpos = m_recBlockAlloc;
 	recRAM = (BASEBLOCK*)curpos;
@@ -880,7 +880,8 @@ static void recShutdown(void)
 	code_reserve_release(&recMem);
 	recMemAssigned = 0;
 
-	safe_aligned_free(m_recBlockAlloc);
+	memalign_free(m_recBlockAlloc);
+	m_recBlockAlloc = NULL;
 
 	if (s_pInstCache)
 		free(s_pInstCache);

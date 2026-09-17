@@ -18,6 +18,7 @@
 // compiled block code is not executed yet — but it is fully emitted for real.
 
 #include "arm64/aVU.h"
+#include <memalign.h>
 #include "arm64/aVU_IR.h"
 #include "arm64/aVU_Misc.h" // arch-neutral macro layer (task 7.3)
 
@@ -27,7 +28,6 @@
 #include "SaveState.h"
 #include "Gif_Unit.h" // gifUnit + GIF_TRANS_XGKICK (XGKICK GIF transfer, aVU_Lower.inl)
 
-#include "common/AlignedMalloc.h"
 #include "common/Perf.h"
 
 #include <algorithm>
@@ -644,13 +644,14 @@ static void mVUdeleteProg(microVU& mVU, microProgram*& prog)
 		safe_delete(prog->block[i]);
 	}
 	safe_delete(prog->ranges);
-	safe_aligned_free(prog);
+	memalign_free(prog);
+	prog = NULL;
 }
 
 // Creates a new Micro Program
 static microProgram* mVUcreateProg(microVU& mVU, int startPC)
 {
-	microProgram* prog = (microProgram*)_aligned_malloc(sizeof(microProgram), 64);
+	microProgram* prog = (microProgram*)memalign_alloc(64, sizeof(microProgram));
 	memset(prog, 0, sizeof(microProgram));
 	prog->idx = mVU.prog.total++;
 	prog->ranges = new std::deque<microRange>();

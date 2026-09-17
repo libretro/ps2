@@ -14,12 +14,12 @@
  */
 
 #include <limits.h>
+#include <memalign.h>
 #include "GSDeviceOGL.h"
 #include "GSTextureOGL.h"
 #include "GLState.h"
 #include "GS/GSExtra.h"
 #include "common/Align.h"
-#include "common/AlignedMalloc.h"
 #include "common/StringUtil.h"
 
 #include <libretro.h>
@@ -326,7 +326,7 @@ GSDownloadTextureOGL::~GSDownloadTextureOGL()
 	}
 	else if (m_cpu_buffer)
 	{
-		_aligned_free(m_cpu_buffer);
+		memalign_free(m_cpu_buffer);
 	}
 }
 
@@ -368,7 +368,7 @@ std::unique_ptr<GSDownloadTextureOGL> GSDownloadTextureOGL::Create(u32 width, u3
 	}
 
 	// Fallback to glReadPixels() + CPU buffer.
-	u8* cpu_buffer = static_cast<u8*>(_aligned_malloc(buffer_size, VECTOR_ALIGNMENT));
+	u8* cpu_buffer = static_cast<u8*>(memalign_alloc(VECTOR_ALIGNMENT, buffer_size));
 	if (!cpu_buffer)
 		return {};
 

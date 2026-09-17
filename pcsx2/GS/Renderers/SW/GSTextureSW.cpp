@@ -14,8 +14,8 @@
  */
 
 #include <cstring>
+#include <memalign.h>
 
-#include "common/AlignedMalloc.h"
 #include "GS/GSExtra.h"
 #include "GS/Renderers/SW/GSTextureSW.h"
 
@@ -39,14 +39,15 @@ GSTextureSW::GSTextureSW(Type type, int width, int height, Format format)
 	m_pitch = static_cast<int>(Common::AlignUpPow2(static_cast<u32>(width * bpp), VECTOR_ALIGNMENT));
 
 	const size_t bytes = static_cast<size_t>(m_pitch) * static_cast<size_t>(height);
-	m_data = (u8*)_aligned_malloc(bytes ? bytes : VECTOR_ALIGNMENT, VECTOR_ALIGNMENT);
+	m_data = (u8*)memalign_alloc(VECTOR_ALIGNMENT, bytes ? bytes : VECTOR_ALIGNMENT);
 	if (m_data && bytes)
 		memset(m_data, 0, bytes);
 }
 
 GSTextureSW::~GSTextureSW()
 {
-	safe_aligned_free(m_data);
+	memalign_free(m_data);
+	m_data = NULL;
 }
 
 bool GSTextureSW::Update(const GSVector4i& r, const void* data, int pitch, int /*layer*/)

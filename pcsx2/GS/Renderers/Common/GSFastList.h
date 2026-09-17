@@ -14,9 +14,9 @@
  */
 
 #pragma once
+#include <memalign.h>
 
 #include <climits>
-#include "common/AlignedMalloc.h"
 
 template <class T>
 struct Element
@@ -66,7 +66,7 @@ public:
 
 	__forceinline ~FastList()
 	{
-		_aligned_free(m_buffer);
+		memalign_free(m_buffer);
 	}
 
 	void clear()
@@ -77,8 +77,8 @@ public:
 
 		// Initialize m_buffer and m_free_indexes_stack as a contiguous block of memory starting at m_buffer
 		// This should increase cache locality and reduce memory fragmentation
-		_aligned_free(m_buffer);
-		m_buffer = (Element<T>*)_aligned_malloc(m_capacity * sizeof(Element<T>) + (m_capacity - 1) * sizeof(u16), 64);
+		memalign_free(m_buffer);
+		m_buffer = (Element<T>*)memalign_alloc(64, m_capacity * sizeof(Element<T>) + (m_capacity - 1) * sizeof(u16));
 		m_free_indexes_stack = (u16*)&m_buffer[m_capacity];
 
 		// Initialize m_buffer[0], data field is unused but initialized using default T constructor
@@ -226,13 +226,13 @@ private:
 	{
 		const u16 new_capacity = m_capacity <= (USHRT_MAX / 2) ? (m_capacity * 2) : USHRT_MAX;
 
-		Element<T>* new_buffer = (Element<T>*)_aligned_malloc(new_capacity * sizeof(Element<T>) + (new_capacity - 1) * sizeof(u16), 64);
+		Element<T>* new_buffer = (Element<T>*)memalign_alloc(64, new_capacity * sizeof(Element<T>) + (new_capacity - 1) * sizeof(u16));
 		u16* new_free_indexes_stack = (u16*)&new_buffer[new_capacity];
 
 		memcpy(new_buffer, m_buffer, m_capacity * sizeof(Element<T>));
 		memcpy(new_free_indexes_stack, m_free_indexes_stack, (m_capacity - 1) * sizeof(u16));
 
-		_aligned_free(m_buffer);
+		memalign_free(m_buffer);
 
 		m_buffer = new_buffer;
 		m_free_indexes_stack = new_free_indexes_stack;

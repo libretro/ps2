@@ -44,9 +44,6 @@ void SaveStateBase::FreezeMem(void*, int) { }
 bool SaveStateBase::FreezeTag(const char*) { return true; }
 namespace MTGS { void WaitGS(bool) { } }
 namespace Threading { void Timeslice() { } }
-void* _aligned_malloc(size_t n, size_t a)
-{ void* p = NULL; return posix_memalign(&p, a, n) ? NULL : p; }
-void _aligned_free(void* p) { free(p); }
 
 /* One AD packet: the data quadword followed by the register number. */
 static void send_ad(u64 lo, u64 hi, u8 reg)

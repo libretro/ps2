@@ -14,6 +14,7 @@
  */
 
 #include "Common.h"
+#include <memalign.h>
 #include "../../HostMem.h"
 #include "CDVD/CDVD.h"
 #include "Elfheader.h"
@@ -32,7 +33,6 @@
 #include "common/emitter/c89ops.h"
 #include "x86/iR5900Analysis.h"
 
-#include "common/AlignedMalloc.h"
 #include "common/FastJmp.h"
 
 // Only for MOVQ workaround (reference emitter internals; the C89 build
@@ -563,10 +563,10 @@ static void recReserve(void)
 static void recAlloc(void)
 {
 	if (!recRAMCopy)
-		recRAMCopy = (u8*)_aligned_malloc(Ps2MemSize::MainRam, 4096);
+		recRAMCopy = (u8*)memalign_alloc(4096, Ps2MemSize::MainRam);
 
 	if (!recRAM)
-		recLutReserve_RAM = (u8*)_aligned_malloc(recLutSize, 4096);
+		recLutReserve_RAM = (u8*)memalign_alloc(4096, recLutSize);
 
 	BASEBLOCK* basepos = (BASEBLOCK*)recLutReserve_RAM;
 	recRAM = basepos;
@@ -662,8 +662,10 @@ static void recShutdown(void)
 {
 	code_reserve_release(&recMem);
 	recMemAssigned = 0;
-	safe_aligned_free(recRAMCopy);
-	safe_aligned_free(recLutReserve_RAM);
+	memalign_free(recRAMCopy);
+	recRAMCopy = NULL;
+	memalign_free(recLutReserve_RAM);
+	recLutReserve_RAM = NULL;
 
 	BaseBlocks_Reset(&recBlocks);
 
