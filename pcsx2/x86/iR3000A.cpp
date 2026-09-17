@@ -18,6 +18,7 @@
 // zerofrog(@gmail.com)
 
 #include "iR3000A.h"
+#include "../HostMem.h"
 #include "common/emitter/c89ops.h"
 #include "../R3000A.h"
 #include "BaseblockEx.h"
@@ -178,7 +179,7 @@ static void _DynGen_Dispatchers(void)
 	mode.m_write = 1;
 	mode.m_exec  = 0;
 	// In case init gets called multiple times:
-	HostSys::MemProtect(iopRecDispatchers, __pagesize, mode);
+	mprotect(iopRecDispatchers, __pagesize, host_prot(mode));
 
 	// clear the buffer to 0xcc (easier debugging).
 	memset(iopRecDispatchers, 0xcc, __pagesize);
@@ -196,7 +197,7 @@ static void _DynGen_Dispatchers(void)
 
 	mode.m_write = 0;
 	mode.m_exec  = 1;
-	HostSys::MemProtect(iopRecDispatchers, __pagesize, mode);
+	mprotect(iopRecDispatchers, __pagesize, host_prot(mode));
 
 	/* Was the BaseBlocks constructor; the struct is POD now, so the
 	 * one-time allocation is explicit and happens here, before any use. */

@@ -4,6 +4,7 @@
 
 #include <cstring>
 #include "arm64/AsmHelpers.h"
+#include "../HostMem.h"
 
 #include "arm64/ArmCompat.h"
 
@@ -117,7 +118,7 @@ u8* armStartBlock()
 {
 	armAlignAsmPtr();
 
-	HostSys::BeginCodeWrite();
+	memjit_write_begin();
 
 	pxAssert(!armAsm);
 	armAsm = new (s_armAsmStorage) vixl::aarch64::MacroAssembler(static_cast<vixl::byte*>(armAsmPtr), armAsmCapacity);
@@ -138,9 +139,9 @@ u8* armEndBlock()
 	armAsm->~MacroAssembler();
 	armAsm = nullptr;
 
-	HostSys::EndCodeWrite();
+	memjit_write_end();
 
-	HostSys::FlushInstructionCache(armAsmPtr, size);
+	memsync(armAsmPtr, (u8*)(armAsmPtr) + (size));
 
 	armAsmPtr = armAsmPtr + size;
 	armAsmCapacity -= size;
@@ -222,12 +223,12 @@ void armEmitJmpPtr(void* code_address, const void* target, bool flush_icache)
 	// ARM64 B (unconditional branch): 0b000101 | imm26
 	u32 insn = 0x14000000u | (static_cast<u32>(displacement) & 0x03FFFFFFu);
 
-	HostSys::BeginCodeWrite();
+	memjit_write_begin();
 	std::memcpy(code_address, &insn, sizeof(insn));
-	HostSys::EndCodeWrite();
+	memjit_write_end();
 
 	if (flush_icache)
-		HostSys::FlushInstructionCache(code_address, 4);
+		memsync(code_address, (u8*)(code_address) + (4));
 }
 
 void armEmitCbnz(const vixl::aarch64::Register& reg, const void* ptr)
@@ -481,7 +482,7 @@ u8* ArmConstantPool::GetJumpTrampoline(const void* target)
 	m_jump_targets.emplace(target, offset);
 	m_used = offset + static_cast<u32>(masm.GetSizeOfCodeGenerated());
 
-	HostSys::FlushInstructionCache(reinterpret_cast<void*>(m_base_ptr + offset), m_used - offset);
+	memsync(reinterpret_cast<void*>(m_base_ptr + offset), (u8*)(reinterpret_cast<void*>(m_base_ptr + offset)) + (m_used - offset));
 
 	return m_base_ptr + offset;
 }

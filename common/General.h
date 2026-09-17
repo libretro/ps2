@@ -50,56 +50,14 @@ struct PageFaultInfo
 
 using PageFaultHandler = bool(*)(const PageFaultInfo& info);
 
-// --------------------------------------------------------------------------------------
-//  HostSys
-// --------------------------------------------------------------------------------------
 namespace HostSys
 {
-	// Maps a block of memory for use as a recompiled code buffer.
-	// Returns NULL on allocation failure.
-	// A non-null base is a placement request: the mapping is created at
-	// that address or the call fails with no side effects. Existing
-	// mappings are never replaced.
-	extern void* Mmap(void* base, size_t size, const PageProtectionMode mode);
-
-	// Unmaps a block allocated by SysMmap
-	extern void Munmap(void* base, size_t size);
-
-	extern void MemProtect(void* baseaddr, size_t size, const PageProtectionMode mode);
-
-	extern std::string GetFileMappingName(const char* prefix);
-	extern void* CreateSharedMemory(const char* name, size_t size);
-	extern void DestroySharedMemory(void* ptr);
-	// A non-null baseaddr is a placement request with the same
-	// honored-or-fail semantics as Mmap above.
-	extern void* MapSharedMemory(void* handle, size_t offset, void* baseaddr, size_t size, const PageProtectionMode mode);
-	extern void UnmapSharedMemory(void* baseaddr, size_t size);
-
 	/// Installs the specified page fault handler. Only one handler can be active at once.
 	bool InstallPageFaultHandler(PageFaultHandler handler);
 
 	/// Removes the page fault handler. handler is only specified to check against the active callback.
 	void RemovePageFaultHandler(PageFaultHandler handler);
-
-	/// JIT write protect for Apple Silicon. Needs to be called prior to writing to any RWX pages.
-#if !defined(__APPLE__) || !(defined(_M_ARM64) || defined(__aarch64__))
-	// clang-format -off
-	__fi static void BeginCodeWrite() {}
-	__fi static void EndCodeWrite() {}
-	// clang-format on
-#else
-	void BeginCodeWrite();
-	void EndCodeWrite();
-#endif
-
-	/// Flushes the instruction cache on the host for the specified range.
-#if defined(_M_X86) || defined(_M_X64) || defined(_M_AMD64) || defined(__amd64__) || defined(__x86_64__) || defined(__x86_64)
-	__fi static void FlushInstructionCache(void* address, u32 size) {}
-#else
-	/// Only needed on ARM64, X86 has coherent D/I cache.
-	void FlushInstructionCache(void* address, u32 size);
-#endif
-}
+} // namespace HostSys
 
 class SharedMemoryMappingArea
 {

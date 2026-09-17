@@ -14,6 +14,7 @@
  */
 
 #include "Common.h"
+#include "../../HostMem.h"
 #include "CDVD/CDVD.h"
 #include "Elfheader.h"
 #include "GS.h"
@@ -507,7 +508,7 @@ static void _DynGen_Dispatchers(void)
 	mode.m_write = 1;
 	mode.m_exec  = 0;
 	// In case init gets called multiple times:
-	HostSys::MemProtect(eeRecDispatchers, __pagesize, mode);
+	mprotect(eeRecDispatchers, __pagesize, host_prot(mode));
 
 	// clear the buffer to 0xcc (easier debugging).
 	memset(eeRecDispatchers, 0xcc, __pagesize);
@@ -527,7 +528,7 @@ static void _DynGen_Dispatchers(void)
 
 	mode.m_write = 0;
 	mode.m_exec  = 1;
-	HostSys::MemProtect(eeRecDispatchers, __pagesize, mode);
+	mprotect(eeRecDispatchers, __pagesize, host_prot(mode));
 
 	/* Was the BaseBlocks constructor; the struct is POD now, so the
 	 * one-time allocation is explicit and happens here, before any use. */

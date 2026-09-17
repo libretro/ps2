@@ -14,6 +14,7 @@
  */
 
 #include "../../Common.h"
+#include "../../HostMem.h"
 #include "../../vtlb.h"
 #include "../iCore.h"
 #include "../iR5900.h"
@@ -302,7 +303,7 @@ void vtlb_DynGenDispatchers(void)
 	mode.m_write  = 1;
 	mode.m_exec   = 0;
 	// In case init gets called multiple times:
-	HostSys::MemProtect(m_IndirectDispatchers, __pagesize, mode);
+	mprotect(m_IndirectDispatchers, __pagesize, host_prot(mode));
 
 	// clear the buffer to 0xcc (easier debugging).
 	memset(m_IndirectDispatchers, 0xcc, __pagesize);
@@ -322,7 +323,7 @@ void vtlb_DynGenDispatchers(void)
 
 	mode.m_write  = 0;
 	mode.m_exec   = 1;
-	HostSys::MemProtect(m_IndirectDispatchers, __pagesize, mode);
+	mprotect(m_IndirectDispatchers, __pagesize, host_prot(mode));
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////

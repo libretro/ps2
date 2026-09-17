@@ -59,6 +59,7 @@
 /* pcsx2/, on the include path; common/ is being folded into it. Every
  * platform: the registration mutex below is used on all of them. */
 #include "SLockGuard.h"
+#include "HostMem.h"   /* host_prot; pcsx2/, on the include path */
 
 /* Registration-side mutex only.  The fault filter itself takes NO
  * lock: pthread mutexes are not async-signal-safe, and a global lock
@@ -364,205 +365,16 @@ void HostSys::RemovePageFaultHandler(PageFaultHandler handler)
 }
 
 #ifdef _WIN32
-static DWORD win_prot(const PageProtectionMode mode)
-{
-	if (mode.m_read)
-	{
-		if (mode.m_exec)
-			return mode.m_write ? PAGE_EXECUTE_READWRITE : PAGE_EXECUTE_READ;
-		return mode.m_write ? PAGE_READWRITE : PAGE_READONLY;
-	}
-	return PAGE_NOACCESS;
-}
 #else
-static __ri uint unix_prot(const PageProtectionMode mode)
-{
-	u32 ret = 0;
-	if (mode.m_read)
-	{
-		ret |= PROT_READ;
-		if (mode.m_exec)
-			ret |= PROT_EXEC;
-	}
-	if (mode.m_write)
-		ret |= PROT_WRITE;
-	return ret;
-}
 #endif
 
-void* HostSys::Mmap(void* base, size_t size, const PageProtectionMode mode)
-{
-	if (!mode.m_read && !mode.m_write)
-		return nullptr;
 
-#ifdef _WIN32
-	return VirtualAlloc(base, size, MEM_RESERVE | MEM_COMMIT, win_prot(mode));
-#else
-	const u32 prot = unix_prot(mode);
-	u32 flags      = MAP_PRIVATE | MAP_ANONYMOUS;
 
-#if defined(__APPLE__) && ((defined(_M_ARM64) || defined(__aarch64__)) || defined(__aarch64__))
-	if (mode.m_read && mode.m_exec)
-		flags |= MAP_JIT;
-#endif
 
-	/* A non-null base is a placement request, not a license to replace
-	 * whatever lives at that address. MAP_FIXED maps destructively: on
-	 * Linux it silently unmaps anything already in the range, and XNU
-	 * processes running with virtual-memory guards raise a fatal
-	 * EXC_GUARD (GUARD_TYPE_VIRT_MEMORY / kGUARD_EXC_DEALLOC_GAP) when
-	 * MAP_FIXED touches a range that is not fully allocated, rather
-	 * than returning an error. Pass the base as a plain hint instead -
-	 * a hinted mmap never disturbs existing mappings - and treat a
-	 * result the kernel placed elsewhere as failure. A placement
-	 * request therefore either succeeds at the requested address or
-	 * fails with no side effects, on baseline POSIX semantics alone;
-	 * MAP_FIXED_NOREPLACE is not required. */
-	void* res = mmap(base, size, prot, flags, -1, 0);
-	if (res == MAP_FAILED)
-		return nullptr;
-	if (base && res != base)
-	{
-		munmap(res, size);
-		return nullptr;
-	}
-	return res;
-#endif
-}
 
-void HostSys::Munmap(void* base, size_t size)
-{
-	if (!base)
-		return;
 
-#ifdef _WIN32
-	VirtualFree((void*)base, 0, MEM_RELEASE);
-#else
-	munmap((void*)base, size);
-#endif
-}
 
-void HostSys::MemProtect(void* baseaddr, size_t size, const PageProtectionMode mode)
-{
-#ifdef _WIN32
-	DWORD OldProtect;
-	VirtualProtect(baseaddr, size, win_prot(mode), &OldProtect);
-#else
-	const u32 prot = unix_prot(mode);
-	mprotect(baseaddr, size, prot);
-#endif
-}
 
-std::string HostSys::GetFileMappingName(const char* prefix)
-{
-#if defined(_WIN32)
-	const unsigned pid = GetCurrentProcessId();
-#else
-	const unsigned pid = static_cast<unsigned>(getpid());
-#endif
-#if defined(__FreeBSD__)
-	/* FreeBSD's shm_open(3) requires name to be absolute */
-	return StringUtil::StdStringFromFormat("/tmp/%s_%u", prefix, pid);
-#else
-	return StringUtil::StdStringFromFormat("%s_%u", prefix, pid);
-#endif
-}
-
-void* HostSys::CreateSharedMemory(const char* name, size_t size)
-{
-#ifdef _WIN32
-	wchar_t *wstr = utf8_to_utf16_string_alloc(name);
-	void *ptr     = static_cast<void*>(CreateFileMappingW(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE,
-			static_cast<DWORD>(size >> 32), static_cast<DWORD>(size), wstr));
-	free(wstr);
-	return ptr;
-#elif defined(__ANDROID__)
-	/* Bionic has no shm_open (no /dev/shm on Android). This mapping is
-	 * effectively anonymous anyway -- the POSIX path below unlinks the
-	 * name immediately -- so a memfd serves identically. Called via
-	 * syscall so it builds and runs on every API level the NDK lanes
-	 * target; every Android kernel since 8.0 provides it. 1U is
-	 * MFD_CLOEXEC, spelled literally to avoid a linux/memfd.h
-	 * dependency on older sysroots. */
-	const int fd = static_cast<int>(syscall(__NR_memfd_create, name, 1U /* MFD_CLOEXEC */));
-	if (fd < 0)
-		return nullptr;
-	if (ftruncate64(fd, static_cast<off64_t>(size)) < 0)
-	{
-		close(fd);
-		return nullptr;
-	}
-	return reinterpret_cast<void*>(static_cast<intptr_t>(fd));
-#else
-	const int fd = shm_open(name, O_CREAT | O_EXCL | O_RDWR, 0600);
-	if (fd < 0)
-		return nullptr;
-
-	/* We're not going to be opening this mapping in other processes, so remove the file */
-	shm_unlink(name);
-
-	/* ensure it's the correct size */
-#if !defined(__APPLE__) && !defined(__FreeBSD__)
-	if (ftruncate64(fd, static_cast<off64_t>(size)) < 0)
-		return nullptr;
-#else
-	if (ftruncate(fd, static_cast<off_t>(size)) < 0)
-		return nullptr;
-#endif
-	return  reinterpret_cast<void*>(static_cast<intptr_t>(fd));
-#endif
-}
-
-void HostSys::DestroySharedMemory(void* ptr)
-{
-#ifdef _WIN32
-	CloseHandle(static_cast<HANDLE>(ptr));
-#else
-	close(static_cast<int>(reinterpret_cast<intptr_t>(ptr)));
-#endif
-}
-
-void* HostSys::MapSharedMemory(void* handle, size_t offset, void* baseaddr, size_t size, const PageProtectionMode mode)
-{
-#ifdef _WIN32
-	void* ptr = MapViewOfFileEx(static_cast<HANDLE>(handle), FILE_MAP_READ | FILE_MAP_WRITE,
-		static_cast<DWORD>(offset >> 32), static_cast<DWORD>(offset), size, baseaddr);
-	if (!ptr)
-		return nullptr;
-
-	const DWORD prot = win_prot(mode);
-	if (prot != PAGE_READWRITE)
-	{
-		DWORD old_prot;
-		VirtualProtect(ptr, size, prot, &old_prot);
-	}
-#else
-	const uint prot = unix_prot(mode);
-	/* Hint, never MAP_FIXED - see HostSys::Mmap for why fixed mapping
-	 * at a caller-supplied address is destructive on Linux and fatal
-	 * under XNU virtual-memory guards. A result the kernel placed
-	 * elsewhere is released and reported as failure; the caller falls
-	 * back to an OS-chosen base. */
-	void* ptr       = mmap(baseaddr, size, prot, MAP_SHARED, static_cast<int>(reinterpret_cast<intptr_t>(handle)), static_cast<off_t>(offset));
-	if (ptr == MAP_FAILED)
-		return nullptr;
-	if (baseaddr && ptr != baseaddr)
-	{
-		munmap(ptr, size);
-		return nullptr;
-	}
-#endif
-	return ptr;
-}
-
-void HostSys::UnmapSharedMemory(void* baseaddr, size_t size)
-{
-#ifdef _WIN32
-	UnmapViewOfFile(baseaddr);
-#else
-	mmap(baseaddr, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
-#endif
-}
 
 SharedMemoryMappingArea::SharedMemoryMappingArea(u8* base_ptr, size_t size, size_t num_pages)
 	: m_base_ptr(base_ptr)
@@ -743,7 +555,15 @@ u8* SharedMemoryMappingArea::Map(void* file_handle, size_t file_offset, void* ma
 			map_base, file_offset, map_size, MEM_REPLACE_PLACEHOLDER, PAGE_READWRITE, nullptr, 0))
 		return nullptr;
 
-	const DWORD prot = win_prot(mode);
+	DWORD prot;
+	{
+		const int p = host_prot(mode);
+		if (p & PROT_READ)
+			prot = (p & PROT_EXEC) ? ((p & PROT_WRITE) ? PAGE_EXECUTE_READWRITE : PAGE_EXECUTE_READ)
+			                       : ((p & PROT_WRITE) ? PAGE_READWRITE : PAGE_READONLY);
+		else
+			prot = PAGE_NOACCESS;
+	}
 	if (prot != PAGE_READWRITE)
 	{
 		DWORD old_prot;
@@ -753,7 +573,7 @@ u8* SharedMemoryMappingArea::Map(void* file_handle, size_t file_offset, void* ma
 	m_num_mappings++;
 	return static_cast<u8*>(map_base);
 #else
-	const uint prot    = unix_prot(mode);
+	const int prot     = host_prot(mode);
 	void* const ptr    = mmap(map_base, map_size, prot, MAP_SHARED | MAP_FIXED,
 		static_cast<int>(reinterpret_cast<intptr_t>(file_handle)), static_cast<off_t>(file_offset));
 	if (ptr == MAP_FAILED)
@@ -811,29 +631,10 @@ bool SharedMemoryMappingArea::Unmap(void* map_base, size_t map_size)
 }
 
 #if (defined(_M_ARM64) || defined(__aarch64__)) || defined(__aarch64__)
-void HostSys::FlushInstructionCache(void* address, u32 size)
-{
-#ifdef _WIN32
-	::FlushInstructionCache(GetCurrentProcess(), address, size);
-#else
-	__builtin___clear_cache(reinterpret_cast<char*>(address), reinterpret_cast<char*>(address) + size);
-#endif
-}
 
 #if defined(__APPLE__)
-static thread_local int s_code_write_depth = 0;
 
-void HostSys::BeginCodeWrite(void)
-{
-	if ((s_code_write_depth++) == 0)
-		pthread_jit_write_protect_np(0);
-}
 
-void HostSys::EndCodeWrite(void)
-{
-	if ((--s_code_write_depth) == 0)
-		pthread_jit_write_protect_np(1);
-}
 #endif
 
 #endif

@@ -724,7 +724,7 @@ void* GSAllocateWrappedMemory(size_t size, size_t repeat)
 	 * NDK lanes target 21; every Android kernel since 8.0 has the syscall.
 	 * 1U is MFD_CLOEXEC, spelled literally to avoid depending on
 	 * linux/memfd.h being present in the sysroot. This mirrors
-	 * HostSys::CreateSharedMemory in common/HostSys.cpp. */
+	 * memshm_create in libretro-common memmap. */
 	s_shm_fd = static_cast<int>(syscall(__NR_memfd_create, "GS.mem", 1U));
 	if (s_shm_fd == -1)
 		return nullptr;

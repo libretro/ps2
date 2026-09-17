@@ -20,6 +20,7 @@
 #include <string.h> /* memset */
 
 #include "microVU.h"
+#include "../HostMem.h"
 #include "ps2float.h"
 
 #include "../../common/AlignedMalloc.h"
@@ -93,7 +94,7 @@ void mVUreset(microVU* mVU, int resetReserve)
 	mode.m_read  = 1;
 	mode.m_write = 1;
 	mode.m_exec  = 0;
-	HostSys::MemProtect(mVU->dispCache, mVUdispCacheSize, mode);
+	mprotect(mVU->dispCache, mVUdispCacheSize, host_prot(mode));
 	memset(mVU->dispCache, 0xcc, mVUdispCacheSize);
 
 	x86Ptr = (u8*)(mVU->dispCache);
@@ -149,7 +150,7 @@ void mVUreset(microVU* mVU, int resetReserve)
 
 	mode.m_write = 0;
 	mode.m_exec  = 1;
-	HostSys::MemProtect(mVU->dispCache, mVUdispCacheSize, mode);
+	mprotect(mVU->dispCache, mVUdispCacheSize, host_prot(mode));
 }
 
 // Free Allocated Resources

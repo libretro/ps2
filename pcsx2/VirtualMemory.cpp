@@ -16,6 +16,7 @@
 #include <retro_atomic.h>
 #include <utility>
 #include "VirtualMemory.h"
+#include "HostMem.h"
 
 #include "../common/Align.h"
 #include "../common/Console.h"
@@ -44,21 +45,22 @@ VirtualMemoryManager::VirtualMemoryManager(const char* file_mapping_name, uptr b
 		mode.m_read  = true;
 		mode.m_write = true;
 		mode.m_exec  = false;
-		std::string real_file_mapping_name(HostSys::GetFileMappingName(file_mapping_name));
-		m_file_handle = HostSys::CreateSharedMemory(real_file_mapping_name.c_str(), reserved_bytes);
+		char real_file_mapping_name[128];
+		host_shm_name(real_file_mapping_name, sizeof(real_file_mapping_name), file_mapping_name);
+		m_file_handle = memshm_create(real_file_mapping_name, reserved_bytes);
 		if (!m_file_handle)
 			return;
 
-		m_baseptr = static_cast<u8*>(HostSys::MapSharedMemory(m_file_handle, 0, (void*)base, reserved_bytes, mode));
+		m_baseptr = static_cast<u8*>(memshm_map(m_file_handle, 0, (void*)base, reserved_bytes, host_prot(mode)));
 		if (!m_baseptr || (upper_bounds != 0 && (((uptr)m_baseptr + reserved_bytes) > upper_bounds)))
 		{
-			HostSys::Munmap(m_baseptr, reserved_bytes);
+			host_munmap(m_baseptr, reserved_bytes);
 			m_baseptr = 0;
 
 			// Let's try again at an OS-picked memory area, and then hope it meets needed
 			// boundschecking criteria below.
 			if (base)
-				m_baseptr = static_cast<u8*>(HostSys::MapSharedMemory(m_file_handle, 0, nullptr, reserved_bytes, mode));
+				m_baseptr = static_cast<u8*>(memshm_map(m_file_handle, 0, nullptr, reserved_bytes, host_prot(mode)));
 		}
 	}
 	else
@@ -67,17 +69,17 @@ VirtualMemoryManager::VirtualMemoryManager(const char* file_mapping_name, uptr b
 		mode.m_read  = true;
 		mode.m_write = true;
 		mode.m_exec  = true;
-		m_baseptr    = static_cast<u8*>(HostSys::Mmap((void*)base, reserved_bytes, mode));
+		m_baseptr    = static_cast<u8*>(host_mmap((void*)base, reserved_bytes, mode));
 
 		if (!m_baseptr || (upper_bounds != 0 && (((uptr)m_baseptr + reserved_bytes) > upper_bounds)))
 		{
-			HostSys::Munmap(m_baseptr, reserved_bytes);
+			host_munmap(m_baseptr, reserved_bytes);
 			m_baseptr = 0;
 
 			// Let's try again at an OS-picked memory area, and then hope it meets needed
 			// boundschecking criteria below.
 			if (base)
-				m_baseptr = static_cast<u8*>(HostSys::Mmap(0, reserved_bytes, mode));
+				m_baseptr = static_cast<u8*>(host_mmap(0, reserved_bytes, mode));
 		}
 	}
 
@@ -91,15 +93,15 @@ VirtualMemoryManager::VirtualMemoryManager(const char* file_mapping_name, uptr b
 		if (m_file_handle)
 		{
 			if (m_baseptr)
-				HostSys::UnmapSharedMemory(m_baseptr, reserved_bytes);
+				memshm_unmap(m_baseptr, reserved_bytes);
 			m_baseptr = 0;
 
-			HostSys::DestroySharedMemory(m_file_handle);
+			memshm_destroy(m_file_handle);
 			m_file_handle = nullptr;
 		}
 		else
 		{
-			HostSys::Munmap(m_baseptr, reserved_bytes);
+			host_munmap(m_baseptr, reserved_bytes);
 			m_baseptr = 0;
 		}
 	}
@@ -119,7 +121,7 @@ VirtualMemoryManager::~VirtualMemoryManager()
 		const size_t bytes = m_pages_reserved * __pagesize;
 		if (m_file_handle)
 		{
-			HostSys::UnmapSharedMemory((void*)m_baseptr, bytes);
+			memshm_unmap((void*)m_baseptr, bytes);
 #ifndef _WIN32
 			/* On POSIX, UnmapSharedMemory does not unmap: it drops the
 			 * shared mapping by overlaying an anonymous PROT_NONE
@@ -130,14 +132,14 @@ VirtualMemoryManager::~VirtualMemoryManager()
 			 * the placeholder has to go too.  Without this the range
 			 * stays in the address space as ---p for the life of the
 			 * process, and every VM teardown leaks its full size. */
-			HostSys::Munmap(m_baseptr, bytes);
+			host_munmap(m_baseptr, bytes);
 #endif
 		}
 		else
-			HostSys::Munmap(m_baseptr, bytes);
+			host_munmap(m_baseptr, bytes);
 	}
 	if (m_file_handle)
-		HostSys::DestroySharedMemory(m_file_handle);
+		memshm_destroy(m_file_handle);
 }
 
 static bool VMMMarkPagesAsInUse(retro_atomic_int_t* begin, retro_atomic_int_t* end)
@@ -356,7 +358,7 @@ void code_reserve_allow_modification(struct CodeReserve* r)
 	pg.m_read  = true;
 	pg.m_exec  = true;
 	pg.m_write = true;
-	HostSys::MemProtect(r->baseptr, r->size, pg);
+	mprotect(r->baseptr, r->size, host_prot(pg));
 }
 
 void code_reserve_forbid_modification(struct CodeReserve* r)
@@ -365,7 +367,7 @@ void code_reserve_forbid_modification(struct CodeReserve* r)
 	pg.m_read  = true;
 	pg.m_exec  = true;
 	pg.m_write = false;
-	HostSys::MemProtect(r->baseptr, r->size, pg);
+	mprotect(r->baseptr, r->size, host_prot(pg));
 }
 
 void RecompiledCodeReserve::Assign(VirtualMemoryManagerPtr allocator, size_t offset, size_t size)
@@ -393,7 +395,7 @@ void RecompiledCodeReserve::AllowModification()
 	pg.m_read  = true;
 	pg.m_exec  = true;
 	pg.m_write = true;
-	HostSys::MemProtect(m_baseptr, m_size, pg);
+	mprotect(m_baseptr, m_size, host_prot(pg));
 }
 
 void RecompiledCodeReserve::ForbidModification()
@@ -402,5 +404,5 @@ void RecompiledCodeReserve::ForbidModification()
 	pg.m_read  = true;
 	pg.m_exec  = true;
 	pg.m_write = false;
-	HostSys::MemProtect(m_baseptr, m_size, pg);
+	mprotect(m_baseptr, m_size, host_prot(pg));
 }

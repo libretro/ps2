@@ -37,6 +37,7 @@
 
 
 #include "../common/Align.h"
+#include "HostMem.h"
 #include "../common/Console.h"
 
 #include "Common.h"
@@ -307,7 +308,7 @@ static void s_fastmem_faulting_pcs_free(void)
 {
 	/* OS pages, not heap - see the growth site in
 	 * vtlb_BackpatchLoadStore. */
-	HostSys::Munmap(s_fastmem_faulting_pcs,
+	host_munmap(s_fastmem_faulting_pcs,
 		s_fastmem_faulting_pcs_cap * sizeof(u32));
 	s_fastmem_faulting_pcs       = NULL;
 	s_fastmem_faulting_pcs_count = 0;
@@ -973,7 +974,7 @@ static void vtlb_UpdateFastmemProtection(u32 paddr, u32 size, const PageProtecti
 		{
 			const fastmem_phys_node_t* node = &s_fastmem_phys_pool[link - 1];
 			if (vtlb_IsHostAligned(node->vaddr))
-				HostSys::MemProtect(s_fastmem_area->OffsetPointer(node->vaddr), __pagesize, prot);
+				mprotect(s_fastmem_area->OffsetPointer(node->vaddr), __pagesize, host_prot(prot));
 			link = node->next;
 		}
 	}
@@ -1108,14 +1109,14 @@ static bool vtlb_BackpatchLoadStore(uptr code_address, uptr fault_address)
 				size_t newcap = s_fastmem_faulting_pcs_cap ?
 					s_fastmem_faulting_pcs_cap + (s_fastmem_faulting_pcs_cap >> 1) : 16;
 				const PageProtectionMode rw = {true, true, false};
-				u32* newbuf = (u32*)HostSys::Mmap(NULL, newcap * sizeof(u32), rw);
+				u32* newbuf = (u32*)host_mmap(NULL, newcap * sizeof(u32), rw);
 				if (!newbuf)
 					goto skip_faulting_pc_insert;
 				if (s_fastmem_faulting_pcs)
 				{
 					memcpy(newbuf, s_fastmem_faulting_pcs,
 						s_fastmem_faulting_pcs_count * sizeof(u32));
-					HostSys::Munmap(s_fastmem_faulting_pcs,
+					host_munmap(s_fastmem_faulting_pcs,
 						s_fastmem_faulting_pcs_cap * sizeof(u32));
 				}
 				s_fastmem_faulting_pcs     = newbuf;
@@ -1335,7 +1336,7 @@ bool vtlb_Core_Alloc(void)
 		mode.m_read  = true;
 		mode.m_write = true;
 		mode.m_exec  = false;
-		HostSys::MemProtect(vmap, VMAP_SIZE, mode);
+		mprotect(vmap, VMAP_SIZE, host_prot(mode));
 		vtlbdata.vmap = vmap;
 	}
 
@@ -1392,7 +1393,7 @@ void vtlb_Alloc_Ppmap(void)
 	mode.m_read    = true;
 	mode.m_write   = true;
 	mode.m_exec    = false;
-	HostSys::MemProtect(ppmap, PPMAP_SIZE, mode);
+	mprotect(ppmap, PPMAP_SIZE, host_prot(mode));
 	vtlbdata.ppmap = ppmap;
 
 	// By default a 1:1 virtual to physical mapping
@@ -1411,12 +1412,12 @@ void vtlb_Core_Free(void)
 
 	if (vtlbdata.vmap)
 	{
-		HostSys::MemProtect(vtlbdata.vmap, VMAP_SIZE, mode);
+		mprotect(vtlbdata.vmap, VMAP_SIZE, host_prot(mode));
 		vtlbdata.vmap = NULL;
 	}
 	if (vtlbdata.ppmap)
 	{
-		HostSys::MemProtect(vtlbdata.ppmap, PPMAP_SIZE, mode);
+		mprotect(vtlbdata.ppmap, PPMAP_SIZE, host_prot(mode));
 		vtlbdata.ppmap = NULL;
 	}
 
@@ -1541,7 +1542,7 @@ void mmap_MarkCountedRamPage(u32 paddr)
 	mode.m_read  = true;
 	mode.m_write = false;
 	mode.m_exec  = false;
-	HostSys::MemProtect(&eeMem->Main[rampage << __pageshift], __pagesize, mode);
+	mprotect(&eeMem->Main[rampage << __pageshift], __pagesize, host_prot(mode));
 	if (CHECK_FASTMEM)
 		vtlb_UpdateFastmemProtection(rampage << __pageshift, __pagesize, mode);
 }
@@ -1557,7 +1558,7 @@ static __fi void mmap_ClearCpuBlock(uint offset)
 	mode.m_read  = true;
 	mode.m_write = true;
 	mode.m_exec  = false;
-	HostSys::MemProtect(&eeMem->Main[rampage << __pageshift], __pagesize, mode);
+	mprotect(&eeMem->Main[rampage << __pageshift], __pagesize, host_prot(mode));
 	if (CHECK_FASTMEM)
 		vtlb_UpdateFastmemProtection(rampage << __pageshift, __pagesize, mode);
 	m_PageProtectInfo[rampage].Mode = ProtMode_Manual;
@@ -1635,7 +1636,7 @@ void mmap_ResetBlockTracking(void)
 	mode.m_exec  = false;
 	memset(m_PageProtectInfo, 0, sizeof(m_PageProtectInfo));
 	if (eeMem)
-		HostSys::MemProtect(eeMem->Main, Ps2MemSize::MainRam, mode);
+		mprotect(eeMem->Main, Ps2MemSize::MainRam, host_prot(mode));
 	if (CHECK_FASTMEM)
 		vtlb_UpdateFastmemProtection(0, Ps2MemSize::MainRam, mode);
 }
