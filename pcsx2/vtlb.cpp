@@ -39,6 +39,7 @@
 
 #include "../common/Align.h"
 #include "HostMem.h"
+#include <faulthandler.h>
 
 #include "Common.h"
 #include "vtlb.h"
@@ -50,7 +51,7 @@
 
 alignas(64) vtlb_map_t vtlbdata;
 
-static bool vtlb_PageFaultHandler(const PageFaultInfo& info);
+static bool vtlb_PageFaultHandler(const retro_fault_info_t* info);
 
 static vtlbHandler vtlbHandlerCount = 0;
 
@@ -1366,7 +1367,7 @@ bool vtlb_Core_Alloc(void)
 		}
 	}
 
-	if (!HostSys::InstallPageFaultHandler(&vtlb_PageFaultHandler))
+	if (!retro_faulthandler_install(&vtlb_PageFaultHandler))
 	{
 		log_cb(RETRO_LOG_ERROR, "Failed to install page fault handler.\n");
 		return false;
@@ -1404,7 +1405,7 @@ void vtlb_Alloc_Ppmap(void)
 void vtlb_Core_Free(void)
 {
 	PageProtectionMode mode;
-	HostSys::RemovePageFaultHandler(&vtlb_PageFaultHandler);
+	retro_faulthandler_remove(&vtlb_PageFaultHandler);
 
 	mode.m_read  = false;
 	mode.m_write = false;
@@ -1596,10 +1597,10 @@ void mmap_UnprotectRamRange(u32 paddr, u32 size)
 	}
 }
 
-static bool vtlb_PageFaultHandler(const PageFaultInfo& info)
+static bool vtlb_PageFaultHandler(const retro_fault_info_t* info)
 {
 	u32 vaddr;
-	if (CHECK_FASTMEM && vtlb_GetGuestAddress(info.addr, &vaddr))
+	if (CHECK_FASTMEM && vtlb_GetGuestAddress(info->addr, &vaddr))
 	{
 		uptr ptr = (uptr)PSM(vaddr);
 		uptr offset = (ptr - (uptr)eeMem->Main);
@@ -1608,12 +1609,12 @@ static bool vtlb_PageFaultHandler(const PageFaultInfo& info)
 			mmap_ClearCpuBlock(offset);
 			return true;
 		}
-		return vtlb_BackpatchLoadStore(info.pc, info.addr);
+		return vtlb_BackpatchLoadStore(info->pc, info->addr);
 	}
 	else
 	{
 		// get bad virtual address
-		uptr offset = info.addr - (uptr)eeMem->Main;
+		uptr offset = info->addr - (uptr)eeMem->Main;
 		if (offset >= Ps2MemSize::MainRam)
 		{
 			return false;

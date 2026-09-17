@@ -14,6 +14,7 @@
  */
 
 #include <cstring> /* memset */
+#include <faulthandler.h>
 
 #include "Common.h"
 #include "Gif_Unit.h"
@@ -162,8 +163,8 @@ void VU_Thread::ExecuteRingBuffer(void)
 	 * unregisters via the destructor). */
 	struct MtvuFaultScope
 	{
-		MtvuFaultScope() { HostSys::RegisterFaultHandlerThread(); }
-		~MtvuFaultScope() { HostSys::UnregisterFaultHandlerThread(); }
+		MtvuFaultScope() { retro_faulthandler_register_thread(); }
+		~MtvuFaultScope() { retro_faulthandler_unregister_thread(); }
 	} fault_scope_;
 
 	for (;;)

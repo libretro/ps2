@@ -36,28 +36,7 @@ struct PageProtectionMode
  * previously installed handler, which is the correct crash behavior.
  * Registration/unregistration are cold-path and may block; the fault
  * filter itself is lock-free and async-signal-safe. */
-namespace HostSys
-{
-	void RegisterFaultHandlerThread();
-	void UnregisterFaultHandlerThread();
-} // namespace HostSys
 
-struct PageFaultInfo
-{
-	uptr pc;
-	uptr addr;
-};
-
-using PageFaultHandler = bool(*)(const PageFaultInfo& info);
-
-namespace HostSys
-{
-	/// Installs the specified page fault handler. Only one handler can be active at once.
-	bool InstallPageFaultHandler(PageFaultHandler handler);
-
-	/// Removes the page fault handler. handler is only specified to check against the active callback.
-	void RemovePageFaultHandler(PageFaultHandler handler);
-} // namespace HostSys
 
 class SharedMemoryMappingArea
 {

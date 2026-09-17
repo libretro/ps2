@@ -15,6 +15,7 @@
 
 
 #include <retro_atomic.h>
+#include <faulthandler.h>
 #include "FormatString.h"
 #include <cstring> /* memset */
 #include <compat/strl.h>
@@ -703,7 +704,7 @@ void ps2_audit_ee_prep(const unsigned* words, unsigned nwords)
 	 * audit runs on the harness thread, so register for the scope
 	 * of every export that can fault. */
 	unsigned i;
-	HostSys::RegisterFaultHandlerThread();
+	retro_faulthandler_register_thread();
 	/* Same discipline as the VU prep: full recompiler reset per
 	 * program, so no block-cache or branch state leaks between audit
 	 * programs (its absence produced ordering-dependent takenness on
@@ -712,7 +713,7 @@ void ps2_audit_ee_prep(const unsigned* words, unsigned nwords)
 	for (i = 0; i < nwords; i++)
 		memWrite32(PS2_AUDIT_EE_SCRATCH + i * 4, words[i]);
 	Cpu->Clear(PS2_AUDIT_EE_SCRATCH, nwords);
-	HostSys::UnregisterFaultHandlerThread();
+	retro_faulthandler_unregister_thread();
 }
 
 PS2_AUDIT_EXPORT
@@ -720,7 +721,7 @@ void ps2_audit_ee_exec(int use_interp, unsigned char* regs_io, unsigned ninstr)
 {
 	unsigned char* p = regs_io;
 	const u32 old_pc = cpuRegs.pc;
-	HostSys::RegisterFaultHandlerThread();
+	retro_faulthandler_register_thread();
 	const u32 old_cycle_target = cpuRegs.nextEventCycle;
 	int i;
 	for (i = 0; i < 32; i++) { memcpy(&fpuRegs.fpr[i].UL, p, 4); p += 4; }
@@ -757,5 +758,5 @@ void ps2_audit_ee_exec(int use_interp, unsigned char* regs_io, unsigned ninstr)
 	memcpy(p, &fpuRegs.fprc[31], 4); p += 4;
 	memcpy(p, &fpuRegs.ACCflag, 4); p += 4;
 	for (i = 8; i < 12; i++) { memcpy(p, &cpuRegs.GPR.r[i].UD[0], 8); p += 8; }
-	HostSys::UnregisterFaultHandlerThread();
+	retro_faulthandler_unregister_thread();
 }

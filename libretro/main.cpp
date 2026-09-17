@@ -3,6 +3,7 @@
 #endif
 
 #include <retro_atomic.h>
+#include <faulthandler.h>
 #include "common/Pcsx2Defs.h"
 #include <retro_spsc.h>
 
@@ -2284,8 +2285,8 @@ static bool libretro_select_hw_render(void)
  * handler.  Scope-based so every return path unregisters. */
 struct FaultThreadScope
 {
-	FaultThreadScope() { HostSys::RegisterFaultHandlerThread(); }
-	~FaultThreadScope() { HostSys::UnregisterFaultHandlerThread(); }
+	FaultThreadScope() { retro_faulthandler_register_thread(); }
+	~FaultThreadScope() { retro_faulthandler_unregister_thread(); }
 };
 
 static void cpu_thread_entry(VMBootParameters boot_params)

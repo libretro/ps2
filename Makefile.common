@@ -119,6 +119,7 @@ SOURCES_C += \
 	$(LIBRETRO_COMM_DIR)/memmap/memmap.c \
 	$(LIBRETRO_COMM_DIR)/memmap/memalign.c \
 	$(LIBRETRO_COMM_DIR)/fastjmp/fastjmp.c \
+	$(LIBRETRO_COMM_DIR)/faulthandler/faulthandler.c \
 	$(LIBRETRO_COMM_DIR)/formats/dds/rdds.c \
 	$(LIBRETRO_COMM_DIR)/rthreads/rthreads.c \
 	$(LIBRETRO_COMM_DIR)/rthreads/retro_eventcount.c \
