@@ -43,6 +43,11 @@ include:
   - project: 'libretro-infrastructure/ci-templates'
     file: '/tvos-cmake.yml'
 
+  ################################## CONSOLES ################################
+  # webOS
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/webos-cmake.yml'
+
 # Stages for building
 stages:
   - build-prepare
@@ -169,3 +174,19 @@ libretro-build-tvos-arm64:
     - .core-defs
   variables:
     EXTRA_PATH: libretro
+
+##################################### WEBOS ##################################
+# aarch64 only. The other half of the platform is armv7a, and the recompilers
+# this core has are x86-64 and arm64 - there is nothing for a 32-bit ARM device
+# to run the EE and IOP on.
+#
+# Another Linux with no desktop GL: the buildroot ships EGL and GLES, so the
+# renderer takes its entry points from the frontend the way it does on Android,
+# and nothing is linked against libGL.
+libretro-build-webos-aarch64:
+  extends:
+    - .libretro-webos-aarch64-cmake
+    - .core-defs
+  variables:
+    EXTRA_PATH: bin
+    CORE_ARGS: -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.18 -DWEBOS=ON

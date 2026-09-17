@@ -26,6 +26,16 @@ else()
 	set(APPLE_EMBEDDED FALSE)
 endif()
 
+# webOS is a Linux, and CMAKE_SYSTEM_NAME says so, but its buildroot ships EGL
+# and GLES and no desktop GL - so the renderer takes the route Android and the
+# Apple embedded systems take, with every entry point coming from the frontend
+# and nothing linked against libGL. The SDK's compiler triple
+# (aarch64-webos-linux-gnu) is what gives it away; -DWEBOS=ON also works for
+# anyone driving the build by hand.
+if(NOT WEBOS AND CMAKE_CXX_COMPILER MATCHES "webos")
+	set(WEBOS TRUE)
+endif()
+
 #-------------------------------------------------------------------------------
 # Graphical option
 #-------------------------------------------------------------------------------
