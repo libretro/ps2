@@ -37,15 +37,6 @@
 
 #ifdef _WIN32
 /* The Windows adapter APIs return wide strings; the rest of the core is UTF-8. */
-static std::string WideStringToUTF8String(const std::wstring_view& str)
-{
-	std::string ret;
-	if (!WideStringToUTF8String(ret, str))
-		ret.clear();
-
-	return ret;
-}
-
 static bool WideStringToUTF8String(std::string& dest, const std::wstring_view& str)
 {
 	int mblen = WideCharToMultiByte(CP_UTF8, 0, str.data(), static_cast<int>(str.length()), nullptr, 0, nullptr, nullptr);
@@ -60,6 +51,15 @@ static bool WideStringToUTF8String(std::string& dest, const std::wstring_view& s
 	}
 
 	return true;
+}
+
+static std::string WideStringToUTF8String(const std::wstring_view& str)
+{
+	std::string ret;
+	if (!WideStringToUTF8String(ret, str))
+		ret.clear();
+
+	return ret;
 }
 #endif
 
