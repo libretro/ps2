@@ -9,8 +9,6 @@ add_library(common)
 
 target_sources(common PRIVATE
 	Console.cpp
-	MemorySettingsInterface.cpp
-	SettingsWrapper.cpp
 	StringUtil.cpp
 	HostSys.cpp
 )
@@ -57,11 +55,8 @@ target_sources(common PRIVATE
 	CpuFeatures.h
 	General.h
 	HashCombine.h
-	MemorySettingsInterface.h
 	RedtapeWilCom.h
 	RedtapeWindows.h
-	SettingsInterface.h
-	SettingsWrapper.h
 	StringUtil.h
 	VectorIntrin.h
 	WindowInfo.h

@@ -210,8 +210,6 @@ SOURCES_CXX += \
 	$(COMMON_DIR)/Console.cpp \
 	$(LRPS2_DIR)/HostFS.cpp \
 	$(COMMON_DIR)/HostSys.cpp \
-	$(COMMON_DIR)/MemorySettingsInterface.cpp \
-	$(COMMON_DIR)/SettingsWrapper.cpp \
 	$(COMMON_DIR)/StringUtil.cpp \
 
 # common/emitter is the x86-only JIT code emitter. On aarch64 the recompilers
@@ -323,8 +321,6 @@ SOURCES_CXX += \
 
 # pcsx2/Frontend
 SOURCES_CXX += \
-	$(LRPS2_DIR)/Frontend/HostSettings.cpp \
-	$(LRPS2_DIR)/Frontend/LayeredSettingsInterface.cpp
 
 # pcsx2/IPU
 SOURCES_CXX += \

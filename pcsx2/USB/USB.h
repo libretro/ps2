@@ -23,7 +23,6 @@
 
 #include "../Config.h"
 
-class SettingsInterface;
 
 namespace USB
 {
@@ -49,34 +48,24 @@ namespace USB
 	void InputDeviceDisconnected(const std::string_view& identifier);
 
 	std::string GetConfigSection(int port);
-	std::string GetConfigDevice(const SettingsInterface& si, u32 port);
-	void SetConfigDevice(SettingsInterface& si, u32 port, const char* devname);
-	u32 GetConfigSubType(const SettingsInterface& si, u32 port, const std::string_view& devname);
-	void SetConfigSubType(SettingsInterface& si, u32 port, const std::string_view& devname, u32 subtype);
 
 	/// Returns the configuration key for the specified bind and device type.
 	std::string GetConfigSubKey(const std::string_view& device, const std::string_view& bind_name);
 
 	/// Performs automatic controller mapping with the provided list of generic mappings.
-	bool MapDevice(SettingsInterface& si, u32 port, const std::vector<std::pair<GenericInputBinding, std::string>>& mapping);
 
 	/// Clears all bindings for a given port.
-	void ClearPortBindings(SettingsInterface& si, u32 port);
 
 	/// Identifies any device/subtype changes and recreates devices.
 	void CheckForConfigChanges(const Pcsx2Config& old_config);
 
 	/// Reads a device-specific configuration boolean.
-	bool GetConfigBool(SettingsInterface& si, u32 port, const char* devname, const char* key, bool default_value);
 
 	/// Reads a device-specific configuration integer.
-	s32 GetConfigInt(SettingsInterface& si, u32 port, const char* devname, const char* key, s32 default_value);
 
 	/// Reads a device-specific configuration floating-point value.
-	float GetConfigFloat(SettingsInterface& si, u32 port, const char* devname, const char* key, float default_value);
 
 	/// Reads a device-specific configuration string.
-	std::string GetConfigString(SettingsInterface& si, u32 port, const char* devname, const char* key, const char* default_value = "");
 } // namespace USB
 
 // ---------------------------------------------------------------------

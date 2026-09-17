@@ -37,7 +37,6 @@ enum VibrationCapabilities
 };
 
 /* forward declarations */
-class SettingsInterface;
 
 /* The state of the PS2 bus */
 struct QueryInfo
@@ -108,7 +107,7 @@ namespace PAD
 	};
 
 	/// Reloads configuration.
-	void LoadConfig(const SettingsInterface& si);
+	void LoadConfig();
 }
   
 namespace Input

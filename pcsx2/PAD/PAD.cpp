@@ -24,7 +24,6 @@
 
 #include "HostFS.h"
 #include "../../common/StringUtil.h"
-#include "../../common/SettingsInterface.h"
 #include "../../common/Pcsx2Defs.h"
 
 #include "../Frontend/InputManager.h"
@@ -471,31 +470,34 @@ retro_input_state_t PADGetInputStateCallback(void)
 	return input_cb;
 }
 
+/* The per-port controller type, as the frontend set it through
+ * retro_set_controller_port_device; port 0 defaults to a DualShock2 and
+ * the others to nothing, as the Pad section's defaults were. The
+ * multitap flags and motor scales had no writer and are the defaults. */
+static const char* s_pad_type_name[NUM_CONTROLLER_PORTS];
+
 void retro_set_controller_port_device(unsigned port, unsigned device)
 {
 	if (pad_type[port] != (int)device)
 	{
-		SettingsInterface* si = Host::Internal::GetBaseSettingsLayer();
-		char section[8];
-		snprintf(section, sizeof(section), "Pad%u", port + 1);
 		pad_type[port] = device;
 
 		switch (device)
 		{
 			case RETRO_DEVICE_JOYPAD:
-				si->SetStringValue(section, "Type", "DualShock2");
+				s_pad_type_name[port] = "DualShock2";
 				USBSetPortDevice(port, USB_DEV_NONE, port);
 				break;
 			case RETRO_DEVICE_KEYBOARD:
 				/* USB HID keyboard coexists with the DualShock on this slot,
 				 * as on real hardware - the pad stays available for menu/pause
 				 * navigation while the keyboard drives gameplay. */
-				si->SetStringValue(section, "Type", "DualShock2");
+				s_pad_type_name[port] = "DualShock2";
 				USBSetPortDevice(port, USB_DEV_KEYBOARD, port);
 				break;
 			case RETRO_DEVICE_MOUSE:
 				/* USB HID mouse coexists with the DualShock on this slot. */
-				si->SetStringValue(section, "Type", "DualShock2");
+				s_pad_type_name[port] = "DualShock2";
 				USBSetPortDevice(port, USB_DEV_MOUSE, port);
 				break;
 			case RETRO_DEVICE_KEYBOARD_AND_MOUSE:
@@ -504,17 +506,17 @@ void retro_set_controller_port_device(unsigned port, unsigned device)
 				 * selected from - the PS2 has only two USB ports. Both read
 				 * frontend input from this controller port. The DualShock on
 				 * this slot is kept for menu/pause navigation. */
-				si->SetStringValue(section, "Type", "DualShock2");
+				s_pad_type_name[port] = "DualShock2";
 				USBSetPortDevice(0, USB_DEV_KEYBOARD, port);
 				USBSetPortDevice(1, USB_DEV_MOUSE, port);
 				break;
 			default:
-				si->SetStringValue(section, "Type", "None");
+				s_pad_type_name[port] = "None";
 				USBSetPortDevice(port, USB_DEV_NONE, port);
 				break;
 		}
 
-		PAD::LoadConfig(*si);
+		PAD::LoadConfig();
 	}
 }
 
@@ -992,34 +994,24 @@ u8 PADpoll(u8 value)
 
 bool PADcomplete(void) { return query.queryDone; }
 
-void PAD::LoadConfig(const SettingsInterface& si)
+void PAD::LoadConfig()
 {
-	EmuConfig.MultitapPort0_Enabled = si.GetBoolValue("Pad", "MultitapPort1", false);
-	EmuConfig.MultitapPort1_Enabled = si.GetBoolValue("Pad", "MultitapPort2", false);
-
-	// This is where we would load controller types.
+	EmuConfig.MultitapPort0_Enabled = false;
+	EmuConfig.MultitapPort1_Enabled = false;
 	for (u32 i = 0; i < NUM_CONTROLLER_PORTS; i++)
 	{
-		char section_c[32];
-		snprintf(section_c, sizeof(section_c), "Pad%d", i + 1);
-		const std::string type(si.GetStringValue(section_c, "Type", (i == 0) ? "DualShock2" : "None"));
-
+		const char* type = s_pad_type_name[i] ? s_pad_type_name[i] : ((i == 0) ? "DualShock2" : "None");
 		g_key_status.m_type[i]     = NotConnected;
-
 		for (const ControllerInfo& info : s_controller_info)
 		{
-			if (type == info.name)
+			if (!strcmp(type, info.name))
 			{
-				// INI stores a float; snap to the 8.8 grid once, here.
-				const u16 large_motor_scale      = (u16)pcsx2_clamp_i(lrintf(si.GetFloatValue(section_c, "LargeMotorScale", DEFAULT_MOTOR_SCALE) * 256.0f), 0, 65535);
-				const u16 small_motor_scale      = (u16)pcsx2_clamp_i(lrintf(si.GetFloatValue(section_c, "SmallMotorScale", DEFAULT_MOTOR_SCALE) * 256.0f), 0, 65535);
-
+				const u16 motor_scale = (u16)pcsx2_clamp_i(lrintf(DEFAULT_MOTOR_SCALE * 256.0f), 0, 65535);
 				if (info.vibration_caps != NoVibration)
 				{
-					g_key_status.m_vibration_scale_q8[i][0] = large_motor_scale;
-					g_key_status.m_vibration_scale_q8[i][1] = small_motor_scale;
+					g_key_status.m_vibration_scale_q8[i][0] = motor_scale;
+					g_key_status.m_vibration_scale_q8[i][1] = motor_scale;
 				}
-
 				g_key_status.m_type[i]     = info.type;
 			}
 		}

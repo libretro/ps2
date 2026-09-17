@@ -112,7 +112,10 @@ namespace VMManager
 	bool ChangeDisc(CDVD_SourceType source, std::string path);
 
 	/// Initializes default configuration in the specified file.
-	void SetDefaultSettings(SettingsInterface& si);
+	/// The defaults that depend on the machine: MTVU and affinity control
+	/// by core count, fastmem by platform. Applied to the option config
+	/// before the options are, so an option still wins.
+	void ApplyHardwareDefaults(Pcsx2Config& c);
 
 	/// Returns a list of processors in the system, and their corresponding affinity mask.
 	/// This list is ordered by most performant to least performant for pinning threads to.

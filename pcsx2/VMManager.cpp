@@ -25,7 +25,6 @@
 #include "../common/Console.h"
 #include "HostFS.h"
 #include "../common/FPControl.h"
-#include "../common/SettingsWrapper.h"
 #include "../common/StringUtil.h" /* StdStringFromFormat */
 
 #include "Counters.h"
@@ -125,7 +124,6 @@ namespace VMManager
 	static void UpdateRunningGame(bool resetting, bool game_starting, bool swapping_disc);
 
 	static void SetTimerResolutionIncreased(bool enabled);
-	static void SetHardwareDependentDefaultSettings(SettingsInterface& si);
 	static void EnsureCPUInfoInitialized();
 	static void SetEmuThreadAffinities();
 } // namespace VMManager
@@ -208,7 +206,6 @@ void VMManager::Internal::UpdateEmuFolders()
 	const std::string old_memcards_directory(EmuFolders::MemoryCards);
 	const std::string old_textures_directory(EmuFolders::Textures);
 
-	EmuFolders::LoadConfig(*Host::Internal::GetBaseSettingsLayer());
 
 	if (VMManager::HasValidVM())
 	{
@@ -278,43 +275,19 @@ SysMainMemory& GetVmMemory()
 	return *s_vm_memory;
 }
 
+/* The frontend's content name; the first memory card is named after it. */
+extern std::string libretro_content;
+
 void VMManager::LoadSettings()
 {
-	// Switch the rounding mode back to the system default for loading settings.
-	// We might have a different mode, because this can be called during setting updates while a VM is active,
-	// and the rounding mode has an impact on the conversion of floating-point values to/from strings.
-	FPControlRegisterBackup fpcr_backup(FPControlRegister::GetDefault());
-
-	SettingsInterface* si             = Host::GetSettingsInterface();
-	SettingsLoadWrapper slw(*si);
-	EmuConfig.LoadSave(slw);
-	PAD::LoadConfig(*si);
-
-	// Remove any user-specified hacks in the config (we don't want stale/conflicting values when it's globally disabled).
-	EmuConfig.GS.MaskUserHacks();
-	EmuConfig.GS.MaskUpscalingHacks();
-
-	// Disable interlacing if we have no-interlacing patches active.
-	if (s_active_no_interlacing_patches > 0 && EmuConfig.GS.InterlaceMode == GSInterlaceMode::Automatic)
-		EmuConfig.GS.InterlaceMode = GSInterlaceMode::Off;
-
-	// Switch to 16:9 if widescreen patches are enabled, and AR is auto.
-	if (s_active_widescreen_patches > 0)
+	EmuConfig = Host::OptionConfig();
+	EmuConfig.ApplyOptionFixups();
+	if (!libretro_content.empty())
 	{
-		/* TODO/FIXME - implement */
+		snprintf(EmuConfig.Mcd[0].Filename, sizeof(EmuConfig.Mcd[0].Filename), "%s.ps2", libretro_content.c_str());
+		EmuConfig.Mcd[1].Enabled = false;
 	}
-
-	/* Ground truth for the run's memory mode: CHECK_FASTMEM compiles
-	 * against exactly this value. Printed here, after the settings layer
-	 * has landed in EmuConfig, so a log line is proof of mode - the
-	 * option plumbing above it has already been wrong twice in ways only
-	 * a consumption-point line would have caught. */
-	Console.WriteLn(EmuConfig.Cpu.Recompiler.EnableFastmem
-		? "Fastmem: enabled (pcsx2_fastmem)."
-		: "Fastmem: DISABLED (pcsx2_fastmem) - all accesses take the software memory handlers.");
-
-	if (HasValidVM())
-		ApplyGameFixes();
+	PAD::LoadConfig();
 }
 
 void VMManager::ApplyGameFixes()
@@ -590,7 +563,7 @@ bool VMManager::AutoDetectSource(const std::string& filename)
 
 bool VMManager::ApplyBootParameters(VMBootParameters params, std::string* state_to_load)
 {
-	const bool default_fast_boot = Host::GetBoolSettingValue("EmuCore", "EnableFastBoot", true);
+	const bool default_fast_boot = Host::OptionFastBoot();
 	EmuConfig.UseBOOT2Injection = params.fast_boot.value_or(default_fast_boot);
 
 	s_elf_override = std::move(params.elf_override);
@@ -1233,19 +1206,6 @@ void VMManager::ApplySettings()
 bool VMManager::g_MtvuMenuDefault = true;
 bool VMManager::g_FastmemMenuDefault = true;
 
-void VMManager::SetDefaultSettings(SettingsInterface& si)
-{
-	FPControlRegisterBackup fpcr_backup(FPControlRegister::GetDefault());
-
-	Pcsx2Config temp_config;
-	SettingsSaveWrapper ssw(si);
-	temp_config.LoadSave(ssw);
-
-	// Settings not part of the Pcsx2Config struct.
-	si.SetBoolValue("EmuCore", "EnableFastBoot", true);
-
-	SetHardwareDependentDefaultSettings(si);
-}
 
 #ifdef _WIN32
 
@@ -1320,7 +1280,7 @@ static void InitializeCPUInfo(void)
  * processor list is available everywhere now, but which platforms write
  * these defaults is a separate question from how the CPU is queried. */
 #if defined(__linux__) || defined(_WIN32)
-static void SetMTVUAndAffinityControlDefault(SettingsInterface& si)
+static void SetMTVUAndAffinityControlDefault(Pcsx2Config& c)
 {
 	VMManager::EnsureCPUInfoInitialized();
 	// arm64 MTVU status: the worker thread spawns (InitializeCPUProviders) and
@@ -1342,7 +1302,7 @@ static void SetMTVUAndAffinityControlDefault(SettingsInterface& si)
 	const bool mtvu = VMManager::MtvuHardwareAllowed() && VMManager::g_MtvuMenuDefault;
 	Console.WriteLn(mtvu ? "  MTVU enabled (pcsx2_mtvu; requires >= 3 hardware threads)."
 	                     : "  MTVU disabled.");
-	si.SetBoolValue("EmuCore/Speedhacks", "vuThread", mtvu);
+	c.Speedhacks.vuThread = mtvu;
 	// Instant VU1 assumes the VU1 provider finishes a program quickly (x86
 	// microVU). With the VU1 INTERPRETER, a continuous microprogram (endless
 	// loop streaming XGKICK -- GT3's arcade attract) burns the full
@@ -1350,18 +1310,18 @@ static void SetMTVUAndAffinityControlDefault(SettingsInterface& si)
 	// frame inside InterpVU1::Execute and the frontend appears hung. Run VU1
 	// in small interleaved slices instead (upstream's non-instant scheduling).
 	Console.WriteLn("  Instant VU1 enabled (microVU1 native provider).");
-	si.SetBoolValue("EmuCore/Speedhacks", "vu1Instant", true);
+	c.Speedhacks.vu1Instant = true;
 	/* Fastmem follows the same shape as MTVU: this default-setter can run
 	 * again on a settings reset after check_variables(true) has consumed
 	 * the option, so the option's value has to ride a VMManager global to
 	 * survive it. The truthful "which mode is this run in" line lives in
 	 * LoadSettings, printed from the config the recompilers actually
 	 * read - never from here, where the global may not be fed yet. */
-	si.SetBoolValue("EmuCore/CPU/Recompiler", "EnableFastmem", VMManager::g_FastmemMenuDefault);
+	c.Cpu.Recompiler.EnableFastmem = VMManager::g_FastmemMenuDefault;
 }
 
 #else
-static void SetMTVUAndAffinityControlDefault(SettingsInterface& si) { }
+static void SetMTVUAndAffinityControlDefault(Pcsx2Config& c) { (void)c; }
 #endif
 
 /* Single source of truth for the MTVU hardware gate.  The worker is only
@@ -1447,9 +1407,9 @@ void VMManager::SetEmuThreadAffinities()
 		sthread_set_affinity(vu1Thread.GetThread(), 0);
 }
 
-void VMManager::SetHardwareDependentDefaultSettings(SettingsInterface& si)
+void VMManager::ApplyHardwareDefaults(Pcsx2Config& c)
 {
-	SetMTVUAndAffinityControlDefault(si);
+	SetMTVUAndAffinityControlDefault(c);
 }
 
 const std::vector<u32>& VMManager::GetSortedProcessorList()

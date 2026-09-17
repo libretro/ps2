@@ -574,12 +574,9 @@ else()
 endif()
 
 list(APPEND pcsx2FrontendSources
-	Frontend/HostSettings.cpp
-	Frontend/LayeredSettingsInterface.cpp
 	VMManager.cpp
 )
 list(APPEND pcsx2FrontendHeaders
-	Frontend/LayeredSettingsInterface.h
 	VMManager.h)
 
 # Linux sources

@@ -30,7 +30,6 @@
 #include "../pcsx2/Host.h"
 
 #include "HostFS.h"
-#include "../common/MemorySettingsInterface.h"
 
 #include "../pcsx2/GS/Renderers/Common/GSRenderer.h"
 #ifdef ENABLE_VULKAN
@@ -43,7 +42,6 @@
 #include <libretro_vulkan.h>
 #endif
 #include "../pcsx2/Frontend/InputManager.h"
-#include "../pcsx2/Frontend/LayeredSettingsInterface.h"
 #include "../pcsx2/VMManager.h"
 #include "../pcsx2/Patch.h"
 
@@ -62,7 +60,18 @@ retro_log_printf_t log_cb;
 static retro_audio_sample_batch_t batch_cb;
 struct retro_hw_render_callback hw_render;
 
-MemorySettingsInterface s_settings_interface;
+/* The core options, as the config they set: the fields directly, with
+ * Pcsx2Config's own defaults for whatever no option touches, and the
+ * hardware-dependent defaults applied before the options. Three values
+ * no Pcsx2Config field holds ride beside it. VMManager copies this at
+ * every LoadSettings, then diffs old against new as it always did. */
+static Pcsx2Config s_option_config;
+static char        s_option_bios[PCSX2_PATH_MAX];
+static bool        s_option_fast_boot = true;
+static char        s_option_memcards[PCSX2_PATH_MAX];
+const Pcsx2Config& Host::OptionConfig() { return s_option_config; }
+const char*        Host::OptionBiosPath() { return s_option_bios; }
+bool               Host::OptionFastBoot() { return s_option_fast_boot; }
 
 bool pending_update_av_info = false;
 std::string libretro_content;
@@ -467,21 +476,21 @@ static void check_variables(bool first_run)
 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 		{
 			setting_bios = var.value;
-			s_settings_interface.SetStringValue("Filenames", "BIOS", setting_bios.c_str());
+			strlcpy(s_option_bios, setting_bios.c_str(), sizeof(s_option_bios));
 		}
 
 		var.key = "pcsx2_fastboot";
 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 		{
 			bool fast_boot = !strcmp(var.value, "enabled");
-			s_settings_interface.SetBoolValue("EmuCore", "EnableFastBoot", fast_boot);
+			s_option_fast_boot = fast_boot;
 		}
 
 		var.key = "pcsx2_fastcdvd";
 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 		{
 			bool fast_cdvd = !strcmp(var.value, "enabled");
-			s_settings_interface.SetBoolValue("EmuCore/Speedhacks", "fastCDVD", fast_cdvd);
+			s_option_config.Speedhacks.fastCDVD = fast_cdvd;
 		}
 	}
 
@@ -508,7 +517,7 @@ static void check_variables(bool first_run)
 
 			if (first_run || setting_pgs_super_sampling != pgs_super_sampling_prev)
 			{
-				s_settings_interface.SetIntValue("EmuCore/GS", "pgsSuperSampling", setting_pgs_super_sampling);
+				s_option_config.GS.PGSSuperSampling = static_cast<decltype(s_option_config.GS.PGSSuperSampling)>(setting_pgs_super_sampling);
 				updated = true;
 			}
 		}
@@ -521,7 +530,7 @@ static void check_variables(bool first_run)
 
 			if (first_run || setting_pgs_ss_tex != pgs_ss_tex_prev)
 			{
-				s_settings_interface.SetIntValue("EmuCore/GS", "pgsSuperSampleTextures", setting_pgs_ss_tex);
+				s_option_config.GS.PGSSuperSampleTextures = static_cast<decltype(s_option_config.GS.PGSSuperSampleTextures)>(setting_pgs_ss_tex);
 				updated = true;
 			}
 		}
@@ -534,7 +543,7 @@ static void check_variables(bool first_run)
 
 			if (first_run || setting_pgs_deblur != pgs_deblur_prev)
 			{
-				s_settings_interface.SetIntValue("EmuCore/GS", "pgsSharpBackbuffer", setting_pgs_deblur);
+				s_option_config.GS.PGSSharpBackbuffer = static_cast<decltype(s_option_config.GS.PGSSharpBackbuffer)>(setting_pgs_deblur);
 				updated = true;
 			}
 		}
@@ -552,11 +561,11 @@ static void check_variables(bool first_run)
 				setting_pgs_high_res_scanout = !strcmp(var.value, "enabled");
 
 			if (first_run)
-				s_settings_interface.SetUIntValue("EmuCore/GS", "pgsHighResScanout", setting_pgs_high_res_scanout);
+				s_option_config.GS.PGSHighResScanout = static_cast<decltype(s_option_config.GS.PGSHighResScanout)>(setting_pgs_high_res_scanout);
 			else if (setting_pgs_high_res_scanout != pgs_high_res_scanout_prev)
 			{
 				retro_system_av_info av_info;
-				s_settings_interface.SetUIntValue("EmuCore/GS", "pgsHighResScanout", setting_pgs_high_res_scanout);
+				s_option_config.GS.PGSHighResScanout = static_cast<decltype(s_option_config.GS.PGSHighResScanout)>(setting_pgs_high_res_scanout);
 
 				retro_get_system_av_info(&av_info);
 				environ_cb(RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO, &av_info);
@@ -576,9 +585,9 @@ static void check_variables(bool first_run)
 			if (first_run || setting_pgs_disable_mipmaps != pgs_disable_mipmaps_prev)
 			{
 				const u8 mipmap_mode = (u8)(setting_pgs_disable_mipmaps ? GSHWMipmapMode::Unclamped : GSHWMipmapMode::Enabled);
-				s_settings_interface.SetUIntValue("EmuCore/GS", "hw_mipmap_mode", mipmap_mode);
-				s_settings_interface.SetBoolValue("EmuCore/GS", "mipmap", !setting_pgs_disable_mipmaps);
-				s_settings_interface.SetUIntValue("EmuCore/GS", "pgsDisableMipmaps", setting_pgs_disable_mipmaps);
+				s_option_config.GS.HWMipmapMode = static_cast<decltype(s_option_config.GS.HWMipmapMode)>(mipmap_mode);
+				s_option_config.GS.Mipmap = !setting_pgs_disable_mipmaps;
+				s_option_config.GS.PGSDisableMipmaps = static_cast<decltype(s_option_config.GS.PGSDisableMipmaps)>(setting_pgs_disable_mipmaps);
 				updated = true;
 			}
 		}
@@ -601,7 +610,7 @@ static void check_variables(bool first_run)
 
 			if (first_run || setting_pcrtc_antiblur != pcrtc_antiblur_prev)
 			{
-				s_settings_interface.SetBoolValue("EmuCore/GS", "pcrtc_antiblur", setting_pcrtc_antiblur);
+				s_option_config.GS.PCRTCAntiBlur = setting_pcrtc_antiblur;
 				updated = true;
 			}
 		}
@@ -614,7 +623,7 @@ static void check_variables(bool first_run)
 
 			if (first_run || setting_pcrtc_screen_offsets != pcrtc_screen_offsets_prev)
 			{
-				s_settings_interface.SetBoolValue("EmuCore/GS", "pcrtc_offsets", setting_pcrtc_screen_offsets);
+				s_option_config.GS.PCRTCOffsets = setting_pcrtc_screen_offsets;
 				updated = true;
 			}
 		}
@@ -627,7 +636,7 @@ static void check_variables(bool first_run)
 
 			if (first_run || setting_disable_interlace_offset != disable_interlace_offset_prev)
 			{
-				s_settings_interface.SetBoolValue("EmuCore/GS", "disable_interlace_offset", setting_disable_interlace_offset);
+				s_option_config.GS.DisableInterlaceOffset = setting_disable_interlace_offset;
 				updated = true;
 			}
 		}
@@ -659,7 +668,7 @@ static void check_variables(bool first_run)
 
 			if (first_run || setting_deinterlace_mode != deinterlace_mode_prev)
 			{
-				s_settings_interface.SetUIntValue("EmuCore/GS", "deinterlace_mode", setting_deinterlace_mode);
+				s_option_config.GS.InterlaceMode = static_cast<decltype(s_option_config.GS.InterlaceMode)>(setting_deinterlace_mode);
 				updated = true;
 			}
 		}
@@ -679,7 +688,7 @@ static void check_variables(bool first_run)
 
 			if (first_run || setting_hw_download_mode != hw_download_mode_prev)
 			{
-				s_settings_interface.SetIntValue("EmuCore/GS", "HWDownloadMode", setting_hw_download_mode);
+				s_option_config.GS.HWDownloadMode = static_cast<decltype(s_option_config.GS.HWDownloadMode)>(setting_hw_download_mode);
 				updated = true;
 			}
 		}
@@ -699,7 +708,7 @@ static void check_variables(bool first_run)
 			setting_upscale_multiplier = atoi(var.value);
 
 			if (first_run)
-				s_settings_interface.SetFloatValue("EmuCore/GS", "upscale_multiplier", setting_upscale_multiplier);
+				s_option_config.GS.UpscaleMultiplier = setting_upscale_multiplier;
 #if 0
 			// TODO: ATM it crashes when changed on-the-fly, re-enable when fixed
 			// also remove "(Restart)" from the core option label
@@ -710,7 +719,7 @@ static void check_variables(bool first_run)
 			else if (setting_upscale_multiplier != upscale_multiplier_prev)
 			{
 				retro_system_av_info av_info;
-				s_settings_interface.SetFloatValue("EmuCore/GS", "upscale_multiplier", setting_upscale_multiplier);
+				s_option_config.GS.UpscaleMultiplier = setting_upscale_multiplier;
 
 				retro_get_system_av_info(&av_info);
 #if 1
@@ -738,7 +747,7 @@ static void check_variables(bool first_run)
 
 			if (first_run || setting_trilinear_filtering != trilinear_filtering_prev)
 			{
-				s_settings_interface.SetIntValue("EmuCore/GS", "TriFilter", setting_trilinear_filtering);
+				s_option_config.GS.TriFilter = static_cast<decltype(s_option_config.GS.TriFilter)>(setting_trilinear_filtering);
 				updated = true;
 			}
 		}
@@ -751,7 +760,7 @@ static void check_variables(bool first_run)
 
 			if (first_run || setting_anisotropic_filtering != anisotropic_filtering_prev)
 			{
-				s_settings_interface.SetUIntValue("EmuCore/GS", "MaxAnisotropy", setting_anisotropic_filtering);
+				s_option_config.GS.MaxAnisotropy = setting_anisotropic_filtering;
 				updated = true;
 			}
 		}
@@ -771,7 +780,7 @@ static void check_variables(bool first_run)
 
 			if (first_run || setting_dithering != dithering_prev)
 			{
-				s_settings_interface.SetUIntValue("EmuCore/GS", "dithering_ps2", setting_dithering);
+				s_option_config.GS.Dithering = setting_dithering;
 				updated = true;
 			}
 		}
@@ -795,7 +804,7 @@ static void check_variables(bool first_run)
 
 			if (first_run || setting_blending_accuracy != blending_accuracy_prev)
 			{
-				s_settings_interface.SetUIntValue("EmuCore/GS", "accurate_blending_unit", setting_blending_accuracy);
+				s_option_config.GS.AccurateBlendingUnit = static_cast<decltype(s_option_config.GS.AccurateBlendingUnit)>(setting_blending_accuracy);
 				updated = true;
 			}
 		}
@@ -808,7 +817,7 @@ static void check_variables(bool first_run)
 
 			if (first_run || setting_enable_hw_hacks != enable_hw_hacks_prev)
 			{
-				s_settings_interface.SetBoolValue("EmuCore/GS", "UserHacks", setting_enable_hw_hacks);
+				s_option_config.GS.ManualUserHacks = setting_enable_hw_hacks;
 				updated = true;
 			}
 		}
@@ -823,7 +832,7 @@ static void check_variables(bool first_run)
 
 				if (first_run || setting_cpu_sprite_size != cpu_sprite_size_prev)
 				{
-					s_settings_interface.SetUIntValue("EmuCore/GS", "UserHacks_CPUSpriteRenderBW", setting_cpu_sprite_size);
+					s_option_config.GS.UserHacks_CPUSpriteRenderBW = setting_cpu_sprite_size;
 					updated = true;
 				}
 			}
@@ -841,7 +850,7 @@ static void check_variables(bool first_run)
 
 				if (first_run || setting_cpu_sprite_level != cpu_sprite_level_prev)
 				{
-					s_settings_interface.SetUIntValue("EmuCore/GS", "UserHacks_CPUSpriteRenderLevel", setting_cpu_sprite_level);
+					s_option_config.GS.UserHacks_CPUSpriteRenderLevel = setting_cpu_sprite_level;
 					updated = true;
 				}
 			}
@@ -859,7 +868,7 @@ static void check_variables(bool first_run)
 
 				if (first_run || setting_software_clut_render != software_clut_render_prev)
 				{
-					s_settings_interface.SetUIntValue("EmuCore/GS", "UserHacks_CPUCLUTRender", setting_software_clut_render);
+					s_option_config.GS.UserHacks_CPUCLUTRender = setting_software_clut_render;
 					updated = true;
 				}
 			}
@@ -877,7 +886,7 @@ static void check_variables(bool first_run)
 
 				if (first_run || setting_gpu_target_clut != gpu_target_clut_prev)
 				{
-					s_settings_interface.SetUIntValue("EmuCore/GS", "UserHacks_GPUTargetCLUTMode", setting_gpu_target_clut);
+					s_option_config.GS.UserHacks_GPUTargetCLUTMode = static_cast<decltype(s_option_config.GS.UserHacks_GPUTargetCLUTMode)>(setting_gpu_target_clut);
 					updated = true;
 				}
 			}
@@ -895,7 +904,7 @@ static void check_variables(bool first_run)
 
 				if (first_run || setting_auto_flush != auto_flush_prev)
 				{
-					s_settings_interface.SetUIntValue("EmuCore/GS", "UserHacks_AutoFlushLevel", setting_auto_flush);
+					s_option_config.GS.UserHacks_AutoFlush = static_cast<decltype(s_option_config.GS.UserHacks_AutoFlush)>(setting_auto_flush);
 					updated = true;
 				}
 			}
@@ -913,7 +922,7 @@ static void check_variables(bool first_run)
 
 				if (first_run || setting_texture_inside_rt != texture_inside_rt_prev)
 				{
-					s_settings_interface.SetUIntValue("EmuCore/GS", "UserHacks_TextureInsideRt", setting_texture_inside_rt);
+					s_option_config.GS.UserHacks_TextureInsideRt = static_cast<decltype(s_option_config.GS.UserHacks_TextureInsideRt)>(setting_texture_inside_rt);
 					updated = true;
 				}
 			}
@@ -926,7 +935,7 @@ static void check_variables(bool first_run)
 
 				if (first_run || setting_disable_depth_conversion != disable_depth_conversion_prev)
 				{
-					s_settings_interface.SetBoolValue("EmuCore/GS", "UserHacks_DisableDepthSupport", setting_disable_depth_conversion);
+					s_option_config.GS.UserHacks_DisableDepthSupport = setting_disable_depth_conversion;
 					updated = true;
 				}
 			}
@@ -943,7 +952,7 @@ static void check_variables(bool first_run)
 
 				if (first_run || setting_framebuffer_conversion != framebuffer_conversion_prev)
 				{
-					s_settings_interface.SetBoolValue("EmuCore/GS", "UserHacks_CPU_FB_Conversion", setting_framebuffer_conversion);
+					s_option_config.GS.UserHacks_CPUFBConversion = setting_framebuffer_conversion;
 					updated = true;
 				}
 			}
@@ -956,7 +965,7 @@ static void check_variables(bool first_run)
 
 				if (first_run || setting_disable_partial_invalid != disable_partial_invalid_prev)
 				{
-					s_settings_interface.SetBoolValue("EmuCore/GS", "UserHacks_DisablePartialInvalidation", setting_disable_partial_invalid);
+					s_option_config.GS.UserHacks_DisablePartialInvalidation = setting_disable_partial_invalid;
 					updated = true;
 				}
 			}
@@ -969,7 +978,7 @@ static void check_variables(bool first_run)
 
 				if (first_run || setting_gpu_palette_conversion != gpu_palette_conversion_prev)
 				{
-					s_settings_interface.SetBoolValue("EmuCore/GS", "paltex", setting_gpu_palette_conversion);
+					s_option_config.GS.GPUPaletteConversion = setting_gpu_palette_conversion;
 					updated = true;
 				}
 			}
@@ -982,7 +991,7 @@ static void check_variables(bool first_run)
 
 				if (first_run || setting_preload_frame_data != preload_frame_data_prev)
 				{
-					s_settings_interface.SetBoolValue("EmuCore/GS", "preload_frame_with_gs_data", setting_preload_frame_data);
+					s_option_config.GS.PreloadFrameWithGSData = setting_preload_frame_data;
 					updated = true;
 				}
 			}
@@ -1004,7 +1013,7 @@ static void check_variables(bool first_run)
 
 				if (first_run || setting_half_pixel_offset != half_pixel_offset_prev)
 				{
-					s_settings_interface.SetIntValue("EmuCore/GS", "UserHacks_HalfPixelOffset", setting_half_pixel_offset);
+					s_option_config.GS.UserHacks_HalfPixelOffset = static_cast<decltype(s_option_config.GS.UserHacks_HalfPixelOffset)>(setting_half_pixel_offset);
 					updated = true;
 				}
 			}
@@ -1022,7 +1031,7 @@ static void check_variables(bool first_run)
 
 				if (first_run || setting_native_scaling != native_scaling_prev)
 				{
-					s_settings_interface.SetIntValue("EmuCore/GS", "UserHacks_native_scaling", setting_native_scaling);
+					s_option_config.GS.UserHacks_NativeScaling = static_cast<decltype(s_option_config.GS.UserHacks_NativeScaling)>(setting_native_scaling);
 					updated = true;
 				}
 			}
@@ -1040,7 +1049,7 @@ static void check_variables(bool first_run)
 
 				if (first_run || setting_round_sprite != round_sprite_prev)
 				{
-					s_settings_interface.SetUIntValue("EmuCore/GS", "UserHacks_round_sprite_offset", setting_round_sprite);
+					s_option_config.GS.UserHacks_RoundSprite = setting_round_sprite;
 					updated = true;
 				}
 			}
@@ -1053,7 +1062,7 @@ static void check_variables(bool first_run)
 
 				if (first_run || setting_align_sprite != align_sprite_prev)
 				{
-					s_settings_interface.SetBoolValue("EmuCore/GS", "UserHacks_align_sprite_X", setting_align_sprite);
+					s_option_config.GS.UserHacks_AlignSpriteX = setting_align_sprite;
 					updated = true;
 				}
 			}
@@ -1066,7 +1075,7 @@ static void check_variables(bool first_run)
 
 				if (first_run || setting_merge_sprite != merge_sprite_prev)
 				{
-					s_settings_interface.SetBoolValue("EmuCore/GS", "UserHacks_merge_pp_sprite", setting_merge_sprite);
+					s_option_config.GS.UserHacks_MergePPSprite = setting_merge_sprite;
 					updated = true;
 				}
 			}
@@ -1079,7 +1088,7 @@ static void check_variables(bool first_run)
 
 				if (first_run || setting_unscaled_palette_draw != unscaled_palette_draw_prev)
 				{
-					s_settings_interface.SetBoolValue("EmuCore/GS", "UserHacks_NativePaletteDraw", setting_unscaled_palette_draw);
+					s_option_config.GS.UserHacks_NativePaletteDraw = setting_unscaled_palette_draw;
 					updated = true;
 				}
 			}
@@ -1092,7 +1101,7 @@ static void check_variables(bool first_run)
 
 				if (first_run || setting_force_sprite_position != force_sprite_position_prev)
 				{
-					s_settings_interface.SetBoolValue("EmuCore/GS", "UserHacks_ForceEvenSpritePosition", setting_force_sprite_position);
+					s_option_config.GS.UserHacks_ForceEvenSpritePosition = setting_force_sprite_position;
 					updated = true;
 				}
 			}
@@ -1109,7 +1118,7 @@ static void check_variables(bool first_run)
 
 			if (first_run || setting_auto_flush_software != auto_flush_software_prev)
 			{
-				s_settings_interface.SetBoolValue("EmuCore/GS", "autoflush_sw", setting_auto_flush_software);
+				s_option_config.GS.AutoFlushSW = setting_auto_flush_software;
 				updated = true;
 			}
 		}
@@ -1132,7 +1141,7 @@ static void check_variables(bool first_run)
 
 			if (first_run || setting_texture_filtering != texture_filtering_prev)
 			{
-				s_settings_interface.SetUIntValue("EmuCore/GS", "filter", setting_texture_filtering);
+				s_option_config.GS.TextureFiltering = static_cast<decltype(s_option_config.GS.TextureFiltering)>(setting_texture_filtering);
 				updated = true;
 			}
 		}
@@ -1155,7 +1164,7 @@ static void check_variables(bool first_run)
 		else if (!strcmp(var.value, "120 GiB"))
 			gib = 120;
 		setting_dev9_hdd_sectors = gib * (1024 * 1024 * 1024 / 512);
-		s_settings_interface.SetUIntValue("DEV9/Hdd", "HddSizeSectors", setting_dev9_hdd_sectors);
+		s_option_config.DEV9.HddSizeSectors = setting_dev9_hdd_sectors;
 	}
 
 	var.key = "pcsx2_dev9_hdd";
@@ -1168,7 +1177,7 @@ static void check_variables(bool first_run)
 		{
 			if (setting_dev9_hdd)
 				dev9_ensure_hdd_image(setting_dev9_hdd_sectors);
-			s_settings_interface.SetBoolValue("DEV9/Hdd", "HddEnable", setting_dev9_hdd);
+			s_option_config.DEV9.HddEnable = setting_dev9_hdd;
 			updated = true;
 		}
 	}
@@ -1181,11 +1190,11 @@ static void check_variables(bool first_run)
 
 		if (first_run || setting_dev9_eth != dev9_eth_prev)
 		{
-			s_settings_interface.SetBoolValue("DEV9/Eth", "EthEnable", setting_dev9_eth);
+			s_option_config.DEV9.EthEnable = setting_dev9_eth;
 			if (setting_dev9_eth)
 			{
-				s_settings_interface.SetStringValue("DEV9/Eth", "EthApi", "Sockets");
-				s_settings_interface.SetStringValue("DEV9/Eth", "EthDevice", "Auto");
+				s_option_config.DEV9.EthApi = Pcsx2Config::DEV9Options::NetApi::Sockets;
+				s_option_config.DEV9.EthDevice = "Auto";
 			}
 			updated = true;
 		}
@@ -1199,7 +1208,7 @@ static void check_variables(bool first_run)
 
 		if (first_run || setting_enable_cheats != enable_cheats_prev)
 		{
-			s_settings_interface.SetBoolValue("EmuCore", "EnableCheats", setting_enable_cheats);
+			s_option_config.EnableCheats = setting_enable_cheats;
 			updated = true;
 		}
 	}
@@ -1228,7 +1237,7 @@ static void check_variables(bool first_run)
 			setting_vu_accurate_addsub = vu_addsub;
 			updated = true;
 		}
-		s_settings_interface.SetBoolValue("EmuCore/CPU/Recompiler", "EnableVuAccurateAddSub", vu_addsub);
+		s_option_config.Cpu.Recompiler.EnableVuAccurateAddSub = vu_addsub;
 	}
 
 	var.key = "pcsx2_ee_accurate_fpu";
@@ -1240,7 +1249,7 @@ static void check_variables(bool first_run)
 			setting_ee_accurate_fpu = ee_acc;
 			updated = true;
 		}
-		s_settings_interface.SetBoolValue("EmuCore/CPU/Recompiler", "EnableFpuAccurateArith", ee_acc);
+		s_option_config.Cpu.Recompiler.EnableFpuAccurateArith = ee_acc;
 	}
 
 	var.key = "pcsx2_vu_exact_mul";
@@ -1252,7 +1261,7 @@ static void check_variables(bool first_run)
 			setting_vu_exact_mul = vu_exact;
 			updated = true;
 		}
-		s_settings_interface.SetBoolValue("EmuCore/CPU/Recompiler", "EnableVuExactMul", vu_exact);
+		s_option_config.Cpu.Recompiler.EnableVuExactMul = vu_exact;
 	}
 
 	var.key = "pcsx2_vu_exact_div";
@@ -1264,7 +1273,7 @@ static void check_variables(bool first_run)
 			setting_vu_exact_div = vu_exact;
 			updated = true;
 		}
-		s_settings_interface.SetBoolValue("EmuCore/CPU/Recompiler", "EnableVuExactDiv", vu_exact);
+		s_option_config.Cpu.Recompiler.EnableVuExactDiv = vu_exact;
 	}
 
 	var.key = "pcsx2_fpu_softfloat";
@@ -1276,7 +1285,7 @@ static void check_variables(bool first_run)
 			setting_fpu_softfloat = fpu_soft;
 			updated = true;
 		}
-		s_settings_interface.SetBoolValue("EmuCore/CPU/Recompiler", "EnableFpuSoftFloat", fpu_soft);
+		s_option_config.Cpu.Recompiler.EnableFpuSoftFloat = fpu_soft;
 	}
 
 	var.key = "pcsx2_vu0_softfloat";
@@ -1288,7 +1297,7 @@ static void check_variables(bool first_run)
 			setting_vu0_softfloat = vu0_soft;
 			updated = true;
 		}
-		s_settings_interface.SetBoolValue("EmuCore/CPU/Recompiler", "EnableVu0SoftFloat", vu0_soft);
+		s_option_config.Cpu.Recompiler.EnableVu0SoftFloat = vu0_soft;
 	}
 
 	var.key = "pcsx2_vu1_softfloat";
@@ -1300,7 +1309,7 @@ static void check_variables(bool first_run)
 			setting_vu1_softfloat = vu1_soft;
 			updated = true;
 		}
-		s_settings_interface.SetBoolValue("EmuCore/CPU/Recompiler", "EnableVu1SoftFloat", vu1_soft);
+		s_option_config.Cpu.Recompiler.EnableVu1SoftFloat = vu1_soft;
 	}
 
 	var.key = "pcsx2_ee_cycle_rate";
@@ -1324,7 +1333,7 @@ static void check_variables(bool first_run)
 
 		if (first_run || setting_ee_cycle_rate != ee_cycle_rate_prev)
 		{
-			s_settings_interface.SetIntValue("EmuCore/Speedhacks", "EECycleRate", setting_ee_cycle_rate);
+			s_option_config.Speedhacks.EECycleRate = setting_ee_cycle_rate;
 			updated = true;
 		}
 	}
@@ -1346,14 +1355,13 @@ static void check_variables(bool first_run)
 			 * raise THREAD_VU1 with no MTVU worker spawned - MainLoop
 			 * then waits forever on the handoff (boot hang on <3
 			 * hardware threads with pcsx2_mtvu=enabled). */
-			s_settings_interface.SetBoolValue("EmuCore/Speedhacks", "vuThread",
-				mtvu_on && VMManager::MtvuHardwareAllowed());
+			s_option_config.Speedhacks.vuThread = mtvu_on && VMManager::MtvuHardwareAllowed();
 			VMManager::g_MtvuMenuDefault = mtvu_on;
 		}
 
 		var.key = "pcsx2_instant_vu1";
 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-			s_settings_interface.SetBoolValue("EmuCore/Speedhacks", "vu1Instant", !strcmp(var.value, "enabled"));
+			s_option_config.Speedhacks.vu1Instant = !strcmp(var.value, "enabled");
 
 		/* Fastmem was the one core subsystem with no toggle: every
 		 * config a user can build still runs it, which makes a bug in
@@ -1367,7 +1375,7 @@ static void check_variables(bool first_run)
 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 		{
 			const bool fastmem_on = !strcmp(var.value, "enabled");
-			s_settings_interface.SetBoolValue("EmuCore/CPU/Recompiler", "EnableFastmem", fastmem_on);
+			s_option_config.Cpu.Recompiler.EnableFastmem = fastmem_on;
 			VMManager::g_FastmemMenuDefault = fastmem_on;
 		}
 
@@ -1383,10 +1391,10 @@ static void check_variables(bool first_run)
 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 		{
 			const bool ee_interpreter = !strcmp(var.value, "Interpreter");
-			s_settings_interface.SetBoolValue("EmuCore/CPU/Recompiler", "EnableEE", !ee_interpreter);
+			s_option_config.Cpu.Recompiler.EnableEE = !ee_interpreter;
 			if (ee_interpreter)
 			{
-				s_settings_interface.SetBoolValue("EmuCore/CPU/Recompiler", "EnableFastmem", false);
+				s_option_config.Cpu.Recompiler.EnableFastmem = false;
 				VMManager::g_FastmemMenuDefault = false;
 			}
 		}
@@ -1457,8 +1465,7 @@ static void check_variables(bool first_run)
 
 		if (first_run || setting_ee_cycle_skip != ee_cycle_skip_prev)
 		{
-			s_settings_interface.SetIntValue("EmuCore/Speedhacks",
-				"EECycleSkip", setting_ee_cycle_skip);
+			s_option_config.Speedhacks.EECycleSkip = setting_ee_cycle_skip;
 			updated = true;
 		}
 	}
@@ -2541,8 +2548,7 @@ static void libretro_teardown_cpu_thread(void)
 	{
 		VMManager::Internal::CPUThreadShutdown();
 		s_cpu_thread_initialized = false;
-		((LayeredSettingsInterface*)Host::GetSettingsInterface())->SetLayer(
-				LayeredSettingsInterface::LAYER_BASE, nullptr);
+
 	}
 }
 
@@ -2566,13 +2572,11 @@ bool retro_load_game(const struct retro_game_info* game)
 	strlcpy(EmuFolders::Settings, EmuFolders::AppRoot,
 			sizeof(EmuFolders::Settings));
 
-	Host::Internal::SetBaseSettingsLayer(&s_settings_interface);
+	s_option_config = Pcsx2Config();
+	VMManager::ApplyHardwareDefaults(s_option_config);
 
-	EmuFolders::SetDefaults(s_settings_interface);
-	VMManager::SetDefaultSettings(s_settings_interface);
 
-	SettingsInterface* bsi = Host::Internal::GetBaseSettingsLayer();
-	EmuFolders::LoadConfig(*bsi);
+	EmuFolders::LoadConfig(s_option_memcards);
 	EmuFolders::EnsureFoldersExist();
 	VMManager::Internal::CPUThreadInitialize();
 	s_cpu_thread_initialized = true;
@@ -2597,24 +2601,24 @@ bool retro_load_game(const struct retro_game_info* game)
 	}
 
 	if (is_software_setting(setting_renderer))
-		s_settings_interface.SetIntValue("EmuCore/GS", "Renderer", (int)GSRendererType::SW);
+		s_option_config.GS.Renderer = static_cast<decltype(s_option_config.GS.Renderer)>((int)GSRendererType::SW);
 
 	switch (hw_render.context_type)
 	{
 		case RETRO_HW_CONTEXT_D3D12:
 			if (!is_software_setting(setting_renderer))
-				s_settings_interface.SetIntValue("EmuCore/GS", "Renderer", (int)GSRendererType::DX12);
+				s_option_config.GS.Renderer = static_cast<decltype(s_option_config.GS.Renderer)>((int)GSRendererType::DX12);
 			break;
 		case RETRO_HW_CONTEXT_D3D11:
 			if (!is_software_setting(setting_renderer))
-				s_settings_interface.SetIntValue("EmuCore/GS", "Renderer", (int)GSRendererType::DX11);
+				s_option_config.GS.Renderer = static_cast<decltype(s_option_config.GS.Renderer)>((int)GSRendererType::DX11);
 			break;
 #ifdef ENABLE_VULKAN
 		case RETRO_HW_CONTEXT_VULKAN:
 #ifdef HAVE_PARALLEL_GS
 			if (setting_renderer == "paraLLEl-GS")
 			{
-				s_settings_interface.SetIntValue("EmuCore/GS", "Renderer", (int)GSRendererType::ParallelGS);
+				s_option_config.GS.Renderer = static_cast<decltype(s_option_config.GS.Renderer)>((int)GSRendererType::ParallelGS);
 				static const struct retro_hw_render_context_negotiation_interface_vulkan iface = {
 					RETRO_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE_VULKAN,
 					RETRO_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE_VULKAN_VERSION,
@@ -2630,7 +2634,7 @@ bool retro_load_game(const struct retro_game_info* game)
 #endif
 			{
 				if (!is_software_setting(setting_renderer))
-					s_settings_interface.SetIntValue("EmuCore/GS", "Renderer", (int)GSRendererType::VK);
+					s_option_config.GS.Renderer = static_cast<decltype(s_option_config.GS.Renderer)>((int)GSRendererType::VK);
 				{
 					static const struct retro_hw_render_context_negotiation_interface_vulkan iface = {
 						RETRO_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE_VULKAN,
@@ -2649,11 +2653,11 @@ bool retro_load_game(const struct retro_game_info* game)
 #endif
 		case RETRO_HW_CONTEXT_NONE:
 			if (!is_software_setting(setting_renderer))
-				s_settings_interface.SetIntValue("EmuCore/GS", "Renderer", (int)GSRendererType::SW);
+				s_option_config.GS.Renderer = static_cast<decltype(s_option_config.GS.Renderer)>((int)GSRendererType::SW);
 			break;
 		default:
 			if (!is_software_setting(setting_renderer))
-				s_settings_interface.SetIntValue("EmuCore/GS", "Renderer", (int)GSRendererType::OGL);
+				s_option_config.GS.Renderer = static_cast<decltype(s_option_config.GS.Renderer)>((int)GSRendererType::OGL);
 			break;
 	}
 
@@ -2666,7 +2670,7 @@ bool retro_load_game(const struct retro_game_info* game)
 
 		environ_cb(RETRO_ENVIRONMENT_GET_SAVE_DIRECTORY, &save_base);
 
-		s_settings_interface.SetStringValue("Folders", "MemoryCards", save_base);
+		strlcpy(s_option_memcards, save_base, sizeof(s_option_memcards));
 		VMManager::Internal::UpdateEmuFolders();
 
 		snprintf(memcard_path, sizeof(memcard_path), "%s", path_basename(game->path));

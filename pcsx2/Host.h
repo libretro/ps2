@@ -23,32 +23,28 @@
 #include <optional>
 #include <vector>
 
-class SettingsInterface;
 
+struct Pcsx2Config;
 namespace Host
 {
+	/* The frontend's core options, as the config they set, and the three
+	 * values beside it that no Pcsx2Config field holds. */
+	const Pcsx2Config& OptionConfig();
+	const char*        OptionBiosPath();
+	bool               OptionFastBoot();
 	// Base setting retrieval, bypasses layers.
-	std::string GetBaseStringSettingValue(const char* section, const char* key, const char* default_value = "");
 
 	// Allows the emucore to write settings back to the frontend. Use with care.
 	
 	// Settings access, thread-safe.
-	bool GetBoolSettingValue(const char* section, const char* key, bool default_value = false);
-	int GetIntSettingValue(const char* section, const char* key, int default_value = 0);
-	uint GetUIntSettingValue(const char* section, const char* key, uint default_value = 0);
-	float GetFloatSettingValue(const char* section, const char* key, float default_value = 0.0f);
-	double GetDoubleSettingValue(const char* section, const char* key, double default_value = 0.0);
 
-	/// Direct access to settings interface. Must hold the lock when calling GetSettingsInterface() and while using it.
-	SettingsInterface* GetSettingsInterface();
+	/// The core options as the config they set; see OptionConfig() below.
 
 	namespace Internal
 	{
 		/// Retrieves the base settings layer. Must call with lock held.
-		SettingsInterface* GetBaseSettingsLayer();
 
 		/// Sets the base settings layer. Should be called by the host at initialization time.
-		void SetBaseSettingsLayer(SettingsInterface* sif);
 
 	} // namespace Internal
 	/// Reads a file from the resources directory of the application.

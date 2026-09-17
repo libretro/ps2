@@ -20,7 +20,7 @@
 
 namespace usb_hid
 {
-	/* Plain factories - no DeviceProxy / SettingsInterface. Build a boot-
+	/* Plain factories - no DeviceProxy or config lookup. Build a boot-
 	 * protocol HID keyboard or mouse on the given OHCI port and return the
 	 * USBDevice to attach. */
 	USBDevice* usb_hid_create_kbd(u32 port);

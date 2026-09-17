@@ -208,7 +208,7 @@ bool GSDeviceOGL::CheckFeatures(bool& buggy_pbo)
 
 	// Give the user the option to disable PBO usage for downloads.
 	// Most drivers seem to be faster with PBO.
-	m_disable_download_pbo = Host::GetBoolSettingValue("EmuCore/GS", "DisableGLDownloadPBO", false);
+	m_disable_download_pbo = false /* no option sets DisableGLDownloadPBO; this was its default */;
 	if (m_disable_download_pbo)
 		Console.Warning("Not using PBOs for texture downloads, this may reduce performance.");
 

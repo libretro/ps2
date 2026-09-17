@@ -29,8 +29,6 @@
 #include "../common/General.h"
 #include "../common/FPControl.h"
 
-class SettingsInterface;
-class SettingsWrapper;
 
 enum class CDVD_SourceType : uint8_t;
 
@@ -415,7 +413,6 @@ struct Pcsx2Config
 		RecompilerOptions();
 		void ApplySanityCheck();
 
-		void LoadSave(SettingsWrapper& wrap);
 
 		bool operator==(const RecompilerOptions& right) const
 		{
@@ -458,7 +455,6 @@ struct Pcsx2Config
 		u32 AffinityControlMode;
 
 		CpuOptions();
-		void LoadSave(SettingsWrapper& wrap);
 		void ApplySanityCheck();
 
 		bool CpusChanged(const CpuOptions& right) const;
@@ -573,7 +569,6 @@ struct Pcsx2Config
 
 		GSOptions();
 
-		void LoadSave(SettingsWrapper& wrap);
 
 		/// Sets user hack values to defaults when user hacks are not enabled.
 		void MaskUserHacks();
@@ -665,7 +660,6 @@ struct Pcsx2Config
 
 		DEV9Options();
 
-		void LoadSave(SettingsWrapper& wrap);
 
 		bool operator==(const DEV9Options& right) const
 		{
@@ -737,7 +731,6 @@ struct Pcsx2Config
 		};
 
 		GamefixOptions();
-		void LoadSave(SettingsWrapper& wrap);
 		GamefixOptions& DisableAll();
 
 		bool Get(GamefixId id) const;
@@ -780,7 +773,6 @@ struct Pcsx2Config
 		u8 EECycleSkip; // EE Cycle skip factor (0, 1, 2, or 3)
 
 		SpeedhackOptions();
-		void LoadSave(SettingsWrapper& conf);
 		SpeedhackOptions& DisableAll();
 
 		void Set(SpeedHack id, int value);
@@ -799,7 +791,6 @@ struct Pcsx2Config
 		char Bios[PCSX2_PATH_MAX];
 
 		FilenameOptions();
-		void LoadSave(SettingsWrapper& wrap);
 
 		bool operator==(const FilenameOptions& right) const
 		{
@@ -832,7 +823,6 @@ struct Pcsx2Config
 		std::array<Port, NUM_PORTS> Ports;
 
 		USBOptions();
-		void LoadSave(SettingsWrapper& wrap);
 
 		bool operator==(const USBOptions& right) const;
 		bool operator!=(const USBOptions& right) const;
@@ -898,8 +888,6 @@ struct Pcsx2Config
 	char CurrentGameArgs[PCSX2_PATH_MAX];
 
 	Pcsx2Config();
-	void LoadSave(SettingsWrapper& wrap);
-	void LoadSaveMemcards(SettingsWrapper& wrap);
 
 	void FullpathToBios(char* out, size_t out_size) const;
 	void FullpathToMcd(char* out, size_t out_size, uint slot) const;
@@ -914,6 +902,8 @@ struct Pcsx2Config
 
 	/// Copies runtime configuration settings (e.g. frame limiter state).
 	void CopyRuntimeConfig(Pcsx2Config& cfg);
+	/* The clamps LoadSave applied after reading, for a config built from options. */
+	void ApplyOptionFixups();
 };
 
 extern Pcsx2Config EmuConfig;
@@ -936,8 +926,7 @@ namespace EmuFolders
 	extern char Textures[PCSX2_PATH_MAX];
 
 	// Assumes that AppRoot and DataRoot have been initialized.
-	void SetDefaults(SettingsInterface& si);
-	void LoadConfig(SettingsInterface& si);
+	void LoadConfig(const char* memcards);
 	void EnsureFoldersExist();
 } // namespace EmuFolders
 
