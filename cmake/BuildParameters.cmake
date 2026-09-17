@@ -288,7 +288,12 @@ set(PCSX2_WARNINGS ${DEFAULT_WARNINGS})
 # MacOS-specific things
 #-------------------------------------------------------------------------------
 
-if(NOT CMAKE_GENERATOR MATCHES "Xcode")
+# macOS only, and only when nothing else has said which version to target: this
+# used to be set unconditionally, so a caller that asked for a target got 10.13
+# anyway. On iOS and tvOS that number is not even a version of the system being
+# built for - the core came out stamped "minimum iOS 10.13" - and it decided the
+# aligned-allocation question below for those platforms as well.
+if(NOT CMAKE_GENERATOR MATCHES "Xcode" AND CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND NOT CMAKE_OSX_DEPLOYMENT_TARGET)
 	# Assume Xcode builds aren't being used for distribution
 	# Helpful because Xcode builds don't build multiple metallibs for different macOS versions
 	# Also helpful because Xcode's interactive shader debugger requires apps be built for the latest macOS
