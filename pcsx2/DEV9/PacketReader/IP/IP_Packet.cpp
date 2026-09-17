@@ -13,8 +13,8 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "common/Console.h"
 #include "IP_Packet.h"
+#include "common/Pcsx2Defs.h"
 #include "DEV9/PacketReader/NetLib.h"
 
 namespace PacketReader::IP
@@ -91,7 +91,7 @@ namespace PacketReader::IP
 		if (length > bufferSize)
 		{
 			if (!fromICMP)
-				Console.Error("DEV9: IP_Packet: Unexpected Length");
+				log_cb(RETRO_LOG_ERROR, "DEV9: IP_Packet: Unexpected Length\n");
 			length = (u16)bufferSize;
 		}
 
@@ -131,7 +131,7 @@ namespace PacketReader::IP
 						options.push_back(new IPopRouterAlert(buffer, offset));
 						break;
 					default:
-						Console.Error("DEV9: IP_Packet: Got Unknown IP Option %d with len %d", opKind, opLen);
+						log_cb(RETRO_LOG_ERROR, "DEV9: IP_Packet: Got Unknown IP Option %d with len %d\n", opKind, opLen);
 						options.push_back(new IPopUnk(buffer, offset));
 						break;
 				}

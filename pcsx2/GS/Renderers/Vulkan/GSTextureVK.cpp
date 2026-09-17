@@ -14,9 +14,9 @@
  */
 
 #include <algorithm>
+#include "common/Pcsx2Defs.h"
 
 #include "common/Align.h"
-#include "common/Console.h"
 #include "common/StringUtil.h"
 
 #include "GSDeviceVK.h"
@@ -137,12 +137,12 @@ std::unique_ptr<GSTextureVK> GSTextureVK::Create(Type type, Format format, int w
 	}
 	if (res == VK_ERROR_OUT_OF_DEVICE_MEMORY)
 	{
-		Console.Error("Failed to allocate device memory for %ux%u texture", width, height);
+		log_cb(RETRO_LOG_ERROR, "Failed to allocate device memory for %ux%u texture\n", width, height);
 		return {};
 	}
 	else if (res != VK_SUCCESS)
 	{
-		Console.Error("vmaCreateImage failed: ");
+		log_cb(RETRO_LOG_ERROR, "vmaCreateImage failed: \n");
 		return {};
 	}
 
@@ -151,7 +151,7 @@ std::unique_ptr<GSTextureVK> GSTextureVK::Create(Type type, Format format, int w
 	res = vkCreateImageView(vk_init_info.device, &vci, nullptr, &view);
 	if (res != VK_SUCCESS)
 	{
-		Console.Error("vkCreateImageView failed: ");
+		log_cb(RETRO_LOG_ERROR, "vkCreateImageView failed: \n");
 		vmaDestroyImage(GSDeviceVK::GetInstance()->GetAllocator(), image, allocation);
 		return {};
 	}
@@ -175,7 +175,7 @@ std::unique_ptr<GSTextureVK> GSTextureVK::Adopt(
 	VkResult res = vkCreateImageView(vk_init_info.device, &view_info, nullptr, &view);
 	if (res != VK_SUCCESS)
 	{
-		Console.Error("vkCreateImageView failed: ");
+		log_cb(RETRO_LOG_ERROR, "vkCreateImageView failed: \n");
 		return {};
 	}
 
@@ -243,7 +243,7 @@ VkCommandBuffer GSTextureVK::GetCommandBufferForUpdate()
 {
 	if (m_type != Type::Texture || m_use_fence_counter == GSDeviceVK::GetInstance()->GetCurrentFenceCounter())
 	{
-		// Console.WriteLn("Texture update within frame, can't use do beforehand");
+		// log_cb(RETRO_LOG_INFO, "Texture update within frame, can't use do beforehand\n");
 		GSDeviceVK::GetInstance()->EndRenderPass();
 		return GSDeviceVK::GetInstance()->GetCurrentCommandBuffer();
 	}
@@ -339,7 +339,7 @@ bool GSTextureVK::Update(const GSVector4i& r, const void* data, int pitch, int l
 			GSDeviceVK::GetInstance()->ExecuteCommandBuffer(false);
 			if (!sbuffer.ReserveMemory(required_size, GSDeviceVK::GetInstance()->GetBufferCopyOffsetAlignment()))
 			{
-				Console.Error("Failed to reserve texture upload memory (%u bytes).", required_size);
+				log_cb(RETRO_LOG_ERROR, "Failed to reserve texture upload memory (%u bytes).\n", required_size);
 				return false;
 			}
 		}
@@ -399,7 +399,7 @@ bool GSTextureVK::Map(GSMap& m, const GSVector4i* r, int layer)
 		/* While waiting for x bytes in texture upload buffer */
 		GSDeviceVK::GetInstance()->ExecuteCommandBuffer(false);
 		if (!buffer.ReserveMemory(required_size, GSDeviceVK::GetInstance()->GetBufferCopyOffsetAlignment()))
-			Console.Error("Failed to reserve texture upload memory");
+			log_cb(RETRO_LOG_ERROR, "Failed to reserve texture upload memory\n");
 	}
 
 	m.bits = static_cast<u8*>(buffer.GetCurrentHostPointer());

@@ -17,7 +17,6 @@
 #include <retro_atomic.h>
 #include <algorithm>
 
-#include "common/Console.h"
 #include "common/Pcsx2Defs.h"
 
 #ifdef __POSIX__
@@ -106,7 +105,7 @@ namespace Sessions
 			if (err != SOCKET_ERROR)
 			{
 				if (available > maxSize)
-					Console.WriteLn("DEV9: TCP: Got a lot of data: %lu Using: %d", available, maxSize);
+					log_cb(RETRO_LOG_INFO, "DEV9: TCP: Got a lot of data: %lu Using: %d\n", available, maxSize);
 
 				buffer = std::make_unique<u8[]>(maxSize);
 				recived = recv(client, (char*)buffer.get(), maxSize, 0);
@@ -125,7 +124,7 @@ namespace Sessions
 						//In theory, this should only occur when the PS2 has RST the connection
 						//and the call to TCPSession.Recv() occurs at just the right time.
 
-						//Console.WriteLn("DEV9: TCP: Recv() on shutdown socket");
+						//log_cb(RETRO_LOG_INFO, "DEV9: TCP: Recv() on shutdown socket\n");
 						return nullptr;
 					case WSAEWOULDBLOCK:
 						return nullptr;
@@ -133,7 +132,7 @@ namespace Sessions
 					case EINVAL:
 					case ESHUTDOWN:
 						//See WSAESHUTDOWN
-						//Console.WriteLn("DEV9: TCP: Recv() on shutdown socket");
+						//log_cb(RETRO_LOG_INFO, "DEV9: TCP: Recv() on shutdown socket\n");
 						return nullptr;
 					case EWOULDBLOCK:
 						return nullptr;
@@ -142,7 +141,7 @@ namespace Sessions
 						break;
 					default:
 						CloseByRemoteRST();
-						Console.Error("DEV9: TCP: Recv Error: %d", err);
+						log_cb(RETRO_LOG_ERROR, "DEV9: TCP: Recv Error: %d\n", err);
 						return nullptr;
 				}
 
@@ -151,7 +150,7 @@ namespace Sessions
 				{
 					int result = shutdown(client, SD_RECEIVE);
 					if (result == SOCKET_ERROR)
-						Console.Error("DEV9: TCP: Shutdown SD_RECEIVE Error: %d",
+						log_cb(RETRO_LOG_ERROR, "DEV9: TCP: Shutdown SD_RECEIVE Error: %d\n",
 #ifdef _WIN32
 							WSAGetLastError());
 #elif defined(__POSIX__)
@@ -166,12 +165,12 @@ namespace Sessions
 							return CloseByPS2Stage3();
 						default:
 							CloseByRemoteRST();
-							Console.Error("DEV9: TCP: Remote Close In Invalid State");
+							log_cb(RETRO_LOG_ERROR, "DEV9: TCP: Remote Close In Invalid State\n");
 							break;
 					}
 					return nullptr;
 				}
-				DevCon.WriteLn("DEV9: TCP: [SRV] Sending %d bytes", recived);
+				log_cb(RETRO_LOG_DEBUG, "DEV9: TCP: [SRV] Sending %d bytes\n", recived);
 
 				PayloadData* recivedData = new PayloadData(recived);
 				memcpy(recivedData->data.get(), buffer.get(), recived);
@@ -183,7 +182,7 @@ namespace Sessions
 				iRet->SetPSH(true);
 
 				retro_atomic_store_release_int(&myNumberACKed, 0);
-				//DevCon.WriteLn("DEV9: TCP: myNumberACKed Reset");
+				//log_cb(RETRO_LOG_DEBUG, "DEV9: TCP: myNumberACKed Reset\n");
 				return iRet;
 			}
 		}
@@ -233,14 +232,14 @@ namespace Sessions
 #ifdef _WIN32
 			int len = sizeof(error);
 			if (getsockopt(client, SOL_SOCKET, SO_ERROR, (char*)&error, &len) < 0)
-				Console.Error("DEV9: TCP: Unkown TCP Connection Error (getsockopt Error: %d)", WSAGetLastError());
+				log_cb(RETRO_LOG_ERROR, "DEV9: TCP: Unkown TCP Connection Error (getsockopt Error: %d)\n", WSAGetLastError());
 #elif defined(__POSIX__)
 			socklen_t len = sizeof(error);
 			if (getsockopt(client, SOL_SOCKET, SO_ERROR, (char*)&error, &len) < 0)
-				Console.Error("DEV9: TCP: Unkown TCP Connection Error (getsockopt Error: %d)", errno);
+				log_cb(RETRO_LOG_ERROR, "DEV9: TCP: Unkown TCP Connection Error (getsockopt Error: %d)\n", errno);
 #endif
 			else
-				Console.Error("DEV9: TCP: Send Error: %d", error);
+				log_cb(RETRO_LOG_ERROR, "DEV9: TCP: Send Error: %d\n", error);
 
 			state = TCP_State::CloseCompleted;
 			RaiseEventConnectionClosed();
@@ -250,7 +249,7 @@ namespace Sessions
 
 	PacketReader::IP::TCP::TCP_Packet* TCP_Session::CloseByPS2Stage3()
 	{
-		//Console.WriteLn("DEV9: TCP: Remote has closed connection after PS2");
+		//log_cb(RETRO_LOG_INFO, "DEV9: TCP: Remote has closed connection after PS2\n");
 
 		TCP_Packet* ret = CreateBasePacket();
 		IncrementMyNumber(1);
@@ -259,7 +258,7 @@ namespace Sessions
 		ret->SetFIN(true);
 
 		retro_atomic_store_release_int(&myNumberACKed, 0);
-		//DevCon.WriteLn("myNumberACKed Reset");
+		//log_cb(RETRO_LOG_DEBUG, "myNumberACKed Reset\n");
 
 		state = TCP_State::Closing_ClosedByPS2ThenRemote_WaitingForAck;
 		return ret;
@@ -267,7 +266,7 @@ namespace Sessions
 
 	PacketReader::IP::TCP::TCP_Packet* TCP_Session::CloseByRemoteStage1()
 	{
-		//Console.WriteLn("DEV9: TCP: Remote has closed connection");
+		//log_cb(RETRO_LOG_INFO, "DEV9: TCP: Remote has closed connection\n");
 
 		TCP_Packet* ret = CreateBasePacket();
 		IncrementMyNumber(1);
@@ -276,7 +275,7 @@ namespace Sessions
 		ret->SetFIN(true);
 
 		retro_atomic_store_release_int(&myNumberACKed, 0);
-		//DevCon.WriteLn("myNumberACKed Reset");
+		//log_cb(RETRO_LOG_DEBUG, "myNumberACKed Reset\n");
 
 		state = TCP_State::Closing_ClosedByRemote;
 		return ret;

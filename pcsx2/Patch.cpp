@@ -15,8 +15,8 @@
 
 #define _PC_ // disables MIPS opcode macros.
 
-#include "../common/Console.h"
 #include "HostFS.h"
+#include "common/Pcsx2Defs.h"
 #include "../common/StringUtil.h"
 #include <encodings/deflate.h>
 
@@ -645,7 +645,7 @@ static void _ApplyDynaPatch(const DynamicPatch& patch, u32 address)
 			return;
 	}
 
-	Console.WriteLn("Applying Dynamic Patch to address 0x%08X", address);
+	log_cb(RETRO_LOG_INFO, "Applying Dynamic Patch to address 0x%08X\n", address);
 	// If everything passes, apply the patch.
 	for (const auto& replacement : patch.replacement)
 		memWrite32(address + replacement.offset, replacement.value);
@@ -908,7 +908,7 @@ int LoadPatchesFromZip(const std::string& crc, const u8* zip_data, size_t zip_da
 	if (!found)
 		return 0;
 
-	Console.WriteLn("Loading patch '%s' from archive.", pnach_filename.c_str());
+	log_cb(RETRO_LOG_INFO, "Loading patch '%s' from archive.\n", pnach_filename.c_str());
 	return LoadPatchesFromString(pnach_data.c_str());
 }
 
@@ -919,7 +919,7 @@ int LoadPatchesFromDir(const std::string& crc, const std::string& folder, const 
 {
 	if (!path_is_directory(folder.c_str()))
 	{
-		Console.WriteLn("The %s folder ('%s') is inaccessible. Skipping...", friendly_name, folder.c_str());
+		log_cb(RETRO_LOG_INFO, "The %s folder ('%s') is inaccessible. Skipping...\n", friendly_name, folder.c_str());
 		return 0;
 	}
 
@@ -932,7 +932,7 @@ int LoadPatchesFromDir(const std::string& crc, const std::string& folder, const 
 
 	if (show_error_when_missing && files.empty())
 	{
-		Console.WriteLn("Not found %s file: %s" FS_OSPATH_SEPARATOR_STR "%s.pnach",
+		log_cb(RETRO_LOG_INFO, "Not found %s file: %s\n" FS_OSPATH_SEPARATOR_STR "%s.pnach",
 			friendly_name, folder.c_str(), crc.c_str());
 	}
 
@@ -944,7 +944,7 @@ int LoadPatchesFromDir(const std::string& crc, const std::string& folder, const 
 		if (name.length() < crc.length() || Strncasecmp(name.data(), crc.c_str(), crc.size()) != 0)
 			continue;
 
-		Console.WriteLn("Found %s file: '%.*s'", friendly_name, static_cast<int>(name.size()), name.data());
+		log_cb(RETRO_LOG_INFO, "Found %s file: '%.*s'\n", friendly_name, static_cast<int>(name.size()), name.data());
 
 		void* pnach_buf = nullptr;
 		int64_t pnach_len = 0;
@@ -962,11 +962,11 @@ int LoadPatchesFromDir(const std::string& crc, const std::string& folder, const 
 		const int loaded = LoadPatchesFromString(pnach_data.value().c_str());
 		total_loaded += loaded;
 
-		Console.WriteLn("Loaded %d %s from '%.*s'.",
+		log_cb(RETRO_LOG_INFO, "Loaded %d %s from '%.*s'.\n",
 			loaded, friendly_name, static_cast<int>(name.size()), name.data());
 	}
 
-	Console.WriteLn("Overall %d %s loaded", total_loaded, friendly_name);
+	log_cb(RETRO_LOG_INFO, "Overall %d %s loaded\n", total_loaded, friendly_name);
 	return total_loaded;
 }
 
@@ -975,17 +975,17 @@ namespace PatchFunc
 {
 	void comment(const std::string_view& text1, const std::string_view& text2)
 	{
-		Console.WriteLn("comment: %.*s", static_cast<int>(text2.length()), text2.data());
+		log_cb(RETRO_LOG_INFO, "comment: %.*s\n", static_cast<int>(text2.length()), text2.data());
 	}
 
 	void author(const std::string_view& text1, const std::string_view& text2)
 	{
-		Console.WriteLn("Author: %.*s", static_cast<int>(text2.length()), text2.data());
+		log_cb(RETRO_LOG_INFO, "Author: %.*s\n", static_cast<int>(text2.length()), text2.data());
 	}
 
 	void patch(const std::string_view& cmd, const std::string_view& param)
 	{
-#define PATCH_ERROR(fmt, ...) Console.Error("(Patch) Error Parsing: %.*s=%.*s: " fmt, \
+#define PATCH_ERROR(fmt, ...) log_cb(RETRO_LOG_ERROR, "(Patch) Error Parsing: %.*s=%.*s: \n" fmt, \
 	static_cast<int>(cmd.size()), cmd.data(), static_cast<int>(param.size()), param.data(), \
 	__VA_ARGS__)
 

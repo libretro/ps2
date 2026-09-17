@@ -14,9 +14,9 @@
  */
 
 #include "D3D12Builders.h"
+#include "common/Pcsx2Defs.h"
 #include "GSDevice12.h"
 #include "D3D12ShaderCache.h"
-#include "common/Console.h"
 
 #include <cstdarg>
 #include <cstring>
@@ -44,7 +44,7 @@ wil::com_ptr_nothrow<ID3D12PipelineState> GraphicsPipelineBuilder::Create(ID3D12
 	HRESULT hr = device->CreateGraphicsPipelineState(&m_desc, IID_PPV_ARGS(ps.put()));
 	if (FAILED(hr))
 	{
-		Console.Error("CreateGraphicsPipelineState() failed: %08X", hr);
+		log_cb(RETRO_LOG_ERROR, "CreateGraphicsPipelineState() failed: %08X\n", hr);
 		return {};
 	}
 
@@ -244,7 +244,7 @@ wil::com_ptr_nothrow<ID3D12PipelineState> ComputePipelineBuilder::Create(ID3D12D
 	HRESULT hr = device->CreateComputePipelineState(&m_desc, IID_PPV_ARGS(ps.put()));
 	if (FAILED(hr))
 	{
-		Console.Error("CreateComputePipelineState() failed: %08X", hr);
+		log_cb(RETRO_LOG_ERROR, "CreateComputePipelineState() failed: %08X\n", hr);
 		return {};
 	}
 

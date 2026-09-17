@@ -14,6 +14,7 @@
  */
 
 #include <cstring> /* memset/memcpy */
+#include "common/Pcsx2Defs.h"
 #include <memalign.h>
 #include <limits>
 #include <algorithm> /* clamp */
@@ -22,7 +23,6 @@
 
 #include <retro_atomic.h>
 
-#include "../../common/Console.h"
 
 #include "GSState.h"
 #include "GSUtil.h"
@@ -2480,7 +2480,7 @@ int GSState::Defrost(const freezeData* fd)
 
 	if (version > STATE_VERSION)
 	{
-		Console.Error("GS: Savestate version is incompatible.  Load aborted.");
+		log_cb(RETRO_LOG_ERROR, "GS: Savestate version is incompatible.  Load aborted.\n");
 		return -1;
 	}
 
@@ -4100,7 +4100,7 @@ GIFRegTEX0 GSState::GetTex0Layer(u32 lod)
 			TEX0.TBW = m_context->MIPTBP2.TBW6;
 			break;
 		default:
-			Console.Error("GS: Invalid guest lod setting. Please report: https://github.com/PCSX2/pcsx2/issues");
+			log_cb(RETRO_LOG_ERROR, "GS: Invalid guest lod setting. Please report: https://github.com/PCSX2/pcsx2/issues\n");
 	}
 
 	// Correct the texture size

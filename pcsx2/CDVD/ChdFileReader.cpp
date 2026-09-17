@@ -5,9 +5,9 @@
  */
 
 #include <compat/strl.h>
+#include "common/Pcsx2Defs.h"
 #include "ChdFileReader.h"
 
-#include "../../common/Console.h"
 #include "HostFS.h"
 #include "../../common/StringUtil.h"
 
@@ -112,7 +112,7 @@ bool ChdFileReader::DriveRead(rchd_t* chd, const Source& self, const Source& par
 			return true;
 		if (err != RCHD_PENDING)
 		{
-			Console.Error("CDVD: rchd read error %d", err);
+			log_cb(RETRO_LOG_ERROR, "CDVD: rchd read error %d\n", err);
 			return false;
 		}
 	}
@@ -198,7 +198,7 @@ bool ChdFileReader::Open2(const char* fileName)
 	Source src;
 	if (!OpenOne(m_filename, &chd, &src))
 	{
-		Console.Error("CDVD: failed to open CHD: %s", m_filename);
+		log_cb(RETRO_LOG_ERROR, "CDVD: failed to open CHD: %s\n", m_filename);
 		return false;
 	}
 	m_chds.push_back(chd);
@@ -214,7 +214,7 @@ bool ChdFileReader::Open2(const char* fileName)
 	{
 		if (m_chds.size() >= 8)
 		{
-			Console.Error("CDVD: CHD parent chain hit recursion limit");
+			log_cb(RETRO_LOG_ERROR, "CDVD: CHD parent chain hit recursion limit\n");
 			Close2();
 			return false;
 		}
@@ -254,7 +254,7 @@ bool ChdFileReader::Open2(const char* fileName)
 
 		if (!found)
 		{
-			Console.Error("CDVD: no parent found for: %s", m_filename);
+			log_cb(RETRO_LOG_ERROR, "CDVD: no parent found for: %s\n", m_filename);
 			Close2();
 			return false;
 		}

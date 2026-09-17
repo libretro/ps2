@@ -14,6 +14,7 @@
  */
 
 #include <cstring>
+#include "common/Pcsx2Defs.h"
 
 #include <file/file_path.h>
 #include <retro_miscellaneous.h>
@@ -26,7 +27,6 @@
 #include "Config.h"
 #include "ShaderCacheVersion.h"
 
-#include "common/Console.h"
 #include "HostFS.h"
 #include "common/StringUtil.h"
 
@@ -98,7 +98,7 @@ static std::optional<SPIRVCodeVector> CompileShaderToSPV(
 	if (!shader->parse(&glslang::DefaultTBuiltInResource,
 		default_version, profile, false, true, messages, includer))
 	{
-		Console.Error("Failed to parse shader");
+		log_cb(RETRO_LOG_ERROR, "Failed to parse shader\n");
 		return std::nullopt;
 	}
 
@@ -107,14 +107,14 @@ static std::optional<SPIRVCodeVector> CompileShaderToSPV(
 	program->addShader(shader.get());
 	if (!program->link(messages))
 	{
-		Console.Error("Failed to link program");
+		log_cb(RETRO_LOG_ERROR, "Failed to link program\n");
 		return std::nullopt;
 	}
 
 	glslang::TIntermediate* intermediate = program->getIntermediate(stage);
 	if (!intermediate)
 	{
-		Console.Error("Failed to generate SPIR-V");
+		log_cb(RETRO_LOG_ERROR, "Failed to generate SPIR-V\n");
 		return std::nullopt;
 	}
 
@@ -130,16 +130,16 @@ static std::optional<SPIRVCodeVector> CompileShaderToSPV(
 	size_t info_log_size         = strlen(info_log_msg);
 	size_t info_dbg_log_size     = strlen(info_dbg_log_msg);
 	if (info_log_size > 0)
-		Console.Warning("Shader info log: %s", info_log_msg);
+		log_cb(RETRO_LOG_WARN, "Shader info log: %s\n", info_log_msg);
 	if (info_dbg_log_size > 0)
-		Console.Warning("Shader debug info log: %s", info_dbg_log_msg);
+		log_cb(RETRO_LOG_WARN, "Shader debug info log: %s\n", info_dbg_log_msg);
 	if (info_log_size > 0)
-		Console.Warning("Program info log: %s", info_log_msg);
+		log_cb(RETRO_LOG_WARN, "Program info log: %s\n", info_log_msg);
 	if (info_dbg_log_size > 0)
-		Console.Warning("Program debug info log: %s", info_dbg_log_msg);
+		log_cb(RETRO_LOG_WARN, "Program debug info log: %s\n", info_dbg_log_msg);
 	std::string spv_messages = logger.getAllMessages();
 	if (!spv_messages.empty())
-		Console.Warning("SPIR-V conversion messages: %s", spv_messages.c_str());
+		log_cb(RETRO_LOG_WARN, "SPIR-V conversion messages: %s\n", spv_messages.c_str());
 
 	return out_code;
 }
@@ -190,33 +190,33 @@ static bool ValidatePipelineCacheHeader(const VK_PIPELINE_CACHE_HEADER& header)
 {
 	if (header.header_length < sizeof(VK_PIPELINE_CACHE_HEADER))
 	{
-		Console.Error("Pipeline cache failed validation: Invalid header length");
+		log_cb(RETRO_LOG_ERROR, "Pipeline cache failed validation: Invalid header length\n");
 		return false;
 	}
 
 	if (header.header_version != VK_PIPELINE_CACHE_HEADER_VERSION_ONE)
 	{
-		Console.Error("Pipeline cache failed validation: Invalid header version");
+		log_cb(RETRO_LOG_ERROR, "Pipeline cache failed validation: Invalid header version\n");
 		return false;
 	}
 
 	if (header.vendor_id != GSDeviceVK::GetInstance()->GetDeviceProperties().vendorID)
 	{
-		Console.Error("Pipeline cache failed validation: Incorrect vendor ID (file: 0x%X, device: 0x%X)",
+		log_cb(RETRO_LOG_ERROR, "Pipeline cache failed validation: Incorrect vendor ID (file: 0x%X, device: 0x%X)\n",
 				header.vendor_id, GSDeviceVK::GetInstance()->GetDeviceProperties().vendorID);
 		return false;
 	}
 
 	if (header.device_id != GSDeviceVK::GetInstance()->GetDeviceProperties().deviceID)
 	{
-		Console.Error("Pipeline cache failed validation: Incorrect device ID (file: 0x%X, device: 0x%X)",
+		log_cb(RETRO_LOG_ERROR, "Pipeline cache failed validation: Incorrect device ID (file: 0x%X, device: 0x%X)\n",
 				header.device_id, GSDeviceVK::GetInstance()->GetDeviceProperties().deviceID);
 		return false;
 	}
 
 	if (memcmp(header.uuid, GSDeviceVK::GetInstance()->GetDeviceProperties().pipelineCacheUUID, VK_UUID_SIZE) != 0)
 	{
-		Console.Error("Pipeline cache failed validation: Incorrect UUID");
+		log_cb(RETRO_LOG_ERROR, "Pipeline cache failed validation: Incorrect UUID\n");
 		return false;
 	}
 
@@ -296,19 +296,19 @@ bool VKShaderCache::CreateNewShaderCache(const std::string& index_filename, cons
 {
 	if (path_is_valid(index_filename.c_str()))
 	{
-		Console.Warning("Removing existing index file '%s'", index_filename.c_str());
+		log_cb(RETRO_LOG_WARN, "Removing existing index file '%s'\n", index_filename.c_str());
 		filestream_delete(index_filename.c_str());
 	}
 	if (path_is_valid(blob_filename.c_str()))
 	{
-		Console.Warning("Removing existing blob file '%s'", blob_filename.c_str());
+		log_cb(RETRO_LOG_WARN, "Removing existing blob file '%s'\n", blob_filename.c_str());
 		filestream_delete(blob_filename.c_str());
 	}
 
 	m_index_file = filestream_open(index_filename.c_str(), RETRO_VFS_FILE_ACCESS_WRITE, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 	if (!m_index_file)
 	{
-		Console.Error("Failed to open index file '%s' for writing", index_filename.c_str());
+		log_cb(RETRO_LOG_ERROR, "Failed to open index file '%s' for writing\n", index_filename.c_str());
 		return false;
 	}
 
@@ -319,7 +319,7 @@ bool VKShaderCache::CreateNewShaderCache(const std::string& index_filename, cons
 	if (filestream_write(m_index_file, &file_version, sizeof(file_version)) != (int64_t)(sizeof(file_version)) ||
 		filestream_write(m_index_file, &header, sizeof(header)) != (int64_t)(sizeof(header)))
 	{
-		Console.Error("Failed to write header to index file '%s'", index_filename.c_str());
+		log_cb(RETRO_LOG_ERROR, "Failed to write header to index file '%s'\n", index_filename.c_str());
 		filestream_close(m_index_file);
 		m_index_file = nullptr;
 		filestream_delete(index_filename.c_str());
@@ -329,7 +329,7 @@ bool VKShaderCache::CreateNewShaderCache(const std::string& index_filename, cons
 	m_blob_file = filestream_open(blob_filename.c_str(), RETRO_VFS_FILE_ACCESS_READ_WRITE, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 	if (!m_blob_file)
 	{
-		Console.Error("Failed to open blob file '%s' for writing", blob_filename.c_str());
+		log_cb(RETRO_LOG_ERROR, "Failed to open blob file '%s' for writing\n", blob_filename.c_str());
 		filestream_close(m_index_file);
 		m_index_file = nullptr;
 		filestream_delete(index_filename.c_str());
@@ -348,7 +348,7 @@ bool VKShaderCache::ReadExistingShaderCache(const std::string& index_filename, c
 		// we don't want to blow away the cache. so just continue without a cache.
 		if (errno == EACCES)
 		{
-			Console.WriteLn("Failed to open shader cache index with EACCES, are you running two instances?");
+			log_cb(RETRO_LOG_INFO, "Failed to open shader cache index with EACCES, are you running two instances?\n");
 			return true;
 		}
 
@@ -358,7 +358,7 @@ bool VKShaderCache::ReadExistingShaderCache(const std::string& index_filename, c
 	u32 file_version = 0;
 	if (filestream_read(m_index_file, &file_version, sizeof(file_version)) != (int64_t)(sizeof(file_version)) || file_version != SHADER_CACHE_VERSION)
 	{
-		Console.Error("Bad file/data version in '%s'", index_filename.c_str());
+		log_cb(RETRO_LOG_ERROR, "Bad file/data version in '%s'\n", index_filename.c_str());
 		filestream_close(m_index_file);
 		m_index_file = nullptr;
 		return false;
@@ -367,7 +367,7 @@ bool VKShaderCache::ReadExistingShaderCache(const std::string& index_filename, c
 	VK_PIPELINE_CACHE_HEADER header;
 	if (filestream_read(m_index_file, &header, sizeof(header)) != (int64_t)(sizeof(header)) || !ValidatePipelineCacheHeader(header))
 	{
-		Console.Error("Mismatched pipeline cache header in '%s' (GPU/driver changed?)", index_filename.c_str());
+		log_cb(RETRO_LOG_ERROR, "Mismatched pipeline cache header in '%s' (GPU/driver changed?)\n", index_filename.c_str());
 		filestream_close(m_index_file);
 		m_index_file = nullptr;
 		return false;
@@ -380,7 +380,7 @@ bool VKShaderCache::ReadExistingShaderCache(const std::string& index_filename, c
 		filestream_seek(m_blob_file, 0, RETRO_VFS_SEEK_POSITION_END);
 	if (!m_blob_file)
 	{
-		Console.Error("Blob file '%s' is missing", blob_filename.c_str());
+		log_cb(RETRO_LOG_ERROR, "Blob file '%s' is missing\n", blob_filename.c_str());
 		filestream_close(m_index_file);
 		m_index_file = nullptr;
 		return false;
@@ -398,7 +398,7 @@ bool VKShaderCache::ReadExistingShaderCache(const std::string& index_filename, c
 			if (filestream_eof(m_index_file))
 				break;
 
-			Console.Error("Failed to read entry from '%s', corrupt file?", index_filename.c_str());
+			log_cb(RETRO_LOG_ERROR, "Failed to read entry from '%s', corrupt file?\n", index_filename.c_str());
 			m_index.clear();
 			filestream_close(m_blob_file);
 			m_blob_file = nullptr;
@@ -416,7 +416,7 @@ bool VKShaderCache::ReadExistingShaderCache(const std::string& index_filename, c
 	// ensure we don't write before seeking
 	filestream_seek(m_index_file, 0, RETRO_VFS_SEEK_POSITION_END);
 
-	Console.WriteLn("Read %zu entries from '%s'", m_index.size(), index_filename.c_str());
+	log_cb(RETRO_LOG_INFO, "Read %zu entries from '%s'\n", m_index.size(), index_filename.c_str());
 	return true;
 }
 
@@ -438,7 +438,7 @@ bool VKShaderCache::CreateNewPipelineCache()
 {
 	if (!m_pipeline_cache_filename.empty() && path_is_valid(m_pipeline_cache_filename.c_str()))
 	{
-		Console.Warning("Removing existing pipeline cache '%s'", m_pipeline_cache_filename.c_str());
+		log_cb(RETRO_LOG_WARN, "Removing existing pipeline cache '%s'\n", m_pipeline_cache_filename.c_str());
 		filestream_delete(m_pipeline_cache_filename.c_str());
 	}
 
@@ -471,7 +471,7 @@ bool VKShaderCache::ReadExistingPipelineCache()
 
 	if (data->size() < sizeof(VK_PIPELINE_CACHE_HEADER))
 	{
-		Console.Error("Pipeline cache at '%s' is too small", m_pipeline_cache_filename.c_str());
+		log_cb(RETRO_LOG_ERROR, "Pipeline cache at '%s' is too small\n", m_pipeline_cache_filename.c_str());
 		return false;
 	}
 
@@ -517,11 +517,11 @@ bool VKShaderCache::FlushPipelineCache()
 	const u64 hash = XXH3_64bits(data.data(), data.size());
 	if (!m_pipeline_cache_on_disk || hash != m_pipeline_cache_disk_hash)
 	{
-		Console.WriteLn("Writing %zu bytes to '%s'", data_size, m_pipeline_cache_filename.c_str());
+		log_cb(RETRO_LOG_INFO, "Writing %zu bytes to '%s'\n", data_size, m_pipeline_cache_filename.c_str());
 		if (!filestream_write_file_atomic(m_pipeline_cache_filename.c_str(), data.data(),
 					static_cast<int64_t>(data.size())))
 		{
-			Console.Error("Failed to write pipeline cache to '%s'", m_pipeline_cache_filename.c_str());
+			log_cb(RETRO_LOG_ERROR, "Failed to write pipeline cache to '%s'\n", m_pipeline_cache_filename.c_str());
 			return false;
 		}
 
@@ -530,8 +530,7 @@ bool VKShaderCache::FlushPipelineCache()
 	}
 	else
 	{
-		Console.WriteLn(
-				"Skipping updating pipeline cache '%s' due to no changes.", m_pipeline_cache_filename.c_str());
+		log_cb(RETRO_LOG_INFO, "Skipping updating pipeline cache '%s' due to no changes.\n", m_pipeline_cache_filename.c_str());
 	}
 
 	m_pipeline_cache_dirty = false;
@@ -595,7 +594,7 @@ std::optional<SPIRVCodeVector> VKShaderCache::GetShaderSPV(
 				sizeof(SPIRVCodeType) * iter->second.blob_size) !=
 			(int64_t)(sizeof(SPIRVCodeType) * iter->second.blob_size))
 	{
-		Console.Error("Read blob from file failed, recompiling");
+		log_cb(RETRO_LOG_ERROR, "Read blob from file failed, recompiling\n");
 		return CompileShader(type, shader_code, GSConfig.UseDebugDevice);
 	}
 
@@ -660,7 +659,7 @@ std::optional<SPIRVCodeVector> VKShaderCache::CompileAndAddShaderSPV(
 			filestream_flush(m_blob_file) != 0 || filestream_write(m_index_file, &entry, sizeof(entry)) != (int64_t)(sizeof(entry)) ||
 			filestream_flush(m_index_file) != 0)
 	{
-		Console.Error("Failed to write shader blob to file");
+		log_cb(RETRO_LOG_ERROR, "Failed to write shader blob to file\n");
 		return spv;
 	}
 

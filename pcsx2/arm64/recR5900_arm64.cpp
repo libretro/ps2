@@ -16,12 +16,12 @@
 // as Cpu->Clear is called on EE writes.
 
 #include "common/ScanU32.h"
+#include "common/Pcsx2Defs.h"
 #include "common/Pcsx2Types.h"
 #include "R5900.h"
 #include "R5900OpcodeTables.h"
 #include "Memory.h"
 #include "VU.h"
-#include "common/Console.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -4396,7 +4396,7 @@ void eeJitReserve_arm64(void)
 	}
 	s_page_clears.assign(kRamBytes >> kPageShift, 0); // C.60
 	s_ok = s_ok && s_code && s_lut;
-	Console.WriteLn("arm64 EE rec (C.7): %s.", s_ok ? "native ALU+mem+branch+FPU-mov+MMI+muldiv JIT (block-linking)" : "FAILED");
+	log_cb(RETRO_LOG_INFO, "arm64 EE rec (C.7): %s.\n", s_ok ? "native ALU+mem+branch+FPU-mov+MMI+muldiv JIT (block-linking)" : "FAILED");
 }
 
 void eeJitReset_arm64(void)

@@ -54,7 +54,7 @@ static void mVUTBit()
 {
 	u32 old = vu1Thread.mtvuInterrupts.fetch_or(VU_Thread::InterruptFlagVUTBit, std::memory_order_release);
 	if (old & VU_Thread::InterruptFlagVUTBit)
-		DevCon.Warning("Old TBit not registered");
+		log_cb(RETRO_LOG_WARN, "Old TBit not registered\n");
 }
 
 static void mVUEBit()
@@ -469,7 +469,7 @@ void normBranch(mV, microFlagCycles& mFC)
 	}
 	if (mVUup.mBit)
 	{
-		DevCon.Warning("M-Bit on normal branch, report if broken");
+		log_cb(RETRO_LOG_WARN, "M-Bit on normal branch, report if broken\n");
 		u32 tempPC = iPC;
 
 		memcpy(&mVUpBlock->pStateEnd, &mVUregs, sizeof(microRegInfo));
@@ -488,7 +488,7 @@ void normBranch(mV, microFlagCycles& mFC)
 	if (mVUup.eBit)
 	{
 		if (mVUlow.badBranch)
-			DevCon.Warning("End on evil Unconditional branch! - Not implemented! - If game broken report to PCSX2 Team");
+			log_cb(RETRO_LOG_WARN, "End on evil Unconditional branch! - Not implemented! - If game broken report to PCSX2 Team\n");
 
 		iPC = branchAddr(mVU) / 4;
 		mVUendProgram(mVU, &mFC, 1);
@@ -506,7 +506,7 @@ void condBranch(mV, microFlagCycles& mFC, a64::Condition JMPcc)
 
 	if (mVUup.tBit)
 	{
-		DevCon.Warning("T-Bit on branch, please report if broken");
+		log_cb(RETRO_LOG_WARN, "T-Bit on branch, please report if broken\n");
 		u32 tempPC = iPC;
 		a64::Label eJMP;
 		mvuTestMemBranchZero(mVU, (mVU.index && THREAD_VU1) ? (const void*)&vu1Thread.vuFBRST : (const void*)&VU0.VI[REG_FBRST].UL,
@@ -593,7 +593,7 @@ void condBranch(mV, microFlagCycles& mFC, a64::Condition JMPcc)
 	if (mVUup.eBit) // Conditional Branch With E-Bit Set
 	{
 		if (mVUlow.evilBranch)
-			DevCon.Warning("End on evil branch! - Not implemented! - If game broken report to PCSX2 Team");
+			log_cb(RETRO_LOG_WARN, "End on evil branch! - Not implemented! - If game broken report to PCSX2 Team\n");
 
 		mVUendProgram(mVU, &mFC, 2);
 		mvuLdrsh16(mVU, gprT1, &mVU.branch);
@@ -663,7 +663,7 @@ void normJump(mV, microFlagCycles& mFC)
 {
 	if (mVUup.mBit)
 	{
-		DevCon.Warning("M-Bit on Jump! Please report if broken");
+		log_cb(RETRO_LOG_WARN, "M-Bit on Jump! Please report if broken\n");
 	}
 	if (mVUlow.constJump.isValid) // Jump Address is Constant
 	{

@@ -14,13 +14,13 @@
  */
 
 #include <array>
+#include "common/Pcsx2Defs.h"
 #include <cstring> /* memset */
 #include <utility>
 #include <vector>
 
 #include <file/file_path.h>
 
-#include "../common/Console.h"
 #include "HostFS.h"
 #include "../common/StringUtil.h"
 
@@ -325,7 +325,7 @@ void FileMemoryCard::Open()
 			// create one automatically.
 
 			if (!Create(fname, 8))
-				Console.Error("Could not create a memory card: \n\n%s\n\n",
+				log_cb(RETRO_LOG_ERROR, "Could not create a memory card: \n\n%s\n\n\n",
 					fname);
 		}
 
@@ -340,7 +340,7 @@ void FileMemoryCard::Open()
 			{
 				/* Truncation folds newname back onto fname and the
 				 * converter would read and write the same file. */
-				Console.Error("Memcard: path too long to stage ECC conversion: %s", fname);
+				log_cb(RETRO_LOG_ERROR, "Memcard: path too long to stage ECC conversion: %s\n", fname);
 				continue;
 			}
 			if (!ConvertNoECCtoRAW(fname, newname))
@@ -373,7 +373,7 @@ void FileMemoryCard::Open()
 				m_cardData[slot] = new u8[m_cardSize[slot]];
 				filestream_seek(m_file[slot], 0, RETRO_VFS_SEEK_POSITION_START);
 				if (filestream_read(m_file[slot], m_cardData[slot], m_cardSize[slot]) != (int64_t)(m_cardSize[slot]))
-					Console.Error("Error reading memcard.");
+					log_cb(RETRO_LOG_ERROR, "Error reading memcard.\n");
 			}
 
 			/* Checksum word lives at m_chkaddr; take it from the buffer

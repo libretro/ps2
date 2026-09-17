@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0+
 
 #pragma once
+#include "common/Pcsx2Defs.h"
 
 // ARM64 microVU recompiler — host register allocator (Phase 7, task 7.2b).
 //
@@ -687,7 +688,7 @@ public:
 					if (mapI.VFreg == mapX.VFreg)
 					{
 						if (mapI.xyzw && mapI.xyzw < 0xf)
-							DevCon.Error("microVU Error: writeBackReg() [%d]", mapI.VFreg);
+							log_cb(RETRO_LOG_ERROR, "microVU Error: writeBackReg() [%d]\n", mapI.VFreg);
 						clearReg(i); // Invalidate any Cached Regs of same vf Reg
 					}
 				}
@@ -736,7 +737,7 @@ public:
 					{
 						if (mapI.xyzw && mapI.xyzw < 0xf)
 						{
-							DevCon.Error("microVU Error: clearNeeded() [%d]", mapI.VFreg);
+							log_cb(RETRO_LOG_ERROR, "microVU Error: clearNeeded() [%d]\n", mapI.VFreg);
 						}
 						if (mergeRegs == 1)
 						{

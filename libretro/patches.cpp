@@ -1,10 +1,10 @@
 #include <cstring>
+#include "common/Pcsx2Defs.h"
 #include <libretro.h>
 
 #include "../pcsx2/Patch.h"
 
 extern retro_environment_t environ_cb;
-extern retro_log_printf_t log_cb;
 extern void retro_set_region(unsigned val);
 
 int lrps2_ingame_patches(const char *serial,

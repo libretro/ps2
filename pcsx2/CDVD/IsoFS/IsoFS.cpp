@@ -14,9 +14,9 @@
  */
 
 #include "IsoFS.h"
+#include "common/Pcsx2Defs.h"
 #include "IsoFile.h"
 
-#include "common/Console.h"
 #include "HostFS.h"
 
 #include <memory>
@@ -103,14 +103,14 @@ bool IsoDirectory::OpenRootDirectory()
 					break;
 
 				default:
-					Console.Error("(IsoFS) Unknown partition type ID=%d, encountered at block 0x%x", sector[0], i);
+					log_cb(RETRO_LOG_ERROR, "(IsoFS) Unknown partition type ID=%d, encountered at block 0x%x\n", sector[0], i);
 					break;
 			}
 		}
 		else
 		{
 			sector[9] = 0;
-			Console.Error("(IsoFS) Invalid partition descriptor encountered at block 0x%x: '%s'", i, &sector[1]);
+			log_cb(RETRO_LOG_ERROR, "(IsoFS) Invalid partition descriptor encountered at block 0x%x: '%s'\n", i, &sector[1]);
 			break; // if no valid root partition was found, an exception will be thrown below.
 		}
 
@@ -119,7 +119,7 @@ bool IsoDirectory::OpenRootDirectory()
 
 	if (!isValid)
 	{
-		Console.Error("IsoFS could not find the root directory on the ISO image.");
+		log_cb(RETRO_LOG_ERROR, "IsoFS could not find the root directory on the ISO image.\n");
 		return false;
 	}
 

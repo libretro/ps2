@@ -14,7 +14,7 @@
  */
 
 #include "common/Align.h"
-#include "common/Console.h"
+#include "common/Pcsx2Defs.h"
 
 #include "GSDevice11.h"
 #include "GSTexture11.h"
@@ -186,7 +186,7 @@ std::unique_ptr<GSDownloadTexture11> GSDownloadTexture11::Create(u32 width, u32 
 	HRESULT hr = GSDevice11::GetInstance()->GetD3DDevice()->CreateTexture2D(&desc, nullptr, tex.put());
 	if (FAILED(hr))
 	{
-		Console.Error("GSDownloadTexture11: CreateTexture2D() failed: %08X", hr);
+		log_cb(RETRO_LOG_ERROR, "GSDownloadTexture11: CreateTexture2D() failed: %08X\n", hr);
 		return {};
 	}
 
@@ -229,7 +229,7 @@ bool GSDownloadTexture11::Map(const GSVector4i& rc)
 	HRESULT hr = GSDevice11::GetInstance()->GetD3DContext()->Map(m_texture.get(), 0, D3D11_MAP_READ, 0, &sr);
 	if (FAILED(hr))
 	{
-		Console.Error("GSDownloadTexture11: Map() failed: %08X", hr);
+		log_cb(RETRO_LOG_ERROR, "GSDownloadTexture11: Map() failed: %08X\n", hr);
 		return false;
 	}
 

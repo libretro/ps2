@@ -8,7 +8,6 @@ endif(NOT TOP_CMAKE_WAS_SOURCED)
 add_library(common)
 
 target_sources(common PRIVATE
-	Console.cpp
 	StringUtil.cpp
 	HostSys.cpp
 )
@@ -51,7 +50,6 @@ endif()
 # x86emitter headers
 target_sources(common PRIVATE
 	Align.h
-	Console.h
 	CpuFeatures.h
 	General.h
 	HashCombine.h

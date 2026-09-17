@@ -13,8 +13,8 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "common/Console.h"
 #include "GLContext.h"
+#include "common/Pcsx2Defs.h"
 #include "glad.h"
 
 #include <cstdlib>
@@ -43,14 +43,14 @@ std::unique_ptr<GLContext> GLContext::Create()
 	if (!context)
 		return nullptr;
 
-	Console.WriteLn("Created an %s context", context->IsGLES() ? "OpenGL ES" : "OpenGL");
+	log_cb(RETRO_LOG_INFO, "Created an %s context\n", context->IsGLES() ? "OpenGL ES" : "OpenGL");
 
 	// load up glad
 	if (!context->IsGLES())
 	{
 		if (!gladLoadGLLoader(gl_retro_proc_addr))
 		{
-			Console.Error("Failed to load GL functions for GLAD");
+			log_cb(RETRO_LOG_ERROR, "Failed to load GL functions for GLAD\n");
 			return nullptr;
 		}
 	}
@@ -58,7 +58,7 @@ std::unique_ptr<GLContext> GLContext::Create()
 	{
 		if (!gladLoadGLES2Loader(gl_retro_proc_addr))
 		{
-			Console.Error("Failed to load GLES functions for GLAD");
+			log_cb(RETRO_LOG_ERROR, "Failed to load GLES functions for GLAD\n");
 			return nullptr;
 		}
 	}

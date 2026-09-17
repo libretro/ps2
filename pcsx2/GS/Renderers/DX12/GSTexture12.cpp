@@ -14,7 +14,7 @@
  */
 
 #include "common/Align.h"
-#include "common/Console.h"
+#include "common/Pcsx2Defs.h"
 #include "common/StringUtil.h"
 
 #include "D3D12Builders.h"
@@ -171,7 +171,7 @@ std::unique_ptr<GSTexture12> GSTexture12::Create(Type type, Format format, int w
 	{
 		// OOM isn't fatal.
 		if (hr != E_OUTOFMEMORY)
-			Console.Error("Create texture failed: 0x%08X", hr);
+			log_cb(RETRO_LOG_ERROR, "Create texture failed: 0x%08X\n", hr);
 
 		return {};
 	}
@@ -277,7 +277,7 @@ bool GSTexture12::CreateSRVDescriptor(
 	GSDevice12* const dev = GSDevice12::GetInstance();
 	if (!dev->GetDescriptorHeapManager().Allocate(dh))
 	{
-		Console.Error("Failed to allocate SRV descriptor");
+		log_cb(RETRO_LOG_ERROR, "Failed to allocate SRV descriptor\n");
 		return false;
 	}
 
@@ -294,7 +294,7 @@ bool GSTexture12::CreateRTVDescriptor(ID3D12Resource* resource, DXGI_FORMAT form
 	GSDevice12* const dev = GSDevice12::GetInstance();
 	if (!dev->GetRTVHeapManager().Allocate(dh))
 	{
-		Console.Error("Failed to allocate RTV descriptor");
+		log_cb(RETRO_LOG_ERROR, "Failed to allocate RTV descriptor\n");
 		return false;
 	}
 
@@ -308,7 +308,7 @@ bool GSTexture12::CreateDSVDescriptor(ID3D12Resource* resource, DXGI_FORMAT form
 	GSDevice12* const dev = GSDevice12::GetInstance();
 	if (!dev->GetDSVHeapManager().Allocate(dh))
 	{
-		Console.Error("Failed to allocate DSV descriptor");
+		log_cb(RETRO_LOG_ERROR, "Failed to allocate DSV descriptor\n");
 		return false;
 	}
 
@@ -322,7 +322,7 @@ bool GSTexture12::CreateUAVDescriptor(ID3D12Resource* resource, DXGI_FORMAT form
 	GSDevice12* const dev = GSDevice12::GetInstance();
 	if (!dev->GetDescriptorHeapManager().Allocate(dh))
 	{
-		Console.Error("Failed to allocate UAV descriptor");
+		log_cb(RETRO_LOG_ERROR, "Failed to allocate UAV descriptor\n");
 		return false;
 	}
 
@@ -359,7 +359,7 @@ ID3D12Resource* GSTexture12::AllocateUploadStagingBuffer(const void* data, u32 p
 		nullptr, allocation.put(), IID_PPV_ARGS(resource.put()));
 	if (FAILED(hr))
 	{
-		Console.WriteLn("(AllocateUploadStagingBuffer) CreateCommittedResource() failed with %08X", hr);
+		log_cb(RETRO_LOG_INFO, "(AllocateUploadStagingBuffer) CreateCommittedResource() failed with %08X\n", hr);
 		return nullptr;
 	}
 
@@ -367,7 +367,7 @@ ID3D12Resource* GSTexture12::AllocateUploadStagingBuffer(const void* data, u32 p
 	hr = resource->Map(0, nullptr, &map_ptr);
 	if (FAILED(hr))
 	{
-		Console.WriteLn("(AllocateUploadStagingBuffer) Map() failed with %08X", hr);
+		log_cb(RETRO_LOG_INFO, "(AllocateUploadStagingBuffer) Map() failed with %08X\n", hr);
 		return nullptr;
 	}
 
@@ -658,7 +658,7 @@ std::unique_ptr<GSDownloadTexture12> GSDownloadTexture12::Create(u32 width, u32 
 		&allocation_desc, &resource_desc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, allocation.put(), IID_PPV_ARGS(buffer.put()));
 	if (FAILED(hr))
 	{
-		Console.Error("(GSDownloadTexture12::Create) CreateResource() failed with HRESULT %08X", hr);
+		log_cb(RETRO_LOG_ERROR, "(GSDownloadTexture12::Create) CreateResource() failed with HRESULT %08X\n", hr);
 		return {};
 	}
 
@@ -733,7 +733,7 @@ bool GSDownloadTexture12::Map(const GSVector4i& read_rc)
 	const HRESULT hr = m_buffer->Map(0, &read_range, reinterpret_cast<void**>(const_cast<u8**>(&m_map_pointer)));
 	if (FAILED(hr))
 	{
-		Console.Error("(GSDownloadTexture12::Map) Map() failed with HRESULT %08X", hr);
+		log_cb(RETRO_LOG_ERROR, "(GSDownloadTexture12::Map) Map() failed with HRESULT %08X\n", hr);
 		return false;
 	}
 

@@ -14,6 +14,7 @@
  */
 
 #include <algorithm>
+#include "common/Pcsx2Defs.h"
 #include <memalign.h>
 #include <cmath>
 #include <cstdint>
@@ -22,7 +23,6 @@
 
 #include <libretro.h>
 
-#include "common/Console.h"
 #include "common/VectorIntrin.h"
 #include "GS/GSExtra.h"
 #include "GS/Renderers/SW/GSDeviceSW.h"
@@ -1403,7 +1403,7 @@ void GSDeviceSW::RenderHW(GSHWDrawConfig& /*config*/)
 	 * does. If this fires, the device was wired up to the wrong
 	 * renderer - that's a build/init bug, not a runtime condition we
 	 * can recover from. */
-	Console.Error("GSDeviceSW::RenderHW called - HW renderer is not compatible with the CPU-only device.");
+	log_cb(RETRO_LOG_ERROR, "GSDeviceSW::RenderHW called - HW renderer is not compatible with the CPU-only device.\n");
 }
 
 void GSDeviceSW::ClearSamplerCache()

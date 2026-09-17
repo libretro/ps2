@@ -90,7 +90,7 @@ namespace InternalServers
 		WSADATA wsaData{0};
 		const int err = WSAStartup(wVersionRequested, &wsaData);
 		if (err != 0)
-			Console.Error("DEV9: WSAStartup failed with error: %d\n", err);
+			log_cb(RETRO_LOG_ERROR, "DEV9: WSAStartup failed with error: %d\n\n", err);
 		else
 			wsa_init = true;
 #endif
@@ -112,7 +112,7 @@ namespace InternalServers
 		if (adapterIP.has_value())
 			localhostIP = adapterIP.value();
 		else
-			Console.Error("DEV9: Failed To Get Adapter IP");
+			log_cb(RETRO_LOG_ERROR, "DEV9: Failed To Get Adapter IP\n");
 
 		LoadHostList();
 	}
@@ -153,13 +153,13 @@ namespace InternalServers
 				if (q.entryType == 1 && q.entryClass == 1)
 					reqs.push_back(q.name);
 				else
-					Console.Error("DEV9: Unexpected question type of class, T: %d C: %d", q.entryType, q.entryClass);
+					log_cb(RETRO_LOG_ERROR, "DEV9: Unexpected question type of class, T: %d C: %d\n", q.entryType, q.entryClass);
 			}
 			if (reqs.size() == 0)
 				return true;
 			if (dns.GetTC() == true)
 			{
-				Console.Error("DEV9: Truncated DNS packet Not Supported");
+				log_cb(RETRO_LOG_ERROR, "DEV9: Truncated DNS packet Not Supported\n");
 				return true;
 			}
 
@@ -190,7 +190,7 @@ namespace InternalServers
 		}
 		else
 		{
-			Console.Error("DEV9: Unexpected DNS OPCode, Code: %u", (unsigned)dns.GetOpCode());
+			log_cb(RETRO_LOG_ERROR, "DEV9: Unexpected DNS OPCode, Code: %u\n", (unsigned)dns.GetOpCode());
 			return true;
 		}
 	}
@@ -204,7 +204,7 @@ namespace InternalServers
 		if (f != hosts.end())
 		{
 			const int remaining = state->AddAnswer(url, hosts[url]);
-			Console.WriteLn("DEV9: DNS: %s found in hosts", url.c_str());
+			log_cb(RETRO_LOG_INFO, "DEV9: DNS: %s found in hosts\n", url.c_str());
 			if (remaining == 0)
 				FinaliseDNS(state);
 			return true;
@@ -243,7 +243,7 @@ namespace InternalServers
 
 		if (retPay->GetLength() > 512)
 		{
-			Console.Error("DEV9: Generated DNS response too large, dropping");
+			log_cb(RETRO_LOG_ERROR, "DEV9: Generated DNS response too large, dropping\n");
 			delete retPay;
 			retro_atomic_dec_int(&outstandingQueries);
 			return;
@@ -319,8 +319,8 @@ namespace InternalServers
 
 				if (addrInfo == nullptr)
 				{
-					Console.Error("DEV9: Internal DNS failed to find host %s", data->url.c_str());
-					Console.Error("DEV9: with unexpected error code %d", -1);
+					log_cb(RETRO_LOG_ERROR, "DEV9: Internal DNS failed to find host %s\n", data->url.c_str());
+					log_cb(RETRO_LOG_ERROR, "DEV9: with unexpected error code %d\n", -1);
 					remaining = data->state->AddNoAnswer(data->url);
 					break;
 				}
@@ -331,12 +331,12 @@ namespace InternalServers
 			}
 			case WSAHOST_NOT_FOUND:
 			case WSATRY_AGAIN: //Nonauthoritative host not found
-				Console.Error("DEV9: Internal DNS failed to find host %s", data->url.c_str());
+				log_cb(RETRO_LOG_ERROR, "DEV9: Internal DNS failed to find host %s\n", data->url.c_str());
 				remaining = data->state->AddNoAnswer(data->url);
 				break;
 			default:
-				Console.Error("DEV9: Internal DNS failed to find host %s", data->url.c_str());
-				Console.Error("DEV9: with unexpected error code %d", dwError);
+				log_cb(RETRO_LOG_ERROR, "DEV9: Internal DNS failed to find host %s\n", data->url.c_str());
+				log_cb(RETRO_LOG_ERROR, "DEV9: with unexpected error code %d\n", dwError);
 				remaining = data->state->AddNoAnswer(data->url);
 				break;
 		}
@@ -392,8 +392,8 @@ namespace InternalServers
 
 				if (retInfo == nullptr)
 				{
-					Console.Error("DEV9: Internal DNS failed to find host %s", url.c_str());
-					Console.Error("DEV9: with unexpected error code %d", -1);
+					log_cb(RETRO_LOG_ERROR, "DEV9: Internal DNS failed to find host %s\n", url.c_str());
+					log_cb(RETRO_LOG_ERROR, "DEV9: with unexpected error code %d\n", -1);
 					remaining = state->AddNoAnswer(url);
 					break;
 				}
@@ -404,12 +404,12 @@ namespace InternalServers
 			}
 			case EAI_NONAME:
 			case EAI_AGAIN: //Nonauthoritative host not found
-				Console.Error("DEV9: Internal DNS failed to find host %s", url.c_str());
+				log_cb(RETRO_LOG_ERROR, "DEV9: Internal DNS failed to find host %s\n", url.c_str());
 				remaining = state->AddNoAnswer(url);
 				break;
 			default:
-				Console.Error("DEV9: Internal DNS failed to find host %s", url.c_str());
-				Console.Error("DEV9: with unexpected error code %d", error);
+				log_cb(RETRO_LOG_ERROR, "DEV9: Internal DNS failed to find host %s\n", url.c_str());
+				log_cb(RETRO_LOG_ERROR, "DEV9: with unexpected error code %d\n", error);
 				remaining = state->AddNoAnswer(url);
 				break;
 		}

@@ -38,7 +38,7 @@ static void hdd_create_fail(RFILE* newImage, const char* path)
 	filestream_truncate(newImage, 0);
 	filestream_close(newImage);
 	filestream_delete(path);
-	pcsx2_log(RETRO_LOG_INFO, "Failed to create HDD file\n");
+	log_cb(RETRO_LOG_INFO, "Failed to create HDD file\n");
 }
 
 int hdd_create(const char* path, uint64_t size_bytes)
@@ -52,7 +52,7 @@ int hdd_create(const char* path, uint64_t size_bytes)
 
 	if (path_is_valid(path))
 	{
-		pcsx2_log(RETRO_LOG_INFO, "Failed to create HDD file\n");
+		log_cb(RETRO_LOG_INFO, "Failed to create HDD file\n");
 		return -1;
 	}
 
@@ -60,7 +60,7 @@ int hdd_create(const char* path, uint64_t size_bytes)
 			RETRO_VFS_FILE_ACCESS_WRITE, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 	if (!newImage)
 	{
-		pcsx2_log(RETRO_LOG_INFO, "Failed to create HDD file\n");
+		log_cb(RETRO_LOG_INFO, "Failed to create HDD file\n");
 		return -1;
 	}
 
@@ -68,7 +68,7 @@ int hdd_create(const char* path, uint64_t size_bytes)
 	if (filestream_truncate(newImage, (int64_t)size_bytes) != 0 ||
 		filestream_seek(newImage, 0, RETRO_VFS_SEEK_POSITION_START) < 0)
 	{
-		pcsx2_log(RETRO_LOG_ERROR, "DEV9: HddCreate: Failed to set size\n");
+		log_cb(RETRO_LOG_ERROR, "DEV9: HddCreate: Failed to set size\n");
 		hdd_create_fail(newImage, path);
 		return -1;
 	}
@@ -122,7 +122,7 @@ int hdd_create(const char* path, uint64_t size_bytes)
 			if ((now - lastUpdate) / 1000 >= 100 || (iMiB + 1) == reqMiB)
 			{
 				lastUpdate = now;
-				pcsx2_log(RETRO_LOG_INFO, "%llu / %llu Bytes\n",
+				log_cb(RETRO_LOG_INFO, "%llu / %llu Bytes\n",
 						(unsigned long long)filestream_tell(newImage),
 						(unsigned long long)size_bytes);
 			}
@@ -131,7 +131,7 @@ int hdd_create(const char* path, uint64_t size_bytes)
 
 	if (filestream_flush(newImage) != 0)
 	{
-		pcsx2_log(RETRO_LOG_ERROR, "DEV9: HddCreate: Failed to flush\n");
+		log_cb(RETRO_LOG_ERROR, "DEV9: HddCreate: Failed to flush\n");
 		hdd_create_fail(newImage, path);
 		return -1;
 	}

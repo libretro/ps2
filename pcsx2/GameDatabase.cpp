@@ -14,6 +14,7 @@
  */
 
 #include <sstream>
+#include "common/Pcsx2Defs.h"
 #include <fstream>
 #include <optional>
 #include <utility>
@@ -21,7 +22,6 @@
 
 #include <formats/ryaml.h>
 
-#include "../common/Console.h"
 #include "HostFS.h"
 #include "../common/StringUtil.h"
 
@@ -73,22 +73,22 @@ const std::string* GameDatabaseSchema::GameEntry::findPatch(u32 crc) const
 	if (crc == 0)
 		return nullptr;
 
-	Console.WriteLn("[GameDB] Searching for patch with CRC '%08X'", crc);
+	log_cb(RETRO_LOG_INFO, "[GameDB] Searching for patch with CRC '%08X'\n", crc);
 
 	auto it = patches.find(crc);
 	if (it != patches.end())
 	{
-		Console.WriteLn("[GameDB] Found patch with CRC '%08X'", crc);
+		log_cb(RETRO_LOG_INFO, "[GameDB] Found patch with CRC '%08X'\n", crc);
 		return &it->second;
 	}
 
 	it = patches.find(0);
 	if (it != patches.end())
 	{
-		Console.WriteLn("[GameDB] Found and falling back to default patch");
+		log_cb(RETRO_LOG_INFO, "[GameDB] Found and falling back to default patch\n");
 		return &it->second;
 	}
-	Console.WriteLn("[GameDB] No CRC-specific patch or default patch found");
+	log_cb(RETRO_LOG_INFO, "[GameDB] No CRC-specific patch or default patch found\n");
 	return nullptr;
 }
 
@@ -231,7 +231,7 @@ void GameDatabase::parseAndInsert(const char *serial, const ryaml_t *yaml, int n
 			}
 
 			if (!fixValidated)
-				Console.Error("[GameDB] Invalid gamefix: '{%s}', specified for serial: '{%s}'. Dropping!", fix.c_str(), serial);
+				log_cb(RETRO_LOG_ERROR, "[GameDB] Invalid gamefix: '{%s}', specified for serial: '{%s}'. Dropping!\n", fix.c_str(), serial);
 		}
 	}
 
@@ -263,7 +263,7 @@ void GameDatabase::parseAndInsert(const char *serial, const ryaml_t *yaml, int n
 				}
 			}
 			if (!inserted)
-				Console.Error("[GameDB] Invalid speedhack: '{%s}', specified for serial: '{%.*s}'. Dropping!", std::string(id_view).c_str(), (int)value_view.size(), value_view.data());
+				log_cb(RETRO_LOG_ERROR, "[GameDB] Invalid speedhack: '{%s}', specified for serial: '{%.*s}'. Dropping!\n", std::string(id_view).c_str(), (int)value_view.size(), value_view.data());
 		}
 	}
 
@@ -289,7 +289,7 @@ void GameDatabase::parseAndInsert(const char *serial, const ryaml_t *yaml, int n
 
 				if (value.value_or(-1) < 0)
 				{
-					Console.Error("[GameDB] Invalid GS HW Fix Value for '{%s}' in '{%s}': '{%s}'", std::string(id_name).c_str(), serial, std::string(str_value).c_str());
+					log_cb(RETRO_LOG_ERROR, "[GameDB] Invalid GS HW Fix Value for '{%s}' in '{%s}': '{%s}'\n", std::string(id_name).c_str(), serial, std::string(str_value).c_str());
 					continue;
 				}
 			}
@@ -300,7 +300,7 @@ void GameDatabase::parseAndInsert(const char *serial, const ryaml_t *yaml, int n
 
 			if (!id.has_value() || !value.has_value())
 			{
-				Console.Error("[GameDB] Invalid GS HW Fix: '{%s}' specified for serial '{%s}'. Dropping!", std::string(id_name).c_str(), serial);
+				log_cb(RETRO_LOG_ERROR, "[GameDB] Invalid GS HW Fix: '{%s}' specified for serial '{%s}'. Dropping!\n", std::string(id_name).c_str(), serial);
 				continue;
 			}
 
@@ -328,12 +328,12 @@ void GameDatabase::parseAndInsert(const char *serial, const ryaml_t *yaml, int n
 			const std::optional<u32> crc = ((crc_str.length() == 7) && (Strncasecmp(crc_str.data(), "default", 7) == 0)) ? std::optional<u32>(0) : StringUtil::FromChars<u32>(crc_str, 16);
 			if (!crc.has_value())
 			{
-				Console.Error("[GameDB] Invalid CRC '{%s}' found for serial: '{%s}'. Skipping!", std::string(crc_str).c_str(), serial);
+				log_cb(RETRO_LOG_ERROR, "[GameDB] Invalid CRC '{%s}' found for serial: '{%s}'. Skipping!\n", std::string(crc_str).c_str(), serial);
 				continue;
 			}
 			if (gameEntry.patches.find(crc.value()) != gameEntry.patches.end())
 			{
-				Console.Error("[GameDB] Duplicate CRC '{%s}' found for serial: '{%s}'. Skipping, CRCs are case-insensitive!", std::string(crc_str).c_str(), std::string(serial).c_str());
+				log_cb(RETRO_LOG_ERROR, "[GameDB] Duplicate CRC '{%s}' found for serial: '{%s}'. Skipping, CRCs are case-insensitive!\n", std::string(crc_str).c_str(), std::string(serial).c_str());
 				continue;
 			}
 
@@ -472,7 +472,7 @@ u32 GameDatabaseSchema::GameEntry::applyGameFixes(Pcsx2Config& config, bool appl
 {
 	// Only apply core game fixes if the user has enabled them.
 	if (!applyAuto)
-		Console.Warning("[GameDB] Game Fixes are disabled");
+		log_cb(RETRO_LOG_WARN, "[GameDB] Game Fixes are disabled\n");
 
 	u32 num_applied_fixes = 0;
 
@@ -480,12 +480,12 @@ u32 GameDatabaseSchema::GameEntry::applyGameFixes(Pcsx2Config& config, bool appl
 	{
 		if (applyAuto)
 		{
-			Console.WriteLn("(GameDB) Changing EE/FPU divison roundmode to %d [%s]", (int)eeRoundMode, s_round_modes[static_cast<u8>(eeDivRoundMode)]);
+			log_cb(RETRO_LOG_INFO, "(GameDB) Changing EE/FPU divison roundmode to %d [%s]\n", (int)eeRoundMode, s_round_modes[static_cast<u8>(eeDivRoundMode)]);
 			config.Cpu.FPUDivFPCR.SetRoundMode(eeDivRoundMode);
 		}
 		else
 		{
-			Console.Warning("[GameDB] Skipping changing EE/FPU roundmode to %d [%s]", (int)eeRoundMode, s_round_modes[static_cast<u8>(eeRoundMode)]);
+			log_cb(RETRO_LOG_WARN, "[GameDB] Skipping changing EE/FPU roundmode to %d [%s]\n", (int)eeRoundMode, s_round_modes[static_cast<u8>(eeRoundMode)]);
 		}
 	}
 
@@ -493,33 +493,33 @@ u32 GameDatabaseSchema::GameEntry::applyGameFixes(Pcsx2Config& config, bool appl
 	{
 		if (applyAuto)
 		{
-			Console.WriteLn("(GameDB) Changing EE/FPU roundmode to %d [%s]", (int)eeRoundMode, s_round_modes[static_cast<u8>(eeRoundMode)]);
+			log_cb(RETRO_LOG_INFO, "(GameDB) Changing EE/FPU roundmode to %d [%s]\n", (int)eeRoundMode, s_round_modes[static_cast<u8>(eeRoundMode)]);
 			config.Cpu.FPUFPCR.SetRoundMode(eeRoundMode);
 		}
 		else
-			Console.Warning("[GameDB] Skipping changing EE/FPU roundmode to %d [%s]", (int)eeRoundMode, s_round_modes[static_cast<u8>(eeRoundMode)]);
+			log_cb(RETRO_LOG_WARN, "[GameDB] Skipping changing EE/FPU roundmode to %d [%s]\n", (int)eeRoundMode, s_round_modes[static_cast<u8>(eeRoundMode)]);
 	}
 
 	if (vu0RoundMode < FPRoundMode::MaxCount)
 	{
 		if (applyAuto)
 		{
-			Console.WriteLn("(GameDB) Changing VU0 roundmode to %d [%s]", (int)vu0RoundMode, s_round_modes[static_cast<u8>(vu0RoundMode)]);
+			log_cb(RETRO_LOG_INFO, "(GameDB) Changing VU0 roundmode to %d [%s]\n", (int)vu0RoundMode, s_round_modes[static_cast<u8>(vu0RoundMode)]);
 			config.Cpu.VU0FPCR.SetRoundMode(vu0RoundMode);
 		}
 		else
-			Console.Warning("[GameDB] Skipping changing VU0 roundmode to %d [%s]", (int)vu0RoundMode, s_round_modes[static_cast<u8>(vu0RoundMode)]);
+			log_cb(RETRO_LOG_WARN, "[GameDB] Skipping changing VU0 roundmode to %d [%s]\n", (int)vu0RoundMode, s_round_modes[static_cast<u8>(vu0RoundMode)]);
 	}
 
 	if (vu1RoundMode < FPRoundMode::MaxCount)
 	{
 		if (applyAuto)
 		{
-			Console.WriteLn("(GameDB) Changing VU1 roundmode to %d [%s]", (int)vu1RoundMode, s_round_modes[static_cast<u8>(vu1RoundMode)]);
+			log_cb(RETRO_LOG_INFO, "(GameDB) Changing VU1 roundmode to %d [%s]\n", (int)vu1RoundMode, s_round_modes[static_cast<u8>(vu1RoundMode)]);
 			config.Cpu.VU1FPCR.SetRoundMode(vu1RoundMode);
 		}
 		else
-			Console.Warning("[GameDB] Skipping changing VU1 roundmode to %d [%s]", (int)vu1RoundMode, s_round_modes[static_cast<u8>(vu1RoundMode)]);
+			log_cb(RETRO_LOG_WARN, "[GameDB] Skipping changing VU1 roundmode to %d [%s]\n", (int)vu1RoundMode, s_round_modes[static_cast<u8>(vu1RoundMode)]);
 	}
 
 	if (eeClampMode != GameDatabaseSchema::ClampMode::Undefined)
@@ -527,14 +527,14 @@ u32 GameDatabaseSchema::GameEntry::applyGameFixes(Pcsx2Config& config, bool appl
 		const int clampMode = enum_cast(eeClampMode);
 		if (applyAuto)
 		{
-			Console.WriteLn("(GameDB) Changing EE/FPU clamp mode [mode=%d]", clampMode);
+			log_cb(RETRO_LOG_INFO, "(GameDB) Changing EE/FPU clamp mode [mode=%d]\n", clampMode);
 			config.Cpu.Recompiler.fpuOverflow = (clampMode >= 1);
 			config.Cpu.Recompiler.fpuExtraOverflow = (clampMode >= 2);
 			config.Cpu.Recompiler.fpuFullMode = (clampMode >= 3);
 			num_applied_fixes++;
 		}
 		else
-			Console.Warning("[GameDB] Skipping changing EE/FPU clamp mode [mode=%d]", clampMode);
+			log_cb(RETRO_LOG_WARN, "[GameDB] Skipping changing EE/FPU clamp mode [mode=%d]\n", clampMode);
 	}
 
 	if (vu0ClampMode != GameDatabaseSchema::ClampMode::Undefined)
@@ -542,14 +542,14 @@ u32 GameDatabaseSchema::GameEntry::applyGameFixes(Pcsx2Config& config, bool appl
 		const int clampMode = enum_cast(vu0ClampMode);
 		if (applyAuto)
 		{
-			Console.WriteLn("(GameDB) Changing VU0 clamp mode [mode=%d]", clampMode);
+			log_cb(RETRO_LOG_INFO, "(GameDB) Changing VU0 clamp mode [mode=%d]\n", clampMode);
 			config.Cpu.Recompiler.vu0Overflow = (clampMode >= 1);
 			config.Cpu.Recompiler.vu0ExtraOverflow = (clampMode >= 2);
 			config.Cpu.Recompiler.vu0SignOverflow = (clampMode >= 3);
 			num_applied_fixes++;
 		}
 		else
-			Console.Warning("[GameDB] Skipping changing VU0 clamp mode [mode=%d]", clampMode);
+			log_cb(RETRO_LOG_WARN, "[GameDB] Skipping changing VU0 clamp mode [mode=%d]\n", clampMode);
 	}
 
 	if (vu1ClampMode != GameDatabaseSchema::ClampMode::Undefined)
@@ -557,14 +557,14 @@ u32 GameDatabaseSchema::GameEntry::applyGameFixes(Pcsx2Config& config, bool appl
 		const int clampMode = enum_cast(vu1ClampMode);
 		if (applyAuto)
 		{
-			Console.WriteLn("(GameDB) Changing VU1 clamp mode [mode=%d]", clampMode);
+			log_cb(RETRO_LOG_INFO, "(GameDB) Changing VU1 clamp mode [mode=%d]\n", clampMode);
 			config.Cpu.Recompiler.vu1Overflow = (clampMode >= 1);
 			config.Cpu.Recompiler.vu1ExtraOverflow = (clampMode >= 2);
 			config.Cpu.Recompiler.vu1SignOverflow = (clampMode >= 3);
 			num_applied_fixes++;
 		}
 		else
-			Console.Warning("[GameDB] Skipping changing VU1 clamp mode [mode=%d]", clampMode);
+			log_cb(RETRO_LOG_WARN, "[GameDB] Skipping changing VU1 clamp mode [mode=%d]\n", clampMode);
 	}
 
 	// TODO - config - this could be simplified with maps instead of bitfields and enums
@@ -572,14 +572,14 @@ u32 GameDatabaseSchema::GameEntry::applyGameFixes(Pcsx2Config& config, bool appl
 	{
 		if (!applyAuto)
 		{
-			Console.Warning("[GameDB] Skipping setting Speedhack '%s' to [mode=%d]",
+			log_cb(RETRO_LOG_WARN, "[GameDB] Skipping setting Speedhack '%s' to [mode=%d]\n",
 					Pcsx2Config::SpeedhackOptions::GetSpeedHackName(it.first), it.second);
 			continue;
 		}
 		// Legacy note - speedhacks are setup in the GameDB as integer values, but
 		// are effectively booleans like the gamefixes
 		config.Speedhacks.Set(it.first, it.second);
-		Console.WriteLn("(GameDB) Setting Speedhack '%s' to [mode=%d]",
+		log_cb(RETRO_LOG_INFO, "(GameDB) Setting Speedhack '%s' to [mode=%d]\n",
 				Pcsx2Config::SpeedhackOptions::GetSpeedHackName(it.first), it.second);
 		num_applied_fixes++;
 	}
@@ -589,12 +589,12 @@ u32 GameDatabaseSchema::GameEntry::applyGameFixes(Pcsx2Config& config, bool appl
 	{
 		if (!applyAuto)
 		{
-			Console.Warning("[GameDB] Skipping Gamefix: %s", EnumToString(id));
+			log_cb(RETRO_LOG_WARN, "[GameDB] Skipping Gamefix: %s\n", EnumToString(id));
 			continue;
 		}
 		// if the fix is present, it is said to be enabled
 		config.Gamefixes.Set(id, true);
-		Console.WriteLn("(GameDB) Enabled Gamefix: %s", EnumToString(id));
+		log_cb(RETRO_LOG_INFO, "(GameDB) Enabled Gamefix: %s\n", EnumToString(id));
 		num_applied_fixes++;
 
 		// The LUT is only used for 1 game so we allocate it only when the gamefix is enabled (save 4MB)
@@ -728,7 +728,7 @@ u32 GameDatabaseSchema::GameEntry::applyGSHardwareFixes(Pcsx2Config::GSOptions& 
 	// Only apply GS HW fixes if the user hasn't manually enabled HW fixes.
 	const bool apply_auto_fixes = !config.ManualUserHacks;
 	if (!apply_auto_fixes)
-		Console.Warning("[GameDB] Manual GS hardware renderer fixes are enabled, not using automatic hardware renderer fixes from GameDB.");
+		log_cb(RETRO_LOG_WARN, "[GameDB] Manual GS hardware renderer fixes are enabled, not using automatic hardware renderer fixes from GameDB.\n");
 
 	u32 num_applied_fixes = 0;
 	for (const auto& [id, value] : gsHWFixes)
@@ -738,7 +738,7 @@ u32 GameDatabaseSchema::GameEntry::applyGSHardwareFixes(Pcsx2Config::GSOptions& 
 			if (configMatchesHWFix(config, id, value))
 				continue;
 
-			Console.Warning("[GameDB] Skipping GS Hardware Fix: %s to [mode=%d]", getHWFixName(id), value);
+			log_cb(RETRO_LOG_WARN, "[GameDB] Skipping GS Hardware Fix: %s to [mode=%d]\n", getHWFixName(id), value);
 			disabled_fixes += StringUtil::StdStringFromFormat("%s %s = %d", disabled_fixes.empty() ? "  " : "\n  ", getHWFixName(id), value);
 			continue;
 		}
@@ -836,7 +836,7 @@ u32 GameDatabaseSchema::GameEntry::applyGSHardwareFixes(Pcsx2Config::GSOptions& 
 					if (config.TriFilter == TriFiltering::Automatic)
 						config.TriFilter = static_cast<TriFiltering>(value);
 					else if (config.TriFilter > TriFiltering::Off)
-						Console.Warning("[GameDB] Game requires trilinear filtering to be disabled.");
+						log_cb(RETRO_LOG_WARN, "[GameDB] Game requires trilinear filtering to be disabled.\n");
 				}
 			}
 			break;
@@ -876,7 +876,7 @@ u32 GameDatabaseSchema::GameEntry::applyGSHardwareFixes(Pcsx2Config::GSOptions& 
 					if (config.InterlaceMode == GSInterlaceMode::Automatic)
 						config.InterlaceMode = static_cast<GSInterlaceMode>(value);
 					else
-						Console.Warning("[GameDB] Game requires different deinterlace mode but it has been overridden by user setting.");
+						log_cb(RETRO_LOG_WARN, "[GameDB] Game requires different deinterlace mode but it has been overridden by user setting.\n");
 				}
 			}
 			break;
@@ -943,7 +943,7 @@ u32 GameDatabaseSchema::GameEntry::applyGSHardwareFixes(Pcsx2Config::GSOptions& 
 				break;
 		}
 
-		Console.WriteLn("[GameDB] Enabled GS Hardware Fix: %s to [mode=%d]", getHWFixName(id), value);
+		log_cb(RETRO_LOG_INFO, "[GameDB] Enabled GS Hardware Fix: %s to [mode=%d]\n", getHWFixName(id), value);
 		num_applied_fixes++;
 	}
 
@@ -958,7 +958,7 @@ void GameDatabase::initDatabase()
 	auto buf = Host::ReadResourceFileToString(GAMEDB_YAML_FILE_NAME);
 	if (!buf.has_value())
 	{
-		Console.Error("[GameDB] Unable to open GameDB file, file does not exist.");
+		log_cb(RETRO_LOG_ERROR, "[GameDB] Unable to open GameDB file, file does not exist.\n");
 		return;
 	}
 
@@ -970,7 +970,7 @@ void GameDatabase::initDatabase()
 		&err_line, &err_col);
 	if (!yaml)
 	{
-		Console.Error("[GameDB] Parsing error at {%zu}:{%zu}", err_line, err_col);
+		log_cb(RETRO_LOG_ERROR, "[GameDB] Parsing error at {%zu}:{%zu}\n", err_line, err_col);
 		return;
 	}
 
@@ -987,7 +987,7 @@ void GameDatabase::initDatabase()
 		// However, YAML's keys are as expected case-sensitive, so we have to explicitly do our own duplicate checking
 		if (s_game_db.count(serial) == 1)
 		{
-			Console.Error("[GameDB] Duplicate serial '{%s}' found in GameDB. Skipping, Serials are case-insensitive!", serial.c_str());
+			log_cb(RETRO_LOG_ERROR, "[GameDB] Duplicate serial '{%s}' found in GameDB. Skipping, Serials are case-insensitive!\n", serial.c_str());
 			continue;
 		}
 		if (ryaml_is_map(yaml, n))
@@ -1005,9 +1005,9 @@ void GameDatabase::ensureLoaded()
 	SLockGuard lock(s_load_once_mutex());
 	if (!s_load_once_done)
 	{
-		Console.WriteLn("[GameDB] Has not been initialized yet, initializing...");
+		log_cb(RETRO_LOG_INFO, "[GameDB] Has not been initialized yet, initializing...\n");
 		initDatabase();
-		Console.WriteLn("[GameDB] %zu games on record", s_game_db.size());
+		log_cb(RETRO_LOG_INFO, "[GameDB] %zu games on record\n", s_game_db.size());
 		s_load_once_done = true;
 	}
 }

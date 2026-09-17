@@ -16,7 +16,6 @@
 #include "common/Pcsx2Defs.h"
 
 #ifdef _WIN32
-#include "common/Console.h"
 #include "common/RedtapeWindows.h"
 #include <iphlpapi.h>
 #include <icmpapi.h>
@@ -98,14 +97,14 @@ namespace Sessions
 	{
 		if (icmpFile == INVALID_HANDLE_VALUE)
 		{
-			Console.Error("DEV9: ICMP: Failed to Create Icmp File");
+			log_cb(RETRO_LOG_ERROR, "DEV9: ICMP: Failed to Create Icmp File\n");
 			return;
 		}
 
 		icmpEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
 		if (icmpEvent == NULL)
 		{
-			Console.Error("DEV9: ICMP: Failed to Create Event");
+			log_cb(RETRO_LOG_ERROR, "DEV9: ICMP: Failed to Create Event\n");
 			IcmpCloseHandle(icmpFile);
 			icmpFile = INVALID_HANDLE_VALUE;
 			return;
@@ -138,7 +137,7 @@ namespace Sessions
 					break;
 				}
 
-				DevCon.WriteLn("DEV9: ICMP: Failed To Open ICMP Socket");
+				log_cb(RETRO_LOG_DEBUG, "DEV9: ICMP: Failed To Open ICMP Socket\n");
 				icmpConnectionKind = ICMP_Session::Ping::PingType::RAW;
 
 				//fallthrough
@@ -157,11 +156,11 @@ namespace Sessions
 					break;
 				}
 
-				DevCon.WriteLn("DEV9: ICMP: Failed To Open RAW Socket");
+				log_cb(RETRO_LOG_DEBUG, "DEV9: ICMP: Failed To Open RAW Socket\n");
 				//fallthrough
 #endif
 			default:
-				Console.Error("DEV9: ICMP: Failed To Ping");
+				log_cb(RETRO_LOG_ERROR, "DEV9: ICMP: Failed To Ping\n");
 				return;
 		}
 
@@ -300,7 +299,7 @@ namespace Sessions
 				if (ret == -1)
 				{
 					hasData = false;
-					Console.WriteLn("DEV9: ICMP: select failed. Error Code: %d", errno);
+					log_cb(RETRO_LOG_INFO, "DEV9: ICMP: select failed. Error Code: %d\n", errno);
 				}
 				else if (FD_ISSET(icmpSocket, &sExcept))
 				{
@@ -310,9 +309,9 @@ namespace Sessions
 
 					socklen_t len = sizeof(error);
 					if (getsockopt(icmpSocket, SOL_SOCKET, SO_ERROR, (char*)&error, &len) < 0)
-						Console.Error("DEV9: ICMP: Unkown ICMP Connection Error (getsockopt Error: %d)", errno);
+						log_cb(RETRO_LOG_ERROR, "DEV9: ICMP: Unkown ICMP Connection Error (getsockopt Error: %d)\n", errno);
 					else
-						Console.Error("DEV9: ICMP: Recv Error: %d", error);
+						log_cb(RETRO_LOG_ERROR, "DEV9: ICMP: Recv Error: %d\n", error);
 				}
 				else
 					hasData = FD_ISSET(icmpSocket, &sReady);
@@ -379,7 +378,7 @@ namespace Sessions
 #endif
 					if (ret == -1)
 					{
-						Console.Error("DEV9: ICMP: RecvMsg Error: %d", err);
+						log_cb(RETRO_LOG_ERROR, "DEV9: ICMP: RecvMsg Error: %d\n", err);
 						result.type = -1;
 						result.code = err;
 						return &result;
@@ -387,10 +386,10 @@ namespace Sessions
 				}
 
 				if (msg.msg_flags & MSG_TRUNC)
-					Console.Error("DEV9: ICMP: RecvMsg Truncated");
+					log_cb(RETRO_LOG_ERROR, "DEV9: ICMP: RecvMsg Truncated\n");
 #if defined(ICMP_SOCKETS_LINUX)
 				if (msg.msg_flags & MSG_CTRUNC)
-					Console.Error("DEV9: ICMP: RecvMsg Control Truncated");
+					log_cb(RETRO_LOG_ERROR, "DEV9: ICMP: RecvMsg Control Truncated\n");
 
 				sock_extended_err* ex_err = nullptr;
 				cmsghdr* cmsg;
@@ -418,7 +417,7 @@ namespace Sessions
 					}
 					else
 					{
-						Console.Error("DEV9: ICMP: Recv Error %d", ex_err->ee_errno);
+						log_cb(RETRO_LOG_ERROR, "DEV9: ICMP: Recv Error %d\n", ex_err->ee_errno);
 						result.type = -1;
 						result.code = ex_err->ee_errno;
 						return &result;
@@ -500,7 +499,7 @@ namespace Sessions
 					else
 					{
 #if defined(ICMP_SOCKETS_LINUX)
-						Console.Error("DEV9: ICMP: Unexpected packet");
+						log_cb(RETRO_LOG_ERROR, "DEV9: ICMP: Unexpected packet\n");
 #endif
 						//Assume not for us
 						return nullptr;
@@ -536,7 +535,7 @@ namespace Sessions
 
 		if (ret != ERROR_IO_PENDING)
 		{
-			Console.Error("DEV9: ICMP: Failed to Send Echo, %d", GetLastError());
+			log_cb(RETRO_LOG_ERROR, "DEV9: ICMP: Failed to Send Echo, %d\n", GetLastError());
 			return false;
 		}
 
@@ -560,7 +559,7 @@ namespace Sessions
 
 					if (bind(icmpSocket, (const sockaddr*)&endpoint, sizeof(endpoint)) == -1)
 					{
-						Console.Error("DEV9: ICMP: Failed to bind socket. Error: %d", errno);
+						log_cb(RETRO_LOG_ERROR, "DEV9: ICMP: Failed to bind socket. Error: %d\n", errno);
 						::close(icmpSocket);
 						icmpSocket = -1;
 						return false;
@@ -571,7 +570,7 @@ namespace Sessions
 				int value = 1;
 				if (setsockopt(icmpSocket, SOL_IP, IP_RECVERR, (char*)&value, sizeof(value)))
 				{
-					Console.Error("DEV9: ICMP: Failed to setsockopt IP_RECVERR. Error: %d", errno);
+					log_cb(RETRO_LOG_ERROR, "DEV9: ICMP: Failed to setsockopt IP_RECVERR. Error: %d\n", errno);
 					::close(icmpSocket);
 					icmpSocket = -1;
 					return false;
@@ -581,7 +580,7 @@ namespace Sessions
 				// TTL (Note multicast & regular ttl are seperate)
 				if (setsockopt(icmpSocket, IPPROTO_IP, IP_TTL, (const char*)&parTimeToLive, sizeof(parTimeToLive)) == -1)
 				{
-					Console.Error("DEV9: ICMP: Failed to set TTL. Error: %d", errno);
+					log_cb(RETRO_LOG_ERROR, "DEV9: ICMP: Failed to set TTL. Error: %d\n", errno);
 					::close(icmpSocket);
 					icmpSocket = -1;
 					return false;
@@ -595,7 +594,7 @@ namespace Sessions
 					socklen_t endpointsize = sizeof(endpoint);
 					if (getsockname(icmpSocket, (sockaddr*)&endpoint, &endpointsize) == -1)
 					{
-						Console.Error("DEV9: ICMP: Failed to get id. Error: %d", errno);
+						log_cb(RETRO_LOG_ERROR, "DEV9: ICMP: Failed to get id. Error: %d\n", errno);
 						::close(icmpSocket);
 						icmpSocket = -1;
 						return false;
@@ -631,7 +630,7 @@ namespace Sessions
 				const int ret = sendto(icmpSocket, buffer.get(), icmp.GetLength(), 0, (const sockaddr*)&endpoint, sizeof(endpoint));
 				if (ret == -1)
 				{
-					Console.Error("DEV9: ICMP: Send Error %d", errno);
+					log_cb(RETRO_LOG_ERROR, "DEV9: ICMP: Send Error %d\n", errno);
 					::close(icmpSocket);
 					icmpSocket = -1;
 					return false;
@@ -729,9 +728,9 @@ namespace Sessions
 						destIP = pingRet->address;
 				}
 				else if (pingRet->type == -1)
-					Console.Error("DEV9: ICMP: Unexpected ICMP status %d", pingRet->code);
+					log_cb(RETRO_LOG_ERROR, "DEV9: ICMP: Unexpected ICMP status %d\n", pingRet->code);
 				else
-					DevCon.WriteLn("DEV9: ICMP: ICMP timeout");
+					log_cb(RETRO_LOG_DEBUG, "DEV9: ICMP: ICMP timeout\n");
 
 				//free ping
 				delete ping;
@@ -740,7 +739,7 @@ namespace Sessions
 					RaiseEventConnectionClosed();
 
 				if (ret != nullptr)
-					DevCon.WriteLn("DEV9: ICMP: Return Ping");
+					log_cb(RETRO_LOG_DEBUG, "DEV9: ICMP: Return Ping\n");
 
 				//Return packet
 				return ret;
@@ -753,7 +752,7 @@ namespace Sessions
 
 	bool ICMP_Session::Send(PacketReader::IP::IP_Payload* payload)
 	{
-		Console.Error("DEV9: ICMP: Invalid Call");
+		log_cb(RETRO_LOG_ERROR, "DEV9: ICMP: Invalid Call\n");
 		return false;
 	}
 
@@ -772,7 +771,7 @@ namespace Sessions
 				{
 					case 3:
 					{
-						Console.Error("DEV9: ICMP: Recived Packet Rejected, Port Closed");
+						log_cb(RETRO_LOG_ERROR, "DEV9: ICMP: Recived Packet Rejected, Port Closed\n");
 
 						//RE:Outbreak Hackfix
 						//TODO, check if still needed
@@ -782,12 +781,12 @@ namespace Sessions
 							retPkt = std::make_unique<IP_Packet>(icmpPayload->data, icmpPayload->GetLength(), true);
 						else
 						{
-							Console.Error("DEV9: ICMP: Malformed ICMP Packet");
+							log_cb(RETRO_LOG_ERROR, "DEV9: ICMP: Malformed ICMP Packet\n");
 							int off = 1;
 							while ((icmpPayload->data[off] & 0xF0) != (4 << 4))
 								off += 1;
 
-							Console.Error("DEV9: ICMP: Payload delayed %d bytes", off);
+							log_cb(RETRO_LOG_ERROR, "DEV9: ICMP: Payload delayed %d bytes\n", off);
 
 							retPkt = std::make_unique<IP_Packet>(&icmpPayload->data[off], icmpPayload->GetLength(), true);
 						}
@@ -821,7 +820,7 @@ namespace Sessions
 						if (s != nullptr)
 						{
 							s->Reset();
-							Console.WriteLn("DEV9: ICMP: Reset Rejected Connection");
+							log_cb(RETRO_LOG_INFO, "DEV9: ICMP: Reset Rejected Connection\n");
 							break;
 						}
 
@@ -832,20 +831,20 @@ namespace Sessions
 						if (s != nullptr)
 						{
 							s->Reset();
-							Console.WriteLn("DEV9: ICMP: Reset Rejected Connection");
+							log_cb(RETRO_LOG_INFO, "DEV9: ICMP: Reset Rejected Connection\n");
 							break;
 						}
 
-						Console.Error("DEV9: ICMP: Failed To Reset Rejected Connection");
+						log_cb(RETRO_LOG_ERROR, "DEV9: ICMP: Failed To Reset Rejected Connection\n");
 						break;
 					}
 					default:
-						Console.Error("DEV9: ICMP: Unsupported ICMP Code For Destination Unreachable %d", icmp.code);
+						log_cb(RETRO_LOG_ERROR, "DEV9: ICMP: Unsupported ICMP Code For Destination Unreachable %d\n", icmp.code);
 				}
 				break;
 			case 8: //Echo
 			{
-				DevCon.WriteLn("DEV9: ICMP: Send Ping");
+				log_cb(RETRO_LOG_DEBUG, "DEV9: ICMP: Send Ping\n");
 				retro_atomic_inc_int(&open);
 
 				Ping* ping = new Ping(icmpPayload->GetLength());
@@ -879,7 +878,7 @@ namespace Sessions
 				break;
 			}
 			default:
-				Console.Error("DEV9: ICMP: Unsupported ICMP Type %d", icmp.type);
+				log_cb(RETRO_LOG_ERROR, "DEV9: ICMP: Unsupported ICMP Type %d\n", icmp.type);
 				break;
 		}
 		return true;

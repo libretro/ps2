@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: LGPL-3.0+
 
 #include "GSRendererPGS.h"
+#include "common/Pcsx2Defs.h"
 #include "GS/GSState.h"
 #include "GS.h"
 #include "math.hpp"
 #include "muglm/muglm_impl.hpp"
 #include "PerformanceMetrics.h"
-#include "common/Console.h"
 #include "logging.hpp"
 #include <stdarg.h>
 #include <vector>
@@ -21,7 +21,6 @@ static std::unique_ptr<Vulkan::Context> vulkan_ctx;
 static ImageHandle last_vsync_image;
 extern retro_environment_t environ_cb;
 extern retro_video_refresh_t video_cb;
-extern retro_log_printf_t log_cb;
 
 struct LibretroLog final : Util::LoggingInterface
 {
@@ -497,7 +496,7 @@ int GSRendererPGS::Defrost(freezeData* data)
 
 	if (version != GSState::STATE_VERSION)
 	{
-		Console.Error("GS: Savestate version is incompatible.  Load aborted.");
+		log_cb(RETRO_LOG_ERROR, "GS: Savestate version is incompatible.  Load aborted.\n");
 		return -1;
 	}
 

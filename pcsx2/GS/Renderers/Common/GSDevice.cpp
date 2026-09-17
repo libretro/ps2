@@ -14,10 +14,10 @@
  */
 
 #include <algorithm>
+#include "common/Pcsx2Defs.h"
 #include <cmath>
 
 #include "common/Align.h"
-#include "common/Console.h"
 
 #include "GSDevice.h"
 #include "../../GS.h"
@@ -200,11 +200,11 @@ GSTexture* GSDevice::FetchSurface(GSTexture::Type type, int width, int height, i
 			t = CreateSurface(type, width, height, levels, format);
 			if (!t)
 			{
-				Console.Error("GS: Memory allocation failure for %dx%d texture. Purging pool and retrying.", width, height);
+				log_cb(RETRO_LOG_ERROR, "GS: Memory allocation failure for %dx%d texture. Purging pool and retrying.\n", width, height);
 				PurgePool();
 				if (!t)
 				{
-					Console.Error("GS: Memory allocation failure for %dx%d texture after purging pool.", width, height);
+					log_cb(RETRO_LOG_ERROR, "GS: Memory allocation failure for %dx%d texture after purging pool.\n", width, height);
 					return nullptr;
 				}
 			}
@@ -481,7 +481,7 @@ bool GSDevice::ResizeRenderTarget(GSTexture** t, int w, int h, bool preserve_con
 
 	if (!new_tex)
 	{
-		Console.WriteLn("%dx%d texture allocation failed in ResizeTexture()", w, h);
+		log_cb(RETRO_LOG_INFO, "%dx%d texture allocation failed in ResizeTexture()\n", w, h);
 		return false;
 	}
 

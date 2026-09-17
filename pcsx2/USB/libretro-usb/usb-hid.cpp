@@ -30,7 +30,6 @@
 
 #include "libretro.h"
 
-#include "common/Console.h"
 
 namespace usb_hid
 {

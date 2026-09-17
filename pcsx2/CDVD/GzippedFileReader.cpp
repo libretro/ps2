@@ -14,7 +14,7 @@
 */
 
 #include <compat/strl.h>
-#include "../../common/Console.h"
+#include "common/Pcsx2Defs.h"
 #include "HostFS.h"
 #include "../../common/StringUtil.h"
 
@@ -249,7 +249,7 @@ bool GzippedFileReader::LoadOrCreateIndex()
 		return true;
 
 	// No valid index file. Generate an index
-	Console.Warning("This may take a while (but only once). Scanning compressed file to generate a quick access index...");
+	log_cb(RETRO_LOG_WARN, "This may take a while (but only once). Scanning compressed file to generate a quick access index...\n");
 
 	const s64 prevoffset = filestream_tell(m_src);
 	Access* index = nullptr;

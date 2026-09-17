@@ -14,12 +14,12 @@
  */
 
 #include <cinttypes>
+#include "common/Pcsx2Defs.h"
 #include <cstring>
 
 #include <libretro.h>
 
 
-#include "common/Console.h"
 #include "common/StringUtil.h"
 
 #include "glad.h"
@@ -170,14 +170,13 @@ bool GSDeviceOGL::CheckFeatures(bool& buggy_pbo)
 	glGetIntegerv(GL_MINOR_VERSION, &minor_gl);
 	if (!GLAD_GL_VERSION_3_3 && !GLAD_GL_ES_VERSION_3_1)
 	{
-		Console.Error("OpenGL is not supported. Only OpenGL %d.%d\n was found", major_gl, minor_gl);
+		log_cb(RETRO_LOG_ERROR, "OpenGL is not supported. Only OpenGL %d.%d\n was found\n", major_gl, minor_gl);
 		return false;
 	}
 
 	if (!GLAD_GL_ARB_shading_language_420pack)
 	{
-		Console.Warning(
-				"GL_ARB_shading_language_420pack is not supported, this is required for the OpenGL renderer.");
+		log_cb(RETRO_LOG_WARN, "GL_ARB_shading_language_420pack is not supported, this is required for the OpenGL renderer.\n");
 		return false;
 	}
 
@@ -185,18 +184,18 @@ bool GSDeviceOGL::CheckFeatures(bool& buggy_pbo)
 	{
 		glScissorIndexed = ReplaceGL::ScissorIndexed;
 		glViewportIndexedf = ReplaceGL::ViewportIndexedf;
-		Console.Warning("GL_ARB_viewport_array is not supported! Function pointer will be replaced.");
+		log_cb(RETRO_LOG_WARN, "GL_ARB_viewport_array is not supported! Function pointer will be replaced.\n");
 	}
 
 	if (!GLAD_GL_ARB_texture_barrier)
 	{
-		Console.Warning("GL_ARB_texture_barrier is not supported, blending will not be accurate.");
+		log_cb(RETRO_LOG_WARN, "GL_ARB_texture_barrier is not supported, blending will not be accurate.\n");
 		glTextureBarrier = ReplaceGL::TextureBarrier;
 	}
 
 	if (!GLAD_GL_ARB_direct_state_access)
 	{
-		Console.Warning("GL_ARB_direct_state_access is not supported, this will reduce performance.");
+		log_cb(RETRO_LOG_WARN, "GL_ARB_direct_state_access is not supported, this will reduce performance.\n");
 		Emulate_DSA::Init();
 	}
 
@@ -204,13 +203,13 @@ bool GSDeviceOGL::CheckFeatures(bool& buggy_pbo)
 	// using the normal texture update routines and letting the driver take care of it.
 	buggy_pbo = !GLAD_GL_VERSION_4_4 && !GLAD_GL_ARB_buffer_storage && !GLAD_GL_EXT_buffer_storage;
 	if (buggy_pbo)
-		Console.Warning("Not using PBOs for texture uploads because buffer_storage is unavailable.");
+		log_cb(RETRO_LOG_WARN, "Not using PBOs for texture uploads because buffer_storage is unavailable.\n");
 
 	// Give the user the option to disable PBO usage for downloads.
 	// Most drivers seem to be faster with PBO.
 	m_disable_download_pbo = false /* no option sets DisableGLDownloadPBO; this was its default */;
 	if (m_disable_download_pbo)
-		Console.Warning("Not using PBOs for texture downloads, this may reduce performance.");
+		log_cb(RETRO_LOG_WARN, "Not using PBOs for texture downloads, this may reduce performance.\n");
 
 	// optional features based on context
 	m_features.broken_point_sampler = false;
@@ -219,7 +218,7 @@ bool GSDeviceOGL::CheckFeatures(bool& buggy_pbo)
 	m_features.framebuffer_fetch = GLAD_GL_EXT_shader_framebuffer_fetch;
 	if (m_features.framebuffer_fetch && GSConfig.DisableFramebufferFetch)
 	{
-		Console.Warning("Framebuffer fetch was found but is disabled. This will reduce performance.");
+		log_cb(RETRO_LOG_WARN, "Framebuffer fetch was found but is disabled. This will reduce performance.\n");
 		m_features.framebuffer_fetch = false;
 	}
 
@@ -230,7 +229,7 @@ bool GSDeviceOGL::CheckFeatures(bool& buggy_pbo)
 	else
 		m_features.texture_barrier = m_features.framebuffer_fetch || GLAD_GL_ARB_texture_barrier;
 	if (!m_features.texture_barrier)
-		Console.Warning("GL_ARB_texture_barrier is not supported, blending will not be accurate.");
+		log_cb(RETRO_LOG_WARN, "GL_ARB_texture_barrier is not supported, blending will not be accurate.\n");
 
 	m_features.provoking_vertex_last = true;
 	m_features.dxt_textures = GLAD_GL_EXT_texture_compression_s3tc;
@@ -238,7 +237,7 @@ bool GSDeviceOGL::CheckFeatures(bool& buggy_pbo)
 	m_features.prefer_new_textures = false;
 	m_features.clip_control = GLAD_GL_ARB_clip_control;
 	if (!m_features.clip_control)
-		Console.Warning("GL_ARB_clip_control is not supported, this will cause rendering issues.");
+		log_cb(RETRO_LOG_WARN, "GL_ARB_clip_control is not supported, this will cause rendering issues.\n");
 	m_features.stencil_buffer = true;
 	m_features.test_and_sample_depth = m_features.texture_barrier;
 
@@ -247,25 +246,25 @@ bool GSDeviceOGL::CheckFeatures(bool& buggy_pbo)
 	const bool buggy_vs_expand =
 		vendor_id_nvidia && (!GLAD_GL_ARB_bindless_texture && !GLAD_GL_NV_bindless_texture);
 	if (buggy_vs_expand)
-		Console.Warning("Disabling vertex shader expand due to broken NVIDIA driver.");
+		log_cb(RETRO_LOG_WARN, "Disabling vertex shader expand due to broken NVIDIA driver.\n");
 
 	if (GLAD_GL_ARB_shader_storage_buffer_object)
 	{
 		GLint max_vertex_ssbos = 0;
 		glGetIntegerv(GL_MAX_VERTEX_SHADER_STORAGE_BLOCKS, &max_vertex_ssbos);
-		Console.WriteLn("GL_MAX_VERTEX_SHADER_STORAGE_BLOCKS: %d", max_vertex_ssbos);
+		log_cb(RETRO_LOG_INFO, "GL_MAX_VERTEX_SHADER_STORAGE_BLOCKS: %d\n", max_vertex_ssbos);
 		m_features.vs_expand = (!GSConfig.DisableVertexShaderExpand && !buggy_vs_expand && max_vertex_ssbos > 0 &&
 								GLAD_GL_ARB_gpu_shader5);
 	}
 	if (!m_features.vs_expand)
-		Console.Warning("Vertex expansion is not supported. This will reduce performance.");
+		log_cb(RETRO_LOG_WARN, "Vertex expansion is not supported. This will reduce performance.\n");
 
 	GLint point_range[2] = {};
 	glGetIntegerv(GL_ALIASED_POINT_SIZE_RANGE, point_range);
 	m_features.point_expand = (point_range[0] <= GSConfig.UpscaleMultiplier && point_range[1] >= GSConfig.UpscaleMultiplier);
 	m_features.line_expand = false;
 
-	Console.WriteLn("Using %s for point expansion, %s for line expansion and %s for sprite expansion.",
+	log_cb(RETRO_LOG_INFO, "Using %s for point expansion, %s for line expansion and %s for sprite expansion.\n",
 		m_features.point_expand ? "hardware" : (m_features.vs_expand ? "vertex expanding" : "UNSUPPORTED"),
 		m_features.line_expand ? "hardware" : (m_features.vs_expand ? "vertex expanding" : "UNSUPPORTED"),
 		m_features.vs_expand ? "vertex expanding" : "CPU");
@@ -285,7 +284,7 @@ bool GSDeviceOGL::Create()
 	m_gl_context = GLContext::Create();
 	if (!m_gl_context)
 	{
-		Console.Error("Failed to create any GL context");
+		log_cb(RETRO_LOG_ERROR, "Failed to create any GL context\n");
 		return false;
 	}
 
@@ -296,11 +295,11 @@ bool GSDeviceOGL::Create()
 	if (!GSConfig.DisableShaderCache)
 	{
 		if (!m_shader_cache.Open(false))
-			Console.Warning("Shader cache failed to open.");
+			log_cb(RETRO_LOG_WARN, "Shader cache failed to open.\n");
 	}
 	else
 	{
-		Console.WriteLn("Not using shader cache.");
+		log_cb(RETRO_LOG_INFO, "Not using shader cache.\n");
 	}
 
 	// because of fbo bindings below...
@@ -356,7 +355,7 @@ bool GSDeviceOGL::Create()
 		glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &m_uniform_buffer_alignment);
 		if (!m_vertex_stream_buffer || !m_index_stream_buffer || !m_vertex_uniform_stream_buffer || !m_fragment_uniform_stream_buffer)
 		{
-			Console.Error("GS: Failed to create vertex/index/uniform streaming buffers");
+			log_cb(RETRO_LOG_ERROR, "GS: Failed to create vertex/index/uniform streaming buffers\n");
 			return false;
 		}
 
@@ -576,7 +575,7 @@ bool GSDeviceOGL::Create()
 			m_texture_upload_buffer->Unbind();
 		}
 		else
-			Console.Error("Failed to create texture upload buffer. Using slow path.");
+			log_cb(RETRO_LOG_ERROR, "Failed to create texture upload buffer. Using slow path.\n");
 	}
 
 	return true;
@@ -1066,7 +1065,7 @@ static void GSDeviceOGLAppendShaderMacro(std::string& macro, const char* name, i
 
 std::string GSDeviceOGL::GetVSSource(VSSelector sel)
 {
-	Console.WriteLn("Compiling new vertex shader with selector 0x%" PRIX64, (uint64_t)sel.key);
+	log_cb(RETRO_LOG_INFO, "Compiling new vertex shader with selector 0x%\n" PRIX64, (uint64_t)sel.key);
 
 	std::string macro;
 	GSDeviceOGLAppendShaderMacro(macro, "VS_FST", sel.fst);
@@ -1081,7 +1080,7 @@ std::string GSDeviceOGL::GetVSSource(VSSelector sel)
 
 std::string GSDeviceOGL::GetPSSource(const PSSelector& sel)
 {
-	Console.WriteLn("Compiling new pixel shader with selector 0x%" PRIX64 "%08X", (uint64_t)sel.key_hi, (unsigned)sel.key_lo);
+	log_cb(RETRO_LOG_INFO, "Compiling new pixel shader with selector 0x%\n" PRIX64 "%08X", (uint64_t)sel.key_hi, (unsigned)sel.key_lo);
 
 	std::string macro;
 	GSDeviceOGLAppendShaderMacro(macro, "PS_FST", sel.fst);
@@ -2258,6 +2257,6 @@ void GSDeviceOGL::DebugMessageCallback(GLenum gl_source, GLenum gl_type, GLuint 
 	// Don't spam noisy information on the terminal
 	if (gl_severity != GL_DEBUG_SEVERITY_NOTIFICATION && gl_source != GL_DEBUG_SOURCE_APPLICATION)
 	{
-		Console.Error("T:%s\tID:%d\tS:%s\t=> %s", type.c_str(), GSState::s_n, severity.c_str(), message.c_str());
+		log_cb(RETRO_LOG_ERROR, "T:%s\tID:%d\tS:%s\t=> %s\n", type.c_str(), GSState::s_n, severity.c_str(), message.c_str());
 	}
 }

@@ -77,12 +77,12 @@ std::vector<AdapterEntry> SocketAdapter::GetAdapters()
 
 	if (dwStatus == ERROR_BUFFER_OVERFLOW)
 	{
-		DevCon.WriteLn("DEV9: PCAPGetWin32Adapter() buffer too small, resizing");
+		log_cb(RETRO_LOG_DEBUG, "DEV9: PCAPGetWin32Adapter() buffer too small, resizing\n");
 		//
 		neededSize = dwBufLen / sizeof(IP_ADAPTER_ADDRESSES) + 1;
 		AdapterInfo = std::make_unique<IP_ADAPTER_ADDRESSES[]>(neededSize);
 		dwBufLen = sizeof(IP_ADAPTER_ADDRESSES) * neededSize;
-		DevCon.WriteLn("DEV9: New size %i", neededSize);
+		log_cb(RETRO_LOG_DEBUG, "DEV9: New size %i\n", neededSize);
 
 		dwStatus = GetAdaptersAddresses(
 			AF_UNSPEC,
@@ -165,7 +165,7 @@ SocketAdapter::SocketAdapter()
 
 		if (!foundAdapter)
 		{
-			Console.Error("DEV9: Socket: Failed to Get Adapter");
+			log_cb(RETRO_LOG_ERROR, "DEV9: Socket: Failed to Get Adapter\n");
 			return;
 		}
 
@@ -174,7 +174,7 @@ SocketAdapter::SocketAdapter()
 			adapterIP = adIP.value();
 		else
 		{
-			Console.Error("DEV9: Socket: Failed To Get Adapter IP");
+			log_cb(RETRO_LOG_ERROR, "DEV9: Socket: Failed To Get Adapter IP\n");
 			return;
 		}
 	}
@@ -185,7 +185,7 @@ SocketAdapter::SocketAdapter()
 
 		if (!foundAdapter)
 		{
-			Console.Error("DEV9: Socket: Auto Selection Failed, Check You Connection or Manually Specify Adapter");
+			log_cb(RETRO_LOG_ERROR, "DEV9: Socket: Auto Selection Failed, Check You Connection or Manually Specify Adapter\n");
 			return;
 		}
 	}
@@ -212,7 +212,7 @@ SocketAdapter::SocketAdapter()
 		SetMACAddress(&newMAC);
 	}
 	else
-		Console.Error("DEV9: Socket: Failed to get MAC address for adapter");
+		log_cb(RETRO_LOG_ERROR, "DEV9: Socket: Failed to get MAC address for adapter\n");
 
 #ifdef _WIN32
 	/* Use the MAKEWORD(lowbyte, highbyte) macro declared in Windef.h */
@@ -222,7 +222,7 @@ SocketAdapter::SocketAdapter()
 	const int err = WSAStartup(wVersionRequested, &wsaData);
 	if (err != 0)
 	{
-		Console.Error("DEV9: WSAStartup failed with error: %d\n", err);
+		log_cb(RETRO_LOG_ERROR, "DEV9: WSAStartup failed with error: %d\n\n", err);
 		return;
 	}
 	else
@@ -346,7 +346,7 @@ bool SocketAdapter::send(NetPacket* pkt)
 			return true;
 		}
 		default:
-			Console.Error("DEV9: Socket: Unkown EtherframeType %X", frame.protocol);
+			log_cb(RETRO_LOG_ERROR, "DEV9: Socket: Unkown EtherframeType %X\n", frame.protocol);
 			return false;
 	}
 
@@ -357,7 +357,7 @@ void SocketAdapter::reset()
 {
 	//Adapter Reset
 	std::vector<ConnectionKey> keys = connections.GetKeys();
-	DevCon.WriteLn("DEV9: Socket: Reset %zu Connections", keys.size());
+	log_cb(RETRO_LOG_DEBUG, "DEV9: Socket: Reset %zu Connections\n", keys.size());
 	for (size_t i = 0; i < keys.size(); i++)
 	{
 		ConnectionKey key = keys[i];
@@ -396,7 +396,7 @@ bool SocketAdapter::SendIP(IP_Packet* ipPkt)
 {
 	if (ipPkt->VerifyChecksum() == false)
 	{
-		Console.Error("DEV9: Socket: IP packet with bad CSUM");
+		log_cb(RETRO_LOG_ERROR, "DEV9: Socket: IP packet with bad CSUM\n");
 		return false;
 	}
 	//Do Checksum in sub functions
@@ -417,7 +417,7 @@ bool SocketAdapter::SendIP(IP_Packet* ipPkt)
 			return SendUDP(Key, ipPkt);
 		default:
 			//Log_Error("Unkown Protocol");
-			Console.Error("DEV9: Socket: Unkown IPv4 Protocol %X", ipPkt->protocol);
+			log_cb(RETRO_LOG_ERROR, "DEV9: Socket: Unkown IPv4 Protocol %X\n", ipPkt->protocol);
 			return false;
 	}
 }
@@ -437,7 +437,7 @@ bool SocketAdapter::SendICMP(ConnectionKey Key, IP_Packet* ipPkt)
 		return s->Send(ipPkt->GetPayload(), ipPkt);
 	}
 
-	DevCon.WriteLn("DEV9: Socket: Creating New ICMP Connection");
+	log_cb(RETRO_LOG_DEBUG, "DEV9: Socket: Creating New ICMP Connection\n");
 	s = new ICMP_Session(Key, adapterIP, &connections);
 
 	s->AddConnectionClosedHandler([&](BaseSession* session) { HandleConnectionClosed(session); });
@@ -449,7 +449,7 @@ bool SocketAdapter::SendICMP(ConnectionKey Key, IP_Packet* ipPkt)
 
 bool SocketAdapter::SendIGMP(ConnectionKey Key, IP_Packet* ipPkt)
 {
-	Console.Error("DEV9: Socket: IGMP Packets not supported in socket mode");
+	log_cb(RETRO_LOG_ERROR, "DEV9: Socket: IGMP Packets not supported in socket mode\n");
 	return false;
 }
 
@@ -468,7 +468,7 @@ bool SocketAdapter::SendTCP(ConnectionKey Key, IP_Packet* ipPkt)
 		return false;
 	else
 	{
-		Console.WriteLn("DEV9: Socket: Creating New TCP Connection to %d", tcp.destinationPort);
+		log_cb(RETRO_LOG_INFO, "DEV9: Socket: Creating New TCP Connection to %d\n", tcp.destinationPort);
 		TCP_Session* s = new TCP_Session(Key, adapterIP);
 
 		s->AddConnectionClosedHandler([&](BaseSession* session) { HandleConnectionClosed(session); });
@@ -505,7 +505,7 @@ bool SocketAdapter::SendUDP(ConnectionKey Key, IP_Packet* ipPkt)
 			BaseSession* fSession;
 			if (fixedUDPPorts.TryGetValue(udp.sourcePort, &fSession))
 			{
-				//DevCon.WriteLn("DEV9: Socket: Using Existing UDPFixedPort");
+				//log_cb(RETRO_LOG_DEBUG, "DEV9: Socket: Using Existing UDPFixedPort\n");
 				fPort = static_cast<UDP_FixedPort*>(fSession);
 			}
 			else
@@ -515,7 +515,7 @@ bool SocketAdapter::SendUDP(ConnectionKey Key, IP_Packet* ipPkt)
 				fKey.ps2Port = udp.sourcePort;
 				fKey.srvPort = 0;
 
-				Console.WriteLn("DEV9: Socket: Creating New UDPFixedPort with port %d", udp.sourcePort);
+				log_cb(RETRO_LOG_INFO, "DEV9: Socket: Creating New UDPFixedPort with port %d\n", udp.sourcePort);
 
 				fPort = new UDP_FixedPort(fKey, adapterIP, udp.sourcePort);
 				fPort->AddConnectionClosedHandler([&](BaseSession* session) { HandleFixedPortClosed(session); });
@@ -527,14 +527,14 @@ bool SocketAdapter::SendUDP(ConnectionKey Key, IP_Packet* ipPkt)
 				fixedUDPPorts.Add(udp.sourcePort, fPort);
 			}
 
-			Console.WriteLn("DEV9: Socket: Creating New UDP Connection from FixedPort %d to %d", udp.sourcePort, udp.destinationPort);
+			log_cb(RETRO_LOG_INFO, "DEV9: Socket: Creating New UDP Connection from FixedPort %d to %d\n", udp.sourcePort, udp.destinationPort);
 			s = fPort->NewClientSession(Key,
 				ipPkt->destinationIP == dhcpServer.broadcastIP || ipPkt->destinationIP == IP_Address{{{255, 255, 255, 255}}},
 				(ipPkt->destinationIP.bytes[0] & 0xF0) == 0xE0);
 		}
 		else
 		{
-			Console.WriteLn("DEV9: Socket: Creating New UDP Connection to %d", udp.destinationPort);
+			log_cb(RETRO_LOG_INFO, "DEV9: Socket: Creating New UDP Connection to %d\n", udp.destinationPort);
 			s = new UDP_Session(Key, adapterIP);
 		}
 
@@ -567,19 +567,19 @@ void SocketAdapter::HandleConnectionClosed(BaseSession* sender)
 	switch (key.protocol)
 	{
 		case (int)IP_Type::UDP:
-			Console.WriteLn("DEV9: Socket: Closed Dead UDP Connection to %d", key.srvPort);
+			log_cb(RETRO_LOG_INFO, "DEV9: Socket: Closed Dead UDP Connection to %d\n", key.srvPort);
 			break;
 		case (int)IP_Type::TCP:
-			Console.WriteLn("DEV9: Socket: Closed Dead TCP Connection to %d", key.srvPort);
+			log_cb(RETRO_LOG_INFO, "DEV9: Socket: Closed Dead TCP Connection to %d\n", key.srvPort);
 			break;
 		case (int)IP_Type::ICMP:
-			Console.WriteLn("DEV9: Socket: Closed Dead ICMP Connection");
+			log_cb(RETRO_LOG_INFO, "DEV9: Socket: Closed Dead ICMP Connection\n");
 			break;
 		case (int)IP_Type::IGMP:
-			Console.WriteLn("DEV9: Socket: Closed Dead ICMP Connection");
+			log_cb(RETRO_LOG_INFO, "DEV9: Socket: Closed Dead ICMP Connection\n");
 			break;
 		default:
-			Console.WriteLn("DEV9: Socket: Closed Dead Unk Connection");
+			log_cb(RETRO_LOG_INFO, "DEV9: Socket: Closed Dead Unk Connection\n");
 			break;
 	}
 }
@@ -593,7 +593,7 @@ void SocketAdapter::HandleFixedPortClosed(BaseSession* sender)
 	//this is probably going to cause issues
 	delete sender;
 
-	Console.WriteLn("DEV9: Socket: Closed Dead UDP Fixed Port to %d", key.ps2Port);
+	log_cb(RETRO_LOG_INFO, "DEV9: Socket: Closed Dead UDP Fixed Port to %d\n", key.ps2Port);
 }
 
 void SocketAdapter::close()
@@ -604,7 +604,7 @@ SocketAdapter::~SocketAdapter()
 {
 	//Force close all sessions
 	std::vector<ConnectionKey> keys = connections.GetKeys();
-	DevCon.WriteLn("DEV9: Socket: Closing %zu Connections", keys.size());
+	log_cb(RETRO_LOG_DEBUG, "DEV9: Socket: Closing %zu Connections\n", keys.size());
 	for (size_t i = 0; i < keys.size(); i++)
 	{
 		const ConnectionKey key = keys[i];

@@ -13,7 +13,6 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "common/Console.h"
 #include "common/Pcsx2Defs.h"
 
 #ifdef __POSIX__
@@ -50,7 +49,7 @@ namespace Sessions
 		int ret;
 		if (client == INVALID_SOCKET)
 		{
-			Console.Error("DEV9: UDP: Failed to open socket. Error: %d",
+			log_cb(RETRO_LOG_ERROR, "DEV9: UDP: Failed to open socket. Error: %d\n",
 #ifdef _WIN32
 				WSAGetLastError());
 #elif defined(__POSIX__)
@@ -64,7 +63,7 @@ namespace Sessions
 		ret = setsockopt(client, SOL_SOCKET, SO_REUSEADDR, (const char*)&reuseAddress, sizeof(reuseAddress));
 
 		if (ret == SOCKET_ERROR)
-			Console.Error("DEV9: UDP: Failed to set SO_REUSEADDR. Error: %d",
+			log_cb(RETRO_LOG_ERROR, "DEV9: UDP: Failed to set SO_REUSEADDR. Error: %d\n",
 #ifdef _WIN32
 				WSAGetLastError());
 #elif defined(__POSIX__)
@@ -75,7 +74,7 @@ namespace Sessions
 		ret = setsockopt(client, SOL_SOCKET, SO_BROADCAST, (const char*)&broadcastEnable, sizeof(broadcastEnable));
 
 		if (ret == SOCKET_ERROR)
-			Console.Error("DEV9: UDP: Failed to set SO_BROADCAST. Error: %d",
+			log_cb(RETRO_LOG_ERROR, "DEV9: UDP: Failed to set SO_BROADCAST. Error: %d\n",
 #ifdef _WIN32
 				WSAGetLastError());
 #elif defined(__POSIX__)
@@ -90,7 +89,7 @@ namespace Sessions
 		ret = bind(client, (const sockaddr*)&endpoint, sizeof(endpoint));
 
 		if (ret == SOCKET_ERROR)
-			Console.Error("DEV9: UDP: Failed to bind socket. Error: %d",
+			log_cb(RETRO_LOG_ERROR, "DEV9: UDP: Failed to bind socket. Error: %d\n",
 #ifdef _WIN32
 				WSAGetLastError());
 #elif defined(__POSIX__)
@@ -118,7 +117,7 @@ namespace Sessions
 		if (ret == SOCKET_ERROR)
 		{
 			hasData = false;
-			Console.Error("DEV9: UDP: select failed. Error Code: %d",
+			log_cb(RETRO_LOG_ERROR, "DEV9: UDP: select failed. Error Code: %d\n",
 #ifdef _WIN32
 				WSAGetLastError());
 #elif defined(__POSIX__)
@@ -133,14 +132,14 @@ namespace Sessions
 #ifdef _WIN32
 			int len = sizeof(error);
 			if (getsockopt(client, SOL_SOCKET, SO_ERROR, (char*)&error, &len) < 0)
-				Console.Error("DEV9: UDP: Unkown UDP Connection Error (getsockopt Error: %d)", WSAGetLastError());
+				log_cb(RETRO_LOG_ERROR, "DEV9: UDP: Unkown UDP Connection Error (getsockopt Error: %d)\n", WSAGetLastError());
 #elif defined(__POSIX__)
 			socklen_t len = sizeof(error);
 			if (getsockopt(client, SOL_SOCKET, SO_ERROR, (char*)&error, &len) < 0)
-				Console.Error("DEV9: UDP: Unkown UDP Connection Error (getsockopt Error: %d)", errno);
+				log_cb(RETRO_LOG_ERROR, "DEV9: UDP: Unkown UDP Connection Error (getsockopt Error: %d)\n", errno);
 #endif
 			else
-				Console.Error("DEV9: UDP: Recv Error: %d", error);
+				log_cb(RETRO_LOG_ERROR, "DEV9: UDP: Recv Error: %d\n", error);
 		}
 		else
 			hasData = FD_ISSET(client, &sReady);
@@ -173,7 +172,7 @@ namespace Sessions
 
 			if (ret == SOCKET_ERROR)
 			{
-				Console.Error("UDP Recv Error: %d",
+				log_cb(RETRO_LOG_ERROR, "UDP Recv Error: %d\n",
 #ifdef _WIN32
 					WSAGetLastError());
 #elif defined(__POSIX__)
@@ -202,7 +201,7 @@ namespace Sessions
 						return iRet;
 				}
 			}
-			Console.Error("DEV9: UDP: Unexpected packet, dropping");
+			log_cb(RETRO_LOG_ERROR, "DEV9: UDP: Unexpected packet, dropping\n");
 			delete iRet;
 		}
 		return nullptr;

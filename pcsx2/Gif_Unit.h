@@ -14,6 +14,7 @@
  */
 
 #pragma once
+#include "common/Pcsx2Defs.h"
 #include <memalign.h>
 #include <retro_atomic.h>
 #include <retro_spsc.h>
@@ -202,7 +203,6 @@ struct GS_FINISH
  * instead of a guess. */
 #define MTVU_GSPACK_QUEUE_HIGH_WATER 0
 #if MTVU_GSPACK_QUEUE_HIGH_WATER
-#include "../common/Console.h"
 #endif
 
 struct Gif_Path_MTVU
@@ -257,7 +257,7 @@ struct Gif_Path_MTVU
 			retro_spsc_clear(&gsPackQueue);
 #if MTVU_GSPACK_QUEUE_HIGH_WATER
 		if (gsPackQueuePeak)
-			Console.WriteLn("MTVU gsPackQueue peak occupancy: %u of %u records",
+			log_cb(RETRO_LOG_INFO, "MTVU gsPackQueue peak occupancy: %u of %u records\n",
 				gsPackQueuePeak, (u32)MTVU_GSPACK_QUEUE_RECORDS);
 		gsPackQueuePeak = 0;
 #endif

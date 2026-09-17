@@ -13,8 +13,8 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "common/Console.h"
 #include "DHCP_Options.h"
+#include "common/Pcsx2Defs.h"
 #include "DEV9/PacketReader/NetLib.h"
 
 namespace PacketReader::IP::UDP::DHCP
@@ -81,7 +81,7 @@ namespace PacketReader::IP::UDP::DHCP
 	{
 		if (name.size() > 255)
 		{
-			Console.Error("DEV9: DHCPopHostName: Name too long");
+			log_cb(RETRO_LOG_ERROR, "DEV9: DHCPopHostName: Name too long\n");
 			hostName = name.substr(0, 255);
 		}
 		else
@@ -107,7 +107,7 @@ namespace PacketReader::IP::UDP::DHCP
 	{
 		if (name.size() > 255)
 		{
-			Console.Error("DEV9: DHCPopDnsName: Name too long");
+			log_cb(RETRO_LOG_ERROR, "DEV9: DHCPopDnsName: Name too long\n");
 			domainName = name.substr(0, 255);
 		}
 		else
@@ -313,7 +313,7 @@ namespace PacketReader::IP::UDP::DHCP
 	{
 		if (msg.size() > 255)
 		{
-			Console.Error("DEV9: DHCPopMSGStr: String too long");
+			log_cb(RETRO_LOG_ERROR, "DEV9: DHCPopMSGStr: String too long\n");
 			message = msg.substr(0, 255);
 		}
 		else
@@ -390,7 +390,7 @@ namespace PacketReader::IP::UDP::DHCP
 	{
 		if (id.size() > 255)
 		{
-			Console.Error("DEV9: DHCPopClassID: Class ID too long");
+			log_cb(RETRO_LOG_ERROR, "DEV9: DHCPopClassID: Class ID too long\n");
 			classID = id.substr(0, 255);
 		}
 		else

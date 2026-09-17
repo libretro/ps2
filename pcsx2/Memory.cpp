@@ -35,6 +35,7 @@ BIOS
 */
 
 #include "IopHw.h"
+#include "common/Pcsx2Defs.h"
 #include <utility>
 #include "GS.h"
 #include "VUmicro.h"
@@ -105,7 +106,7 @@ SysMainMemory::~SysMainMemory()
 
 bool SysMainMemory::Allocate()
 {
-	Console.WriteLn("Allocating host memory for virtual systems...");
+	log_cb(RETRO_LOG_INFO, "Allocating host memory for virtual systems...\n");
 	m_ee.Assign(MainMemory());
 	m_iop.Assign(MainMemory());
 	m_vu.Assign(MainMemory());
@@ -117,7 +118,7 @@ bool SysMainMemory::Allocate()
 
 void SysMainMemory::Reset()
 {
-	Console.WriteLn("Resetting host memory for virtual systems...");
+	log_cb(RETRO_LOG_INFO, "Resetting host memory for virtual systems...\n");
 	m_ee.Reset();
 	m_iop.Reset();
 	m_vu.Reset();
@@ -128,7 +129,7 @@ void SysMainMemory::Reset()
 
 void SysMainMemory::Release()
 {
-	Console.WriteLn("Releasing host memory for virtual systems...");
+	log_cb(RETRO_LOG_INFO, "Releasing host memory for virtual systems...\n");
 
 	vtlb_Core_Free(); // Just to be sure... (calling order could result in it getting missed during Decommit).
 
@@ -725,7 +726,7 @@ void eeMemoryReserve::Reset()
 	vtlb_VMapUnmap(0x20000000,0x60000000);
 
 	if (!LoadBIOS())
-		Console.Error("Failed to load BIOS");
+		log_cb(RETRO_LOG_ERROR, "Failed to load BIOS\n");
 
 	// Must happen after BIOS load, depends on BIOS version.
 	cdvdLoadNVRAM();

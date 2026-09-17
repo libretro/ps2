@@ -1,4 +1,5 @@
 #include <cstdio>
+#include "common/Pcsx2Defs.h"
 /*  PCSX2 - PS2 Emulator for PCs
  *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
@@ -34,7 +35,6 @@
 #include "Host.h"
 
 #include <retro_spsc.h>
-#include "common/Console.h"
 
 union PacketTagType
 {
@@ -245,7 +245,7 @@ void MTGS::TryOpenGS(void)
 		s_RingOk = retro_spsc_init(&s_Ring,
 			(size_t)MTGS_RINGBUFFERSIZE * sizeof(PacketTagType));
 		if (!s_RingOk)
-			Console.Error("MTGS: command ring allocation failed; GS commands will be dropped");
+			log_cb(RETRO_LOG_ERROR, "MTGS: command ring allocation failed; GS commands will be dropped\n");
 	}
 
 	GSopen(EmuConfig.GS, EmuConfig.GS.Renderer, hw_render.context_type, PS2MEM_GS);

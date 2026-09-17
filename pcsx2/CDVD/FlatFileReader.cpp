@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: LGPL-3.0+
 
 #include <compat/strl.h>
+#include "common/Pcsx2Defs.h"
 #include "FlatFileReader.h"
 
-#include "../../common/Console.h"
 #include "HostFS.h"
 
 #include <streams/file_stream.h>
@@ -66,7 +66,7 @@ bool FlatFileReader::Open2(const char* filename)
 		 * image is what this looked like in the field, and it is worth
 		 * one line to say so rather than leaving the whole disc open
 		 * as a silent false. */
-		Console.Error("CDVD: cannot determine size of %s (VFS reported %lld) - image unreadable",
+		log_cb(RETRO_LOG_ERROR, "CDVD: cannot determine size of %s (VFS reported %lld) - image unreadable\n",
 				m_filename, static_cast<long long>(filesize));
 		Close2();
 		return false;

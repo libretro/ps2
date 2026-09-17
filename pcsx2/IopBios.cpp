@@ -14,6 +14,7 @@
  */
 
 #include <ctype.h>
+#include "common/Pcsx2Defs.h"
 #include <string.h>
 #include <iterator>
 #include <utility>
@@ -32,7 +33,6 @@
 #include <unistd.h>
 #endif
 
-#include "../common/Console.h"
 #include "HostFS.h"
 #include "../common/StringUtil.h"
 
@@ -188,7 +188,7 @@ void Hle_SetElfPath(const char* elfFileName)
 		if (n > 1 && hostRoot[n - 1] == FS_OSPATH_SEPARATOR_CHARACTER)
 			hostRoot[n - 1] = '\0';
 	}
-	Console.WriteLn("HLE Host: Set 'host:' root path to: %s\n", hostRoot);
+	log_cb(RETRO_LOG_INFO, "HLE Host: Set 'host:' root path to: %s\n\n", hostRoot);
 }
 
 void Hle_ClearElfPath()
@@ -291,8 +291,7 @@ namespace R3000A
 			    || strncmp(canonical, hostRoot, root_len)
 			    || canonical[root_len] != FS_OSPATH_SEPARATOR_CHARACTER)
 			{
-				Console.Error(
-					"IopHLE: Denying access to path outside of ELF directory. Requested path: '{%s}', Resolved path: '{%s}', ELF directory: '{%s}'",
+				log_cb(RETRO_LOG_ERROR, "IopHLE: Denying access to path outside of ELF directory. Requested path: '{%s}', Resolved path: '{%s}', ELF directory: '{%s}'\n",
 					path, out, hostRoot);
 				out[0] = '\0';
 			}
@@ -975,7 +974,7 @@ namespace R3000A
 				const bool succeeded = !path_is_directory(file_path) &&
 					filestream_delete(file_path) == 0;
 				if (!succeeded)
-					Console.Warning("IOPHLE remove_HLE failed for '%s'", file_path);
+					log_cb(RETRO_LOG_WARN, "IOPHLE remove_HLE failed for '%s'\n", file_path);
 				v0 = succeeded ? 0 : -IOP_EIO;
 				pc = ra;
 			}
@@ -997,7 +996,7 @@ namespace R3000A
 				host_path(folder_path, sizeof(folder_path), colon ? colon + 1 : full_path, 0); // NOTE: Don't allow creating the ELF directory.
 				const bool succeeded = path_mkdir(folder_path);
 				if (!succeeded)
-					Console.Warning("IOPHLE mkdir_HLE failed for '%s'", folder_path);
+					log_cb(RETRO_LOG_WARN, "IOPHLE mkdir_HLE failed for '%s'\n", folder_path);
 				v0 = succeeded ? 0 : -IOP_EIO;
 				pc = ra;
 				return 1;
@@ -1045,7 +1044,7 @@ namespace R3000A
 				const bool succeeded = path_is_directory(folder_path) &&
 					filestream_delete(folder_path) == 0;
 				if (!succeeded)
-					Console.Warning("IOPHLE rmdir_HLE failed for '%s'", folder_path);
+					log_cb(RETRO_LOG_WARN, "IOPHLE rmdir_HLE failed for '%s'\n", folder_path);
 				v0 = succeeded ? 0 : -IOP_EIO;
 				pc = ra;
 				return 1;

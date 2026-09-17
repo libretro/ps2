@@ -73,7 +73,7 @@ void NetRxThread()
 			if (rx_fifo_can_rx())
 				rx_process(&tmp);
 			else
-				Console.Error("DEV9: rx_fifo_can_rx() false after nif->recv(), dropping");
+				log_cb(RETRO_LOG_ERROR, "DEV9: rx_fifo_can_rx() false after nif->recv(), dropping\n");
 		}
 
 		using namespace std::chrono_literals;
@@ -103,7 +103,7 @@ NetAdapter* GetNetAdapter()
 #ifdef _WIN32
 		case Pcsx2Config::DEV9Options::NetApi::TAP:
 			/* No TAP implementation is in the tree. */
-			Console.Error("DEV9: TAP backend not present in this core, use the Sockets api");
+			log_cb(RETRO_LOG_ERROR, "DEV9: TAP backend not present in this core, use the Sockets api\n");
 			return 0;
 #endif
 		case Pcsx2Config::DEV9Options::NetApi::PCAP_Bridged:
@@ -112,7 +112,7 @@ NetAdapter* GetNetAdapter()
 			na = static_cast<NetAdapter*>(new PCAPAdapter());
 			break;
 #else
-			Console.Error("DEV9: PCAP backend not built into this core, use the Sockets api");
+			log_cb(RETRO_LOG_ERROR, "DEV9: PCAP backend not built into this core, use the Sockets api\n");
 			return 0;
 #endif
 		case Pcsx2Config::DEV9Options::NetApi::Sockets:
@@ -136,7 +136,7 @@ void InitNet()
 
 	if (!na)
 	{
-		Console.Error("DEV9: Failed to GetNetAdapter()");
+		log_cb(RETRO_LOG_ERROR, "DEV9: Failed to GetNetAdapter()\n");
 		EmuConfig.DEV9.EthEnable = false;
 		return;
 	}
@@ -179,10 +179,10 @@ void TermNet()
 	{
 		retro_atomic_store_release_int(&RxRunning, 0);
 		nif->close();
-		Console.WriteLn("DEV9: Waiting for RX-net thread to terminate..");
+		log_cb(RETRO_LOG_INFO, "DEV9: Waiting for RX-net thread to terminate..\n");
 		sthread_join(rx_thread);
 		rx_thread = NULL;
-		Console.WriteLn("DEV9: Done");
+		log_cb(RETRO_LOG_INFO, "DEV9: Done\n");
 
 		delete nif;
 		nif = nullptr;
@@ -261,7 +261,7 @@ void NetAdapter::InspectSend(NetPacket* pkt)
 
 				if (udppkt.destinationPort == 53)
 				{
-					Console.WriteLn("DEV9: DNS: Packet Sent To %i.%i.%i.%i",
+					log_cb(RETRO_LOG_INFO, "DEV9: DNS: Packet Sent To %i.%i.%i.%i\n",
 						ippkt.destinationIP.bytes[0], ippkt.destinationIP.bytes[1], ippkt.destinationIP.bytes[2], ippkt.destinationIP.bytes[3]);
 					dnsLogger.InspectSend(&udppkt);
 				}
@@ -286,7 +286,7 @@ void NetAdapter::InspectRecv(NetPacket* pkt)
 
 				if (udppkt.sourcePort == 53)
 				{
-					Console.WriteLn("DEV9: DNS: Packet Sent From %i.%i.%i.%i",
+					log_cb(RETRO_LOG_INFO, "DEV9: DNS: Packet Sent From %i.%i.%i.%i\n",
 						ippkt.sourceIP.bytes[0], ippkt.sourceIP.bytes[1], ippkt.sourceIP.bytes[2], ippkt.sourceIP.bytes[3]);
 					dnsLogger.InspectRecv(&udppkt);
 				}
@@ -332,7 +332,7 @@ void NetAdapter::InitInternalServer(ifaddrs* adapter, bool dhcpForceEnable, IP_A
 #endif
 {
 	if (adapter == nullptr)
-		Console.Error("DEV9: InitInternalServer() got nullptr for adapter");
+		log_cb(RETRO_LOG_ERROR, "DEV9: InitInternalServer() got nullptr for adapter\n");
 
 	dhcpOn = EmuConfig.DEV9.InterceptDHCP || dhcpForceEnable;
 	if (dhcpOn)
@@ -354,7 +354,7 @@ void NetAdapter::ReloadInternalServer(ifaddrs* adapter, bool dhcpForceEnable, IP
 #endif
 {
 	if (adapter == nullptr)
-		Console.Error("DEV9: ReloadInternalServer() got nullptr for adapter");
+		log_cb(RETRO_LOG_ERROR, "DEV9: ReloadInternalServer() got nullptr for adapter\n");
 
 	dhcpOn = EmuConfig.DEV9.InterceptDHCP || dhcpForceEnable;
 	if (dhcpOn)

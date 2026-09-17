@@ -14,6 +14,7 @@
  */
 
 #include "D3D.h"
+#include "common/Pcsx2Defs.h"
 #include <cerrno>
 
 #include "D3D11ShaderCache.h"
@@ -22,7 +23,6 @@
 #include "ShaderCacheVersion.h"
 
 #include "HostFS.h"
-#include "common/Console.h"
 #include <array>
 
 /* xxhash may already be set up by a header included above (HashCombine.h /
@@ -116,26 +116,26 @@ bool D3D11ShaderCache::CreateNew(const std::string& index_filename, const std::s
 {
 	if (path_is_valid(index_filename.c_str()))
 	{
-		Console.Warning("Removing existing index file '%s'", index_filename.c_str());
+		log_cb(RETRO_LOG_WARN, "Removing existing index file '%s'\n", index_filename.c_str());
 		filestream_delete(index_filename.c_str());
 	}
 	if (path_is_valid(blob_filename.c_str()))
 	{
-		Console.Warning("Removing existing blob file '%s'", blob_filename.c_str());
+		log_cb(RETRO_LOG_WARN, "Removing existing blob file '%s'\n", blob_filename.c_str());
 		filestream_delete(blob_filename.c_str());
 	}
 
 	m_index_file = filestream_open(index_filename.c_str(), RETRO_VFS_FILE_ACCESS_WRITE, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 	if (!m_index_file)
 	{
-		Console.Error("Failed to open index file '%s' for writing", index_filename.c_str());
+		log_cb(RETRO_LOG_ERROR, "Failed to open index file '%s' for writing\n", index_filename.c_str());
 		return false;
 	}
 
 	const u32 file_version = SHADER_CACHE_VERSION;
 	if (filestream_write(m_index_file, &file_version, sizeof(file_version)) != (int64_t)(sizeof(file_version)))
 	{
-		Console.Error("Failed to write version to index file '%s'", index_filename.c_str());
+		log_cb(RETRO_LOG_ERROR, "Failed to write version to index file '%s'\n", index_filename.c_str());
 		filestream_close(m_index_file);
 		m_index_file = nullptr;
 		filestream_delete(index_filename.c_str());
@@ -145,7 +145,7 @@ bool D3D11ShaderCache::CreateNew(const std::string& index_filename, const std::s
 	m_blob_file = filestream_open(blob_filename.c_str(), RETRO_VFS_FILE_ACCESS_READ_WRITE, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 	if (!m_blob_file)
 	{
-		Console.Error("Failed to open blob file '%s' for writing", blob_filename.c_str());
+		log_cb(RETRO_LOG_ERROR, "Failed to open blob file '%s' for writing\n", blob_filename.c_str());
 		filestream_close(m_index_file);
 		m_index_file = nullptr;
 		filestream_delete(index_filename.c_str());
@@ -164,7 +164,7 @@ bool D3D11ShaderCache::ReadExisting(const std::string& index_filename, const std
 		// we don't want to blow away the cache. so just continue without a cache.
 		if (errno == EACCES)
 		{
-			Console.WriteLn("Failed to open shader cache index with EACCES, are you running two instances?");
+			log_cb(RETRO_LOG_INFO, "Failed to open shader cache index with EACCES, are you running two instances?\n");
 			return true;
 		}
 
@@ -175,7 +175,7 @@ bool D3D11ShaderCache::ReadExisting(const std::string& index_filename, const std
 	u32 data_version = 0;
 	if (filestream_read(m_index_file, &file_version, sizeof(file_version)) != (int64_t)(sizeof(file_version)) || file_version != SHADER_CACHE_VERSION)
 	{
-		Console.Error("Bad file/data version in '%s'", index_filename.c_str());
+		log_cb(RETRO_LOG_ERROR, "Bad file/data version in '%s'\n", index_filename.c_str());
 		filestream_close(m_index_file);
 		m_index_file = nullptr;
 		return false;
@@ -188,7 +188,7 @@ bool D3D11ShaderCache::ReadExisting(const std::string& index_filename, const std
 		filestream_seek(m_blob_file, 0, RETRO_VFS_SEEK_POSITION_END);
 	if (!m_blob_file)
 	{
-		Console.Error("Blob file '%s' is missing", blob_filename.c_str());
+		log_cb(RETRO_LOG_ERROR, "Blob file '%s' is missing\n", blob_filename.c_str());
 		filestream_close(m_index_file);
 		m_index_file = nullptr;
 		return false;
@@ -206,7 +206,7 @@ bool D3D11ShaderCache::ReadExisting(const std::string& index_filename, const std
 			if (filestream_eof(m_index_file))
 				break;
 
-			Console.Error("Failed to read entry from '%s', corrupt file?", index_filename.c_str());
+			log_cb(RETRO_LOG_ERROR, "Failed to read entry from '%s', corrupt file?\n", index_filename.c_str());
 			m_index.clear();
 			filestream_close(m_blob_file);
 			m_blob_file = nullptr;
@@ -304,7 +304,7 @@ wil::com_ptr_nothrow<ID3DBlob> D3D11ShaderCache::GetShaderBlob(D3D::ShaderType t
 	if (FAILED(hr) || filestream_seek(m_blob_file, iter->second.file_offset, RETRO_VFS_SEEK_POSITION_START) != 0 ||
 		filestream_read(m_blob_file, blob->GetBufferPointer(), iter->second.blob_size) != (int64_t)iter->second.blob_size)
 	{
-		Console.Error("(GSShaderCache::GetShaderBlob): Read blob from file failed");
+		log_cb(RETRO_LOG_ERROR, "(GSShaderCache::GetShaderBlob): Read blob from file failed\n");
 		return {};
 	}
 
@@ -322,7 +322,7 @@ wil::com_ptr_nothrow<ID3D11VertexShader> D3D11ShaderCache::GetVertexShader(ID3D1
 	const HRESULT hr = device->CreateVertexShader(blob->GetBufferPointer(), blob->GetBufferSize(), nullptr, shader.put());
 	if (FAILED(hr))
 	{
-		Console.Error("Failed to create vertex shader: 0x%08X", hr);
+		log_cb(RETRO_LOG_ERROR, "Failed to create vertex shader: 0x%08X\n", hr);
 		return {};
 	}
 
@@ -347,7 +347,7 @@ bool D3D11ShaderCache::GetVertexShaderAndInputLayout(ID3D11Device* device,
 	hr = device->CreateInputLayout(layout, layout_size, blob->GetBufferPointer(), blob->GetBufferSize(), il);
 	if (FAILED(hr))
 	{
-		Console.Error("(GetVertexShaderAndInputLayout) Failed to create input layout: %08X", hr);
+		log_cb(RETRO_LOG_ERROR, "(GetVertexShaderAndInputLayout) Failed to create input layout: %08X\n", hr);
 		return false;
 	}
 
@@ -366,7 +366,7 @@ wil::com_ptr_nothrow<ID3D11PixelShader> D3D11ShaderCache::GetPixelShader(ID3D11D
 	const HRESULT hr = device->CreatePixelShader(blob->GetBufferPointer(), blob->GetBufferSize(), nullptr, shader.put());
 	if (FAILED(hr))
 	{
-		Console.Error("Failed to create pixel shader: 0x%08X", hr);
+		log_cb(RETRO_LOG_ERROR, "Failed to create pixel shader: 0x%08X\n", hr);
 		return {};
 	}
 
@@ -384,7 +384,7 @@ wil::com_ptr_nothrow<ID3D11ComputeShader> D3D11ShaderCache::GetComputeShader(ID3
 	const HRESULT hr = device->CreateComputeShader(blob->GetBufferPointer(), blob->GetBufferSize(), nullptr, shader.put());
 	if (FAILED(hr))
 	{
-		Console.Error("Failed to create compute shader: 0x%08X", hr);
+		log_cb(RETRO_LOG_ERROR, "Failed to create compute shader: 0x%08X\n", hr);
 		return {};
 	}
 
@@ -421,7 +421,7 @@ wil::com_ptr_nothrow<ID3DBlob> D3D11ShaderCache::CompileAndAddShaderBlob(const C
 		filestream_flush(m_blob_file) != 0 || filestream_write(m_index_file, &entry, sizeof(entry)) != (int64_t)(sizeof(entry)) ||
 		filestream_flush(m_index_file) != 0)
 	{
-		Console.Error("(D3D11ShaderCache::CompileAndAddShaderBlob) Failed to write shader blob to file");
+		log_cb(RETRO_LOG_ERROR, "(D3D11ShaderCache::CompileAndAddShaderBlob) Failed to write shader blob to file\n");
 		return blob;
 	}
 

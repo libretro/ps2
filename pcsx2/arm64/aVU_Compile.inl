@@ -27,10 +27,10 @@
 //------------------------------------------------------------------
 // Messages Called at Execution Time...
 //------------------------------------------------------------------
-static inline void mVUbadOp0  (u32 prog, u32 pc) { Console.Error("microVU0 Warning: Exiting... Block contains an illegal opcode. [%04x] [%03d]", pc, prog); }
-static inline void mVUbadOp1  (u32 prog, u32 pc) { Console.Error("microVU1 Warning: Exiting... Block contains an illegal opcode. [%04x] [%03d]", pc, prog); }
-static inline void mVUprintPC1(u32 pc) { Console.WriteLn("Block Start PC = 0x%04x", pc); }
-static inline void mVUprintPC2(u32 pc) { Console.WriteLn("Block End PC   = 0x%04x", pc); }
+static inline void mVUbadOp0  (u32 prog, u32 pc) { log_cb(RETRO_LOG_ERROR, "microVU0 Warning: Exiting... Block contains an illegal opcode. [%04x] [%03d]\n", pc, prog); }
+static inline void mVUbadOp1  (u32 prog, u32 pc) { log_cb(RETRO_LOG_ERROR, "microVU1 Warning: Exiting... Block contains an illegal opcode. [%04x] [%03d]\n", pc, prog); }
+static inline void mVUprintPC1(u32 pc) { log_cb(RETRO_LOG_INFO, "Block Start PC = 0x%04x\n", pc); }
+static inline void mVUprintPC2(u32 pc) { log_cb(RETRO_LOG_INFO, "Block End PC   = 0x%04x\n", pc); }
 
 //------------------------------------------------------------------
 // Execute VU Opcode/Instruction (Upper and Lower)
@@ -109,7 +109,7 @@ void doIbit(mV)
 			u32 tempI;
 			if (CHECK_VU_OVERFLOW(mVU.index) && ((curI & 0x7fffffff) >= 0x7f800000))
 			{
-				DevCon.WriteLn(Color_Green, "microVU%d: Clamping I Reg", mVU.index);
+				log_cb(RETRO_LOG_DEBUG, "microVU%d: Clamping I Reg\n", mVU.index);
 				tempI = (0x80000000 & curI) | 0x7f7fffff; // Clamp I Reg
 			}
 			else
@@ -125,7 +125,7 @@ void doSwapOp(mV)
 {
 	if (mVUinfo.backupVF && !mVUlow.noWriteVF)
 	{
-		DevCon.WriteLn(Color_Green, "microVU%d: Backing Up VF Reg [%04x]", getIndex, xPC);
+		log_cb(RETRO_LOG_DEBUG, "microVU%d: Backing Up VF Reg [%04x]\n", getIndex, xPC);
 
 		// Allocate t1 first for better chance of reg-alloc
 		const a64::VRegister t1 = mVU.regAlloc->allocReg(mVUlow.VF_write.reg);
@@ -714,7 +714,7 @@ void* mVUcompile(microVU& mVU, u32 startPC, uptr pState)
 	}
 	if ((x == endCount) && (x != 1))
 	{
-		Console.Error("microVU%d: Possible infinite compiling loop!", mVU.index);
+		log_cb(RETRO_LOG_ERROR, "microVU%d: Possible infinite compiling loop!\n", mVU.index);
 	}
 
 	// E-bit End

@@ -18,6 +18,7 @@
 // compiled block code is not executed yet — but it is fully emitted for real.
 
 #include "arm64/aVU.h"
+#include "common/Pcsx2Defs.h"
 #include <memalign.h>
 #include "arm64/aVU_IR.h"
 #include "arm64/aVU_Misc.h" // arch-neutral macro layer (task 7.3)
@@ -183,7 +184,7 @@ void mVUsetupRange(microVU& mVU, s32 pc, bool isStartPC)
 	std::deque<microRange>*& ranges = mVUcurProg.ranges;
 	if (pc > (s64)mVU.microMemSize)
 	{
-		Console.Error("microVU%d: PC outside of VU memory PC=0x%04x", mVU.index, pc);
+		log_cb(RETRO_LOG_ERROR, "microVU%d: PC outside of VU memory PC=0x%04x\n", mVU.index, pc);
 		pxFail("microVU: PC out of VU memory");
 	}
 
@@ -243,7 +244,7 @@ void mVUsetupRange(microVU& mVU, s32 pc, bool isStartPC)
 	else
 	{
 		mVUrange.end = mVU.microMemSize;
-		DevCon.WriteLn(Color_Green, "microVU%d: Prog Range Wrap [%04x] [%04x] PC %x", mVU.index, mVUrange.start, mVUrange.end, cur_pc);
+		log_cb(RETRO_LOG_DEBUG, "microVU%d: Prog Range Wrap [%04x] [%04x] PC %x\n", mVU.index, mVUrange.start, mVUrange.end, cur_pc);
 		microRange mRange = {0, cur_pc };
 		ranges->push_front(mRange);
 	}
@@ -267,7 +268,7 @@ __fi void mVUcheckBadOp(mV)
 	{
 
 		mVUinfo.isEOB = true;
-		DevCon.Warning("microVU Warning: Block contains an illegal opcode...");
+		log_cb(RETRO_LOG_WARN, "microVU Warning: Block contains an illegal opcode...\n");
 	}
 }
 
@@ -277,7 +278,7 @@ __ri void branchWarning(mV)
 	if (mVUup.eBit && mVUbranch)
 	{
 		incPC(2);
-		DevCon.Warning("microVU%d Warning: Branch in E-bit delay slot! [%04x]", mVU.index, xPC);
+		log_cb(RETRO_LOG_WARN, "microVU%d Warning: Branch in E-bit delay slot! [%04x]\n", mVU.index, xPC);
 		mVUlow.isNOP = true;
 	}
 	else
@@ -305,13 +306,13 @@ __fi void eBitPass1(mV, int& branch)
 __ri void eBitWarning(mV)
 {
 	if (mVUpBlock->pState.blockType == 1)
-		Console.Error("microVU%d Warning: Branch, E-bit, Branch! [%04x]",  mVU.index, xPC);
+		log_cb(RETRO_LOG_ERROR, "microVU%d Warning: Branch, E-bit, Branch! [%04x]\n",  mVU.index, xPC);
 	if (mVUpBlock->pState.blockType == 2)
-		DevCon.Warning("microVU%d Warning: Branch, Branch, Branch! [%04x]", mVU.index, xPC);
+		log_cb(RETRO_LOG_WARN, "microVU%d Warning: Branch, Branch, Branch! [%04x]\n", mVU.index, xPC);
 	incPC(2);
 	if (curI & _Ebit_)
 	{
-		DevCon.Warning("microVU%d: E-bit in Branch delay slot! [%04x]", mVU.index, xPC);
+		log_cb(RETRO_LOG_WARN, "microVU%d: E-bit in Branch delay slot! [%04x]\n", mVU.index, xPC);
 		mVUregs.blockType = 1;
 	}
 	incPC(-2);
@@ -468,11 +469,11 @@ void mVUsetCycles(mV)
 __fi void startLoop(mV)
 {
 	if (curI & _Mbit_ && isVU0)
-		DevCon.WriteLn(Color_Green, "microVU%d: M-bit set! PC = %x", getIndex, xPC);
+		log_cb(RETRO_LOG_DEBUG, "microVU%d: M-bit set! PC = %x\n", getIndex, xPC);
 	if (curI & _Dbit_)
-		DevCon.WriteLn(Color_Green, "microVU%d: D-bit set! PC = %x", getIndex, xPC);
+		log_cb(RETRO_LOG_DEBUG, "microVU%d: D-bit set! PC = %x\n", getIndex, xPC);
 	if (curI & _Tbit_)
-		DevCon.WriteLn(Color_Green, "microVU%d: T-bit set! PC = %x", getIndex, xPC);
+		log_cb(RETRO_LOG_DEBUG, "microVU%d: T-bit set! PC = %x\n", getIndex, xPC);
 	std::memset(&mVUinfo, 0, sizeof(mVUinfo));
 	std::memset(&mVUregsTemp, 0, sizeof(mVUregsTemp));
 }
@@ -554,7 +555,7 @@ void mVUreset(microVU& mVU, bool resetReserve)
 {
 	if (THREAD_VU1)
 	{
-		DevCon.Warning("mVU Reset");
+		log_cb(RETRO_LOG_WARN, "mVU Reset\n");
 		// If MTVU is toggled on during gameplay we need to flush the running VU1 program, else it gets in a mess
 		if (VU0.VI[REG_VPU_STAT].UL & 0x100)
 		{
@@ -661,8 +662,7 @@ static microProgram* mVUcreateProg(microVU& mVU, int startPC)
 	double cacheSize = (double)((uptr)mVU.prog.codeEnd - (uptr)mVU.prog.codeStart);
 	double cacheUsed = ((double)((uptr)mVU.prog.codePtr - (uptr)mVU.prog.codeStart)) / (double)_1mb;
 	double cachePerc = ((double)((uptr)mVU.prog.codePtr - (uptr)mVU.prog.codeStart)) / cacheSize * 100;
-	ConsoleColors c = mVU.index ? Color_Orange : Color_Magenta;
-	DevCon.WriteLn(c, "microVU%d: Cached Prog = [%03d] [PC=%04x] [List=%02d] (Cache=%3.3f%%) [%3.1fmb]",
+	log_cb(RETRO_LOG_DEBUG, "microVU%d: Cached Prog = [%03d] [PC=%04x] [List=%02d] (Cache=%3.3f%%) [%3.1fmb]\n",
 		mVU.index, prog->idx, startPC * 8, mVU.prog.prog[startPC]->size() + 1, cachePerc, cacheUsed);
 	return prog;
 }
@@ -700,7 +700,7 @@ static u64 mVUrangesHash(microVU& mVU, microProgram& prog)
 	{
 		if ((it[0].start < 0) || (it[0].end < 0))
 		{
-			DevCon.Error("microVU%d: Negative Range![%d][%d]", mVU.index, it[0].start, it[0].end);
+			log_cb(RETRO_LOG_ERROR, "microVU%d: Negative Range![%d][%d]\n", mVU.index, it[0].start, it[0].end);
 		}
 		for (int i = it[0].start / 4; i < it[0].end / 4; i++)
 		{
@@ -730,7 +730,7 @@ static u64 mVUrangesHash(microVU& mVU, microProgram& prog)
 	v.erase(std::unique(v.begin(), v.end()), v.end());
 	if (!total)
 		return;
-	DevCon.WriteLn("%d / %d [%3.1f%%]", v.size(), total, 100. - (double)v.size() / (double)total * 100.);
+	log_cb(RETRO_LOG_DEBUG, "%d / %d [%3.1f%%]\n", v.size(), total, 100. - (double)v.size() / (double)total * 100.);
 }
 
 // Compare Cached microProgram to mVU.regs().Micro
@@ -747,7 +747,7 @@ static bool mVUcmpProg(microVU& mVU, microProgram& prog)
 		{
 #if defined(PCSX2_DEVBUILD) || defined(_DEBUG)
 			if ((range.start < 0) || (range.end < 0))
-				DevCon.Error("microVU%d: Negative Range![%d][%d]", mVU.index, range.start, range.end);
+				log_cb(RETRO_LOG_ERROR, "microVU%d: Negative Range![%d][%d]\n", mVU.index, range.start, range.end);
 #endif
 			auto cmpOffset = [&](void* x) { return (u8*)x + range.start; };
 
@@ -1291,7 +1291,7 @@ static void mVUdispatcherCD(microVU& mVU)
 static void mVUwaitMTVU()
 {
 	if (IsDevBuild)
-		DevCon.WriteLn("microVU: Waiting on VU1 thread to access VU1 regs!");
+		log_cb(RETRO_LOG_DEBUG, "microVU: Waiting on VU1 thread to access VU1 regs!\n");
 	vu1Thread.WaitVU();
 }
 
@@ -1423,7 +1423,7 @@ static void* mVUexecute(u32 startPC, u32 cycles)
 	microVU& mVU = (vuIndex ? microVU1 : microVU0);
 	const u32 vuLimit = vuIndex ? 0x3ff8 : 0xff8;
 	if (startPC > vuLimit + 7)
-		DevCon.Warning("microVU%x Warning: startPC = 0x%x, cycles = 0x%x", vuIndex, startPC, cycles);
+		log_cb(RETRO_LOG_WARN, "microVU%x Warning: startPC = 0x%x, cycles = 0x%x\n", vuIndex, startPC, cycles);
 
 	mVU.cycles = cycles;
 	mVU.totalCycles = cycles;
@@ -1482,7 +1482,7 @@ static void mVUcleanUp()
 	// the cache limit, reset the program cache (x86 checks x86Ptr here).
 	if ((mVU.prog.codePtr < mVU.prog.codeStart) || (mVU.prog.codePtr >= mVU.prog.codeEnd))
 	{
-		Console.WriteLn(vuIndex ? Color_Orange : Color_Magenta, "microVU%d: Program cache limit reached.", mVU.index);
+		log_cb(RETRO_LOG_INFO, "microVU%d: Program cache limit reached.\n", mVU.index);
 		mVUreset(mVU, false);
 	}
 

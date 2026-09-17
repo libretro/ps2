@@ -186,7 +186,7 @@ namespace InternalServers
 		}
 		if (dns1.integer == 0 && dns2.integer != 0)
 		{
-			Console.Error("DHCP: DNS1 is zero, but DNS2 is valid, using DNS2 as DNS1");
+			log_cb(RETRO_LOG_ERROR, "DHCP: DNS1 is zero, but DNS2 is valid, using DNS2 as DNS1\n");
 			//no value for DNS1, but we have a value for DNS2
 			//set DNS1 to DNS2 and zero DNS2
 			dns1 = dns2;
@@ -237,33 +237,33 @@ namespace InternalServers
 					continue;
 				case 1:
 					if (netmask != ((DHCPopSubnet*)dhcp.options[i])->subnetMask)
-						Console.Error("DHCP: SubnetMask missmatch");
+						log_cb(RETRO_LOG_ERROR, "DHCP: SubnetMask missmatch\n");
 					break;
 				case 3:
 					if (((DHCPopRouter*)dhcp.options[i])->routers.size() != 1)
-						Console.Error("DHCP: Routers count missmatch");
+						log_cb(RETRO_LOG_ERROR, "DHCP: Routers count missmatch\n");
 
 					if (gateway != ((DHCPopRouter*)dhcp.options[i])->routers[0])
-						Console.Error("DHCP: RouterIP missmatch");
+						log_cb(RETRO_LOG_ERROR, "DHCP: RouterIP missmatch\n");
 					break;
 				case 6:
 					// clang-format off
 					if (((((DHCPopDNS*)dhcp.options[i])->dnsServers.size() == 0 && dns1.integer == 0) ||
 						 (((DHCPopDNS*)dhcp.options[i])->dnsServers.size() == 1 && dns1.integer != 0 && dns2.integer == 0) ||
 						 (((DHCPopDNS*)dhcp.options[i])->dnsServers.size() == 2 && dns2.integer != 0)) == false)
-						Console.Error("DHCP: DNS count missmatch");
+						log_cb(RETRO_LOG_ERROR, "DHCP: DNS count missmatch\n");
 					// clang-format on
 
 					if ((((DHCPopDNS*)dhcp.options[i])->dnsServers.size() > 0 && dns1 != ((DHCPopDNS*)dhcp.options[i])->dnsServers[0]) ||
 						(((DHCPopDNS*)dhcp.options[i])->dnsServers.size() > 1 && dns2 != ((DHCPopDNS*)dhcp.options[i])->dnsServers[1]))
-						Console.Error("DHCP: DNS missmatch");
+						log_cb(RETRO_LOG_ERROR, "DHCP: DNS missmatch\n");
 					break;
 				case 12:
 					//TODO use name?
 					break;
 				case 50:
 					if (ps2IP != ((DHCPopREQIP*)dhcp.options[i])->requestedIP)
-						Console.Error("DHCP: ReqIP missmatch");
+						log_cb(RETRO_LOG_ERROR, "DHCP: ReqIP missmatch\n");
 					break;
 				case 51:
 					leaseTime = ((DHCPopIPLT*)(dhcp.options[i]))->ipLeaseTime;
@@ -273,7 +273,7 @@ namespace InternalServers
 					break;
 				case 54:
 					if (NetAdapter::internalIP != ((DHCPopSERVIP*)dhcp.options[i])->serverIP)
-						Console.Error("DHCP: ServIP missmatch");
+						log_cb(RETRO_LOG_ERROR, "DHCP: ServIP missmatch\n");
 					break;
 				case 55:
 					reqList = ((DHCPopREQLIST*)(dhcp.options[i]))->requests;
@@ -288,7 +288,7 @@ namespace InternalServers
 				case 255: //End
 					break;
 				default:
-					Console.Error("DHCP: Got Unhandled Option %d", dhcp.options[i]->GetCode());
+					log_cb(RETRO_LOG_ERROR, "DHCP: Got Unhandled Option %d\n", dhcp.options[i]->GetCode());
 					break;
 			}
 		}
@@ -350,7 +350,7 @@ namespace InternalServers
 					case 54: //Server Identifier (Already Added)
 						break;
 					default:
-						Console.Error("DHCP: Got Unhandled Request %d", reqList[i]);
+						log_cb(RETRO_LOG_ERROR, "DHCP: Got Unhandled Request %d\n", reqList[i]);
 						break;
 				}
 			}

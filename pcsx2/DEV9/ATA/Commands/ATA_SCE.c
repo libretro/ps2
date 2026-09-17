@@ -21,7 +21,7 @@ static void ata_sce_identify_drive(ata_state_t* ata);
 
 void ata_hdd_sce(ata_state_t* ata)
 {
-	pcsx2_log(RETRO_LOG_DEBUG, "DEV9: HDD_SCE SONY-SPECIFIC SECURITY CONTROL COMMAND %x\n", ata->regFeature);
+	log_cb(RETRO_LOG_DEBUG, "DEV9: HDD_SCE SONY-SPECIFIC SECURITY CONTROL COMMAND %x\n", ata->regFeature);
 
 	switch (ata->regFeature)
 	{
@@ -29,7 +29,7 @@ void ata_hdd_sce(ata_state_t* ata)
 			ata_sce_identify_drive(ata);
 			break;
 		default:
-			pcsx2_log(RETRO_LOG_ERROR, "DEV9: ATA: Unknown SCE command %x\n", ata->regFeature);
+			log_cb(RETRO_LOG_ERROR, "DEV9: ATA: Unknown SCE command %x\n", ata->regFeature);
 			ata_cmd_no_data_abort(ata);
 			return;
 	}

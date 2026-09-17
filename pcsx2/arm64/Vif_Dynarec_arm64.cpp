@@ -10,11 +10,11 @@
 // index (lrps2's RecompiledCodeReserve infra stays x86-only).
 
 #include "arm64/Vif_UnpackNEON.h"
+#include "common/Pcsx2Defs.h"
 #include <algorithm>
 #include "arm64/AsmHelpers.h"
 #include "MTVU.h"
 
-#include "common/Console.h"
 
 #include <cstdlib>
 #include <sys/mman.h>
@@ -171,7 +171,7 @@ static void maskedVecWrite(const a64::VRegister& reg, const a64::MemOperand& add
 			break; // X
 
 		case 0:
-			Console.Error("maskedVecWrite case 0!");
+			log_cb(RETRO_LOG_ERROR, "maskedVecWrite case 0!\n");
 			break;
 
 		default:
@@ -195,7 +195,7 @@ void dVifReserve(int idx)
 	if (s_vifCode[idx] == MAP_FAILED)
 	{
 		s_vifCode[idx] = nullptr;
-		Console.Error("arm64 VIF%d dynarec: mmap failed; unpacks fall back to the C reference path.", idx);
+		log_cb(RETRO_LOG_ERROR, "arm64 VIF%d dynarec: mmap failed; unpacks fall back to the C reference path.\n", idx);
 		return;
 	}
 	nVif[idx].recWritePtr = s_vifCode[idx];
@@ -401,7 +401,7 @@ void VifUnpackNEON_Dynarec::ModUnpack(int upknum, bool PostOp)
 		case 11:
 			// TODO: Needs hardware testing.
 			// Dynasty Warriors 5: Empire  - Player 2 chose a character menu.
-			Console.Warning("Vpu/Vif: Invalid Unpack %d", upknum);
+			log_cb(RETRO_LOG_WARN, "Vpu/Vif: Invalid Unpack %d\n", upknum);
 			break;
 	}
 }
@@ -507,7 +507,7 @@ _vifT __fi nVifBlock* dVifCompile(nVifBlock& block, bool isFill)
 	// Check size before the compilation
 	if (v.recWritePtr >= v.recEndPtr)
 	{
-		Console.WriteLn("nVif Recompiler Cache Reset! [0x%016" PRIXPTR " > 0x%016" PRIXPTR "]",
+		log_cb(RETRO_LOG_INFO, "nVif Recompiler Cache Reset! [0x%016\n" PRIXPTR " > 0x%016" PRIXPTR "]",
 			(uptr)v.recWritePtr, (uptr)v.recEndPtr);
 		dVifReset(idx);
 	}

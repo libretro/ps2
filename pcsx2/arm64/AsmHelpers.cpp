@@ -3,12 +3,12 @@
 // SPDX-License-Identifier: GPL-3.0
 
 #include <cstring>
+#include "common/Pcsx2Defs.h"
 #include "arm64/AsmHelpers.h"
 #include "../HostMem.h"
 
 #include "arm64/ArmCompat.h"
 
-#include "common/Console.h"
 #include "common/General.h"
 
 const vixl::aarch64::Register& armWRegister(int n)
@@ -161,7 +161,7 @@ void armDisassembleAndDumpCode(const void* ptr, size_t size)
 
 	armDisasmDecoder->Decode(static_cast<const vixl::aarch64::Instruction*>(ptr), static_cast<const vixl::aarch64::Instruction*>(ptr) + size);
 #else
-	Console.Error("Not compiled with INCLUDE_DISASSEMBLER");
+	log_cb(RETRO_LOG_ERROR, "Not compiled with INCLUDE_DISASSEMBLER\n");
 #endif
 }
 
@@ -469,7 +469,7 @@ u8* ArmConstantPool::GetJumpTrampoline(const void* target)
 	// 4 movs plus a jump
 	if ((m_capacity - offset) < 20)
 	{
-		Console.Error("Ran out of space in constant pool");
+		log_cb(RETRO_LOG_ERROR, "Ran out of space in constant pool\n");
 		return nullptr;
 	}
 

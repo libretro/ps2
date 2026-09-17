@@ -14,6 +14,7 @@
  */
 
 #include <compat/strl.h>
+#include "common/Pcsx2Defs.h"
 #include <retro_atomic.h>
 #include <features/features_cpu.h>
 #include "VMManager.h"
@@ -22,7 +23,6 @@
 
 #include <file/file_path.h>
 
-#include "../common/Console.h"
 #include "HostFS.h"
 #include "../common/FPControl.h"
 #include "../common/StringUtil.h" /* StdStringFromFormat */
@@ -333,7 +333,7 @@ void VMManager::LoadPatches(const std::string& serial, u32 crc)
 			const std::string* patches = game->findPatch(crc);
 			if (patches && (patch_count = LoadPatchesFromString(patches->c_str())) > 0)
 			{
-				Console.WriteLn("(GameDB) Patches Loaded: %d", patch_count);
+				log_cb(RETRO_LOG_INFO, "(GameDB) Patches Loaded: %d\n", patch_count);
 				message += StringUtil::StdStringFromFormat("%d game patches", patch_count);
 			}
 
@@ -348,7 +348,7 @@ void VMManager::LoadPatches(const std::string& serial, u32 crc)
 		cheat_count = LoadPatchesFromDir(crc_string, EmuFolders::Cheats, "Cheats", true);
 		if (cheat_count > 0)
 		{
-			Console.WriteLn("Cheats Loaded: %d", cheat_count);
+			log_cb(RETRO_LOG_INFO, "Cheats Loaded: %d\n", cheat_count);
 			message += StringUtil::StdStringFromFormat("%s%d cheat patches", (patch_count > 0) ? " and " : "", cheat_count);
 		}
 	}
@@ -357,7 +357,7 @@ void VMManager::LoadPatches(const std::string& serial, u32 crc)
 	if (EmuConfig.EnableWideScreenPatches && crc != 0)
 	{
 		if ((s_active_widescreen_patches = LoadPatchesFromDir(crc_string, EmuFolders::CheatsWS, "Widescreen hacks", false)) > 0)
-			Console.WriteLn("Found widescreen patches in the cheats_ws folder --> skipping cheats_ws.zip");
+			log_cb(RETRO_LOG_INFO, "Found widescreen patches in the cheats_ws folder --> skipping cheats_ws.zip\n");
 		else
 		{
 			// No ws cheat files found at the cheats_ws folder, try the ws cheats zip file.
@@ -373,7 +373,7 @@ void VMManager::LoadPatches(const std::string& serial, u32 crc)
 			if (!s_widescreen_cheats_data.empty())
 			{
 				s_active_widescreen_patches = LoadPatchesFromZip(crc_string, s_widescreen_cheats_data.data(), s_widescreen_cheats_data.size());
-				Console.WriteLn("(Wide Screen Cheats DB) Patches Loaded: %d", s_active_widescreen_patches);
+				log_cb(RETRO_LOG_INFO, "(Wide Screen Cheats DB) Patches Loaded: %d\n", s_active_widescreen_patches);
 			}
 		}
 
@@ -391,7 +391,7 @@ void VMManager::LoadPatches(const std::string& serial, u32 crc)
 	{
 		if ((s_active_no_interlacing_patches = LoadPatchesFromDir(crc_string, EmuFolders::CheatsNI, "No-interlacing patches", false)) > 0)
 		{
-			Console.WriteLn("Found no-interlacing patches in the cheats_ni folder --> skipping cheats_ni.zip");
+			log_cb(RETRO_LOG_INFO, "Found no-interlacing patches in the cheats_ni folder --> skipping cheats_ni.zip\n");
 		}
 		else
 		{
@@ -408,7 +408,7 @@ void VMManager::LoadPatches(const std::string& serial, u32 crc)
 			if (!s_no_interlacing_cheats_data.empty())
 			{
 				s_active_no_interlacing_patches = LoadPatchesFromZip(crc_string, s_no_interlacing_cheats_data.data(), s_no_interlacing_cheats_data.size());
-				Console.WriteLn("(No-Interlacing Cheats DB) Patches Loaded: %u", s_active_no_interlacing_patches);
+				log_cb(RETRO_LOG_INFO, "(No-Interlacing Cheats DB) Patches Loaded: %u\n", s_active_no_interlacing_patches);
 			}
 		}
 
@@ -432,7 +432,7 @@ void VMManager::LoadPatches(const std::string& serial, u32 crc)
 	if (cheat_count > 0 || s_active_widescreen_patches > 0 || s_active_no_interlacing_patches > 0)
 	{
 		message += " are active.";
-		Console.WriteLn("%s", message.c_str());
+		log_cb(RETRO_LOG_INFO, "%s\n", message.c_str());
 	}
 }
 
@@ -522,7 +522,7 @@ bool VMManager::AutoDetectSource(const std::string& filename)
 	{
 		if (!path_is_valid(filename.c_str()))
 		{
-			Console.Error("Requested filename '{%s}' does not exist.", filename.c_str());
+			log_cb(RETRO_LOG_ERROR, "Requested filename '{%s}' does not exist.\n", filename.c_str());
 			return false;
 		}
 
@@ -574,7 +574,7 @@ bool VMManager::ApplyBootParameters(VMBootParameters params, std::string* state_
 	{
 		if (params.source_type.value() == CDVD_SourceType::Iso && !path_is_valid(params.filename.c_str()))
 		{
-			Console.Error("Requested filename '{%s}' does not exist.", params.filename.c_str());
+			log_cb(RETRO_LOG_ERROR, "Requested filename '{%s}' does not exist.\n", params.filename.c_str());
 			return false;
 		}
 
@@ -594,7 +594,7 @@ bool VMManager::ApplyBootParameters(VMBootParameters params, std::string* state_
 	{
 		if (!path_is_valid(s_elf_override.c_str()))
 		{
-			Console.Error("Requested boot ELF '{%s}' does not exist.", s_elf_override.c_str());
+			log_cb(RETRO_LOG_ERROR, "Requested boot ELF '{%s}' does not exist.\n", s_elf_override.c_str());
 			return false;
 		}
 
@@ -938,9 +938,9 @@ void VMManager::UpdateCPUImplementations()
 	 * routing on both architectures. A per-op soft dispatch inside
 	 * microVU can replace this later without changing the option. */
 	if (CHECK_VU_SOFT_REC(0) && EmuConfig.Cpu.Recompiler.EnableVU0)
-		Console.WriteLn("VU0 soft float: micro programs on the exact interpreter (macro-mode COP2 is not covered).");
+		log_cb(RETRO_LOG_INFO, "VU0 soft float: micro programs on the exact interpreter (macro-mode COP2 is not covered).\n");
 	if (CHECK_VU_SOFT_REC(1) && EmuConfig.Cpu.Recompiler.EnableVU1)
-		Console.WriteLn("VU1 soft float: running on the exact interpreter.");
+		log_cb(RETRO_LOG_INFO, "VU1 soft float: running on the exact interpreter.\n");
 
 #ifdef ARCH_ARM64
 	// C.30-1: microVU0 runs VU0 micro programs natively (macro-mode COP2
@@ -961,7 +961,7 @@ void VMManager::UpdateCPUImplementations()
 	if (EmuConfig.Cpu.Recompiler.EnableVU1 && !CHECK_VU_SOFT_REC(1))
 	{
 		CpuVU1 = &vucpu_rec_vu1;
-		Console.WriteLn("arm64 VU1 rec: microVU1 (native codegen) is the default provider.");
+		log_cb(RETRO_LOG_INFO, "arm64 VU1 rec: microVU1 (native codegen) is the default provider.\n");
 	}
 #endif
 }
@@ -1008,12 +1008,12 @@ void VMManager::SetPaused(bool paused)
 
 	if (paused)
 	{
-		Console.Debug("(VMManager) Pausing...");
+		log_cb(RETRO_LOG_DEBUG, "(VMManager) Pausing...\n");
 		SetState(VMState::Paused);
 	}
 	else
 	{
-		Console.Debug("(VMManager) Resuming...");
+		log_cb(RETRO_LOG_DEBUG, "(VMManager) Resuming...\n");
 		SetState(VMState::Running);
 	}
 }
@@ -1069,7 +1069,7 @@ void VMManager::CheckForCPUConfigChanges(const Pcsx2Config& old_config)
 		)
 		return;
 
-	Console.WriteLn("Updating CPU configuration...");
+	log_cb(RETRO_LOG_INFO, "Updating CPU configuration...\n");
 	FPControlRegister::SetCurrent(EmuConfig.Cpu.FPUFPCR);
 	Internal::ClearCPUExecutionCaches();
 	memBindConditionalHandlers();
@@ -1259,7 +1259,7 @@ static void InitializeCPUInfo(void)
 	const size_t count = cpu_features_get_processor_order(order, C89_ARRAY_SIZE(order));
 	if (count == 0)
 	{
-		Console.Error("No processor list available");
+		log_cb(RETRO_LOG_ERROR, "No processor list available\n");
 		return;
 	}
 
@@ -1273,7 +1273,7 @@ static void InitializeCPUInfo(void)
 		ss << order[i];
 		s_processor_list.push_back(static_cast<u32>(order[i]));
 	}
-	Console.WriteLn("%s", ss.str().c_str());
+	log_cb(RETRO_LOG_INFO, "%s\n", ss.str().c_str());
 }
 
 /* The MTVU and instant-VU1 defaults keep the platform guard they had: the
@@ -1300,7 +1300,7 @@ static void SetMTVUAndAffinityControlDefault(Pcsx2Config& c)
 	// were interpreter-provider problems, and microVU1 is now the only VU1
 	// provider.
 	const bool mtvu = VMManager::MtvuHardwareAllowed() && VMManager::g_MtvuMenuDefault;
-	Console.WriteLn(mtvu ? "  MTVU enabled (pcsx2_mtvu; requires >= 3 hardware threads)."
+	log_cb(RETRO_LOG_INFO, "%s\n", mtvu ? "  MTVU enabled (pcsx2_mtvu; requires >= 3 hardware threads)."
 	                     : "  MTVU disabled.");
 	c.Speedhacks.vuThread = mtvu;
 	// Instant VU1 assumes the VU1 provider finishes a program quickly (x86
@@ -1309,7 +1309,7 @@ static void SetMTVUAndAffinityControlDefault(Pcsx2Config& c)
 	// vu1RunCycles=3M budget on EVERY kick: the EE thread spends seconds per
 	// frame inside InterpVU1::Execute and the frontend appears hung. Run VU1
 	// in small interleaved slices instead (upstream's non-instant scheduling).
-	Console.WriteLn("  Instant VU1 enabled (microVU1 native provider).");
+	log_cb(RETRO_LOG_INFO, "  Instant VU1 enabled (microVU1 native provider).\n");
 	c.Speedhacks.vu1Instant = true;
 	/* Fastmem follows the same shape as MTVU: this default-setter can run
 	 * again on a settings reset after check_variables(true) has consumed
@@ -1368,7 +1368,7 @@ void VMManager::SetEmuThreadAffinities()
 		s_processor_list.size() < (EmuConfig.Speedhacks.vuThread ? 3 : 2))
 	{
 		if (EmuConfig.Cpu.AffinityControlMode != 0)
-			Console.Error("Insufficient processors for affinity control.");
+			log_cb(RETRO_LOG_ERROR, "Insufficient processors for affinity control.\n");
 
 		sthread_set_affinity(vu1Thread.GetThread(), 0);
 		set_ee_affinity(0);
@@ -1390,17 +1390,17 @@ void VMManager::SetEmuThreadAffinities()
 	const u8* this_proc_assigment = processor_assignment[EmuConfig.Cpu.AffinityControlMode][EmuConfig.Speedhacks.vuThread];
 	const u32 ee_index = s_processor_list[this_proc_assigment[0]];
 	const u32 vu_index = s_processor_list[this_proc_assigment[1]];
-	Console.WriteLn("Processor order assignment: EE=%u, VU=%u, GS=%u",
+	log_cb(RETRO_LOG_INFO, "Processor order assignment: EE=%u, VU=%u, GS=%u\n",
 		this_proc_assigment[0], this_proc_assigment[1], this_proc_assigment[2]);
 
 	const u64 ee_affinity = static_cast<u64>(1) << ee_index;
-	Console.WriteLn("EE thread is on processor %u (0x%llx)", ee_index, (unsigned long long)ee_affinity);
+	log_cb(RETRO_LOG_INFO, "EE thread is on processor %u (0x%llx)\n", ee_index, (unsigned long long)ee_affinity);
 	set_ee_affinity(ee_affinity);
 
 	if (EmuConfig.Speedhacks.vuThread)
 	{
 		const u64 vu_affinity = static_cast<u64>(1) << vu_index;
-		Console.WriteLn("VU thread is on processor %u (0x%llx)", vu_index, (unsigned long long)vu_affinity);
+		log_cb(RETRO_LOG_INFO, "VU thread is on processor %u (0x%llx)\n", vu_index, (unsigned long long)vu_affinity);
 		sthread_set_affinity(vu1Thread.GetThread(), vu_affinity);
 	}
 	else

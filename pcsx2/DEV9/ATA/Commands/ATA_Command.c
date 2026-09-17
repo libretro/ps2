@@ -100,7 +100,7 @@ void ata_ide_exec_cmd(ata_state_t* ata, uint16_t value)
 
 static void ata_hdd_unk(ata_state_t* ata)
 {
-	pcsx2_log(RETRO_LOG_ERROR, "DEV9: ATA: Unknown cmd %x\n", ata->regCommand);
+	log_cb(RETRO_LOG_ERROR, "DEV9: ATA: Unknown cmd %x\n", ata->regCommand);
 
 	ata_pre_cmd(ata);
 

@@ -14,6 +14,7 @@
  */
 
 #include "Common.h"
+#include "common/Pcsx2Defs.h"
 
 #include "VUmicro.h"
 
@@ -110,7 +111,7 @@ static void _vu0Exec(VURegs* VU)
 		{
 			if (lregs.VFwrite == uregs.VFwrite)
 			{
-				//				Console.Warning("*PCSX2*: Warning, VF write to the same reg in both lower/upper cycle");
+				//				log_cb(RETRO_LOG_WARN, "*PCSX2*: Warning, VF write to the same reg in both lower/upper cycle\n");
 				discard = 1;
 			}
 			if (lregs.VFread0 == uregs.VFwrite ||
@@ -124,7 +125,7 @@ static void _vu0Exec(VURegs* VU)
 		{
 			if (lregs.VIwrite & (1 << REG_CLIP_FLAG))
 			{
-				//Console.Warning("*PCSX2*: Warning, VI write to the same reg in both lower/upper cycle");
+				//log_cb(RETRO_LOG_WARN, "*PCSX2*: Warning, VI write to the same reg in both lower/upper cycle\n");
 				discard = 1;
 			}
 			if (lregs.VIread & (1 << REG_CLIP_FLAG))

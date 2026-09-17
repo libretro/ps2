@@ -28,8 +28,8 @@
  */
 
 #include "USB/libretro-usb/qusb.h"
+#include "common/Pcsx2Defs.h"
 
-#include "common/Console.h"
 
 #include <cassert>
 #include <climits>
@@ -154,8 +154,7 @@ static void do_token_setup(USBDevice* s, USBPacket* p)
 	s->setup_len = (s->setup_buf[7] << 8) | s->setup_buf[6];
 	if (s->setup_len > (int32_t)sizeof(s->data_buf))
 	{
-		Console.Warning(
-				"usb_generic_handle_packet: ctrl buffer too small (%d > %zu)\n",
+		log_cb(RETRO_LOG_WARN, "usb_generic_handle_packet: ctrl buffer too small (%d > %zu)\n\n",
 				s->setup_len, sizeof(s->data_buf));
 		p->status = USB_RET_STALL;
 		return;
@@ -308,8 +307,7 @@ static void do_parameter(USBDevice* s, USBPacket* p)
 
 	if (s->setup_len > (int32_t)sizeof(s->data_buf))
 	{
-		Console.Warning(
-				"usb_generic_handle_packet: ctrl buffer too small (%d > %zu)\n",
+		log_cb(RETRO_LOG_WARN, "usb_generic_handle_packet: ctrl buffer too small (%d > %zu)\n\n",
 				s->setup_len, sizeof(s->data_buf));
 		p->status = USB_RET_STALL;
 		return;
@@ -661,7 +659,7 @@ void usb_packet_copy(USBPacket* p, void* ptr, size_t bytes)
 			memcpy(p->buffer_ptr, ptr, bytes);
 			break;
 		default:
-			Console.Warning("%s: invalid pid: %x\n", __func__, p->pid);
+			log_cb(RETRO_LOG_WARN, "%s: invalid pid: %x\n\n", __func__, p->pid);
 			abort();
 	}
 	p->actual_length += bytes;
@@ -745,7 +743,7 @@ void usb_ep_dump(USBDevice* dev)
 		/* [USB_ENDPOINT_XFER_INT]     = */ "int",
 	};
 
-	Console.Warning("Device \"%s\", config %d\n",
+	log_cb(RETRO_LOG_WARN, "Device \"%s\", config %d\n\n",
 			dev->product_desc, dev->configuration);
 	for (int ifnum = 0; ifnum < 16; ifnum++)
 	{
@@ -758,10 +756,10 @@ void usb_ep_dump(USBDevice* dev)
 				if (first)
 				{
 					first = 0;
-					Console.Warning("  Interface %d, alternative %d\n",
+					log_cb(RETRO_LOG_WARN, "  Interface %d, alternative %d\n\n",
 							ifnum, dev->altsetting[ifnum]);
 				}
-				Console.Warning("    Endpoint %d, IN, %s, %d max\n", ep,
+				log_cb(RETRO_LOG_WARN, "    Endpoint %d, IN, %s, %d max\n\n", ep,
 						tname[dev->ep_in[ep].type],
 						dev->ep_in[ep].max_packet_size);
 			}
@@ -771,16 +769,16 @@ void usb_ep_dump(USBDevice* dev)
 				if (first)
 				{
 					first = 0;
-					Console.Warning("  Interface %d, alternative %d\n",
+					log_cb(RETRO_LOG_WARN, "  Interface %d, alternative %d\n\n",
 							ifnum, dev->altsetting[ifnum]);
 				}
-				Console.Warning("    Endpoint %d, OUT, %s, %d max\n", ep,
+				log_cb(RETRO_LOG_WARN, "    Endpoint %d, OUT, %s, %d max\n\n", ep,
 						tname[dev->ep_out[ep].type],
 						dev->ep_out[ep].max_packet_size);
 			}
 		}
 	}
-	Console.Warning("--\n");
+	log_cb(RETRO_LOG_WARN, "--\n\n");
 }
 
 struct USBEndpoint* usb_ep_get(USBDevice* dev, int pid, int ep)

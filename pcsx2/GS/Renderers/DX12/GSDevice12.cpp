@@ -14,6 +14,7 @@
  */
 
 #include "GS/GS.h"
+#include "common/Pcsx2Defs.h"
 #include <cfloat>
 #include "GS/GSUtil.h"
 #include "GS/Renderers/DX11/D3D.h"
@@ -23,7 +24,6 @@
 
 #include "common/General.h"
 #include "common/Align.h"
-#include "common/Console.h"
 #include "common/StringUtil.h"
 #include "D3D12Builders.h"
 #include "D3D12ShaderCache.h"
@@ -70,7 +70,7 @@ static bool LoadD3D12Library()
 		(s_d3d12_serialize_root_signature = reinterpret_cast<PFN_D3D12_SERIALIZE_ROOT_SIGNATURE>(
 			 GetProcAddress(s_d3d12_library, "D3D12SerializeRootSignature"))) == nullptr)
 	{
-		Console.Error("d3d12.dll could not be loaded.");
+		log_cb(RETRO_LOG_ERROR, "d3d12.dll could not be loaded.\n");
 		s_d3d12_create_device = nullptr;
 		s_d3d12_get_debug_interface = nullptr;
 		s_d3d12_serialize_root_signature = nullptr;
@@ -103,9 +103,9 @@ GSDevice12::ComPtr<ID3DBlob> GSDevice12::SerializeRootSignature(const D3D12_ROOT
 		error_blob.put());
 	if (FAILED(hr))
 	{
-		Console.Error("D3D12SerializeRootSignature() failed: %08X", hr);
+		log_cb(RETRO_LOG_ERROR, "D3D12SerializeRootSignature() failed: %08X\n", hr);
 		if (error_blob)
-			Console.Error("%s", error_blob->GetBufferPointer());
+			log_cb(RETRO_LOG_ERROR, "%s\n", error_blob->GetBufferPointer());
 
 		return {};
 	}
@@ -124,7 +124,7 @@ GSDevice12::ComPtr<ID3D12RootSignature> GSDevice12::CreateRootSignature(const D3
 		m_device->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(rs.put()));
 	if (FAILED(hr))
 	{
-		Console.Error("CreateRootSignature() failed: %08X", hr);
+		log_cb(RETRO_LOG_ERROR, "CreateRootSignature() failed: %08X\n", hr);
 		return {};
 	}
 
@@ -162,7 +162,7 @@ bool GSDevice12::CreateAllocator()
 	const HRESULT hr = D3D12MA::CreateAllocator(&allocatorDesc, m_allocator.put());
 	if (FAILED(hr))
 	{
-		Console.Error("D3D12MA::CreateAllocator() failed with HRESULT %08X", hr);
+		log_cb(RETRO_LOG_ERROR, "D3D12MA::CreateAllocator() failed with HRESULT %08X\n", hr);
 		return false;
 	}
 
@@ -228,7 +228,7 @@ bool GSDevice12::CreateCommandLists()
 				IID_PPV_ARGS(res.command_lists[i].put()));
 			if (FAILED(hr))
 			{
-				Console.Error("Failed to create command list: %08X", hr);
+				log_cb(RETRO_LOG_ERROR, "Failed to create command list: %08X\n", hr);
 				return false;
 			}
 
@@ -240,13 +240,13 @@ bool GSDevice12::CreateCommandLists()
 
 		if (!res.descriptor_allocator.Create(m_device.get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, MAX_GPU_SRVS))
 		{
-			Console.Error("Failed to create per frame descriptor allocator");
+			log_cb(RETRO_LOG_ERROR, "Failed to create per frame descriptor allocator\n");
 			return false;
 		}
 
 		if (!res.sampler_allocator.Create(m_device.get(), MAX_GPU_SAMPLERS))
 		{
-			Console.Error("Failed to create per frame sampler allocator");
+			log_cb(RETRO_LOG_ERROR, "Failed to create per frame sampler allocator\n");
 			return false;
 		}
 	}
@@ -306,12 +306,12 @@ void GSDevice12::ReportRecurring(const char* what, HRESULT hr)
 	if (what != last_what || hr != last_hr)
 	{
 		if (repeats > 0)
-			Console.Error("(previous message repeated %llu more times)",
+			log_cb(RETRO_LOG_ERROR, "(previous message repeated %llu more times)\n",
 					static_cast<unsigned long long>(repeats));
 		last_what = what;
 		last_hr   = hr;
 		repeats   = 0;
-		Console.Error("%s failed with HRESULT %08X", what, hr);
+		log_cb(RETRO_LOG_ERROR, "%s failed with HRESULT %08X\n", what, hr);
 		return;
 	}
 
@@ -319,7 +319,7 @@ void GSDevice12::ReportRecurring(const char* what, HRESULT hr)
 	/* One line every ~10 seconds of a 60 Hz stream of failures, so a
 	 * report still shows the problem is ongoing. */
 	if ((repeats % 600) == 0)
-		Console.Error("%s failed with HRESULT %08X (%llu times)", what, hr,
+		log_cb(RETRO_LOG_ERROR, "%s failed with HRESULT %08X (%llu times)\n", what, hr,
 				static_cast<unsigned long long>(repeats));
 }
 
@@ -636,18 +636,18 @@ bool GSDevice12::Create()
 
 	if (!LoadD3D12Library())
 	{
-		Console.Error("Failed to load D3D12 library");
+		log_cb(RETRO_LOG_ERROR, "Failed to load D3D12 library\n");
 		return false;
 	}
 
 	d3d12 = nullptr;
 	if (!environ_cb(RETRO_ENVIRONMENT_GET_HW_RENDER_INTERFACE, (void **)&d3d12) || !d3d12) {
-		Console.Error("Failed to get HW rendering interface!");
+		log_cb(RETRO_LOG_ERROR, "Failed to get HW rendering interface!\n");
 		return false;
 	}
 
 	if (d3d12->interface_version != RETRO_HW_RENDER_INTERFACE_D3D12_VERSION) {
-		Console.Error("HW render interface mismatch, expected %u, got %u!", RETRO_HW_RENDER_INTERFACE_D3D12_VERSION, d3d12->interface_version);
+		log_cb(RETRO_LOG_ERROR, "HW render interface mismatch, expected %u, got %u!\n", RETRO_HW_RENDER_INTERFACE_D3D12_VERSION, d3d12->interface_version);
 		return false;
 	}
 
@@ -657,7 +657,7 @@ bool GSDevice12::Create()
 
 	if (FAILED(m_dxgi_factory->EnumAdapterByLuid(luid, IID_PPV_ARGS(m_adapter.put()))))
 	{
-		Console.Error("Failed to get lookup adapter by device LUID");
+		log_cb(RETRO_LOG_ERROR, "Failed to get lookup adapter by device LUID\n");
 		Destroy();
 		return false;
 	}
@@ -671,38 +671,38 @@ bool GSDevice12::Create()
 		|| !CreateDescriptorHeaps() 
 		|| !CreateCommandLists())
 	{
-		Console.Error("Failed to create D3D12 context");
+		log_cb(RETRO_LOG_ERROR, "Failed to create D3D12 context\n");
 		Destroy();
 		return false;
 	}
 
 	if (!m_texture_stream_buffer.Create(TEXTURE_UPLOAD_BUFFER_SIZE))
 	{
-		Console.Error("Failed to create D3D12 context");
+		log_cb(RETRO_LOG_ERROR, "Failed to create D3D12 context\n");
 		Destroy();
 		return false;
 	}
 
 	if (!CheckFeatures())
 	{
-		Console.Error("Your GPU does not support the required D3D12 features.");
+		log_cb(RETRO_LOG_ERROR, "Your GPU does not support the required D3D12 features.\n");
 		return false;
 	}
 
 	AcquireWindow();
 
 	if (!m_shader_cache.Open(m_feature_level, GSConfig.UseDebugDevice))
-		Console.Warning("Shader cache failed to open.");
+		log_cb(RETRO_LOG_WARN, "Shader cache failed to open.\n");
 
 	if (!CreateNullTexture())
 	{
-		Console.Error("Failed to create dummy texture");
+		log_cb(RETRO_LOG_ERROR, "Failed to create dummy texture\n");
 		return false;
 	}
 
 	if (!CreateRootSignatures())
 	{
-		Console.Error("Failed to create pipeline layouts");
+		log_cb(RETRO_LOG_ERROR, "Failed to create pipeline layouts\n");
 		return false;
 	}
 
@@ -714,7 +714,7 @@ bool GSDevice12::Create()
 		!CompileMergePipelines()     ||
 		!CompilePostProcessingPipelines())
 	{
-		Console.Error("Failed to compile utility pipelines");
+		log_cb(RETRO_LOG_ERROR, "Failed to compile utility pipelines\n");
 		return false;
 	}
 
@@ -1635,32 +1635,32 @@ bool GSDevice12::CreateBuffers()
 {
 	if (!m_vertex_stream_buffer.Create(VERTEX_BUFFER_SIZE))
 	{
-		Console.Error("Failed to allocate vertex buffer");
+		log_cb(RETRO_LOG_ERROR, "Failed to allocate vertex buffer\n");
 		return false;
 	}
 
 	if (!m_index_stream_buffer.Create(INDEX_BUFFER_SIZE))
 	{
-		Console.Error("Failed to allocate index buffer");
+		log_cb(RETRO_LOG_ERROR, "Failed to allocate index buffer\n");
 		return false;
 	}
 
 	if (!m_vertex_constant_buffer.Create(VERTEX_UNIFORM_BUFFER_SIZE))
 	{
-		Console.Error("Failed to allocate vertex uniform buffer");
+		log_cb(RETRO_LOG_ERROR, "Failed to allocate vertex uniform buffer\n");
 		return false;
 	}
 
 	if (!m_pixel_constant_buffer.Create(FRAGMENT_UNIFORM_BUFFER_SIZE))
 	{
-		Console.Error("Failed to allocate fragment uniform buffer");
+		log_cb(RETRO_LOG_ERROR, "Failed to allocate fragment uniform buffer\n");
 		return false;
 	}
 
 	if (!AllocatePreinitializedGPUBuffer(EXPAND_BUFFER_SIZE, &m_expand_index_buffer,
 			&m_expand_index_buffer_allocation, &GSDevice::GenerateExpansionIndexBuffer))
 	{
-		Console.Error("Failed to allocate expansion index buffer");
+		log_cb(RETRO_LOG_ERROR, "Failed to allocate expansion index buffer\n");
 		return false;
 	}
 
@@ -2221,7 +2221,7 @@ void GSDevice12::InitializeSamplers()
 	result = result && GetSampler(&m_tfx_sampler, m_tfx_sampler_sel);
 
 	if (!result)
-		Console.Error("Failed to initialize samplers");
+		log_cb(RETRO_LOG_ERROR, "Failed to initialize samplers\n");
 }
 
 void GSDevice12::ExecuteCommandList(bool wait_for_completion)
@@ -2672,7 +2672,7 @@ bool GSDevice12::ApplyTFXState(bool already_execed)
 		{
 			if (already_execed)
 			{
-				Console.Error("Failed to reserve vertex uniform space");
+				log_cb(RETRO_LOG_ERROR, "Failed to reserve vertex uniform space\n");
 				return false;
 			}
 
@@ -2693,7 +2693,7 @@ bool GSDevice12::ApplyTFXState(bool already_execed)
 		{
 			if (already_execed)
 			{
-				Console.Error("Failed to reserve pixel uniform space");
+				log_cb(RETRO_LOG_ERROR, "Failed to reserve pixel uniform space\n");
 				return false;
 			}
 
@@ -2993,7 +2993,7 @@ void GSDevice12::RenderHW(GSHWDrawConfig& config)
 		config.rt = backup_rt;
 		if (!date_image)
 		{
-			Console.WriteLn("Failed to allocate DATE image, aborting draw.");
+			log_cb(RETRO_LOG_INFO, "Failed to allocate DATE image, aborting draw.\n");
 			return;
 		}
 	}
@@ -3024,7 +3024,7 @@ void GSDevice12::RenderHW(GSHWDrawConfig& config)
 			hdr_rt = static_cast<GSTexture12*>(CreateRenderTarget(rtsize.x, rtsize.y, GSTexture::Format::ColorClip, false));
 			if (!hdr_rt)
 			{
-				Console.WriteLn("Failed to allocate HDR render target, aborting draw.");
+				log_cb(RETRO_LOG_INFO, "Failed to allocate HDR render target, aborting draw.\n");
 
 				if (date_image)
 					Recycle(date_image);

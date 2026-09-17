@@ -99,7 +99,7 @@ void ata_read_dma8_mem(ata_state_t* ata, uint8_t* pMem, int size)
 	{
 		if (size == 0)
 			return;
-		pcsx2_log(RETRO_LOG_DEBUG, "DEV9: DMA read, size %i, transferred %i, total size %i\n",
+		log_cb(RETRO_LOG_DEBUG, "DEV9: DMA read, size %i, transferred %i, total size %i\n",
 				size, ata->rdTransferred, ata->nsector * 512);
 
 		/* read */
@@ -122,7 +122,7 @@ void ata_write_dma8_mem(ata_state_t* ata, uint8_t* pMem, int size)
 {
 	if ((ata->udmaMode >= 0) && dev9_ata_dma_enabled())
 	{
-		pcsx2_log(RETRO_LOG_DEBUG, "DEV9: DMA write, size %i, transferred %i, total size %i\n",
+		log_cb(RETRO_LOG_DEBUG, "DEV9: DMA write, size %i, transferred %i, total size %i\n",
 				size, ata->wrTransferred, ata->nsector * 512);
 
 		/* write */
@@ -147,7 +147,7 @@ void ata_hdd_read_dma(ata_state_t* ata, bool isLBA48)
 {
 	if (!ata_pre_cmd(ata))
 		return;
-	pcsx2_log(RETRO_LOG_DEBUG, "DEV9: HDD_ReadDMA\n");
+	log_cb(RETRO_LOG_DEBUG, "DEV9: HDD_ReadDMA\n");
 
 	ata_ide_cmd_lba48_transform(ata, isLBA48);
 
@@ -167,7 +167,7 @@ void ata_hdd_write_dma(ata_state_t* ata, bool isLBA48)
 {
 	if (!ata_pre_cmd(ata))
 		return;
-	pcsx2_log(RETRO_LOG_DEBUG, "DEV9: HDD_WriteDMA\n");
+	log_cb(RETRO_LOG_DEBUG, "DEV9: HDD_WriteDMA\n");
 
 	ata_ide_cmd_lba48_transform(ata, isLBA48);
 

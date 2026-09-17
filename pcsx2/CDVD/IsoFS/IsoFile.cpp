@@ -14,6 +14,7 @@
  */
 
 #include <algorithm> /* std::min */
+#include "common/Pcsx2Defs.h"
 #include <utility>
 #include <cstring>
 #include <climits>
@@ -21,7 +22,6 @@
 #include "IsoFS.h"
 #include "IsoFile.h"
 
-#include "common/Console.h"
 
 IsoFile::IsoFile()
 {
@@ -57,7 +57,7 @@ bool IsoFile::open(const IsoDirectory& dir, const std::string_view& filename)
 		 * whose SYSTEM.CNF cannot be found - an unreadable image, or one
 		 * whose reads are failing for any other reason - that is a
 		 * segfault on the emu thread rather than a failed load. */
-		Console.Error("Failed to find file %.*s", (int)filename.size(), filename.data());
+		log_cb(RETRO_LOG_ERROR, "Failed to find file %.*s\n", (int)filename.size(), filename.data());
 		return false;
 	}
 

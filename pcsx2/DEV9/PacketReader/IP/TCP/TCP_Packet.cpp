@@ -13,8 +13,8 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "common/Console.h"
 #include "TCP_Packet.h"
+#include "common/Pcsx2Defs.h"
 #include "DEV9/PacketReader/NetLib.h"
 
 namespace PacketReader::IP::TCP
@@ -156,7 +156,7 @@ namespace PacketReader::IP::TCP
 						options.push_back(new TCPopTS(buffer, offset));
 						break;
 					default:
-						Console.Error("Got Unknown TCP Option %d with len %d", opKind, opLen);
+						log_cb(RETRO_LOG_ERROR, "Got Unknown TCP Option %d with len %d\n", opKind, opLen);
 						options.push_back(new IPopUnk(buffer, offset));
 						break;
 				}

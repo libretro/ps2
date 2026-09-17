@@ -14,6 +14,7 @@
  */
 
 #include "GSRendererHW.h"
+#include "common/Pcsx2Defs.h"
 
 #include "../SW/GSTextureCacheSW.h"
 #include "../SW/GSRasterizer.h"
@@ -112,7 +113,7 @@ bool GSRendererHWFunctions::SwPrimRender(GSRendererHW& hw, bool invalidate_tc, b
 	// however after testing this on a PS2 it turns out nothing passes, it ignores the draw.
 	if ((context->FRAME.PSM & 0xF) == PSMCT24 && context->TEST.DATE)
 	{
-		//DevCon.Warning("DATE on a 24bit format, Frame PSM %x", context->FRAME.PSM);
+		//log_cb(RETRO_LOG_WARN, "DATE on a 24bit format, Frame PSM %x\n", context->FRAME.PSM);
 		return false;
 	}
 

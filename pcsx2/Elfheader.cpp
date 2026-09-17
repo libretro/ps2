@@ -14,10 +14,10 @@
  */
 
 #include "Common.h"
+#include "common/Pcsx2Defs.h"
 
 #include <file/file_path.h>
 
-#include "../common/Console.h"
 #include "HostFS.h"
 #include "../common/StringUtil.h"
 
@@ -35,11 +35,11 @@ ElfObject::~ElfObject() = default;
 bool ElfObject::CheckElfSize(s64 size)
 {
 	if (size > 0xfffffff)
-		Console.Error("Illegal ELF file size over 2GB!");
+		log_cb(RETRO_LOG_ERROR, "Illegal ELF file size over 2GB!\n");
 	else if (size == -1)
-		Console.Error("ELF file does not exist!");
+		log_cb(RETRO_LOG_ERROR, "ELF file does not exist!\n");
 	else if (size <= static_cast<s64>(sizeof(ELF_HEADER)))
-		Console.Error("Unexpected end of ELF file.");
+		log_cb(RETRO_LOG_ERROR, "Unexpected end of ELF file.\n");
 	else
 		return true;
 	return false;

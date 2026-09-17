@@ -14,6 +14,7 @@
  */
 
 #include <cstring>
+#include "common/Pcsx2Defs.h"
 #include <cassert>
 #include <vector>
 
@@ -25,7 +26,6 @@
 #include "ShaderCacheVersion.h"
 
 #include "common/Align.h"
-#include "common/Console.h"
 #include "common/General.h"
 #include "common/StringUtil.h"
 #include "VKBuilders.h"
@@ -56,7 +56,6 @@ extern retro_video_refresh_t video_cb;
 #include "tfx.glsl"
 
 static retro_hw_render_interface_vulkan *vulkan;
-extern retro_log_printf_t log_cb;
 
 struct vk_init_info_t  vk_init_info;
 
@@ -305,7 +304,7 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 
 		if (extension_count == 0)
 		{
-			Console.Error("Vulkan: No extensions supported by device.");
+			log_cb(RETRO_LOG_ERROR, "Vulkan: No extensions supported by device.\n");
 			return false;
 		}
 
@@ -321,7 +320,7 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 				if (std::none_of(extension_list->begin(), extension_list->end(),
 						[name](const char* existing_name) { return (strcmp(existing_name, name) == 0); }))
 				{
-					Console.WriteLn("Enabling extension: %s", name);
+					log_cb(RETRO_LOG_INFO, "Enabling extension: %s\n", name);
 					extension_list->push_back(name);
 				}
 
@@ -329,7 +328,7 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 			}
 
 			if (required)
-				Console.Error("Vulkan: Missing required extension %s.", name);
+				log_cb(RETRO_LOG_ERROR, "Vulkan: Missing required extension %s.\n", name);
 
 			return false;
 		};
@@ -337,7 +336,7 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 		// Required extensions.
 		if (!SupportsExtension(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME, true))
 		{
-			Console.WriteLn("Does not support VK_KHR_push_descriptor extension");
+			log_cb(RETRO_LOG_INFO, "Does not support VK_KHR_push_descriptor extension\n");
 			//return false;
 		}
 
@@ -387,14 +386,14 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 		vkGetPhysicalDeviceQueueFamilyProperties(vk_init_info.gpu, &queue_family_count, nullptr);
 		if (queue_family_count == 0)
 		{
-			Console.Error("No queue families found on specified vulkan physical device.");
+			log_cb(RETRO_LOG_ERROR, "No queue families found on specified vulkan physical device.\n");
 			return false;
 		}
 
 		std::vector<VkQueueFamilyProperties> queue_family_properties(queue_family_count);
 		vkGetPhysicalDeviceQueueFamilyProperties(
 			vk_init_info.gpu, &queue_family_count, queue_family_properties.data());
-		Console.WriteLn("%u vulkan queue families", queue_family_count);
+		log_cb(RETRO_LOG_INFO, "%u vulkan queue families\n", queue_family_count);
 
 		// Find graphics and present queues.
 		m_graphics_queue_family_index = queue_family_count;
@@ -412,7 +411,7 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 
 		if (m_graphics_queue_family_index == queue_family_count)
 		{
-			Console.Error("Vulkan: Failed to find an acceptable graphics queue.");
+			log_cb(RETRO_LOG_ERROR, "Vulkan: Failed to find an acceptable graphics queue.\n");
 			return false;
 		}
 
@@ -537,22 +536,22 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 		// confirm we actually support push descriptor extension
 		if (push_descriptor_properties.maxPushDescriptors < 4 /*NUM_TFX_TEXTURES */)
 		{
-			Console.Error("maxPushDescriptors (%u) is below required (%u)", push_descriptor_properties.maxPushDescriptors,
+			log_cb(RETRO_LOG_ERROR, "maxPushDescriptors (%u) is below required (%u)\n", push_descriptor_properties.maxPushDescriptors,
 					NUM_TFX_TEXTURES);
-			Console.WriteLn("VK_KHR_push_descriptor is NOT supported");
+			log_cb(RETRO_LOG_INFO, "VK_KHR_push_descriptor is NOT supported\n");
 			//return false;
 		}
 		else
 		{
-			Console.WriteLn("VK_KHR_push_descriptor is supported");
+			log_cb(RETRO_LOG_INFO, "VK_KHR_push_descriptor is supported\n");
 		}
 
 
-		Console.WriteLn("VK_EXT_provoking_vertex is %s",
+		log_cb(RETRO_LOG_INFO, "VK_EXT_provoking_vertex is %s\n",
 			m_optional_extensions.vk_ext_provoking_vertex ? "supported" : "NOT supported");
-		Console.WriteLn("VK_EXT_line_rasterization is %s",
+		log_cb(RETRO_LOG_INFO, "VK_EXT_line_rasterization is %s\n",
 			m_optional_extensions.vk_ext_line_rasterization ? "supported" : "NOT supported");
-		Console.WriteLn("VK_EXT_rasterization_order_attachment_access is %s",
+		log_cb(RETRO_LOG_INFO, "VK_EXT_rasterization_order_attachment_access is %s\n",
 			m_optional_extensions.vk_ext_rasterization_order_attachment_access ? "supported" : "NOT supported");
 
 		return true;
@@ -683,7 +682,7 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 	{
 		if (!m_texture_upload_buffer.Create(VK_BUFFER_USAGE_TRANSFER_SRC_BIT, TEXTURE_BUFFER_SIZE))
 		{
-			Console.Error("Failed to allocate texture upload buffer");
+			log_cb(RETRO_LOG_ERROR, "Failed to allocate texture upload buffer\n");
 			return false;
 		}
 
@@ -861,12 +860,12 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 		{
 			res = vkEndCommandBuffer(resources.command_buffers[0]);
 			if (res != VK_SUCCESS)
-				Console.Error("Failed to end command buffer");
+				log_cb(RETRO_LOG_ERROR, "Failed to end command buffer\n");
 		}
 
 		res = vkEndCommandBuffer(resources.command_buffers[1]);
 		if (res != VK_SUCCESS)
-			Console.Error("Failed to end command buffer");
+			log_cb(RETRO_LOG_ERROR, "Failed to end command buffer\n");
 
 		// This command buffer now has commands, so can't be re-used without waiting.
 		VkSubmitInfo submit_info       = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
@@ -1170,13 +1169,13 @@ bool GSDeviceVK::IsSuitableDefaultRenderer()
 
 	// Check the first GPU, should be enough.
 	const std::string& name = adapters.front();
-	Console.WriteLn("Using Vulkan GPU '{%s}' for automatic renderer check.", name.c_str());
+	log_cb(RETRO_LOG_INFO, "Using Vulkan GPU '{%s}' for automatic renderer check.\n", name.c_str());
 
 	// Any software rendering (LLVMpipe, SwiftShader).
 	if (       StringUtil::StartsWithNoCase(name, "llvmpipe")
 		|| StringUtil::StartsWithNoCase(name, "SwiftShader"))
 	{
-		Console.Warning("Not using Vulkan for software renderer.");
+		log_cb(RETRO_LOG_WARN, "Not using Vulkan for software renderer.\n");
 		return false;
 	}
 
@@ -1184,11 +1183,11 @@ bool GSDeviceVK::IsSuitableDefaultRenderer()
 	// Plus, the Ivy Bridge and Haswell drivers are incomplete.
 	if (StringUtil::StartsWithNoCase(name, "Intel"))
 	{
-		Console.Warning("Not using Vulkan for Intel GPU.");
+		log_cb(RETRO_LOG_WARN, "Not using Vulkan for Intel GPU.\n");
 		return false;
 	}
 
-	Console.WriteLn("Allowing Vulkan as default renderer.");
+	log_cb(RETRO_LOG_INFO, "Allowing Vulkan as default renderer.\n");
 	return true;
 }
 
@@ -1210,25 +1209,25 @@ bool GSDeviceVK::Create()
 
 	if (!CheckFeatures())
 	{
-		Console.Error("Your GPU does not support the required Vulkan features.");
+		log_cb(RETRO_LOG_ERROR, "Your GPU does not support the required Vulkan features.\n");
 		return false;
 	}
 
 	if (!CreateNullTexture())
 	{
-		Console.Error("Failed to create dummy texture");
+		log_cb(RETRO_LOG_ERROR, "Failed to create dummy texture\n");
 		return false;
 	}
 
 	if (!CreatePipelineLayouts())
 	{
-		Console.Error("Failed to create pipeline layouts");
+		log_cb(RETRO_LOG_ERROR, "Failed to create pipeline layouts\n");
 		return false;
 	}
 
 	if (!CreateRenderPasses())
 	{
-		Console.Error("Failed to create render passes");
+		log_cb(RETRO_LOG_ERROR, "Failed to create render passes\n");
 		return false;
 	}
 
@@ -1237,25 +1236,25 @@ bool GSDeviceVK::Create()
 
 	if (!CompileConvertPipelines())
 	{
-		Console.Error("Failed to compile convert pipelines");
+		log_cb(RETRO_LOG_ERROR, "Failed to compile convert pipelines\n");
 		return false;
 	}
 
 	if (!CompileInterlacePipelines())
 	{
-		Console.Error("Failed to compile interlace pipelines");
+		log_cb(RETRO_LOG_ERROR, "Failed to compile interlace pipelines\n");
 		return false;
 	}
 
 	if (!CompileMergePipelines())
 	{
-		Console.Error("Failed to compile merge pipelines");
+		log_cb(RETRO_LOG_ERROR, "Failed to compile merge pipelines\n");
 		return false;
 	}
 
 	if (!CreatePersistentDescriptorSets())
 	{
-		Console.Error("Failed to create persistent descriptor sets");
+		log_cb(RETRO_LOG_ERROR, "Failed to create persistent descriptor sets\n");
 		return false;
 	}
 
@@ -1325,7 +1324,7 @@ bool GSDeviceVK::CreateDeviceAndSwapChain()
 {
 	if (!Vulkan::LoadVulkanLibrary())
 	{
-		Console.Error("Failed to load Vulkan library. Does your GPU and/or driver support Vulkan?");
+		log_cb(RETRO_LOG_ERROR, "Failed to load Vulkan library. Does your GPU and/or driver support Vulkan?\n");
 		return false;
 	}
 
@@ -1348,7 +1347,7 @@ bool GSDeviceVK::CreateDeviceAndSwapChain()
 
 	if (!Vulkan::LoadVulkanInstanceFunctions(vk_init_info.instance))
 	{
-		Console.Error("Failed to load Vulkan instance functions");
+		log_cb(RETRO_LOG_ERROR, "Failed to load Vulkan instance functions\n");
 		Vulkan::UnloadVulkanLibrary();
 		return false;
 	}
@@ -1365,7 +1364,7 @@ bool GSDeviceVK::CreateDeviceAndSwapChain()
 			|| !CreateCommandBuffers()
 			|| !CreateTextureStreamBuffer())
 	{
-		Console.Error("Failed to create Vulkan context");
+		log_cb(RETRO_LOG_ERROR, "Failed to create Vulkan context\n");
 		Vulkan::UnloadVulkanLibrary();
 		return false;
 	}
@@ -1401,10 +1400,10 @@ bool GSDeviceVK::CheckFeatures()
 #endif
 
 	if (!m_features.texture_barrier)
-		Console.Warning("Texture buffers are disabled. This may break some graphical effects.");
+		log_cb(RETRO_LOG_WARN, "Texture buffers are disabled. This may break some graphical effects.\n");
 
 	if (!m_optional_extensions.vk_ext_line_rasterization)
-		Console.WriteLn("VK_EXT_line_rasterization or the BRESENHAM mode is not supported, this may cause rendering inaccuracies.");
+		log_cb(RETRO_LOG_INFO, "VK_EXT_line_rasterization or the BRESENHAM mode is not supported, this may cause rendering inaccuracies.\n");
 
 	// Test for D32S8 support.
 	{
@@ -1429,7 +1428,7 @@ bool GSDeviceVK::CheckFeatures()
 	m_features.line_expand =
 		(m_device_features.wideLines && limits.lineWidthRange[0] <= f_upscale && limits.lineWidthRange[1] >= f_upscale);
 
-	Console.WriteLn("Using %s for point expansion and %s for line expansion.",
+	log_cb(RETRO_LOG_INFO, "Using %s for point expansion and %s for line expansion.\n",
 		m_features.point_expand ? "hardware" : "vertex expanding",
 		m_features.line_expand ? "hardware" : "vertex expanding");
 
@@ -1445,7 +1444,7 @@ bool GSDeviceVK::CheckFeatures()
 		vkGetPhysicalDeviceFormatProperties(vk_init_info.gpu, vkfmt, &props);
 		if ((props.optimalTilingFeatures & bits) != bits)
 		{
-			Console.Error("Vulkan Renderer Unavailable: required format %u is missing bits, you may need to update your driver. (vk:%u, has:0x%x, needs:0x%x)",
+			log_cb(RETRO_LOG_ERROR, "Vulkan Renderer Unavailable: required format %u is missing bits, you may need to update your driver. (vk:%u, has:0x%x, needs:0x%x)\n",
 				fmt, static_cast<unsigned>(vkfmt), props.optimalTilingFeatures, bits);
 			return false;
 		}
@@ -1724,7 +1723,7 @@ void GSDeviceVK::DoMultiStretchRects(
 			 * reserve succeeded, so carrying on writes num_rects worth
 			 * of vertices into a region nothing reserved.  Drop the
 			 * blit. */
-			Console.Error("Failed to reserve space for vertices");
+			log_cb(RETRO_LOG_ERROR, "Failed to reserve space for vertices\n");
 			return;
 		}
 	}
@@ -2102,7 +2101,7 @@ void GSDeviceVK::IASetVertexBuffer(const void* vertex, size_t stride, size_t cou
 			 * Leave the count at zero so the draw that follows submits
 			 * nothing, rather than reading whatever the stale offsets
 			 * point at. */
-			Console.Error("Failed to reserve space for vertices");
+			log_cb(RETRO_LOG_ERROR, "Failed to reserve space for vertices\n");
 			m_vertex.count = 0;
 			return;
 		}
@@ -2134,7 +2133,7 @@ void GSDeviceVK::IASetIndexBuffer(const void* index, size_t count)
 			 * Leave the count at zero so the draw that follows submits
 			 * nothing, rather than reading whatever the stale offsets
 			 * point at. */
-			Console.Error("Failed to reserve space for indices");
+			log_cb(RETRO_LOG_ERROR, "Failed to reserve space for indices\n");
 			m_index.count = 0;
 			return;
 		}
@@ -2466,25 +2465,25 @@ bool GSDeviceVK::CreateBuffers()
 			VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | (m_features.vs_expand ? VK_BUFFER_USAGE_STORAGE_BUFFER_BIT : 0),
 			VERTEX_BUFFER_SIZE))
 	{
-		Console.Error("Failed to allocate vertex buffer");
+		log_cb(RETRO_LOG_ERROR, "Failed to allocate vertex buffer\n");
 		return false;
 	}
 
 	if (!m_index_stream_buffer.Create(VK_BUFFER_USAGE_INDEX_BUFFER_BIT, INDEX_BUFFER_SIZE))
 	{
-		Console.Error("Failed to allocate index buffer");
+		log_cb(RETRO_LOG_ERROR, "Failed to allocate index buffer\n");
 		return false;
 	}
 
 	if (!m_vertex_uniform_stream_buffer.Create(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VERTEX_UNIFORM_BUFFER_SIZE))
 	{
-		Console.Error("Failed to allocate vertex uniform buffer");
+		log_cb(RETRO_LOG_ERROR, "Failed to allocate vertex uniform buffer\n");
 		return false;
 	}
 
 	if (!m_fragment_uniform_stream_buffer.Create(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, FRAGMENT_UNIFORM_BUFFER_SIZE))
 	{
-		Console.Error("Failed to allocate fragment uniform buffer");
+		log_cb(RETRO_LOG_ERROR, "Failed to allocate fragment uniform buffer\n");
 		return false;
 	}
 
@@ -2492,7 +2491,7 @@ bool GSDeviceVK::CreateBuffers()
 			&m_expand_index_buffer_allocation, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
 			&GSDevice::GenerateExpansionIndexBuffer))
 	{
-		Console.Error("Failed to allocate expansion index buffer");
+		log_cb(RETRO_LOG_ERROR, "Failed to allocate expansion index buffer\n");
 		return false;
 	}
 
@@ -3660,7 +3659,7 @@ bool GSDeviceVK::ApplyTFXState(bool already_execed)
 		{
 			if (already_execed)
 			{
-				Console.Error("Failed to reserve vertex uniform space");
+				log_cb(RETRO_LOG_ERROR, "Failed to reserve vertex uniform space\n");
 				return false;
 			}
 
@@ -3682,7 +3681,7 @@ bool GSDeviceVK::ApplyTFXState(bool already_execed)
 		{
 			if (already_execed)
 			{
-				Console.Error("Failed to reserve pixel uniform space");
+				log_cb(RETRO_LOG_ERROR, "Failed to reserve pixel uniform space\n");
 				return false;
 			}
 
@@ -3714,7 +3713,7 @@ bool GSDeviceVK::ApplyTFXState(bool already_execed)
 		{
 			if (already_execed)
 			{
-				Console.Error("Failed to allocate TFX texture descriptors");
+				log_cb(RETRO_LOG_ERROR, "Failed to allocate TFX texture descriptors\n");
 				return false;
 			}
 
@@ -3743,7 +3742,7 @@ bool GSDeviceVK::ApplyTFXState(bool already_execed)
 		{
 			if (already_execed)
 			{
-				Console.Error("Failed to allocate TFX sampler descriptors");
+				log_cb(RETRO_LOG_ERROR, "Failed to allocate TFX sampler descriptors\n");
 				return false;
 			}
 
@@ -3834,7 +3833,7 @@ bool GSDeviceVK::ApplyUtilityState(bool already_execed)
 		{
 			if (already_execed)
 			{
-				Console.Error("Failed to allocate utility descriptors");
+				log_cb(RETRO_LOG_ERROR, "Failed to allocate utility descriptors\n");
 				return false;
 			}
 

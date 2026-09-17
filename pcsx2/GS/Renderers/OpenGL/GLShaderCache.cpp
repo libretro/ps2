@@ -14,6 +14,7 @@
  */
 
 #include "GLShaderCache.h"
+#include "common/Pcsx2Defs.h"
 #include <cerrno>
 
 #include "GS/Renderers/OpenGL/GLShaderCache.h"
@@ -22,7 +23,6 @@
 #include "Config.h"
 #include "ShaderCacheVersion.h"
 
-#include "common/Console.h"
 
 /* xxhash may already be set up by a header included above (HashCombine.h /
  * GSXXH.h, both behind an XXH_versionNumber guard). Guard our own setup so
@@ -86,13 +86,13 @@ bool GLShaderCache::Open(bool is_gles)
 		// check that there's at least one format and the extension isn't being "faked"
 		GLint num_formats = 0;
 		glGetIntegerv(GL_NUM_PROGRAM_BINARY_FORMATS, &num_formats);
-		Console.WriteLn("%u program binary formats supported by driver", num_formats);
+		log_cb(RETRO_LOG_INFO, "%u program binary formats supported by driver\n", num_formats);
 		m_program_binary_supported = (num_formats > 0);
 	}
 
 	if (!m_program_binary_supported)
 	{
-		Console.Warning("Your GL driver does not support program binaries. Hopefully it has a built-in cache.");
+		log_cb(RETRO_LOG_WARN, "Your GL driver does not support program binaries. Hopefully it has a built-in cache.\n");
 		return true;
 	}
 
@@ -114,26 +114,26 @@ bool GLShaderCache::CreateNew(const std::string& index_filename, const std::stri
 {
 	if (path_is_valid(index_filename.c_str()))
 	{
-		Console.Warning("Removing existing index file '%s'", index_filename.c_str());
+		log_cb(RETRO_LOG_WARN, "Removing existing index file '%s'\n", index_filename.c_str());
 		filestream_delete(index_filename.c_str());
 	}
 	if (path_is_valid(blob_filename.c_str()))
 	{
-		Console.Warning("Removing existing blob file '%s'", blob_filename.c_str());
+		log_cb(RETRO_LOG_WARN, "Removing existing blob file '%s'\n", blob_filename.c_str());
 		filestream_delete(blob_filename.c_str());
 	}
 
 	m_index_file = filestream_open(index_filename.c_str(), RETRO_VFS_FILE_ACCESS_WRITE, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 	if (!m_index_file)
 	{
-		Console.Error("Failed to open index file '%s' for writing", index_filename.c_str());
+		log_cb(RETRO_LOG_ERROR, "Failed to open index file '%s' for writing\n", index_filename.c_str());
 		return false;
 	}
 
 	const u32 file_version = SHADER_CACHE_VERSION;
 	if (filestream_write(m_index_file, &file_version, sizeof(file_version)) != (int64_t)(sizeof(file_version)))
 	{
-		Console.Error("Failed to write version to index file '%s'", index_filename.c_str());
+		log_cb(RETRO_LOG_ERROR, "Failed to write version to index file '%s'\n", index_filename.c_str());
 		filestream_close(m_index_file);
 		m_index_file = nullptr;
 		filestream_delete(index_filename.c_str());
@@ -143,7 +143,7 @@ bool GLShaderCache::CreateNew(const std::string& index_filename, const std::stri
 	m_blob_file = filestream_open(blob_filename.c_str(), RETRO_VFS_FILE_ACCESS_READ_WRITE, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 	if (!m_blob_file)
 	{
-		Console.Error("Failed to open blob file '%s' for writing", blob_filename.c_str());
+		log_cb(RETRO_LOG_ERROR, "Failed to open blob file '%s' for writing\n", blob_filename.c_str());
 		filestream_close(m_index_file);
 		m_index_file = nullptr;
 		filestream_delete(index_filename.c_str());
@@ -162,7 +162,7 @@ bool GLShaderCache::ReadExisting(const std::string& index_filename, const std::s
 		// we don't want to blow away the cache. so just continue without a cache.
 		if (errno == EACCES)
 		{
-			Console.WriteLn("Failed to open shader cache index with EACCES, are you running two instances?");
+			log_cb(RETRO_LOG_INFO, "Failed to open shader cache index with EACCES, are you running two instances?\n");
 			return true;
 		}
 
@@ -172,7 +172,7 @@ bool GLShaderCache::ReadExisting(const std::string& index_filename, const std::s
 	u32 file_version = 0;
 	if (filestream_read(m_index_file, &file_version, sizeof(file_version)) != (int64_t)(sizeof(file_version)) || file_version != SHADER_CACHE_VERSION)
 	{
-		Console.Error("Bad file/data version in '%s'", index_filename.c_str());
+		log_cb(RETRO_LOG_ERROR, "Bad file/data version in '%s'\n", index_filename.c_str());
 		filestream_close(m_index_file);
 		m_index_file = nullptr;
 		return false;
@@ -185,7 +185,7 @@ bool GLShaderCache::ReadExisting(const std::string& index_filename, const std::s
 		filestream_seek(m_blob_file, 0, RETRO_VFS_SEEK_POSITION_END);
 	if (!m_blob_file)
 	{
-		Console.Error("Blob file '%s' is missing", blob_filename.c_str());
+		log_cb(RETRO_LOG_ERROR, "Blob file '%s' is missing\n", blob_filename.c_str());
 		filestream_close(m_index_file);
 		m_index_file = nullptr;
 		return false;
@@ -203,7 +203,7 @@ bool GLShaderCache::ReadExisting(const std::string& index_filename, const std::s
 			if (filestream_eof(m_index_file))
 				break;
 
-			Console.Error("Failed to read entry from '%s', corrupt file?", index_filename.c_str());
+			log_cb(RETRO_LOG_ERROR, "Failed to read entry from '%s', corrupt file?\n", index_filename.c_str());
 			m_index.clear();
 			filestream_close(m_blob_file);
 			m_blob_file = nullptr;
@@ -219,7 +219,7 @@ bool GLShaderCache::ReadExisting(const std::string& index_filename, const std::s
 		m_index.emplace(key, data);
 	}
 
-	Console.WriteLn("Read %zu entries from '%s'", m_index.size(), index_filename.c_str());
+	log_cb(RETRO_LOG_INFO, "Read %zu entries from '%s'\n", m_index.size(), index_filename.c_str());
 	return true;
 }
 
@@ -297,7 +297,7 @@ std::optional<GLProgram> GLShaderCache::GetProgram(const std::string_view vertex
 	if (filestream_seek(m_blob_file, iter->second.file_offset, RETRO_VFS_SEEK_POSITION_START) != 0 ||
 			filestream_read(m_blob_file, data.data(), iter->second.blob_size) != (int64_t)iter->second.blob_size)
 	{
-		Console.Error("Read blob from file failed");
+		log_cb(RETRO_LOG_ERROR, "Read blob from file failed\n");
 		return {};
 	}
 
@@ -305,8 +305,7 @@ std::optional<GLProgram> GLShaderCache::GetProgram(const std::string_view vertex
 	if (prog.CreateFromBinary(data.data(), static_cast<u32>(data.size()), iter->second.blob_format))
 		return std::optional<GLProgram>(std::move(prog));
 
-	Console.Warning(
-			"Failed to create program from binary, this may be due to a driver or GPU Change. Recreating cache.");
+	log_cb(RETRO_LOG_WARN, "Failed to create program from binary, this may be due to a driver or GPU Change. Recreating cache.\n");
 	if (!Recreate())
 		return CompileProgram(vertex_shader, fragment_shader, callback, false);
 	else
@@ -349,7 +348,7 @@ bool GLShaderCache::WriteToBlobFile(const CacheIndexKey& key, const std::vector<
 			filestream_flush(m_blob_file) != 0 || filestream_write(m_index_file, &entry, sizeof(entry)) != (int64_t)(sizeof(entry)) ||
 			filestream_flush(m_index_file) != 0)
 	{
-		Console.Error("Failed to write shader blob to file");
+		log_cb(RETRO_LOG_ERROR, "Failed to write shader blob to file\n");
 		return false;
 	}
 
@@ -426,7 +425,7 @@ std::optional<GLProgram> GLShaderCache::GetComputeProgram(const std::string_view
 	if (filestream_seek(m_blob_file, iter->second.file_offset, RETRO_VFS_SEEK_POSITION_START) != 0 ||
 			filestream_read(m_blob_file, data.data(), iter->second.blob_size) != (int64_t)iter->second.blob_size)
 	{
-		Console.Error("Read blob from file failed");
+		log_cb(RETRO_LOG_ERROR, "Read blob from file failed\n");
 		return {};
 	}
 
@@ -434,8 +433,7 @@ std::optional<GLProgram> GLShaderCache::GetComputeProgram(const std::string_view
 	if (prog.CreateFromBinary(data.data(), static_cast<u32>(data.size()), iter->second.blob_format))
 		return std::optional<GLProgram>(std::move(prog));
 
-	Console.Warning(
-			"Failed to create program from binary, this may be due to a driver or GPU Change. Recreating cache.");
+	log_cb(RETRO_LOG_WARN, "Failed to create program from binary, this may be due to a driver or GPU Change. Recreating cache.\n");
 	if (!Recreate())
 		return CompileComputeProgram(glsl, callback, false);
 	return CompileAndAddComputeProgram(key, glsl, callback);

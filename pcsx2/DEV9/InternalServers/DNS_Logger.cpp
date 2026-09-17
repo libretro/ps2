@@ -13,8 +13,8 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "common/Console.h"
 #include "DNS_Logger.h"
+#include "common/Pcsx2Defs.h"
 #include "DEV9/PacketReader/IP/UDP/UDP_Packet.h"
 #include "DEV9/PacketReader/IP/UDP/DNS/DNS_Packet.h"
 
@@ -110,56 +110,56 @@ namespace InternalServers
 
 	void DNS_Logger::LogPacket(DNS_Packet* dns)
 	{
-		Console.WriteLn("DEV9: DNS: ID %i", dns->id);
-		Console.WriteLn("DEV9: DNS: Is Response? %s", dns->GetQR() ? "True" : "False");
-		Console.WriteLn("DEV9: DNS: OpCode %s (%i)", OpCodeToString((DNS_OPCode)dns->GetOpCode()), dns->GetOpCode());
-		Console.WriteLn("DEV9: DNS: Is Authoritative (not cached)? %s", dns->GetAA() ? "True" : "False");
-		Console.WriteLn("DEV9: DNS: Is Truncated? %s", dns->GetTC() ? "True" : "False");
-		Console.WriteLn("DEV9: DNS: Recursion Desired? %s", dns->GetRD() ? "True" : "False");
-		Console.WriteLn("DEV9: DNS: Recursion Available? %s", dns->GetRA() ? "True" : "False");
-		Console.WriteLn("DEV9: DNS: Zero %zu", dns->GetZ0());
-		Console.WriteLn("DEV9: DNS: Authenticated Data? %s", dns->GetAD() ? "True" : "False");
-		Console.WriteLn("DEV9: DNS: Checking Disabled? %s", dns->GetCD() ? "True" : "False");
-		Console.WriteLn("DEV9: DNS: Result %s (%zu)", RCodeToString((DNS_RCode)dns->GetRCode()), dns->GetRCode());
+		log_cb(RETRO_LOG_INFO, "DEV9: DNS: ID %i\n", dns->id);
+		log_cb(RETRO_LOG_INFO, "DEV9: DNS: Is Response? %s\n", dns->GetQR() ? "True" : "False");
+		log_cb(RETRO_LOG_INFO, "DEV9: DNS: OpCode %s (%i)\n", OpCodeToString((DNS_OPCode)dns->GetOpCode()), dns->GetOpCode());
+		log_cb(RETRO_LOG_INFO, "DEV9: DNS: Is Authoritative (not cached)? %s\n", dns->GetAA() ? "True" : "False");
+		log_cb(RETRO_LOG_INFO, "DEV9: DNS: Is Truncated? %s\n", dns->GetTC() ? "True" : "False");
+		log_cb(RETRO_LOG_INFO, "DEV9: DNS: Recursion Desired? %s\n", dns->GetRD() ? "True" : "False");
+		log_cb(RETRO_LOG_INFO, "DEV9: DNS: Recursion Available? %s\n", dns->GetRA() ? "True" : "False");
+		log_cb(RETRO_LOG_INFO, "DEV9: DNS: Zero %zu\n", dns->GetZ0());
+		log_cb(RETRO_LOG_INFO, "DEV9: DNS: Authenticated Data? %s\n", dns->GetAD() ? "True" : "False");
+		log_cb(RETRO_LOG_INFO, "DEV9: DNS: Checking Disabled? %s\n", dns->GetCD() ? "True" : "False");
+		log_cb(RETRO_LOG_INFO, "DEV9: DNS: Result %s (%zu)\n", RCodeToString((DNS_RCode)dns->GetRCode()), dns->GetRCode());
 
-		Console.WriteLn("DEV9: DNS: Question Count %zu", dns->questions.size());
-		Console.WriteLn("DEV9: DNS: Answer Count %zu", dns->answers.size());
-		Console.WriteLn("DEV9: DNS: Authority Count %zu", dns->authorities.size());
-		Console.WriteLn("DEV9: DNS: Additional Count %zu", dns->additional.size());
+		log_cb(RETRO_LOG_INFO, "DEV9: DNS: Question Count %zu\n", dns->questions.size());
+		log_cb(RETRO_LOG_INFO, "DEV9: DNS: Answer Count %zu\n", dns->answers.size());
+		log_cb(RETRO_LOG_INFO, "DEV9: DNS: Authority Count %zu\n", dns->authorities.size());
+		log_cb(RETRO_LOG_INFO, "DEV9: DNS: Additional Count %zu\n", dns->additional.size());
 
 		for (size_t i = 0; i < dns->questions.size(); i++)
 		{
 			DNS_QuestionEntry entry = dns->questions[i];
-			Console.WriteLn("DEV9: DNS: Q%zu Name %s", i, entry.name.c_str());
-			Console.WriteLn("DEV9: DNS: Q%zu Type %zu", i, entry.entryType);
-			Console.WriteLn("DEV9: DNS: Q%zu Class %zu", i, entry.entryClass);
+			log_cb(RETRO_LOG_INFO, "DEV9: DNS: Q%zu Name %s\n", i, entry.name.c_str());
+			log_cb(RETRO_LOG_INFO, "DEV9: DNS: Q%zu Type %zu\n", i, entry.entryType);
+			log_cb(RETRO_LOG_INFO, "DEV9: DNS: Q%zu Class %zu\n", i, entry.entryClass);
 		}
 		for (size_t i = 0; i < dns->answers.size(); i++)
 		{
 			DNS_ResponseEntry entry = dns->answers[i];
-			Console.WriteLn("DEV9: DNS: Ans%zu Name %s", i, entry.name.c_str());
-			Console.WriteLn("DEV9: DNS: Ans%zu Type %zu", i, entry.entryType);
-			Console.WriteLn("DEV9: DNS: Ans%zu Class %zu", i, entry.entryClass);
-			Console.WriteLn("DEV9: DNS: Ans%zu TTL %zu", i, entry.timeToLive);
-			Console.WriteLn("DEV9: DNS: Ans%zu Data %s", i, VectorToString(entry.data).c_str());
+			log_cb(RETRO_LOG_INFO, "DEV9: DNS: Ans%zu Name %s\n", i, entry.name.c_str());
+			log_cb(RETRO_LOG_INFO, "DEV9: DNS: Ans%zu Type %zu\n", i, entry.entryType);
+			log_cb(RETRO_LOG_INFO, "DEV9: DNS: Ans%zu Class %zu\n", i, entry.entryClass);
+			log_cb(RETRO_LOG_INFO, "DEV9: DNS: Ans%zu TTL %zu\n", i, entry.timeToLive);
+			log_cb(RETRO_LOG_INFO, "DEV9: DNS: Ans%zu Data %s\n", i, VectorToString(entry.data).c_str());
 		}
 		for (size_t i = 0; i < dns->authorities.size(); i++)
 		{
 			DNS_ResponseEntry entry = dns->authorities[i];
-			Console.WriteLn("DEV9: DNS: Auth%zu Name %s", i, entry.name.c_str());
-			Console.WriteLn("DEV9: DNS: Auth%zu Type %zu", i, entry.entryType);
-			Console.WriteLn("DEV9: DNS: Auth%zu Class %zu", i, entry.entryClass);
-			Console.WriteLn("DEV9: DNS: Auth%zu TTL %zu", i, entry.timeToLive);
-			Console.WriteLn("DEV9: DNS: Auth%zu Data %s", i, VectorToString(entry.data).c_str());
+			log_cb(RETRO_LOG_INFO, "DEV9: DNS: Auth%zu Name %s\n", i, entry.name.c_str());
+			log_cb(RETRO_LOG_INFO, "DEV9: DNS: Auth%zu Type %zu\n", i, entry.entryType);
+			log_cb(RETRO_LOG_INFO, "DEV9: DNS: Auth%zu Class %zu\n", i, entry.entryClass);
+			log_cb(RETRO_LOG_INFO, "DEV9: DNS: Auth%zu TTL %zu\n", i, entry.timeToLive);
+			log_cb(RETRO_LOG_INFO, "DEV9: DNS: Auth%zu Data %s\n", i, VectorToString(entry.data).c_str());
 		}
 		for (size_t i = 0; i < dns->additional.size(); i++)
 		{
 			DNS_ResponseEntry entry = dns->additional[i];
-			Console.WriteLn("DEV9: DNS: Add%zu Name %s", i, entry.name.c_str());
-			Console.WriteLn("DEV9: DNS: Add%zu Type %zu", i, entry.entryType);
-			Console.WriteLn("DEV9: DNS: Add%zu Class %zu", i, entry.entryClass);
-			Console.WriteLn("DEV9: DNS: Add%i TTL %i", i, entry.timeToLive);
-			Console.WriteLn("DEV9: DNS: Add%i Data %s", i, VectorToString(entry.data).c_str());
+			log_cb(RETRO_LOG_INFO, "DEV9: DNS: Add%zu Name %s\n", i, entry.name.c_str());
+			log_cb(RETRO_LOG_INFO, "DEV9: DNS: Add%zu Type %zu\n", i, entry.entryType);
+			log_cb(RETRO_LOG_INFO, "DEV9: DNS: Add%zu Class %zu\n", i, entry.entryClass);
+			log_cb(RETRO_LOG_INFO, "DEV9: DNS: Add%i TTL %i\n", i, entry.timeToLive);
+			log_cb(RETRO_LOG_INFO, "DEV9: DNS: Add%i Data %s\n", i, VectorToString(entry.data).c_str());
 		}
 	}
 } // namespace InternalServers

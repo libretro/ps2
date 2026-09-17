@@ -14,6 +14,7 @@
  */
 
 #include <retro_atomic.h>
+#include "common/Pcsx2Defs.h"
 #include <memalign.h>
 #include <cstring> /* memcpy/memset */
 
@@ -699,7 +700,7 @@ bool GSRendererSW::GetScanlineGlobalData(SharedData* data)
 	// however after testing this on a PS2 it turns out nothing passes, it ignores the draw.
 	if ((m_context->FRAME.PSM & 0xF) == PSMCT24 && m_context->TEST.DATE)
 	{
-		//DevCon.Warning("DATE on a 24bit format, Frame PSM %x", m_context->FRAME.PSM);
+		//log_cb(RETRO_LOG_WARN, "DATE on a 24bit format, Frame PSM %x\n", m_context->FRAME.PSM);
 		return false;
 	}
 

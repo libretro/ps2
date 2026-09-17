@@ -65,9 +65,9 @@ void ata_create_hdd_info(ata_state_t* ata, uint64_t sizeSectors)
 	int curOldsize;
 	int index;
 
-	pcsx2_log(RETRO_LOG_DEBUG, "DEV9: HddSize : %llu\n",
+	log_cb(RETRO_LOG_DEBUG, "DEV9: HddSize : %llu\n",
 			(unsigned long long)(sizeSectors * sectorSize / (1024 * 1024)));
-	pcsx2_log(RETRO_LOG_DEBUG, "DEV9: nbSectors : %llu\n",
+	log_cb(RETRO_LOG_DEBUG, "DEV9: nbSectors : %llu\n",
 			(unsigned long long)nbSectors);
 
 	memset(&ata->identifyData, 0, sizeof(ata->identifyData));
@@ -408,5 +408,5 @@ static void CreateHDDinfoCsum(ata_state_t* ata) /* Is this correct? */
 	for (i = 0; i < (512); i++)
 		counter += ata->identifyData[i];
 
-	pcsx2_log(RETRO_LOG_DEBUG, "DEV9: %i\n", counter);
+	log_cb(RETRO_LOG_DEBUG, "DEV9: %i\n", counter);
 }

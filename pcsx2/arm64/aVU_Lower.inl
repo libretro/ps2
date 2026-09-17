@@ -127,7 +127,7 @@ void setBranchA(mP, int x, int _x_)
 	{
 		if (_Imm11_ == 1 && !_x_ && !isBranchDelaySlot)
 		{
-			DevCon.WriteLn(Color_Green, "microVU%d: Branch Optimization", mVU.index);
+			log_cb(RETRO_LOG_DEBUG, "microVU%d: Branch Optimization\n", mVU.index);
 			mVUlow.isNOP = true;
 			return;
 		}
@@ -969,8 +969,8 @@ mVUop(mVU_FSAND)
 	pass1 { mVUanalyzeSflag(mVU, _It_); }
 	pass2
 	{
-		if (_Imm12_ & 0x0c30) DevCon.WriteLn(Color_Green, "mVU_FSAND: Checking I/D/IS/DS Flags");
-		if (_Imm12_ & 0x030c) DevCon.WriteLn(Color_Green, "mVU_FSAND: Checking U/O/US/OS Flags");
+		if (_Imm12_ & 0x0c30) log_cb(RETRO_LOG_DEBUG, "mVU_FSAND: Checking I/D/IS/DS Flags\n");
+		if (_Imm12_ & 0x030c) log_cb(RETRO_LOG_DEBUG, "mVU_FSAND: Checking U/O/US/OS Flags\n");
 		const a64::Register reg = mVU.regAlloc->allocGPR(-1, _It_, mVUlow.backupVI);
 		mVUallocSFLAGc(reg, gprT1, sFLAG.read);
 		armAsm->And(reg, reg, _Imm12_);
@@ -1002,8 +1002,8 @@ mVUop(mVU_FSEQ)
 	pass2
 	{
 		int imm = 0;
-		if (_Imm12_ & 0x0c30) DevCon.WriteLn(Color_Green, "mVU_FSEQ: Checking I/D/IS/DS Flags");
-		if (_Imm12_ & 0x030c) DevCon.WriteLn(Color_Green, "mVU_FSEQ: Checking U/O/US/OS Flags");
+		if (_Imm12_ & 0x0c30) log_cb(RETRO_LOG_DEBUG, "mVU_FSEQ: Checking I/D/IS/DS Flags\n");
+		if (_Imm12_ & 0x030c) log_cb(RETRO_LOG_DEBUG, "mVU_FSEQ: Checking U/O/US/OS Flags\n");
 		if (_Imm12_ & 0x0001) imm |= 0x0000f00; // Z
 		if (_Imm12_ & 0x0002) imm |= 0x000f000; // S
 		if (_Imm12_ & 0x0004) imm |= 0x0010000; // U
@@ -2194,7 +2194,7 @@ void condEvilBranch(mV, a64::Condition JMPcc)
 		armAsm->Bind(&cJMP);
 		incPC(-2);
 		if (mVUlow.branch >= 9)
-			DevCon.Warning("Conditional in JALR/JR delay slot - If game broken report to PCSX2 Team");
+			log_cb(RETRO_LOG_WARN, "Conditional in JALR/JR delay slot - If game broken report to PCSX2 Team\n");
 		incPC(2);
 	}
 }
@@ -2227,7 +2227,7 @@ mVUop(mVU_BAL)
 		else
 		{
 			incPC(-2);
-			DevCon.Warning("Linking BAL from %s branch taken/not taken target! - If game broken report to PCSX2 Team", branchSTR[mVUlow.branch & 0xf]);
+			log_cb(RETRO_LOG_WARN, "Linking BAL from %s branch taken/not taken target! - If game broken report to PCSX2 Team\n", branchSTR[mVUlow.branch & 0xf]);
 			incPC(2);
 
 			const a64::Register regT = mVU.regAlloc->allocGPR(-1, _It_, mVUlow.backupVI);
@@ -2452,7 +2452,7 @@ mVUop(mVU_JALR)
 			else
 			{
 				incPC(-2);
-				DevCon.Warning("Linking JALR from %s branch taken/not taken target! - If game broken report to PCSX2 Team", branchSTR[mVUlow.branch & 0xf]);
+				log_cb(RETRO_LOG_WARN, "Linking JALR from %s branch taken/not taken target! - If game broken report to PCSX2 Team\n", branchSTR[mVUlow.branch & 0xf]);
 				incPC(2);
 
 				mvuLdr32(mVU, regT, &mVU.badBranch);

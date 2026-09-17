@@ -14,12 +14,12 @@
  */
 
 #include <retro_atomic.h>
+#include "common/Pcsx2Defs.h"
 #include <cstdarg>
 #include <cstdlib>
 #include <cstring>
 #include <string>
 
-#include "common/Console.h"
 
 #include "VKLoader.h"
 
@@ -73,7 +73,7 @@ namespace Vulkan
 		vulkan_module = LoadLibraryA("vulkan-1.dll");
 		if (!vulkan_module)
 		{
-			Console.Error("Failed to load vulkan-1.dll");
+			log_cb(RETRO_LOG_ERROR, "Failed to load vulkan-1.dll\n");
 			return false;
 		}
 
@@ -82,7 +82,7 @@ namespace Vulkan
 			*func_ptr = GetProcAddress(vulkan_module, name);
 			if (!(*func_ptr) && is_required)
 			{
-				Console.Error("Vulkan: Failed to load required module function %s", name);
+				log_cb(RETRO_LOG_ERROR, "Vulkan: Failed to load required module function %s\n", name);
 				required_functions_missing = true;
 			}
 		};
@@ -175,7 +175,7 @@ namespace Vulkan
 
 		if (!vulkan_module)
 		{
-			Console.Error("Failed to load or locate libvulkan.so");
+			log_cb(RETRO_LOG_ERROR, "Failed to load or locate libvulkan.so\n");
 			return false;
 		}
 
@@ -184,7 +184,7 @@ namespace Vulkan
 			*func_ptr = dlsym(vulkan_module, name);
 			if (!(*func_ptr) && is_required)
 			{
-				Console.Error("Vulkan: Failed to load required module function %s", name);
+				log_cb(RETRO_LOG_ERROR, "Vulkan: Failed to load required module function %s\n", name);
 				required_functions_missing = true;
 			}
 		};
@@ -227,7 +227,7 @@ namespace Vulkan
 			*func_ptr = vkGetInstanceProcAddr(instance, name);
 			if (!(*func_ptr) && is_required)
 			{
-				Console.Error("Vulkan: Failed to load required instance function %s", name);
+				log_cb(RETRO_LOG_ERROR, "Vulkan: Failed to load required instance function %s\n", name);
 				required_functions_missing = true;
 			}
 		};
@@ -247,7 +247,7 @@ namespace Vulkan
 			*func_ptr = vkGetDeviceProcAddr(device, name);
 			if (!(*func_ptr) && is_required)
 			{
-				Console.Error("Vulkan: Failed to load required device function %s", name);
+				log_cb(RETRO_LOG_ERROR, "Vulkan: Failed to load required device function %s\n", name);
 				required_functions_missing = true;
 			}
 		};

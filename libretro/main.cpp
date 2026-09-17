@@ -3,10 +3,12 @@
 #endif
 
 #include <retro_atomic.h>
+#include "common/Pcsx2Defs.h"
 #include <retro_spsc.h>
 
 #include <cstdint>
 #include <libretro.h>
+#include <stdarg.h>
 #include <file/file_path.h>
 #include <streams/file_stream.h>
 #include <vfs/vfs_hybrid.h>
@@ -56,7 +58,18 @@ extern std::unique_ptr<GSRendererPGS> g_pgs_renderer;
 
 retro_environment_t environ_cb;
 retro_video_refresh_t video_cb;
-retro_log_printf_t log_cb;
+/* stderr when the frontend offers no log interface: every log line in
+ * the core calls log_cb unguarded, and a null one is a crash on the
+ * first of them. */
+static void fallback_log(enum retro_log_level level, const char* fmt, ...)
+{
+	va_list ap;
+	(void)level;
+	va_start(ap, fmt);
+	vfprintf(stderr, fmt, ap);
+	va_end(ap);
+}
+extern "C" retro_log_printf_t log_cb = fallback_log;
 static retro_audio_sample_batch_t batch_cb;
 struct retro_hw_render_callback hw_render;
 
@@ -2386,6 +2399,8 @@ void retro_init(void)
 	environ_cb(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &xrgb888);
 	if (environ_cb(RETRO_ENVIRONMENT_GET_LOG_INTERFACE, &log))
 		log_cb = log.log;
+	else
+		log_cb = fallback_log;
 
 	vu1Thread.Reset();
 

@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: GPL-2.0+
 
 #include "USB/libretro-usb/qusb.h"
+#include "common/Pcsx2Defs.h"
 #include <algorithm>
 #include <cstdlib>
 #include "USB/libretro-usb/queue.h"
 #include "USB/libretro-usb/USBinternal.h"
 #include "IopMem.h"
 
-#include "common/Console.h"
 
 #include <cstring>
 
@@ -80,7 +80,7 @@ static void ohci_die(OHCIState* ohci)
 {
 	//OHCIPCIState *dev = container_of(ohci, OHCIPCIState, state);
 
-	Console.Warning("ohci_die: DMA error\n");
+	log_cb(RETRO_LOG_WARN, "ohci_die: DMA error\n\n");
 
 	ohci_set_interrupt(ohci, OHCI_INTR_UE);
 	ohci_bus_stop(ohci);
@@ -1103,7 +1103,7 @@ void ohci_frame_boundary(void* opaque)
 
 	if (ohci->hcca + sizeof(ohci_hcca) > Ps2MemSize::IopRam)
 	{
-		Console.Error("ohci->hcca pointer is out of range.");
+		log_cb(RETRO_LOG_ERROR, "ohci->hcca pointer is out of range.\n");
 		return;
 	}
 
@@ -1405,7 +1405,7 @@ u32 ohci_mem_read(OHCIState* ptr, u32 addr)
 	int idx = (addr - ptr->mem_base) >> 2;
 	if (idx < countof(reg_names))
 	{
-		Console.Warning("ohci_mem_read %s(%d): %08x\n", reg_names[idx], idx, val);
+		log_cb(RETRO_LOG_WARN, "ohci_mem_read %s(%d): %08x\n\n", reg_names[idx], idx, val);
 	}
 	return val;
 }
@@ -1505,7 +1505,7 @@ void ohci_mem_write(OHCIState* ptr, u32 addr, u32 val)
 	int idx = (addr - ptr->mem_base) >> 2;
 	if (idx < countof(reg_names))
 	{
-		Console.Warning("ohci_mem_write %s(%d): %08x\n", reg_names[idx], idx, val);
+		log_cb(RETRO_LOG_WARN, "ohci_mem_write %s(%d): %08x\n\n", reg_names[idx], idx, val);
 	}
 	ohci_mem_write_impl(ptr, addr, val);
 }
@@ -1522,7 +1522,7 @@ void ohci_mem_write(OHCIState* ptr, u32 addr, u32 val)
 	/* Only aligned reads are allowed on OHCI */
 	if (addr & 3)
 	{
-		Console.Warning("usb-ohci: Mis-aligned write\n");
+		log_cb(RETRO_LOG_WARN, "usb-ohci: Mis-aligned write\n\n");
 		return;
 	}
 

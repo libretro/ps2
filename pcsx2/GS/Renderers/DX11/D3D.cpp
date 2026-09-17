@@ -14,10 +14,10 @@
  */
 
 #include "GS/Renderers/Common/GSDevice.h"
+#include "common/Pcsx2Defs.h"
 #include "GS/Renderers/DX11/D3D.h"
 #include "GS/GSExtra.h"
 
-#include "common/Console.h"
 #include "common/StringUtil.h"
 
 #include <d3d11.h>
@@ -41,7 +41,7 @@ wil::com_ptr_nothrow<IDXGIFactory5> D3D::CreateFactory(bool debug)
 	wil::com_ptr_nothrow<IDXGIFactory5> factory;
 	const HRESULT hr = CreateDXGIFactory2(flags, IID_PPV_ARGS(factory.put()));
 	if (FAILED(hr))
-		Console.Error("D3D: Failed to create DXGI factory: %08X", hr);
+		log_cb(RETRO_LOG_ERROR, "D3D: Failed to create DXGI factory: %08X\n", hr);
 
 	return factory;
 }
@@ -125,12 +125,12 @@ static wil::com_ptr_nothrow<ID3DBlob> D3D_CompileShader(D3D::ShaderType type, D3
 
 	if (FAILED(hr))
 	{
-		Console.WriteLn("Failed to compile '%s':\n%s", target, error_string.c_str());
+		log_cb(RETRO_LOG_INFO, "Failed to compile '%s':\n%s\n", target, error_string.c_str());
 		return {};
 	}
 
 	if (!error_string.empty())
-		Console.Warning("'%s' compiled with warnings:\n%s", target, error_string.c_str());
+		log_cb(RETRO_LOG_WARN, "'%s' compiled with warnings:\n%s\n", target, error_string.c_str());
 
 	return blob;
 }

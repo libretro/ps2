@@ -14,12 +14,12 @@
  */
 
 #include <retro_atomic.h>
+#include "common/Pcsx2Defs.h"
 #include <utility>
 #include "VirtualMemory.h"
 #include "HostMem.h"
 
 #include "../common/Align.h"
-#include "../common/Console.h"
 
 #include <cinttypes>
 
@@ -307,10 +307,10 @@ static void CheckRipRelativeReach(const char* what, const u8* base, size_t size)
 	if (d_lo == (sptr)(s32)d_lo && d_hi == (sptr)(s32)d_hi)
 		return;
 
-	Console.Error("(%s) Code reservation at %p-%p is more than 2GB from this "
+	log_cb(RETRO_LOG_ERROR, "(%s) Code reservation at %p-%p is more than 2GB from this "
 	              "module's data at %p. RIP-relative operands to module "
 	              "globals cannot be encoded and will be silently truncated; "
-	              "expect memory corruption.",
+	              "expect memory corruption.\n",
 	              what, (void*)lo, (void*)hi, (void*)anchor);
 }
 
@@ -332,7 +332,7 @@ void code_reserve_assign(struct CodeReserve* r, const VirtualMemoryManager* allo
 	 * map, this should never fail. */
 	base = allocator->Alloc(offset, size);
 	if (!base)
-		Console.Error("(CodeReserve) Failed to allocate %zu bytes at offset %zu", size, offset);
+		log_cb(RETRO_LOG_ERROR, "(CodeReserve) Failed to allocate %zu bytes at offset %zu\n", size, offset);
 	else
 		CheckRipRelativeReach("CodeReserve", base, size);
 
@@ -378,7 +378,7 @@ void RecompiledCodeReserve::Assign(VirtualMemoryManagerPtr allocator, size_t off
 	// Since the memory has already been allocated as part of the main memory map, this should never fail.
 	u8* base = allocator->Alloc(offset, size);
 	if (!base)
-		Console.Error("(RecompiledCodeReserve) Failed to allocate %zu bytes at offset %zu", size, offset);
+		log_cb(RETRO_LOG_ERROR, "(RecompiledCodeReserve) Failed to allocate %zu bytes at offset %zu\n", size, offset);
 	else
 		CheckRipRelativeReach("RecompiledCodeReserve", base, size);
 

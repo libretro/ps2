@@ -14,13 +14,13 @@
  */
 
 #include <compat/strl.h>
+#include "common/Pcsx2Defs.h"
 #include <ctype.h>
 #include <time.h>
 #include <exception>
 #include <memory>
 #include <cstring>
 
-#include "../../common/Console.h"
 
 #include "IsoFS/IsoFS.h"
 #include "IsoFS/SectorSource.h"
@@ -194,15 +194,15 @@ static int FindDiskType(int mType)
 	switch (iCDType)
 	{
 		case CDVD_TYPE_DETCTCD:
-			Console.WriteLn(" * CDVD Disk Open: CD, %d tracks (%d to %d):", tn.etrack - tn.strack + 1, tn.strack, tn.etrack);
+			log_cb(RETRO_LOG_INFO, " * CDVD Disk Open: CD, %d tracks (%d to %d):\n", tn.etrack - tn.strack + 1, tn.strack, tn.etrack);
 			break;
 
 		case CDVD_TYPE_DETCTDVDS:
-			Console.WriteLn(" * CDVD Disk Open: DVD, Single layer or unknown:");
+			log_cb(RETRO_LOG_INFO, " * CDVD Disk Open: DVD, Single layer or unknown:\n");
 			break;
 
 		case CDVD_TYPE_DETCTDVDD:
-			Console.WriteLn(" * CDVD Disk Open: DVD, Double layer:");
+			log_cb(RETRO_LOG_INFO, " * CDVD Disk Open: DVD, Double layer:\n");
 			break;
 	}
 
@@ -223,12 +223,12 @@ static int FindDiskType(int mType)
 		if (td.type == CDVD_AUDIO_TRACK)
 		{
 			audioTracks++;
-			Console.WriteLn(" * * Track %d: Audio (%d sectors)", i, tlength);
+			log_cb(RETRO_LOG_INFO, " * * Track %d: Audio (%d sectors)\n", i, tlength);
 		}
 		else
 		{
 			dataTracks++;
-			Console.WriteLn(" * * Track %d: Data (Mode %d) (%d sectors)", i, ((td.type == CDVD_MODE1_TRACK) ? 1 : 2), tlength);
+			log_cb(RETRO_LOG_INFO, " * * Track %d: Data (Mode %d) (%d sectors)\n", i, ((td.type == CDVD_MODE1_TRACK) ? 1 : 2), tlength);
 		}
 	}
 

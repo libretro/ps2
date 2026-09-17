@@ -59,12 +59,12 @@ static void ata_post_cmd_pio_data_to_host(ata_state_t* ata)
 /* FromHost */
 uint16_t ata_read_pio(ata_state_t* ata)
 {
-	/* pcsx2_log(RETRO_LOG_DEBUG, "DEV9: *ATA_R_DATA 16bit read, pio_count %i,  pio_size %i\n", ata->pioPtr, ata->pioEnd); */
+	/* log_cb(RETRO_LOG_DEBUG, "DEV9: *ATA_R_DATA 16bit read, pio_count %i,  pio_size %i\n", ata->pioPtr, ata->pioEnd); */
 	if (ata->pioPtr < ata->pioEnd)
 	{
 		uint16_t ret;
 		memcpy(&ret, &ata->pioBuffer[ata->pioPtr * 2], sizeof(ret));
-		/* pcsx2_log(RETRO_LOG_DEBUG, "DEV9: *ATA_R_DATA returned value is  %x\n", ret); */
+		/* log_cb(RETRO_LOG_DEBUG, "DEV9: *ATA_R_DATA returned value is  %x\n", ret); */
 		ata->pioPtr++;
 		if (ata->pioPtr >= ata->pioEnd) /* Fnished transfer (Changed from MegaDev9) */
 			ata_post_cmd_pio_data_to_host(ata);
@@ -79,7 +79,7 @@ void ata_hdd_identify_device(ata_state_t* ata)
 {
 	if (!ata_pre_cmd(ata))
 		return;
-	pcsx2_log(RETRO_LOG_DEBUG, "DEV9: HddidentifyDevice\n");
+	log_cb(RETRO_LOG_DEBUG, "DEV9: HddidentifyDevice\n");
 
 	/* IDE transfer start */
 	ata_create_hdd_info(ata, ata->hddSizeSectors);

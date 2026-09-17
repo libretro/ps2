@@ -14,6 +14,7 @@
  */
 
 #include <memory>
+#include "common/Pcsx2Defs.h"
 
 #ifdef _WIN32
 #include "common/RedtapeWindows.h"
@@ -62,7 +63,7 @@ PCAPAdapter::PCAPAdapter()
 
 	if (!InitPCAP(pcapAdapter, switched))
 	{
-		Console.Error("DEV9: Can't open Device '%s'", EmuConfig.DEV9.EthDevice.c_str());
+		log_cb(RETRO_LOG_ERROR, "DEV9: Can't open Device '%s'\n", EmuConfig.DEV9.EthDevice.c_str());
 		return;
 	}
 
@@ -73,7 +74,7 @@ PCAPAdapter::PCAPAdapter()
 	if (foundAdapter)
 		adMAC = AdapterUtils::GetAdapterMAC(&adapter);
 	else
-		Console.Error("DEV9: Failed to get adapter information");
+		log_cb(RETRO_LOG_ERROR, "DEV9: Failed to get adapter information\n");
 
 	if (adMAC.has_value())
 	{
@@ -87,10 +88,10 @@ PCAPAdapter::PCAPAdapter()
 		SetMACAddress(&newMAC);
 	}
 	else if (switched)
-		Console.Error("DEV9: Failed to get MAC address for adapter, proceeding with hardcoded MAC address");
+		log_cb(RETRO_LOG_ERROR, "DEV9: Failed to get MAC address for adapter, proceeding with hardcoded MAC address\n");
 	else
 	{
-		Console.Error("DEV9: Failed to get MAC address for adapter");
+		log_cb(RETRO_LOG_ERROR, "DEV9: Failed to get MAC address for adapter\n");
 		pcap_close(hpcap);
 		hpcap = nullptr;
 		return;
@@ -100,7 +101,7 @@ PCAPAdapter::PCAPAdapter()
 	{
 		pcap_close(hpcap);
 		hpcap = nullptr;
-		Console.Error("DEV9: Can't open Device '%s'", EmuConfig.DEV9.EthDevice.c_str());
+		log_cb(RETRO_LOG_ERROR, "DEV9: Can't open Device '%s'\n", EmuConfig.DEV9.EthDevice.c_str());
 		return;
 	}
 
@@ -136,7 +137,7 @@ bool PCAPAdapter::recv(NetPacket* pkt)
 	{
 		if (header->len > sizeof(pkt->buffer))
 		{
-			Console.Error("DEV9: Dropped jumbo frame of size: %u", header->len);
+			log_cb(RETRO_LOG_ERROR, "DEV9: Dropped jumbo frame of size: %u\n", header->len);
 			continue;
 		}
 
@@ -217,7 +218,7 @@ std::vector<AdapterEntry> PCAPAdapter::GetAdapters()
 		//guid
 		if (!StringUtil::StartsWith(d->name, PCAPPREFIX))
 		{
-			Console.Error("PCAP: Unexpected Device: ", d->name);
+			log_cb(RETRO_LOG_ERROR, "PCAP: Unexpected Device: \n", d->name);
 			d = d->next;
 			continue;
 		}
@@ -262,7 +263,7 @@ std::vector<AdapterEntry> PCAPAdapter::GetAdapters()
 bool PCAPAdapter::InitPCAP(const std::string& adapter, bool promiscuous)
 {
 	char errbuf[PCAP_ERRBUF_SIZE];
-	Console.WriteLn("DEV9: Opening adapter '%s'...", adapter.c_str());
+	log_cb(RETRO_LOG_INFO, "DEV9: Opening adapter '%s'...\n", adapter.c_str());
 
 	// Open the adapter.
 	if ((hpcap = pcap_open_live(adapter.c_str(), // Name of the device.
@@ -273,15 +274,15 @@ bool PCAPAdapter::InitPCAP(const std::string& adapter, bool promiscuous)
 			 errbuf // Error buffer.
 			 )) == nullptr)
 	{
-		Console.Error("DEV9: %s", errbuf);
-		Console.Error("DEV9: Unable to open the adapter. %s is not supported by pcap", adapter.c_str());
+		log_cb(RETRO_LOG_ERROR, "DEV9: %s\n", errbuf);
+		log_cb(RETRO_LOG_ERROR, "DEV9: Unable to open the adapter. %s is not supported by pcap\n", adapter.c_str());
 		return false;
 	}
 
 	if (pcap_setnonblock(hpcap, 1, errbuf) == -1)
 	{
-		Console.Error("DEV9: Error setting non-blocking: %s", pcap_geterr(hpcap));
-		Console.Error("DEV9: Continuing in blocking mode");
+		log_cb(RETRO_LOG_ERROR, "DEV9: Error setting non-blocking: %s\n", pcap_geterr(hpcap));
+		log_cb(RETRO_LOG_ERROR, "DEV9: Continuing in blocking mode\n");
 		blocking = true;
 	}
 	else
@@ -291,20 +292,20 @@ bool PCAPAdapter::InitPCAP(const std::string& adapter, bool promiscuous)
 	const int dlt = pcap_datalink(hpcap);
 	const char* dlt_name = pcap_datalink_val_to_name(dlt);
 
-	Console.Error("DEV9: Device uses DLT %d: %s", dlt, dlt_name);
+	log_cb(RETRO_LOG_ERROR, "DEV9: Device uses DLT %d: %s\n", dlt, dlt_name);
 	switch (dlt)
 	{
 		case DLT_EN10MB:
 			//case DLT_IEEE802_11:
 			break;
 		default:
-			Console.Error("ERROR: Unsupported DataLink Type (%d): %s", dlt, dlt_name);
+			log_cb(RETRO_LOG_ERROR, "ERROR: Unsupported DataLink Type (%d): %s\n", dlt, dlt_name);
 			pcap_close(hpcap);
 			hpcap = nullptr;
 			return false;
 	}
 
-	Console.WriteLn("DEV9: Adapter Ok.");
+	log_cb(RETRO_LOG_INFO, "DEV9: Adapter Ok.\n");
 	return true;
 }
 
@@ -318,13 +319,13 @@ bool PCAPAdapter::SetMACSwitchedFilter(MAC_Address mac)
 
 	if (pcap_compile(hpcap, &fp, filter, 1, PCAP_NETMASK_UNKNOWN) == -1)
 	{
-		Console.Error("DEV9: Error calling pcap_compile: %s", pcap_geterr(hpcap));
+		log_cb(RETRO_LOG_ERROR, "DEV9: Error calling pcap_compile: %s\n", pcap_geterr(hpcap));
 		return false;
 	}
 
 	int setFilterRet;
 	if ((setFilterRet = pcap_setfilter(hpcap, &fp)) == -1)
-		Console.Error("DEV9: Error setting filter: %s", pcap_geterr(hpcap));
+		log_cb(RETRO_LOG_ERROR, "DEV9: Error setting filter: %s\n", pcap_geterr(hpcap));
 
 	pcap_freecode(&fp);
 	return setFilterRet != -1;

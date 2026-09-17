@@ -14,6 +14,7 @@
  */
 
 #include <compat/strl.h>
+#include "common/Pcsx2Defs.h"
 #include <cstring>
 #include <utility>
 
@@ -21,7 +22,6 @@
 #include <retro_miscellaneous.h>
 #include <streams/file_stream.h>
 
-#include "../../common/Console.h"
 #include "HostFS.h"
 #include "../../common/StringUtil.h"
 
@@ -160,7 +160,7 @@ static bool LoadBiosVersion(RFILE* fp, u32& version, char* description, size_t d
 		version = strtol(vermaj, (char**)NULL, 0) << 8;
 		version |= strtol(vermin, (char**)NULL, 0);
 
-		Console.WriteLn("Bios Found: %s", description);
+		log_cb(RETRO_LOG_INFO, "Bios Found: %s\n", description);
 	}
 	else
 		return false;
@@ -215,7 +215,7 @@ static void LoadExtraRom(const char* ext, u8 (&dest)[_size])
 			Bios1 = BiosPath;
 		if ((filesize = path_get_size(Bios1.c_str())) <= 0)
 		{
-			Console.WriteLn("BIOS %s module not found, skipping...", ext);
+			log_cb(RETRO_LOG_INFO, "BIOS %s module not found, skipping...\n", ext);
 			return;
 		}
 	}
@@ -223,7 +223,7 @@ static void LoadExtraRom(const char* ext, u8 (&dest)[_size])
 	RFILE *fp = filestream_open(Bios1.c_str(), RETRO_VFS_FILE_ACCESS_READ, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 	const size_t want = static_cast<size_t>(pcsx2_min_s64(_size, filesize));
 	if (!fp || filestream_read(fp, dest, want) != (int64_t)want)
-		Console.Warning("BIOS Warning: %s could not be read (permission denied?)", ext);
+		log_cb(RETRO_LOG_WARN, "BIOS Warning: %s could not be read (permission denied?)\n", ext);
 	if (fp)
 		filestream_close(fp);
 }
@@ -242,13 +242,13 @@ static void LoadIrx(const std::string& filename, u8* dest, size_t maxSize)
 		return;
 	}
 
-	Console.Warning("IRX Warning: %s could not be read", filename.c_str());
+	log_cb(RETRO_LOG_WARN, "IRX Warning: %s could not be read\n", filename.c_str());
 	filestream_close(fp);
 }
 
 static std::string FindBiosImage(void)
 {
-	Console.WriteLn("Searching for a BIOS image in '%s'...", EmuFolders::Bios);
+	log_cb(RETRO_LOG_INFO, "Searching for a BIOS image in '%s'...\n", EmuFolders::Bios);
 
 	FileSystem::FindResultsArray results;
 	if (!FileSystem::FindFiles(EmuFolders::Bios, "*", FILESYSTEM_FIND_FILES, &results))
@@ -264,12 +264,12 @@ static std::string FindBiosImage(void)
 
 		if (IsBIOS(fd.FileName.c_str(), version, description, sizeof(description), region, zone, sizeof(zone)))
 		{
-			Console.WriteLn("Using BIOS '%s' (%s %s)", fd.FileName.c_str(), description, zone);
+			log_cb(RETRO_LOG_INFO, "Using BIOS '%s' (%s %s)\n", fd.FileName.c_str(), description, zone);
 			return std::move(fd.FileName);
 		}
 	}
 
-	Console.Error("Unable to auto locate a BIOS image");
+	log_cb(RETRO_LOG_ERROR, "Unable to auto locate a BIOS image\n");
 	return std::string();
 }
 
@@ -291,7 +291,7 @@ bool LoadBIOS(void)
 	if (path[0] == '\0' || !path_is_valid(path))
 	{
 		if (path[0])
-			Console.Warning("Configured BIOS '%s' does not exist, trying to find an alternative.",
+			log_cb(RETRO_LOG_WARN, "Configured BIOS '%s' does not exist, trying to find an alternative.\n",
 				EmuConfig.BaseFilenames.Bios);
 
 		{

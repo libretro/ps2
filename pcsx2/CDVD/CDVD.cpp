@@ -14,6 +14,7 @@
  */
 
 #include <compat/strl.h>
+#include "common/Pcsx2Defs.h"
 #include <file/file_path.h>
 #include <ctype.h>
 #include <string.h>
@@ -30,7 +31,6 @@
 #include <cstring>
 #include <memory>
 
-#include "../../common/Console.h"
 #include "HostFS.h"
 #include "../../common/StringUtil.h"
 
@@ -199,7 +199,7 @@ void cdvdLoadNVRAM(void)
 	RFILE *fp = filestream_open(nvmfile, RETRO_VFS_FILE_ACCESS_READ, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 	if (!fp || filestream_read(fp, s_nvram, sizeof(s_nvram)) != (int64_t)sizeof(s_nvram))
 	{
-		Console.Warning("Failed to open or read NVRAM: %s", nvmfile);
+		log_cb(RETRO_LOG_WARN, "Failed to open or read NVRAM: %s\n", nvmfile);
 		cdvdCreateNewNVM();
 	}
 	else
@@ -208,13 +208,13 @@ void cdvdLoadNVRAM(void)
 		const NVMLayout* nvmLayout = getNvmLayout();
 		constexpr u8 zero[16] = {0};
 
-		Console.WriteLn("Reading NVRAM file: %s", nvmfile);
+		log_cb(RETRO_LOG_INFO, "Reading NVRAM file: %s\n", nvmfile);
 
 		if (memcmp(&s_nvram[nvmLayout->config1 + 0x10], zero, 16) == 0 ||
 			(((BiosVersion >> 8) == 2) && ((BiosVersion & 0xff) != 10) &&
 				(memcmp(&s_nvram[nvmLayout->regparams], zero, 12) == 0)))
 		{
-			Console.Warning("Language or Region Parameters missing, filling in defaults");
+			log_cb(RETRO_LOG_WARN, "Language or Region Parameters missing, filling in defaults\n");
 			cdvdCreateNewNVM();
 		}
 	}
@@ -231,14 +231,14 @@ void cdvdLoadNVRAM(void)
 	if (!fp || filestream_read(fp, &s_mecha_version, sizeof(s_mecha_version)) != (int64_t)sizeof(s_mecha_version))
 	{
 		s_mecha_version = DEFAULT_MECHA_VERSION;
-		Console.Error("Failed to open or read MEC file at %s, creating default.", mecfile);
+		log_cb(RETRO_LOG_ERROR, "Failed to open or read MEC file at %s, creating default.\n", mecfile);
 		/* Same again: the read may have failed on an open handle, and
 		 * the reopen below would drop it. */
 		if (fp)
 			filestream_close(fp);
 		fp = filestream_open(mecfile, RETRO_VFS_FILE_ACCESS_READ_WRITE, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 		if (!fp || filestream_write(fp, &s_mecha_version, sizeof(s_mecha_version)) != (int64_t)sizeof(s_mecha_version))
-			Console.Error("Failed to write MEC file. Check your BIOS setup/permission settings.");
+			log_cb(RETRO_LOG_ERROR, "Failed to write MEC file. Check your BIOS setup/permission settings.\n");
 	}
 	if (fp)
 		filestream_close(fp);
@@ -251,7 +251,7 @@ void cdvdSaveNVRAM(void)
 	RFILE *fp = filestream_open(nvmfile, RETRO_VFS_FILE_ACCESS_READ_WRITE, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 	if (!fp)
 	{
-		Console.Error("Failed to open NVRAM for updating: %s...", nvmfile);
+		log_cb(RETRO_LOG_ERROR, "Failed to open NVRAM for updating: %s...\n", nvmfile);
 		return;
 	}
 
@@ -259,7 +259,7 @@ void cdvdSaveNVRAM(void)
 	if (filestream_read(fp, existing_nvram, sizeof(existing_nvram)) == (int64_t)sizeof(existing_nvram) &&
 		memcmp(existing_nvram, s_nvram, NVRAM_SIZE) == 0)
 	{
-		Console.Warning("NVRAM has not changed, not writing to disk.");
+		log_cb(RETRO_LOG_WARN, "NVRAM has not changed, not writing to disk.\n");
 		filestream_close(fp);
 		return;
 	}
@@ -267,11 +267,11 @@ void cdvdSaveNVRAM(void)
 	if (filestream_seek(fp, 0, RETRO_VFS_SEEK_POSITION_START) == 0 &&
 		filestream_write(fp, s_nvram, NVRAM_SIZE) == (int64_t)NVRAM_SIZE)
 	{
-		Console.WriteLn("NVRAM saved to %s.", nvmfile);
+		log_cb(RETRO_LOG_INFO, "NVRAM saved to %s.\n", nvmfile);
 	}
 	else
 	{
-		Console.Error("Failed to save NVRAM to %s", nvmfile);
+		log_cb(RETRO_LOG_ERROR, "Failed to save NVRAM to %s\n", nvmfile);
 	}
 	filestream_close(fp);
 }
@@ -281,7 +281,7 @@ static void cdvdReadNVM(u8* dst, int offset, int bytes)
 	int to_read = bytes;
 	if ((offset + bytes) > static_cast<int>(sizeof(s_nvram)))
 	{
-		Console.Warning("CDVD: Out of bounds NVRAM read: offset=%d, bytes=%d", offset, bytes);
+		log_cb(RETRO_LOG_WARN, "CDVD: Out of bounds NVRAM read: offset=%d, bytes=%d\n", offset, bytes);
 		to_read = pcsx2_max_i(static_cast<int>(sizeof(s_nvram)) - offset, 0);
 		memset(dst + to_read, 0, bytes - to_read);
 	}
@@ -295,7 +295,7 @@ static void cdvdWriteNVM(const u8* src, int offset, int bytes)
 	int to_write = bytes;
 	if ((offset + bytes) > static_cast<int>(sizeof(s_nvram)))
 	{
-		Console.Warning("CDVD: Out of bounds NVRAM write: offset=%d, bytes=%d", offset, bytes);
+		log_cb(RETRO_LOG_WARN, "CDVD: Out of bounds NVRAM write: offset=%d, bytes=%d\n", offset, bytes);
 		to_write = pcsx2_max_i(static_cast<int>(sizeof(s_nvram)) - offset, 0);
 	}
 
@@ -411,7 +411,7 @@ static bool cdvdLoadElf(ElfObject *elfo, std::string elfpath)
 		const std::string::size_type semi_pos = elfpath.rfind(';');
 		if (semi_pos != std::string::npos && std::string_view(elfpath).substr(semi_pos) != ";1")
 		{
-			Console.WriteLn("(LoadELF) Non-conforming version suffix (%s) detected and replaced.", elfpath.c_str());
+			log_cb(RETRO_LOG_INFO, "(LoadELF) Non-conforming version suffix (%s) detected and replaced.\n", elfpath.c_str());
 			elfpath.erase(semi_pos);
 			elfpath += ";1";
 		}
@@ -441,7 +441,7 @@ static __fi void _reloadElfInfo(std::string elfpath)
 	ElfEntry     = elfo.GetHeader().e_entry;
 	LastELF      = std::move(elfpath);
 
-	Console.WriteLn("ELF (%s) Game CRC = 0x%08X, EntryPoint = 0x%08X", LastELF.c_str(), ElfCRC, ElfEntry);
+	log_cb(RETRO_LOG_INFO, "ELF (%s) Game CRC = 0x%08X, EntryPoint = 0x%08X\n", LastELF.c_str(), ElfCRC, ElfEntry);
 
 	// Note: Do not load game database info here.  This code is generic and called from
 	// BIOS key encryption as well as eeloadReplaceOSDSYS.  The first is actually still executing
@@ -1155,7 +1155,7 @@ __fi void cdvdReadInterrupt(void)
 		// Needs more investigation
 		//if (!cdvdIsDVD() || !(cdvd.CurrentSector & 0xF))
 		{
-			Console.Warning("Read Abort");
+			log_cb(RETRO_LOG_WARN, "Read Abort\n");
 			cdvd.Error = 0x1; // Abort Error
 			cdvdUpdateReady(CDVD_DRIVE_READY | CDVD_DRIVE_ERROR);
 			cdvdUpdateStatus(CDVD_STATUS_PAUSE);
@@ -2164,7 +2164,7 @@ static void cdvdWrite16(u8 rt) // SCOMMAND
 			break;
 
 		case 0x05: // CdTrayReqState (0:1) - resets the tray open detection
-			   //Console.Warning("CdTrayReqState. cdvd.Status = %d", cdvd.Status);
+			   //log_cb(RETRO_LOG_WARN, "CdTrayReqState. cdvd.Status = %d\n", cdvd.Status);
 			   // This function sets the Sticky tray flag to the same value as Status for detecting change
 			cdvd.StatusSticky = cdvd.Status & CDVD_STATUS_TRAY_OPEN;
 
@@ -2909,34 +2909,34 @@ int GetPS2ElfName( std::string& name )
 
 		if( value.empty() && file.getLength() != file.getSeekPos() )
 		{ // Some games have a character on the last line of the file, don't print the error in those cases.
-			Console.Warning( "(SYSTEM.CNF) Unusual or malformed entry in SYSTEM.CNF ignored:" );
-			Console.WriteLn("%s", line.c_str());
+			log_cb(RETRO_LOG_WARN, "(SYSTEM.CNF) Unusual or malformed entry in SYSTEM.CNF ignored:\n" );
+			log_cb(RETRO_LOG_INFO, "%s\n", line.c_str());
 			continue;
 		}
 
 		if( key == "BOOT2" )
 		{
-			Console.WriteLn("(SYSTEM.CNF) Detected PS2 Disc = %.*s",
+			log_cb(RETRO_LOG_INFO, "(SYSTEM.CNF) Detected PS2 Disc = %.*s\n",
 					static_cast<int>(value.size()), value.data());
 			name = value;
 			retype = 2;
 		}
 		else if( key == "BOOT" )
 		{
-			Console.WriteLn("(SYSTEM.CNF) Detected PSX/PSone Disc = %.*s",
+			log_cb(RETRO_LOG_INFO, "(SYSTEM.CNF) Detected PSX/PSone Disc = %.*s\n",
 					static_cast<int>(value.size()), value.data());
 			name = value;
 			retype = 1;
 		}
 		else if( key == "VMODE" )
 		{
-			Console.WriteLn("(SYSTEM.CNF) Disc region type = %.*s",
+			log_cb(RETRO_LOG_INFO, "(SYSTEM.CNF) Disc region type = %.*s\n",
 					static_cast<int>(value.size()), value.data());
 			s_disc_region = (value == "PAL") ? 1 : 0;
 		}
 		else if( key == "VER" )
 		{
-			Console.WriteLn("(SYSTEM.CNF) Software version = %.*s",
+			log_cb(RETRO_LOG_INFO, "(SYSTEM.CNF) Software version = %.*s\n",
 					static_cast<int>(value.size()), value.data());
 		}
 	}

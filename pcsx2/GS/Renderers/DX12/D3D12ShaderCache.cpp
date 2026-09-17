@@ -14,6 +14,7 @@
  */
 
 #include "D3D12ShaderCache.h"
+#include "common/Pcsx2Defs.h"
 #include <cerrno>
 #include "../DX11/D3D.h"
 #include "GS/GS.h"
@@ -22,7 +23,6 @@
 #include "ShaderCacheVersion.h"
 
 #include "HostFS.h"
-#include "common/Console.h"
 
 /* xxhash may already be set up by a header included above (HashCombine.h /
  * GSXXH.h, both behind an XXH_versionNumber guard). Guard our own setup so
@@ -164,26 +164,26 @@ bool D3D12ShaderCache::CreateNew(const std::string& index_filename, const std::s
 {
 	if (path_is_valid(index_filename.c_str()))
 	{
-		Console.Warning("Removing existing index file '%s'", index_filename.c_str());
+		log_cb(RETRO_LOG_WARN, "Removing existing index file '%s'\n", index_filename.c_str());
 		filestream_delete(index_filename.c_str());
 	}
 	if (path_is_valid(blob_filename.c_str()))
 	{
-		Console.Warning("Removing existing blob file '%s'", blob_filename.c_str());
+		log_cb(RETRO_LOG_WARN, "Removing existing blob file '%s'\n", blob_filename.c_str());
 		filestream_delete(blob_filename.c_str());
 	}
 
 	index_file = filestream_open(index_filename.c_str(), RETRO_VFS_FILE_ACCESS_WRITE, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 	if (!index_file)
 	{
-		Console.Error("Failed to open index file '%s' for writing", index_filename.c_str());
+		log_cb(RETRO_LOG_ERROR, "Failed to open index file '%s' for writing\n", index_filename.c_str());
 		return false;
 	}
 
 	const u32 file_version = SHADER_CACHE_VERSION;
 	if (filestream_write(index_file, &file_version, sizeof(file_version)) != (int64_t)(sizeof(file_version)))
 	{
-		Console.Error("Failed to write version to index file '%s'", index_filename.c_str());
+		log_cb(RETRO_LOG_ERROR, "Failed to write version to index file '%s'\n", index_filename.c_str());
 		filestream_close(index_file);
 		index_file = nullptr;
 		filestream_delete(index_filename.c_str());
@@ -193,7 +193,7 @@ bool D3D12ShaderCache::CreateNew(const std::string& index_filename, const std::s
 	blob_file = filestream_open(blob_filename.c_str(), RETRO_VFS_FILE_ACCESS_READ_WRITE, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 	if (!blob_file)
 	{
-		Console.Error("Failed to open blob file '%s' for writing", blob_filename.c_str());
+		log_cb(RETRO_LOG_ERROR, "Failed to open blob file '%s' for writing\n", blob_filename.c_str());
 		filestream_close(blob_file);
 		blob_file = nullptr;
 		filestream_delete(index_filename.c_str());
@@ -213,7 +213,7 @@ bool D3D12ShaderCache::ReadExisting(const std::string& index_filename, const std
 		// we don't want to blow away the cache. so just continue without a cache.
 		if (errno == EACCES)
 		{
-			Console.WriteLn("Failed to open shader cache index with EACCES, are you running two instances?");
+			log_cb(RETRO_LOG_INFO, "Failed to open shader cache index with EACCES, are you running two instances?\n");
 			return true;
 		}
 
@@ -223,7 +223,7 @@ bool D3D12ShaderCache::ReadExisting(const std::string& index_filename, const std
 	u32 file_version;
 	if (filestream_read(index_file, &file_version, sizeof(file_version)) != (int64_t)(sizeof(file_version)) || file_version != SHADER_CACHE_VERSION)
 	{
-		Console.Error("Bad file version in '%s'", index_filename.c_str());
+		log_cb(RETRO_LOG_ERROR, "Bad file version in '%s'\n", index_filename.c_str());
 		filestream_close(index_file);
 		index_file = nullptr;
 		return false;
@@ -236,7 +236,7 @@ bool D3D12ShaderCache::ReadExisting(const std::string& index_filename, const std
 		filestream_seek(blob_file, 0, RETRO_VFS_SEEK_POSITION_END);
 	if (!blob_file)
 	{
-		Console.Error("Blob file '%s' is missing", blob_filename.c_str());
+		log_cb(RETRO_LOG_ERROR, "Blob file '%s' is missing\n", blob_filename.c_str());
 		filestream_close(index_file);
 		index_file = nullptr;
 		return false;
@@ -253,7 +253,7 @@ bool D3D12ShaderCache::ReadExisting(const std::string& index_filename, const std
 			if (filestream_eof(index_file))
 				break;
 
-			Console.Error("Failed to read entry from '%s', corrupt file?", index_filename.c_str());
+			log_cb(RETRO_LOG_ERROR, "Failed to read entry from '%s', corrupt file?\n", index_filename.c_str());
 			index.clear();
 			filestream_close(blob_file);
 			blob_file = nullptr;
@@ -436,7 +436,7 @@ D3D12ShaderCache::ComPtr<ID3DBlob> D3D12ShaderCache::GetShaderBlob(EntryType typ
 	if (FAILED(hr) || filestream_seek(m_shader_blob_file, iter->second.file_offset, RETRO_VFS_SEEK_POSITION_START) != 0 ||
 		filestream_read(m_shader_blob_file, blob->GetBufferPointer(), iter->second.blob_size) != (int64_t)iter->second.blob_size)
 	{
-		Console.Error("Read blob from file failed");
+		log_cb(RETRO_LOG_ERROR, "Read blob from file failed\n");
 		return {};
 	}
 
@@ -456,7 +456,7 @@ D3D12ShaderCache::ComPtr<ID3DBlob> D3D12ShaderCache::GetShaderBlob(EntryType typ
 	if (FAILED(hr) || filestream_seek(m_shader_blob_file, iter->second.file_offset, RETRO_VFS_SEEK_POSITION_START) != 0 ||
 		filestream_read(m_shader_blob_file, blob->GetBufferPointer(), iter->second.blob_size) != (int64_t)iter->second.blob_size)
 	{
-		Console.Error("Read blob from file failed");
+		log_cb(RETRO_LOG_ERROR, "Read blob from file failed\n");
 		return {};
 	}
 
@@ -477,7 +477,7 @@ D3D12ShaderCache::ComPtr<ID3D12PipelineState> D3D12ShaderCache::GetPipelineState
 	if (FAILED(hr) || filestream_seek(m_pipeline_blob_file, iter->second.file_offset, RETRO_VFS_SEEK_POSITION_START) != 0 ||
 		filestream_read(m_pipeline_blob_file, blob->GetBufferPointer(), iter->second.blob_size) != (int64_t)iter->second.blob_size)
 	{
-		Console.Error("Read blob from file failed");
+		log_cb(RETRO_LOG_ERROR, "Read blob from file failed\n");
 		return {};
 	}
 
@@ -489,7 +489,7 @@ D3D12ShaderCache::ComPtr<ID3D12PipelineState> D3D12ShaderCache::GetPipelineState
 	hr = device->CreateGraphicsPipelineState(&desc_with_blob, IID_PPV_ARGS(pso.put()));
 	if (FAILED(hr))
 	{
-		Console.Warning("Creating cached PSO failed: %08X. Invalidating cache.", hr);
+		log_cb(RETRO_LOG_WARN, "Creating cached PSO failed: %08X. Invalidating cache.\n", hr);
 		InvalidatePipelineCache();
 		pso = CompileAndAddPipeline(device, key, desc);
 	}
@@ -511,7 +511,7 @@ D3D12ShaderCache::ComPtr<ID3D12PipelineState> D3D12ShaderCache::GetPipelineState
 	if (FAILED(hr) || filestream_seek(m_pipeline_blob_file, iter->second.file_offset, RETRO_VFS_SEEK_POSITION_START) != 0 ||
 		filestream_read(m_pipeline_blob_file, blob->GetBufferPointer(), iter->second.blob_size) != (int64_t)iter->second.blob_size)
 	{
-		Console.Error("Read blob from file failed");
+		log_cb(RETRO_LOG_ERROR, "Read blob from file failed\n");
 		return {};
 	}
 
@@ -523,7 +523,7 @@ D3D12ShaderCache::ComPtr<ID3D12PipelineState> D3D12ShaderCache::GetPipelineState
 	hr = device->CreateComputePipelineState(&desc_with_blob, IID_PPV_ARGS(pso.put()));
 	if (FAILED(hr))
 	{
-		Console.Warning("Creating cached PSO failed: %08X. Invalidating cache.", hr);
+		log_cb(RETRO_LOG_WARN, "Creating cached PSO failed: %08X. Invalidating cache.\n", hr);
 		InvalidatePipelineCache();
 		pso = CompileAndAddPipeline(device, key, desc);
 	}
@@ -577,7 +577,7 @@ D3D12ShaderCache::ComPtr<ID3DBlob> D3D12ShaderCache::CompileAndAddShaderBlob(con
 		filestream_flush(m_shader_blob_file) != 0 || filestream_write(m_shader_index_file, &entry, sizeof(entry)) != (int64_t)(sizeof(entry)) ||
 		filestream_flush(m_shader_index_file) != 0)
 	{
-		Console.Error("Failed to write shader blob to file");
+		log_cb(RETRO_LOG_ERROR, "Failed to write shader blob to file\n");
 		return blob;
 	}
 
@@ -593,7 +593,7 @@ D3D12ShaderCache::CompileAndAddPipeline(ID3D12Device* device, const CacheIndexKe
 	HRESULT hr = device->CreateGraphicsPipelineState(&gpdesc, IID_PPV_ARGS(pso.put()));
 	if (FAILED(hr))
 	{
-		Console.Error("Creating cached PSO failed: %08X", hr);
+		log_cb(RETRO_LOG_ERROR, "Creating cached PSO failed: %08X\n", hr);
 		return {};
 	}
 
@@ -609,7 +609,7 @@ D3D12ShaderCache::CompileAndAddPipeline(ID3D12Device* device, const CacheIndexKe
 	HRESULT hr = device->CreateComputePipelineState(&gpdesc, IID_PPV_ARGS(pso.put()));
 	if (FAILED(hr))
 	{
-		Console.Error("Creating cached compute PSO failed: %08X", hr);
+		log_cb(RETRO_LOG_ERROR, "Creating cached compute PSO failed: %08X\n", hr);
 		return {};
 	}
 
@@ -626,7 +626,7 @@ bool D3D12ShaderCache::AddPipelineToBlob(const CacheIndexKey& key, ID3D12Pipelin
 	HRESULT hr = pso->GetCachedBlob(blob.put());
 	if (FAILED(hr))
 	{
-		Console.Warning("Failed to get cached PSO data: %08X", hr);
+		log_cb(RETRO_LOG_WARN, "Failed to get cached PSO data: %08X\n", hr);
 		return false;
 	}
 
@@ -646,7 +646,7 @@ bool D3D12ShaderCache::AddPipelineToBlob(const CacheIndexKey& key, ID3D12Pipelin
 		filestream_flush(m_pipeline_blob_file) != 0 || filestream_write(m_pipeline_index_file, &entry, sizeof(entry)) != (int64_t)(sizeof(entry)) ||
 		filestream_flush(m_pipeline_index_file) != 0)
 	{
-		Console.Error("Failed to write pipeline blob to file");
+		log_cb(RETRO_LOG_ERROR, "Failed to write pipeline blob to file\n");
 		return false;
 	}
 

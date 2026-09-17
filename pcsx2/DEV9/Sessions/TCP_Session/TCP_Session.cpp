@@ -14,7 +14,7 @@
  */
 
 #include <retro_timers.h>
-#include "common/Console.h"
+#include "common/Pcsx2Defs.h"
 #include "TCP_Session.h"
 
 #ifdef _WIN32
@@ -84,7 +84,7 @@ namespace Sessions
 
 	TCP_Packet* TCP_Session::CreateBasePacket(PayloadData* data)
 	{
-		//DevCon.WriteLn("Creating Base Packet");
+		//log_cb(RETRO_LOG_DEBUG, "Creating Base Packet\n");
 		if (data == nullptr)
 			data = new PayloadData(0);
 
@@ -95,9 +95,9 @@ namespace Sessions
 		ret->destinationPort = srcPort;
 
 		ret->sequenceNumber = GetMyNumber();
-		//DevCon.WriteLn("With MySeq: %d", ret->sequenceNumber);
+		//log_cb(RETRO_LOG_DEBUG, "With MySeq: %d\n", ret->sequenceNumber);
 		ret->acknowledgementNumber = expectedSeqNumber;
-		//DevCon.WriteLn("With MyAck: %d", ret->acknowledgementNumber);
+		//log_cb(RETRO_LOG_DEBUG, "With MyAck: %d\n", ret->acknowledgementNumber);
 
 		ret->windowSize = 2 * maxSegmentSize;
 

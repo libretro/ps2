@@ -207,7 +207,6 @@ endif
 # common
 # ============================================================================
 SOURCES_CXX += \
-	$(COMMON_DIR)/Console.cpp \
 	$(LRPS2_DIR)/HostFS.cpp \
 	$(COMMON_DIR)/HostSys.cpp \
 	$(COMMON_DIR)/StringUtil.cpp \

@@ -14,11 +14,11 @@
  */
 
 #include <array>
+#include "common/Pcsx2Defs.h"
 #include <fstream>
 #include <utility>
 
 #include "GLProgram.h"
-#include "common/Console.h"
 #include "common/StringUtil.h"
 
 static u32 s_last_program_id = 0;
@@ -68,11 +68,11 @@ GLuint GLProgram::CompileShader(GLenum type, const std::string_view source)
 
 		if (status == GL_TRUE)
 		{
-			Console.Warning("Shader compiled with warnings:\n%s", info_log.c_str());
+			log_cb(RETRO_LOG_WARN, "Shader compiled with warnings:\n%s\n", info_log.c_str());
 		}
 		else
 		{
-			Console.Error("Shader failed to compile:\n%s", info_log.c_str());
+			log_cb(RETRO_LOG_ERROR, "Shader failed to compile:\n%s\n", info_log.c_str());
 
 			std::ofstream ofs(StringUtil::StdStringFromFormat("pcsx2_bad_shader_%u.txt", s_next_bad_shader_id++).c_str(),
 					std::ofstream::out | std::ofstream::binary);
@@ -141,7 +141,7 @@ bool GLProgram::CreateFromBinary(const void* data, u32 data_length, u32 data_for
 	glGetProgramiv(prog, GL_LINK_STATUS, &link_status);
 	if (link_status != GL_TRUE)
 	{
-		Console.Error("Failed to create GL program from binary: status %d", link_status);
+		log_cb(RETRO_LOG_ERROR, "Failed to create GL program from binary: status %d\n", link_status);
 		glDeleteProgram(prog);
 		return false;
 	}
@@ -156,7 +156,7 @@ bool GLProgram::GetBinary(std::vector<u8>* out_data, u32* out_data_format)
 	glGetProgramiv(m_program_id, GL_PROGRAM_BINARY_LENGTH, &binary_size);
 	if (binary_size == 0)
 	{
-		Console.Warning("glGetProgramiv(GL_PROGRAM_BINARY_LENGTH) returned 0");
+		log_cb(RETRO_LOG_WARN, "glGetProgramiv(GL_PROGRAM_BINARY_LENGTH) returned 0\n");
 		return false;
 	}
 
@@ -165,12 +165,12 @@ bool GLProgram::GetBinary(std::vector<u8>* out_data, u32* out_data_format)
 	glGetProgramBinary(m_program_id, binary_size, &binary_size, &format, out_data->data());
 	if (binary_size == 0)
 	{
-		Console.Warning("glGetProgramBinary() failed");
+		log_cb(RETRO_LOG_WARN, "glGetProgramBinary() failed\n");
 		return false;
 	}
 	else if (static_cast<size_t>(binary_size) != out_data->size())
 	{
-		Console.Warning("Size changed from %zu to %d after glGetProgramBinary()", out_data->size(), binary_size);
+		log_cb(RETRO_LOG_WARN, "Size changed from %zu to %d after glGetProgramBinary()\n", out_data->size(), binary_size);
 		out_data->resize(static_cast<size_t>(binary_size));
 	}
 
@@ -213,7 +213,7 @@ void GLProgram::BindFragDataIndexed(GLuint color_number, const char* name)
 		return;
 	}
 
-	Console.Error("BindFragDataIndexed() called without ARB or EXT extension, we'll probably crash.");
+	log_cb(RETRO_LOG_ERROR, "BindFragDataIndexed() called without ARB or EXT extension, we'll probably crash.\n");
 	glBindFragDataLocationIndexed(m_program_id, color_number, 0, name);
 }
 
@@ -246,11 +246,11 @@ bool GLProgram::Link()
 
 		if (status == GL_TRUE)
 		{
-			Console.Error("Program linked with warnings:\n%s", info_log.c_str());
+			log_cb(RETRO_LOG_ERROR, "Program linked with warnings:\n%s\n", info_log.c_str());
 		}
 		else
 		{
-			Console.Error("Program failed to link:\n%s", info_log.c_str());
+			log_cb(RETRO_LOG_ERROR, "Program failed to link:\n%s\n", info_log.c_str());
 			glDeleteProgram(m_program_id);
 			m_program_id = 0;
 			return false;

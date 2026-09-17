@@ -93,7 +93,7 @@ void ata_write_queue_destroy(ata_write_queue_t* q)
 		{
 			ata_write_entry_t entry;
 
-			pcsx2_log(RETRO_LOG_ERROR, "DEV9: Queue not empty\n");
+			log_cb(RETRO_LOG_ERROR, "DEV9: Queue not empty\n");
 
 			/* Empty queue. Unlike the templated original this knows
 			 * what the payload is, so drained entries free their
@@ -175,7 +175,7 @@ static void ata_io_read(ata_state_t* ata)
 
 	if (lba == -1)
 	{
-		pcsx2_log(RETRO_LOG_ERROR, "DEV9: ATA: Invalid LBA\n");
+		log_cb(RETRO_LOG_ERROR, "DEV9: ATA: Invalid LBA\n");
 		abort();
 	}
 
@@ -183,7 +183,7 @@ static void ata_io_read(ata_state_t* ata)
 	if (filestream_seek(ata->hddImage, (int64_t)pos, RETRO_VFS_SEEK_POSITION_START) < 0 ||
 		filestream_read(ata->hddImage, ata->readBuffer, (int64_t)ata->nsector * 512) != (int64_t)ata->nsector * 512)
 	{
-		pcsx2_log(RETRO_LOG_ERROR, "DEV9: ATA: File read error\n");
+		log_cb(RETRO_LOG_ERROR, "DEV9: ATA: File read error\n");
 		abort();
 	}
 	slock_lock(ata->ioMutex);
@@ -207,7 +207,7 @@ static bool ata_io_write(ata_state_t* ata)
 	imagePos = entry.sector * 512;
 	if (filestream_seek(ata->hddImage, (int64_t)imagePos, RETRO_VFS_SEEK_POSITION_START) < 0)
 	{
-		pcsx2_log(RETRO_LOG_ERROR, "DEV9: ATA: File seek error\n");
+		log_cb(RETRO_LOG_ERROR, "DEV9: ATA: File seek error\n");
 		abort();
 	}
 	if (ata->hddSparse)
@@ -230,7 +230,7 @@ static bool ata_io_write(ata_state_t* ata)
 			{
 				if (!ata_io_sparse_zero(ata, imagePos + written, writeSize))
 				{
-					pcsx2_log(RETRO_LOG_ERROR, "DEV9: ATA: File sparse write error\n");
+					log_cb(RETRO_LOG_ERROR, "DEV9: ATA: File sparse write error\n");
 
 					ata->hddSparse = false;
 					free(ata->hddSparseBlock);
@@ -252,7 +252,7 @@ static bool ata_io_write(ata_state_t* ata)
 				if (filestream_write(ata->hddImage, &entry.data[written], (int64_t)writeSize) != (int64_t)writeSize ||
 					filestream_flush(ata->hddImage) != 0)
 				{
-					pcsx2_log(RETRO_LOG_ERROR, "DEV9: ATA: File write error\n");
+					log_cb(RETRO_LOG_ERROR, "DEV9: ATA: File write error\n");
 					abort();
 				}
 			}
@@ -264,7 +264,7 @@ static bool ata_io_write(ata_state_t* ata)
 		if (filestream_write(ata->hddImage, entry.data, (int64_t)entry.length) != (int64_t)entry.length ||
 			filestream_flush(ata->hddImage) != 0)
 		{
-			pcsx2_log(RETRO_LOG_ERROR, "DEV9: ATA: File write error\n");
+			log_cb(RETRO_LOG_ERROR, "DEV9: ATA: File write error\n");
 			abort();
 		}
 	}
@@ -308,7 +308,7 @@ static void ata_io_sparse_cache_load(ata_state_t* ata)
 		filestream_read(ata->hddImage, ata->hddSparseBlock, (int64_t)readSize) != (int64_t)readSize ||
 		filestream_seek(ata->hddImage, orgPos, RETRO_VFS_SEEK_POSITION_START) < 0) /* Restore file pointer. */
 	{
-		pcsx2_log(RETRO_LOG_ERROR, "DEV9: ATA: File read error\n");
+		log_cb(RETRO_LOG_ERROR, "DEV9: ATA: File read error\n");
 		abort();
 	}
 
@@ -342,7 +342,7 @@ static bool ata_io_sparse_zero(ata_state_t* ata, uint64_t byteOffset, uint64_t b
 		if (filestream_write(ata->hddImage, &ata->hddSparseBlock[byteOffset - ata->HddSparseStart], (int64_t)byteSize) != (int64_t)byteSize ||
 			filestream_flush(ata->hddImage) != 0)
 		{
-			pcsx2_log(RETRO_LOG_ERROR, "DEV9: ATA: File write error\n");
+			log_cb(RETRO_LOG_ERROR, "DEV9: ATA: File write error\n");
 			abort();
 		}
 		return true;
@@ -359,7 +359,7 @@ static bool ata_io_sparse_zero(ata_state_t* ata, uint64_t byteOffset, uint64_t b
 
 	if (filestream_seek(ata->hddImage, (int64_t)(byteOffset + byteSize), RETRO_VFS_SEEK_POSITION_START) < 0)
 	{
-		pcsx2_log(RETRO_LOG_ERROR, "DEV9: ATA: File seek error\n");
+		log_cb(RETRO_LOG_ERROR, "DEV9: ATA: File seek error\n");
 		abort();
 	}
 	return true;

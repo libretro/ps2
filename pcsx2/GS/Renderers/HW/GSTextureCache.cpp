@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0+
 
 #include <algorithm>
+#include "common/Pcsx2Defs.h"
 #include <memalign.h>
 #include <cmath>
 #include <cstring>
@@ -13,7 +14,6 @@
 #endif
 
 #include "common/Align.h"
-#include "common/Console.h"
 #include "common/HashCombine.h"
 
 #include "GSTextureCache.h"
@@ -2489,7 +2489,7 @@ bool GSTextureCache::PreloadTarget(GIFRegTEX0 TEX0, const GSVector2i& size, cons
 							if (texture_height > dst->m_unscaled_size.y && !dst->ResizeTexture(dst->m_unscaled_size.x, texture_height, true))
 							{
 								// Resize failed, probably ran out of VRAM, better luck next time. Fall back to CPU.
-								DevCon.Warning("Failed to resize target on preload? Draw %d", GSState::s_n);
+								log_cb(RETRO_LOG_WARN, "Failed to resize target on preload? Draw %d\n", GSState::s_n);
 								i++;
 								continue;
 							}
@@ -2984,7 +2984,7 @@ bool GSTextureCache::PrepareDownloadTexture(u32 width, u32 height, GSTexture::Fo
 	*tex = g_gs_device->CreateDownloadTexture(new_width, new_height, format);
 	if (!tex)
 	{
-		Console.WriteLn("Failed to create %ux%u download texture", new_width, new_height);
+		log_cb(RETRO_LOG_INFO, "Failed to create %ux%u download texture\n", new_width, new_height);
 		return false;
 	}
 
@@ -5377,7 +5377,7 @@ void GSTextureCache::Read(Target* t, const GSVector4i& r)
 			break;
 
 		default:
-			Console.Error("Unknown PSM %u on Read", TEX0.PSM);
+			log_cb(RETRO_LOG_ERROR, "Unknown PSM %u on Read\n", TEX0.PSM);
 			break;
 	}
 

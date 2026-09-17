@@ -116,7 +116,7 @@ int ata_open(ata_state_t* ata, const char* hddPath, uint64_t size_sectors)
 	size = ata->hddImage ? filestream_get_size(ata->hddImage) : -1;
 	if (!ata->hddImage || size < 0)
 	{
-		pcsx2_log(RETRO_LOG_ERROR, "Failed to open HDD image '%s'", hddPath);
+		log_cb(RETRO_LOG_ERROR, "Failed to open HDD image '%s'\n", hddPath);
 		return -1;
 	}
 
@@ -194,7 +194,7 @@ void ata_close(ata_state_t* ata)
 	/* verify queue */
 	if (!ata_write_queue_is_empty(&ata->writeQueue))
 	{
-		pcsx2_log(RETRO_LOG_ERROR, "DEV9: ATA: Write queue not empty, possible data loss");
+		log_cb(RETRO_LOG_ERROR, "DEV9: ATA: Write queue not empty, possible data loss\n");
 		abort(); /* All data must be written at this point */
 	}
 	ata_write_queue_destroy(&ata->writeQueue);
@@ -238,7 +238,7 @@ void ata_close(ata_state_t* ata)
 
 void ata_hard_reset(ata_state_t* ata)
 {
-	/* pcsx2_log(RETRO_LOG_DEBUG, "DEV9: *ATA_HARD RESET"); */
+	/* log_cb(RETRO_LOG_DEBUG, "DEV9: *ATA_HARD RESET\n"); */
 	ata_reset_begin(ata);
 	ata_reset_end(ata, true);
 }
@@ -302,7 +302,7 @@ uint16_t ata_read16(ata_state_t* ata, uint32_t addr)
 				return 0;
 			return ata->regStatus;
 		default:
-			pcsx2_log(RETRO_LOG_ERROR, "DEV9: ATA: Unknown 16bit read at address %x", addr);
+			log_cb(RETRO_LOG_ERROR, "DEV9: ATA: Unknown 16bit read at address %x\n", addr);
 			return 0xff;
 	}
 }
@@ -311,7 +311,7 @@ void ata_write16(ata_state_t* ata, uint32_t addr, uint16_t value)
 {
 	if (addr != ATA_R_CMD && (ata->regStatus & (ATA_STAT_BUSY | ATA_STAT_DRQ)) != 0)
 	{
-		pcsx2_log(RETRO_LOG_ERROR, "DEV9: ATA: DEVICE BUSY, DROPPING WRITE");
+		log_cb(RETRO_LOG_ERROR, "DEV9: ATA: DEVICE BUSY, DROPPING WRITE\n");
 		return;
 	}
 	switch (addr)
@@ -356,7 +356,7 @@ void ata_write16(ata_state_t* ata, uint32_t addr, uint16_t value)
 
 			if ((value & 0x4) != 0)
 			{
-				pcsx2_log(RETRO_LOG_DEBUG, "DEV9: *ATA_R_CONTROL RESET");
+				log_cb(RETRO_LOG_DEBUG, "DEV9: *ATA_R_CONTROL RESET\n");
 				ata_reset_begin(ata);
 				ata_reset_end(ata, false);
 			}
@@ -371,7 +371,7 @@ void ata_write16(ata_state_t* ata, uint32_t addr, uint16_t value)
 			ata_ide_exec_cmd(ata, value);
 			break;
 		default:
-			pcsx2_log(RETRO_LOG_ERROR, "DEV9: ATA: UNKNOWN 16bit write at address %x, value %x", addr, value);
+			log_cb(RETRO_LOG_ERROR, "DEV9: ATA: UNKNOWN 16bit write at address %x, value %x\n", addr, value);
 			break;
 	}
 }
@@ -443,7 +443,7 @@ int64_t ata_hdd_get_lba(ata_state_t* ata)
 		ata->regStatus |= (uint8_t)ATA_STAT_ERR;
 		ata->regError |= (uint8_t)ATA_ERR_ABORT;
 
-		pcsx2_log(RETRO_LOG_ERROR, "DEV9: ATA: Tried to get LBA address while LBA mode disabled");
+		log_cb(RETRO_LOG_ERROR, "DEV9: ATA: Tried to get LBA address while LBA mode disabled\n");
 		return -1;
 	}
 }
@@ -474,7 +474,7 @@ void ata_hdd_set_lba(ata_state_t* ata, int64_t sectorNum)
 		ata->regStatus |= ATA_STAT_ERR;
 		ata->regError |= ATA_ERR_ABORT;
 
-		pcsx2_log(RETRO_LOG_ERROR, "DEV9: ATA: Tried to set LBA address while LBA mode disabled");
+		log_cb(RETRO_LOG_ERROR, "DEV9: ATA: Tried to set LBA address while LBA mode disabled\n");
 	}
 }
 

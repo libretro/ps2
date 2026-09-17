@@ -14,8 +14,8 @@
  */
 
 #include "common/Align.h"
+#include "common/Pcsx2Defs.h"
 #include <cfloat>
-#include "common/Console.h"
 #include "common/StringUtil.h"
 
 #include "GS.h"
@@ -85,18 +85,18 @@ bool GSDevice11::Create()
 		return false;
 	retro_hw_render_interface_d3d11 *d3d11 = nullptr;
 	if (!environ_cb(RETRO_ENVIRONMENT_GET_HW_RENDER_INTERFACE, (void **)&d3d11) || !d3d11) {
-		Console.Error("Failed to get HW rendering interface!");
+		log_cb(RETRO_LOG_ERROR, "Failed to get HW rendering interface!\n");
 		return false;
 	}
 
 	if (d3d11->interface_version != RETRO_HW_RENDER_INTERFACE_D3D11_VERSION) {
-		Console.Error("HW render interface mismatch, expected %u, got %u!", RETRO_HW_RENDER_INTERFACE_D3D11_VERSION, d3d11->interface_version);
+		log_cb(RETRO_LOG_ERROR, "HW render interface mismatch, expected %u, got %u!\n", RETRO_HW_RENDER_INTERFACE_D3D11_VERSION, d3d11->interface_version);
 		return false;
 	}
 
 	if (FAILED(d3d11->device->QueryInterface(&m_dev)) || FAILED(d3d11->context->QueryInterface(&m_ctx)))
 	{
-		Console.Error("Direct3D 11.1 is required and not supported.");
+		log_cb(RETRO_LOG_ERROR, "Direct3D 11.1 is required and not supported.\n");
 		return false;
 	}
 	AcquireWindow();
@@ -110,7 +110,7 @@ bool GSDevice11::Create()
 	m_feature_level = m_dev->GetFeatureLevel();
 
 	if (!m_shader_cache.Open(m_feature_level, GSConfig.UseDebugDevice))
-		Console.Warning("Shader cache failed to open.");
+		log_cb(RETRO_LOG_WARN, "Shader cache failed to open.\n");
 
 	// Set maximum texture size limit based on supported feature level.
 	m_d3d_texsize = GetMaxTextureSize();
@@ -223,7 +223,7 @@ bool GSDevice11::Create()
 	bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 	if (FAILED(m_dev->CreateBuffer(&bd, nullptr, m_vb.put())))
 	{
-		Console.Error("Failed to create vertex buffer.");
+		log_cb(RETRO_LOG_ERROR, "Failed to create vertex buffer.\n");
 		return false;
 	}
 
@@ -231,7 +231,7 @@ bool GSDevice11::Create()
 	bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
 	if (FAILED(m_dev->CreateBuffer(&bd, nullptr, m_ib.put())))
 	{
-		Console.Error("Failed to create index buffer.");
+		log_cb(RETRO_LOG_ERROR, "Failed to create index buffer.\n");
 		return false;
 	}
 	IASetIndexBuffer(m_ib.get());
@@ -245,7 +245,7 @@ bool GSDevice11::Create()
 
 		if (FAILED(m_dev->CreateBuffer(&bd, nullptr, m_expand_vb.put())))
 		{
-			Console.Error("Failed to create expand vertex buffer.");
+			log_cb(RETRO_LOG_ERROR, "Failed to create expand vertex buffer.\n");
 			return false;
 		}
 
@@ -259,7 +259,7 @@ bool GSDevice11::Create()
 		vb_srv_desc.Buffer.NumElements = VERTEX_BUFFER_SIZE / sizeof(GSVertex);
 		if (FAILED(m_dev->CreateShaderResourceView(m_expand_vb.get(), &vb_srv_desc, m_expand_vb_srv.put())))
 		{
-			Console.Error("Failed to create expand vertex buffer SRV.");
+			log_cb(RETRO_LOG_ERROR, "Failed to create expand vertex buffer SRV.\n");
 			return false;
 		}
 
@@ -276,7 +276,7 @@ bool GSDevice11::Create()
 		const D3D11_SUBRESOURCE_DATA srd = {expand_data.get()};
 		if (FAILED(m_dev->CreateBuffer(&bd, &srd, m_expand_ib.put())))
 		{
-			Console.Error("Failed to create expand index buffer.");
+			log_cb(RETRO_LOG_ERROR, "Failed to create expand index buffer.\n");
 			return false;
 		}
 	}
@@ -415,7 +415,7 @@ void GSDevice11::SetFeatures(IDXGIAdapter1* adapter)
 		if (SUCCEEDED(m_dev->CheckFeatureSupport(D3D11_FEATURE_D3D11_OPTIONS2, &options, sizeof(options))) &&
 			!options.TypedUAVLoadAdditionalFormats)
 		{
-			Console.Warning("Disabling VS expand due to potentially buggy NVIDIA driver.");
+			log_cb(RETRO_LOG_WARN, "Disabling VS expand due to potentially buggy NVIDIA driver.\n");
 			m_features.vs_expand = false;
 		}
 	}
@@ -521,7 +521,7 @@ GSTexture* GSDevice11::CreateSurface(GSTexture::Type type, int width, int height
 	HRESULT hr = m_dev->CreateTexture2D(&desc, nullptr, texture.put());
 	if (FAILED(hr))
 	{
-		Console.Error("DX11: Failed to allocate %dx%d surface", width, height);
+		log_cb(RETRO_LOG_ERROR, "DX11: Failed to allocate %dx%d surface\n", width, height);
 		return nullptr;
 	}
 
@@ -793,8 +793,8 @@ void GSDevice11::DoMultiStretchRects(const MultiStretchRect* rects, u32 num_rect
 		if (!reported)
 		{
 			reported = true;
-			Console.Error("D3D11: could not map the vertex/index buffer "
-					"(device removed or reset?); skipping blits");
+			log_cb(RETRO_LOG_ERROR, "D3D11: could not map the vertex/index buffer "
+					"(device removed or reset?); skipping blits\n");
 		}
 		return;
 	}
@@ -1335,7 +1335,7 @@ void GSDevice11::RenderHW(GSHWDrawConfig& config)
 	{
 		if (!IASetExpandVertexBuffer(config.verts, sizeof(*config.verts), config.nverts))
 		{
-			Console.Error("Failed to upload structured vertices (%u)", config.nverts);
+			log_cb(RETRO_LOG_ERROR, "Failed to upload structured vertices (%u)\n", config.nverts);
 			return;
 		}
 
@@ -1345,7 +1345,7 @@ void GSDevice11::RenderHW(GSHWDrawConfig& config)
 	{
 		if (!IASetVertexBuffer(config.verts, sizeof(*config.verts), config.nverts))
 		{
-			Console.Error("Failed to upload vertices (%u)", config.nverts);
+			log_cb(RETRO_LOG_ERROR, "Failed to upload vertices (%u)\n", config.nverts);
 			return;
 		}
 	}
@@ -1360,7 +1360,7 @@ void GSDevice11::RenderHW(GSHWDrawConfig& config)
 	{
 		if (!IASetIndexBuffer(config.indices, config.nindices))
 		{
-			Console.Error("Failed to upload indices (%u)", config.nindices);
+			log_cb(RETRO_LOG_ERROR, "Failed to upload indices (%u)\n", config.nindices);
 			return;
 		}
 	}

@@ -13,8 +13,8 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "../../common/Console.h"
 #include "Profiler.h"
+#include "common/Pcsx2Defs.h"
 #include <cerrno>
 #include "HostFS.h"
 
@@ -233,7 +233,7 @@ static void CloseGSRenderer(void)
 
 bool GSreopen(bool recreate_device, bool recreate_renderer, const Pcsx2Config::GSOptions& old_config)
 {
-	Console.WriteLn("Reopening GS with %s device and %s renderer", recreate_device ? "new" : "existing",
+	log_cb(RETRO_LOG_INFO, "Reopening GS with %s device and %s renderer\n", recreate_device ? "new" : "existing",
 		recreate_renderer ? "new" : "existing");
 
 	if (g_gs_renderer)
@@ -271,7 +271,7 @@ bool GSreopen(bool recreate_device, bool recreate_renderer, const Pcsx2Config::G
 		{
 			if (g_pgs_renderer->Freeze(&fd, true) != 0)
 			{
-				Console.Error("(GSreopen) Failed to get GS freeze size");
+				log_cb(RETRO_LOG_ERROR, "(GSreopen) Failed to get GS freeze size\n");
 				return false;
 			}
 		}
@@ -280,7 +280,7 @@ bool GSreopen(bool recreate_device, bool recreate_renderer, const Pcsx2Config::G
 		{
 			if (g_gs_renderer->Freeze(&fd, true) != 0)
 			{
-				Console.Error("(GSreopen) Failed to get GS freeze size");
+				log_cb(RETRO_LOG_ERROR, "(GSreopen) Failed to get GS freeze size\n");
 				return false;
 			}
 		}
@@ -293,7 +293,7 @@ bool GSreopen(bool recreate_device, bool recreate_renderer, const Pcsx2Config::G
 		{
 			if (g_pgs_renderer->Freeze(&fd, false) != 0)
 			{
-				Console.Error("(GSreopen) Failed to freeze GS");
+				log_cb(RETRO_LOG_ERROR, "(GSreopen) Failed to freeze GS\n");
 				return false;
 			}
 		}
@@ -302,7 +302,7 @@ bool GSreopen(bool recreate_device, bool recreate_renderer, const Pcsx2Config::G
 		{
 			if (g_gs_renderer->Freeze(&fd, false) != 0)
 			{
-				Console.Error("(GSreopen) Failed to freeze GS");
+				log_cb(RETRO_LOG_ERROR, "(GSreopen) Failed to freeze GS\n");
 				return false;
 			}
 		}
@@ -317,13 +317,13 @@ bool GSreopen(bool recreate_device, bool recreate_renderer, const Pcsx2Config::G
 
 		if (!OpenGSDevice(GSConfig.Renderer, false))
 		{
-			Console.Warning("Failed to reopen, restoring old configuration.");
+			log_cb(RETRO_LOG_WARN, "Failed to reopen, restoring old configuration.\n");
 			CloseGSDevice(false);
 
 			GSConfig = old_config;
 			if (!OpenGSDevice(GSConfig.Renderer, false))
 			{
-				Console.Error("Failed to reopen GS on old config");
+				log_cb(RETRO_LOG_ERROR, "Failed to reopen GS on old config\n");
 				return false;
 			}
 		}
@@ -333,7 +333,7 @@ bool GSreopen(bool recreate_device, bool recreate_renderer, const Pcsx2Config::G
 	{
 		if (!OpenGSRenderer(GSConfig.Renderer, basemem))
 		{
-			Console.Error("(GSreopen) Failed to create new renderer");
+			log_cb(RETRO_LOG_ERROR, "(GSreopen) Failed to create new renderer\n");
 			return false;
 		}
 
@@ -342,7 +342,7 @@ bool GSreopen(bool recreate_device, bool recreate_renderer, const Pcsx2Config::G
 		{
 			if (g_pgs_renderer->Defrost(&fd) != 0)
 			{
-				Console.Error("(GSreopen) Failed to defrost");
+				log_cb(RETRO_LOG_ERROR, "(GSreopen) Failed to defrost\n");
 				return false;
 			}
 		}
@@ -351,7 +351,7 @@ bool GSreopen(bool recreate_device, bool recreate_renderer, const Pcsx2Config::G
 		{
 			if (g_gs_renderer->Defrost(&fd) != 0)
 			{
-				Console.Error("(GSreopen) Failed to defrost");
+				log_cb(RETRO_LOG_ERROR, "(GSreopen) Failed to defrost\n");
 				return false;
 			}
 		}
@@ -511,7 +511,7 @@ void GSUpdateConfig(const Pcsx2Config::GSOptions& new_config, enum retro_hw_cont
 		|| GSConfig.SWExtraThreadsHeight != old_config.SWExtraThreadsHeight)
 	{
 		if (!GSreopen(false, true, old_config))
-			Console.Error("Failed to do quick GS reopen");
+			log_cb(RETRO_LOG_ERROR, "Failed to do quick GS reopen\n");
 
 		return;
 	}
@@ -582,7 +582,7 @@ void* GSAllocateWrappedMemory(size_t size, size_t repeat)
 	s_fh = CreateFileMapping(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE, 0, size, nullptr);
 	if (s_fh == NULL)
 	{
-		Console.Error("Failed to create file mapping of size %zu. WIN API ERROR:%u", size, GetLastError());
+		log_cb(RETRO_LOG_ERROR, "Failed to create file mapping of size %zu. WIN API ERROR:%u\n", size, GetLastError());
 		return nullptr;
 	}
 
@@ -605,7 +605,7 @@ void* GSAllocateWrappedMemory(size_t size, size_t repeat)
 				if ((i != (repeat - 1) && !VirtualFreeEx(GetCurrentProcess(), addr, size, MEM_RELEASE | MEM_PRESERVE_PLACEHOLDER)) ||
 					!pMapViewOfFile3(s_fh, GetCurrentProcess(), addr, 0, size, MEM_REPLACE_PLACEHOLDER, PAGE_READWRITE, nullptr, 0))
 				{
-					Console.Error("Failed to map repeat %zu of size %zu.", i, size);
+					log_cb(RETRO_LOG_ERROR, "Failed to map repeat %zu of size %zu.\n", i, size);
 					okay = false;
 
 					for (size_t j = 0; j < i; j++)
@@ -619,7 +619,7 @@ void* GSAllocateWrappedMemory(size_t size, size_t repeat)
 			VirtualFreeEx(GetCurrentProcess(), base, 0, MEM_RELEASE);
 		}
 
-		Console.Error("Failed to reserve VA space of size %zu. WIN API ERROR:%u", size, GetLastError());
+		log_cb(RETRO_LOG_ERROR, "Failed to reserve VA space of size %zu. WIN API ERROR:%u\n", size, GetLastError());
 		CloseHandle(s_fh);
 		s_fh = NULL;
 		return nullptr;
@@ -637,7 +637,7 @@ void* GSAllocateWrappedMemory(size_t size, size_t repeat)
 			MEM_RESERVE, PAGE_NOACCESS));
 		if (!base)
 		{
-			Console.Error("Failed to reserve VA space of size %zu. WIN API ERROR:%u", repeat * size, GetLastError());
+			log_cb(RETRO_LOG_ERROR, "Failed to reserve VA space of size %zu. WIN API ERROR:%u\n", repeat * size, GetLastError());
 			CloseHandle(s_fh);
 			s_fh = NULL;
 			return nullptr;
@@ -654,7 +654,7 @@ void* GSAllocateWrappedMemory(size_t size, size_t repeat)
 			u8* addr = base + i * size;
 			if (!MapViewOfFileEx(s_fh, FILE_MAP_ALL_ACCESS, 0, 0, size, addr))
 			{
-				Console.Error("Failed to map repeat %zu of size %zu.", i, size);
+				log_cb(RETRO_LOG_ERROR, "Failed to map repeat %zu of size %zu.\n", i, size);
 				okay = false;
 				break;
 			}

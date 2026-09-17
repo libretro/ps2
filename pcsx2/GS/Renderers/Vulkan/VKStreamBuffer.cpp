@@ -14,9 +14,9 @@
  */
 
 #include "VKStreamBuffer.h"
+#include "common/Pcsx2Defs.h"
 #include "GSDeviceVK.h"
 #include "common/Align.h"
-#include "common/Console.h"
 
 VKStreamBuffer::VKStreamBuffer() = default;
 
@@ -118,7 +118,7 @@ bool VKStreamBuffer::ReserveMemory(u32 num_bytes, u32 alignment)
 	// Check for sane allocations
 	if (required_bytes > m_size)
 	{
-		Console.Error("Attempting to allocate %u bytes from a %u byte stream buffer", static_cast<u32>(num_bytes),
+		log_cb(RETRO_LOG_ERROR, "Attempting to allocate %u bytes from a %u byte stream buffer\n", static_cast<u32>(num_bytes),
 				static_cast<u32>(m_size));
 		return false;
 	}

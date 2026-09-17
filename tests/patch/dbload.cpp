@@ -37,6 +37,7 @@
  */
 
 #include <stdio.h>
+#include <libretro.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
@@ -45,7 +46,6 @@
 
 #include "Common.h"
 #include "GameDatabase.h"
-#include "common/Console.h"
 
 static int g_errors   = 0;
 static int g_warnings = 0;
@@ -61,18 +61,17 @@ static void note(const char* kind, const char* fmt, va_list a)
 	}
 }
 
-bool IConsoleWriter::Error(const char* fmt, ...) const
+static void test_log(enum retro_log_level level, const char* fmt, ...)
 {
-	va_list a; va_start(a, fmt); g_errors++; note("error", fmt, a); va_end(a);
-	return true;
+	va_list a;
+	if (level != RETRO_LOG_ERROR && level != RETRO_LOG_WARN)
+		return;
+	va_start(a, fmt);
+	if (level == RETRO_LOG_ERROR) { g_errors++;   note("error", fmt, a); }
+	else                          { g_warnings++; note("warning", fmt, a); }
+	va_end(a);
 }
-bool IConsoleWriter::Warning(const char* fmt, ...) const
-{
-	va_list a; va_start(a, fmt); g_warnings++; note("warning", fmt, a); va_end(a);
-	return true;
-}
-bool IConsoleWriter::WriteLn(const char*, ...) const { return true; }
-IConsoleWriter Console;
+extern "C" retro_log_printf_t log_cb = test_log;
 
 /* The database reads its yaml through this. */
 static std::string s_yaml;

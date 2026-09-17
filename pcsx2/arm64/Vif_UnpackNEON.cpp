@@ -6,9 +6,9 @@
 // instead of SysMemory.
 
 #include "Vif_UnpackNEON.h"
+#include "common/Pcsx2Defs.h"
 #include <algorithm>
 
-#include "common/Console.h"
 
 #include <cstdlib>
 #include <sys/mman.h>
@@ -356,7 +356,7 @@ void VifUnpackNEON_Base::xUnpack(int upknum) const
 		case 11:
 			// TODO: Needs hardware testing.
 			// Dynasty Warriors 5: Empire  - Player 2 chose a character menu.
-			Console.Warning("Vpu/Vif: Invalid Unpack %d", upknum);
+			log_cb(RETRO_LOG_WARN, "Vpu/Vif: Invalid Unpack %d\n", upknum);
 			break;
 	}
 }
@@ -427,12 +427,12 @@ void VifUnpackSSE_Init()
 		if (s_upkCode == MAP_FAILED)
 		{
 			s_upkCode = nullptr;
-			Console.Error("arm64 VIF unpack dynarec: mmap failed; using the C reference path.");
+			log_cb(RETRO_LOG_ERROR, "arm64 VIF unpack dynarec: mmap failed; using the C reference path.\n");
 			return;
 		}
 	}
 
-	Console.WriteLn("Generating NEON-optimized unpacking functions for VIF interpreters...");
+	log_cb(RETRO_LOG_INFO, "Generating NEON-optimized unpacking functions for VIF interpreters...\n");
 
 	armSetAsmPtr(s_upkCode, kUpkCodeSize, nullptr);
 

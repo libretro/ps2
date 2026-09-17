@@ -13,8 +13,8 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "common/Console.h"
 #include "DHCP_Packet.h"
+#include "common/Pcsx2Defs.h"
 #include "DEV9/PacketReader/NetLib.h"
 
 namespace PacketReader::IP::UDP::DHCP
@@ -70,7 +70,7 @@ namespace PacketReader::IP::UDP::DHCP
 			}
 			if ((offset + 1) >= bufferSize)
 			{
-				Console.Error("DEV9: DHCP_Packet: Unexpected end of packet");
+				log_cb(RETRO_LOG_ERROR, "DEV9: DHCP_Packet: Unexpected end of packet\n");
 				options.push_back(new DHCPopEND());
 				opReadFin = true;
 				continue;
@@ -139,13 +139,13 @@ namespace PacketReader::IP::UDP::DHCP
 					options.push_back(new DHCPopClientID(buffer, offset));
 					break;
 				default:
-					Console.Error("DEV9: DHCP_Packet: Got Unknown Option %d with len %d", opKind, opLen);
+					log_cb(RETRO_LOG_ERROR, "DEV9: DHCP_Packet: Got Unknown Option %d with len %d\n", opKind, opLen);
 					break;
 			}
 			offset += opLen + 2;
 			if (offset >= bufferSize)
 			{
-				Console.Error("DEV9: DHCP_Packet: Unexpected end of packet");
+				log_cb(RETRO_LOG_ERROR, "DEV9: DHCP_Packet: Unexpected end of packet\n");
 				options.push_back(new DHCPopNOP());
 				opReadFin = true;
 			}
@@ -216,7 +216,7 @@ namespace PacketReader::IP::UDP::DHCP
 			}
 			else
 			{
-				Console.Error("DEV9: DHCP_Packet: Oversized DHCP packet not handled");
+				log_cb(RETRO_LOG_ERROR, "DEV9: DHCP_Packet: Oversized DHCP packet not handled\n");
 				//We need space for DHCP End
 				if (len == maxLength)
 				{

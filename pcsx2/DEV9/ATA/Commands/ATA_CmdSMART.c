@@ -24,7 +24,7 @@ static void ata_smart_return_status(ata_state_t* ata);
 
 void ata_hdd_smart(ata_state_t* ata)
 {
-	pcsx2_log(RETRO_LOG_DEBUG, "DEV9: HDD_Smart\n");
+	log_cb(RETRO_LOG_DEBUG, "DEV9: HDD_Smart\n");
 
 	if ((ata->regStatus & ATA_STAT_READY) == 0)
 		return;
@@ -58,22 +58,22 @@ void ata_hdd_smart(ata_state_t* ata)
 			ata_smart_return_status(ata);
 			return;
 		case 0xD1: /* SMART_READ_THRESH */
-			pcsx2_log(RETRO_LOG_ERROR, "DEV9: ATA: SMART_READ_THRESH Not Implemented\n");
+			log_cb(RETRO_LOG_ERROR, "DEV9: ATA: SMART_READ_THRESH Not Implemented\n");
 			ata_cmd_no_data_abort(ata);
 			return;
 		case 0xD0: /* SMART_READ_DATA */
-			pcsx2_log(RETRO_LOG_ERROR, "DEV9: ATA: SMART_READ_DATA Not Implemented\n");
+			log_cb(RETRO_LOG_ERROR, "DEV9: ATA: SMART_READ_DATA Not Implemented\n");
 			ata_cmd_no_data_abort(ata);
 			return;
 		case 0xD5: /* SMART_READ_LOG */
-			pcsx2_log(RETRO_LOG_ERROR, "DEV9: ATA: SMART_READ_LOG Not Implemented\n");
+			log_cb(RETRO_LOG_ERROR, "DEV9: ATA: SMART_READ_LOG Not Implemented\n");
 			ata_cmd_no_data_abort(ata);
 			return;
 		case 0xD4: /* SMART_EXECUTE_OFFLINE */
 			ata_smart_execute_offline_immediate(ata);
 			return;
 		default:
-			pcsx2_log(RETRO_LOG_ERROR, "DEV9: ATA: Unknown SMART command %x\n", ata->regFeature);
+			log_cb(RETRO_LOG_ERROR, "DEV9: ATA: Unknown SMART command %x\n", ata->regFeature);
 			ata_cmd_no_data_abort(ata);
 			return;
 	}
@@ -93,7 +93,7 @@ static void ata_smart_set_auto_save_attribute(ata_state_t* ata)
 		default:
 			/* The C++ version formatted this integer register with %s
 			 * and would have crashed had the path ever been hit. */
-			pcsx2_log(RETRO_LOG_ERROR, "DEV9: ATA: Unknown SMART_ATTR_AUTOSAVE command %x\n", ata->regSector);
+			log_cb(RETRO_LOG_ERROR, "DEV9: ATA: Unknown SMART_ATTR_AUTOSAVE command %x\n", ata->regSector);
 			ata_cmd_no_data_abort(ata);
 			return;
 	}

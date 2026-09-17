@@ -11,7 +11,6 @@
 #pragma once
 
 #include "common/Pcsx2Defs.h"
-#include "common/Console.h"
 #include "VU.h"
 
 // Upstream VU.h aliases the two VU register banks; the libretro fork dropped

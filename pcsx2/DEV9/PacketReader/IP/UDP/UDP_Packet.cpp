@@ -13,8 +13,8 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "common/Console.h"
 #include "UDP_Packet.h"
+#include "common/Pcsx2Defs.h"
 #include "DEV9/PacketReader/NetLib.h"
 
 namespace PacketReader::IP::UDP
@@ -37,7 +37,7 @@ namespace PacketReader::IP::UDP
 
 		if (length > bufferSize)
 		{
-			Console.Error("DEV9: UDP_Packet: Unexpected Length");
+			log_cb(RETRO_LOG_ERROR, "DEV9: UDP_Packet: Unexpected Length\n");
 			length = (u16)bufferSize;
 		}
 

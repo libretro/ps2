@@ -15,6 +15,8 @@
 
 #pragma once
 
+#include "common/Pcsx2Defs.h"
+
 struct PS1MemoryCardState
 {
 	size_t currentByte = 2;

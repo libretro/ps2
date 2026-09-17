@@ -533,3 +533,16 @@ static constexpr s64 _4gb = _1gb * 4;
 #pragma warning(disable: 4244) // warning C4244: 'initializing': conversion from 'uptr' to 'uint', possible loss of data
 #pragma warning(disable: 4267) // warning C4267: 'initializing': conversion from 'size_t' to 'uint', possible loss of data
 #endif
+
+/* The frontend's logger. One symbol, C linkage, so the C translation
+ * units name it as the C++ ones do; main.cpp defines it and installs a
+ * stderr fallback when the frontend offers no log interface. Callers
+ * put the newline in the format. */
+#include <libretro.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
+extern retro_log_printf_t log_cb;
+#ifdef __cplusplus
+}
+#endif

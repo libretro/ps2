@@ -14,6 +14,7 @@
  */
 
 #include "Common.h"
+#include "common/Pcsx2Defs.h"
 
 #include "VUmicro.h"
 #include "GS.h"
@@ -115,7 +116,7 @@ static void _vu1Exec(VURegs* VU)
 		{
 			if (lregs.VFwrite == uregs.VFwrite)
 			{
-				//Console.Warning("*PCSX2*: Warning, VF write to the same reg in both lower/upper cycle pc=%x", VU->VI[REG_TPC].UL);
+				//log_cb(RETRO_LOG_WARN, "*PCSX2*: Warning, VF write to the same reg in both lower/upper cycle pc=%x\n", VU->VI[REG_TPC].UL);
 				discard = 1;
 			}
 			if (lregs.VFread0 == uregs.VFwrite ||
@@ -129,12 +130,12 @@ static void _vu1Exec(VURegs* VU)
 		{
 			if (lregs.VIwrite & (1 << REG_CLIP_FLAG))
 			{
-				//Console.Warning("*PCSX2*: Warning, VI write to the same reg in both lower/upper cyclepc=%x", VU->VI[REG_TPC].UL);
+				//log_cb(RETRO_LOG_WARN, "*PCSX2*: Warning, VI write to the same reg in both lower/upper cyclepc=%x\n", VU->VI[REG_TPC].UL);
 				discard = 1;
 			}
 			if (lregs.VIread & (1 << REG_CLIP_FLAG))
 			{
-				//Console.Warning("*PCSX2*: Warning, VI read same cycle as write pc=%x", VU->VI[REG_TPC].UL);
+				//log_cb(RETRO_LOG_WARN, "*PCSX2*: Warning, VI read same cycle as write pc=%x\n", VU->VI[REG_TPC].UL);
 				_VI = VU->VI[REG_CLIP_FLAG];
 				vireg = REG_CLIP_FLAG;
 			}

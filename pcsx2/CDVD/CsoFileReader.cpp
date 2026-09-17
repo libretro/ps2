@@ -14,10 +14,10 @@
 */
 
 #include <compat/strl.h>
+#include "common/Pcsx2Defs.h"
 #include <encodings/rlz4.h>
 
 #include "../../common/Pcsx2Types.h"
-#include "../../common/Console.h"
 #include "HostFS.h"
 #include "../../common/StringUtil.h"
 
@@ -82,17 +82,17 @@ bool CsoFileReader::ValidateHeader(const CsoHeader& hdr)
 		return false;
 	if (hdr.ver > 1)
 	{
-		Console.Error("Only CSOv1 files are supported.");
+		log_cb(RETRO_LOG_ERROR, "Only CSOv1 files are supported.\n");
 		return false;
 	}
 	if ((hdr.frame_size & (hdr.frame_size - 1)) != 0)
 	{
-		Console.Error("CSO frame size must be a power of two.");
+		log_cb(RETRO_LOG_ERROR, "CSO frame size must be a power of two.\n");
 		return false;
 	}
 	if (hdr.frame_size < 2048)
 	{
-		Console.Error("CSO frame size must be at least one sector.");
+		log_cb(RETRO_LOG_ERROR, "CSO frame size must be at least one sector.\n");
 		return false;
 	}
 	/* The three fields below decide how much memory the header can make
@@ -117,17 +117,17 @@ bool CsoFileReader::ValidateHeader(const CsoHeader& hdr)
 	 * double-layer DVD is 8.5 GB; 64 GiB is room to spare. */
 	if (hdr.frame_size > (16 * 1024 * 1024))
 	{
-		Console.Error("CSO frame size of %u is implausible.", hdr.frame_size);
+		log_cb(RETRO_LOG_ERROR, "CSO frame size of %u is implausible.\n", hdr.frame_size);
 		return false;
 	}
 	if (hdr.align > 16)
 	{
-		Console.Error("CSO index alignment shift of %u is implausible.", hdr.align);
+		log_cb(RETRO_LOG_ERROR, "CSO index alignment shift of %u is implausible.\n", hdr.align);
 		return false;
 	}
 	if (hdr.total_bytes == 0 || hdr.total_bytes > (64ULL * 1024 * 1024 * 1024))
 	{
-		Console.Error("CSO total size is zero or implausible.");
+		log_cb(RETRO_LOG_ERROR, "CSO total size is zero or implausible.\n");
 		return false;
 	}
 
@@ -167,13 +167,13 @@ bool CsoFileReader::ReadFileHeader()
 
 	if (filestream_seek(m_src, m_dataoffset, RETRO_VFS_SEEK_POSITION_START) != 0 || filestream_read(m_src, &hdr, sizeof(hdr)) != (int64_t)sizeof(hdr))
 	{
-		Console.Error("Failed to read CSO file header.");
+		log_cb(RETRO_LOG_ERROR, "Failed to read CSO file header.\n");
 		return false;
 	}
 
 	if (!ValidateHeader(hdr))
 	{
-		Console.Error("CSO has invalid header.");
+		log_cb(RETRO_LOG_ERROR, "CSO has invalid header.\n");
 		return false;
 	}
 
@@ -201,7 +201,7 @@ bool CsoFileReader::InitializeBuffers()
 	 * because of them - keep the two together. */
 	if (frames64 >= 0xFFFFFFFFULL)
 	{
-		Console.Error("CSO frame count is implausible.");
+		log_cb(RETRO_LOG_ERROR, "CSO frame count is implausible.\n");
 		return false;
 	}
 	u32 numFrames = (u32)frames64;
@@ -220,7 +220,7 @@ bool CsoFileReader::InitializeBuffers()
 	m_index = new u32[indexSize];
 	if (filestream_read(m_src, m_index, sizeof(u32) * indexSize) != (int64_t)(sizeof(u32) * indexSize))
 	{
-		Console.Error("Unable to read index data from CSO.");
+		log_cb(RETRO_LOG_ERROR, "Unable to read index data from CSO.\n");
 		return false;
 	}
 
@@ -230,7 +230,7 @@ bool CsoFileReader::InitializeBuffers()
 		m_inflate = rinflate_new(-15); /* CSO frames are raw deflate */
 		if (!m_inflate)
 		{
-			Console.Error("Unable to initialize inflate for CSO decompression.");
+			log_cb(RETRO_LOG_ERROR, "Unable to initialize inflate for CSO decompression.\n");
 			return false;
 		}
 	}
@@ -334,7 +334,7 @@ int CsoFileReader::ReadChunk(void *dst, s64 chunkID)
 			rinflate_reset(m_inflate, -15);
 		}
 		if (!ok)
-			Console.Error("Unable to decompress CSO frame from mapped source.");
+			log_cb(RETRO_LOG_ERROR, "Unable to decompress CSO frame from mapped source.\n");
 		return ok ? m_frameSize : 0;
 	}
 
@@ -343,7 +343,7 @@ int CsoFileReader::ReadChunk(void *dst, s64 chunkID)
 		// Just read directly, easy.
 		if (filestream_seek(m_src, frameRawPos, RETRO_VFS_SEEK_POSITION_START) != 0)
 		{
-			Console.Error("Unable to seek to uncompressed CSO data.");
+			log_cb(RETRO_LOG_ERROR, "Unable to seek to uncompressed CSO data.\n");
 			return 0;
 		}
 		return filestream_read(m_src, dst, m_frameSize);
@@ -352,7 +352,7 @@ int CsoFileReader::ReadChunk(void *dst, s64 chunkID)
 	{
 		if (filestream_seek(m_src, frameRawPos, RETRO_VFS_SEEK_POSITION_START) != 0)
 		{
-			Console.Error("Unable to seek to compressed CSO data.");
+			log_cb(RETRO_LOG_ERROR, "Unable to seek to compressed CSO data.\n");
 			return 0;
 		}
 		// This might be less bytes than frameRawSize in case of padding on the last frame.
@@ -376,7 +376,7 @@ int CsoFileReader::ReadChunk(void *dst, s64 chunkID)
 		}
 
 		if (!success)
-			Console.Error("Unable to decompress CSO frame using zlib.");
+			log_cb(RETRO_LOG_ERROR, "Unable to decompress CSO frame using zlib.\n");
 
 		if (!m_uselz4)
 			rinflate_reset(m_inflate, -15);

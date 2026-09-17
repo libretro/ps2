@@ -14,10 +14,10 @@
  */
 
 #pragma once
+#include "common/Pcsx2Defs.h"
 
 
 #include <retro_atomic.h>
-#include "common/Console.h"
 
 //Designed to allow one thread to queue data to another thread
 template <class T>
@@ -107,7 +107,7 @@ SimpleQueue<T>::~SimpleQueue()
 	{
 		if (!IsQueueEmpty())
 		{
-			Console.Error("DEV9: Queue not empty");
+			log_cb(RETRO_LOG_ERROR, "DEV9: Queue not empty\n");
 
 			//Empty Queue
 			T entry;

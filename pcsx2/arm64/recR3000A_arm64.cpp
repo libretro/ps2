@@ -18,7 +18,7 @@
 // invalidation in recClearIOP (psxCpu->Clear is called on every IOP write).
 
 #include "R3000A.h"
-#include "common/Console.h"
+#include "common/Pcsx2Defs.h"
 #include "IopMem.h"
 #include "IopHw.h"
 
@@ -814,7 +814,7 @@ static void recReserve(void)
 		if (s_lut == MAP_FAILED) s_lut = nullptr;
 	}
 	s_ok = s_ok && s_code && s_lut;
-	Console.WriteLn("arm64 IOP rec (C.2b-4): %s.", s_ok ? "native ALU+mem+branch JIT active" : "FAILED -> interpreter fallback");
+	log_cb(RETRO_LOG_INFO, "arm64 IOP rec (C.2b-4): %s.\n", s_ok ? "native ALU+mem+branch JIT active" : "FAILED -> interpreter fallback");
 }
 
 static void recResetIOP(void)

@@ -29,6 +29,7 @@
 */
 
 #include <algorithm>
+#include "common/Pcsx2Defs.h"
 #include <rthreads/rthreads.h>
 #include <utility>
 #include <cstdlib> /* bsearch, realloc, free */
@@ -38,7 +39,6 @@
 
 #include "../common/Align.h"
 #include "HostMem.h"
-#include "../common/Console.h"
 
 #include "Common.h"
 #include "vtlb.h"
@@ -872,7 +872,7 @@ static void vtlb_CreateFastmemMapping(u32 vaddr, u32 mainmem_offset, const PageP
 
 		s_fastmem_virtual_mapping[page] = NO_FASTMEM_MAPPING;
 		if (was_coalesced && !s_fastmem_area->Unmap(s_fastmem_area->PagePointer(vtlb_HostPage(page)), __pagesize))
-			Console.Error("Failed to unmap vaddr %08X", vaddr);
+			log_cb(RETRO_LOG_ERROR, "Failed to unmap vaddr %08X\n", vaddr);
 
 		// remove reverse mapping
 		fastmem_phys_remove(mainmem_offset, vaddr);
@@ -887,7 +887,7 @@ static void vtlb_CreateFastmemMapping(u32 vaddr, u32 mainmem_offset, const PageP
 		if (!s_fastmem_area->Map(GetVmMemory().MainMemory()->GetFileHandle(), host_offset,
 				s_fastmem_area->PagePointer(host_page), __pagesize, mode))
 		{
-			Console.Error("Failed to map vaddr %08X to mainmem offset %08X", vtlb_HostAlignOffset(vaddr), host_offset);
+			log_cb(RETRO_LOG_ERROR, "Failed to map vaddr %08X to mainmem offset %08X\n", vtlb_HostAlignOffset(vaddr), host_offset);
 			s_fastmem_virtual_mapping[page] = NO_FASTMEM_MAPPING;
 			return;
 		}
@@ -913,7 +913,7 @@ static void vtlb_RemoveFastmemMapping(u32 vaddr)
 	s_fastmem_virtual_mapping[page] = NO_FASTMEM_MAPPING;
 
 	if (was_coalesced && !s_fastmem_area->Unmap(s_fastmem_area->PagePointer(vtlb_HostPage(page)), __pagesize))
-		Console.Error("Failed to unmap vaddr %08X", vtlb_HostAlignOffset(vaddr));
+		log_cb(RETRO_LOG_ERROR, "Failed to unmap vaddr %08X\n", vtlb_HostAlignOffset(vaddr));
 
 	// remove from reverse map
 	fastmem_phys_remove(mainmem_offset, vaddr);
@@ -1325,7 +1325,7 @@ bool vtlb_Core_Alloc(void)
 		vmap = (vtlb_virt_t*)GetVmMemory().BumpAllocator().Alloc(VMAP_SIZE);
 		if (!vmap)
 		{
-			Console.Error("Failed to allocate vtlb vmap");
+			log_cb(RETRO_LOG_ERROR, "Failed to allocate vtlb vmap\n");
 			return false;
 		}
 	}
@@ -1351,7 +1351,7 @@ bool vtlb_Core_Alloc(void)
 			 * init - disable fastmem and let the recompiler emit
 			 * slowpath load/stores for every memory access. Slower but
 			 * functional. */
-			Console.Error("Failed to allocate fastmem area, disabling fastmem.");
+			log_cb(RETRO_LOG_ERROR, "Failed to allocate fastmem area, disabling fastmem.\n");
 			EmuConfig.Cpu.Recompiler.EnableFastmem = false;
 		}
 		else
@@ -1360,7 +1360,7 @@ bool vtlb_Core_Alloc(void)
 			if (s_fastmem_virtual_mapping) /* NO_FASTMEM_MAPPING is all-ones */
 				memset(s_fastmem_virtual_mapping, 0xFF, FASTMEM_PAGE_COUNT * sizeof(u32));
 			vtlbdata.fastmem_base = (uptr)s_fastmem_area->BasePointer();
-			Console.WriteLn("Fastmem area: %p - %p",
+			log_cb(RETRO_LOG_INFO, "Fastmem area: %p - %p\n",
 				(void*)vtlbdata.fastmem_base,
 				(void*)(vtlbdata.fastmem_base + (FASTMEM_AREA_SIZE - 1)));
 		}
@@ -1368,7 +1368,7 @@ bool vtlb_Core_Alloc(void)
 
 	if (!HostSys::InstallPageFaultHandler(&vtlb_PageFaultHandler))
 	{
-		Console.Error("Failed to install page fault handler.");
+		log_cb(RETRO_LOG_ERROR, "Failed to install page fault handler.\n");
 		return false;
 	}
 

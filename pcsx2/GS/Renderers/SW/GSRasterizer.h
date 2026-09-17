@@ -14,13 +14,13 @@
  */
 
 #pragma once
+#include "common/Pcsx2Defs.h"
 
 #include <retro_atomic.h>
 #include <new>
 #include <retro_spsc.h>
 #include "common/General.h"
 #include "WorkEventCount.h"
-#include "common/Console.h"
 
 #include <functional>
 
@@ -113,7 +113,7 @@ public:
 		work_eventcount_init(&m_sema);
 		m_queue_ok = retro_spsc_init(&m_queue, (size_t)CAPACITY * sizeof(T));
 		if (!m_queue_ok)
-			Console.Error("GSJobQueue: ring allocation failed; jobs will run on the calling thread");
+			log_cb(RETRO_LOG_ERROR, "GSJobQueue: ring allocation failed; jobs will run on the calling thread\n");
 		m_thread = sthread_create(ThreadEntry, this);
 	}
 

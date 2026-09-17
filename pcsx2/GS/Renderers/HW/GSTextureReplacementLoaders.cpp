@@ -14,6 +14,7 @@
  */
 
 #include <cstring> /* memset/memcpy */
+#include "common/Pcsx2Defs.h"
 #include <csetjmp>
 
 #include <formats/rpng.h>
@@ -25,7 +26,6 @@
 #include <functional> /* std::function */
 
 #include "common/Align.h"
-#include "common/Console.h"
 #include "HostFS.h"
 #include "common/StringUtil.h"
 
@@ -551,9 +551,8 @@ static bool ReadDDSMipLevel(RFILE* fp, const std::string& filename, u32 mip_leve
 	if (mip_level == 0 && info.block_size > 1 &&
 		((width % info.block_size) != 0 || (height % info.block_size) != 0))
 	{
-		Console.Error(
-			"Invalid dimensions for DDS texture %s. For compressed textures of this format, "
-			"the width/height of the first mip level must be a multiple of %u.",
+		log_cb(RETRO_LOG_ERROR, "Invalid dimensions for DDS texture %s. For compressed textures of this format, "
+			"the width/height of the first mip level must be a multiple of %u.\n",
 			filename.c_str(), info.block_size);
 		return false;
 	}

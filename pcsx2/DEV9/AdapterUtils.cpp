@@ -14,7 +14,6 @@
  */
 
 #include "common/Pcsx2Defs.h"
-#include "common/Console.h"
 
 #ifdef __POSIX__
 #include <vector>
@@ -64,11 +63,11 @@ bool AdapterUtils::GetAdapter(const std::string& name, Adapter* adapter, Adapter
 
 	if (dwStatus == ERROR_BUFFER_OVERFLOW)
 	{
-		DevCon.WriteLn("DEV9: GetWin32Adapter() buffer too small, resizing");
+		log_cb(RETRO_LOG_DEBUG, "DEV9: GetWin32Adapter() buffer too small, resizing\n");
 		neededSize = dwBufLen / sizeof(IP_ADAPTER_ADDRESSES) + 1;
 		adapterInfo = std::make_unique<IP_ADAPTER_ADDRESSES[]>(neededSize);
 		dwBufLen = sizeof(IP_ADAPTER_ADDRESSES) * neededSize;
-		DevCon.WriteLn("DEV9: New size %i", neededSize);
+		log_cb(RETRO_LOG_DEBUG, "DEV9: New size %i\n", neededSize);
 
 		dwStatus = GetAdaptersAddresses(
 			AF_UNSPEC,
@@ -113,12 +112,12 @@ bool AdapterUtils::GetAdapterAuto(Adapter* adapter, AdapterBuffer* buffer)
 
 	if (dwStatus == ERROR_BUFFER_OVERFLOW)
 	{
-		DevCon.WriteLn("DEV9: PCAPGetWin32Adapter() buffer too small, resizing");
+		log_cb(RETRO_LOG_DEBUG, "DEV9: PCAPGetWin32Adapter() buffer too small, resizing\n");
 		//
 		neededSize = dwBufLen / sizeof(IP_ADAPTER_ADDRESSES) + 1;
 		adapterInfo = std::make_unique<IP_ADAPTER_ADDRESSES[]>(neededSize);
 		dwBufLen = sizeof(IP_ADAPTER_ADDRESSES) * neededSize;
-		DevCon.WriteLn("DEV9: New size %i", neededSize);
+		log_cb(RETRO_LOG_DEBUG, "DEV9: New size %i\n", neededSize);
 
 		dwStatus = GetAdaptersAddresses(
 			AF_UNSPEC,
@@ -277,7 +276,7 @@ std::optional<MAC_Address> AdapterUtils::GetAdapterMAC(Adapter* adapter)
 #else
 std::optional<MAC_Address> AdapterUtils::GetAdapterMAC(Adapter* adapter)
 {
-	Console.Error("DEV9: Unsupported OS, can't get MAC address");
+	log_cb(RETRO_LOG_ERROR, "DEV9: Unsupported OS, can't get MAC address\n");
 	return std::nullopt;
 }
 #endif
@@ -358,7 +357,7 @@ std::vector<IP_Address> AdapterUtils::GetGateways(Adapter* adapter)
 	if (route.fail())
 	{
 		route.close();
-		Console.Error("DEV9: Failed to open /proc/net/route");
+		log_cb(RETRO_LOG_ERROR, "DEV9: Failed to open /proc/net/route\n");
 		return collection;
 	}
 
@@ -405,7 +404,7 @@ std::vector<IP_Address> AdapterUtils::GetGateways(Adapter* adapter)
 	ifNI = if_nameindex();
 	if (ifNI == nullptr)
 	{
-		Console.Error("DEV9: if_nameindex Failed");
+		log_cb(RETRO_LOG_ERROR, "DEV9: if_nameindex Failed\n");
 		return collection;
 	}
 
@@ -424,7 +423,7 @@ std::vector<IP_Address> AdapterUtils::GetGateways(Adapter* adapter)
 	// Check if we found the adapter.
 	if (ifIndex == -1)
 	{
-		Console.Error("DEV9: Failed to get index for adapter");
+		log_cb(RETRO_LOG_ERROR, "DEV9: Failed to get index for adapter\n");
 		return collection;
 	}
 
@@ -434,7 +433,7 @@ std::vector<IP_Address> AdapterUtils::GetGateways(Adapter* adapter)
 
 	if (sysctl(name, 6, NULL, &bufferLen, NULL, 0) != 0)
 	{
-		Console.Error("DEV9: Failed to perform NET_RT_DUMP");
+		log_cb(RETRO_LOG_ERROR, "DEV9: Failed to perform NET_RT_DUMP\n");
 		return collection;
 	}
 
@@ -444,7 +443,7 @@ std::vector<IP_Address> AdapterUtils::GetGateways(Adapter* adapter)
 
 	if (sysctl(name, 6, buffer.get(), &bufferLen, NULL, 0) != 0)
 	{
-		Console.Error("DEV9: Failed to perform NET_RT_DUMP");
+		log_cb(RETRO_LOG_ERROR, "DEV9: Failed to perform NET_RT_DUMP\n");
 		return collection;
 	}
 
@@ -472,7 +471,7 @@ std::vector<IP_Address> AdapterUtils::GetGateways(Adapter* adapter)
 #else
 std::vector<IP_Address> AdapterUtils::GetGateways(Adapter* adapter)
 {
-	Console.Error("DEV9: Unsupported OS, can't find Gateway");
+	log_cb(RETRO_LOG_ERROR, "DEV9: Unsupported OS, can't find Gateway\n");
 	return {};
 }
 #endif
@@ -519,7 +518,7 @@ std::vector<IP_Address> AdapterUtils::GetDNS(Adapter* adapter)
 	if (servers.fail())
 	{
 		servers.close();
-		Console.Error("DEV9: Failed to open /etc/resolv.conf");
+		log_cb(RETRO_LOG_ERROR, "DEV9: Failed to open /etc/resolv.conf\n");
 		return collection;
 	}
 
@@ -545,7 +544,7 @@ std::vector<IP_Address> AdapterUtils::GetDNS(Adapter* adapter)
 				continue;
 
 			if (address == systemdDNS)
-				Console.Error("DEV9: systemd-resolved DNS server is not supported");
+				log_cb(RETRO_LOG_ERROR, "DEV9: systemd-resolved DNS server is not supported\n");
 
 			collection.push_back(address);
 		}

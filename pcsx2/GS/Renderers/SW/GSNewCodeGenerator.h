@@ -14,6 +14,7 @@
  */
 
 #pragma once
+#include "common/Pcsx2Defs.h"
 
 #define XBYAK_NO_OP_NAMES
 
@@ -35,7 +36,6 @@
 
 #include "../../MultiISA.h"
 
-#include "common/Console.h"
 
 /// Code generator that automatically selects between SSE and AVX, x86 and x64 so you don't have to
 /// Should make combined SSE and AVX codegen much easier
@@ -58,7 +58,7 @@ private:
 	void requireAVX()
 	{
 		if (!hasAVX)
-			Console.Error("used AVX instruction in SSE code");
+			log_cb(RETRO_LOG_ERROR, "used AVX instruction in SSE code\n");
 	}
 
 public:
@@ -123,7 +123,7 @@ public:
 
 #define ACTUAL_FORWARD_SSEONLY(name, ...) \
 	if (hasAVX) \
-		Console.Error("used SSE instruction in AVX code"); \
+		log_cb(RETRO_LOG_ERROR, "used SSE instruction in AVX code\n"); \
 	else \
 		actual.name(__VA_ARGS__);
 
@@ -131,19 +131,19 @@ public:
 	if (hasAVX) \
 		actual.name(__VA_ARGS__); \
 	else \
-		Console.Error("used AVX instruction in SSE code");
+		log_cb(RETRO_LOG_ERROR, "used AVX instruction in SSE code\n");
 
 #define ACTUAL_FORWARD_AVX2(name, ...) \
 	if (hasAVX2) \
 		actual.name(__VA_ARGS__); \
 	else \
-		Console.Error("used AVX instruction in SSE code");
+		log_cb(RETRO_LOG_ERROR, "used AVX instruction in SSE code\n");
 
 #define ACTUAL_FORWARD_FMA(name, ...) \
 	if (hasFMA) \
 		actual.name(__VA_ARGS__); \
 	else \
-		Console.Error("used AVX instruction in SSE code");
+		log_cb(RETRO_LOG_ERROR, "used AVX instruction in SSE code\n");
 
 #define FORWARD1(category, name, type) \
 	void name(type a) \

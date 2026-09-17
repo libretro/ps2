@@ -84,13 +84,11 @@ void _DEV9irq(int cause, int cycles);
 void dev9_irq_cause_clear(int bits);
 /* (dev9.if_ctrl & SPD_IF_ATA_DMAEN) != 0 */
 int dev9_ata_dma_enabled(void);
-/* printf-style logging at a RETRO_LOG_* level, implemented in
- * common/Console.cpp on top of the frontend log callback. */
-void pcsx2_log(int level, const char* fmt, ...)
-#if defined(__GNUC__) || defined(__clang__)
-	__attribute__((format(printf, 2, 3)))
-#endif
-	;
+
+/* The frontend's logger, defined in libretro/main.cpp with C linkage;
+ * callers put the newline in the format. */
+#include <libretro.h>
+extern retro_log_printf_t log_cb;
 
 /* ---- Write queue ---------------------------------------------------- */
 

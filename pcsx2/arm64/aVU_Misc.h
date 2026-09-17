@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0+
 
 #pragma once
+#include "common/Pcsx2Defs.h"
 
 // ARM64 microVU — arch-neutral macro layer (Phase 7, task 7.3).
 //
@@ -172,7 +173,7 @@ typedef Fntype_mVUrecInst* Fnptr_mVUrecInst;
 #define Rmem         &mVU.regs().VI[REG_R].UL
 #define aWrap(x, m)  ((x > m) ? 0 : x)
 #define clampE       CHECK_VU_EXTRA_OVERFLOW(mVU.index)
-#define varPrint(x)  DevCon.WriteLn(#x " = %d", (int)x)
+#define varPrint(x)  log_cb(RETRO_LOG_DEBUG, #x " = %d\n", (int)x)
 #define islowerOP    ((iPC & 1) == 0)
 
 #define blockCreate(addr) \

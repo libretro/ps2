@@ -31,6 +31,7 @@
  */
 
 #include <stdio.h>
+#include <libretro.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
@@ -39,7 +40,6 @@
 
 #include "Common.h"
 #include "Patch.h"
-#include "common/Console.h"
 
 /* Memory the patch application would reach. The parse path does not use
  * it, but _ApplyPatch does, and applying is how a bytes payload is
@@ -91,22 +91,21 @@ namespace Path {
  * size fails hundreds at once and the first few say everything. */
 static int g_errors = 0;
 static int g_shown  = 0;
-bool IConsoleWriter::Error(const char* fmt, ...) const
+static void test_log(enum retro_log_level level, const char* fmt, ...)
 {
+	if (level != RETRO_LOG_ERROR)
+		return;
 	g_errors++;
 	if (g_shown++ < 5)
 	{
 		va_list a;
 		va_start(a, fmt);
 		printf("  ");
-		vprintf(fmt, a);
-		printf("\n");
+		vprintf(fmt, a);   /* the format carries its own newline now */
 		va_end(a);
 	}
-	return true;
 }
-bool IConsoleWriter::WriteLn(const char*, ...) const { return true; }
-IConsoleWriter Console;
+extern "C" retro_log_printf_t log_cb = test_log;
 
 extern std::vector<IniPatch> Patch;
 

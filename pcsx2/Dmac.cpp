@@ -14,6 +14,7 @@
  */
 
 #include "Common.h"
+#include "common/Pcsx2Defs.h"
 #include "Hardware.h"
 #include "MTVU.h"
 
@@ -100,7 +101,7 @@ __ri tDMA_TAG *dmaGetAddr(u32 addr, bool write)
 	else if (addr < 0x10004000)
 	{
 		// Secret scratchpad address for DMA = end of maximum main memory?
-		//Console.Warning("Writing to the scratchpad without the SPR flag set!");
+		//log_cb(RETRO_LOG_WARN, "Writing to the scratchpad without the SPR flag set!\n");
 		return (tDMA_TAG*)&eeMem->Scratch[addr & 0x3ff0];
 	}
 	return NULL;

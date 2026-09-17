@@ -14,9 +14,9 @@
  */
 
 #include "D3D12StreamBuffer.h"
+#include "common/Pcsx2Defs.h"
 #include "GSDevice12.h"
 #include "common/Align.h"
-#include "common/Console.h"
 #include "D3D12MemAlloc.h"
 
 #include <algorithm>
@@ -71,7 +71,7 @@ bool D3D12StreamBuffer::ReserveMemory(u32 num_bytes, u32 alignment)
 	// Check for sane allocations
 	if (num_bytes > m_size)
 	{
-		Console.Error("Attempting to allocate %u bytes from a %u byte stream buffer", static_cast<u32>(num_bytes),
+		log_cb(RETRO_LOG_ERROR, "Attempting to allocate %u bytes from a %u byte stream buffer\n", static_cast<u32>(num_bytes),
 			static_cast<u32>(m_size));
 		return false;
 	}
