@@ -15,7 +15,6 @@
 
 #include "common/Align.h"
 #include "common/Pcsx2Defs.h"
-#include "common/StringUtil.h"
 
 #include "D3D12Builders.h"
 #include "D3D12MemAlloc.h"
@@ -386,7 +385,7 @@ void GSTexture12::CopyTextureDataForUpload(void* dst, const void* src, u32 pitch
 {
 	const u32 block_size = GetCompressedBlockSize();
 	const u32 count = (height + (block_size - 1)) / block_size;
-	StringUtil::StrideMemCpy(dst, upload_pitch, src, pitch, pcsx2_min_i(upload_pitch, pitch), count);
+	GSStrideMemCpy(dst, upload_pitch, src, pitch, pcsx2_min_i(upload_pitch, pitch), count);
 }
 
 bool GSTexture12::Update(const GSVector4i& r, const void* data, int pitch, int layer)

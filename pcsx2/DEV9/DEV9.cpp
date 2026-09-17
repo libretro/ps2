@@ -16,7 +16,6 @@
 #include <file/file_path.h>
 #include "common/Pcsx2Defs.h"
 #include <retro_miscellaneous.h>
-#include "common/StringUtil.h"
 
 #ifdef _WIN32
 #include "common/RedtapeWindows.h"

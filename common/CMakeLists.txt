@@ -8,7 +8,6 @@ endif(NOT TOP_CMAKE_WAS_SOURCED)
 add_library(common)
 
 target_sources(common PRIVATE
-	StringUtil.cpp
 	HostSys.cpp
 )
 
@@ -55,7 +54,6 @@ target_sources(common PRIVATE
 	HashCombine.h
 	RedtapeWilCom.h
 	RedtapeWindows.h
-	StringUtil.h
 	VectorIntrin.h
 	WindowInfo.h
 	emitter/c89compat.h

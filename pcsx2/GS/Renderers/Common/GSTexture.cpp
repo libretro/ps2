@@ -17,7 +17,6 @@
 #include "GSDevice.h"
 
 #include "common/Align.h"
-#include "common/StringUtil.h"
 
 #include <bitset>
 
@@ -158,6 +157,6 @@ bool GSDownloadTexture::ReadTexels(const GSVector4i& rc, void* out_ptr, u32 out_
 	const u32 copy_size = tb * bytes_per_block;
 	const u32 copy_rows = ((static_cast<u32>(rc.height()) + (block_size - 1)) / block_size);
 
-	StringUtil::StrideMemCpy(out_ptr, out_stride, m_map_pointer + copy_offset, m_current_pitch, copy_size, copy_rows);
+	GSStrideMemCpy(out_ptr, out_stride, m_map_pointer + copy_offset, m_current_pitch, copy_size, copy_rows);
 	return true;
 }

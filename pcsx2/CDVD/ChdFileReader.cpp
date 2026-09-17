@@ -5,11 +5,11 @@
  */
 
 #include <compat/strl.h>
+#include "../StringView.h"
 #include "common/Pcsx2Defs.h"
 #include "ChdFileReader.h"
 
 #include "HostFS.h"
-#include "../../common/StringUtil.h"
 
 #include <file/file_path.h>
 #include <retro_miscellaneous.h>

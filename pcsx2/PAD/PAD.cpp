@@ -23,7 +23,6 @@
 #include "PAD.h"
 
 #include "HostFS.h"
-#include "../../common/StringUtil.h"
 #include "../../common/Pcsx2Defs.h"
 
 #include "../Frontend/InputManager.h"

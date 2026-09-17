@@ -14,13 +14,13 @@
  */
 
 #include <cinttypes>
+#include "../../../FormatString.h"
 #include "common/Pcsx2Defs.h"
 #include <cstring>
 
 #include <libretro.h>
 
 
-#include "common/StringUtil.h"
 
 #include "glad.h"
 
@@ -1060,7 +1060,7 @@ std::string GSDeviceOGL::GenGlslHeader(const std::string_view& entry, GLenum typ
 
 static void GSDeviceOGLAppendShaderMacro(std::string& macro, const char* name, int value)
 {
-	macro += StringUtil::StdStringFromFormat("#define %s %d\n", name, value);
+	macro += FormatString::Format("#define %s %d\n", name, value);
 }
 
 std::string GSDeviceOGL::GetVSSource(VSSelector sel)

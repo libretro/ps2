@@ -14,6 +14,8 @@
  */
 
 #include <cstring>
+#include "../../../StringView.h"
+#include "../../../FormatString.h"
 #include "common/Pcsx2Defs.h"
 #include <cassert>
 #include <vector>
@@ -27,7 +29,6 @@
 
 #include "common/Align.h"
 #include "common/General.h"
-#include "common/StringUtil.h"
 #include "VKBuilders.h"
 #include "VKShaderCache.h"
 
@@ -283,7 +284,7 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 				u32 current_extra = 2;
 				do
 				{
-					gpu_name = StringUtil::StdStringFromFormat("%s (%u)", original_adapter_name.c_str(), current_extra);
+					gpu_name = FormatString::Format("%s (%u)", original_adapter_name.c_str(), current_extra);
 					current_extra++;
 				} while (std::any_of(gpu_names.begin(), gpu_names.end(),
 					[&gpu_name](const std::string& other) { return (gpu_name == other); }));
@@ -1172,8 +1173,8 @@ bool GSDeviceVK::IsSuitableDefaultRenderer()
 	log_cb(RETRO_LOG_INFO, "Using Vulkan GPU '{%s}' for automatic renderer check.\n", name.c_str());
 
 	// Any software rendering (LLVMpipe, SwiftShader).
-	if (       StringUtil::StartsWithNoCase(name, "llvmpipe")
-		|| StringUtil::StartsWithNoCase(name, "SwiftShader"))
+	if (       StringView::StartsWithNoCase(name, "llvmpipe")
+		|| StringView::StartsWithNoCase(name, "SwiftShader"))
 	{
 		log_cb(RETRO_LOG_WARN, "Not using Vulkan for software renderer.\n");
 		return false;
@@ -1181,7 +1182,7 @@ bool GSDeviceVK::IsSuitableDefaultRenderer()
 
 	// For Intel, OpenGL usually ends up faster on Linux, because of fbfetch.
 	// Plus, the Ivy Bridge and Haswell drivers are incomplete.
-	if (StringUtil::StartsWithNoCase(name, "Intel"))
+	if (StringView::StartsWithNoCase(name, "Intel"))
 	{
 		log_cb(RETRO_LOG_WARN, "Not using Vulkan for Intel GPU.\n");
 		return false;
@@ -2875,7 +2876,7 @@ bool GSDeviceVK::CompileInterlacePipelines()
 
 	for (int i = 0; i < static_cast<int>(m_interlace.size()); i++)
 	{
-		VkShaderModule ps = GetUtilityFragmentShader(interlace_glsl_shader_raw, StringUtil::StdStringFromFormat("ps_main%d", i).c_str());
+		VkShaderModule ps = GetUtilityFragmentShader(interlace_glsl_shader_raw, FormatString::Format("ps_main%d", i).c_str());
 		if (ps == VK_NULL_HANDLE)
 		{
 			SafeDestroyShaderModule(m_device, vs);
@@ -2925,7 +2926,7 @@ bool GSDeviceVK::CompileMergePipelines()
 
 	for (int i = 0; i < static_cast<int>(m_merge.size()); i++)
 	{
-		VkShaderModule ps = GetUtilityFragmentShader(merge_glsl_shader_raw, StringUtil::StdStringFromFormat("ps_main%d", i).c_str());
+		VkShaderModule ps = GetUtilityFragmentShader(merge_glsl_shader_raw, FormatString::Format("ps_main%d", i).c_str());
 		if (ps == VK_NULL_HANDLE)
 			return false;
 

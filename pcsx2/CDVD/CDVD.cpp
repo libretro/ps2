@@ -14,6 +14,8 @@
  */
 
 #include <compat/strl.h>
+#include "../StringView.h"
+#include "../ParseNumber.h"
 #include "common/Pcsx2Defs.h"
 #include <file/file_path.h>
 #include <ctype.h>
@@ -32,7 +34,6 @@
 #include <memory>
 
 #include "HostFS.h"
-#include "../../common/StringUtil.h"
 
 #include "Ps1CD.h"
 #include "CDVD.h"
@@ -386,7 +387,7 @@ static s32 cdvdWriteConfig(const u8* config)
 // Sets ElfCRC to the CRC of the game bound to the CDVD source.
 static bool cdvdLoadElf(ElfObject *elfo, std::string elfpath)
 {
-	if (StringUtil::StartsWith(elfpath, "host:"))
+	if (StringView::StartsWith(elfpath, "host:"))
 	{
 		std::string host_filename(elfpath.substr(5));
 		if (!elfo->OpenFile(host_filename))
@@ -417,7 +418,7 @@ static bool cdvdLoadElf(ElfObject *elfo, std::string elfpath)
 		}
 
 		// Fix cdrom:path, the iso reader doesn't like it.
-		if (StringUtil::StartsWith(elfpath, "cdrom:") && elfpath[6] != '\\' && elfpath[6] != '/')
+		if (StringView::StartsWith(elfpath, "cdrom:") && elfpath[6] != '\\' && elfpath[6] != '/')
 			elfpath.insert(6, 1, '\\');
 
 		IsoFile file;
@@ -557,7 +558,7 @@ static void cdvdReadKey(u8, u16, u32 arg2, u8* key)
 	if (DiscSerial[0])
 	{
 		// convert the number characters to a real 32 bit number
-		numbers = StringUtil::FromChars<s32>(std::string_view(DiscSerial).substr(5, 5)).value_or(0);
+		numbers = ParseNumber::FromChars<s32>(std::string_view(DiscSerial).substr(5, 5)).value_or(0);
 
 		// combine the lower 7 bits of each char
 		// to make the 4 letters fit into a single u32
@@ -2904,7 +2905,7 @@ int GetPS2ElfName( std::string& name )
 	{
 		const std::string line(file.readLine());
 		std::string_view key, value;
-		if (!StringUtil::ParseAssignmentString(line, &key, &value))
+		if (!StringView::ParseAssignmentString(line, &key, &value))
 			continue;
 
 		if( value.empty() && file.getLength() != file.getSeekPos() )

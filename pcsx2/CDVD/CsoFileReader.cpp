@@ -19,7 +19,6 @@
 
 #include "../../common/Pcsx2Types.h"
 #include "HostFS.h"
-#include "../../common/StringUtil.h"
 
 #include "CsoFileReader.h"
 

@@ -28,7 +28,6 @@
 #include "ShaderCacheVersion.h"
 
 #include "HostFS.h"
-#include "common/StringUtil.h"
 
 /* xxhash may already be set up by a header included above (HashCombine.h /
  * GSXXH.h, both behind an XXH_versionNumber guard). Guard our own setup so

@@ -17,7 +17,6 @@
 #include "common/Pcsx2Defs.h"
 
 #include "common/Align.h"
-#include "common/StringUtil.h"
 
 #include "GSDeviceVK.h"
 #include "GSTextureVK.h"
@@ -255,7 +254,7 @@ void GSTextureVK::CopyTextureDataForUpload(void* dst, const void* src, u32 pitch
 {
 	const u32 block_size = GetCompressedBlockSize();
 	const u32 count = (height + (block_size - 1)) / block_size;
-	StringUtil::StrideMemCpy(dst, upload_pitch, src, pitch, pcsx2_min_i(upload_pitch, pitch), count);
+	GSStrideMemCpy(dst, upload_pitch, src, pitch, pcsx2_min_i(upload_pitch, pitch), count);
 }
 
 VkBuffer GSTextureVK::AllocateUploadStagingBuffer(const void* data, u32 pitch, u32 upload_pitch, u32 height) const

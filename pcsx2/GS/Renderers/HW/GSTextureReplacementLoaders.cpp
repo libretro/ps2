@@ -27,7 +27,6 @@
 
 #include "common/Align.h"
 #include "HostFS.h"
-#include "common/StringUtil.h"
 
 #include "GSTextureReplacements.h"
 

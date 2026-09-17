@@ -14,6 +14,9 @@
  */
 
 #include <sstream>
+#include "StringView.h"
+#include "FormatString.h"
+#include "ParseNumber.h"
 #include "common/Pcsx2Defs.h"
 #include <fstream>
 #include <optional>
@@ -23,7 +26,6 @@
 #include <formats/ryaml.h>
 
 #include "HostFS.h"
-#include "../common/StringUtil.h"
 
 #include "GameDatabase.h"
 #include "GS/GS.h"
@@ -205,7 +207,7 @@ void GameDatabase::parseAndInsert(const char *serial, const ryaml_t *yaml, int n
 			std::string fix(yamlValView(yaml, n));
 
 			// Enum values don't end with Hack, but gamedb does, so remove it before comparing.
-			if (StringUtil::EndsWith(fix, "Hack"))
+			if (StringView::EndsWith(fix, "Hack"))
 			{
 				fix.erase(fix.size() - 4);
 				for (GamefixId id = GamefixId_FIRST; id < pxEnumEnd; ++id)
@@ -243,7 +245,7 @@ void GameDatabase::parseAndInsert(const char *serial, const ryaml_t *yaml, int n
 			const std::string_view id_view = yamlKeyView(yaml, n);
 			const std::string_view value_view = yamlValView(yaml, n);
 			const std::optional<SpeedHack> id = Pcsx2Config::SpeedhackOptions::ParseSpeedHackName(id_view);
-			const std::optional<int> value = StringUtil::FromChars<int>(value_view);
+			const std::optional<int> value = ParseNumber::FromChars<int>(value_view);
 
 			bool inserted = false;
 			if (id.has_value() && value.has_value())
@@ -295,7 +297,7 @@ void GameDatabase::parseAndInsert(const char *serial, const ryaml_t *yaml, int n
 			}
 			else
 				value = ryaml_has_val(yaml, n)
-					? StringUtil::FromChars<s32>(yamlValView(yaml, n))
+					? ParseNumber::FromChars<s32>(yamlValView(yaml, n))
 					: std::optional<s32>(1);
 
 			if (!id.has_value() || !value.has_value())
@@ -325,7 +327,7 @@ void GameDatabase::parseAndInsert(const char *serial, const ryaml_t *yaml, int n
 		{
 			// use a crc of 0 for default patches
 			const std::string_view crc_str = yamlKeyView(yaml, n);
-			const std::optional<u32> crc = ((crc_str.length() == 7) && (Strncasecmp(crc_str.data(), "default", 7) == 0)) ? std::optional<u32>(0) : StringUtil::FromChars<u32>(crc_str, 16);
+			const std::optional<u32> crc = ((crc_str.length() == 7) && (Strncasecmp(crc_str.data(), "default", 7) == 0)) ? std::optional<u32>(0) : ParseNumber::FromChars<u32>(crc_str, 16);
 			if (!crc.has_value())
 			{
 				log_cb(RETRO_LOG_ERROR, "[GameDB] Invalid CRC '{%s}' found for serial: '{%s}'. Skipping!\n", std::string(crc_str).c_str(), serial);
@@ -739,7 +741,7 @@ u32 GameDatabaseSchema::GameEntry::applyGSHardwareFixes(Pcsx2Config::GSOptions& 
 				continue;
 
 			log_cb(RETRO_LOG_WARN, "[GameDB] Skipping GS Hardware Fix: %s to [mode=%d]\n", getHWFixName(id), value);
-			disabled_fixes += StringUtil::StdStringFromFormat("%s %s = %d", disabled_fixes.empty() ? "  " : "\n  ", getHWFixName(id), value);
+			disabled_fixes += FormatString::Format("%s %s = %d", disabled_fixes.empty() ? "  " : "\n  ", getHWFixName(id), value);
 			continue;
 		}
 
@@ -979,7 +981,7 @@ void GameDatabase::initDatabase()
 	for (int n = ryaml_first_child(yaml, root); n >= 0;
 		n = ryaml_next_sibling(yaml, n))
 	{
-		auto serial = StringUtil::toLower(std::string(yamlKeyView(yaml, n)));
+		auto serial = StringView::toLower(std::string(yamlKeyView(yaml, n)));
 
 		// Serials and CRCs must be inserted as lower-case, as that is how they are retrieved
 		// this is because the application may pass a lowercase CRC or serial along
@@ -1035,6 +1037,6 @@ const GameDatabaseSchema::GameEntry* GameDatabase::findGame(const std::string_vi
 {
 	GameDatabase::ensureLoaded();
 
-	auto iter = s_game_db.find(StringUtil::toLower(serial));
+	auto iter = s_game_db.find(StringView::toLower(serial));
 	return (iter != s_game_db.end()) ? &iter->second : nullptr;
 }

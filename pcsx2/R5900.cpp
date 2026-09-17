@@ -15,13 +15,13 @@
 
 
 #include <retro_atomic.h>
+#include "FormatString.h"
 #include <cstring> /* memset */
 #include <compat/strl.h>
 
 #include "Common.h"
 #include "Profiler.h"
 
-#include "../common/StringUtil.h"
 
 #include "ps2/BiosTools.h"
 #include "R5900.h"
@@ -573,7 +573,7 @@ void eeloadHook(void)
 	const std::string& elf_override(VMManager::Internal::GetElfOverride());
 
 	if (!elf_override.empty())
-		cdvdReloadElfInfo(StringUtil::StdStringFromFormat("host:%s", elf_override.c_str()));
+		cdvdReloadElfInfo(FormatString::Format("host:%s", elf_override.c_str()));
 	else
 		cdvdReloadElfInfo();
 
@@ -620,7 +620,7 @@ void eeloadHook(void)
 	{
 		std::string elftoload;
 		if (!elf_override.empty())
-			elftoload = StringUtil::StdStringFromFormat("host:%s", elf_override.c_str());
+			elftoload = FormatString::Format("host:%s", elf_override.c_str());
 		else
 		{
 			if (disctype == 2)

@@ -15,7 +15,6 @@
 
 #include <retro_timers.h>
 #include "common/Pcsx2Defs.h" /* __POSIX__, tested by the block below */
-#include "common/StringUtil.h"
 
 #ifdef _WIN32
 #include <winsock2.h>
@@ -43,6 +42,34 @@
 #include "PacketReader/IP/ICMP/ICMP_Packet.h"
 #include "PacketReader/IP/TCP/TCP_Packet.h"
 #include "PacketReader/IP/UDP/UDP_Packet.h"
+
+#ifdef _WIN32
+/* The Windows adapter APIs return wide strings; the rest of the core is UTF-8. */
+static std::string WideStringToUTF8String(const std::wstring_view& str)
+{
+	std::string ret;
+	if (!WideStringToUTF8String(ret, str))
+		ret.clear();
+
+	return ret;
+}
+
+static bool WideStringToUTF8String(std::string& dest, const std::wstring_view& str)
+{
+	int mblen = WideCharToMultiByte(CP_UTF8, 0, str.data(), static_cast<int>(str.length()), nullptr, 0, nullptr, nullptr);
+	if (mblen < 0)
+		return false;
+
+	dest.resize(mblen);
+	if (mblen > 0 && WideCharToMultiByte(CP_UTF8, 0, str.data(), static_cast<int>(str.length()), dest.data(), mblen,
+						 nullptr, nullptr) < 0)
+	{
+		return false;
+	}
+
+	return true;
+}
+#endif
 
 using namespace Sessions;
 using namespace PacketReader;
@@ -104,7 +131,7 @@ std::vector<AdapterEntry> SocketAdapter::GetAdapters()
 		{
 			AdapterEntry entry;
 			entry.type = Pcsx2Config::DEV9Options::NetApi::Sockets;
-			entry.name = StringUtil::WideStringToUTF8String(pAdapterInfo->FriendlyName);
+			entry.name = WideStringToUTF8String(pAdapterInfo->FriendlyName);
 			entry.guid = pAdapterInfo->AdapterName;
 
 			nic.push_back(entry);

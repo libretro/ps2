@@ -16,7 +16,6 @@
 #include <compat/strl.h>
 #include "common/Pcsx2Defs.h"
 #include "HostFS.h"
-#include "../../common/StringUtil.h"
 
 #include <compat/strl.h>
 #include <file/file_path.h>

@@ -34,7 +34,6 @@
 #endif
 
 #include "HostFS.h"
-#include "../common/StringUtil.h"
 
 #include "Common.h"
 #include "R5900.h" // for g_GameStarted

@@ -14,6 +14,7 @@
  */
 
 #include <compat/strl.h>
+#include "../FormatString.h"
 #include "common/Pcsx2Defs.h"
 #include <cstring>
 #include <utility>
@@ -23,7 +24,6 @@
 #include <streams/file_stream.h>
 
 #include "HostFS.h"
-#include "../../common/StringUtil.h"
 
 #include "../Common.h"
 #include "../Config.h"
@@ -197,7 +197,7 @@ template <size_t _size>
 static void LoadExtraRom(const char* ext, u8 (&dest)[_size])
 {
 	// Try first a basic extension concatenation (normally results in something like name.bin.rom1)
-	std::string Bios1(StringUtil::StdStringFromFormat("%s.%s", BiosPath.c_str(), ext));
+	std::string Bios1(FormatString::Format("%s.%s", BiosPath.c_str(), ext));
 
 	s64 filesize;
 	if ((filesize = path_get_size(Bios1.c_str())) <= 0)

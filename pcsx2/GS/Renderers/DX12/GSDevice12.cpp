@@ -14,6 +14,7 @@
  */
 
 #include "GS/GS.h"
+#include "../../../FormatString.h"
 #include "common/Pcsx2Defs.h"
 #include <cfloat>
 #include "GS/GSUtil.h"
@@ -24,7 +25,6 @@
 
 #include "common/General.h"
 #include "common/Align.h"
-#include "common/StringUtil.h"
 #include "D3D12Builders.h"
 #include "D3D12ShaderCache.h"
 
@@ -1862,7 +1862,7 @@ bool GSDevice12::CompileInterlacePipelines()
 
 	for (int i = 0; i < static_cast<int>(m_interlace.size()); i++)
 	{
-		ComPtr<ID3DBlob> ps(GetUtilityPixelShader(interlace_fx_shader_raw, StringUtil::StdStringFromFormat("ps_main%d", i).c_str()));
+		ComPtr<ID3DBlob> ps(GetUtilityPixelShader(interlace_fx_shader_raw, FormatString::Format("ps_main%d", i).c_str()));
 		if (!ps)
 			return false;
 
@@ -1888,7 +1888,7 @@ bool GSDevice12::CompileMergePipelines()
 
 	for (int i = 0; i < static_cast<int>(m_merge.size()); i++)
 	{
-		ComPtr<ID3DBlob> ps(GetUtilityPixelShader(merge_fx_shader_raw, StringUtil::StdStringFromFormat("ps_main%d", i).c_str()));
+		ComPtr<ID3DBlob> ps(GetUtilityPixelShader(merge_fx_shader_raw, FormatString::Format("ps_main%d", i).c_str()));
 		if (!ps)
 			return false;
 

@@ -16,8 +16,9 @@
 #define _PC_ // disables MIPS opcode macros.
 
 #include "HostFS.h"
+#include "StringView.h"
+#include "ParseNumber.h"
 #include "common/Pcsx2Defs.h"
-#include "../common/StringUtil.h"
 #include <encodings/deflate.h>
 
 #include "Config.h"
@@ -30,6 +31,47 @@
 #include <vector>
 
 #include <file/file_path.h>
+
+/* Split on a delimiter, each piece stripped of surrounding whitespace;
+ * a patch line. */
+static std::string_view StripWhitespace(const std::string_view& str)
+{
+	std::string_view::size_type start = 0;
+	while (start < str.size() && std::isspace(str[start]))
+		start++;
+	if (start == str.size())
+		return {};
+
+	std::string_view::size_type end = str.size() - 1;
+	while (end > start && std::isspace(str[end]))
+		end--;
+
+	return str.substr(start, end - start + 1);
+}
+
+static std::vector<std::string_view> SplitString(const std::string_view& str, char delimiter, bool skip_empty /*= true*/)
+{
+	std::vector<std::string_view> res;
+	std::string_view::size_type last_pos = 0;
+	std::string_view::size_type pos;
+	while (last_pos < str.size() && (pos = str.find(delimiter, last_pos)) != std::string_view::npos)
+	{
+		std::string_view part(StripWhitespace(str.substr(last_pos, pos - last_pos)));
+		if (!skip_empty || !part.empty())
+			res.push_back(std::move(part));
+
+		last_pos = pos + 1;
+	}
+
+	if (last_pos < str.size())
+	{
+		std::string_view part(StripWhitespace(str.substr(last_pos)));
+		if (!skip_empty || !part.empty())
+			res.push_back(std::move(part));
+	}
+
+	return res;
+}
 
 enum patch_cpu_type {
 	NO_CPU = 0,
@@ -746,7 +788,7 @@ static int PatchTableExecute(const std::string_view& lhs, const std::string_view
 static void inifile_command(const char* cmd)
 {
 	std::string_view key, value;
-	StringUtil::ParseAssignmentString(cmd, &key, &value);
+	StringView::ParseAssignmentString(cmd, &key, &value);
 
 	// Is this really what we want to be doing here? Seems like just leaving it empty/blank
 	// would make more sense... --air
@@ -990,7 +1032,7 @@ namespace PatchFunc
 	__VA_ARGS__)
 
 		// [0]=PlaceToPatch,[1]=CpuType,[2]=MemAddr,[3]=OperandSize,[4]=WriteValue
-		const std::vector<std::string_view> pieces(StringUtil::SplitString(param, ',', false));
+		const std::vector<std::string_view> pieces(SplitString(param, ',', false));
 		if (pieces.size() != 5)
 		{
 			PATCH_ERROR("Expected 5 data parameters; only found %zu", pieces.size());
@@ -999,7 +1041,7 @@ namespace PatchFunc
 
 		IniPatch iPatch = {0};
 		iPatch.enabled = 0;
-		iPatch.placetopatch = StringUtil::FromChars<u32>(pieces[0]).value_or(_PPT_END_MARKER);
+		iPatch.placetopatch = ParseNumber::FromChars<u32>(pieces[0]).value_or(_PPT_END_MARKER);
 
 		if (iPatch.placetopatch >= _PPT_END_MARKER)
 		{
@@ -1009,7 +1051,7 @@ namespace PatchFunc
 		}
 
 		iPatch.cpu = (patch_cpu_type)PatchTableExecute(pieces[1], std::string_view(), cpuCore);
-		iPatch.addr = StringUtil::FromChars<u32>(pieces[2], 16).value_or(0);
+		iPatch.addr = ParseNumber::FromChars<u32>(pieces[2], 16).value_or(0);
 		iPatch.type = (patch_data_type)PatchTableExecute(pieces[3], std::string_view(), dataType);
 
 		if (iPatch.type == BYTES_T)
@@ -1031,7 +1073,7 @@ namespace PatchFunc
 			for (i = 0; i < hex.size(); i += 2)
 			{
 				const std::optional<u8> b =
-					StringUtil::FromChars<u8>(hex.substr(i, 2), 16);
+					ParseNumber::FromChars<u8>(hex.substr(i, 2), 16);
 				if (!b.has_value())
 				{
 					PATCH_ERROR("'bytes' payload is not hex: '%.*s'",
@@ -1043,7 +1085,7 @@ namespace PatchFunc
 			iPatch.data = 0;
 		}
 		else
-			iPatch.data = StringUtil::FromChars<u64>(pieces[4], 16).value_or(0);
+			iPatch.data = ParseNumber::FromChars<u64>(pieces[4], 16).value_or(0);
 
 		if (iPatch.cpu == 0)
 		{

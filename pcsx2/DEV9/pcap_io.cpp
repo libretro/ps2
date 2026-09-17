@@ -14,11 +14,11 @@
  */
 
 #include <memory>
+#include "../StringView.h"
 #include "common/Pcsx2Defs.h"
 
 #ifdef _WIN32
 #include "common/RedtapeWindows.h"
-#include "common/StringUtil.h"
 #include <winsock2.h>
 #include <iphlpapi.h>
 #endif
@@ -33,6 +33,34 @@
 #include "PacketReader/ARP/ARP_PacketEditor.h"
 #ifndef PCAP_NETMASK_UNKNOWN
 #define PCAP_NETMASK_UNKNOWN 0xffffffff
+#endif
+
+#ifdef _WIN32
+/* The Windows adapter APIs return wide strings; the rest of the core is UTF-8. */
+static std::string WideStringToUTF8String(const std::wstring_view& str)
+{
+	std::string ret;
+	if (!WideStringToUTF8String(ret, str))
+		ret.clear();
+
+	return ret;
+}
+
+static bool WideStringToUTF8String(std::string& dest, const std::wstring_view& str)
+{
+	int mblen = WideCharToMultiByte(CP_UTF8, 0, str.data(), static_cast<int>(str.length()), nullptr, 0, nullptr, nullptr);
+	if (mblen < 0)
+		return false;
+
+	dest.resize(mblen);
+	if (mblen > 0 && WideCharToMultiByte(CP_UTF8, 0, str.data(), static_cast<int>(str.length()), dest.data(), mblen,
+						 nullptr, nullptr) < 0)
+	{
+		return false;
+	}
+
+	return true;
+}
 #endif
 
 #ifdef _WIN32
@@ -216,7 +244,7 @@ std::vector<AdapterEntry> PCAPAdapter::GetAdapters()
 		entry.type = Pcsx2Config::DEV9Options::NetApi::PCAP_Switched;
 #ifdef _WIN32
 		//guid
-		if (!StringUtil::StartsWith(d->name, PCAPPREFIX))
+		if (!StringView::StartsWith(d->name, PCAPPREFIX))
 		{
 			log_cb(RETRO_LOG_ERROR, "PCAP: Unexpected Device: \n", d->name);
 			d = d->next;
@@ -229,7 +257,7 @@ std::vector<AdapterEntry> PCAPAdapter::GetAdapters()
 		std::unique_ptr<IP_ADAPTER_ADDRESSES[]> buffer;
 
 		if (AdapterUtils::GetAdapter(entry.guid, &adapterInfo, &buffer))
-			entry.name = StringUtil::WideStringToUTF8String(std::wstring(adapterInfo.FriendlyName));
+			entry.name = WideStringToUTF8String(std::wstring(adapterInfo.FriendlyName));
 		else
 		{
 			//have to use description
@@ -243,7 +271,7 @@ std::vector<AdapterEntry> PCAPAdapter::GetAdapters()
 			std::unique_ptr<wchar_t[]> buf = std::make_unique<wchar_t[]>(len_buf);
 			MultiByteToWideChar(CP_ACP, 0, d->description, len_desc, buf.get(), len_buf);
 
-			entry.name = StringUtil::WideStringToUTF8String(std::wstring(buf.get()));
+			entry.name = WideStringToUTF8String(std::wstring(buf.get()));
 		}
 #else
 		entry.name = std::string(d->name);

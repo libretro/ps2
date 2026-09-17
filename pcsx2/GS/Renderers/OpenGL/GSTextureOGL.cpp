@@ -20,7 +20,6 @@
 #include "GLState.h"
 #include "GS/GSExtra.h"
 #include "common/Align.h"
-#include "common/StringUtil.h"
 
 #include <libretro.h>
 
@@ -215,7 +214,7 @@ bool GSTextureOGL::Update(const GSVector4i& r, const void* data, int pitch, int 
 	else
 	{
 		const auto map = sb->Map(TEXTURE_UPLOAD_ALIGNMENT, map_size);
-		StringUtil::StrideMemCpy(map.pointer, preferred_pitch, data, pitch, r.width() << m_int_shift, r.height());
+		GSStrideMemCpy(map.pointer, preferred_pitch, data, pitch, r.width() << m_int_shift, r.height());
 		sb->Unmap(map_size);
 		sb->Bind();
 

@@ -14,6 +14,7 @@
  */
 
 #include <array>
+#include "StringView.h"
 #include "common/Pcsx2Defs.h"
 #include <cstring> /* memset */
 #include <utility>
@@ -22,7 +23,6 @@
 #include <file/file_path.h>
 
 #include "HostFS.h"
-#include "../common/StringUtil.h"
 
 #include "MemoryCardFile.h"
 
@@ -332,7 +332,7 @@ void FileMemoryCard::Open()
 		// [TODO] : Add memcard size detection and report it to the console log.
 		//   (8MB, 256Mb, formatted, unformatted, etc ...)
 
-		if (StringUtil::EndsWith(fname, ".bin"))
+		if (StringView::EndsWith(fname, ".bin"))
 		{
 			char newname[PCSX2_PATH_MAX];
 
@@ -399,7 +399,7 @@ void FileMemoryCard::Close()
 		filestream_close(m_file[slot]);
 		m_file[slot] = nullptr;
 
-		if (StringUtil::EndsWith(m_filenames[slot], ".bin"))
+		if (StringView::EndsWith(m_filenames[slot], ".bin"))
 		{
 			const std::string name_in(m_filenames[slot] + 'x');
 			if (ConvertRAWtoNoECC(name_in.c_str(), m_filenames[slot].c_str()))

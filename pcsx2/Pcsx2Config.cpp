@@ -14,10 +14,11 @@
  */
 
 #include <compat/strl.h>
+#include "FormatString.h"
+#include "ParseNumber.h"
 #include <float.h>
 #include <stdint.h>
 #include "HostFS.h"
-#include "../common/StringUtil.h"
 
 #include "Config.h"
 #include "GS.h"
@@ -55,53 +56,53 @@ const char* SettingInfo::StringDefaultValue() const
 
 bool SettingInfo::BooleanDefaultValue() const
 {
-	return default_value ? StringUtil::FromChars<bool>(default_value).value_or(false) : false;
+	return default_value ? ParseNumber::FromChars<bool>(default_value).value_or(false) : false;
 }
 
 s32 SettingInfo::IntegerDefaultValue() const
 {
-	return default_value ? StringUtil::FromChars<s32>(default_value).value_or(0) : 0;
+	return default_value ? ParseNumber::FromChars<s32>(default_value).value_or(0) : 0;
 }
 
 s32 SettingInfo::IntegerMinValue() const
 {
 	static constexpr s32 fallback_value = INT32_MIN;
-	return min_value ? StringUtil::FromChars<s32>(min_value).value_or(fallback_value) : fallback_value;
+	return min_value ? ParseNumber::FromChars<s32>(min_value).value_or(fallback_value) : fallback_value;
 }
 
 s32 SettingInfo::IntegerMaxValue() const
 {
 	static constexpr s32 fallback_value = INT32_MAX;
-	return max_value ? StringUtil::FromChars<s32>(max_value).value_or(fallback_value) : fallback_value;
+	return max_value ? ParseNumber::FromChars<s32>(max_value).value_or(fallback_value) : fallback_value;
 }
 
 s32 SettingInfo::IntegerStepValue() const
 {
 	static constexpr s32 fallback_value = 1;
-	return step_value ? StringUtil::FromChars<s32>(step_value).value_or(fallback_value) : fallback_value;
+	return step_value ? ParseNumber::FromChars<s32>(step_value).value_or(fallback_value) : fallback_value;
 }
 
 float SettingInfo::FloatDefaultValue() const
 {
-	return default_value ? StringUtil::FromChars<float>(default_value).value_or(0.0f) : 0.0f;
+	return default_value ? ParseNumber::FromChars<float>(default_value).value_or(0.0f) : 0.0f;
 }
 
 float SettingInfo::FloatMinValue() const
 {
 	static constexpr float fallback_value = FLT_MIN;
-	return min_value ? StringUtil::FromChars<float>(min_value).value_or(fallback_value) : fallback_value;
+	return min_value ? ParseNumber::FromChars<float>(min_value).value_or(fallback_value) : fallback_value;
 }
 
 float SettingInfo::FloatMaxValue() const
 {
 	static constexpr float fallback_value = FLT_MAX;
-	return max_value ? StringUtil::FromChars<float>(max_value).value_or(fallback_value) : fallback_value;
+	return max_value ? ParseNumber::FromChars<float>(max_value).value_or(fallback_value) : fallback_value;
 }
 
 float SettingInfo::FloatStepValue() const
 {
 	static constexpr float fallback_value = 0.1f;
-	return step_value ? StringUtil::FromChars<float>(step_value).value_or(fallback_value) : fallback_value;
+	return step_value ? ParseNumber::FromChars<float>(step_value).value_or(fallback_value) : fallback_value;
 }
 
 namespace EmuFolders
@@ -556,7 +557,7 @@ fail:
 }
 std::string Pcsx2Config::DEV9Options::SaveIPHelper(u8* field)
 {
-	return StringUtil::StdStringFromFormat("%u.%u.%u.%u", field[0], field[1], field[2], field[3]);
+	return FormatString::Format("%u.%u.%u.%u", field[0], field[1], field[2], field[3]);
 }
 
 static const char* const tbl_GamefixNames[] =

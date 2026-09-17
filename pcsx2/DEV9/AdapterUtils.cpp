@@ -23,7 +23,6 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-#include "common/StringUtil.h"
 #include <compat/strl.h>
 
 #ifdef __linux__
@@ -41,6 +40,47 @@
 #endif
 
 #include "AdapterUtils.h"
+
+/* Split on a delimiter, each piece stripped of surrounding whitespace;
+ * the /proc tables. */
+static std::string_view StripWhitespace(const std::string_view& str)
+{
+	std::string_view::size_type start = 0;
+	while (start < str.size() && std::isspace(str[start]))
+		start++;
+	if (start == str.size())
+		return {};
+
+	std::string_view::size_type end = str.size() - 1;
+	while (end > start && std::isspace(str[end]))
+		end--;
+
+	return str.substr(start, end - start + 1);
+}
+
+static std::vector<std::string_view> SplitString(const std::string_view& str, char delimiter, bool skip_empty /*= true*/)
+{
+	std::vector<std::string_view> res;
+	std::string_view::size_type last_pos = 0;
+	std::string_view::size_type pos;
+	while (last_pos < str.size() && (pos = str.find(delimiter, last_pos)) != std::string_view::npos)
+	{
+		std::string_view part(StripWhitespace(str.substr(last_pos, pos - last_pos)));
+		if (!skip_empty || !part.empty())
+			res.push_back(std::move(part));
+
+		last_pos = pos + 1;
+	}
+
+	if (last_pos < str.size())
+	{
+		std::string_view part(StripWhitespace(str.substr(last_pos)));
+		if (!skip_empty || !part.empty())
+			res.push_back(std::move(part));
+	}
+
+	return res;
+}
 
 using namespace PacketReader;
 using namespace PacketReader::IP;
@@ -373,7 +413,7 @@ std::vector<IP_Address> AdapterUtils::GetGateways(Adapter* adapter)
 		std::string line = routeLines[i];
 		if (line.rfind(adapter->ifa_name, 0) == 0)
 		{
-			std::vector<std::string_view> split = StringUtil::SplitString(line, '\t', true);
+			std::vector<std::string_view> split = SplitString(line, '\t', true);
 			std::string gatewayIPHex{split[2]};
 			// stoi assumes hex values are unsigned, but tries to store it in a signed int,
 			// this results in a std::out_of_range exception for addresses ending in a number > 128.
@@ -534,9 +574,9 @@ std::vector<IP_Address> AdapterUtils::GetDNS(Adapter* adapter)
 		std::string line = serversLines[i];
 		if (line.rfind("nameserver", 0) == 0)
 		{
-			std::vector<std::string_view> split = StringUtil::SplitString(line, '\t', true);
+			std::vector<std::string_view> split = SplitString(line, '\t', true);
 			if (split.size() == 1)
-				split = StringUtil::SplitString(line, ' ', true);
+				split = SplitString(line, ' ', true);
 			std::string dns{split[1]};
 
 			IP_Address address;

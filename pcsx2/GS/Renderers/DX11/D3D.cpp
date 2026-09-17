@@ -18,7 +18,6 @@
 #include "GS/Renderers/DX11/D3D.h"
 #include "GS/GSExtra.h"
 
-#include "common/StringUtil.h"
 
 #include <d3d11.h>
 #include <d3dcompiler.h>

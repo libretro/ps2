@@ -14,12 +14,12 @@
  */
 
 #include <array>
+#include "../../../FormatString.h"
 #include "common/Pcsx2Defs.h"
 #include <fstream>
 #include <utility>
 
 #include "GLProgram.h"
-#include "common/StringUtil.h"
 
 static u32 s_last_program_id = 0;
 static GLuint s_next_bad_shader_id = 1;
@@ -74,7 +74,7 @@ GLuint GLProgram::CompileShader(GLenum type, const std::string_view source)
 		{
 			log_cb(RETRO_LOG_ERROR, "Shader failed to compile:\n%s\n", info_log.c_str());
 
-			std::ofstream ofs(StringUtil::StdStringFromFormat("pcsx2_bad_shader_%u.txt", s_next_bad_shader_id++).c_str(),
+			std::ofstream ofs(FormatString::Format("pcsx2_bad_shader_%u.txt", s_next_bad_shader_id++).c_str(),
 					std::ofstream::out | std::ofstream::binary);
 			if (ofs.is_open())
 			{

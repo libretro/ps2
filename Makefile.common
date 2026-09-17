@@ -209,7 +209,6 @@ endif
 SOURCES_CXX += \
 	$(LRPS2_DIR)/HostFS.cpp \
 	$(COMMON_DIR)/HostSys.cpp \
-	$(COMMON_DIR)/StringUtil.cpp \
 
 # common/emitter is the x86-only JIT code emitter. On aarch64 the recompilers
 # that use it are gated out (VIXL is the arm64 emitter instead), so exclude it
@@ -236,6 +235,8 @@ endif
 # pcsx2 core - emulation
 # ============================================================================
 SOURCES_CXX += \
+	$(LRPS2_DIR)/FormatString.cpp \
+	$(LRPS2_DIR)/StringView.cpp \
 	$(LRPS2_DIR)/Cache.cpp \
 	$(LRPS2_DIR)/COP0.cpp \
 	$(LRPS2_DIR)/COP2.cpp \

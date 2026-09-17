@@ -14,6 +14,8 @@
  */
 
 #include <compat/strl.h>
+#include "StringView.h"
+#include "FormatString.h"
 #include "common/Pcsx2Defs.h"
 #include <retro_atomic.h>
 #include <features/features_cpu.h>
@@ -25,7 +27,6 @@
 
 #include "HostFS.h"
 #include "../common/FPControl.h"
-#include "../common/StringUtil.h" /* StdStringFromFormat */
 
 #include "Counters.h"
 #include "CDVD/CDVD.h"
@@ -319,7 +320,7 @@ void VMManager::LoadPatches(const std::string& serial, u32 crc)
 {
 	std::string message;
 	int patch_count = 0;
-	const std::string crc_string(StringUtil::StdStringFromFormat("%08X", crc));
+	const std::string crc_string(FormatString::Format("%08X", crc));
 	s_patches_crc                   = crc;
 	s_active_widescreen_patches     = 0;
 	s_active_no_interlacing_patches = 0;
@@ -334,7 +335,7 @@ void VMManager::LoadPatches(const std::string& serial, u32 crc)
 			if (patches && (patch_count = LoadPatchesFromString(patches->c_str())) > 0)
 			{
 				log_cb(RETRO_LOG_INFO, "(GameDB) Patches Loaded: %d\n", patch_count);
-				message += StringUtil::StdStringFromFormat("%d game patches", patch_count);
+				message += FormatString::Format("%d game patches", patch_count);
 			}
 
 			LoadDynamicPatches(game->dynaPatches);
@@ -349,7 +350,7 @@ void VMManager::LoadPatches(const std::string& serial, u32 crc)
 		if (cheat_count > 0)
 		{
 			log_cb(RETRO_LOG_INFO, "Cheats Loaded: %d\n", cheat_count);
-			message += StringUtil::StdStringFromFormat("%s%d cheat patches", (patch_count > 0) ? " and " : "", cheat_count);
+			message += FormatString::Format("%s%d cheat patches", (patch_count > 0) ? " and " : "", cheat_count);
 		}
 	}
 
@@ -379,7 +380,7 @@ void VMManager::LoadPatches(const std::string& serial, u32 crc)
 
 		if (s_active_widescreen_patches > 0)
 		{
-			message += StringUtil::StdStringFromFormat("%s%d widescreen patches", (patch_count > 0 || cheat_count > 0) ? " and " : "", s_active_widescreen_patches);
+			message += FormatString::Format("%s%d widescreen patches", (patch_count > 0 || cheat_count > 0) ? " and " : "", s_active_widescreen_patches);
 
 			// Switch to 16:9 if widescreen patches are enabled, and AR is auto.
 			// TODO/FIXME - implement
@@ -414,7 +415,7 @@ void VMManager::LoadPatches(const std::string& serial, u32 crc)
 
 		if (s_active_no_interlacing_patches > 0)
 		{
-			message += StringUtil::StdStringFromFormat("%s%u no-interlacing patches", (patch_count > 0 || cheat_count > 0 || s_active_widescreen_patches > 0) ? " and " : "", s_active_no_interlacing_patches);
+			message += FormatString::Format("%s%u no-interlacing patches", (patch_count > 0 || cheat_count > 0 || s_active_widescreen_patches > 0) ? " and " : "", s_active_no_interlacing_patches);
 
 			// Disable interlacing in GS if active.
 			if (EmuConfig.GS.InterlaceMode == GSInterlaceMode::Automatic)
@@ -503,7 +504,7 @@ void VMManager::ReloadPatches()
 
 bool VMManager::IsElfFileName(const std::string_view path)
 {
-	return StringUtil::EndsWithNoCase(path, ".elf");
+	return StringView::EndsWithNoCase(path, ".elf");
 }
 
 std::string VMManager::GetDiscOverrideFromGameSettings(const std::string& elf_path)

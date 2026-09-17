@@ -14,7 +14,7 @@
  */
 
 #include <compat/strl.h>
-#include "../../common/StringUtil.h"
+#include "../StringView.h"
 
 #include <file/file_path.h>
 

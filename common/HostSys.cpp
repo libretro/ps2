@@ -44,7 +44,6 @@
 #ifdef _WIN32
 #include "RedtapeWindows.h"
 #endif
-#include "StringUtil.h"
 
 /* Apple uses the MAP_ANON define instead of MAP_ANONYMOUS, but they mean
  * the same thing. */

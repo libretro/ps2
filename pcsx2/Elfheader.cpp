@@ -19,7 +19,6 @@
 #include <file/file_path.h>
 
 #include "HostFS.h"
-#include "../common/StringUtil.h"
 
 #include "GS.h"			// for sending game crc to mtgs
 #include "Elfheader.h"
