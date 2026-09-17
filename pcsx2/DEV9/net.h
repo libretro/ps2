@@ -38,6 +38,7 @@
 #include "InternalServers/DHCP_Server.h"
 #include "InternalServers/DNS_Logger.h"
 #include "InternalServers/DNS_Server.h"
+#include "../SLockGuard.h"
 
 struct ConfigDEV9;
 
@@ -99,8 +100,8 @@ private:
 	Threading::Thread internalRxThread;
 	retro_atomic_int_t internalRxThreadRunning = RETRO_ATOMIC_INT_INITIALIZER(0);
 
-	Threading::Mutex internalRxMutex;
-	Threading::CondVar internalRxCV;
+	slock_t* internalRxMutex;
+	scond_t* internalRxCV;
 	bool internalRxHasData = false;
 
 	bool dhcpOn = false;

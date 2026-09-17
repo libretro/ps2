@@ -22,8 +22,15 @@
 #include "../Host.h"
 #include "../MemoryCardFile.h"
 #include "../Sio.h"
+#include "../SLockGuard.h"
 
-static Threading::Mutex s_settings_mutex;
+static slock_t* s_settings_mutex(void)
+{
+	/* First use creates it; C++11 makes the init thread-safe, and there is
+	 * no static-init order to worry about. */
+	static slock_t* lock = slock_new();
+	return lock;
+}
 static LayeredSettingsInterface s_layered_settings_interface;
 
 SettingsInterface* Host::GetSettingsInterface()
@@ -33,37 +40,37 @@ SettingsInterface* Host::GetSettingsInterface()
 
 std::string Host::GetBaseStringSettingValue(const char* section, const char* key, const char* default_value /*= ""*/)
 {
-	Threading::ScopedLock lock(s_settings_mutex);
+	SLockGuard lock(s_settings_mutex());
 	return s_layered_settings_interface.GetLayer(LayeredSettingsInterface::LAYER_BASE)->GetStringValue(section, key, default_value);
 }
 
 bool Host::GetBoolSettingValue(const char* section, const char* key, bool default_value /*= false*/)
 {
-	Threading::ScopedLock lock(s_settings_mutex);
+	SLockGuard lock(s_settings_mutex());
 	return s_layered_settings_interface.GetBoolValue(section, key, default_value);
 }
 
 int Host::GetIntSettingValue(const char* section, const char* key, int default_value /*= 0*/)
 {
-	Threading::ScopedLock lock(s_settings_mutex);
+	SLockGuard lock(s_settings_mutex());
 	return s_layered_settings_interface.GetIntValue(section, key, default_value);
 }
 
 uint Host::GetUIntSettingValue(const char* section, const char* key, uint default_value /*= 0*/)
 {
-	Threading::ScopedLock lock(s_settings_mutex);
+	SLockGuard lock(s_settings_mutex());
 	return s_layered_settings_interface.GetUIntValue(section, key, default_value);
 }
 
 float Host::GetFloatSettingValue(const char* section, const char* key, float default_value /*= 0.0f*/)
 {
-	Threading::ScopedLock lock(s_settings_mutex);
+	SLockGuard lock(s_settings_mutex());
 	return s_layered_settings_interface.GetFloatValue(section, key, default_value);
 }
 
 double Host::GetDoubleSettingValue(const char* section, const char* key, double default_value /*= 0.0f*/)
 {
-	Threading::ScopedLock lock(s_settings_mutex);
+	SLockGuard lock(s_settings_mutex());
 	return s_layered_settings_interface.GetDoubleValue(section, key, default_value);
 }
 

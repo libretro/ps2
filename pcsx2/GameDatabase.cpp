@@ -31,6 +31,7 @@
 #include "GS/GS.h"
 #include "Host.h"
 #include "vtlb.h"
+#include "SLockGuard.h"
 
 namespace GameDatabaseSchema
 {
@@ -48,7 +49,13 @@ namespace GameDatabase
 static constexpr char GAMEDB_YAML_FILE_NAME[] = "GameIndex.yaml";
 
 static std::unordered_map<std::string, GameDatabaseSchema::GameEntry> s_game_db;
-static Threading::Mutex s_load_once_mutex;
+static slock_t* s_load_once_mutex(void)
+{
+	/* First use creates it; C++11 makes the init thread-safe, and there is
+	 * no static-init order to worry about. */
+	static slock_t* lock = slock_new();
+	return lock;
+}
 static bool s_load_once_done = false;
 
 std::string GameDatabaseSchema::GameEntry::memcardFiltersAsString() const
@@ -997,7 +1004,7 @@ void GameDatabase::ensureLoaded()
 	// call_once semantics under the campaign lock family: double load
 	// impossible (mutex), racing callers both observe the completed
 	// state (done set before unlock, read under lock).
-	Threading::ScopedLock lock(s_load_once_mutex);
+	SLockGuard lock(s_load_once_mutex());
 	if (!s_load_once_done)
 	{
 		Console.WriteLn("[GameDB] Has not been initialized yet, initializing...");
@@ -1019,7 +1026,7 @@ void GameDatabase::unload()
 	 * is nothing to look a game up for, so the cost is worth carrying
 	 * only while content is loaded.  swap() rather than clear() because
 	 * clear() on an unordered_map keeps the bucket array. */
-	Threading::ScopedLock lock(s_load_once_mutex);
+	SLockGuard lock(s_load_once_mutex());
 	if (!s_load_once_done)
 		return;
 	decltype(s_game_db)().swap(s_game_db);

@@ -18,6 +18,7 @@
 #include "../../common/Threading.h"
 #include <vector>
 #include <unordered_map>
+#include "../SLockGuard.h"
 
 template <class Key, class T>
 class ThreadSafeMap
@@ -25,33 +26,38 @@ class ThreadSafeMap
 	// Exclusive lock for readers and writers alike: these maps hold a
 	// handful of network sessions touched per packet event, not per
 	// frame - shared-read parallelism is not worth a second lock kind.
-	Threading::Mutex accessMutex;
+	slock_t* accessMutex;
 
 	std::unordered_map<Key, T> map;
 
 public:
+	ThreadSafeMap() { accessMutex = slock_new(); }
+	~ThreadSafeMap() { slock_free(accessMutex); }
+	ThreadSafeMap(const ThreadSafeMap&) = delete;
+	ThreadSafeMap& operator=(const ThreadSafeMap&) = delete;
+
 	void Add(Key key, T value)
 	{
-		Threading::ScopedLock modifyLock(accessMutex);
+		SLockGuard modifyLock(accessMutex);
 		//Todo, check if key already exists?
 		map[key] = value;
 	}
 
 	void Remove(Key key)
 	{
-		Threading::ScopedLock modifyLock(accessMutex);
+		SLockGuard modifyLock(accessMutex);
 		map.erase(key);
 	}
 
 	void Clear()
 	{
-		Threading::ScopedLock modifyLock(accessMutex);
+		SLockGuard modifyLock(accessMutex);
 		map.clear();
 	}
 
 	std::vector<Key> GetKeys()
 	{
-		Threading::ScopedLock readLock(accessMutex);
+		SLockGuard readLock(accessMutex);
 
 		std::vector<Key> keys;
 		keys.reserve(map.size());
@@ -65,7 +71,7 @@ public:
 	//Does not error or insert if no key is found
 	bool TryGetValue(Key key, T* value)
 	{
-		Threading::ScopedLock readLock(accessMutex);
+		SLockGuard readLock(accessMutex);
 		auto search = map.find(key);
 		if (search != map.end())
 		{
@@ -78,7 +84,7 @@ public:
 
 	bool ContainsKey(Key key)
 	{
-		Threading::ScopedLock readLock(accessMutex);
+		SLockGuard readLock(accessMutex);
 		auto search = map.find(key);
 		if (search != map.end())
 			return true;

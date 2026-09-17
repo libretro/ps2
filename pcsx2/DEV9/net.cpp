@@ -35,11 +35,16 @@
 #include "PacketReader/EthernetFrame.h"
 #include "PacketReader/IP/IP_Packet.h"
 #include "PacketReader/IP/UDP/UDP_Packet.h"
+#include "../SLockGuard.h"
 
 NetAdapter* nif;
 Threading::Thread rx_thread;
 
-Threading::Mutex rx_mutex;
+static slock_t* rx_mutex(void)
+{
+	static slock_t* lock = slock_new();
+	return lock;
+}
 
 /* RX pump thread loops on this; the control side flips it on
  * start/stop.  volatile gives neither atomicity nor ordering in
@@ -53,7 +58,7 @@ void NetRxThread()
 	{
 		while (rx_fifo_can_rx() && nif->recv(&tmp))
 		{
-			Threading::ScopedLock rx_lock(rx_mutex);
+			SLockGuard rx_lock(rx_mutex());
 			//Check if we can still rx
 			if (rx_fifo_can_rx())
 				rx_process(&tmp);
@@ -184,6 +189,8 @@ const MAC_Address NetAdapter::internalMAC{{{0x76, 0x6D, 0xF4, 0x63, 0x30, 0x31}}
 
 NetAdapter::NetAdapter()
 {
+		internalRxMutex = slock_new();
+		internalRxCV = scond_new();
 	//Ensure eeprom matches our default
 	SetMACAddress(nullptr);
 }
@@ -209,14 +216,16 @@ NetAdapter::~NetAdapter()
 		retro_atomic_store_release_int(&internalRxThreadRunning, 0);
 
 		{
-			Threading::ScopedLock srvlock(internalRxMutex);
+			SLockGuard srvlock(internalRxMutex);
 			internalRxHasData = true;
 		}
 
-		internalRxCV.Broadcast();
+		scond_broadcast(internalRxCV);
 		internalRxThread.Join();
 	}
-}
+	scond_free(internalRxCV);
+	slock_free(internalRxMutex);
+	}
 
 void NetAdapter::InspectSend(NetPacket* pkt)
 {
@@ -420,11 +429,11 @@ void NetAdapter::InternalSignalReceived()
 	if (retro_atomic_load_acquire_int(&internalRxThreadRunning))
 	{
 		{
-			Threading::ScopedLock srvlock(internalRxMutex);
+			SLockGuard srvlock(internalRxMutex);
 			internalRxHasData = true;
 		}
 
-		internalRxCV.Broadcast();
+		scond_broadcast(internalRxCV);
 	}
 }
 
@@ -433,12 +442,12 @@ void NetAdapter::InternalServerThread()
 	NetPacket tmp;
 	while (retro_atomic_load_acquire_int(&internalRxThreadRunning))
 	{
-		Threading::ScopedLock srvLock(internalRxMutex);
+		SLockGuard srvLock(internalRxMutex);
 		while (!internalRxHasData)
-			internalRxCV.Wait(internalRxMutex);
+			scond_wait(internalRxCV, internalRxMutex);
 
 		{
-			Threading::ScopedLock rx_lock(rx_mutex);
+			SLockGuard rx_lock(rx_mutex());
 			while (rx_fifo_can_rx() && InternalServerRecv(&tmp))
 				rx_process(&tmp);
 		}

@@ -44,6 +44,7 @@
 #include "../../../../common/Threading.h"
 #include "ICMP_Session.h"
 #include "DEV9/PacketReader/NetLib.h"
+#include "../../../SLockGuard.h"
 
 using namespace PacketReader;
 using namespace PacketReader::IP;
@@ -671,12 +672,13 @@ namespace Sessions
 	ICMP_Session::ICMP_Session(ConnectionKey parKey, IP_Address parAdapterIP, ThreadSafeMap<Sessions::ConnectionKey, Sessions::BaseSession*>* parConnections)
 		: BaseSession(parKey, parAdapterIP)
 	{
+		ping_mutex = slock_new();
 		connections = parConnections;
 	}
 
 	IP_Payload* ICMP_Session::Recv()
 	{
-		Threading::ScopedLock lock(ping_mutex);
+		SLockGuard lock(ping_mutex);
 
 		for (size_t i = 0; i < pings.size(); i++)
 		{
@@ -871,7 +873,7 @@ namespace Sessions
 				ping->originalPacket = std::make_unique<IP_Packet>(*packet);
 
 				{
-					Threading::ScopedLock lock(ping_mutex);
+					SLockGuard lock(ping_mutex);
 					pings.push_back(ping);
 				}
 
@@ -891,10 +893,11 @@ namespace Sessions
 
 	ICMP_Session::~ICMP_Session()
 	{
-		Threading::ScopedLock lock(ping_mutex);
+		SLockGuard lock(ping_mutex);
 
 		//Cleanup
 		for (size_t i = 0; i < pings.size(); i++)
 			delete pings[i];
+		slock_free(ping_mutex);
 	}
 } // namespace Sessions

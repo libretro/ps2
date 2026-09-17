@@ -2256,7 +2256,8 @@ remove them if not needed.
 */
 #include <cassert> // for assert
 #include <algorithm> // for min, max
-#include "../../common/Threading.h" // libretro: VMA locks over rthreads, not <mutex>
+#include <rthreads/rthreads.h> // libretro: VMA locks over rthreads, not <mutex>
+#include <retro_atomic.h>       // libretro: and its atomics over retro_atomic
 
 #ifndef VMA_NULL
    // Value used as null pointer. Define it to e.g.: nullptr, NULL, 0, (void*)0.
@@ -2418,15 +2419,17 @@ static void vma_aligned_free(void* VMA_NULLABLE ptr)
 #endif
 
 #ifndef VMA_MUTEX
-    // libretro: Threading::Mutex (rthreads slock) instead of std::mutex.
+    // libretro: an rthreads slock instead of std::mutex.
     class VmaMutex
     {
     public:
-        void Lock() { m_Mutex.Lock(); }
-        void Unlock() { m_Mutex.Unlock(); }
-        bool TryLock() { return m_Mutex.TryLock(); }
+        VmaMutex()  { m_Lock = slock_new(); }
+        ~VmaMutex() { slock_free(m_Lock); }
+        void Lock()    { slock_lock(m_Lock); }
+        void Unlock()  { slock_unlock(m_Lock); }
+        bool TryLock() { return slock_try_lock(m_Lock); }
     private:
-        Threading::Mutex m_Mutex;
+        slock_t* m_Lock;
     };
     #define VMA_MUTEX VmaMutex
 #endif

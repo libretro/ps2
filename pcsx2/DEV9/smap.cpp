@@ -27,6 +27,7 @@
 
 #include "smap.h"
 #include "net.h"
+#include "../SLockGuard.h"
 
 bool has_link = true;
 /* Set by the RX thread per received packet, consumed by smap_async on
@@ -35,8 +36,16 @@ bool has_link = true;
  * exchange: with the old plain flag, a set landing between the EE's
  * test and clear was swallowed - a lost RXEND interrupt. */
 static retro_atomic_int_t fireIntR;
-Threading::Mutex frame_counter_mutex;
-Threading::Mutex reset_mutex;
+static slock_t* frame_counter_mutex(void)
+{
+	static slock_t* lock = slock_new();
+	return lock;
+}
+static slock_t* reset_mutex(void)
+{
+	static slock_t* lock = slock_new();
+	return lock;
+}
 /*
 #define	SMAP_BASE			0xb0000000
 #define	SMAP_REG8(Offset)		(*(u8 volatile*)(SMAP_BASE+(Offset)))
@@ -109,7 +118,7 @@ void rx_process(NetPacket* pk)
 	}
 
 	//increase RXBD
-	Threading::ScopedLock reset_lock(reset_mutex);
+	SLockGuard reset_lock(reset_mutex());
 	dev9.rxbdi++;
 	dev9.rxbdi &= (SMAP_BD_SIZE / 8) - 1;
 
@@ -119,7 +128,7 @@ void rx_process(NetPacket* pk)
 	pbd->ctrl_stat &= ~SMAP_BD_RX_EMPTY;
 
 	//increase frame count
-	Threading::ScopedLock counter_lock(frame_counter_mutex);
+	SLockGuard counter_lock(frame_counter_mutex());
 	dev9Ru8(SMAP_R_RXFIFO_FRAME_CNT)++;
 	counter_lock.Unlock();
 	reset_lock.Unlock();
@@ -535,8 +544,8 @@ u32 smap_read32(u32 addr)
 
 void smap_write8(u32 addr, u8 value)
 {
-	Threading::ScopedLock reset_lock(reset_mutex, Threading::ScopedLock::Defer{});
-	Threading::ScopedLock counter_lock(frame_counter_mutex, Threading::ScopedLock::Defer{});
+	SLockGuard reset_lock(reset_mutex(), SLockGuard::Defer{});
+	SLockGuard counter_lock(frame_counter_mutex(), SLockGuard::Defer{});
 	switch (addr)
 	{
 		case SMAP_R_TXFIFO_FRAME_INC:

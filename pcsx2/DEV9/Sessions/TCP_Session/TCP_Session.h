@@ -30,6 +30,7 @@
 #include "DEV9/SimpleQueue.h"
 #include "DEV9/Sessions/BaseSession.h"
 #include "DEV9/PacketReader/IP/TCP/TCP_Packet.h"
+#include "../../../SLockGuard.h"
 
 namespace Sessions
 {
@@ -81,7 +82,7 @@ namespace Sessions
 		u32 expectedSeqNumber; //Accesed By Out Thread Only
 		std::vector<u32> receivedPS2SeqNumbers; //Accesed By Out Thread Only
 
-		Threading::Mutex myNumberSentry;
+		slock_t* myNumberSentry;
 		const int oldMyNumCount = 2;
 		u32 _MySequenceNumber = 1;
 		std::vector<u32> _OldMyNumbers;

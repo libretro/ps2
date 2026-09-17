@@ -66,6 +66,7 @@ const vixl::aarch64::VRegister& armQRegister(int n)
 
 #ifdef INCLUDE_DISASSEMBLER
 #include "aarch64/disasm-aarch64.h"
+#include "../SLockGuard.h"
 #endif
 
 namespace a64 = vixl::aarch64;
@@ -76,7 +77,13 @@ thread_local size_t armAsmCapacity PCSX2_TLS_INITIAL_EXEC;
 thread_local ArmConstantPool* armConstantPool PCSX2_TLS_INITIAL_EXEC;
 
 #ifdef INCLUDE_DISASSEMBLER
-static Threading::Mutex armDisasmMutex;
+static slock_t* armDisasmMutex(void)
+{
+	/* First use creates it; C++11 makes the init thread-safe, and there is
+	 * no static-init order to worry about. */
+	static slock_t* lock = slock_new();
+	return lock;
+}
 static std::unique_ptr<a64::PrintDisassembler> armDisasm;
 static std::unique_ptr<a64::Decoder> armDisasmDecoder;
 #endif
@@ -144,7 +151,7 @@ u8* armEndBlock()
 void armDisassembleAndDumpCode(const void* ptr, size_t size)
 {
 #ifdef INCLUDE_DISASSEMBLER
-	Threading::ScopedLock lock(armDisasmMutex);
+	SLockGuard lock(armDisasmMutex());
 	if (!armDisasm)
 	{
 		armDisasm = std::make_unique<a64::PrintDisassembler>(stderr);

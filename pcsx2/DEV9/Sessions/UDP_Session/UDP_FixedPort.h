@@ -28,6 +28,7 @@
 #include "DEV9/Sessions/BaseSession.h"
 #include "UDP_BaseSession.h"
 #include "UDP_Session.h"
+#include "../../../SLockGuard.h"
 
 namespace Sessions
 {
@@ -46,7 +47,7 @@ namespace Sessions
 		const u16 port = 0;
 
 	private:
-		Threading::Mutex connectionSentry;
+		slock_t* connectionSentry;
 		std::vector<UDP_BaseSession*> connections;
 
 	public:

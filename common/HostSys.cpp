@@ -56,13 +56,20 @@
 
 #if !defined(__APPLE__) && !defined(_WIN32)
 #include <ucontext.h>
+#include "SLockGuard.h" /* pcsx2/, on the include path; common/ is being folded into it */
 #endif
 
 /* Registration-side mutex only.  The fault filter itself takes NO
  * lock: pthread mutexes are not async-signal-safe, and a global lock
  * serialized every JIT fault process-wide (EE + MTVU fault storms
  * during memory-clear phases contended through one futex). */
-static Threading::RecursiveMutex s_exception_handler_mutex;
+/* Plain, not recursive: it serialises Install against Remove, both of
+ * which call only into the OS. The fault dispatch below never takes it. */
+static slock_t* s_exception_handler_mutex(void)
+{
+	static slock_t* lock = slock_new();
+	return lock;
+}
 /* Dispatch-side state, all lock-free:
  * - callback pointer: release-published by Install/Remove (under the
  *   registration mutex), acquire-loaded by the filter.  Remove only
@@ -285,7 +292,7 @@ static void SysPageFaultSignalFilter(int signal, siginfo_t* siginfo, void* ctx)
 
 bool HostSys::InstallPageFaultHandler(PageFaultHandler handler)
 {
-	Threading::ScopedRecursiveLock lock(s_exception_handler_mutex);
+	SLockGuard lock(s_exception_handler_mutex());
 #if defined(_WIN32)
 	if (!s_exception_handler_handle)
 	{
@@ -330,7 +337,7 @@ bool HostSys::InstallPageFaultHandler(PageFaultHandler handler)
 
 void HostSys::RemovePageFaultHandler(PageFaultHandler handler)
 {
-	Threading::ScopedRecursiveLock lock(s_exception_handler_mutex);
+	SLockGuard lock(s_exception_handler_mutex());
 #ifdef _WIN32
 	retro_atomic_store_release_ptr(&s_exception_handler_callback_atomic, (void*)0);
 

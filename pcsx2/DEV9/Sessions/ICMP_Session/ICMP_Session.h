@@ -25,6 +25,7 @@
 #include "DEV9/ThreadSafeMap.h"
 #include "DEV9/Sessions/BaseSession.h"
 #include "DEV9/PacketReader/IP/ICMP/ICMP_Packet.h"
+#include "../../../SLockGuard.h"
 
 namespace Sessions
 {
@@ -83,7 +84,7 @@ namespace Sessions
 		};
 
 		SimpleQueue<PacketReader::IP::ICMP::ICMP_Packet*> _recvBuff;
-		Threading::Mutex ping_mutex;
+		slock_t* ping_mutex;
 		std::vector<Ping*> pings;
 		ThreadSafeMap<Sessions::ConnectionKey, Sessions::BaseSession*>* connections;
 

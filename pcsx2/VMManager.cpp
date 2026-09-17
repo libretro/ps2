@@ -63,6 +63,7 @@
 #include "common/RedtapeWindows.h"
 #include <objbase.h>
 #include <timeapi.h>
+#include "SLockGuard.h"
 #endif
 
 // Resets all PS2 cpu execution caches, which does not affect that actual PS2 state/condition.
@@ -135,7 +136,15 @@ static retro_atomic_int_t s_state = RETRO_ATOMIC_INT_INITIALIZER((int)VMState::S
 static bool s_cpu_implementation_changed = false;
 static Threading::ThreadHandle s_vm_thread_handle;
 
-static Threading::RecursiveMutex s_info_mutex;
+/* Plain, not recursive: nothing that runs under it re-takes it. GetDiscSerial
+ * is a leaf, and the blocks that write under it call only findGame,
+ * sioSetGameSerial and AutoEject::ClearAll, none of which read the serial
+ * back through the lock. */
+static slock_t* s_info_mutex(void)
+{
+	static slock_t* lock = slock_new();
+	return lock;
+}
 static std::string s_disc_path;
 static u32 s_game_crc;
 static u32 s_patches_crc;
@@ -180,7 +189,7 @@ bool VMManager::HasValidVM()
 
 const char* VMManager::GetDiscSerial()
 {
-	Threading::ScopedRecursiveLock lock(s_info_mutex);
+	SLockGuard lock(s_info_mutex());
 	return s_game_serial;
 }
 
@@ -466,7 +475,7 @@ void VMManager::UpdateRunningGame(bool resetting, bool game_starting, bool swapp
 		return;
 
 	{
-		Threading::ScopedRecursiveLock lock(s_info_mutex);
+		SLockGuard lock(s_info_mutex());
 		strlcpy(s_game_serial, new_serial, sizeof(s_game_serial));
 		s_game_crc    = new_crc;
 
@@ -744,12 +753,18 @@ void VMManager::Shutdown()
 		ElfCRC = 0;
 		ElfEntry = 0;
 
-		Threading::ScopedRecursiveLock lock(s_info_mutex);
-		s_disc_path.clear();
-		s_elf_override.clear();
-		s_game_crc = 0;
-		s_patches_crc = 0;
-		s_game_serial[0] = '\0';
+		{
+			SLockGuard lock(s_info_mutex());
+			s_disc_path.clear();
+			s_elf_override.clear();
+			s_game_crc = 0;
+			s_patches_crc = 0;
+			s_game_serial[0] = '\0';
+		}
+		/* Outside the lock: a callback into the frontend is not something
+		 * to hold a lock across, and this one has nothing to read that the
+		 * lock protects -- the fields were just cleared and the EE thread,
+		 * the only other writer, is stopped here. */
 		Host::OnGameChanged(s_disc_path, s_elf_override, s_game_serial, 0);
 	}
 	s_active_game_fixes = 0;
@@ -1160,7 +1175,7 @@ void VMManager::CheckForMemoryCardConfigChanges(const Pcsx2Config& old_config)
 	// force reindexing, mc folder code is janky
 	std::string sioSerial;
 	{
-		Threading::ScopedRecursiveLock lock(s_info_mutex);
+		SLockGuard lock(s_info_mutex());
 		if (const GameDatabaseSchema::GameEntry* game = GameDatabase::findGame(s_game_serial))
 			sioSerial = game->memcardFiltersAsString();
 		if (sioSerial.empty())
@@ -1254,7 +1269,13 @@ void VMManager::SetTimerResolutionIncreased(bool enabled)
 #endif
 
 static std::vector<u32> s_processor_list;
-static Threading::Mutex s_processor_list_mutex;
+static slock_t* s_processor_list_mutex(void)
+{
+	/* First use creates it; C++11 makes the init thread-safe, and there is
+	 * no static-init order to worry about. */
+	static slock_t* lock = slock_new();
+	return lock;
+}
 static bool s_processor_list_initialized = false;
 
 static void InitializeCPUInfo(void)
@@ -1348,7 +1369,7 @@ bool VMManager::MtvuHardwareAllowed()
 
 void VMManager::EnsureCPUInfoInitialized()
 {
-	Threading::ScopedLock lock(s_processor_list_mutex);
+	SLockGuard lock(s_processor_list_mutex());
 	if (!s_processor_list_initialized)
 	{
 		InitializeCPUInfo();
