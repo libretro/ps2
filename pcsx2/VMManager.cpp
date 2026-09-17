@@ -43,6 +43,8 @@
 #include "Host.h"
 #include "IopBios.h"
 #include "MTVU.h"
+#include "SLockGuard.h"
+#include <rthreads/rthreads.h>
 #include "MemoryCardFile.h"
 #include "Patch.h"
 #include "PerformanceMetrics.h"
@@ -63,8 +65,6 @@
 #include "common/RedtapeWindows.h"
 #include <objbase.h>
 #include <timeapi.h>
-#include "SLockGuard.h"
-#include <rthreads/rthreads.h>
 #endif
 
 // Resets all PS2 cpu execution caches, which does not affect that actual PS2 state/condition.
