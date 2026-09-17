@@ -232,7 +232,12 @@ void MTGS::InitAndReadFIFO(u8* mem, u32 qwc)
 
 void MTGS::TryOpenGS(void)
 {
-	s_thread = sthread_get_current_thread_id();
+	/* Opening the GS does not make this thread the one that runs it:
+	 * the ring is pumped from MainLoop(), which claims ownership as it
+	 * runs (see below). Opening happens wherever the renderer is
+	 * brought up - for the Vulkan renderer that is the frontend's
+	 * context_reset, on its video thread under threaded video, which
+	 * never pumps anything. */
 
 	if (!s_RingOk)
 	{
@@ -255,6 +260,12 @@ void MTGS::TryOpenGS(void)
 
 bool MTGS::MainLoop(bool flush_all)
 {
+	/* The thread that runs the ring owns it, for as long as it keeps
+	 * running it: WaitGS() issued on this thread has to pump rather
+	 * than park, and every other thread's wait is served by this one.
+	 * Claimed here rather than at open, because the two are not the
+	 * same thread. */
+	s_thread = sthread_get_current_thread_id();
 
 	// Threading info: run in MTGS thread
 
