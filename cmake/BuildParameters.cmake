@@ -17,6 +17,15 @@ set(USE_SYSTEM_LIBS OFF)
 add_definitions(-D__LIBRETRO__)
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 option(LTO_PCSX2_CORE "Enable LTO/IPO/LTCG on the subset of pcsx2 that benefits most from it but not anything else")
+# iOS and tvOS are Apple but not macOS, and the difference decides what can be
+# found on the host: no desktop libGL, no GLX, no framework layer meant for a
+# desktop. CMake tells them apart by system name - APPLE is true for all three.
+if(APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+	set(APPLE_EMBEDDED TRUE)
+else()
+	set(APPLE_EMBEDDED FALSE)
+endif()
+
 #-------------------------------------------------------------------------------
 # Graphical option
 #-------------------------------------------------------------------------------
