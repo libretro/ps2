@@ -58,6 +58,13 @@ extern retro_video_refresh_t video_cb;
 
 static retro_hw_render_interface_vulkan *vulkan;
 
+/* The retro_vulkan_image the frontend was pointed at, one per frontend
+ * sync index: the frontend keeps the pointer rather than copying it (a
+ * cached-frame replay dereferences it again), so one shared struct
+ * would be rewritten under a frontend still reading the previous
+ * frame's. */
+static std::vector<retro_vulkan_image> vk_present_descs;
+
 struct vk_init_info_t  vk_init_info;
 
 extern "C"
@@ -212,6 +219,8 @@ void vk_libretro_shutdown(void)
 {
 	memset(&vk_init_info, 0, sizeof(vk_init_info));
 	vulkan = nullptr;
+	/* The descriptors belong to the interface that was handed them. */
+	vk_present_descs.clear();
 }
 
 // Tweakables
@@ -1633,18 +1642,37 @@ void GSDeviceVK::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture*
 			/* Blanking: clear the registered image so the frontend
 			 * falls back to its default (black) texture. Matches the
 			 * DX11 path's ClearRenderTarget(sTex, 0) blanking. */
+			/* Blanking retracts the image; the frontend must be done
+			 * with the one it had before the target is reused. */
+			vulkan->wait_sync_index(vulkan->handle);
 			vulkan->set_image(vulkan->handle, nullptr, 0, nullptr, vulkan->queue_index);
 			video_cb(RETRO_HW_FRAME_BUFFER_VALID, tex->GetWidth(), tex->GetHeight(), 0);
 		}
 		else
 		{
-			/* Storage for the retro_vulkan_image must outlive this
-			 * call: per the Vulkan HW interface spec the frontend
-			 * stores the pointer (no deep copy) and may dereference
-			 * it again during cached-frame replay (used for pause
-			 * and HW screenshots). A stack-allocated struct here
-			 * would be a use-after-return for those replays. */
-			static retro_vulkan_image vkimage;
+			/* The texture handed over is the device's own present
+			 * target, which the next frame renders into again and a
+			 * resolution change recreates outright. The frontend
+			 * reads it on its own schedule - a frame or more later
+			 * on a threaded video path, many frames later under
+			 * fast-forward - so the handover follows the sync index
+			 * the interface provides: the frontend names the slot,
+			 * wait_sync_index() returns once it has finished reading
+			 * what that slot held before, and only then does this
+			 * frame's rendering into the target reach the queue
+			 * (recorded now, submitted at EndPresent below).
+			 * Nothing is copied. */
+			uint32_t sync_index = vulkan->get_sync_index(vulkan->handle);
+			uint32_t sync_slots = vulkan->get_sync_index_mask(vulkan->handle) + 1;
+			if (sync_slots < 1)
+				sync_slots = 1;
+			if (sync_index >= sync_slots)
+				sync_index = 0;
+			if (vk_present_descs.size() < sync_slots)
+				vk_present_descs.resize(sync_slots);
+			vulkan->wait_sync_index(vulkan->handle);
+
+			retro_vulkan_image &vkimage = vk_present_descs[sync_index];
 			vkimage = {};
 			vkimage.image_view   = tex->GetView();
 			vkimage.image_layout = tex->GetVkLayout();
