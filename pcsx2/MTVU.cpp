@@ -94,12 +94,14 @@ bool SaveStateBase::mtvuFreeze()
 VU_Thread::VU_Thread()
 {
 	work_eventcount_init(&semaEvent);
+	retro_asym_eventcount_init(&ecP1Progress);
 }
 
 VU_Thread::~VU_Thread()
 {
 	Close();
 	work_eventcount_free(&semaEvent);
+	retro_asym_eventcount_free(&ecP1Progress);
 }
 
 void VU_Thread::Open()

@@ -48,7 +48,12 @@ public:
 	 * sleeps on this until MTGS consumes a path-1 packet, replacing
 	 * the old slock rendezvous + Timeslice poll (which protected no
 	 * data - it was a scheduling construct). */
-	Threading::UserspaceSemaphore semaP1Progress;
+	/* GS -> VU1: "a path-1 packet was popped". An eventcount, not a
+	 * semaphore: the waiter wants to know that progress happened, not how
+	 * much, and the old drain-the-credit-then-wait was this primitive
+	 * being simulated on a counter. notify is a release store and a
+	 * relaxed load -- what the GS thread pays per packet. */
+	retro_asym_eventcount_t ecP1Progress;
 	retro_atomic_int_t vuCycles[4]; // Used for VU cycle stealing hack
 	u32 vuCycleIdx;  // Used for VU cycle stealing hack
 	u32 vuFBRST;

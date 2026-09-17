@@ -260,7 +260,7 @@ bool MTGS::MainLoop(bool flush_all)
 
 	/* MTVU handoff needs no lock: the WaitGS(isMTVU) rendezvous this
 	 * loop used to serve is now a real sleep on
-	 * vu1Thread.semaP1Progress, posted once per PopGSPacketMTVU
+	 * vu1Thread.ecP1Progress, notified once per PopGSPacketMTVU
 	 * below.  The packet queue itself has always run on its own
 	 * atomics + semaXGkick. */
 
@@ -378,7 +378,7 @@ bool MTGS::MainLoop(bool flush_all)
 						path.PopGSPacketMTVU(); // Should be done last, for proper WaitGS(isMTVU)
 						/* One post per pop: WaitGS(isMTVU) sleeps on
 						 * this instead of the old lock rendezvous. */
-						vu1Thread.semaP1Progress.Post();
+						retro_asym_eventcount_notify(&vu1Thread.ecP1Progress);
 						if (final_packet)
 							break;
 					}
@@ -447,9 +447,8 @@ bool MTGS::MainLoop(bool flush_all)
 	if (s_RingOk)
 		retro_spsc_skip(&s_Ring, retro_spsc_read_avail(&s_Ring));
 	/* Wake a WaitGS(isMTVU) sleeper too; its loop re-checks
-	 * s_open_flag and exits.  The old rendezvous spin hung here
-	 * with pending packets, so this path is strictly safer now. */
-	vu1Thread.semaP1Progress.Post();
+	 * s_open_flag and exits. */
+	retro_asym_eventcount_notify(&vu1Thread.ecP1Progress);
 	work_eventcount_kill(&s_sem_event);
 	return true;
 }
@@ -497,45 +496,46 @@ void MTGS::WaitGS(bool isMTVU)
 		u32 startP1Packs = path.GetPendingGSPackets();
 		if (startP1Packs)
 		{
-			/* Sleep until MTGS consumes a path-1 packet.  MTGS posts
-			 * semaP1Progress once per PopGSPacketMTVU, so this
-			 * replaces the old slock rendezvous + Timeslice poll with
-			 * a real block - the exit condition is unchanged.
+			/* Park until MTGS consumes a path-1 packet. MTGS notifies
+			 * ecP1Progress once per PopGSPacketMTVU; the exit condition
+			 * is the packet count moving. An eventcount rather than a
+			 * semaphore because the count of pops is not what is wanted,
+			 * only that one happened: the semaphore this replaced had to
+			 * drain stale credit before each wait, and a post racing the
+			 * drain could still turn the wait into a syscall spin.
 			 *
-			 * Drain stale credit first: posts accumulated from pops
-			 * outside this wait window would otherwise turn Wait()
-			 * into an immediate return and degrade this into a
-			 * syscall spin.  A post racing the drain (a pop landing
-			 * right now) at worst wakes the first Wait early; the
-			 * loop re-checks the real condition.
-			 *
-			 * Liveness is the same premise the old poll relied on:
-			 * progress requires MTGS to pop, and MTGS posts at every
-			 * pop - including before it blocks in semaXGkick.Wait,
-			 * which it only reaches after popping what was
-			 * available. */
-			while (vu1Thread.semaP1Progress.TryWait())
-			{
-			}
+			 * Liveness is unchanged: progress requires MTGS to pop, and
+			 * MTGS notifies at every pop -- including before it blocks in
+			 * semaXGkick.Wait, which it only reaches after popping what
+			 * was available. */
 			for (;;)
 			{
+				int key;
 				if (path.GetPendingGSPackets() != startP1Packs)
 				{
 					/* The packet count derives from the queue's cursors, so
 					 * on weak memory the changed count can be observed before
 					 * MTGS's pop-side writes (the release store on the tail
 					 * and the readAmount subtract).  Acquire-fence here to
-					 * pair with that release before we act on the count.  The
-					 * old code got this incidentally from the slock acquire
-					 * it performed each iteration; with the lock gone the
-					 * fence has to be explicit.  Costs nothing on x86 and one
-					 * dmb ishld on arm64, once, on the exit path. */
+					 * pair with that release before we act on the count. */
 					retro_atomic_thread_fence_acquire();
 					break;
 				}
 				if (!retro_atomic_load_acquire_int(&s_open_flag))
 					break; /* MTGS cancelled; see MainLoop exit tail */
-				vu1Thread.semaP1Progress.Wait();
+				/* Register, then re-check under the eventcount's own
+				 * ordering: after prepare_wait either a pop already landed
+				 * and the re-check sees it, or MTGS sees us registered and
+				 * its notify wakes us. There is no credit to drain, so a
+				 * stale post cannot turn this into a spin. */
+				key = retro_asym_eventcount_prepare_wait(&vu1Thread.ecP1Progress);
+				if (path.GetPendingGSPackets() != startP1Packs
+				 || !retro_atomic_load_acquire_int(&s_open_flag))
+				{
+					retro_asym_eventcount_cancel_wait(&vu1Thread.ecP1Progress);
+					continue;
+				}
+				retro_asym_eventcount_commit_wait(&vu1Thread.ecP1Progress, key);
 			}
 		}
 	}
