@@ -93,11 +93,13 @@ bool SaveStateBase::mtvuFreeze()
 
 VU_Thread::VU_Thread()
 {
+	work_eventcount_init(&semaEvent);
 }
 
 VU_Thread::~VU_Thread()
 {
 	Close();
+	work_eventcount_free(&semaEvent);
 }
 
 void VU_Thread::Open()
@@ -106,7 +108,7 @@ void VU_Thread::Open()
 		return;
 
 	Reset();
-	semaEvent.Reset();
+	work_eventcount_reset(&semaEvent);
 	retro_atomic_store_release_int(&m_shutdown_flag, 0);
 	m_thread.SetStackSize(VMManager::EMU_THREAD_STACK_SIZE);
 	m_thread.Start([this]() { ExecuteRingBuffer(); });
@@ -155,7 +157,7 @@ void VU_Thread::ExecuteRingBuffer(void)
 
 	for (;;)
 	{
-		semaEvent.WaitForWork();
+		work_eventcount_wait(&semaEvent);
 		if (retro_atomic_load_acquire_int(&m_shutdown_flag))
 			break;
 
@@ -245,7 +247,7 @@ void VU_Thread::ExecuteRingBuffer(void)
 		}
 	}
 
-	semaEvent.Kill();
+	work_eventcount_kill(&semaEvent);
 }
 
 
@@ -464,7 +466,7 @@ void VU_Thread::Get_MTVUChanges()
 }
 
 // C.80: lazy VIF-unpack kick. Every VifUnpack used to end in NotifyOfWork --
-// a full fetch_add RMW on the WorkSema state (the __aarch64_ldadd4_rel at
+// a full fetch_add RMW on the old WorkSema state (the __aarch64_ldadd4_rel at
 // ~1.9 % of the EE thread in-race, C.76). But the worker discovers new data
 // via m_ato_write_pos, not the state counter: while it is RUNNING it drains
 // the ring without ever needing the notify; the notify only matters to wake
@@ -491,7 +493,7 @@ void VU_Thread::Get_MTVUChanges()
 void VU_Thread::KickStart()
 {
 	s_kickPending = false;
-	semaEvent.NotifyOfWork();
+	work_eventcount_notify(&semaEvent);
 }
 
 // Flush a deferred VifUnpack notify, if one is pending.
@@ -513,7 +515,7 @@ void VU_Thread::WaitVU()
 	// C.80: WaitForEmpty trusts the sema state machine -- flush any deferred
 	// unpack notify first or it can pass with unprocessed work in the ring.
 	KickPending();
-	semaEvent.WaitForEmpty();
+	work_eventcount_wait_empty(&semaEvent);
 }
 
 void VU_Thread::ExecuteVU(u32 vu_addr, u32 vif_top, u32 vif_itop, u32 fbrst)

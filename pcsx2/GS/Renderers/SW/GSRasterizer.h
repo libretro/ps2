@@ -20,6 +20,7 @@
 #include <retro_spsc.h>
 #include "common/General.h"
 #include "common/Threading.h"
+#include "WorkEventCount.h"
 #include "common/Console.h"
 
 #include <functional>
@@ -60,7 +61,7 @@ private:
 	retro_spsc_t m_queue;
 	bool m_queue_ok;
 
-	Threading::WorkSema m_sema;
+	WorkEventCount m_sema;
 
 	void ThreadProc()
 	{
@@ -69,7 +70,7 @@ private:
 
 		for (;;)
 		{
-			m_sema.WaitForWork();
+			work_eventcount_wait(&m_sema);
 			if (retro_atomic_load_acquire_int(&m_exit))
 				break;
 			/* Span drain, batch commit: the object is destroyed
@@ -108,6 +109,7 @@ public:
 		, m_shutdown(std::move(shutdown))
 		, m_exit(RETRO_ATOMIC_INT_INITIALIZER(0))
 	{
+		work_eventcount_init(&m_sema);
 		m_queue_ok = retro_spsc_init(&m_queue, (size_t)CAPACITY * sizeof(T));
 		if (!m_queue_ok)
 			Console.Error("GSJobQueue: ring allocation failed; jobs will run on the calling thread");
@@ -117,7 +119,7 @@ public:
 	~GSJobQueue()
 	{
 		retro_atomic_store_release_int(&m_exit, 1);
-		m_sema.NotifyOfWork();
+		work_eventcount_notify(&m_sema);
 		m_thread.Join();
 		if (m_queue_ok)
 		{
@@ -139,6 +141,7 @@ public:
 			}
 			retro_spsc_free(&m_queue);
 		}
+		work_eventcount_free(&m_sema);
 	}
 
 	bool IsEmpty()
@@ -162,12 +165,12 @@ public:
 			Threading::Timeslice();
 		new (dst) T(item);
 		retro_spsc_write_end(&m_queue, sizeof(T));
-		m_sema.NotifyOfWork();
+		work_eventcount_notify(&m_sema);
 	}
 
 	void Wait()
 	{
-		m_sema.WaitForEmpty();
+		work_eventcount_wait_empty(&m_sema);
 	}
 
 	void operator()(T& item)

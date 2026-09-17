@@ -1,8 +1,10 @@
-/*  WorkSema contract, on the eventcount-backed implementation.
+/*  The worker-notify handshake in pcsx2/WorkEventCount.h.
  *
- *  The old WorkSema was a hand-rolled state machine; this one is two
- *  libretro-common eventcounts. Same header, same seven operations, and
- *  MTGS and MTVU depend on the exact contract, so this pins each part:
+ *  This is what replaced common/Threading.h's WorkSema class: two
+ *  libretro-common eventcounts and three ints that MTGS and MTVU embed and
+ *  drive through free functions. The seven operations keep the contract
+ *  the class had, and MTGS and MTVU depend on it exactly, so this pins
+ *  each part:
  *
  *    1. NotifyOfWork then CheckForWork returns true once, then false.
  *    2. WaitForWork returns at once when work is pending.
@@ -29,10 +31,16 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "common/Threading.h"
+#include "common/Pcsx2Types.h"
+#include "pcsx2/WorkEventCount.h"
 extern "C" {
 #include <rthreads/rthreads.h>
 }
+#include <unistd.h>
+
+/* The header wants this from its host; MTGS.cpp defines it in the core.
+ * Two here, so the spin path is exercised even on a one-core box. */
+s32 WorkEventCount_SpinBudget(void) { return 2000; }
 
 static int fails = 0;
 #define CHECK(c, msg) do { if (!(c)) { printf("  FAIL: %s\n", msg); fails++; } } while (0)
@@ -40,23 +48,24 @@ static int fails = 0;
 /* ---- 1, 2, 5, 6: single-threaded contract ------------------------- */
 static void contract_single(void)
 {
-	Threading::WorkSema ws;
+	WorkEventCount ws;
+	work_eventcount_init(&ws);
 
-	CHECK(!ws.CheckForWork(), "fresh sema reports no work");
-	ws.NotifyOfWork();
-	CHECK(ws.CheckForWork(), "notify makes CheckForWork true");
-	CHECK(!ws.CheckForWork(), "a second CheckForWork is false");
-	ws.NotifyOfWork(); ws.NotifyOfWork(); ws.NotifyOfWork();
-	CHECK(ws.CheckForWork(), "three notifies are one check");
-	CHECK(!ws.CheckForWork(), "and consumed together");
+	CHECK(!work_eventcount_check(&ws), "fresh sema reports no work");
+	work_eventcount_notify(&ws);
+	CHECK(work_eventcount_check(&ws), "notify makes CheckForWork true");
+	CHECK(!work_eventcount_check(&ws), "a second CheckForWork is false");
+	work_eventcount_notify(&ws); work_eventcount_notify(&ws); work_eventcount_notify(&ws);
+	CHECK(work_eventcount_check(&ws), "three notifies are one check");
+	CHECK(!work_eventcount_check(&ws), "and consumed together");
 
-	ws.NotifyOfWork();
-	ws.WaitForWork();                       /* must not block */
-	CHECK(!ws.CheckForWork(), "WaitForWork consumed the pending notify");
+	work_eventcount_notify(&ws);
+	work_eventcount_wait(&ws);                       /* must not block */
+	CHECK(!work_eventcount_check(&ws), "WaitForWork consumed the pending notify");
 
-	CHECK(!ws.WaitForWorkTimed(5), "timed wait with nothing pending: false");
-	ws.NotifyOfWork();
-	CHECK(ws.WaitForWorkTimed(5), "timed wait with work pending: true");
+	CHECK(!work_eventcount_wait_timed(&ws, 5), "timed wait with nothing pending: false");
+	work_eventcount_notify(&ws);
+	CHECK(work_eventcount_wait_timed(&ws, 5), "timed wait with work pending: true");
 
 	/* "Empty" is the worker having gone idle after consuming, not merely
 	 * having consumed: a worker that took work and has not yet checked
@@ -64,27 +73,30 @@ static void contract_single(void)
 	 * old state machine did exactly this, checked. So the worker goes
 	 * idle first -- one CheckForWork that finds nothing -- and only then
 	 * is WaitForEmpty immediate. */
-	CHECK(!ws.CheckForWork(), "worker drains and finds nothing: idle");
-	CHECK(ws.WaitForEmpty(), "idle worker: WaitForEmpty returns at once, true");
+	CHECK(!work_eventcount_check(&ws), "worker drains and finds nothing: idle");
+	CHECK(work_eventcount_wait_empty(&ws), "idle worker: WaitForEmpty returns at once, true");
 
-	ws.Kill();
-	CHECK(!ws.CheckForWork(), "dead: CheckForWork false");
-	ws.WaitForWork();                       /* must not block */
-	CHECK(ws.WaitForWorkTimed(1000), "dead: timed wait true at once");
-	CHECK(!ws.WaitForEmpty(), "dead: WaitForEmpty false");
-	ws.Reset();
-	CHECK(!ws.CheckForWork(), "reset: alive and idle");
-	CHECK(ws.WaitForEmpty(), "reset: WaitForEmpty true");
+	work_eventcount_kill(&ws);
+	CHECK(!work_eventcount_check(&ws), "dead: CheckForWork false");
+	work_eventcount_wait(&ws);                       /* must not block */
+	CHECK(work_eventcount_wait_timed(&ws, 1000), "dead: timed wait true at once");
+	CHECK(!work_eventcount_wait_empty(&ws), "dead: WaitForEmpty false");
+	work_eventcount_reset(&ws);
+	CHECK(!work_eventcount_check(&ws), "reset: alive and idle");
+	CHECK(work_eventcount_wait_empty(&ws), "reset: WaitForEmpty true");
 	/* And the first sequence again: a fresh object is idle. */
 	{
-		Threading::WorkSema fresh;
-		CHECK(fresh.WaitForEmpty(), "fresh object: WaitForEmpty true at once");
+		WorkEventCount fresh;
+		work_eventcount_init(&fresh);
+		CHECK(work_eventcount_wait_empty(&fresh), "fresh object: WaitForEmpty true at once");
+		work_eventcount_free(&fresh);
 	}
+	work_eventcount_free(&ws);
 	printf("  contract (single thread): %s\n", fails ? "see above" : "ok");
 }
 
 /* ---- 3, 4, 7: the pair ---------------------------------------------- */
-static Threading::WorkSema g_ws;
+static WorkEventCount g_ws;
 static retro_atomic_int_t  g_queue;      /* items the producer has pushed */
 static retro_atomic_int_t  g_taken;      /* items the worker has drained  */
 static retro_atomic_int_t  g_stop;
@@ -94,7 +106,7 @@ static void worker(void*)
 {
 	while (!retro_atomic_load_relaxed_int(&g_stop))
 	{
-		g_ws.WaitForWork();
+		work_eventcount_wait(&g_ws);
 		/* Drain: take everything that has been pushed. */
 		for (;;)
 		{
@@ -115,6 +127,7 @@ static void contract_pair(void)
 	retro_atomic_store_relaxed_int(&g_taken, 0);
 	retro_atomic_store_relaxed_int(&g_stop, 0);
 	retro_atomic_store_relaxed_int(&g_bad_empty, 0);
+	work_eventcount_init(&g_ws);
 	th = sthread_create(worker, NULL);
 
 	for (i = 0; i < 20000; i++)
@@ -124,12 +137,12 @@ static void contract_pair(void)
 		for (b = 0; b < burst; b++)
 		{
 			retro_atomic_store_release_int(&g_queue, q + b + 1);
-			g_ws.NotifyOfWork();
+			work_eventcount_notify(&g_ws);
 		}
 		/* Every so often, the thing MTGS does at vsync. */
 		if ((i % 7) == 0)
 		{
-			CHECK(g_ws.WaitForEmpty(), "WaitForEmpty true while alive");
+			CHECK(work_eventcount_wait_empty(&g_ws), "WaitForEmpty true while alive");
 			empties++;
 			if (retro_atomic_load_acquire_int(&g_taken)
 			  != retro_atomic_load_acquire_int(&g_queue))
@@ -138,15 +151,16 @@ static void contract_pair(void)
 		/* A short pause so the worker actually parks sometimes. */
 		if ((i % 50) == 0) usleep(200);
 	}
-	CHECK(g_ws.WaitForEmpty(), "final WaitForEmpty");
+	CHECK(work_eventcount_wait_empty(&g_ws), "final WaitForEmpty");
 	CHECK(retro_atomic_load_acquire_int(&g_taken)
 	   == retro_atomic_load_acquire_int(&g_queue), "final drain complete");
 	CHECK(retro_atomic_load_acquire_int(&g_bad_empty) == 0,
 	      "WaitForEmpty never returned with work outstanding");
 
 	retro_atomic_store_relaxed_int(&g_stop, 1);
-	g_ws.Kill();
+	work_eventcount_kill(&g_ws);
 	sthread_join(th);
+	work_eventcount_free(&g_ws);
 	printf("  pair: %d items, %d WaitForEmpty calls, %d returned early\n",
 	       retro_atomic_load_relaxed_int(&g_queue), empties,
 	       retro_atomic_load_relaxed_int(&g_bad_empty));
@@ -156,7 +170,7 @@ int main(void)
 {
 	long n = sysconf(_SC_NPROCESSORS_ONLN);
 	setvbuf(stdout, NULL, _IONBF, 0);
-	printf("worksema (eventcount-backed)\n  cpus: %ld%s\n", n,
+	printf("work_eventcount\n  cpus: %ld%s\n", n,
 	       n > 1 ? "" : "  (lost-wake half not load-bearing on one core)");
 	contract_single();
 	contract_pair();

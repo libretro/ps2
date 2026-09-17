@@ -16,6 +16,7 @@
 #pragma once
 #include <retro_atomic.h>
 #include "common/Threading.h"
+#include "WorkEventCount.h"
 #include "Vif.h"
 #include "Vif_Dma.h"
 #include "VUmicro.h"
@@ -34,7 +35,7 @@ class VU_Thread final {
 	alignas(__cachelinesize) retro_atomic_int_t m_ato_write_pos;    // Only modified by EE thread
 	alignas(__cachelinesize) int  m_read_pos; // temporary read pos (local to the VU thread)
 	int  m_write_pos; // temporary write pos (local to the EE thread)
-	Threading::WorkSema semaEvent;
+	WorkEventCount semaEvent;
 	retro_atomic_int_t m_shutdown_flag = RETRO_ATOMIC_INT_INITIALIZER(0);
 
 	Threading::Thread m_thread;

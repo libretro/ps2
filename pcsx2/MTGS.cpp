@@ -25,6 +25,10 @@
 #include "GS.h"
 #include "Gif_Unit.h"
 #include "MTVU.h"
+#include "WorkEventCount.h"
+#if !defined(_WIN32)
+#include <unistd.h>
+#endif
 #include "Elfheader.h"
 
 #include "Host.h"
@@ -108,9 +112,29 @@ alignas(64) static u64 g_ee_wait_ticks;
 
 extern struct retro_hw_render_callback hw_render;
 
+/* One read of the CPU count, cached. Spinning on a single-core host only
+ * steals the producer's timeslice, so the budget is 0 there. Defined here
+ * rather than in the header so the header pulls in no platform code. */
+s32 WorkEventCount_SpinBudget(void)
+{
+	static s32 budget = -1;
+	if (budget < 0)
+	{
+#if defined(_WIN32)
+		SYSTEM_INFO si;
+		GetSystemInfo(&si);
+		budget = (si.dwNumberOfProcessors >= 2) ? 2000 : 0;
+#else
+		budget = (sysconf(_SC_NPROCESSORS_ONLN) >= 2) ? 2000 : 0;
+#endif
+	}
+	return budget;
+}
+
 namespace MTGS
 {
-	static Threading::WorkSema s_sem_event;
+	static WorkEventCount s_sem_event;
+
 
 	static uintptr_t s_thread;
 	static retro_atomic_int_t s_open_flag = RETRO_ATOMIC_INT_INITIALIZER(0);
@@ -140,7 +164,7 @@ void MTGS::ResetGS(bool hardware_reset)
 	}
 
 	if (hardware_reset)
-		s_sem_event.NotifyOfWork();
+		work_eventcount_notify(&s_sem_event);
 }
 
 void MTGS::PostVsyncStart()
@@ -212,6 +236,12 @@ void MTGS::TryOpenGS(void)
 
 	if (!s_RingOk)
 	{
+		static bool s_ec_inited = false;
+		if (!s_ec_inited)
+		{
+			work_eventcount_init(&s_sem_event);
+			s_ec_inited = true;
+		}
 		s_RingOk = retro_spsc_init(&s_Ring,
 			(size_t)MTGS_RINGBUFFERSIZE * sizeof(PacketTagType));
 		if (!s_RingOk)
@@ -238,7 +268,7 @@ bool MTGS::MainLoop(bool flush_all)
 	{
 		if (flush_all)
 		{
-			if(!s_sem_event.CheckForWork())
+			if(!work_eventcount_check(&s_sem_event))
 				return true;
 		}
 		else
@@ -250,13 +280,13 @@ bool MTGS::MainLoop(bool flush_all)
 #ifdef ENABLE_PCSX2_PROFILER
 			{
 				const u64 t0 = __builtin_ia32_rdtsc();
-				const bool got = s_sem_event.WaitForWorkTimed(100);
+				const bool got = work_eventcount_wait_timed(&s_sem_event, 100);
 				g_gs_idle_ticks += __builtin_ia32_rdtsc() - t0;
 				if (!got)
 					return false;
 			}
 #else
-			if (!s_sem_event.WaitForWorkTimed(100))
+			if (!work_eventcount_wait_timed(&s_sem_event, 100))
 				return false;
 #endif
 		}
@@ -270,12 +300,12 @@ bool MTGS::MainLoop(bool flush_all)
 		 * the ring.  Consumed records are committed in one read_end per
 		 * span instead of one cursor store per record: the only
 		 * cross-thread reader of the tail is the producer's full check,
-		 * and the WaitGS emptiness contract lives entirely in WorkSema,
+		 * and the WaitGS emptiness contract lives entirely in the work eventcount,
 		 * so batching the commit changes nothing anyone can observe.
 		 * The vsync early-return commits before leaving.
 		 *
 		 * The inner loop runs spans until the queue reports empty:
-		 * WorkSema wakes are not 1:1 with records (a soft-reset tag is
+		 * eventcount wakes are not 1:1 with records (a soft-reset tag is
 		 * written with no notify and rides along on the next one), so
 		 * exiting to the sema with buffered records - as a wrap split
 		 * could otherwise cause - would strand them.  That is also why
@@ -326,7 +356,7 @@ bool MTGS::MainLoop(bool flush_all)
 						// falls through to the same Wait as before.
 #if !defined(__aarch64__)
 						{
-							s32 spins = Threading::SpinBudget();
+							s32 spins = WorkEventCount_SpinBudget();
 							while (!vu1Thread.semaXGkick.TryWait())
 							{
 								if (--spins <= 0)
@@ -334,7 +364,7 @@ bool MTGS::MainLoop(bool flush_all)
 									vu1Thread.semaXGkick.Wait();
 									break;
 								}
-								THREADING_CPU_RELAX();
+								WORK_EVENTCOUNT_RELAX();
 							}
 						}
 #else
@@ -390,7 +420,7 @@ bool MTGS::MainLoop(bool flush_all)
 				retro_spsc_read_end(&s_Ring, consumed);
 				/* Returning mid-ring: the batch acknowledge at the top of
 				 * the outer loop already consumed the notifies for any
-				 * entries still queued behind this vsync.  WorkSema's
+				 * entries still queued behind this vsync.  The eventcount's
 				 * contract -- relied on by WaitForEmpty and by the
 				 * pre-park empty post in WaitForWorkTimed -- is that a
 				 * consumer at RUNNING_0 has drained the ring, and the
@@ -405,7 +435,7 @@ bool MTGS::MainLoop(bool flush_all)
 				 * racing a concurrent enqueue at worst doubles up; the
 				 * state machine absorbs spurious wakes by design. */
 				if (retro_spsc_read_avail(&s_Ring) != 0)
-					s_sem_event.NotifyOfWork();
+					work_eventcount_notify(&s_sem_event);
 				return true;
 			}
 		}
@@ -420,7 +450,7 @@ bool MTGS::MainLoop(bool flush_all)
 	 * s_open_flag and exits.  The old rendezvous spin hung here
 	 * with pending packets, so this path is strictly safer now. */
 	vu1Thread.semaP1Progress.Post();
-	s_sem_event.Kill();
+	work_eventcount_kill(&s_sem_event);
 	return true;
 }
 
@@ -441,7 +471,7 @@ void MTGS::WaitGS(bool isMTVU)
 		// CheckForWork() — entries may have been written without
 		// a prior NotifyOfWork (e.g. a frame with no completed
 		// GIF packets between PostVsyncStart and WaitGS).
-		s_sem_event.NotifyOfWork();
+		work_eventcount_notify(&s_sem_event);
 		MainLoop(true);
 		return;
 	}
@@ -453,7 +483,7 @@ void MTGS::WaitGS(bool isMTVU)
 	struct WaitTimer { u64 t; ~WaitTimer() { g_ee_wait_ticks += __builtin_ia32_rdtsc() - t; } } wait_timer{t_wait0};
 #endif
 
-	s_sem_event.NotifyOfWork();
+	work_eventcount_notify(&s_sem_event);
 	if (isMTVU)
 	{
 		Gif_Path& path = gifUnit.gifPath[GIF_PATH_1];
@@ -514,14 +544,14 @@ void MTGS::WaitGS(bool isMTVU)
 		/* Blocks until the ring drains. Return value (false if the
 		 * MTGS thread has died) is unused here, matching the other
 		 * WaitForEmpty call sites in MTVU and GSRasterizer. */
-		s_sem_event.WaitForEmpty();
+		work_eventcount_wait_empty(&s_sem_event);
 	}
 }
 
 void MTGS::WaitForClose()
 {
 	// and kick the thread if it's sleeping
-	s_sem_event.NotifyOfWork();
+	work_eventcount_notify(&s_sem_event);
 
 	s_thread = 0;
 }
@@ -577,7 +607,7 @@ void Gif_AddCompletedGSPacket(GS_Packet& _gsPack, GIF_PATH _path)
 	}
 	tag->data[2] = (int)_path;
 	RingWriteEnd();
-	MTGS::s_sem_event.NotifyOfWork();
+	work_eventcount_notify(&MTGS::s_sem_event);
 }
 
 void Gif_AddBlankGSPacket(u32 _size, GIF_PATH _path)
@@ -601,6 +631,6 @@ void Gif_AddBlankGSPacket(u32 _size, GIF_PATH _path)
 	tag->data[2] = (int)_path;
 
 	RingWriteEnd();
-	MTGS::s_sem_event.NotifyOfWork();
+	work_eventcount_notify(&MTGS::s_sem_event);
 }
 
