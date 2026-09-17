@@ -468,7 +468,16 @@ void MTGS::CloseGS(void)
 // If isMTVU, then this implies this function is being called from the MTVU thread...
 void MTGS::WaitGS(bool isMTVU)
 {
-	if(sthread_get_current_thread_id() == s_thread)
+	/* The ring is pumped by whichever thread opened the GS, and that
+	 * thread drains it from inside MainLoop(): a wait issued on it can
+	 * only be served by pumping here. The same holds when no thread
+	 * owns the ring at all - WaitForClose() gives up ownership while
+	 * the GS stays open, and a wait in that window would otherwise
+	 * park every caller on a pump that does not exist, which is the
+	 * whole emulator stopped with the EE and the frontend's thread
+	 * both waiting for a GS nobody runs. */
+	uintptr_t owner = s_thread;
+	if(owner == 0 || sthread_get_current_thread_id() == owner)
 	{
 		// Ensure MainLoop(true) doesn't bail immediately from
 		// CheckForWork() — entries may have been written without
@@ -557,6 +566,9 @@ void MTGS::WaitForClose()
 	// and kick the thread if it's sleeping
 	work_eventcount_notify(&s_sem_event);
 
+	/* Ownership of the ring goes back to nobody; the GS stays open
+	 * until CloseGS(), and a WaitGS in between pumps the ring itself
+	 * (see WaitGS). */
 	s_thread = 0;
 }
 
