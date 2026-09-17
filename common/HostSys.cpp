@@ -56,8 +56,10 @@
 
 #if !defined(__APPLE__) && !defined(_WIN32)
 #include <ucontext.h>
-#include "SLockGuard.h" /* pcsx2/, on the include path; common/ is being folded into it */
 #endif
+/* pcsx2/, on the include path; common/ is being folded into it. Every
+ * platform: the registration mutex below is used on all of them. */
+#include "SLockGuard.h"
 
 /* Registration-side mutex only.  The fault filter itself takes NO
  * lock: pthread mutexes are not async-signal-safe, and a global lock
