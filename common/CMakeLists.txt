@@ -12,7 +12,6 @@ target_sources(common PRIVATE
 	MemorySettingsInterface.cpp
 	SettingsWrapper.cpp
 	StringUtil.cpp
-	TextureDecompress.cpp
 	HostSys.cpp
 )
 
@@ -64,7 +63,6 @@ target_sources(common PRIVATE
 	SettingsInterface.h
 	SettingsWrapper.h
 	StringUtil.h
-	TextureDecompress.h
 	VectorIntrin.h
 	WindowInfo.h
 	emitter/c89compat.h

@@ -15,6 +15,7 @@
 
 #include <cinttypes>
 #include <file/file_path.h>
+#include <formats/rdds.h>
 #include <retro_miscellaneous.h>
 #include <cstring>
 #include <deque>
@@ -26,7 +27,6 @@
 #include "common/Console.h"
 #include "common/HashCombine.h"
 #include "HostFS.h"
-#include "common/TextureDecompress.h"
 
 #include "../../../Config.h"
 
@@ -492,17 +492,17 @@ std::pair<u8, u8> GSTextureReplacements::GetBCAlphaMinMax(ReplacementTexture& rt
 			switch (format)
 			{
 				case GSTexture::Format::BC1:
-					DecompressBlockBC1(0, 0, sizeof(u32) * BC_BLOCK_SIZE, block_in, block_pixels_out);
+					rdds_decode_block_bc1(block_in, block_pixels_out, sizeof(u32) * BC_BLOCK_SIZE);
 					break;
 				case GSTexture::Format::BC2:
-					DecompressBlockBC2(0, 0, sizeof(u32) * BC_BLOCK_SIZE, block_in, block_pixels_out);
+					rdds_decode_block_bc2(block_in, block_pixels_out, sizeof(u32) * BC_BLOCK_SIZE);
 					break;
 				case GSTexture::Format::BC3:
-					DecompressBlockBC3(0, 0, sizeof(u32) * BC_BLOCK_SIZE, block_in, block_pixels_out);
+					rdds_decode_block_bc3(block_in, block_pixels_out, sizeof(u32) * BC_BLOCK_SIZE);
 					break;
 
 				case GSTexture::Format::BC7:
-					bc7decomp::unpack_bc7(block_in, reinterpret_cast<bc7decomp::color_rgba*>(block_pixels_out));
+					rdds_decode_block_bc7(block_in, block_pixels_out, sizeof(u32) * BC_BLOCK_SIZE);
 					break;
 			}
 

@@ -119,6 +119,7 @@ SOURCES_C += \
 	$(LIBRETRO_COMM_DIR)/memmap/memmap.c \
 	$(LIBRETRO_COMM_DIR)/memmap/memalign.c \
 	$(LIBRETRO_COMM_DIR)/fastjmp/fastjmp.c \
+	$(LIBRETRO_COMM_DIR)/formats/dds/rdds.c \
 	$(LIBRETRO_COMM_DIR)/rthreads/rthreads.c \
 	$(LIBRETRO_COMM_DIR)/rthreads/retro_eventcount.c \
 	$(LIBRETRO_COMM_DIR)/rthreads/retro_procbarrier.c \
@@ -212,7 +213,6 @@ SOURCES_CXX += \
 	$(COMMON_DIR)/MemorySettingsInterface.cpp \
 	$(COMMON_DIR)/SettingsWrapper.cpp \
 	$(COMMON_DIR)/StringUtil.cpp \
-	$(COMMON_DIR)/TextureDecompress.cpp
 
 # common/emitter is the x86-only JIT code emitter. On aarch64 the recompilers
 # that use it are gated out (VIXL is the arm64 emitter instead), so exclude it
