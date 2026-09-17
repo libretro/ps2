@@ -39,6 +39,7 @@
 #include "InternalServers/DNS_Logger.h"
 #include "InternalServers/DNS_Server.h"
 #include "../SLockGuard.h"
+#include <rthreads/rthreads.h>
 
 struct ConfigDEV9;
 
@@ -97,7 +98,8 @@ protected:
 private:
 	//Only set if packet sent to the internal IP address
 	PacketReader::IP::IP_Address ps2IP{};
-	Threading::Thread internalRxThread;
+	sthread_t* internalRxThread;
+	static void InternalServerThreadEntry(void* self);
 	retro_atomic_int_t internalRxThreadRunning = RETRO_ATOMIC_INT_INITIALIZER(0);
 
 	slock_t* internalRxMutex;

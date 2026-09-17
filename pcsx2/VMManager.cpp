@@ -64,6 +64,7 @@
 #include <objbase.h>
 #include <timeapi.h>
 #include "SLockGuard.h"
+#include <rthreads/rthreads.h>
 #endif
 
 // Resets all PS2 cpu execution caches, which does not affect that actual PS2 state/condition.
@@ -134,7 +135,14 @@ static std::unique_ptr<SysMainMemory> s_vm_memory;
 
 static retro_atomic_int_t s_state = RETRO_ATOMIC_INT_INITIALIZER((int)VMState::Shutdown);
 static bool s_cpu_implementation_changed = false;
-static Threading::ThreadHandle s_vm_thread_handle;
+/* The EE thread. Its sthread_t* is set by the frontend right after
+ * create; its id is captured by Initialize, which runs on it. Affinity
+ * is applied by handle when called from another thread (ApplySettings
+ * on the main thread with the EE paused) and to the current thread when
+ * the EE is applying its own -- Initialize can run before the frontend
+ * has stored the handle, and the EE never needs it to pin itself. */
+static sthread_t* s_vm_thread = NULL;
+static uintptr_t  s_vm_thread_id = 0;
 
 /* Plain, not recursive: nothing that runs under it re-takes it. GetDiscSerial
  * is a leaf, and the blocks that write under it call only findGame,
@@ -633,11 +641,11 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 {
 	std::string state_to_load;
 	retro_atomic_store_release_int(&s_state, (int)VMState::Initializing);
-	s_vm_thread_handle = Threading::ThreadHandle::GetForCallingThread();
+	s_vm_thread_id = sthread_get_current_thread_id();
 
 	if (!ApplyBootParameters(std::move(boot_params), &state_to_load))
 	{
-		s_vm_thread_handle = {};
+		s_vm_thread_id = 0;
 		retro_atomic_store_release_int(&s_state, (int)VMState::Shutdown);
 		return false;
 	}
@@ -648,7 +656,7 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 	EmuConfig.FullpathToBios(bios_path, sizeof(bios_path));
 	if (!IsBIOSAvailable(bios_path))
 	{
-		s_vm_thread_handle = {};
+		s_vm_thread_id = 0;
 		retro_atomic_store_release_int(&s_state, (int)VMState::Shutdown);
 		return false;
 	}
@@ -663,7 +671,7 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 		 * oversized disc image takes. */
 		CDVDsys_ClearFiles();
 		FileMcd_EmuClose();
-		s_vm_thread_handle = {};
+		s_vm_thread_id = 0;
 		retro_atomic_store_release_int(&s_state, (int)VMState::Shutdown);
 		return false;
 	}
@@ -676,7 +684,7 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 		DoCDVDclose();
 		CDVDsys_ClearFiles();
 		FileMcd_EmuClose();
-		s_vm_thread_handle = {};
+		s_vm_thread_id = 0;
 		retro_atomic_store_release_int(&s_state, (int)VMState::Shutdown);
 		return false;
 	}
@@ -689,7 +697,7 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 		DoCDVDclose();
 		CDVDsys_ClearFiles();
 		FileMcd_EmuClose();
-		s_vm_thread_handle = {};
+		s_vm_thread_id = 0;
 		retro_atomic_store_release_int(&s_state, (int)VMState::Shutdown);
 		return false;
 	}
@@ -704,7 +712,7 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 		DoCDVDclose();
 		CDVDsys_ClearFiles();
 		FileMcd_EmuClose();
-		s_vm_thread_handle = {};
+		s_vm_thread_id = 0;
 		retro_atomic_store_release_int(&s_state, (int)VMState::Shutdown);
 		return false;
 	}
@@ -1377,6 +1385,18 @@ void VMManager::EnsureCPUInfoInitialized()
 	}
 }
 
+void VMManager::SetVMThread(sthread_t* thread)
+{
+	s_vm_thread = thread;
+}
+
+static bool set_ee_affinity(u64 mask)
+{
+	if (sthread_get_current_thread_id() == s_vm_thread_id)
+		return sthread_set_current_affinity(mask);
+	return s_vm_thread ? sthread_set_affinity(s_vm_thread, mask) : false;
+}
+
 void VMManager::SetEmuThreadAffinities()
 {
 	EnsureCPUInfoInitialized();
@@ -1391,8 +1411,8 @@ void VMManager::SetEmuThreadAffinities()
 		if (EmuConfig.Cpu.AffinityControlMode != 0)
 			Console.Error("Insufficient processors for affinity control.");
 
-		vu1Thread.GetThreadHandle().SetAffinity(0);
-		s_vm_thread_handle.SetAffinity(0);
+		sthread_set_affinity(vu1Thread.GetThread(), 0);
+		set_ee_affinity(0);
 		return;
 	}
 
@@ -1416,16 +1436,16 @@ void VMManager::SetEmuThreadAffinities()
 
 	const u64 ee_affinity = static_cast<u64>(1) << ee_index;
 	Console.WriteLn("EE thread is on processor %u (0x%llx)", ee_index, (unsigned long long)ee_affinity);
-	s_vm_thread_handle.SetAffinity(ee_affinity);
+	set_ee_affinity(ee_affinity);
 
 	if (EmuConfig.Speedhacks.vuThread)
 	{
 		const u64 vu_affinity = static_cast<u64>(1) << vu_index;
 		Console.WriteLn("VU thread is on processor %u (0x%llx)", vu_index, (unsigned long long)vu_affinity);
-		vu1Thread.GetThreadHandle().SetAffinity(vu_affinity);
+		sthread_set_affinity(vu1Thread.GetThread(), vu_affinity);
 	}
 	else
-		vu1Thread.GetThreadHandle().SetAffinity(0);
+		sthread_set_affinity(vu1Thread.GetThread(), 0);
 }
 
 void VMManager::SetHardwareDependentDefaultSettings(SettingsInterface& si)

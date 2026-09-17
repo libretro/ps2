@@ -17,6 +17,7 @@
 #include <retro_atomic.h>
 #include "common/Threading.h"
 #include "WorkEventCount.h"
+#include <rthreads/rthreads.h>
 #include "Vif.h"
 #include "Vif_Dma.h"
 #include "VUmicro.h"
@@ -38,7 +39,8 @@ class VU_Thread final {
 	WorkEventCount semaEvent;
 	retro_atomic_int_t m_shutdown_flag = RETRO_ATOMIC_INT_INITIALIZER(0);
 
-	Threading::Thread m_thread;
+	sthread_t* m_thread;
+	static void ThreadEntry(void* self);
 
 public:
 	alignas(16)  vifStruct        vif;
@@ -73,10 +75,11 @@ public:
 	VU_Thread();
 	~VU_Thread();
 
-	__fi const Threading::ThreadHandle& GetThreadHandle() const { return m_thread; }
 
 	/// Returns true if the VU thread has been started.
-	__fi bool IsOpen() const { return m_thread.Joinable(); }
+	__fi bool IsOpen() const { return m_thread != NULL; }
+	/// The worker's handle, for VMManager to pin it.
+	__fi sthread_t* GetThread() const { return m_thread; }
 
 	/// Ensures the VU thread is started.
 	void Open();

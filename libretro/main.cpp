@@ -50,6 +50,7 @@
 
 #include "../pcsx2/SPU2/spu2.h"
 #include "../pcsx2/PAD/PAD.h"
+#include <rthreads/rthreads.h>
 
 #ifdef HAVE_PARALLEL_GS
 extern std::unique_ptr<GSRendererPGS> g_pgs_renderer;
@@ -72,7 +73,16 @@ static retro_atomic_int_t cpu_thread_state;
  * Initialize() never waits on MTGS (GS opens lazily from retro_run), so
  * blocking retro_load_game on this cannot deadlock. */
 static retro_atomic_int_t cpu_thread_boot_result;
-static Threading::Thread cpu_thread;
+static sthread_t* cpu_thread = NULL;
+/* The boot parameters the EE thread starts with. Copied here so the
+ * thread's entry takes a plain pointer; it reads them once at start. */
+static VMBootParameters cpu_thread_boot_params;
+static void cpu_thread_entry(VMBootParameters boot_params);
+static void cpu_thread_entry_trampoline(void* arg)
+{
+	(void)arg;
+	cpu_thread_entry(cpu_thread_boot_params);
+}
 
 /* Pause/resume coordination for cpu_thread.
  *
@@ -2733,15 +2743,19 @@ bool retro_load_game(const struct retro_game_info* game)
 		}
 	}
 
-	/* Threading::Thread rather than std::thread for one substantive
-	 * reason: an explicit stack size.  This thread runs microVU0 always
+	/* sthread_create_with_stack_size rather than a default thread for one
+	 * substantive reason: the stack size.  This thread runs microVU0 always
 	 * and microVU1 whenever MTVU is off - the exact code
 	 * EMU_THREAD_STACK_SIZE exists for ("uVU likes recursion") and that
 	 * the MTVU worker already requests - while the Windows default for
 	 * an unadorned thread is half that. */
-	cpu_thread.SetStackSize(VMManager::EMU_THREAD_STACK_SIZE);
 	retro_atomic_store_release_int(&cpu_thread_boot_result, 0);
-	cpu_thread.Start([boot_params]() { cpu_thread_entry(boot_params); });
+	cpu_thread_boot_params = boot_params;
+	cpu_thread = sthread_create_with_stack_size(cpu_thread_entry_trampoline, NULL,
+			VMManager::EMU_THREAD_STACK_SIZE);
+	/* The EE pins itself during Initialize; the handle is for pins made
+	 * from this thread later, with the EE paused. */
+	VMManager::SetVMThread(cpu_thread);
 
 	/* Wait for VMManager::Initialize() to succeed or fail so a bad
 	 * BIOS path, unreadable disc image, or any other init failure is
@@ -2758,8 +2772,11 @@ bool retro_load_game(const struct retro_game_info* game)
 		{
 			log_cb(RETRO_LOG_ERROR,
 				"VM initialization failed (BIOS/disc/peripheral open); failing content load.\n");
-			if (cpu_thread.Joinable())
-				cpu_thread.Join();
+			if (cpu_thread)
+			{
+				sthread_join(cpu_thread);
+				cpu_thread = NULL;
+			}
 			libretro_teardown_cpu_thread();
 			return false;
 		}
@@ -2804,7 +2821,9 @@ void retro_unload_game(void)
 		Input::Shutdown();
 		s_input_initialized = false;
 	}
-	cpu_thread.Join();
+	sthread_join(cpu_thread);
+	cpu_thread = NULL;
+	VMManager::SetVMThread(NULL);
 	libretro_teardown_cpu_thread();
 
 	retro_set_region(RETRO_REGION_NTSC); /* set back to default */

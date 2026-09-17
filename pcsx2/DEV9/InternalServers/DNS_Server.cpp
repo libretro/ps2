@@ -43,6 +43,7 @@
 
 #include "DEV9/DEV9.h"
 #include "DEV9/AdapterUtils.h"
+#include <rthreads/rthreads.h>
 
 using namespace PacketReader;
 using namespace PacketReader::IP;
@@ -350,15 +351,28 @@ namespace InternalServers
 		delete data;
 	}
 #elif defined(__POSIX__)
+	void DNS_Server::GetHostThreadEntry(void* arg)
+	{
+		GetHostCtx* ctx = static_cast<GetHostCtx*>(arg);
+		ctx->self->GetAddrInfoThread(ctx->url, ctx->state);
+		delete ctx;
+	}
+
 	void DNS_Server::GetHost(std::string url, DNS_State* state)
 	{
-		//Need to spin up thread, pass the parms to it
-
-		Threading::Thread GetHostThread;
-		GetHostThread.Start([this, url, state]() { GetAddrInfoThread(url, state); });
-		//detatch thread so that it can clean up itself
-		//we use another method of waiting for thread compleation
-		GetHostThread.Detach();
+		/* The thread takes its arguments through a heap context it frees
+		 * itself, and is detached: completion is signalled through state,
+		 * not by joining. */
+		GetHostCtx* ctx = new GetHostCtx{this, std::move(url), state};
+		sthread_t* t = sthread_create(GetHostThreadEntry, ctx);
+		if (t)
+			sthread_detach(t);
+		else
+		{
+			/* No thread: resolve on this one so the request still completes. */
+			GetAddrInfoThread(ctx->url, ctx->state);
+			delete ctx;
+		}
 	}
 
 	void DNS_Server::GetAddrInfoThread(std::string url, DNS_State* state)

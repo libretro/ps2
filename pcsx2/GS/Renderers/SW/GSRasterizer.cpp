@@ -1158,8 +1158,7 @@ void GSRasterizerList::OnWorkerStartup(int i, u64 affinity)
 	 * the ordering discipline of every other GSopen-time config read. */
 	if (affinity)
 	{
-		Threading::ThreadHandle handle(Threading::ThreadHandle::GetForCallingThread());
-		handle.SetAffinity(affinity);
+		sthread_set_current_affinity(affinity);
 	}
 }
 

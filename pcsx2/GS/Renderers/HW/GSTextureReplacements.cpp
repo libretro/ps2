@@ -36,6 +36,7 @@
 
 #include "../../../VMManager.h"
 #include "../../../SLockGuard.h"
+#include <rthreads/rthreads.h>
 
 // this is a #define instead of a variable to avoid warnings from non-literal format strings
 #define TEXTURE_FILENAME_FORMAT_STRING "%" PRIx64 "-%08x"
@@ -151,7 +152,12 @@ namespace GSTextureReplacements
 	static std::vector<std::pair<TextureName, bool>> s_async_loaded_textures;
 
 	/// Loader/dumper thread.
-	static Threading::Thread s_worker_thread;
+	static sthread_t* s_worker_thread = NULL;
+static void WorkerThreadEntryTrampoline(void* arg)
+{
+	(void)arg;
+	GSTextureReplacements::WorkerThreadEntryPoint();
+}
 	static slock_t* s_worker_thread_mutex(void)
 	{
 		/* First use creates it; C++11 makes the init thread-safe, and there is
@@ -709,25 +715,26 @@ void GSTextureReplacements::StartWorkerThread()
 {
 	SLockGuard lock(s_worker_thread_mutex());
 
-	if (s_worker_thread.Joinable())
+	if ((s_worker_thread != NULL))
 		return;
 
 	s_worker_thread_running = true;
-	s_worker_thread.Start(WorkerThreadEntryPoint);
+	s_worker_thread = sthread_create(WorkerThreadEntryTrampoline, NULL);
 }
 
 void GSTextureReplacements::StopWorkerThread()
 {
 	{
 		SLockGuard lock(s_worker_thread_mutex());
-		if (!s_worker_thread.Joinable())
+		if (!(s_worker_thread != NULL))
 			return;
 
 		s_worker_thread_running = false;
 		scond_signal(s_worker_thread_cv());
 	}
 
-	s_worker_thread.Join();
+	sthread_join(s_worker_thread);
+	s_worker_thread = NULL;
 
 	// clear out workery-things too
 	CancelPendingLoadsAndDumps();
@@ -794,7 +801,7 @@ void GSTextureReplacements::WorkerThreadEntryPoint()
 void GSTextureReplacements::SyncWorkerThread()
 {
 	SLockGuard lock(s_worker_thread_mutex());
-	if (!s_worker_thread.Joinable())
+	if (!(s_worker_thread != NULL))
 		return;
 
 	// Event-driven drain: the worker broadcasts at the pop that empties

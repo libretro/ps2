@@ -22,6 +22,7 @@
 #include "Vif_Dynarec.h"
 
 #include "../common/Threading.h"
+#include <rthreads/rthreads.h>
 
 VU_Thread vu1Thread;
 
@@ -91,8 +92,14 @@ bool SaveStateBase::mtvuFreeze()
 	return IsOkay();
 }
 
+void VU_Thread::ThreadEntry(void* self)
+{
+	static_cast<VU_Thread*>(self)->ExecuteRingBuffer();
+}
+
 VU_Thread::VU_Thread()
 {
+	m_thread = NULL;
 	work_eventcount_init(&semaEvent);
 	retro_asym_eventcount_init(&ecP1Progress);
 }
@@ -112,8 +119,8 @@ void VU_Thread::Open()
 	Reset();
 	work_eventcount_reset(&semaEvent);
 	retro_atomic_store_release_int(&m_shutdown_flag, 0);
-	m_thread.SetStackSize(VMManager::EMU_THREAD_STACK_SIZE);
-	m_thread.Start([this]() { ExecuteRingBuffer(); });
+	m_thread = sthread_create_with_stack_size(VU_Thread::ThreadEntry, this,
+			VMManager::EMU_THREAD_STACK_SIZE);
 }
 
 void VU_Thread::Close()
@@ -126,7 +133,8 @@ void VU_Thread::Close()
 	// the IfRunning state-peek could also race the worker's RUNNING->SLEEPING
 	// transition and miss the shutdown wakeup (see Threading.h).
 	KickStart();
-	m_thread.Join();
+	sthread_join(m_thread);
+	m_thread = NULL;
 }
 
 void VU_Thread::Reset()

@@ -30,6 +30,7 @@
 #include "../../GSAlignedClass.h"
 #include "../../GSRingHeap.h"
 #include "../../MultiISA.h"
+#include <rthreads/rthreads.h>
 
 /* SPSC job queue over retro_spsc, carrying real C++ objects: Push
  * placement-constructs the item into the ring's bytes, and the worker
@@ -53,7 +54,8 @@ class GSJobQueue final
 		"record offsets are sizeof(T) multiples and must land T-aligned");
 
 private:
-	Threading::Thread m_thread;
+	sthread_t* m_thread;
+	static void ThreadEntry(void* self) { static_cast<GSJobQueue*>(self)->ThreadProc(); }
 	std::function<void()> m_startup;
 	std::function<void(T&)> m_func;
 	std::function<void()> m_shutdown;
@@ -113,14 +115,15 @@ public:
 		m_queue_ok = retro_spsc_init(&m_queue, (size_t)CAPACITY * sizeof(T));
 		if (!m_queue_ok)
 			Console.Error("GSJobQueue: ring allocation failed; jobs will run on the calling thread");
-		m_thread.Start([this]() { ThreadProc(); });
+		m_thread = sthread_create(ThreadEntry, this);
 	}
 
 	~GSJobQueue()
 	{
 		retro_atomic_store_release_int(&m_exit, 1);
 		work_eventcount_notify(&m_sema);
-		m_thread.Join();
+		sthread_join(m_thread);
+		m_thread = NULL;
 		if (m_queue_ok)
 		{
 			/* The worker is gone; anything still buffered is

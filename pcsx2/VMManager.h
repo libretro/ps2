@@ -20,6 +20,7 @@
 #include <optional>
 
 #include "Config.h"
+#include <rthreads/rthreads.h>
 
 enum class CDVD_SourceType : uint8_t;
 
@@ -66,6 +67,9 @@ namespace VMManager
 
 	/// Initializes all system components.
 	bool Initialize(VMBootParameters boot_params);
+
+	/// The EE thread's handle, set by the frontend right after creating it.
+	void SetVMThread(sthread_t* thread);
 
 	/// Destroys all system components.
 	void Shutdown();

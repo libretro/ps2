@@ -36,9 +36,20 @@
 #include "PacketReader/IP/IP_Packet.h"
 #include "PacketReader/IP/UDP/UDP_Packet.h"
 #include "../SLockGuard.h"
+#include <rthreads/rthreads.h>
 
 NetAdapter* nif;
-Threading::Thread rx_thread;
+static sthread_t* rx_thread = NULL;
+void NetRxThread();
+/* The receive thread raises its own priority at start: rthreads can only
+ * raise the calling thread's, and this is the one place lrps2 wanted a
+ * thread above normal. */
+static void NetRxThreadEntry(void* arg)
+{
+	(void)arg;
+	sthread_raise_current_priority();
+	NetRxThread();
+}
 
 static slock_t* rx_mutex(void)
 {
@@ -134,9 +145,8 @@ void InitNet()
 	nif = na;
 	retro_atomic_store_release_int(&RxRunning, 1);
 
-	rx_thread.Start(NetRxThread);
+	rx_thread = sthread_create(NetRxThreadEntry, NULL);
 
-	rx_thread.SetHighestPriority();
 }
 
 void ReconfigureLiveNet(const Pcsx2Config& old_config)
@@ -171,7 +181,8 @@ void TermNet()
 		retro_atomic_store_release_int(&RxRunning, 0);
 		nif->close();
 		Console.WriteLn("DEV9: Waiting for RX-net thread to terminate..");
-		rx_thread.Join();
+		sthread_join(rx_thread);
+		rx_thread = NULL;
 		Console.WriteLn("DEV9: Done");
 
 		delete nif;
@@ -187,8 +198,14 @@ const IP_Address NetAdapter::internalIP{{{192, 0, 2, 1}}};
 const MAC_Address NetAdapter::broadcastMAC{{{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}}};
 const MAC_Address NetAdapter::internalMAC{{{0x76, 0x6D, 0xF4, 0x63, 0x30, 0x31}}};
 
+void NetAdapter::InternalServerThreadEntry(void* self)
+{
+	static_cast<NetAdapter*>(self)->InternalServerThread();
+}
+
 NetAdapter::NetAdapter()
 {
+	internalRxThread = NULL;
 		internalRxMutex = slock_new();
 		internalRxCV = scond_new();
 	//Ensure eeprom matches our default
@@ -221,7 +238,8 @@ NetAdapter::~NetAdapter()
 		}
 
 		scond_broadcast(internalRxCV);
-		internalRxThread.Join();
+		sthread_join(internalRxThread);
+		internalRxThread = NULL;
 	}
 	scond_free(internalRxCV);
 	slock_free(internalRxMutex);
@@ -326,7 +344,7 @@ void NetAdapter::InitInternalServer(ifaddrs* adapter, bool dhcpForceEnable, IP_A
 	if (blocks())
 	{
 		retro_atomic_store_release_int(&internalRxThreadRunning, 1);
-		internalRxThread.Start([this]() { InternalServerThread(); });
+		internalRxThread = sthread_create(NetAdapter::InternalServerThreadEntry, this);
 	}
 }
 

@@ -25,6 +25,7 @@
 
 #include <retro_common_api.h>
 
+#include <stddef.h>
 #include <boolean.h>
 #include <stdint.h>
 #include <retro_inline.h>
@@ -79,6 +80,36 @@ sthread_t *sthread_create(void (*thread_func)(void*), void *userdata);
  * or \c NULL if there was an error.
  */
 sthread_t *sthread_create_with_priority(void (*thread_func)(void*), void *userdata, int thread_priority);
+
+/**
+ * sthread_create_with_stack_size:
+ * @thread_func              : function to run in the thread.
+ * @userdata                 : pointer passed to @thread_func.
+ * @stack_size               : stack size in bytes; 0 keeps the backend's
+ *                             default. Honoured on Windows, pthread and
+ *                             every console backend whose create takes a
+ *                             size. A recompiler that runs the guest on
+ *                             the host stack is the caller this is for.
+ *
+ * Returns: pointer to new thread if successful, otherwise NULL.
+ */
+sthread_t *sthread_create_with_stack_size(void (*thread_func)(void*), void *userdata, size_t stack_size);
+
+/**
+ * sthread_set_affinity:
+ * @thread                   : the thread to pin, or the calling thread for
+ *                             sthread_set_current_affinity.
+ * @mask                     : bit N set allows CPU N; 0 allows every CPU,
+ *                             which undoes a pin.
+ *
+ * Hard affinity where the platform has it: Windows, Linux and Android.
+ * Darwin has only a scheduler hint and the consoles have none; those
+ * return false and leave the thread where it is.
+ *
+ * Returns: true if the mask was applied.
+ */
+bool sthread_set_affinity(sthread_t *thread, uint64_t mask);
+bool sthread_set_current_affinity(uint64_t mask);
 
 /**
  * Asks the operating system to schedule the calling thread ahead of

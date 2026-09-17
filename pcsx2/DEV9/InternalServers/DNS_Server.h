@@ -114,6 +114,14 @@ namespace InternalServers
 		static void __stdcall GetAddrInfoExCallback(DWORD dwError, DWORD dwBytes, OVERLAPPED* lpOverlapped);
 #elif defined(__POSIX__)
 		void GetAddrInfoThread(std::string url, DNS_State* state);
+		/* The heap context a detached resolver thread takes and frees. */
+		struct GetHostCtx
+		{
+			DNS_Server* self;
+			std::string url;
+			DNS_State* state;
+		};
+		static void GetHostThreadEntry(void* arg);
 #endif
 	};
 } // namespace InternalServers
