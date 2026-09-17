@@ -73,6 +73,9 @@ namespace Threading
 		Mutex(const Mutex&) = delete;
 		Mutex& operator=(const Mutex&) = delete;
 		void Lock();
+		/* Used by 3rdparty/include/vk_mem_alloc.h (VmaMutex::TryLock) in
+		 * the Vulkan build; nothing in pcsx2/ calls it. */
+		bool TryLock();
 		void Unlock();
 		slock_t* Native() { return m_lock; }
 	};
