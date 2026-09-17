@@ -25,7 +25,14 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-#if defined(__FreeBSD__) || (__APPLE__)
+#if defined(__APPLE__)
+#include <TargetConditionals.h>
+#endif
+
+/* <net/route.h> again: present on macOS and the BSDs, absent from the iOS and
+ * tvOS SDKs. Nothing in this file reads a routing message, so the whole block
+ * simply does not apply there. */
+#if defined(__FreeBSD__) || (defined(__APPLE__) && TARGET_OS_OSX)
 #include <sys/param.h>
 #include <sys/sysctl.h>
 #include <sys/socket.h>
