@@ -1,4 +1,13 @@
 
+# fastjmp's register save and restore is file-scope assembly, which MSVC does
+# not have on x64: fastjmp.c compiles to nothing under _MSC_VER and the
+# sequence is a MASM source beside it. Without this the link ends in
+# unresolved fastjmp_set and fastjmp_jmp -- every other toolchain uses the
+# inline form and never notices.
+if(MSVC AND CMAKE_SIZEOF_VOID_P EQUAL 8)
+	enable_language(ASM_MASM)
+endif()
+
 add_library(pcsx2_libretro SHARED)
 
 target_sources(pcsx2_libretro PRIVATE
@@ -44,6 +53,12 @@ target_sources(pcsx2_libretro PRIVATE
    ${CMAKE_SOURCE_DIR}/libretro/libretro-common/streams/trans_stream_deflate.c
    ${CMAKE_SOURCE_DIR}/libretro/libretro-common/streams/trans_stream_pipe.c
 )
+
+if(MSVC AND CMAKE_SIZEOF_VOID_P EQUAL 8)
+	target_sources(pcsx2_libretro PRIVATE
+		${CMAKE_SOURCE_DIR}/libretro/libretro-common/fastjmp/fastjmp_msvc_x64.asm
+	)
+endif()
 
 # getifaddrs()/freeifaddrs() are only declared by bionic from API 24 on,
 # below what the NDK lanes target, so DEV9 gets libretro-common's netlink
