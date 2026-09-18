@@ -427,7 +427,7 @@ wil::com_ptr_nothrow<ID3DBlob> D3D11ShaderCache::CompileAndAddShaderBlob(const C
 	 * something that is not its SPIR-V. Only the second launch ever
 	 * saw it: the first takes the write-only create path. */
 	if (filestream_seek(m_index_file, 0, RETRO_VFS_SEEK_POSITION_END) != 0)
-		return spv;
+		return blob;
 	if (filestream_write(m_blob_file, blob->GetBufferPointer(), entry.blob_size) != (int64_t)entry.blob_size ||
 		filestream_flush(m_blob_file) != 0 || filestream_write(m_index_file, &entry, sizeof(entry)) != (int64_t)(sizeof(entry)) ||
 		filestream_flush(m_index_file) != 0)
