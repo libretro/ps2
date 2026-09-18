@@ -573,6 +573,13 @@ D3D12ShaderCache::ComPtr<ID3DBlob> D3D12ShaderCache::CompileAndAddShaderBlob(con
 	entry.blob_size = data.blob_size;
 	entry.file_offset = data.file_offset;
 
+	/* The index was read to its end when the cache was opened, and a
+	 * stream open for update must not be written straight after a read
+	 * without a seek in between -- the offset the write lands at is
+	 * otherwise undefined. Only the second launch ever saw it: the
+	 * first takes the write-only create path. */
+	if (filestream_seek(m_shader_index_file, 0, RETRO_VFS_SEEK_POSITION_END) != 0)
+		return blob;
 	if (filestream_write(m_shader_blob_file, blob->GetBufferPointer(), entry.blob_size) != (int64_t)entry.blob_size ||
 		filestream_flush(m_shader_blob_file) != 0 || filestream_write(m_shader_index_file, &entry, sizeof(entry)) != (int64_t)(sizeof(entry)) ||
 		filestream_flush(m_shader_index_file) != 0)
@@ -642,6 +649,13 @@ bool D3D12ShaderCache::AddPipelineToBlob(const CacheIndexKey& key, ID3D12Pipelin
 	entry.blob_size = data.blob_size;
 	entry.file_offset = data.file_offset;
 
+	/* The index was read to its end when the cache was opened, and a
+	 * stream open for update must not be written straight after a read
+	 * without a seek in between -- the offset the write lands at is
+	 * otherwise undefined. Only the second launch ever saw it: the
+	 * first takes the write-only create path. */
+	if (filestream_seek(m_pipeline_index_file, 0, RETRO_VFS_SEEK_POSITION_END) != 0)
+		return false;
 	if (filestream_write(m_pipeline_blob_file, blob->GetBufferPointer(), entry.blob_size) != (int64_t)entry.blob_size ||
 		filestream_flush(m_pipeline_blob_file) != 0 || filestream_write(m_pipeline_index_file, &entry, sizeof(entry)) != (int64_t)(sizeof(entry)) ||
 		filestream_flush(m_pipeline_index_file) != 0)

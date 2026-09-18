@@ -344,6 +344,17 @@ bool GLShaderCache::WriteToBlobFile(const CacheIndexKey& key, const std::vector<
 	entry.blob_size = data.blob_size;
 	entry.blob_format = data.blob_format;
 
+	/* The index was read to its end when the cache was opened, and a
+	 * stream open for update must not be written straight after a read
+	 * without a seek in between -- the offset the write lands at is
+	 * otherwise undefined. This was a raw FILE* where it happened to
+	 * work; it is a VFS handle with its own buffer now, where it does
+	 * not, and an entry written at the wrong offset sends the next
+	 * run's lookups into the middle of the blob and hands a pipeline
+	 * something that is not its SPIR-V. Only the second launch ever
+	 * saw it: the first takes the write-only create path. */
+	if (filestream_seek(m_index_file, 0, RETRO_VFS_SEEK_POSITION_END) != 0)
+		return false;
 	if (filestream_write(m_blob_file, prog_data.data(), entry.blob_size) != (int64_t)entry.blob_size ||
 			filestream_flush(m_blob_file) != 0 || filestream_write(m_index_file, &entry, sizeof(entry)) != (int64_t)(sizeof(entry)) ||
 			filestream_flush(m_index_file) != 0)
