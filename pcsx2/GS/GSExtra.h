@@ -125,7 +125,7 @@ static constexpr u32 VECTOR_ALIGNMENT = 32;
 template<typename T>
 __fi static T VectorAlign(T value)
 {
-	return Common::AlignUpPow2(value, VECTOR_ALIGNMENT);
+	return PCSX2_ALIGN_UP_POW2(value, VECTOR_ALIGNMENT);
 }
 
 /// Returns the maximum alpha value across a range of data. Assumes stride is 16 byte aligned.

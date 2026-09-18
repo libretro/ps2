@@ -36,7 +36,7 @@ VirtualMemoryManager::VirtualMemoryManager(const char* file_mapping_name, uptr b
 	if (!size)
 		return;
 
-	size_t reserved_bytes = Common::PageAlign(size);
+	size_t reserved_bytes = PCSX2_PAGE_ALIGN(size);
 	m_pages_reserved = reserved_bytes / __pagesize;
 
 	if (file_mapping_name && file_mapping_name[0])
@@ -164,7 +164,7 @@ static bool VMMMarkPagesAsInUse(retro_atomic_int_t* begin, retro_atomic_int_t* e
 
 u8* VirtualMemoryManager::Alloc(uptr offsetLocation, size_t size) const
 {
-	size = Common::PageAlign(size);
+	size = PCSX2_PAGE_ALIGN(size);
 	if (!(offsetLocation % __pagesize == 0))
 		return nullptr;
 	if (!(size + offsetLocation <= m_pages_reserved * __pagesize))
@@ -183,7 +183,7 @@ void VirtualMemoryManager::Free(void* address, size_t size) const
 	uptr offsetLocation = (uptr)address - (uptr)m_baseptr;
 	if (!(offsetLocation % __pagesize == 0))
 	{
-		uptr newLoc = Common::PageAlign(offsetLocation);
+		uptr newLoc = PCSX2_PAGE_ALIGN(offsetLocation);
 		size -= (offsetLocation - newLoc);
 		offsetLocation = newLoc;
 	}
@@ -215,7 +215,7 @@ u8* VirtualMemoryBumpAllocator::Alloc(size_t size)
 	if (retro_atomic_load_acquire_size(&m_basecursor) == 0) // True if constructed from bad VirtualMemoryManager (assertion was on initialization)
 		return nullptr;
 
-	size_t reservedSize = Common::PageAlign(size);
+	size_t reservedSize = PCSX2_PAGE_ALIGN(size);
 
 	u8* out = (u8*)retro_atomic_fetch_add_size(&m_basecursor, reservedSize);
 
@@ -326,7 +326,7 @@ void code_reserve_assign(struct CodeReserve* r, const VirtualMemoryManager* allo
 	u8* base;
 
 	/* Anything passed to the memory allocator must be page aligned. */
-	size = Common::PageAlign(size);
+	size = PCSX2_PAGE_ALIGN(size);
 
 	/* Since the memory has already been allocated as part of the main memory
 	 * map, this should never fail. */
@@ -373,7 +373,7 @@ void code_reserve_forbid_modification(struct CodeReserve* r)
 void RecompiledCodeReserve::Assign(VirtualMemoryManagerPtr allocator, size_t offset, size_t size)
 {
 	// Anything passed to the memory allocator must be page aligned.
-	size = Common::PageAlign(size);
+	size = PCSX2_PAGE_ALIGN(size);
 
 	// Since the memory has already been allocated as part of the main memory map, this should never fail.
 	u8* base = allocator->Alloc(offset, size);

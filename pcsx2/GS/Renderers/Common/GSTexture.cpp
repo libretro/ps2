@@ -57,7 +57,7 @@ u32 GSTexture::GetCompressedBlockSize(Format format)
 u32 GSTexture::CalcUploadPitch(Format format, u32 width)
 {
 	if (format >= Format::BC1 && format <= Format::BC7)
-		width = Common::AlignUpPow2(width, 4) / 4;
+		width = PCSX2_ALIGN_UP_POW2(width, 4) / 4;
 
 	return width * GetCompressedBytesPerBlock(format);
 }
@@ -114,7 +114,7 @@ u32 GSDownloadTexture::GetBufferSize(u32 width, u32 height, GSTexture::Format fo
 	const u32 bytes_per_block = GSTexture::GetCompressedBytesPerBlock(format);
 	const u32 bw = (width + (block_size - 1)) / block_size;
 	const u32 bh = (height + (block_size - 1)) / block_size;
-	const u32 pitch = Common::AlignUpPow2(bw * bytes_per_block, pitch_align);
+	const u32 pitch = PCSX2_ALIGN_UP_POW2(bw * bytes_per_block, pitch_align);
 	return (pitch * bh);
 }
 
@@ -123,7 +123,7 @@ u32 GSDownloadTexture::GetTransferPitch(u32 width, u32 pitch_align) const
 	const u32 block_size = GSTexture::GetCompressedBlockSize(m_format);
 	const u32 bytes_per_block = GSTexture::GetCompressedBytesPerBlock(m_format);
 	const u32 bw = (width + (block_size - 1)) / block_size;
-	return Common::AlignUpPow2(bw * bytes_per_block, pitch_align);
+	return PCSX2_ALIGN_UP_POW2(bw * bytes_per_block, pitch_align);
 }
 
 void GSDownloadTexture::GetTransferSize(const GSVector4i& rc, u32* copy_offset, u32* copy_size, u32* copy_rows) const

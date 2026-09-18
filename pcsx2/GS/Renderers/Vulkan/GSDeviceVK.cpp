@@ -1349,7 +1349,7 @@ bool GSDeviceVK::CreateDeviceAndSwapChain()
 	m_device_properties.limits.optimalBufferCopyOffsetAlignment =
 		pcsx2_max_i(m_device_properties.limits.optimalBufferCopyOffsetAlignment, static_cast<VkDeviceSize>(32));
 	m_device_properties.limits.optimalBufferCopyRowPitchAlignment =
-		Common::NextPow2(pcsx2_max_i(m_device_properties.limits.optimalBufferCopyRowPitchAlignment, static_cast<VkDeviceSize>(32)));
+		PCSX2_NEXT_POW2(pcsx2_max_i(m_device_properties.limits.optimalBufferCopyRowPitchAlignment, static_cast<VkDeviceSize>(32)));
 	m_device_properties.limits.bufferImageGranularity =
 		pcsx2_max_i(m_device_properties.limits.bufferImageGranularity, static_cast<VkDeviceSize>(32));
 

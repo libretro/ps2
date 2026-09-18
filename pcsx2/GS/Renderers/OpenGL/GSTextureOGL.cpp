@@ -191,7 +191,7 @@ bool GSTextureOGL::Update(const GSVector4i& r, const void* data, int pitch, int 
 	// and directly send the data to the GL synchronously
 	GSDeviceOGL::GetInstance()->CommitClear(this, true);
 
-	const u32 preferred_pitch = Common::AlignUpPow2(r.width() << m_int_shift, TEXTURE_UPLOAD_PITCH_ALIGNMENT);
+	const u32 preferred_pitch = PCSX2_ALIGN_UP_POW2(r.width() << m_int_shift, TEXTURE_UPLOAD_PITCH_ALIGNMENT);
 	const u32 map_size = r.height() * preferred_pitch;
 
 	// Don't use PBOs for huge texture uploads, let the driver sort it out.
@@ -243,7 +243,7 @@ bool GSTextureOGL::Map(GSMap& m, const GSVector4i* _r, int layer)
 
 	GSVector4i r = _r ? *_r : GSVector4i(0, 0, m_size.x, m_size.y);
 
-	const u32 pitch = Common::AlignUpPow2(r.width() << m_int_shift, TEXTURE_UPLOAD_PITCH_ALIGNMENT);
+	const u32 pitch = PCSX2_ALIGN_UP_POW2(r.width() << m_int_shift, TEXTURE_UPLOAD_PITCH_ALIGNMENT);
 	m.pitch = pitch;
 
 	if (m_type == Type::Texture || m_type == Type::RenderTarget)
@@ -276,7 +276,7 @@ void GSTextureOGL::Unmap()
 	{
 		GSDeviceOGL::GetInstance()->CommitClear(this, true);
 
-		const u32 pitch = Common::AlignUpPow2(m_r_w << m_int_shift, TEXTURE_UPLOAD_PITCH_ALIGNMENT);
+		const u32 pitch = PCSX2_ALIGN_UP_POW2(m_r_w << m_int_shift, TEXTURE_UPLOAD_PITCH_ALIGNMENT);
 		const u32 upload_size = pitch * m_r_h;
 		GLStreamBuffer* sb    = GSDeviceOGL::GetInstance()->GetTextureUploadBuffer();
 		sb->Unmap(upload_size);

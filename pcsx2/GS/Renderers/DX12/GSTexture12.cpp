@@ -397,9 +397,9 @@ bool GSTexture12::Update(const GSVector4i& r, const void* data, int pitch, int l
 
 	// Footprint and box must be block aligned for compressed textures.
 	const u32 block_size    = GetCompressedBlockSize();
-	const u32 width         = Common::AlignUpPow2(r.width(), block_size);
-	const u32 height        = Common::AlignUpPow2(r.height(), block_size);
-	const u32 upload_pitch  = Common::AlignUpPow2<u32>(pitch, D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
+	const u32 width         = PCSX2_ALIGN_UP_POW2(r.width(), block_size);
+	const u32 height        = PCSX2_ALIGN_UP_POW2(r.height(), block_size);
+	const u32 upload_pitch  = PCSX2_ALIGN_UP_POW2<u32>(pitch, D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
 	const u32 required_size = CalcUploadSize(r.height(), upload_pitch);
 
 	D3D12_TEXTURE_COPY_LOCATION srcloc;
@@ -461,8 +461,8 @@ bool GSTexture12::Update(const GSVector4i& r, const void* data, int pitch, int l
 	dstloc.SubresourceIndex = layer;
 
 	const D3D12_BOX srcbox{0u, 0u, 0u, width, height, 1u};
-	cmdlist->CopyTextureRegion(&dstloc, Common::AlignDownPow2((u32)r.x, block_size),
-		Common::AlignDownPow2((u32)r.y, block_size), 0, &srcloc, &srcbox);
+	cmdlist->CopyTextureRegion(&dstloc, PCSX2_ALIGN_DOWN_POW2((u32)r.x, block_size),
+		PCSX2_ALIGN_DOWN_POW2((u32)r.y, block_size), 0, &srcloc, &srcbox);
 
 	if (m_resource_state != D3D12_RESOURCE_STATE_COPY_DEST)
 		TransitionSubresourceToState(cmdlist, layer, D3D12_RESOURCE_STATE_COPY_DEST, m_resource_state);
@@ -483,7 +483,7 @@ bool GSTexture12::Map(GSMap& m, const GSVector4i* r, int layer)
 	m_map_area = r ? *r : GetRect();
 	m_map_level = layer;
 
-	m.pitch = Common::AlignUpPow2(CalcUploadPitch(m_map_area.width()), D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
+	m.pitch = PCSX2_ALIGN_UP_POW2(CalcUploadPitch(m_map_area.width()), D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
 
 	// see note in Update() for the reason why.
 	const u32 required_size   = CalcUploadSize(m_map_area.height(), m.pitch);
@@ -509,7 +509,7 @@ void GSTexture12::Unmap()
 	GSDevice12* const dev = GSDevice12::GetInstance();
 	const u32 width           = m_map_area.width();
 	const u32 height          = m_map_area.height();
-	const u32 pitch           = Common::AlignUpPow2(CalcUploadPitch(width), D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
+	const u32 pitch           = PCSX2_ALIGN_UP_POW2(CalcUploadPitch(width), D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
 	const u32 required_size   = CalcUploadSize(height, pitch);
 	D3D12StreamBuffer& buffer = dev->GetTextureStreamBuffer();
 	const u32 buffer_offset   = buffer.GetCurrentOffset();

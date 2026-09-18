@@ -14,6 +14,7 @@
  */
 
 #include "Profiler.h"
+#include "common/Align.h"
 #include "common/Pcsx2Defs.h"
 #include <cerrno>
 #include "HostFS.h"
@@ -788,7 +789,7 @@ std::pair<u8, u8> GSGetRGBA8AlphaMinMax(const void* data, u32 width, u32 height,
 	}
 	else
 	{
-		const u32 aligned_width = Common::AlignDownPow2(width, 4);
+		const u32 aligned_width = PCSX2_ALIGN_DOWN_POW2(width, 4);
 		static constexpr const GSVector4i masks[3][2] = {
 			{GSVector4i::cxpr(0xFFFFFFFF, 0, 0, 0), GSVector4i::cxpr(0, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF)},
 			{GSVector4i::cxpr(0xFFFFFFFF, 0xFFFFFFFF, 0, 0), GSVector4i::cxpr(0, 0, 0xFFFFFFFF, 0xFFFFFFFF)},

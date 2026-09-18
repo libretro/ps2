@@ -256,7 +256,7 @@ enum : u32
 			MappingResult Map(u32 alignment, u32 min_size) override
 			{
 				if (m_position > 0)
-					m_position = Common::AlignUp(m_position, alignment);
+					m_position = PCSX2_ALIGN_UP(m_position, alignment);
 
 				AllocateSpace(min_size);
 

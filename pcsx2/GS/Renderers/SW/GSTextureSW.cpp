@@ -14,6 +14,7 @@
  */
 
 #include <cstring>
+#include "common/Align.h"
 #include <memalign.h>
 
 #include "GS/GSExtra.h"
@@ -36,7 +37,7 @@ GSTextureSW::GSTextureSW(Type type, int width, int height, Format format)
 
 	/* Pitch is row-byte-count rounded up to VECTOR_ALIGNMENT so that
 	 * SIMD reads/writes can address full rows without spilling. */
-	m_pitch = static_cast<int>(Common::AlignUpPow2(static_cast<u32>(width * bpp), VECTOR_ALIGNMENT));
+	m_pitch = static_cast<int>(PCSX2_ALIGN_UP_POW2(static_cast<u32>(width * bpp), VECTOR_ALIGNMENT));
 
 	const size_t bytes = static_cast<size_t>(m_pitch) * static_cast<size_t>(height);
 	m_data = (u8*)memalign_alloc(VECTOR_ALIGNMENT, bytes ? bytes : VECTOR_ALIGNMENT);

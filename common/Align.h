@@ -13,86 +13,56 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#pragma once
+/* Alignment arithmetic.
+ *
+ * Macros rather than templates: every one of these is two operators on
+ * an integer, the result type is the promoted type of the value, and
+ * that is what a template over T computed anyway. Nothing here depends
+ * on the width, so nothing here needs to know it.
+ *
+ * The Pow2 forms require a power of two and use a mask; the others take
+ * any alignment and divide. Both evaluate their arguments more than
+ * once, so neither takes an argument with a side effect -- no call site
+ * in this tree does.
+ */
+
+#ifndef PCSX2_ALIGN_H
+#define PCSX2_ALIGN_H
+
 #include "Pcsx2Defs.h"
 
-namespace Common
+/* Any alignment. */
+#define PCSX2_IS_ALIGNED(value, alignment)      (((value) % (alignment)) == 0)
+#define PCSX2_ALIGN_UP(value, alignment)        (((value) + ((alignment) - 1)) / (alignment) * (alignment))
+
+/* Power-of-two alignment: one mask instead of two divisions.
+ *
+ * The mask is built from the value, not from the alignment: an
+ * alignment is an int, so ~(alignment - 1) is 32 bits and would clear
+ * the whole top half of a 64-bit value. Multiplying by zero gives the
+ * value's own promoted type, and the mask with it. Checked against the
+ * templates these replaced over the u32 range and 64-bit values. */
+#define PCSX2_ALIGN_UP_POW2(value, alignment) \
+	(((value) + ((alignment) - 1)) & ~((0 * (value)) + (alignment) - 1))
+#define PCSX2_ALIGN_DOWN_POW2(value, alignment) \
+	((value) & ~((0 * (value)) + (alignment) - 1))
+
+static __fi u32 pcsx2_bitfold32(u32 v)
 {
-	template <typename T>
-	static constexpr __fi bool IsAligned(T value, unsigned int alignment)
-	{
-		return (value % static_cast<T>(alignment)) == 0;
-	}
+	v |= v >> 1;
+	v |= v >> 2;
+	v |= v >> 4;
+	v |= v >> 8;
+	v |= v >> 16;
+	return v;
+}
 
-	template <typename T>
-	static constexpr __fi T AlignUp(T value, unsigned int alignment)
-	{
-		return (value + static_cast<T>(alignment - 1)) / static_cast<T>(alignment) * static_cast<T>(alignment);
-	}
+/* Round up to a power of two; 0 stays 0. Folds the value's bits down
+ * and adds one, which saturates at 32 bits -- every caller here passes
+ * a u32 or narrower. */
+#define PCSX2_NEXT_POW2(value) \
+	((value) == 0 ? 0 : (pcsx2_bitfold32((value) - 1) + 1))
 
-	template <typename T>
-	static constexpr __fi T AlignDown(T value, unsigned int alignment)
-	{
-		return value / static_cast<T>(alignment) * static_cast<T>(alignment);
-	}
+#define PCSX2_PAGE_ALIGN(size) PCSX2_ALIGN_UP_POW2(size, __pagesize)
 
-	template <typename T>
-	static constexpr __fi bool IsAlignedPow2(T value, unsigned int alignment)
-	{
-		return (value & static_cast<T>(alignment - 1)) == 0;
-	}
-
-	template <typename T>
-	static constexpr __fi T AlignUpPow2(T value, unsigned int alignment)
-	{
-		return (value + static_cast<T>(alignment - 1)) & static_cast<T>(~static_cast<T>(alignment - 1));
-	}
-
-	template <typename T>
-	static constexpr __fi T AlignDownPow2(T value, unsigned int alignment)
-	{
-		return value & static_cast<T>(~static_cast<T>(alignment - 1));
-	}
-
-	template <typename T>
-	static constexpr __fi bool IsPow2(T value)
-	{
-		return (value & (value - 1)) == 0;
-	}
-
-	template <typename T>
-	static constexpr __fi T PreviousPow2(T value)
-	{
-		if (value == static_cast<T>(0))
-			return 0;
-
-		value |= (value >> 1);
-		value |= (value >> 2);
-		value |= (value >> 4);
-		value |= (value >> 8);
-		value |= (value >> 16);
-		return value - (value >> 1);
-	}
-
-	template<typename T>
-	static constexpr __fi T NextPow2(T value)
-	{
-		if (value == static_cast<T>(0))
-			return 0;
-
-		value--;
-		value |= value >> 1;
-		value |= value >> 2;
-		value |= value >> 4;
-		value |= value >> 8;
-		value |= value >> 16;
-		value++;
-		return value;
-	}
-
-	template <typename T>
-	static constexpr T PageAlign(T size)
-	{
-		return Common::AlignUpPow2(size, __pagesize);
-	}
-} // namespace Common
+#endif

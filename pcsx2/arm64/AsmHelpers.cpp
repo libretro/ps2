@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 #include <cstring>
+#include "common/Align.h"
 #include "common/Pcsx2Defs.h"
 #include "arm64/AsmHelpers.h"
 #include "../HostMem.h"
@@ -235,7 +236,7 @@ void armEmitCbnz(const vixl::aarch64::Register& reg, const void* ptr)
 {
 	const s64 jump_distance =
 		static_cast<s64>(reinterpret_cast<intptr_t>(ptr) - reinterpret_cast<intptr_t>(armGetCurrentCodePointer()));
-	//pxAssert(Common::IsAligned(jump_distance, 4));
+	//pxAssert(PCSX2_IS_ALIGNED(jump_distance, 4));
 	if (a64::Instruction::IsValidImmPCOffset(a64::CompareBranchType, jump_distance >> 2))
 	{
 		a64::SingleEmissionCheckScope guard(armAsm);
@@ -258,7 +259,7 @@ void armEmitCondBranch(a64::Condition cond, const void* ptr)
 {
 	const s64 jump_distance =
 		static_cast<s64>(reinterpret_cast<intptr_t>(ptr) - reinterpret_cast<intptr_t>(armGetCurrentCodePointer()));
-	//pxAssert(Common::IsAligned(jump_distance, 4));
+	//pxAssert(PCSX2_IS_ALIGNED(jump_distance, 4));
 
 	if (a64::Instruction::IsValidImmPCOffset(a64::CondBranchType, jump_distance >> 2))
 	{
@@ -464,7 +465,7 @@ u8* ArmConstantPool::GetJumpTrampoline(const void* target)
 		return m_base_ptr + it->second;
 
 	// align to 16 bytes?
-	const u32 offset = Common::AlignUpPow2(m_used, 16);
+	const u32 offset = PCSX2_ALIGN_UP_POW2(m_used, 16);
 
 	// 4 movs plus a jump
 	if ((m_capacity - offset) < 20)
@@ -502,7 +503,7 @@ u8* ArmConstantPool::GetLiteral(const u128& value)
 	if (GetRemainingCapacity() < 8)
 		return nullptr;
 
-	const u32 offset = Common::AlignUpPow2(m_used, 16);
+	const u32 offset = PCSX2_ALIGN_UP_POW2(m_used, 16);
 	std::memcpy(&m_base_ptr[offset], &value, sizeof(value));
 	m_used = offset + sizeof(value);
 	return m_base_ptr + offset;
