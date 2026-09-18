@@ -231,33 +231,6 @@ int ThreadedFileReader::ReadSync(void* pBuffer, u32 sector, u32 count)
 	return -1;
 }
 
-void ThreadedFileReader::BeginRead(void* pBuffer, u32 sector, u32 count)
-{
-	s32 blocksize = m_internalBlockSize ? m_internalBlockSize : m_blocksize;
-	u64 offset    = (u64)sector * (u64)blocksize + m_dataoffset;
-	u32 size      = count * blocksize;
-	if (m_direct && !m_internalBlockSize)
-	{
-		m_directAmt = DirectRead(pBuffer, offset, size);
-		return;
-	}
-	/* Synchronous: the read completes here; FinishRead only reports it.
-	 * The emulated drive's seek and rotation model (cdvdBlockReadTime)
-	 * spaces sector deliveries by far more virtual time than one chunk
-	 * decode costs in real time, and the two-buffer cache means a chunk
-	 * is decoded once and then serves every sector inside it. */
-	if (TryCachedRead(pBuffer, offset, size))
-		return;
-	if (!Decompress(pBuffer, offset, size))
-		m_amtRead = -1;
-}
-
-int ThreadedFileReader::FinishRead(void)
-{
-	if (m_direct && !m_internalBlockSize)
-		return m_directAmt;
-	return m_amtRead;
-}
 
 void ThreadedFileReader::CancelRead(void)
 {

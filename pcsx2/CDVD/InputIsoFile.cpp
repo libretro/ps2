@@ -72,7 +72,11 @@ void InputIsoFile::BeginRead2(uint lsn)
 
 	m_read_lsn = lsn;
 
-	m_reader->BeginRead(m_readbuffer, m_read_lsn, 1);
+	/* The read happens here. This half stays separate from FinishRead3
+	 * for its own reasons -- the same-sector check above, and the
+	 * out-of-bounds cases FinishRead3 handles for several games -- not
+	 * because anything overlaps with it. */
+	m_read_result = m_reader->ReadSync(m_readbuffer, m_read_lsn, 1);
 	m_read_inprogress = true;
 }
 
@@ -87,7 +91,7 @@ int InputIsoFile::FinishRead3(u8* dst, uint mode)
 
 	if (m_read_inprogress)
 	{
-		const int ret = m_reader->FinishRead();
+		const int ret = m_read_result;
 		m_read_inprogress = false;
 
 		if (ret < 0)
@@ -171,6 +175,7 @@ void InputIsoFile::_init()
 	m_blocks = 0;
 
 	m_read_inprogress = false;
+	m_read_result = 0;
 	m_current_lsn = -1;
 	m_read_lsn = -1;
 

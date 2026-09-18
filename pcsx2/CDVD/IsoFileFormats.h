@@ -61,6 +61,7 @@ protected:
 	u32 m_blocks;
 
 	bool m_read_inprogress;
+	int  m_read_result;    /* what BeginRead2 read, for FinishRead3 */
 	uint m_read_lsn;
 	u8 m_readbuffer[CD_FRAMESIZE_RAW];
 

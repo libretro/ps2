@@ -119,17 +119,25 @@ private:
 	bool TryCachedRead(void*& buffer, u64& offset, u32& size);
 
 public:
-	/* Not virtual: nothing deletes a reader through a base pointer that
-	 * does not know the concrete type -- InputIsoFile holds the exact one
-	 * it created. */
-	~ThreadedFileReader();
+	/* Virtual: GetFileReader hands back a ChdFileReader, CsoFileReader,
+	 * GzippedFileReader or FlatFileReader as a ThreadedFileReader*, and
+	 * InputIsoFile::Close deletes through exactly that pointer. Without
+	 * this the derived destructor never runs and operator delete is given
+	 * the base's size, which AddressSanitizer reports as a new-delete
+	 * type mismatch and which a sized-deallocation allocator can act on.
+	 * One vtable pointer on one object per disc. */
+	virtual ~ThreadedFileReader();
 
 	u32 GetBlockCount() const { return m_ops->block_count(this); }
 
 	bool Open(const char* filename);
+	/// Reads count blocks from sector. Returns the byte count, or -1.
+	/// There is no asynchronous form: the read happens here, on this
+	/// thread. The split that used to exist -- BeginRead followed by
+	/// FinishRead -- outlived the worker it was for, and the pair read as
+	/// an overlap a caller could do work inside while being nothing of
+	/// the sort.
 	int ReadSync(void* pBuffer, u32 sector, u32 count);
-	void BeginRead(void* pBuffer, u32 sector, u32 count);
-	int FinishRead();
 	void CancelRead();
 	void Close();
 	void SetBlockSize(u32 bytes);
