@@ -18,10 +18,10 @@
 // invalidation in recClearIOP (psxCpu->Clear is called on every IOP write).
 
 #include "R3000A.h"
+#include <memmap.h>
 #include "common/Pcsx2Defs.h"
 #include "IopMem.h"
 #include "IopHw.h"
-#include "arm64/ICache.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -758,7 +758,7 @@ namespace
 
 		masm.FinalizeCode();
 		const size_t sz = masm.GetSizeOfCodeGenerated();
-		ClearICacheRange(reinterpret_cast<void*>(start), sz);
+		memsync(reinterpret_cast<void*>(start), (u8*)(reinterpret_cast<void*>(start)) + (sz));
 		s_code_pos += (sz + 15) & ~size_t(15);
 
 		BlockFn fn = reinterpret_cast<BlockFn>(start);
