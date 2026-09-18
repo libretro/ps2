@@ -24,14 +24,20 @@
 set -u
 
 DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-SUITES="mmi vu fpu ee iop vif emitter faultstress fpaudit ipu spsc patch"
+# Every directory with a build.sh, found rather than listed. A suite added
+# to a hardcoded list by hand is a suite that silently stops running when
+# someone forgets, and four had already stopped: gs, settings, cdvdread
+# and mtvuring were all in the tree and none of them were in the list.
+SUITES=$(for d in "$DIR"/*/build.sh; do
+	[ -f "$d" ] || continue
+	b=${d%/build.sh}
+	printf '%s ' "${b##*/}"
+done)
 
 failed=""
-skipped=""
 ran=""
 
 for s in $SUITES; do
-	[ -f "$DIR/$s/build.sh" ] || { skipped="$skipped $s"; continue; }
 	printf '\n======== %s ========\n' "$s"
 	if sh "$DIR/$s/build.sh"; then
 		ran="$ran $s"
@@ -42,7 +48,6 @@ done
 
 printf '\n======== summary ========\n'
 [ -n "$ran" ]     && printf 'passed: %s\n' "${ran# }"
-[ -n "$skipped" ] && printf 'missing build.sh: %s\n' "${skipped# }"
 
 if [ -n "$failed" ]; then
 	printf 'FAILED: %s\n' "${failed# }"
