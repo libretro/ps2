@@ -3665,7 +3665,7 @@ bool GSTextureCache::Move(u32 SBP, u32 SBW, u32 SPSM, int sx, int sy, u32 DBP, u
 		new_TEX0.TBW = DBW;
 		new_TEX0.PSM = DPSM;
 
-		const GSVector2i target_size = GetTargetSize(DBP, DBW, DPSM, PCSX2_ALIGN_UP_POW2(w, 64), h);
+		const GSVector2i target_size = GetTargetSize(DBP, DBW, DPSM, pcsx2_align_up_pow2_u32(w, 64), h);
 		dst = LookupTarget(new_TEX0, target_size, src->m_scale, src->m_type);
 		if (!dst)
 			dst = CreateTarget(new_TEX0, target_size, target_size, src->m_scale, src->m_type);
@@ -3709,7 +3709,7 @@ bool GSTextureCache::Move(u32 SBP, u32 SBW, u32 SPSM, int sx, int sy, u32 DBP, u
 			return false;
 
 		// Align height to page size, that way we don't do too many small resizes (Dark Cloud).
-		new_height = PCSX2_ALIGN_UP_POW2(new_height, static_cast<unsigned>(GSLocalMemory::m_psm[DPSM].bs.y));
+		new_height = pcsx2_align_up_pow2_u32(new_height, static_cast<unsigned>(GSLocalMemory::m_psm[DPSM].bs.y));
 
 		// We don't recycle the old texture here, because the height cache will track the new size,
 		// so the old size won't get created again.

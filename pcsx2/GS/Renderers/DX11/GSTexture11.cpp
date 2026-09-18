@@ -64,8 +64,8 @@ bool GSTexture11::Update(const GSVector4i& r, const void* data, int pitch, int l
 
 	const u32 bs = GetCompressedBlockSize();
 	
-	const D3D11_BOX box = {PCSX2_ALIGN_DOWN_POW2((u32)r.left, bs), PCSX2_ALIGN_DOWN_POW2((u32)r.top, bs), 0U,
-		PCSX2_ALIGN_UP_POW2((u32)r.right, bs), PCSX2_ALIGN_UP_POW2((u32)r.bottom, bs), 1U};
+	const D3D11_BOX box = {pcsx2_align_down_pow2_u32((u32)r.left, bs), pcsx2_align_down_pow2_u32((u32)r.top, bs), 0U,
+		pcsx2_align_up_pow2_u32((u32)r.right, bs), pcsx2_align_up_pow2_u32((u32)r.bottom, bs), 1U};
 	const UINT subresource = layer; // MipSlice + (ArraySlice * MipLevels).
 
 	GSDevice11::GetInstance()->GetD3DContext()->UpdateSubresource(m_texture.get(), subresource, &box, data, pitch, 0);

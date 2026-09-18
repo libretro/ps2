@@ -885,8 +885,8 @@ GSVector2i GSRendererHW::GetValidSize(const GSTextureCache::Source* tex)
 	}
 
 	// Align to page size. Since FRAME/Z has to always start on a page boundary, in theory no two should overlap.
-	width = PCSX2_ALIGN_UP_POW2(width, frame_psm.pgs.x);
-	height = PCSX2_ALIGN_UP_POW2(height, frame_psm.pgs.y);
+	width = pcsx2_align_up_pow2_u32(width, frame_psm.pgs.x);
+	height = pcsx2_align_up_pow2_u32(height, frame_psm.pgs.y);
 
 	// Early detection of texture shuffles. These double the input height because they're interpreting 64x32 C32 pages as 64x64 C16.
 	// Why? Well, we don't want to be doubling the heights of targets, but also we don't want to align C32 targets to 64 instead of 32.
@@ -5500,7 +5500,7 @@ bool GSRendererHW::CanUseTexIsFB(const GSTextureCache::Target* rt, const GSTextu
 		}
 		else if (clamp == CLAMP_REGION_REPEAT)
 		{
-			const u32 req_tbits = (tmax > 1) ? static_cast<u32>(PCSX2_NEXT_POW2(tmax - 1) - 1) : 0x1;
+			const u32 req_tbits = (tmax > 1) ? static_cast<u32>(pcsx2_next_pow2_u32(tmax - 1) - 1) : 0x1;
 			if ((min & req_tbits) != req_tbits)
 				return false;
 		}

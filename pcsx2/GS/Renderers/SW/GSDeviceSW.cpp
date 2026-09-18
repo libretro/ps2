@@ -950,7 +950,7 @@ namespace
 			: GSDownloadTexture(width, height, format)
 		{
 			const u32 bpp = (format == GSTexture::Format::UNorm8) ? 1 : 4;
-			m_current_pitch = PCSX2_ALIGN_UP_POW2(width * bpp, VECTOR_ALIGNMENT);
+			m_current_pitch = pcsx2_align_up_pow2_u32(width * bpp, VECTOR_ALIGNMENT);
 			m_buffer_size = m_current_pitch * height;
 			m_buffer = (u8*)memalign_alloc(VECTOR_ALIGNMENT, m_buffer_size ? m_buffer_size : VECTOR_ALIGNMENT);
 			if (m_buffer && m_buffer_size)
@@ -1468,7 +1468,7 @@ bool GSDeviceSW::AcquireDirectRenderBuffer(int width, int height)
 void GSDeviceSW::EnsurePresentBuffer(int width, int height)
 {
 	const int bpp = 4; /* XRGB8888 */
-	const int pitch = static_cast<int>(PCSX2_ALIGN_UP_POW2(static_cast<u32>(width * bpp), VECTOR_ALIGNMENT));
+	const int pitch = static_cast<int>(pcsx2_align_up_pow2_u32(static_cast<u32>(width * bpp), VECTOR_ALIGNMENT));
 	const int needed = pitch * height;
 	if (needed <= 0)
 		return;

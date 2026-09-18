@@ -1441,7 +1441,7 @@ VtlbMemoryReserve::VtlbMemoryReserve() : VirtualMemoryReserve() { }
 void VtlbMemoryReserve::Assign(VirtualMemoryManagerPtr allocator, size_t offset, size_t size)
 {
 	// Anything passed to the memory allocator must be page aligned.
-	size     = PCSX2_PAGE_ALIGN(size);
+	size     = pcsx2_page_align(size);
 	// Since the memory has already been allocated as part of the main memory map, this should never fail.
 	u8* base = allocator->Alloc(offset, size);
 	VirtualMemoryReserve::Assign(std::move(allocator), base, size);

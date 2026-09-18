@@ -15,15 +15,18 @@
 
 /* Alignment arithmetic.
  *
- * Macros rather than templates: every one of these is two operators on
- * an integer, the result type is the promoted type of the value, and
- * that is what a template over T computed anyway. Nothing here depends
- * on the width, so nothing here needs to know it.
+ * Inline functions, one per width, rather than macros: several callers
+ * pass a function call as the value -- a rectangle's width, an upload
+ * pitch computed from one -- and a macro that names its argument more
+ * than once calls those once per mention. The templates these replace
+ * evaluated the argument once, and so do these.
  *
- * The Pow2 forms require a power of two and use a mask; the others take
- * any alignment and divide. Both evaluate their arguments more than
- * once, so neither takes an argument with a side effect -- no call site
- * in this tree does.
+ * Two widths, because that is what the tree uses: u32 for pitches and
+ * texture dimensions, uptr for addresses and sizes. There is no
+ * dispatch, so a caller names the one its value is.
+ *
+ * The _pow2 forms require a power-of-two alignment and use a mask; the
+ * others take any alignment and divide.
  */
 
 #ifndef PCSX2_ALIGN_H
@@ -32,37 +35,62 @@
 #include "Pcsx2Defs.h"
 
 /* Any alignment. */
-#define PCSX2_IS_ALIGNED(value, alignment)      (((value) % (alignment)) == 0)
-#define PCSX2_ALIGN_UP(value, alignment)        (((value) + ((alignment) - 1)) / (alignment) * (alignment))
-
-/* Power-of-two alignment: one mask instead of two divisions.
- *
- * The mask is built from the value, not from the alignment: an
- * alignment is an int, so ~(alignment - 1) is 32 bits and would clear
- * the whole top half of a 64-bit value. Multiplying by zero gives the
- * value's own promoted type, and the mask with it. Checked against the
- * templates these replaced over the u32 range and 64-bit values. */
-#define PCSX2_ALIGN_UP_POW2(value, alignment) \
-	(((value) + ((alignment) - 1)) & ~((0 * (value)) + (alignment) - 1))
-#define PCSX2_ALIGN_DOWN_POW2(value, alignment) \
-	((value) & ~((0 * (value)) + (alignment) - 1))
-
-static __fi u32 pcsx2_bitfold32(u32 v)
+static __fi u32  pcsx2_align_up_u32(u32 value, u32 alignment)
 {
-	v |= v >> 1;
-	v |= v >> 2;
-	v |= v >> 4;
-	v |= v >> 8;
-	v |= v >> 16;
-	return v;
+	return (value + (alignment - 1)) / alignment * alignment;
 }
 
-/* Round up to a power of two; 0 stays 0. Folds the value's bits down
- * and adds one, which saturates at 32 bits -- every caller here passes
- * a u32 or narrower. */
-#define PCSX2_NEXT_POW2(value) \
-	((value) == 0 ? 0 : (pcsx2_bitfold32((value) - 1) + 1))
+static __fi uptr pcsx2_align_up_ptr(uptr value, uptr alignment)
+{
+	return (value + (alignment - 1)) / alignment * alignment;
+}
 
-#define PCSX2_PAGE_ALIGN(size) PCSX2_ALIGN_UP_POW2(size, __pagesize)
+static __fi int  pcsx2_is_aligned_u32(u32 value, u32 alignment)
+{
+	return (value % alignment) == 0;
+}
+
+/* Power of two: one mask rather than two divisions. The mask is built
+ * at the value's own width, which is the whole reason these are not
+ * macros over an int alignment -- ~(alignment - 1) in int clears the
+ * top half of a 64-bit value. */
+static __fi u32  pcsx2_align_up_pow2_u32(u32 value, u32 alignment)
+{
+	return (value + (alignment - 1)) & ~(alignment - 1);
+}
+
+static __fi uptr pcsx2_align_up_pow2_ptr(uptr value, uptr alignment)
+{
+	return (value + (alignment - 1)) & ~(alignment - 1);
+}
+
+static __fi u32  pcsx2_align_down_pow2_u32(u32 value, u32 alignment)
+{
+	return value & ~(alignment - 1);
+}
+
+static __fi uptr pcsx2_align_down_pow2_ptr(uptr value, uptr alignment)
+{
+	return value & ~(alignment - 1);
+}
+
+/* Round up to a power of two; 0 stays 0. */
+static __fi u32 pcsx2_next_pow2_u32(u32 value)
+{
+	if (value == 0)
+		return 0;
+	value--;
+	value |= value >> 1;
+	value |= value >> 2;
+	value |= value >> 4;
+	value |= value >> 8;
+	value |= value >> 16;
+	return value + 1;
+}
+
+static __fi uptr pcsx2_page_align(uptr size)
+{
+	return pcsx2_align_up_pow2_ptr(size, (uptr)__pagesize);
+}
 
 #endif

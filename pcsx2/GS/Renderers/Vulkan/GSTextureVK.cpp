@@ -315,7 +315,7 @@ bool GSTextureVK::Update(const GSVector4i& r, const void* data, int pitch, int l
 
 	const u32 width = r.width();
 	const u32 height = r.height();
-	const u32 upload_pitch = PCSX2_ALIGN_UP_POW2(pitch, GSDeviceVK::GetInstance()->GetBufferCopyRowPitchAlignment());
+	const u32 upload_pitch = pcsx2_align_up_pow2_u32(pitch, GSDeviceVK::GetInstance()->GetBufferCopyRowPitchAlignment());
 	const u32 required_size = CalcUploadSize(height, upload_pitch);
 
 	// If the texture is larger than half our streaming buffer size, use a separate buffer.
@@ -365,7 +365,7 @@ bool GSTextureVK::Update(const GSVector4i& r, const void* data, int pitch, int l
 	}
 
 	UpdateFromBuffer(cmdbuf, layer, 0, r.x, r.y, width, height,
-		PCSX2_ALIGN_UP_POW2(height, GetCompressedBlockSize()),
+		pcsx2_align_up_pow2_u32(height, GetCompressedBlockSize()),
 		CalcUploadRowLengthFromPitch(upload_pitch), buffer, buffer_offset);
 	TransitionToLayout(cmdbuf, Layout::ShaderReadOnly);
 
@@ -384,7 +384,7 @@ bool GSTextureVK::Map(GSMap& m, const GSVector4i* r, int layer)
 	m_map_area  = r ? *r : GetRect();
 	m_map_level = layer;
 
-	m.pitch     = PCSX2_ALIGN_UP_POW2(CalcUploadPitch(m_map_area.width()),
+	m.pitch     = pcsx2_align_up_pow2_u32(CalcUploadPitch(m_map_area.width()),
 			GSDeviceVK::GetInstance()->GetBufferCopyRowPitchAlignment());
 
 	// see note in Update() for the reason why.
@@ -409,7 +409,7 @@ void GSTextureVK::Unmap()
 {
 	const u32 width         = m_map_area.width();
 	const u32 height        = m_map_area.height();
-	const u32 pitch         = PCSX2_ALIGN_UP_POW2(CalcUploadPitch(width),
+	const u32 pitch         = pcsx2_align_up_pow2_u32(CalcUploadPitch(width),
 			GSDeviceVK::GetInstance()->GetBufferCopyRowPitchAlignment());
 	const u32 required_size = CalcUploadSize(height, pitch);
 	VKStreamBuffer& buffer  = GSDeviceVK::GetInstance()->GetTextureUploadBuffer();
@@ -432,7 +432,7 @@ void GSTextureVK::Unmap()
 	}
 
 	UpdateFromBuffer(cmdbuf, m_map_level, 0, m_map_area.x, m_map_area.y, width, height,
-		PCSX2_ALIGN_UP_POW2(height, GetCompressedBlockSize()),
+		pcsx2_align_up_pow2_u32(height, GetCompressedBlockSize()),
 		CalcUploadRowLengthFromPitch(pitch), buffer.GetBuffer(), buffer_offset);
 	TransitionToLayout(cmdbuf, Layout::ShaderReadOnly);
 

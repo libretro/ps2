@@ -132,7 +132,7 @@ bool VKStreamBuffer::ReserveMemory(u32 num_bytes, u32 alignment)
 		if (required_bytes <= remaining_bytes)
 		{
 			// Place at the current position, after the GPU position.
-			m_current_offset = PCSX2_ALIGN_UP(m_current_offset, alignment);
+			m_current_offset = pcsx2_align_up_u32(m_current_offset, alignment);
 			m_current_space = m_size - m_current_offset;
 			return true;
 		}
@@ -158,7 +158,7 @@ bool VKStreamBuffer::ReserveMemory(u32 num_bytes, u32 alignment)
 		if (required_bytes < remaining_bytes)
 		{
 			// Place at the current position, since this is still behind the GPU.
-			m_current_offset = PCSX2_ALIGN_UP(m_current_offset, alignment);
+			m_current_offset = pcsx2_align_up_u32(m_current_offset, alignment);
 			m_current_space = m_current_gpu_position - m_current_offset - 1;
 			return true;
 		}
@@ -167,7 +167,7 @@ bool VKStreamBuffer::ReserveMemory(u32 num_bytes, u32 alignment)
 	// Can we find a fence to wait on that will give us enough memory?
 	if (WaitForClearSpace(required_bytes))
 	{
-		const u32 align_diff = PCSX2_ALIGN_UP(m_current_offset, alignment) - m_current_offset;
+		const u32 align_diff = pcsx2_align_up_u32(m_current_offset, alignment) - m_current_offset;
 		m_current_offset += align_diff;
 		m_current_space -= align_diff;
 		return true;
