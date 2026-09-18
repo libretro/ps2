@@ -30,7 +30,15 @@
 #include <sys/ioctl.h>
 #endif
 
-#if defined(__FreeBSD__) || (__APPLE__)
+#if defined(__APPLE__)
+#include <TargetConditionals.h>
+#endif
+
+/* The routing table is read through a PF_ROUTE sysctl, and <net/route.h> is
+ * not in the iOS or tvOS SDK - those platforms do not expose routing sockets.
+ * They fall through to the "unsupported OS" GetGateways below, which is what
+ * every other platform without a way to ask already does. */
+#if defined(__FreeBSD__) || (defined(__APPLE__) && TARGET_OS_OSX)
 #include <sys/param.h>
 #include <sys/sysctl.h>
 #include <net/route.h>
@@ -429,7 +437,7 @@ std::vector<IP_Address> AdapterUtils::GetGateways(Adapter* adapter)
 	}
 	return collection;
 }
-#elif defined(__FreeBSD__) || (__APPLE__)
+#elif defined(__FreeBSD__) || (defined(__APPLE__) && TARGET_OS_OSX)
 std::vector<IP_Address> AdapterUtils::GetGateways(Adapter* adapter)
 {
 	if (adapter == nullptr)

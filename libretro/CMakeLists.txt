@@ -87,9 +87,13 @@ endif()
 if(APPLE)
   target_link_libraries(pcsx2_libretro PRIVATE
     "-framework CoreGraphics"
-    "-framework IOKit"
     "-framework Foundation"
   )
+  # tvOS is the one Apple platform with no IOKit framework, and the link there
+  # ends in "framework 'IOKit' not found". Nothing in this tree calls into it.
+  if(NOT CMAKE_SYSTEM_NAME STREQUAL "tvOS")
+    target_link_libraries(pcsx2_libretro PRIVATE "-framework IOKit")
+  endif()
 endif()
 
 target_include_directories(PCSX2_FLAGS INTERFACE

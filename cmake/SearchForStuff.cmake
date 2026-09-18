@@ -14,8 +14,11 @@ else()
 	# is deprecated as of cmake 3.11.
 	# Android has no desktop libGL/GLX to find; the GL renderer resolves
 	# every entry point through hw_render.get_proc_address via glad, so
-	# nothing needs linking there.
-	if(USE_OPENGL AND NOT ANDROID)
+	# nothing needs linking there. iOS, tvOS and webOS are in the same
+	# position, for the same reason - the frontend hands the entry points over
+	# and there is no desktop GL on those platforms to link against in the
+	# first place.
+	if(USE_OPENGL AND NOT ANDROID AND NOT APPLE_EMBEDDED AND NOT WEBOS)
 		set(OpenGL_GL_PREFERENCE GLVND)
 		find_package(OpenGL REQUIRED)
 	endif()

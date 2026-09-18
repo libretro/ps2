@@ -35,6 +35,19 @@ include:
   - project: 'libretro-infrastructure/ci-templates'
     file: '/android-cmake.yml'
 
+  # iOS
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/ios-cmake.yml'
+
+  # tvOS
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/tvos-cmake.yml'
+
+  ################################## CONSOLES ################################
+  # webOS
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/webos-cmake.yml'
+
 # Stages for building
 stages:
   - build-prepare
@@ -136,3 +149,44 @@ android-x86_64:
     - .core-defs
   variables:
     EXTRA_PATH: bin
+
+##################################### APPLE ##################################
+# iOS and tvOS. Both are arm64-only and both take the Android path through the
+# renderer: there is no desktop GL on either, so the GL entry points come from
+# the frontend through get_proc_address and nothing is linked against.
+#
+# EXTRA_PATH matches the macOS jobs - the output redirect to bin/ in the top
+# level CMakeLists is `UNIX AND NOT APPLE`.
+libretro-build-ios-arm64:
+  extends:
+    - .libretro-ios-cmake-arm64
+    - .core-defs
+  variables:
+    EXTRA_PATH: libretro
+    # The template's own default is 8.0. C++17 aligned new and delete arrive in
+    # the iOS 11 runtime and this core uses them, so 8.0 links against a
+    # runtime that has no operator new(size_t, align_val_t).
+    IOS_MINVER: "12.0"
+
+libretro-build-tvos-arm64:
+  extends:
+    - .libretro-tvos-cmake-arm64
+    - .core-defs
+  variables:
+    EXTRA_PATH: libretro
+
+##################################### WEBOS ##################################
+# aarch64 only. The other half of the platform is armv7a, and the recompilers
+# this core has are x86-64 and arm64 - there is nothing for a 32-bit ARM device
+# to run the EE and IOP on.
+#
+# Another Linux with no desktop GL: the buildroot ships EGL and GLES, so the
+# renderer takes its entry points from the frontend the way it does on Android,
+# and nothing is linked against libGL.
+libretro-build-webos-aarch64:
+  extends:
+    - .libretro-webos-aarch64-cmake
+    - .core-defs
+  variables:
+    EXTRA_PATH: bin
+    CORE_ARGS: -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.18 -DWEBOS=ON
