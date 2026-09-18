@@ -487,8 +487,23 @@ void MTGS::WaitGS(bool isMTVU)
 	 * park every caller on a pump that does not exist, which is the
 	 * whole emulator stopped with the EE and the frontend's thread
 	 * both waiting for a GS nobody runs. */
-	uintptr_t owner = s_thread;
-	if(owner == 0 || sthread_get_current_thread_id() == owner)
+	/* Nothing drains this ring but a thread standing in MainLoop: there
+	 * is no GS thread of its own, and s_thread only records whichever
+	 * caller is pumping at the moment. A caller that parks here is
+	 * waiting for a worker that does not exist unless another thread
+	 * happens to be inside MainLoop -- and the two threads that do pump
+	 * it need each other. The EE reaches MainLoop through rcntUpdate,
+	 * and a vsync inside it calls the frontend's video callback, which
+	 * on Win32 sends a message to the window's own thread and blocks
+	 * until that thread pumps its queue; that thread is the one in
+	 * retro_run, which had parked here. Neither moves again.
+	 *
+	 * So a caller that can pump, does. The wait it asked for is
+	 * satisfied by the same work either way. The MTVU path below is the
+	 * exception and must not pump: running the ring there would execute
+	 * GS commands, and the frontend's video callback with them, on the
+	 * VU thread. */
+	if (!isMTVU)
 	{
 		// Ensure MainLoop(true) doesn't bail immediately from
 		// CheckForWork() — entries may have been written without
@@ -507,7 +522,6 @@ void MTGS::WaitGS(bool isMTVU)
 #endif
 
 	work_eventcount_notify(&s_sem_event);
-	if (isMTVU)
 	{
 		Gif_Path& path = gifUnit.gifPath[GIF_PATH_1];
 
@@ -562,13 +576,6 @@ void MTGS::WaitGS(bool isMTVU)
 				retro_asym_eventcount_commit_wait(&vu1Thread.ecP1Progress, key);
 			}
 		}
-	}
-	else
-	{
-		/* Blocks until the ring drains. Return value (false if the
-		 * MTGS thread has died) is unused here, matching the other
-		 * WaitForEmpty call sites in MTVU and GSRasterizer. */
-		work_eventcount_wait_empty(&s_sem_event);
 	}
 }
 
