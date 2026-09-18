@@ -80,11 +80,9 @@ struct retro_hw_render_callback hw_render;
  * no Pcsx2Config field holds ride beside it. VMManager copies this at
  * every LoadSettings, then diffs old against new as it always did. */
 static Pcsx2Config s_option_config;
-static char        s_option_bios[PCSX2_PATH_MAX];
 static bool        s_option_fast_boot = true;
 static char        s_option_memcards[PCSX2_PATH_MAX];
 const Pcsx2Config& Host::OptionConfig() { return s_option_config; }
-const char*        Host::OptionBiosPath() { return s_option_bios; }
 bool               Host::OptionFastBoot() { return s_option_fast_boot; }
 const char*        Host::OptionMemcardPath() { return s_option_memcards; }
 
@@ -491,7 +489,13 @@ static void check_variables(bool first_run)
 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 		{
 			setting_bios = var.value;
-			strlcpy(s_option_bios, setting_bios.c_str(), sizeof(s_option_bios));
+			/* BaseFilenames.Bios, which BiosTools joins under
+			 * EmuFolders::Bios. This is a Pcsx2Config field and always
+			 * was: the settings map reached it through EntryBuf, which
+			 * the conversion's mapping missed, and the selection went
+			 * into a variable nothing read. */
+			strlcpy(s_option_config.BaseFilenames.Bios, setting_bios.c_str(),
+					sizeof(s_option_config.BaseFilenames.Bios));
 		}
 
 		var.key = "pcsx2_fastboot";

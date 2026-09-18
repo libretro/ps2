@@ -30,7 +30,6 @@ namespace Host
 	/* The frontend's core options, as the config they set, and the three
 	 * values beside it that no Pcsx2Config field holds. */
 	const Pcsx2Config& OptionConfig();
-	const char*        OptionBiosPath();
 	bool               OptionFastBoot();
 	const char*        OptionMemcardPath();
 	// Base setting retrieval, bypasses layers.
