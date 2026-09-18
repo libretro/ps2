@@ -15,6 +15,15 @@
  *  4. The BIOS path: the option buffer is PCSX2_PATH_MAX, and a path at
  *     that length is cut, not overrun -- the truncation the old test was
  *     for, on the new surface.
+ *  5. That a settings reload leaves the runtime state alone. This is the
+ *     one the earlier version of this file should have had: the map it
+ *     replaced wrote only the fields the map held, so UseBOOT2Injection,
+ *     the IRX and game-argument strings and the memory card types passed
+ *     through untouched. Assigning the option config over EmuConfig
+ *     wrote them too, and a USA disc came up at 50Hz with fast boot off
+ *     because fast boot reverted on every settings change. The property
+ *     is what VMManager::ApplySettings does -- reset, carry the runtime
+ *     config across, reload -- so that is what this models.
  */
 
 #include <stdio.h>
@@ -56,6 +65,41 @@ int main(void)
      strlcpy(buf, longpath.c_str(), sizeof(buf));
      int good = strlen(buf) == PCSX2_PATH_MAX - 1 && buf[PCSX2_PATH_MAX - 1] == 0;
      printf("  %s: a BIOS path longer than the buffer is cut at %d, terminated\n", good ? "ok" : "FAIL", (int)strlen(buf)); ok &= good; }
+
+   /* The ApplySettings cycle: the caller's runtime state goes in, the
+    * options are reloaded over the top, and the runtime state must come
+    * out the other side unchanged. */
+   {
+      Pcsx2Config options;                 /* what the frontend's options built */
+      options.Cpu.Recompiler.EnableFastmem = false;   /* an option-set field */
+
+      Pcsx2Config live;                    /* what the running VM holds */
+      live.UseBOOT2Injection = true;
+      strcpy(live.CurrentIRX, "host:/some.irx");
+      strcpy(live.CurrentGameArgs, "-arg");
+      live.Mcd[0].Type = MemoryCardType::Empty;
+      live.Mcd[1].Type = MemoryCardType::Empty;
+      live.Cpu.Recompiler.EnableFastmem = true;       /* stale: the option wins */
+
+      {
+         Pcsx2Config runtime(std::move(live));
+         live = options;
+         live.CopyRuntimeConfig(runtime);
+         live.ApplyOptionFixups();
+      }
+
+      int kept =  live.UseBOOT2Injection
+               && !strcmp(live.CurrentIRX, "host:/some.irx")
+               && !strcmp(live.CurrentGameArgs, "-arg")
+               && live.Mcd[0].Type == MemoryCardType::Empty
+               && live.Mcd[1].Type == MemoryCardType::Empty;
+      int applied = (live.Cpu.Recompiler.EnableFastmem == false);
+      printf("  %s: a settings reload keeps the runtime state (fast boot, IRX, game args, card types)\n",
+             kept ? "ok" : "FAIL");
+      printf("  %s: and still takes the option's value for a field the options set\n",
+             applied ? "ok" : "FAIL");
+      ok &= kept && applied;
+   }
 
    printf(ok ? "optioncfg: ok\n" : "optioncfg: FAILED\n");
    return ok ? 0 : 1;
