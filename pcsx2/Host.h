@@ -32,6 +32,7 @@ namespace Host
 	const Pcsx2Config& OptionConfig();
 	const char*        OptionBiosPath();
 	bool               OptionFastBoot();
+	const char*        OptionMemcardPath();
 	// Base setting retrieval, bypasses layers.
 
 	// Allows the emucore to write settings back to the frontend. Use with care.

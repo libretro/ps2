@@ -206,6 +206,12 @@ void VMManager::Internal::UpdateEmuFolders()
 	const std::string old_cheats_ni_directory(EmuFolders::CheatsNI);
 	const std::string old_memcards_directory(EmuFolders::MemoryCards);
 	const std::string old_textures_directory(EmuFolders::Textures);
+	/* Re-read them: the caller has just changed where the memory cards
+	 * live -- the per-content directory is set after load_game has already
+	 * configured the folders once -- and the comparisons below are against
+	 * what this call produces. Without it nothing here ever differs and
+	 * the cards stay in the shared directory. */
+	EmuFolders::LoadConfig(Host::OptionMemcardPath());
 
 
 	if (VMManager::HasValidVM())
@@ -281,7 +287,18 @@ extern std::string libretro_content;
 
 void VMManager::LoadSettings()
 {
+	/* The options set the fields the options set, and nothing else. What
+	 * LoadSave used to do was write only the entries the settings map
+	 * held, which left the runtime state -- UseBOOT2Injection, the IRX and
+	 * game-argument strings, the memory card types -- exactly as the
+	 * caller had it. Assigning the option config over EmuConfig discarded
+	 * all of that, including the CopyRuntimeConfig that ApplySettings does
+	 * immediately before calling here: fast boot came back as the default
+	 * on every settings change, which took the region and the refresh rate
+	 * with it, and the memory card types went back to File. */
+	Pcsx2Config runtime(std::move(EmuConfig));
 	EmuConfig = Host::OptionConfig();
+	EmuConfig.CopyRuntimeConfig(runtime);
 	EmuConfig.ApplyOptionFixups();
 	if (!libretro_content.empty())
 	{
@@ -289,6 +306,18 @@ void VMManager::LoadSettings()
 		EmuConfig.Mcd[1].Enabled = false;
 	}
 	PAD::LoadConfig();
+	/* Everything below was the tail of the old LoadSettings and went with
+	 * the settings map by mistake. The hack masks drop user hacks a global
+	 * switch has since disabled, so a stale value cannot outlive it; the
+	 * interlace line is what a no-interlacing patch needs to take effect;
+	 * and ApplyGameFixes is the game database's, without which a game that
+	 * needs one renders wrongly -- which is what this cost Sega Rally. */
+	EmuConfig.GS.MaskUserHacks();
+	EmuConfig.GS.MaskUpscalingHacks();
+	if (s_active_no_interlacing_patches > 0 && EmuConfig.GS.InterlaceMode == GSInterlaceMode::Automatic)
+		EmuConfig.GS.InterlaceMode = GSInterlaceMode::Off;
+	if (HasValidVM())
+		ApplyGameFixes();
 }
 
 void VMManager::ApplyGameFixes()

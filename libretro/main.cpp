@@ -86,6 +86,7 @@ static char        s_option_memcards[PCSX2_PATH_MAX];
 const Pcsx2Config& Host::OptionConfig() { return s_option_config; }
 const char*        Host::OptionBiosPath() { return s_option_bios; }
 bool               Host::OptionFastBoot() { return s_option_fast_boot; }
+const char*        Host::OptionMemcardPath() { return s_option_memcards; }
 
 bool pending_update_av_info = false;
 std::string libretro_content;
