@@ -1,10 +1,10 @@
 #!/bin/sh
 # MTVU ring pointer protocol under concurrency.
 #
-# This test FAILS against the protocol as MTVU.cpp has it. That is what
-# it is for: MTVU.cpp's WaitOnSize carries a FIXME about a queue-pointer
-# bug that corrupts the SotC intro, papered over with a 4KB safety net,
-# and this is that bug without needing the game.
+# The protocol MTVU.cpp carries, exercised concurrently. FIXED=0 builds
+# the one it replaced -- the queue-pointer bug behind the SotC intro
+# corruption and the 4KB safety net -- which fails in a few thousand
+# packets, and is built here too so the difference stays visible.
 set -e
 DIR=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$DIR/../.." && pwd)
@@ -13,4 +13,18 @@ N=${MTVU_RING_PACKETS:-200000}
 ${CC:-cc} -O2 -g -std=gnu99 -Wall -DHAVE_THREADS -I "$LC/include" \
 	-o "$DIR/mtvu_ring" "$DIR/main.c" "$LC/rthreads/rthreads.c" -lpthread
 echo "built: $DIR/mtvu_ring"
-"$DIR/mtvu_ring" "$N" || echo "(expected: the protocol is known broken; see main.c)"
+"$DIR/mtvu_ring" "$N"
+
+# And the protocol as it was, which must still fail.
+${CC:-cc} -O2 -g -std=gnu99 -Wall -DHAVE_THREADS -DFIXED=0 -I "$LC/include" \
+	-o "$DIR/mtvu_ring_old" "$DIR/main.c" "$LC/rthreads/rthreads.c" -lpthread
+if "$DIR/mtvu_ring_old" 100000 > /dev/null 2>&1; then
+	echo "  FAIL: the old protocol passed; the reproducer has stopped reproducing"
+	exit 1
+fi
+echo "  ok: the protocol this replaced still fails the same test"
+
+# TSan: the positions are the only synchronisation between the two threads.
+${CC:-cc} -O1 -g -std=gnu99 -Wall -fsanitize=thread -DHAVE_THREADS -I "$LC/include" \
+	-o "$DIR/mtvu_ring_tsan" "$DIR/main.c" "$LC/rthreads/rthreads.c" -lpthread
+"$DIR/mtvu_ring_tsan" 20000

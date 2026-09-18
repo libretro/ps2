@@ -1,5 +1,8 @@
 /* MTVU ring pointer protocol, modelled exactly, hammered concurrently.
  *
+ * This now models the FIXED protocol, which MTVU.cpp carries; FIXED=0
+ * builds the one it replaced, which fails in a few thousand packets.
+ *
  * WHAT THIS IS FOR
  *
  * MTVU.cpp's WaitOnSize carries a FIXME: "there is a bug somewhere in
@@ -76,6 +79,10 @@
 #include <retro_atomic.h>
 #include <rthreads/rthreads.h>
 
+#ifndef FIXED
+#define FIXED 1
+#endif
+
 #ifndef WITH_GUARD
 #define WITH_GUARD 1
 #endif
@@ -105,13 +112,75 @@ static long long          packets;
 static int get_read_pos(void)  { return retro_atomic_load_acquire_int(&ato_read_pos); }
 static int get_write_pos(void) { return retro_atomic_load_acquire_int(&ato_write_pos); }
 
+#if FIXED
+/* One word is never written, so the two positions coincide only when the
+ * ring is empty -- which is what the reader's loop already assumes. The
+ * writer's whole job is then to never land on the reader:
+ *
+ *   reader ahead of us: the run ends at readPos, so size must fit
+ *                       strictly before it
+ *   reader behind us:   the run ends at the buffer, and if size does not
+ *                       fit there we must wrap, which puts us at 0 -- so
+ *                       the reader must not be at 0, and size must fit
+ *                       strictly before it once we are there
+ *
+ * The shipped code has no equivalent of that last clause, which is why a
+ * writer that gets ahead wraps round onto a reader that has not moved. */
+static int space_state(int size, int *need_wrap)
+{
+   int readPos = get_read_pos();
+   *need_wrap = 0;
+   if (readPos > write_pos)
+      return (write_pos + size < readPos);
+   if (write_pos + size <= RING_WORDS - 1)
+      return 1;
+   *need_wrap = 1;
+   return (readPos > 0 && size < readPos);
+}
+
+/* Returns 1 when the caller must write the wrap packet first. */
+static int wait_on_size(int size)
+{
+   int need_wrap;
+   for (;;)
+   {
+      if (space_state(size, &need_wrap))
+         return need_wrap;
+      if (retro_atomic_load_acquire_int(&ran_off))
+         return 0;
+      sthread_yield();
+   }
+}
+#else
 /* MTVU.cpp WaitOnSize, transcribed. */
 static void wait_on_size(int size)
 {
+   for (;;)
+   {
+      int readPos = get_read_pos();
+      if (readPos <= write_pos)
+         break;
+      if (readPos > write_pos + size + GUARD_WORDS)
+         break;
+      if (retro_atomic_load_acquire_int(&ran_off))
+         break;
+      sthread_yield();
+   }
 }
+#endif
 
 static void reserve_space(int size)
 {
+#if FIXED
+   /* One call decides whether a wrap is needed AND waits for the space
+    * the wrap will land in, so the two cannot disagree. */
+   if (wait_on_size(size))
+   {
+      ring[write_pos] = NULL_PACKET;
+      write_pos = 0;
+      retro_atomic_store_release_int(&ato_write_pos, write_pos);
+   }
+#else
    if (write_pos + size > (RING_WORDS - 1))
    {
       wait_on_size(1);
@@ -120,6 +189,7 @@ static void reserve_space(int size)
       retro_atomic_store_release_int(&ato_write_pos, write_pos);
    }
    wait_on_size(size);
+#endif
 }
 
 /* A packet is [len][seq][payload...], len words total. */
@@ -228,7 +298,7 @@ int main(int argc, char **argv)
 
    setvbuf(stdout, NULL, _IONBF, 0);
    printf("mtvu ring: %lld packets, ring %d words, %s\n",
-          n, RING_WORDS, GUARD_WORDS ? "positions + guard band" : "positions, no guard");
+          n, RING_WORDS, FIXED ? "one slot reserved, wrap checked" : (GUARD_WORDS ? "positions + guard band" : "positions, no guard"));
 
    rd = sthread_create(reader, NULL);
    w  = sthread_create(writer, &n);

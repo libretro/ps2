@@ -264,45 +264,71 @@ void VU_Thread::ExecuteRingBuffer(void)
 
 
 // Should only be called by ReserveSpace()
-__ri void VU_Thread::WaitOnSize(s32 size)
+/* Space for one packet, and whether the ring must wrap to get it.
+ *
+ * One word is never written, so the two positions coincide only when the
+ * ring is empty -- which is what the read loop assumes when it stops on
+ * m_ato_read_pos == GetWritePos(). The writer's job is then to never
+ * land on the reader:
+ *
+ *   reader ahead of us: the run ends at readPos, so size must fit
+ *                       strictly before it
+ *   reader behind us:   the run ends at the buffer, and if size does not
+ *                       fit there we must wrap, which puts us at 0 -- so
+ *                       the reader must not be at 0, and size must fit
+ *                       strictly before it once we are there
+ *
+ * That last clause is what was missing. The old test read
+ * readPos <= m_write_pos as "the reader is behind us, everything to the
+ * end is free", which is one of the two things equal positions can mean
+ * and the opposite of the other: a writer that has come all the way
+ * around onto the reader has filled the ring, not emptied it. Being the
+ * first test, it also short-circuited the 4KB safety net beneath it, so
+ * a writer that got ahead -- at startup, or whenever MTVU stalled --
+ * wrote the ring, wrapped to 0, found the reader still at 0 and went
+ * round again, and the reader then read whatever was under it.
+ * tests/mtvuring reproduces that in a few thousand packets and this
+ * passes it at a million. */
+__fi bool VU_Thread::HasSpace(s32 size, bool& need_wrap)
 {
+	s32 readPos = GetReadPos();
+	need_wrap = false;
+	if (readPos > m_write_pos)
+		return (m_write_pos + size < readPos);
+	if (m_write_pos + size <= (buffer_size - 1))
+		return true;
+	need_wrap = true;
+	return (readPos > 0 && size < readPos);
+}
+
+__ri bool VU_Thread::WaitOnSize(s32 size)
+{
+	bool need_wrap;
 	for (;;)
 	{
-		s32 readPos = GetReadPos();
-		if (readPos <= m_write_pos)
-			break; // MTVU is reading in back of write_pos
-		// FIXME greg: there is a bug somewhere in the queue pointer
-		// management. It creates a deadlock/corruption in SotC intro (before
-		// the first menu). I added a 4KB safety net which seem to avoid to
-		// trigger the bug.
-		// Note: a wait lock instead of a yield also helps to avoid the bug.
-		if (readPos > m_write_pos + size + _4kb)
-			break; // Enough free front space
-		{          // Let MTVU run to free up buffer space
-			KickStart();
-			// Locking might trigger a full flush of the ring buffer. Yield
-			// will be more aggressive, and only flush the minimal size.
-			// Performance will be smoother but it will consume extra CPU cycle
-			// on the EE thread (not an issue on 4 cores).
-			sthread_yield();
-		}
+		if (HasSpace(size, need_wrap))
+			return need_wrap;
+		/* Let MTVU run to free up buffer space. Yield rather than park:
+		 * the wait is short whenever MTVU is keeping up, and the ring is
+		 * 16 MB, so reaching here at all means it has fallen a long way
+		 * behind and is already running. */
+		KickStart();
+		sthread_yield();
 	}
 }
 
-// Makes sure theres enough room in the ring buffer
-// to write a continuous 'size * sizeof(u32)' bytes
 void VU_Thread::ReserveSpace(s32 size)
 {
-	if (m_write_pos + size > (buffer_size - 1))
+	/* One decision for both the wrap and the space it lands in, so the
+	 * two cannot disagree: the old code tested the wrap against the
+	 * buffer end and the space against the reader separately, and a
+	 * wrap could be taken that the following wait then had to accept. */
+	if (WaitOnSize(size))
 	{
-		WaitOnSize(1); // Size of MTVU_NULL_PACKET
 		Write(MTVU_NULL_PACKET);
-		// Reset local write pointer/position
 		m_write_pos = 0;
 		retro_atomic_store_release_int(&m_ato_write_pos, m_write_pos);
 	}
-
-	WaitOnSize(size);
 }
 
 // Use this when reading read_pos from ee thread
