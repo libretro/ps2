@@ -100,7 +100,7 @@ target_include_directories(PCSX2_FLAGS INTERFACE
 	"${CMAKE_SOURCE_DIR}/libretro/libretro-common/include"
 )
 
-target_include_directories(common PUBLIC
+target_include_directories(common INTERFACE
 	"${CMAKE_SOURCE_DIR}/libretro/libretro-common/include"
 )
 

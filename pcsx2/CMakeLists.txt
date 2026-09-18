@@ -462,13 +462,13 @@ if(USE_VULKAN)
 	list(APPEND pcsx2GSSources GS/Renderers/parallel-gs/GSRendererPGS.cpp)
 	list(APPEND pcsx2GSHeaders GS/Renderers/parallel-gs/GSRendererPGS.h)
 
-	target_link_libraries(common PUBLIC
+	target_link_libraries(common INTERFACE
 		Vulkan-Headers glslang
 	)
 	if(APPLE)
 		# Needed for Metal surface creation.
-		target_compile_options(common PRIVATE -fobjc-arc)
-		target_link_options(common PRIVATE -fobjc-link-runtime)
+		target_compile_options(common INTERFACE -fobjc-arc)
+		target_link_options(common INTERFACE -fobjc-link-runtime)
 	endif()
 endif()
 
@@ -889,6 +889,42 @@ if(Windows)
 endif()
 
 target_sources(PCSX2 PRIVATE ${pcsx2USBSources} ${pcsx2USBHeaders})
+
+# x86emitter sources: x86-only JIT code emitter. Excluded on aarch64, where the
+# recompilers that use it are gated out and the interpreters run instead (arm64
+# port, Phase B). There is no arm64 emitter yet (that is Phase C).
+# The reference emitter implementation lives with the verification harness in
+# tests/emitter/reference; the byte oracles compare the C89 core against it.
+# With C89_EMITTER enabled the build emits through the header-only core in
+# emitter/c89emit.h and compiles none of these.
+if(_M_X86 AND NOT C89_EMITTER)
+	target_sources(PCSX2 PRIVATE
+		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/avx.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/groups.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/jmp.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/legacy.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/legacy_sse.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/movs.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/simd.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/x86emitter.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/internal.h
+		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/legacy_internal.h
+		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/implement/avx.h
+		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/implement/group1.h
+		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/implement/group2.h
+		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/implement/group3.h
+		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/implement/incdec.h
+		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/implement/jmpcall.h
+		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/implement/movs.h
+		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/implement/simd_arithmetic.h
+		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/implement/simd_comparisons.h
+		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/implement/simd_helpers.h
+		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/implement/simd_moremovs.h
+		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/implement/simd_shufflepack.h
+		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/implement/test.h
+	)
+endif()
+
 
 # MacOSX/BSD
 if(UNIX AND NOT Linux)

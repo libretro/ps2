@@ -5,86 +5,41 @@ if(NOT TOP_CMAKE_WAS_SOURCED)
 	It is advice to delete all wrongly generated cmake stuff => CMakeFiles & CMakeCache.txt")
 endif(NOT TOP_CMAKE_WAS_SOURCED)
 
-add_library(common)
+# No sources of its own: what used to be common/ is libretro-common's now,
+# and what is left here is headers plus the include paths, definitions and
+# link libraries every consumer needs. An INTERFACE library is what CMake
+# calls that. A static one would ask ar to build an archive with no members,
+# which GNU ar tolerates and Apple's and MSVC's lib reject -- and it only
+# ever had members on x86, so a Linux build never saw it.
+add_library(common INTERFACE)
 
-target_sources(common PRIVATE
-)
 
-# x86emitter sources: x86-only JIT code emitter. Excluded on aarch64, where the
-# recompilers that use it are gated out and the interpreters run instead (arm64
-# port, Phase B). There is no arm64 emitter yet (that is Phase C).
-# The reference emitter implementation lives with the verification harness in
-# tests/emitter/reference; the byte oracles compare the C89 core against it.
-# With C89_EMITTER enabled the build emits through the header-only core in
-# emitter/c89emit.h and compiles none of these.
-if(_M_X86 AND NOT C89_EMITTER)
-	target_sources(common PRIVATE
-		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/avx.cpp
-		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/groups.cpp
-		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/jmp.cpp
-		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/legacy.cpp
-		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/legacy_sse.cpp
-		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/movs.cpp
-		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/simd.cpp
-		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/x86emitter.cpp
-		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/internal.h
-		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/legacy_internal.h
-		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/implement/avx.h
-		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/implement/group1.h
-		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/implement/group2.h
-		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/implement/group3.h
-		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/implement/incdec.h
-		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/implement/jmpcall.h
-		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/implement/movs.h
-		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/implement/simd_arithmetic.h
-		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/implement/simd_comparisons.h
-		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/implement/simd_helpers.h
-		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/implement/simd_moremovs.h
-		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/implement/simd_shufflepack.h
-		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/implement/test.h
-	)
-endif()
-
-# x86emitter headers
-target_sources(common PRIVATE
-	Align.h
-	CpuFeatures.h
-	General.h
-	HashCombine.h
-	RedtapeWilCom.h
-	RedtapeWindows.h
-	VectorIntrin.h
-	WindowInfo.h
-	emitter/c89compat.h
-	emitter/c89emit.h
-	emitter/c89ops.h
-	emitter/x86emitter.h
-	emitter/x86types.h
-)
+# The headers are not listed: an INTERFACE target builds nothing, and they
+# are found through the include directories below like any other header.
 
 if(WIN32)
-	target_link_libraries(common PUBLIC winmm)
+	target_link_libraries(common INTERFACE winmm)
 endif()
 
 if(APPLE)
-	target_compile_options(common PRIVATE -fobjc-arc)
-	target_link_options(common PRIVATE -fobjc-link-runtime)
+	target_compile_options(common INTERFACE -fobjc-arc)
+	target_link_options(common INTERFACE -fobjc-link-runtime)
 endif()
 
 if(UNIX AND NOT APPLE AND TARGET libbacktrace::libbacktrace)
-	target_compile_definitions(common PRIVATE "HAS_LIBBACKTRACE=1")
-	target_link_libraries(common PRIVATE libbacktrace::libbacktrace)
+	target_compile_definitions(common INTERFACE "HAS_LIBBACKTRACE=1")
+	target_link_libraries(common INTERFACE libbacktrace::libbacktrace)
 endif()
 
-target_link_libraries(common PRIVATE
+target_link_libraries(common INTERFACE
 	${LIBC_LIBRARIES}
 )
 
 fixup_file_properties(common)
-target_compile_features(common PUBLIC cxx_std_17)
+target_compile_features(common INTERFACE cxx_std_17)
 # ../pcsx2: common/ is being folded into it and includes its headers
 # (SLockGuard.h, HostMem.h); the Makefile build has always had it on
 # the include path, the CMake build had not.
-target_include_directories(common PUBLIC ../3rdparty/include ../ ../pcsx2 ../libretro/libretro-common/include)
-target_compile_definitions(common PUBLIC "${PCSX2_DEFS}")
-target_compile_options(common PRIVATE "${PCSX2_WARNINGS}")
+target_include_directories(common INTERFACE ../3rdparty/include ../ ../pcsx2 ../libretro/libretro-common/include)
+target_compile_definitions(common INTERFACE "${PCSX2_DEFS}")
+target_compile_options(common INTERFACE "${PCSX2_WARNINGS}")
