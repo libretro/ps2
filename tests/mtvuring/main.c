@@ -78,6 +78,7 @@
 #include <stdint.h>
 #include <retro_atomic.h>
 #include <rthreads/rthreads.h>
+#include <rthreads/retro_asym_eventcount.h>
 
 #ifndef FIXED
 #define FIXED 1
@@ -98,6 +99,7 @@ static retro_atomic_int_t ato_write_pos;
 static int                write_pos;         /* writer-local */
 static int                read_pos;          /* reader-local */
 static retro_atomic_int_t done;
+static retro_asym_eventcount_t ec_space;   /* MTVU.cpp ecRingSpace */
 
 /* What the checker needs: the writer's next sequence number and the
  * reader's expected one. A mismatch is corruption. */
@@ -139,16 +141,38 @@ static int space_state(int size, int *need_wrap)
 }
 
 /* Returns 1 when the caller must write the wrap packet first. */
+#ifndef SPIN_BUDGET
+#define SPIN_BUDGET 8
+#endif
+
 static int wait_on_size(int size)
 {
    int need_wrap;
+   int spins = 0;
    for (;;)
    {
       if (space_state(size, &need_wrap))
          return need_wrap;
       if (retro_atomic_load_acquire_int(&ran_off))
          return 0;
-      sthread_yield();
+      /* MTVU.cpp's wait: a spin budget, then park on the eventcount the
+       * reader notifies after publishing. A missed notify shows up here
+       * as a hang, which is the failure this models. */
+      if (spins < SPIN_BUDGET)
+      {
+         spins++;
+         sthread_yield();
+      }
+      else
+      {
+         int key = retro_asym_eventcount_prepare_wait(&ec_space);
+         if (space_state(size, &need_wrap))
+         {
+            retro_asym_eventcount_cancel_wait(&ec_space);
+            return need_wrap;
+         }
+         retro_asym_eventcount_commit_wait(&ec_space, key);
+      }
    }
 }
 #else
@@ -282,7 +306,9 @@ static void reader(void *data)
             packets++;
          }
          retro_atomic_store_release_int(&ato_read_pos, read_pos);
+         retro_asym_eventcount_notify(&ec_space);
       }
+      retro_asym_eventcount_notify(&ec_space);
       if (retro_atomic_load_acquire_int(&done) &&
           retro_atomic_load_acquire_int(&ato_read_pos) == get_write_pos())
          break;
@@ -300,6 +326,11 @@ int main(int argc, char **argv)
    printf("mtvu ring: %lld packets, ring %d words, %s\n",
           n, RING_WORDS, FIXED ? "one slot reserved, wrap checked" : (GUARD_WORDS ? "positions + guard band" : "positions, no guard"));
 
+   if (!retro_asym_eventcount_init(&ec_space))
+   {
+      printf("  FAIL: eventcount init\n");
+      return 1;
+   }
    rd = sthread_create(reader, NULL);
    w  = sthread_create(writer, &n);
    if (!w || !rd)
@@ -324,6 +355,7 @@ int main(int argc, char **argv)
       printf("  FAIL: %lld packets written, %lld read\n", n, packets);
       bad = 1;
    }
+   retro_asym_eventcount_free(&ec_space);
    printf(bad ? "mtvu ring: FAILED\n" : "mtvu ring: ok\n");
    return bad ? 1 : 0;
 }

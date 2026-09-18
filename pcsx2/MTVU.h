@@ -49,6 +49,10 @@ public:
 	 * second copy of the queue's occupancy, and the queue is the one
 	 * that cannot drift. notify is a release store, what the VU1 thread
 	 * pays per program. */
+	/* The EE waits here for ring space. Single producer -- only the VU
+	 * worker publishes m_ato_read_pos -- which is what lets the notify
+	 * be a release store rather than a fence. */
+	retro_asym_eventcount_t ecRingSpace;
 	retro_asym_eventcount_t ecXGkick;
 	/* Posted by MTGS once per PopGSPacketMTVU.  WaitGS(isMTVU=true)
 	 * sleeps on this until MTGS consumes a path-1 packet, replacing

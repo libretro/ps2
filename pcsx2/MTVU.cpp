@@ -103,6 +103,7 @@ VU_Thread::VU_Thread()
 	work_eventcount_init(&semaEvent);
 	retro_asym_eventcount_init(&ecP1Progress);
 	retro_asym_eventcount_init(&ecXGkick);
+	retro_asym_eventcount_init(&ecRingSpace);
 }
 
 VU_Thread::~VU_Thread()
@@ -110,6 +111,7 @@ VU_Thread::~VU_Thread()
 	Close();
 	work_eventcount_free(&semaEvent);
 	retro_asym_eventcount_free(&ecXGkick);
+	retro_asym_eventcount_free(&ecRingSpace);
 	retro_asym_eventcount_free(&ecP1Progress);
 }
 
@@ -131,6 +133,10 @@ void VU_Thread::Close()
 		return;
 
 	retro_atomic_store_release_int(&m_shutdown_flag, 1);
+	/* An EE parked on ring space would never be woken by a worker that is
+	 * on its way out, and Close would then join a thread the EE is waiting
+	 * for. */
+	retro_asym_eventcount_notify(&ecRingSpace);
 	// C.80: full notify -- there may be a deferred unpack notify pending, and
 	// the IfRunning state-peek could also race the worker's RUNNING->SLEEPING
 	// transition and miss the shutdown wakeup (see Threading.h).
@@ -256,7 +262,14 @@ void VU_Thread::ExecuteRingBuffer(void)
 			}
 
 			retro_atomic_store_release_int(&m_ato_read_pos, m_read_pos);
+			/* Space freed. A release store and a relaxed load when the EE
+			 * is not waiting, which is the usual case. */
+			retro_asym_eventcount_notify(&ecRingSpace);
 		}
+		/* Once more after draining: an EE that registered a wait between
+		 * the last notify and the loop's exit test would otherwise sleep
+		 * until the next packet it cannot write. */
+		retro_asym_eventcount_notify(&ecRingSpace);
 	}
 
 	work_eventcount_kill(&semaEvent);
@@ -304,16 +317,39 @@ __fi bool VU_Thread::HasSpace(s32 size, bool& need_wrap)
 __ri bool VU_Thread::WaitOnSize(s32 size)
 {
 	bool need_wrap;
+	const s32 budget = WorkEventCount_SpinBudget();
+	s32 spins = 0;
 	for (;;)
 	{
 		if (HasSpace(size, need_wrap))
 			return need_wrap;
-		/* Let MTVU run to free up buffer space. Yield rather than park:
-		 * the wait is short whenever MTVU is keeping up, and the ring is
-		 * 16 MB, so reaching here at all means it has fallen a long way
-		 * behind and is already running. */
+		/* A worker that has gone away frees no more space; waiting on it
+		 * is a hang, and the caller's write is discarded at shutdown
+		 * anyway. */
+		if (retro_atomic_load_acquire_int(&m_shutdown_flag) || !IsOpen())
+			return need_wrap;
+		/* Let MTVU run, then spin briefly and park. The ring is 16 MB, so
+		 * reaching here means MTVU has fallen a long way behind: the spin
+		 * covers the case where it is about to publish, and the park stops
+		 * the EE taking a core from the thread it is waiting for once it
+		 * is clear the wait is long. The budget is 0 on a single-core
+		 * host, where spinning only steals the worker's timeslice. */
 		KickStart();
-		sthread_yield();
+		if (spins < budget)
+		{
+			spins++;
+			sthread_yield();
+		}
+		else
+		{
+			int key = retro_asym_eventcount_prepare_wait(&ecRingSpace);
+			if (HasSpace(size, need_wrap))
+			{
+				retro_asym_eventcount_cancel_wait(&ecRingSpace);
+				return need_wrap;
+			}
+			retro_asym_eventcount_commit_wait(&ecRingSpace, key);
+		}
 	}
 }
 
