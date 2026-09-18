@@ -83,7 +83,7 @@ struct LoadstoreBackpatchInfo
 #define FASTMEM_PAGE_COUNT ((u32)(FASTMEM_AREA_SIZE / VTLB_PAGE_SIZE))
 #define NO_FASTMEM_MAPPING 0xFFFFFFFFu
 
-static SharedMemoryMappingArea* s_fastmem_area;
+static memshm_area_t* s_fastmem_area;
 static u32* s_fastmem_virtual_mapping; // maps vaddr page -> mainmem offset; FASTMEM_PAGE_COUNT entries, NULL until fastmem init
 
 /* mainmem offset -> vaddr reverse multimap. Head table indexed by mainmem
@@ -872,7 +872,7 @@ static void vtlb_CreateFastmemMapping(u32 vaddr, u32 mainmem_offset, const PageP
 		const bool was_coalesced = vtlb_IsHostCoalesced(page);
 
 		s_fastmem_virtual_mapping[page] = NO_FASTMEM_MAPPING;
-		if (was_coalesced && !s_fastmem_area->Unmap(s_fastmem_area->PagePointer(vtlb_HostPage(page)), __pagesize))
+		if (was_coalesced && !memshm_area_unmap(s_fastmem_area, (memshm_area_base(s_fastmem_area) + __pagesize * (vtlb_HostPage(page))), __pagesize))
 			log_cb(RETRO_LOG_ERROR, "Failed to unmap vaddr %08X\n", vaddr);
 
 		// remove reverse mapping
@@ -885,8 +885,8 @@ static void vtlb_CreateFastmemMapping(u32 vaddr, u32 mainmem_offset, const PageP
 		const u32 host_page = vtlb_HostPage(page);
 		const u32 host_offset = vtlb_HostAlignOffset(mainmem_offset);
 
-		if (!s_fastmem_area->Map(GetVmMemory().MainMemory()->GetFileHandle(), host_offset,
-				s_fastmem_area->PagePointer(host_page), __pagesize, mode))
+		if (!memshm_area_map(s_fastmem_area, GetVmMemory().MainMemory()->GetFileHandle(), host_offset,
+				(memshm_area_base(s_fastmem_area) + __pagesize * (host_page)), __pagesize, host_prot(mode)))
 		{
 			log_cb(RETRO_LOG_ERROR, "Failed to map vaddr %08X to mainmem offset %08X\n", vtlb_HostAlignOffset(vaddr), host_offset);
 			s_fastmem_virtual_mapping[page] = NO_FASTMEM_MAPPING;
@@ -913,7 +913,7 @@ static void vtlb_RemoveFastmemMapping(u32 vaddr)
 	const bool was_coalesced = vtlb_IsHostCoalesced(page);
 	s_fastmem_virtual_mapping[page] = NO_FASTMEM_MAPPING;
 
-	if (was_coalesced && !s_fastmem_area->Unmap(s_fastmem_area->PagePointer(vtlb_HostPage(page)), __pagesize))
+	if (was_coalesced && !memshm_area_unmap(s_fastmem_area, (memshm_area_base(s_fastmem_area) + __pagesize * (vtlb_HostPage(page))), __pagesize))
 		log_cb(RETRO_LOG_ERROR, "Failed to unmap vaddr %08X\n", vtlb_HostAlignOffset(vaddr));
 
 	// remove from reverse map
@@ -939,7 +939,7 @@ static void vtlb_RemoveFastmemMappings(void)
 			continue;
 
 		if (vtlb_IsHostCoalesced(page))
-			s_fastmem_area->Unmap(s_fastmem_area->PagePointer(vtlb_HostPage(page)), __pagesize);
+			memshm_area_unmap(s_fastmem_area, (memshm_area_base(s_fastmem_area) + __pagesize * (vtlb_HostPage(page))), __pagesize);
 
 		s_fastmem_virtual_mapping[page] = NO_FASTMEM_MAPPING;
 	}
@@ -975,7 +975,7 @@ static void vtlb_UpdateFastmemProtection(u32 paddr, u32 size, const PageProtecti
 		{
 			const fastmem_phys_node_t* node = &s_fastmem_phys_pool[link - 1];
 			if (vtlb_IsHostAligned(node->vaddr))
-				mprotect(s_fastmem_area->OffsetPointer(node->vaddr), __pagesize, host_prot(prot));
+				mprotect((memshm_area_base(s_fastmem_area) + (node->vaddr)), __pagesize, host_prot(prot));
 			link = node->next;
 		}
 	}
@@ -1343,7 +1343,7 @@ bool vtlb_Core_Alloc(void)
 
 	if (!vtlbdata.fastmem_base)
 	{
-		s_fastmem_area = SharedMemoryMappingArea::Create(FASTMEM_AREA_SIZE).release();
+		s_fastmem_area = memshm_area_create(FASTMEM_AREA_SIZE);
 		if (!s_fastmem_area)
 		{
 			/* Fastmem could not be allocated (Win10 placeholder APIs
@@ -1360,7 +1360,7 @@ bool vtlb_Core_Alloc(void)
 			s_fastmem_virtual_mapping = (u32*)malloc(FASTMEM_PAGE_COUNT * sizeof(u32));
 			if (s_fastmem_virtual_mapping) /* NO_FASTMEM_MAPPING is all-ones */
 				memset(s_fastmem_virtual_mapping, 0xFF, FASTMEM_PAGE_COUNT * sizeof(u32));
-			vtlbdata.fastmem_base = (uptr)s_fastmem_area->BasePointer();
+			vtlbdata.fastmem_base = (uptr)memshm_area_base(s_fastmem_area);
 			log_cb(RETRO_LOG_INFO, "Fastmem area: %p - %p\n",
 				(void*)vtlbdata.fastmem_base,
 				(void*)(vtlbdata.fastmem_base + (FASTMEM_AREA_SIZE - 1)));
@@ -1429,7 +1429,7 @@ void vtlb_Core_Free(void)
 	fastmem_phys_release();
 	free(s_fastmem_virtual_mapping);
 	s_fastmem_virtual_mapping = NULL;
-	delete s_fastmem_area;
+	memshm_area_free(s_fastmem_area);
 	s_fastmem_area = NULL;
 }
 

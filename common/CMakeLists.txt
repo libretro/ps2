@@ -8,7 +8,6 @@ endif(NOT TOP_CMAKE_WAS_SOURCED)
 add_library(common)
 
 target_sources(common PRIVATE
-	HostSys.cpp
 )
 
 # x86emitter sources: x86-only JIT code emitter. Excluded on aarch64, where the
