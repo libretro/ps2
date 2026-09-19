@@ -1673,6 +1673,11 @@ void GSDevice11::RenderHW(GSHWDrawConfig& config)
 		if (!IASetExpandVertexBuffer(config.verts, sizeof(*config.verts), config.nverts))
 		{
 			log_cb(RETRO_LOG_ERROR, "Failed to upload structured vertices (%u)\n", config.nverts);
+			/* primid_tex is this function's, and the recycle at the end is
+			 * not reached from here. The colclip target is not: the device
+			 * holds it and the next draw resolves it. */
+			if (primid_tex)
+				Recycle(primid_tex);
 			return;
 		}
 
@@ -1683,6 +1688,8 @@ void GSDevice11::RenderHW(GSHWDrawConfig& config)
 		if (!IASetVertexBuffer(config.verts, sizeof(*config.verts), config.nverts))
 		{
 			log_cb(RETRO_LOG_ERROR, "Failed to upload vertices (%u)\n", config.nverts);
+			if (primid_tex)
+				Recycle(primid_tex);
 			return;
 		}
 	}
@@ -1698,6 +1705,8 @@ void GSDevice11::RenderHW(GSHWDrawConfig& config)
 		if (!IASetIndexBuffer(config.indices, config.nindices))
 		{
 			log_cb(RETRO_LOG_ERROR, "Failed to upload indices (%u)\n", config.nindices);
+			if (primid_tex)
+				Recycle(primid_tex);
 			return;
 		}
 	}
