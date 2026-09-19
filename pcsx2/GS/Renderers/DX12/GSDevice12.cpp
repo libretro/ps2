@@ -428,6 +428,34 @@ bool GSDevice12::ContextExecuteCommandList(bool wait_for_completion)
 		 * are in a known state.  The frame is lost either way; this
 		 * way the next one has somewhere to go. */
 		m_command_queue->Signal(m_fence.get(), res.ready_fence_value);
+
+		/* And the lists themselves are replaced. Moving on was not
+		 * enough: a list that has failed to close - or, when it was the
+		 * init list that failed, a main list that was then never closed
+		 * at all - does not come back. The next time round Reset() is
+		 * refused, whatever is recorded goes nowhere, and Close() fails
+		 * again, with E_FAIL now and for good. There are three of these,
+		 * so three bad frames in a row - one invalid command recorded on
+		 * each, which a texture re-sent every frame will do - left the
+		 * renderer with nothing it could submit on, ever: the log shows
+		 * E_INVALIDARG three times and then E_FAIL thousands of times,
+		 * the core still presenting the last picture it made, until the
+		 * frontend rebuilt the device. Nothing was submitted from these,
+		 * so they can simply go; the allocators are reset when their turn
+		 * comes, as always. */
+		for (u32 i = 0; i < 2; i++)
+		{
+			res.command_lists[i].reset();
+			hr = m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT,
+				res.command_allocators[i].get(), nullptr,
+				IID_PPV_ARGS(res.command_lists[i].put()));
+			if (SUCCEEDED(hr))
+				hr = res.command_lists[i]->Close();
+			if (FAILED(hr))
+				ReportRecurring("Replacing a command list", hr);
+		}
+		res.init_command_list_used = false;
+
 		MoveToNextCommandList();
 		if (wait_for_completion)
 			WaitForFence(res.ready_fence_value);
