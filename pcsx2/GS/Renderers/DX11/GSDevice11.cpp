@@ -94,11 +94,25 @@ bool GSDevice11::Create()
 		return false;
 	}
 
-	if (FAILED(d3d11->device->QueryInterface(&m_dev)) || FAILED(d3d11->context->QueryInterface(&m_ctx)))
+	if (FAILED(d3d11->device->QueryInterface(&m_dev)))
 	{
 		log_cb(RETRO_LOG_ERROR, "Direct3D 11.1 is required and not supported.\n");
 		return false;
 	}
+	/* The context is taken as it is given. Asking it for 11.1 used to be
+	 * a condition of starting at all, and a frontend running threaded
+	 * video hands over a proxy that refuses that question on purpose --
+	 * so the device was never created, the GS never came up, and the EE
+	 * ran unpaced behind a frontend that showed nothing. The one 11.1
+	 * call this renderer makes is DiscardView, which is optional. */
+	m_ctx = d3d11->context;
+	if (!m_ctx)
+	{
+		log_cb(RETRO_LOG_ERROR, "The frontend's D3D11 interface has no device context.\n");
+		return false;
+	}
+	if (FAILED(d3d11->context->QueryInterface(&m_ctx1)))
+		m_ctx1 = nullptr;
 	AcquireWindow();
 
 	D3D11_BUFFER_DESC bd;
@@ -390,6 +404,7 @@ void GSDevice11::Destroy()
 
 	m_shader_cache.Close();
 
+	m_ctx1.reset();
 	m_ctx.reset();
 	m_dev.reset();
 }
@@ -468,15 +483,23 @@ void GSDevice11::CommitClear(GSTexture* t)
 
 	if (T->IsDepthStencil())
 	{
+		/* Invalidated contents need no clear; without DiscardView to say
+		 * so, saying nothing is just as correct. */
 		if (T->GetState() == GSTexture::State::Invalidated)
-			m_ctx->DiscardView(static_cast<ID3D11DepthStencilView*>(*T));
+		{
+			if (m_ctx1)
+				m_ctx1->DiscardView(static_cast<ID3D11DepthStencilView*>(*T));
+		}
 		else
 			m_ctx->ClearDepthStencilView(*T, D3D11_CLEAR_DEPTH, T->GetClearDepth(), 0);
 	}
 	else
 	{
 		if (T->GetState() == GSTexture::State::Invalidated)
-			m_ctx->DiscardView(static_cast<ID3D11RenderTargetView*>(*T));
+		{
+			if (m_ctx1)
+				m_ctx1->DiscardView(static_cast<ID3D11RenderTargetView*>(*T));
+		}
 		else
 			m_ctx->ClearRenderTargetView(*T, T->GetUNormClearColor().F32);
 	}

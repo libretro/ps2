@@ -111,7 +111,15 @@ private:
 	void DoInterlace(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, ShaderInterlace shader, bool linear, const InterlaceConstantBuffer& cb) override;
 
 	wil::com_ptr_nothrow<ID3D11Device1> m_dev;
-	wil::com_ptr_nothrow<ID3D11DeviceContext1> m_ctx;
+	/* The context the frontend handed over, as the base interface: that
+	 * is all this renderer calls through, with one exception below. A
+	 * frontend running threaded video gives a hardware core a deferred
+	 * context behind a proxy, and the proxy answers for the base
+	 * interface only. */
+	wil::com_ptr_nothrow<ID3D11DeviceContext> m_ctx;
+	/* The same context as 11.1, when it has one; null otherwise. Only
+	 * DiscardView wants it, and DiscardView is a hint. */
+	wil::com_ptr_nothrow<ID3D11DeviceContext1> m_ctx1;
 
 	wil::com_ptr_nothrow<ID3D11Buffer> m_vb;
 	wil::com_ptr_nothrow<ID3D11Buffer> m_ib;
@@ -202,7 +210,7 @@ public:
 
 	__fi static GSDevice11* GetInstance() { return static_cast<GSDevice11*>(g_gs_device.get()); }
 	__fi ID3D11Device1* GetD3DDevice() const { return m_dev.get(); }
-	__fi ID3D11DeviceContext1* GetD3DContext() const { return m_ctx.get(); }
+	__fi ID3D11DeviceContext* GetD3DContext() const { return m_ctx.get(); }
 
 	bool Create() override;
 	void Destroy() override;
@@ -274,7 +282,7 @@ public:
 
 	ID3D11Device1* operator->() { return m_dev.get(); }
 	operator ID3D11Device1*() { return m_dev.get(); }
-	operator ID3D11DeviceContext1*() { return m_ctx.get(); }
+	operator ID3D11DeviceContext*() { return m_ctx.get(); }
 
 	void ResetAPIState() override;
 	void RestoreAPIState() override;
