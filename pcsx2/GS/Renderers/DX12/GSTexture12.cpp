@@ -21,6 +21,10 @@
 #include "GSDevice12.h"
 #include "GSTexture12.h"
 
+/* The table GSTexture calls this one through (gs_texture_ops):
+ * every entry is this class's function of that name. */
+GS_TEXTURE_OPS_DEFINE_MIPMAP(GSTexture12, d3d12);
+
 GSTexture12::GSTexture12(Type type, Format format, int width, int height, int levels, DXGI_FORMAT dxgi_format,
 	wil::com_ptr_nothrow<ID3D12Resource> resource, wil::com_ptr_nothrow<D3D12MA::Allocation> allocation,
 	const D3D12DescriptorHandle& srv_descriptor, const D3D12DescriptorHandle& write_descriptor,
@@ -34,6 +38,7 @@ GSTexture12::GSTexture12(Type type, Format format, int width, int height, int le
 	, m_dxgi_format(dxgi_format)
 	, m_resource_state(resource_state)
 {
+	m_ops = &s_d3d12_texture_ops;
 	m_type          = type;
 	m_format        = format;
 	m_size.x        = width;
@@ -624,9 +629,13 @@ void GSTexture12::CommitClear(ID3D12GraphicsCommandList* cmdlist)
 	SetState(GSTexture::State::Dirty);
 }
 
+/* The table GSDownloadTexture calls this one through. */
+GS_DOWNLOAD_TEXTURE_OPS_DEFINE(GSDownloadTexture12, d3d12_dl);
+
 GSDownloadTexture12::GSDownloadTexture12(u32 width, u32 height, GSTexture::Format format)
 	: GSDownloadTexture(width, height, format)
 {
+	m_ops = &s_d3d12_dl_download_texture_ops;
 }
 
 GSDownloadTexture12::~GSDownloadTexture12()

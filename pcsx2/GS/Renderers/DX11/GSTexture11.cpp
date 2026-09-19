@@ -19,11 +19,16 @@
 #include "GSDevice11.h"
 #include "GSTexture11.h"
 
+/* The table GSTexture calls this one through (gs_texture_ops):
+ * every entry is this class's function of that name. */
+GS_TEXTURE_OPS_DEFINE(GSTexture11, d3d11);
+
 GSTexture11::GSTexture11(wil::com_ptr_nothrow<ID3D11Texture2D> texture, const D3D11_TEXTURE2D_DESC& desc,
 	GSTexture::Type type, GSTexture::Format format)
 	: m_texture(std::move(texture))
 	, m_desc(desc)
 {
+	m_ops = &s_d3d11_texture_ops;
 	m_size.x = static_cast<int>(desc.Width);
 	m_size.y = static_cast<int>(desc.Height);
 	m_type = type;
@@ -157,10 +162,14 @@ GSTexture11::operator ID3D11UnorderedAccessView*()
 	return m_uav.get();
 }
 
+/* The table GSDownloadTexture calls this one through. */
+GS_DOWNLOAD_TEXTURE_OPS_DEFINE(GSDownloadTexture11, d3d11_dl);
+
 GSDownloadTexture11::GSDownloadTexture11(wil::com_ptr_nothrow<ID3D11Texture2D> tex, u32 width, u32 height, GSTexture::Format format)
 	: GSDownloadTexture(width, height, format)
 	, m_texture(std::move(tex))
 {
+	m_ops = &s_d3d11_dl_download_texture_ops;
 }
 
 GSDownloadTexture11::~GSDownloadTexture11()

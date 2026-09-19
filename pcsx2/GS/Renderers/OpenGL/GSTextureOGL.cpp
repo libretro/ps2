@@ -35,8 +35,13 @@ static constexpr u32 TEXTURE_UPLOAD_ALIGNMENT = 64;
 // We need 32 here for AVX2, so 64 is also fine.
 static constexpr u32 TEXTURE_UPLOAD_PITCH_ALIGNMENT = 64;
 
+/* The table GSTexture calls this one through (gs_texture_ops):
+ * every entry is this class's function of that name. */
+GS_TEXTURE_OPS_DEFINE_MIPMAP(GSTextureOGL, opengl);
+
 GSTextureOGL::GSTextureOGL(Type type, int width, int height, int levels, Format format)
 {
+	m_ops = &s_opengl_texture_ops;
 	// OpenGL didn't like dimensions of size 0
 	m_size.x = pcsx2_max_i(1, width);
 	m_size.y = pcsx2_max_i(1, height);
@@ -302,9 +307,13 @@ void GSTextureOGL::GenerateMipmap()
 	glGenerateTextureMipmap(m_texture_id);
 }
 
+/* The table GSDownloadTexture calls this one through. */
+GS_DOWNLOAD_TEXTURE_OPS_DEFINE(GSDownloadTextureOGL, opengl_dl);
+
 GSDownloadTextureOGL::GSDownloadTextureOGL(u32 width, u32 height, GSTexture::Format format)
 	: GSDownloadTexture(width, height, format)
 {
+	m_ops = &s_opengl_dl_download_texture_ops;
 }
 
 GSDownloadTextureOGL::~GSDownloadTextureOGL()

@@ -24,6 +24,9 @@
 
 class GSTexture11 final : public GSTexture
 {
+	/* The table this texture answers through is in its own .cpp
+	 * (gs_texture_ops, Common/GSTexture.h). */
+	friend struct GSTexture11_ops_access;
 	wil::com_ptr_nothrow<ID3D11Texture2D> m_texture;
 	wil::com_ptr_nothrow<ID3D11ShaderResourceView> m_srv;
 	wil::com_ptr_nothrow<ID3D11RenderTargetView> m_rtv;
@@ -37,10 +40,10 @@ public:
 
 	static DXGI_FORMAT GetDXGIFormat(Format format);
 
-	bool Update(const GSVector4i& r, const void* data, int pitch, int layer = 0) override;
-	bool Map(GSMap& m, const GSVector4i* r = NULL, int layer = 0) override;
-	void Unmap() override;
-	void GenerateMipmap() override;
+	bool Update(const GSVector4i& r, const void* data, int pitch, int layer = 0);
+	bool Map(GSMap& m, const GSVector4i* r = NULL, int layer = 0);
+	void Unmap();
+	void GenerateMipmap();
 
 	operator ID3D11Texture2D*();
 	operator ID3D11ShaderResourceView*();
@@ -51,18 +54,19 @@ public:
 
 class GSDownloadTexture11 final : public GSDownloadTexture
 {
+	friend struct GSDownloadTexture11_ops_access;
 public:
-	~GSDownloadTexture11() override;
+	~GSDownloadTexture11();
 
 	static std::unique_ptr<GSDownloadTexture11> Create(u32 width, u32 height, GSTexture::Format format);
 
 	void CopyFromTexture(
-		const GSVector4i& drc, GSTexture* stex, const GSVector4i& src, u32 src_level, bool use_transfer_pitch) override;
+		const GSVector4i& drc, GSTexture* stex, const GSVector4i& src, u32 src_level, bool use_transfer_pitch);
 
-	bool Map(const GSVector4i& rc) override;
-	void Unmap() override;
+	bool Map(const GSVector4i& rc);
+	void Unmap();
 
-	void Flush() override;
+	void Flush();
 
 private:
 	GSDownloadTexture11(wil::com_ptr_nothrow<ID3D11Texture2D> tex, u32 width, u32 height, GSTexture::Format format);

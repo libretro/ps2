@@ -33,8 +33,11 @@ namespace D3D12MA
 
 class GSTexture12 final : public GSTexture
 {
+	/* The table this texture answers through is in its own .cpp
+	 * (gs_texture_ops, Common/GSTexture.h). */
+	friend struct GSTexture12_ops_access;
 public:
-	~GSTexture12() override;
+	~GSTexture12();
 
 	static std::unique_ptr<GSTexture12> Create(Type type, Format format, int width, int height, int levels,
 		DXGI_FORMAT dxgi_format, DXGI_FORMAT srv_format, DXGI_FORMAT rtv_format, DXGI_FORMAT dsv_format,
@@ -50,10 +53,10 @@ public:
 	__fi DXGI_FORMAT GetDXGIFormat() const { return m_dxgi_format; }
 	__fi ID3D12Resource* GetResource() const { return m_resource.get(); }
 
-	bool Update(const GSVector4i& r, const void* data, int pitch, int layer = 0) override;
-	bool Map(GSMap& m, const GSVector4i* r = NULL, int layer = 0) override;
-	void Unmap() override;
-	void GenerateMipmap() override;
+	bool Update(const GSVector4i& r, const void* data, int pitch, int layer = 0);
+	bool Map(GSMap& m, const GSVector4i* r = NULL, int layer = 0);
+	void Unmap();
+	void GenerateMipmap();
 
 	void TransitionToState(D3D12_RESOURCE_STATES state);
 	void CommitClear();
@@ -115,17 +118,18 @@ private:
 
 class GSDownloadTexture12 final : public GSDownloadTexture
 {
+	friend struct GSDownloadTexture12_ops_access;
 public:
-	~GSDownloadTexture12() override;
+	~GSDownloadTexture12();
 
 	static std::unique_ptr<GSDownloadTexture12> Create(u32 width, u32 height, GSTexture::Format format);
 
-	void CopyFromTexture(const GSVector4i& drc, GSTexture* stex, const GSVector4i& src, u32 src_level, bool use_transfer_pitch) override;
+	void CopyFromTexture(const GSVector4i& drc, GSTexture* stex, const GSVector4i& src, u32 src_level, bool use_transfer_pitch);
 
-	bool Map(const GSVector4i& read_rc) override;
-	void Unmap() override;
+	bool Map(const GSVector4i& read_rc);
+	void Unmap();
 
-	void Flush() override;
+	void Flush();
 
 private:
 	GSDownloadTexture12(u32 width, u32 height, GSTexture::Format format);

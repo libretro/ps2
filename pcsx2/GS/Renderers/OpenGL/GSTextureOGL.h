@@ -19,6 +19,9 @@
 
 class GSTextureOGL final : public GSTexture
 {
+	/* The table this texture answers through is in its own .cpp
+	 * (gs_texture_ops, Common/GSTexture.h). */
+	friend struct GSTextureOGL_ops_access;
 private:
 	GLuint m_texture_id = 0; // the texture id
 
@@ -38,16 +41,16 @@ private:
 
 public:
 	explicit GSTextureOGL(Type type, int width, int height, int levels, Format format);
-	~GSTextureOGL() override;
+	~GSTextureOGL();
 
 	__fi GLenum GetIntFormat() const { return m_int_format; }
 	__fi GLenum GetIntType() const { return m_int_type; }
 	__fi u32 GetIntShift() const { return m_int_shift; }
 
-	bool Update(const GSVector4i& r, const void* data, int pitch, int layer = 0) final;
-	bool Map(GSMap& m, const GSVector4i* r = NULL, int layer = 0) final;
-	void Unmap() final;
-	void GenerateMipmap() final;
+	bool Update(const GSVector4i& r, const void* data, int pitch, int layer = 0);
+	bool Map(GSMap& m, const GSVector4i* r = NULL, int layer = 0);
+	void Unmap();
+	void GenerateMipmap();
 
 	bool IsIntegerFormat() const
 	{
@@ -63,17 +66,18 @@ public:
 
 class GSDownloadTextureOGL final : public GSDownloadTexture
 {
+	friend struct GSDownloadTextureOGL_ops_access;
 public:
-	~GSDownloadTextureOGL() override;
+	~GSDownloadTextureOGL();
 
 	static std::unique_ptr<GSDownloadTextureOGL> Create(u32 width, u32 height, GSTexture::Format format);
 
-	void CopyFromTexture(const GSVector4i& drc, GSTexture* stex, const GSVector4i& src, u32 src_level, bool use_transfer_pitch) override;
+	void CopyFromTexture(const GSVector4i& drc, GSTexture* stex, const GSVector4i& src, u32 src_level, bool use_transfer_pitch);
 
-	bool Map(const GSVector4i& read_rc) override;
-	void Unmap() override;
+	bool Map(const GSVector4i& read_rc);
+	void Unmap();
 
-	void Flush() override;
+	void Flush();
 
 private:
 	GSDownloadTextureOGL(u32 width, u32 height, GSTexture::Format format);

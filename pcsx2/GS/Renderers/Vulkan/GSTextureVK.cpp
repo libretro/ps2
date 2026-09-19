@@ -46,6 +46,10 @@ static VkImageLayout GetVkImageLayout(GSTextureVK::Layout layout)
 	return s_vk_layout_mapping[static_cast<u32>(layout)];
 }
 
+/* The table GSTexture calls this one through (gs_texture_ops):
+ * every entry is this class's function of that name. */
+GS_TEXTURE_OPS_DEFINE_MIPMAP(GSTextureVK, vulkan);
+
 GSTextureVK::GSTextureVK(Type type, Format format, int width, int height, int levels, VkImage image,
 	VmaAllocation allocation, VkImageView view, VkFormat vk_format)
 	: GSTexture()
@@ -54,6 +58,7 @@ GSTextureVK::GSTextureVK(Type type, Format format, int width, int height, int le
 	, m_view(view)
 	, m_vk_format(vk_format)
 {
+	m_ops = &s_vulkan_texture_ops;
 	m_type = type;
 	m_format = format;
 	m_size.x = width;
@@ -740,9 +745,13 @@ VkFramebuffer GSTextureVK::GetLinkedFramebuffer(GSTextureVK* depth_texture, bool
 	return fb;
 }
 
+/* The table GSDownloadTexture calls this one through. */
+GS_DOWNLOAD_TEXTURE_OPS_DEFINE(GSDownloadTextureVK, vulkan_dl);
+
 GSDownloadTextureVK::GSDownloadTextureVK(u32 width, u32 height, GSTexture::Format format)
 	: GSDownloadTexture(width, height, format)
 {
+	m_ops = &s_vulkan_dl_download_texture_ops;
 }
 
 GSDownloadTextureVK::~GSDownloadTextureVK()

@@ -31,6 +31,9 @@
  * and shouldn't be sampled from outside the SW device. */
 class GSTextureSW final : public GSTexture
 {
+	/* The table this texture answers through is in its own .cpp
+	 * (gs_texture_ops, Common/GSTexture.h). */
+	friend struct GSTextureSW_ops_access;
 private:
 	u8* m_data = nullptr;
 	int m_pitch = 0;
@@ -38,11 +41,11 @@ private:
 
 public:
 	GSTextureSW(Type type, int width, int height, Format format);
-	~GSTextureSW() override;
+	~GSTextureSW();
 
-	bool Update(const GSVector4i& r, const void* data, int pitch, int layer = 0) final;
-	bool Map(GSMap& m, const GSVector4i* r = NULL, int layer = 0) final;
-	void Unmap() final;
+	bool Update(const GSVector4i& r, const void* data, int pitch, int layer = 0);
+	bool Map(GSMap& m, const GSVector4i* r = NULL, int layer = 0);
+	void Unmap();
 
 	__fi u8* GetPointer() const { return m_data; }
 	__fi int GetPitch() const { return m_pitch; }

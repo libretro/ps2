@@ -23,6 +23,9 @@
 
 class GSTextureVK final : public GSTexture
 {
+	/* The table this texture answers through is in its own .cpp
+	 * (gs_texture_ops, Common/GSTexture.h). */
+	friend struct GSTextureVK_ops_access;
 public:
 	enum class Layout : u32
 	{
@@ -43,7 +46,7 @@ public:
 		Count
 	};
 
-	~GSTextureVK() override;
+	~GSTextureVK();
 
 	static std::unique_ptr<GSTextureVK> Create(Type type, Format format, int width, int height, int levels);
 	static std::unique_ptr<GSTextureVK> Adopt(
@@ -58,10 +61,10 @@ public:
 
 	VkImageLayout GetVkLayout() const;
 
-	bool Update(const GSVector4i& r, const void* data, int pitch, int layer = 0) override;
-	bool Map(GSMap& m, const GSVector4i* r = NULL, int layer = 0) override;
-	void Unmap() override;
-	void GenerateMipmap() override;
+	bool Update(const GSVector4i& r, const void* data, int pitch, int layer = 0);
+	bool Map(GSMap& m, const GSVector4i* r = NULL, int layer = 0);
+	void Unmap();
+	void GenerateMipmap();
 
 	void TransitionToLayout(Layout layout);
 	void CommitClear();
@@ -120,17 +123,18 @@ private:
 
 class GSDownloadTextureVK final : public GSDownloadTexture
 {
+	friend struct GSDownloadTextureVK_ops_access;
 public:
-	~GSDownloadTextureVK() override;
+	~GSDownloadTextureVK();
 
 	static std::unique_ptr<GSDownloadTextureVK> Create(u32 width, u32 height, GSTexture::Format format);
 
-	void CopyFromTexture(const GSVector4i& drc, GSTexture* stex, const GSVector4i& src, u32 src_level, bool use_transfer_pitch) override;
+	void CopyFromTexture(const GSVector4i& drc, GSTexture* stex, const GSVector4i& src, u32 src_level, bool use_transfer_pitch);
 
-	bool Map(const GSVector4i& read_rc) override;
-	void Unmap() override;
+	bool Map(const GSVector4i& read_rc);
+	void Unmap();
 
-	void Flush() override;
+	void Flush();
 
 private:
 	GSDownloadTextureVK(u32 width, u32 height, GSTexture::Format format);

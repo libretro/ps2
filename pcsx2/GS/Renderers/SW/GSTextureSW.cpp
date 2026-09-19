@@ -20,8 +20,13 @@
 #include "GS/GSExtra.h"
 #include "GS/Renderers/SW/GSTextureSW.h"
 
+/* The table GSTexture calls this one through (gs_texture_ops):
+ * every entry is this class's function of that name. */
+GS_TEXTURE_OPS_DEFINE(GSTextureSW, sw);
+
 GSTextureSW::GSTextureSW(Type type, int width, int height, Format format)
 {
+	m_ops = &s_sw_texture_ops;
 	m_type   = type;
 	m_format = format;
 	m_size.x = width;

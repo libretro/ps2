@@ -105,12 +105,20 @@ protected:
 
 public:
 	GSTexture();
-	virtual ~GSTexture() {}
+	~GSTexture() {}
 
-	virtual bool Update(const GSVector4i& r, const void* data, int pitch, int layer = 0) = 0;
-	virtual bool Map(GSMap& m, const GSVector4i* r = NULL, int layer = 0) = 0;
-	virtual void Unmap() = 0;
-	virtual void GenerateMipmap() {}
+	/* What each backend's texture does differently, as a table of plain
+	 * functions with the texture as the first argument; this is what the
+	 * virtual functions were. Each backend fills one in its own .cpp and
+	 * sets m_ops in its constructor, as its device does (gs_device_ops).
+	 * A NULL generate_mipmap means the backend has none, as before. */
+	const struct gs_texture_ops* m_ops = nullptr;
+
+	void Free();
+	bool Update(const GSVector4i& r, const void* data, int pitch, int layer = 0);
+	bool Map(GSMap& m, const GSVector4i* r = NULL, int layer = 0);
+	void Unmap();
+	void GenerateMipmap();
 
 	__fi int GetWidth() const { return m_size.x; }
 	__fi int GetHeight() const { return m_size.y; }
@@ -187,7 +195,12 @@ class GSDownloadTexture
 {
 public:
 	GSDownloadTexture(u32 width, u32 height, GSTexture::Format format);
-	virtual ~GSDownloadTexture();
+	~GSDownloadTexture();
+
+	/* As GSTexture above: a table, not a vtable (gs_download_texture_ops). */
+	const struct gs_download_texture_ops* m_ops = nullptr;
+
+	void Free();
 
 	/// Basically, this has dimensions only because of DX11.
 	__fi u32 GetWidth() const { return m_width; }
@@ -208,23 +221,23 @@ public:
 	/// Does not complete immediately, you should flush before accessing the buffer.
 	/// use_transfer_pitch should be true if there's only a single texture being copied to this buffer before
 	/// it will be used. This allows the image to be packed tighter together, and buffer reuse.
-	virtual void CopyFromTexture(
-		const GSVector4i& drc, GSTexture* stex, const GSVector4i& src, u32 src_level, bool use_transfer_pitch = true) = 0;
+	void CopyFromTexture(
+		const GSVector4i& drc, GSTexture* stex, const GSVector4i& src, u32 src_level, bool use_transfer_pitch = true);
 
 	/// Maps the texture into the CPU address space, enabling it to read the contents.
 	/// The Map call may not perform synchronization. If the contents of the staging texture
 	/// has been updated by a CopyFromTexture() call, you must call Flush() first.
 	/// If persistent mapping is supported in the backend, this may be a no-op.
-	virtual bool Map(const GSVector4i& read_rc) = 0;
+	bool Map(const GSVector4i& read_rc);
 
 	/// Unmaps the CPU-readable copy of the texture. May be a no-op on backends which
 	/// support persistent-mapped buffers.
-	virtual void Unmap() = 0;
+	void Unmap();
 
 	/// Flushes pending writes from the CPU to the GPU, and reads from the GPU to the CPU.
 	/// This may cause a command buffer submit depending on if one has occurred between the last
 	/// call to CopyFromTexture() and the Flush() call.
-	virtual void Flush() = 0;
+	void Flush();
 
 	/// Reads the specified rectangle from the staging texture to out_ptr, with the specified stride
 	/// (length in bytes of each row). CopyFromTexture() must be called first. The contents of any
@@ -244,3 +257,78 @@ protected:
 
 	bool m_needs_flush = false;
 };
+
+/* --- the tables the two above answer through ----------------------------
+ * GS_TEXTURE_OPS_DEFINE(GSTexture11, d3d11) writes s_d3d11_texture_ops
+ * out of GSTexture11's member functions, and the download one likewise;
+ * the thunks are members of a struct the class befriends, so a function
+ * that was protected stays protected. */
+struct gs_texture_ops
+{
+	void (*free)(GSTexture* t);
+	bool (*update)(GSTexture* t, const GSVector4i* r, const void* data, int pitch, int layer);
+	bool (*map)(GSTexture* t, GSTexture::GSMap* m, const GSVector4i* r, int layer);
+	void (*unmap)(GSTexture* t);
+	void (*generate_mipmap)(GSTexture* t);
+};
+
+struct gs_download_texture_ops
+{
+	void (*free)(GSDownloadTexture* t);
+	void (*copy_from_texture)(GSDownloadTexture* t, const GSVector4i* drc, GSTexture* stex, const GSVector4i* src, u32 src_level, bool use_transfer_pitch);
+	bool (*map)(GSDownloadTexture* t, const GSVector4i* read_rc);
+	void (*unmap)(GSDownloadTexture* t);
+	void (*flush)(GSDownloadTexture* t);
+};
+
+__forceinline_odr void GSTexture::Free() { m_ops->free(this); }
+__forceinline_odr bool GSTexture::Update(const GSVector4i& r, const void* data, int pitch, int layer)
+{ return m_ops->update(this, &r, data, pitch, layer); }
+__forceinline_odr bool GSTexture::Map(GSMap& m, const GSVector4i* r, int layer)
+{ return m_ops->map(this, &m, r, layer); }
+__forceinline_odr void GSTexture::Unmap() { m_ops->unmap(this); }
+__forceinline_odr void GSTexture::GenerateMipmap() { if (m_ops->generate_mipmap) m_ops->generate_mipmap(this); }
+
+__forceinline_odr void GSDownloadTexture::Free() { m_ops->free(this); }
+__forceinline_odr void GSDownloadTexture::CopyFromTexture(const GSVector4i& drc, GSTexture* stex, const GSVector4i& src, u32 src_level, bool use_transfer_pitch)
+{ m_ops->copy_from_texture(this, &drc, stex, &src, src_level, use_transfer_pitch); }
+__forceinline_odr bool GSDownloadTexture::Map(const GSVector4i& read_rc) { return m_ops->map(this, &read_rc); }
+__forceinline_odr void GSDownloadTexture::Unmap() { m_ops->unmap(this); }
+__forceinline_odr void GSDownloadTexture::Flush() { m_ops->flush(this); }
+
+#define GS_TEXTURE_OPS_DEFINE(klass, tag) \
+struct klass##_ops_access { \
+	static void tag##_tex_free(GSTexture* t) { delete static_cast<klass*>(t); } \
+	static bool tag##_tex_update(GSTexture* t, const GSVector4i* r, const void* data, int pitch, int layer) { return static_cast<klass*>(t)->Update(*r, data, pitch, layer); } \
+	static bool tag##_tex_map(GSTexture* t, GSTexture::GSMap* m, const GSVector4i* r, int layer) { return static_cast<klass*>(t)->Map(*m, r, layer); } \
+	static void tag##_tex_unmap(GSTexture* t) { static_cast<klass*>(t)->Unmap(); } \
+}; \
+static const struct gs_texture_ops s_##tag##_texture_ops = { \
+	klass##_ops_access::tag##_tex_free, klass##_ops_access::tag##_tex_update, \
+	klass##_ops_access::tag##_tex_map, klass##_ops_access::tag##_tex_unmap, NULL }
+
+#define GS_TEXTURE_OPS_DEFINE_MIPMAP(klass, tag) \
+struct klass##_ops_access { \
+	static void tag##_tex_free(GSTexture* t) { delete static_cast<klass*>(t); } \
+	static bool tag##_tex_update(GSTexture* t, const GSVector4i* r, const void* data, int pitch, int layer) { return static_cast<klass*>(t)->Update(*r, data, pitch, layer); } \
+	static bool tag##_tex_map(GSTexture* t, GSTexture::GSMap* m, const GSVector4i* r, int layer) { return static_cast<klass*>(t)->Map(*m, r, layer); } \
+	static void tag##_tex_unmap(GSTexture* t) { static_cast<klass*>(t)->Unmap(); } \
+	static void tag##_tex_generate_mipmap(GSTexture* t) { static_cast<klass*>(t)->GenerateMipmap(); } \
+}; \
+static const struct gs_texture_ops s_##tag##_texture_ops = { \
+	klass##_ops_access::tag##_tex_free, klass##_ops_access::tag##_tex_update, \
+	klass##_ops_access::tag##_tex_map, klass##_ops_access::tag##_tex_unmap, \
+	klass##_ops_access::tag##_tex_generate_mipmap }
+
+#define GS_DOWNLOAD_TEXTURE_OPS_DEFINE(klass, tag) \
+struct klass##_ops_access { \
+	static void tag##_dl_free(GSDownloadTexture* t) { delete static_cast<klass*>(t); } \
+	static void tag##_dl_copy_from_texture(GSDownloadTexture* t, const GSVector4i* drc, GSTexture* stex, const GSVector4i* src, u32 src_level, bool use_transfer_pitch) { static_cast<klass*>(t)->CopyFromTexture(*drc, stex, *src, src_level, use_transfer_pitch); } \
+	static bool tag##_dl_map(GSDownloadTexture* t, const GSVector4i* read_rc) { return static_cast<klass*>(t)->Map(*read_rc); } \
+	static void tag##_dl_unmap(GSDownloadTexture* t) { static_cast<klass*>(t)->Unmap(); } \
+	static void tag##_dl_flush(GSDownloadTexture* t) { static_cast<klass*>(t)->Flush(); } \
+}; \
+static const struct gs_download_texture_ops s_##tag##_download_texture_ops = { \
+	klass##_ops_access::tag##_dl_free, klass##_ops_access::tag##_dl_copy_from_texture, \
+	klass##_ops_access::tag##_dl_map, klass##_ops_access::tag##_dl_unmap, \
+	klass##_ops_access::tag##_dl_flush }
