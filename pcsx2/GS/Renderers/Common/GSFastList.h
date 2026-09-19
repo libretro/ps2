@@ -71,13 +71,31 @@ public:
 
 	void clear()
 	{
+		// An empty list owns nothing. It used to allocate its four-element
+		// buffer here, which is a 64-byte-aligned allocation per list
+		// whether or not anything is ever put in it -- and the texture
+		// cache keeps one list per GS page, GS_MAX_PAGES of them, of which
+		// a frame touches a handful. Allocate on the first insertion
+		// instead; everything that reads an empty list is answered below
+		// without touching the buffer.
+		memalign_free(m_buffer);
+		m_buffer = nullptr;
+		m_free_indexes_stack = nullptr;
+		m_capacity = 0;
+		m_free_indexes_stack_top = 0;
+	}
+
+private:
+	// The first insertion into an empty list: the allocation clear() used
+	// to do, with the same initial capacity.
+	void Allocate()
+	{
 		// Initialize m_capacity to 4 so we avoid to Grow() on initial insertions
 		// The code doesn't break if this value is changed with anything from 1 to USHRT_MAX
 		m_capacity = 4;
 
 		// Initialize m_buffer and m_free_indexes_stack as a contiguous block of memory starting at m_buffer
 		// This should increase cache locality and reduce memory fragmentation
-		memalign_free(m_buffer);
 		m_buffer = (Element<T>*)memalign_alloc(64, m_capacity * sizeof(Element<T>) + (m_capacity - 1) * sizeof(u16));
 		m_free_indexes_stack = (u16*)&m_buffer[m_capacity];
 
@@ -92,10 +110,14 @@ public:
 			m_free_indexes_stack[i] = i + 1;
 	}
 
+public:
+
 	// Insert the element in front of the list and return its position in m_buffer
 	__forceinline u16 InsertFront(const T& data)
 	{
-		if (Full())
+		if (!m_buffer)
+			Allocate();
+		else if (Full())
 			Grow();
 
 		// Pop a free index from the stack
@@ -188,14 +210,16 @@ private:
 		return m_buffer[index].prev_index;
 	}
 
+	/* Index 0 is the auxiliary element and also "past the end", so an
+	 * unallocated list answers 0 to both without a buffer to read. */
 	__forceinline u16 FirstIndex() const
 	{
-		return m_buffer[0].next_index;
+		return m_buffer ? m_buffer[0].next_index : 0;
 	}
 
 	__forceinline u16 LastIndex() const
 	{
-		return m_buffer[0].prev_index;
+		return m_buffer ? m_buffer[0].prev_index : 0;
 	}
 
 	__forceinline bool Full() const
