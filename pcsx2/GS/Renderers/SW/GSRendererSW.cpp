@@ -29,9 +29,46 @@ GSRenderer* CURRENT_ISA::makeGSRendererSW(int threads)
 
 static constexpr GSVector4 s_pos_scale = GSVector4::cxpr(1.0f / 16, 1.0f / 16, 1.0f, 128.0f);
 
+/* --- the table GSState calls this renderer through (gs_state_ops) -------
+ * Every one of these was a virtual function. What this renderer has no
+ * version of is NULL, and GSState does what it always did for those. */
+#define SW(gs) (static_cast<GSRendererSW*>(gs))
+static void       sw_free(GSState* gs)               { delete SW(gs); }
+static void       sw_destroy(GSState* gs)            { SW(gs)->Destroy(); }
+static void       sw_reset(GSState* gs, bool hard)   { SW(gs)->Reset(hard); }
+static void       sw_vsync(GSState* gs, u32 field, bool registers_written, bool idle_frame) { SW(gs)->VSync(field, registers_written, idle_frame); }
+static void       sw_draw(GSState* gs)               { SW(gs)->Draw(); }
+static void       sw_invalidate_video_mem(GSState* gs, const GIFRegBITBLTBUF* b, const GSVector4i* r) { SW(gs)->InvalidateVideoMem(*b, *r); }
+static void       sw_invalidate_local_mem(GSState* gs, const GIFRegBITBLTBUF* b, const GSVector4i* r, bool clut) { SW(gs)->InvalidateLocalMem(*b, *r, clut); }
+static GSTexture* sw_get_output(GSState* gs, int i, float* scale, int* y_offset) { return SW(gs)->GetOutput(i, *scale, *y_offset); }
+static GSTexture* sw_get_feedback_output(GSState* gs, float* scale) { return SW(gs)->GetFeedbackOutput(*scale); }
+#undef SW
+
+static const struct gs_state_ops s_sw_ops = {
+	sw_free,
+	sw_destroy,
+	sw_reset,
+	NULL, /* update_settings */
+	NULL, /* update_render_fixes */
+	sw_vsync,
+	sw_draw,
+	NULL, /* move */
+	NULL, /* purge_texture_cache */
+	NULL, /* readback_texture_cache */
+	sw_invalidate_video_mem,
+	sw_invalidate_local_mem,
+	NULL, /* can_upscale */
+	NULL, /* get_upscale_multiplier */
+	NULL, /* get_texture_scale_factor */
+	NULL, /* lookup_palette_source */
+	sw_get_output,
+	sw_get_feedback_output
+};
+
 GSRendererSW::GSRendererSW(int threads)
 	: GSRenderer(), m_fzb(NULL)
 {
+	m_ops = &s_sw_ops;
 	m_nativeres = true; // ignore ini, sw is always native
 
 	m_tc = std::make_unique<GSTextureCacheSW>();
@@ -59,7 +96,7 @@ void GSRendererSW::Reset(bool hardware_reset)
 
 	m_tc->RemoveAll();
 
-	GSRenderer::Reset(hardware_reset);
+	ResetBase(hardware_reset);
 }
 
 void GSRendererSW::Destroy()
@@ -84,7 +121,7 @@ void GSRendererSW::VSync(u32 field, bool registers_written, bool idle_frame)
 {
 	Sync(0); // IncAge might delete a cached texture in use
 
-	GSRenderer::VSync(field, registers_written, idle_frame);
+	VSyncBase(field, registers_written, idle_frame);
 
 	m_tc->IncAge();
 

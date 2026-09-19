@@ -301,16 +301,16 @@ private:
 
 public:
 	GSRendererHW();
-	virtual ~GSRendererHW() override;
+	~GSRendererHW();
 
-	__fi static GSRendererHW* GetInstance() { return static_cast<GSRendererHW*>(g_gs_renderer.get()); }
+	__fi static GSRendererHW* GetInstance() { return static_cast<GSRendererHW*>(g_gs_renderer); }
 	__fi HWCachedCtx* GetCachedCtx() { return &m_cached_ctx; }
-	void Destroy() override;
+	void Destroy();
 
-	void UpdateRenderFixes() override;
+	void UpdateRenderFixes();
 
-	bool CanUpscale() override;
-	float GetUpscaleMultiplier() override;
+	bool CanUpscale();
+	float GetUpscaleMultiplier();
 	void Lines2Sprites();
 	bool VerifyIndices();
 	void ExpandLineIndices();
@@ -332,24 +332,24 @@ public:
 	GSVector4 RealignTargetTextureCoordinate(const GSTextureCache::Source* tex);
 	GSVector4i ComputeBoundingBox(const GSVector2i& rtsize, float rtscale);
 	void MergeSprite(GSTextureCache::Source* tex);
-	float GetTextureScaleFactor() override;
+	float GetTextureScaleFactor();
 	GSVector2i GetValidSize(const GSTextureCache::Source* tex = nullptr);
 	GSVector2i GetTargetSize(const GSTextureCache::Source* tex = nullptr, const bool can_expand = true);
 
-	void Reset(bool hardware_reset) override;
-	void UpdateSettings(const Pcsx2Config::GSOptions& old_config) override;
-	void VSync(u32 field, bool registers_written, bool idle_frame) override;
+	void Reset(bool hardware_reset);
+	void UpdateSettings(const Pcsx2Config::GSOptions& old_config);
+	void VSync(u32 field, bool registers_written, bool idle_frame);
 
-	GSTexture* GetOutput(int i, float& scale, int& y_offset) override;
-	GSTexture* GetFeedbackOutput(float& scale) override;
-	void InvalidateVideoMem(const GIFRegBITBLTBUF& BITBLTBUF, const GSVector4i& r) override;
-	void InvalidateLocalMem(const GIFRegBITBLTBUF& BITBLTBUF, const GSVector4i& r, bool clut = false) override;
-	void Move() override;
-	void Draw() override;
+	GSTexture* GetOutput(int i, float& scale, int& y_offset);
+	GSTexture* GetFeedbackOutput(float& scale);
+	void InvalidateVideoMem(const GIFRegBITBLTBUF& BITBLTBUF, const GSVector4i& r);
+	void InvalidateLocalMem(const GIFRegBITBLTBUF& BITBLTBUF, const GSVector4i& r, bool clut = false);
+	void Move();
+	void Draw();
 
-	void PurgeTextureCache(bool sources, bool targets, bool hash_cache) override;
-	void ReadbackTextureCache() override;
-	GSTexture* LookupPaletteSource(u32 CBP, u32 CPSM, u32 CBW, GSVector2i& offset, float* scale, const GSVector2i& size) override;
+	void PurgeTextureCache(bool sources, bool targets, bool hash_cache);
+	void ReadbackTextureCache();
+	GSTexture* LookupPaletteSource(u32 CBP, u32 CPSM, u32 CBW, GSVector2i& offset, float* scale, const GSVector2i& size);
 
 	/// Called by the texture cache to know for certain whether there is a channel shuffle.
 	bool TestChannelShuffle(GSTextureCache::Target* src);

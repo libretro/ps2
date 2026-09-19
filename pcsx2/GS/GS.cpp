@@ -274,9 +274,9 @@ static bool OpenGSRenderer(GSRendererType renderer, u8* basemem)
 #endif
 	{
 		if (renderer != GSRendererType::SW)
-			g_gs_renderer = std::make_unique<GSRendererHW>();
+			g_gs_renderer = new GSRendererHW();
 		else
-			g_gs_renderer = std::unique_ptr<GSRenderer>(MULTI_ISA_SELECT(makeGSRendererSW)(GSConfig.SWExtraThreads));
+			g_gs_renderer = MULTI_ISA_SELECT(makeGSRendererSW)(GSConfig.SWExtraThreads);
 
 		g_gs_renderer->SetRegsMem(basemem);
 		g_gs_renderer->ResetPCRTC();
@@ -298,7 +298,8 @@ static void CloseGSRenderer(void)
 	if (g_gs_renderer)
 	{
 		g_gs_renderer->Destroy();
-		g_gs_renderer.reset();
+		g_gs_renderer->Free();
+		g_gs_renderer = NULL;
 	}
 }
 

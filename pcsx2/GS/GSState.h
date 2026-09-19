@@ -24,11 +24,47 @@
 #include "Renderers/Common/GSDevice.h"
 #include "GSVector.h"
 
+class GSState;
+
+/* What the hardware and the software renderer answer differently, as a
+ * table of plain functions; the renderer itself is the first argument.
+ * This is what GSState's virtual functions used to be. Each renderer
+ * fills one (GSRendererHW.cpp, GSRendererSW.cpp) and sets m_ops in its
+ * constructor. A NULL entry means "what GSState does by default", which
+ * for most of them is nothing. GSState's member functions of the same
+ * names call through the table, so nothing that calls Draw() or VSync()
+ * on a renderer had to change. */
+struct gs_state_ops
+{
+	void       (*free)(GSState* gs);
+	void       (*destroy)(GSState* gs);
+	void       (*reset)(GSState* gs, bool hardware_reset);
+	void       (*update_settings)(GSState* gs, const Pcsx2Config::GSOptions* old_config);
+	void       (*update_render_fixes)(GSState* gs);
+	void       (*vsync)(GSState* gs, u32 field, bool registers_written, bool idle_frame);
+	void       (*draw)(GSState* gs);
+	void       (*move)(GSState* gs);
+	void       (*purge_texture_cache)(GSState* gs, bool sources, bool targets, bool hash_cache);
+	void       (*readback_texture_cache)(GSState* gs);
+	void       (*invalidate_video_mem)(GSState* gs, const GIFRegBITBLTBUF* BITBLTBUF, const GSVector4i* r);
+	void       (*invalidate_local_mem)(GSState* gs, const GIFRegBITBLTBUF* BITBLTBUF, const GSVector4i* r, bool clut);
+	bool       (*can_upscale)(GSState* gs);
+	float      (*get_upscale_multiplier)(GSState* gs);
+	float      (*get_texture_scale_factor)(GSState* gs);
+	GSTexture* (*lookup_palette_source)(GSState* gs, u32 CBP, u32 CPSM, u32 CBW, GSVector2i* offset, float* scale, const GSVector2i* size);
+	GSTexture* (*get_output)(GSState* gs, int i, float* scale, int* y_offset);
+	GSTexture* (*get_feedback_output)(GSState* gs, float* scale);
+};
+
 class GSState : public GSAlignedClass<32>
 {
 public:
 	GSState();
-	virtual ~GSState();
+	~GSState();
+
+	/* Deletes the renderer as what it really is: the destructor is not
+	 * virtual any more, so this is how one is disposed of. */
+	void Free() { if (m_ops && m_ops->free) m_ops->free(this); }
 
 	static int GetSaveStateSize();
 
@@ -416,8 +452,24 @@ public:
 
 	float GetTvRefreshRate();
 
-	virtual void Reset(bool hardware_reset);
-	virtual void UpdateSettings(const Pcsx2Config::GSOptions& old_config);
+	/* The table, and the functions that call through it. The *Base
+	 * functions are what GSState itself does; a renderer's own version
+	 * calls the Base one where it used to call GSRenderer::X(). */
+	const struct gs_state_ops* m_ops = nullptr;
+
+	void ResetBase(bool hardware_reset);
+	void UpdateSettingsBase(const Pcsx2Config::GSOptions& old_config);
+	void MoveBase();
+	void VSyncBase(u32 field, bool registers_written, bool idle_frame);
+
+	void Reset(bool hardware_reset)
+	{
+		if (m_ops && m_ops->reset) m_ops->reset(this, hardware_reset); else ResetBase(hardware_reset);
+	}
+	void UpdateSettings(const Pcsx2Config::GSOptions& old_config)
+	{
+		if (m_ops && m_ops->update_settings) m_ops->update_settings(this, &old_config); else UpdateSettingsBase(old_config);
+	}
 
 	/* --- presentation ---------------------------------------------------
 	 * What used to be a class of its own between this one and the two
@@ -427,15 +479,21 @@ public:
 	 * of this class now and GSRenderer is another name for it
 	 * (Renderers/Common/GSRenderer.h). The definitions are still in
 	 * Renderers/Common/GSRenderer.cpp. */
-	virtual void Destroy();
-	virtual void UpdateRenderFixes();
+	void Destroy()           { if (m_ops && m_ops->destroy) m_ops->destroy(this); }
+	void UpdateRenderFixes() { if (m_ops && m_ops->update_render_fixes) m_ops->update_render_fixes(this); }
 	void PurgePool();
-	virtual void VSync(u32 field, bool registers_written, bool idle_frame);
-	virtual bool CanUpscale() { return false; }
-	virtual float GetUpscaleMultiplier() { return 1.0f; }
-	virtual float GetTextureScaleFactor() { return 1.0f; }
+	void VSync(u32 field, bool registers_written, bool idle_frame)
+	{
+		if (m_ops && m_ops->vsync) m_ops->vsync(this, field, registers_written, idle_frame); else VSyncBase(field, registers_written, idle_frame);
+	}
+	bool  CanUpscale()            { return (m_ops && m_ops->can_upscale) ? m_ops->can_upscale(this) : false; }
+	float GetUpscaleMultiplier()  { return (m_ops && m_ops->get_upscale_multiplier) ? m_ops->get_upscale_multiplier(this) : 1.0f; }
+	float GetTextureScaleFactor() { return (m_ops && m_ops->get_texture_scale_factor) ? m_ops->get_texture_scale_factor(this) : 1.0f; }
 	float GetModXYOffset();
-	virtual GSTexture* LookupPaletteSource(u32 CBP, u32 CPSM, u32 CBW, GSVector2i& offset, float* scale, const GSVector2i& size);
+	GSTexture* LookupPaletteSource(u32 CBP, u32 CPSM, u32 CBW, GSVector2i& offset, float* scale, const GSVector2i& size)
+	{
+		return (m_ops && m_ops->lookup_palette_source) ? m_ops->lookup_palette_source(this, CBP, CPSM, CBW, &offset, scale, &size) : nullptr;
+	}
 	bool IsIdleFrame() const;
 
 protected:
@@ -443,8 +501,14 @@ protected:
 	bool m_process_texture = false;
 	bool m_downscale_source = false;
 
-	virtual GSTexture* GetOutput(int i, float& scale, int& y_offset) = 0;
-	virtual GSTexture* GetFeedbackOutput(float& scale) { return nullptr; }
+	GSTexture* GetOutput(int i, float& scale, int& y_offset)
+	{
+		return (m_ops && m_ops->get_output) ? m_ops->get_output(this, i, &scale, &y_offset) : nullptr;
+	}
+	GSTexture* GetFeedbackOutput(float& scale)
+	{
+		return (m_ops && m_ops->get_feedback_output) ? m_ops->get_feedback_output(this, &scale) : nullptr;
+	}
 
 private:
 	bool Merge(int field);
@@ -463,13 +527,22 @@ public:
 	void FlushPrim();
 	bool TestDrawChanged();
 	void FlushWrite();
-	virtual void Draw() = 0;
-	virtual void PurgeTextureCache(bool sources, bool targets, bool hash_cache);
-	virtual void ReadbackTextureCache();
-	virtual void InvalidateVideoMem(const GIFRegBITBLTBUF& BITBLTBUF, const GSVector4i& r) {}
-	virtual void InvalidateLocalMem(const GIFRegBITBLTBUF& BITBLTBUF, const GSVector4i& r, bool clut = false) {}
+	void Draw() { if (m_ops && m_ops->draw) m_ops->draw(this); }
+	void PurgeTextureCache(bool sources, bool targets, bool hash_cache)
+	{
+		if (m_ops && m_ops->purge_texture_cache) m_ops->purge_texture_cache(this, sources, targets, hash_cache);
+	}
+	void ReadbackTextureCache() { if (m_ops && m_ops->readback_texture_cache) m_ops->readback_texture_cache(this); }
+	void InvalidateVideoMem(const GIFRegBITBLTBUF& BITBLTBUF, const GSVector4i& r)
+	{
+		if (m_ops && m_ops->invalidate_video_mem) m_ops->invalidate_video_mem(this, &BITBLTBUF, &r);
+	}
+	void InvalidateLocalMem(const GIFRegBITBLTBUF& BITBLTBUF, const GSVector4i& r, bool clut = false)
+	{
+		if (m_ops && m_ops->invalidate_local_mem) m_ops->invalidate_local_mem(this, &BITBLTBUF, &r, clut);
+	}
 
-	virtual void Move();
+	void Move() { if (m_ops && m_ops->move) m_ops->move(this); else MoveBase(); }
 
 	GSVector4i GetTEX0Rect();
 	void CheckWriteOverlap(bool req_write, bool req_read);

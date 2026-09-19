@@ -1448,7 +1448,6 @@ s16 GSLookupMoveHandlerFunctionId(const std::string_view& name)
 
 void GSRendererHW::UpdateRenderFixes()
 {
-	GSRenderer::UpdateRenderFixes();
 
 	m_nativeres = (GSConfig.UpscaleMultiplier == 1.0f);
 	s_nativeres = m_nativeres;

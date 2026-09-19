@@ -24,9 +24,55 @@
 #include "GSTextureReplacements.h"
 #include "../../GSUtil.h"
 
+/* --- the table GSState calls this renderer through (gs_state_ops) -------
+ * Every one of these was a virtual function. The renderer is the first
+ * argument, and each entry is this class's own function of that name. */
+#define HW(gs) (static_cast<GSRendererHW*>(gs))
+static void       hw_free(GSState* gs)                     { delete HW(gs); }
+static void       hw_destroy(GSState* gs)                  { HW(gs)->Destroy(); }
+static void       hw_reset(GSState* gs, bool hard)         { HW(gs)->Reset(hard); }
+static void       hw_update_settings(GSState* gs, const Pcsx2Config::GSOptions* old_config) { HW(gs)->UpdateSettings(*old_config); }
+static void       hw_update_render_fixes(GSState* gs)      { HW(gs)->UpdateRenderFixes(); }
+static void       hw_vsync(GSState* gs, u32 field, bool registers_written, bool idle_frame) { HW(gs)->VSync(field, registers_written, idle_frame); }
+static void       hw_draw(GSState* gs)                     { HW(gs)->Draw(); }
+static void       hw_move(GSState* gs)                     { HW(gs)->Move(); }
+static void       hw_purge_texture_cache(GSState* gs, bool sources, bool targets, bool hash_cache) { HW(gs)->PurgeTextureCache(sources, targets, hash_cache); }
+static void       hw_readback_texture_cache(GSState* gs)   { HW(gs)->ReadbackTextureCache(); }
+static void       hw_invalidate_video_mem(GSState* gs, const GIFRegBITBLTBUF* b, const GSVector4i* r) { HW(gs)->InvalidateVideoMem(*b, *r); }
+static void       hw_invalidate_local_mem(GSState* gs, const GIFRegBITBLTBUF* b, const GSVector4i* r, bool clut) { HW(gs)->InvalidateLocalMem(*b, *r, clut); }
+static bool       hw_can_upscale(GSState* gs)              { return HW(gs)->CanUpscale(); }
+static float      hw_get_upscale_multiplier(GSState* gs)   { return HW(gs)->GetUpscaleMultiplier(); }
+static float      hw_get_texture_scale_factor(GSState* gs) { return HW(gs)->GetTextureScaleFactor(); }
+static GSTexture* hw_lookup_palette_source(GSState* gs, u32 CBP, u32 CPSM, u32 CBW, GSVector2i* offset, float* scale, const GSVector2i* size) { return HW(gs)->LookupPaletteSource(CBP, CPSM, CBW, *offset, scale, *size); }
+static GSTexture* hw_get_output(GSState* gs, int i, float* scale, int* y_offset) { return HW(gs)->GetOutput(i, *scale, *y_offset); }
+static GSTexture* hw_get_feedback_output(GSState* gs, float* scale) { return HW(gs)->GetFeedbackOutput(*scale); }
+#undef HW
+
+static const struct gs_state_ops s_hw_ops = {
+	hw_free,
+	hw_destroy,
+	hw_reset,
+	hw_update_settings,
+	hw_update_render_fixes,
+	hw_vsync,
+	hw_draw,
+	hw_move,
+	hw_purge_texture_cache,
+	hw_readback_texture_cache,
+	hw_invalidate_video_mem,
+	hw_invalidate_local_mem,
+	hw_can_upscale,
+	hw_get_upscale_multiplier,
+	hw_get_texture_scale_factor,
+	hw_lookup_palette_source,
+	hw_get_output,
+	hw_get_feedback_output
+};
+
 GSRendererHW::GSRendererHW()
 	: GSRenderer()
 {
+	m_ops = &s_hw_ops;
 	MULTI_ISA_SELECT(GSRendererHWPopulateFunctions)(*this);
 	m_mipmap = (GSConfig.HWMipmapMode >= GSHWMipmapMode::Enabled);
 	SetTCOffset();
@@ -57,7 +103,6 @@ GSRendererHW::~GSRendererHW()
 void GSRendererHW::Destroy()
 {
 	g_texture_cache->RemoveAll(true, true, true);
-	GSRenderer::Destroy();
 }
 
 void GSRendererHW::PurgeTextureCache(bool sources, bool targets, bool hash_cache)
@@ -93,12 +138,12 @@ void GSRendererHW::Reset(bool hardware_reset)
 
 	g_texture_cache->RemoveAll(true, true, true);
 
-	GSRenderer::Reset(hardware_reset);
+	ResetBase(hardware_reset);
 }
 
 void GSRendererHW::UpdateSettings(const Pcsx2Config::GSOptions& old_config)
 {
-	GSRenderer::UpdateSettings(old_config);
+	UpdateSettingsBase(old_config);
 	m_mipmap = (GSConfig.HWMipmapMode >= GSHWMipmapMode::Enabled);
 	SetTCOffset();
 }
@@ -139,7 +184,7 @@ void GSRendererHW::VSync(u32 field, bool registers_written, bool idle_frame)
 	m_skip = 0;
 	m_skip_offset = 0;
 
-	GSRenderer::VSync(field, registers_written, idle_frame);
+	VSyncBase(field, registers_written, idle_frame);
 }
 
 GSTexture* GSRendererHW::GetOutput(int i, float& scale, int& y_offset)
@@ -2038,7 +2083,7 @@ void GSRendererHW::Move()
 	// this transfer; a target readback over the source region would destroy the chain.
 	m_move_mem_authoritative = m_force_cpu_move;
 	m_force_cpu_move = false;
-	GSRenderer::Move();
+	MoveBase();
 	m_move_mem_authoritative = false;
 }
 

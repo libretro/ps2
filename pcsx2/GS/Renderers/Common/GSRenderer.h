@@ -25,4 +25,6 @@
  * GSRenderer has to change. */
 typedef GSState GSRenderer;
 
-extern std::unique_ptr<GSRenderer> g_gs_renderer;
+/* The open GSdx renderer, or NULL. A plain pointer: a renderer is disposed
+ * of with Free(), through its table, since its destructor is not virtual. */
+extern GSRenderer* g_gs_renderer;

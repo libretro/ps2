@@ -59,7 +59,7 @@ public:
 		void UpdateSource();
 	};
 
-protected:
+public: /* called through gs_state_ops (GSRendererSW.cpp); these were protected virtuals */
 	std::unique_ptr<IRasterizer> m_rl;
 	std::unique_ptr<GSTextureCacheSW> m_tc;
 	GSRingHeap m_vertex_heap;
@@ -73,16 +73,16 @@ protected:
 	GIFRegDIMX m_last_dimx = {};
 	GSVector4i m_dimx[8] = {};
 
-	void Reset(bool hardware_reset) override;
-	void VSync(u32 field, bool registers_written, bool idle_frame) override;
-	GSTexture* GetOutput(int i, float& scale, int& y_offset) override;
-	GSTexture* GetFeedbackOutput(float& scale) override;
+	void Reset(bool hardware_reset);
+	void VSync(u32 field, bool registers_written, bool idle_frame);
+	GSTexture* GetOutput(int i, float& scale, int& y_offset);
+	GSTexture* GetFeedbackOutput(float& scale);
 
-	void Draw() override;
+	void Draw();
 	void Queue(GSRingHeap::SharedPtr<GSRasterizerData>& item);
 	void Sync(int reason);
-	void InvalidateVideoMem(const GIFRegBITBLTBUF& BITBLTBUF, const GSVector4i& r) override;
-	void InvalidateLocalMem(const GIFRegBITBLTBUF& BITBLTBUF, const GSVector4i& r, bool clut = false) override;
+	void InvalidateVideoMem(const GIFRegBITBLTBUF& BITBLTBUF, const GSVector4i& r);
+	void InvalidateLocalMem(const GIFRegBITBLTBUF& BITBLTBUF, const GSVector4i& r, bool clut = false);
 
 	void UsePages(const GSOffset::PageLooper& pages, const int type);
 	void ReleasePages(const GSOffset::PageLooper& pages, const int type);
@@ -94,11 +94,11 @@ protected:
 
 public:
 	GSRendererSW(int threads);
-	~GSRendererSW() override;
+	~GSRendererSW();
 
-	__fi static GSRendererSW* GetInstance() { return static_cast<GSRendererSW*>(g_gs_renderer.get()); }
+	__fi static GSRendererSW* GetInstance() { return static_cast<GSRendererSW*>(g_gs_renderer); }
 
-	void Destroy() override;
+	void Destroy();
 };
 
 MULTI_ISA_UNSHARED_END

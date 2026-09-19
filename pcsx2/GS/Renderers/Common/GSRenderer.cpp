@@ -26,11 +26,7 @@
 
 extern retro_video_refresh_t video_cb;
 
-std::unique_ptr<GSRenderer> g_gs_renderer;
-
-void GSState::Destroy()
-{
-}
+GSRenderer* g_gs_renderer = NULL;
 
 void GSState::PurgePool()
 {
@@ -45,10 +41,6 @@ void GSState::PurgePool()
 	}
 
 	g_gs_device->PurgePool();
-}
-
-void GSState::UpdateRenderFixes()
-{
 }
 
 bool GSState::Merge(int field)
@@ -279,7 +271,7 @@ bool GSState::BeginPresentFrame(bool frame_skip)
 	return false;
 }
 
-void GSState::VSync(u32 field, bool registers_written, bool idle_frame)
+void GSState::VSyncBase(u32 field, bool registers_written, bool idle_frame)
 {
 	bool is_unique_frame       = false;
 	const int fb_sprite_blits  = m_disp_fb_sprite_blits;
@@ -350,11 +342,6 @@ void GSState::VSync(u32 field, bool registers_written, bool idle_frame)
 	 * read inside it) when not needed. */
 	if (GSConfig.SkipDuplicateFrames)
 		PerformanceMetrics::Update(registers_written, fb_sprite_frame);
-}
-
-GSTexture* GSState::LookupPaletteSource(u32 CBP, u32 CPSM, u32 CBW, GSVector2i& offset, float* scale, const GSVector2i& size)
-{
-	return nullptr;
 }
 
 bool GSState::IsIdleFrame() const

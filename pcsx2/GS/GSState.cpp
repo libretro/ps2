@@ -126,7 +126,9 @@ GSState::GSState()
 	PRIM = &m_env.PRIM;
 	//CSR->rREV = 0x20;
 	m_env.PRMODECONT.AC = 1;
-	Reset(false);
+	/* The base reset, as it always was here: a constructor never reached a
+	 * renderer's own. */
+	ResetBase(false);
 
 	ResetHandlers();
 }
@@ -139,7 +141,7 @@ GSState::~GSState()
 		memalign_free(m_index.buff);
 }
 
-void GSState::Reset(bool hardware_reset)
+void GSState::ResetBase(bool hardware_reset)
 {
 	/* From GSRenderer::Reset, which did this and then called here: clear
 	 * the current display texture. The constructor resets too, with
@@ -335,7 +337,7 @@ void GSState::ResetPCRTC()
 	PCRTCDisplays.SetRects(1, m_regs->DISP[1].DISPLAY, m_regs->DISP[1].DISPFB);
 }
 
-void GSState::UpdateSettings(const Pcsx2Config::GSOptions& old_config)
+void GSState::UpdateSettingsBase(const Pcsx2Config::GSOptions& old_config)
 {
 	m_mipmap = GSConfig.Mipmap;
 
@@ -1933,7 +1935,7 @@ void GSState::Read(u8* mem, int len)
 		m_env.TRXDIR.XDIR = 3;
 }
 
-void GSState::Move()
+void GSState::MoveBase()
 {
 	// ffxii uses this to move the top/bottom of the scrolling menus offscreen and then blends them back over the text to create a shading effect
 	// guitar hero copies the far end of the board to do a similar blend too
@@ -2203,14 +2205,6 @@ void GSState::ReadLocalMemoryUnsync(u8* mem, int qwc, GIFRegBITBLTBUF BITBLTBUF,
 		memcpy(mem, &m_tr.buff[m_tr.end], len);
 		m_tr.end += len;
 	}
-}
-
-void GSState::PurgeTextureCache(bool sources, bool targets, bool hash_cache)
-{
-}
-
-void GSState::ReadbackTextureCache()
-{
 }
 
 void GSState::Transfer(const u8* mem, u32 size)
