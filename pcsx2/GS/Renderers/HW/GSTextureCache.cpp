@@ -3165,9 +3165,9 @@ void GSTextureCache::InvalidateVideoMem(const GSOffset& off, const GSVector4i& r
 					}
 					else
 					{
-						u32* RESTRICT valid = s->m_valid.get();
+						u32* RESTRICT valid = s->m_valid;
 
-						if (valid && !s->CanPreload())
+						if (s->m_valid_init && !s->CanPreload())
 						{
 							// Invalidate data of input texture
 							if (s->m_repeating)
@@ -5469,6 +5469,64 @@ bool GSTextureCache::Surface::Overlaps(u32 bp, u32 bw, u32 psm, const GSVector4i
 
 // GSTextureCache::Source
 
+/* --- the source pool ---------------------------------------------------
+ * One allocation, made the first time a source is asked for, holding
+ * SOURCE_POOL_SIZE slots of whatever a Source is; a free list of slot
+ * indices on top. Taking and returning one is a couple of loads and a
+ * store, with no allocator, no lock and no per-draw cost that varies.
+ * Sources past the pool's size come from the allocator as before, so a
+ * game that somehow holds more of them still runs - slower, and no
+ * worse than it was.
+ *
+ * The GS runs on one thread; none of this is shared. */
+static u8*    s_source_pool;
+static size_t s_source_stride;
+static u16    s_source_free[GSTextureCache::SOURCE_POOL_SIZE];
+static u32    s_source_free_count;
+
+void* GSTextureCache::Source::operator new(size_t size)
+{
+	if (!s_source_pool)
+	{
+		u32 i;
+		/* Slots keep the 32-byte alignment the class asks for. */
+		s_source_stride = (size + 31) & ~(size_t)31;
+		s_source_pool = (u8*)memalign_alloc(32, s_source_stride * SOURCE_POOL_SIZE);
+		if (!s_source_pool)
+		{
+			s_source_stride = 0;
+			return memalign_alloc(32, size);
+		}
+		/* Handed out from the end, so the first sources of a run are the
+		 * low slots and stay together. */
+		for (i = 0; i < SOURCE_POOL_SIZE; i++)
+			s_source_free[i] = (u16)(SOURCE_POOL_SIZE - 1 - i);
+		s_source_free_count = SOURCE_POOL_SIZE;
+	}
+
+	if (s_source_free_count && size <= s_source_stride)
+		return s_source_pool + (size_t)s_source_free[--s_source_free_count] * s_source_stride;
+
+	return memalign_alloc(32, size);
+}
+
+void GSTextureCache::Source::operator delete(void* p)
+{
+	if (!p)
+		return;
+
+	if (s_source_pool && (u8*)p >= s_source_pool
+	 && (u8*)p < s_source_pool + s_source_stride * SOURCE_POOL_SIZE)
+	{
+		const size_t off = (size_t)((u8*)p - s_source_pool);
+		if (s_source_free_count < SOURCE_POOL_SIZE)
+			s_source_free[s_source_free_count++] = (u16)(off / s_source_stride);
+		return;
+	}
+
+	memalign_free(p);
+}
+
 GSTextureCache::Source::Source(const GIFRegTEX0& TEX0, const GIFRegTEXA& TEXA)
 {
 	m_TEX0 = TEX0;
@@ -5494,8 +5552,6 @@ GSTextureCache::Source::~Source()
 		return;
 	}
 	m_alive = 0;
-
-	memalign_free(m_write.rect);
 
 	// Shared textures are pointers copy. Therefore no allocation
 	// to recycle.
@@ -5571,8 +5627,11 @@ void GSTextureCache::Source::Update(const GSVector4i& rect, int level)
 
 	u32 blocks = 0;
 
-	if (!m_valid)
-		m_valid = std::make_unique<u32[]>(GS_MAX_PAGES);
+	if (!m_valid_init)
+	{
+		memset(m_valid, 0, sizeof(m_valid));
+		m_valid_init = true;
+	}
 
 	if (m_repeating)
 	{
@@ -5646,9 +5705,6 @@ void GSTextureCache::Source::UpdateLayer(const GIFRegTEX0& TEX0, const GSVector4
 
 void GSTextureCache::Source::Write(const GSVector4i& r, int layer, const GSOffset& off)
 {
-	if (!m_write.rect)
-		m_write.rect = static_cast<GSVector4i*>(memalign_alloc(16, 3 * sizeof(GSVector4i)));
-
 	m_write.rect[m_write.count++] = r;
 
 	while (m_write.count >= 2)

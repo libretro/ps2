@@ -276,6 +276,11 @@ public:
 		bool ResizeTexture(int new_unscaled_width, int new_unscaled_height, bool recycle_old = true);
 	};
 
+	/* How many sources exist at once, and so how many the pool holds.
+	 * A frame uses a few dozen; past this the allocator is used as
+	 * before, so the number is a budget, not a limit. */
+	static constexpr u32 SOURCE_POOL_SIZE = 384;
+
 	class Source : public Surface
 	{
 	public:
@@ -290,9 +295,13 @@ public:
 		u32 m_alive = ALIVE;
 
 	private:
+		/* Three rectangles, in the object. They were a 48-byte allocation
+		 * made on the first Write of every source and freed in the
+		 * destructor - two trips through the allocator per source, in a
+		 * draw, for something this size. */
 		struct
 		{
-			GSVector4i* rect;
+			alignas(16) GSVector4i rect[3];
 			u32 count;
 		} m_write = {};
 
@@ -304,7 +313,12 @@ public:
 	public:
 		HashCacheEntry* m_from_hash_cache = nullptr;
 		std::shared_ptr<Palette> m_palette_obj;
-		std::unique_ptr<u32[]> m_valid;// each u32 bits map to the 32 blocks of that page
+		/* One bit per block, 32 blocks to a page, in the object rather
+		 * than a 2 KB allocation made the first time a source is written
+		 * to and freed with it. m_valid_init says whether it has been
+		 * cleared yet, which is what the pointer being null used to say. */
+		u32 m_valid[GS_MAX_PAGES];
+		bool m_valid_init = false;
 		GSTexture* m_palette = nullptr;
 		GSVector4i m_valid_rect = {};
 		GSVector2i m_lod = {};
@@ -330,6 +344,14 @@ public:
 		GSOffset::PageLooper m_pages;
 
 	public:
+		/* Out of a pool fixed at startup, not the allocator: a source is
+		 * made and destroyed inside a draw, and a 3.5 KB allocation per
+		 * draw is both a frame-time cost and the thing that puts a heap
+		 * block header next to it to be corrupted. Falls back to the
+		 * allocator only if more than SOURCE_POOL_SIZE are live. */
+		static void* operator new(size_t size);
+		static void operator delete(void* p);
+
 		Source(const GIFRegTEX0& TEX0, const GIFRegTEXA& TEXA);
 		virtual ~Source();
 
