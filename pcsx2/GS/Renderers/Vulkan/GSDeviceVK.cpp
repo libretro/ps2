@@ -1163,8 +1163,14 @@ static VkAttachmentLoadOp GetLoadOpForTexture(GSTextureVK* tex)
 	// clang-format on
 }
 
+/* The table GSDevice calls this device through (gs_device_ops,
+ * Common/GSDevice.h): every entry is this class's function of that
+ * name, and each was a virtual function. */
+GS_DEVICE_OPS_DEFINE(GSDeviceVK, vulkan);
+
 GSDeviceVK::GSDeviceVK()
 {
+	m_ops = &s_vulkan_device_ops;
 	memset(&m_pipeline_selector, 0, sizeof(m_pipeline_selector));
 }
 
@@ -1224,7 +1230,7 @@ RenderAPI GSDeviceVK::GetRenderAPI() const
 
 bool GSDeviceVK::Create()
 {
-	if (!GSDevice::Create())
+	if (!CreateBase())
 		return false;
 
 	if (!CreateDeviceAndSwapChain())
@@ -1290,7 +1296,7 @@ bool GSDeviceVK::Create()
 
 void GSDeviceVK::Destroy()
 {
-	GSDevice::Destroy();
+	DestroyBase();
 	/* With the pool's textures, and like them ahead of the wait for the
 	 * GPU below. */
 	vk_free_present_textures();

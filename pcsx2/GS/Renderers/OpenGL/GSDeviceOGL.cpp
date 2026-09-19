@@ -141,7 +141,15 @@ namespace Emulate_DSA
 	}
 } // namespace Emulate_DSA
 
-GSDeviceOGL::GSDeviceOGL() = default;
+/* The table GSDevice calls this device through (gs_device_ops,
+ * Common/GSDevice.h): every entry is this class's function of that
+ * name, and each was a virtual function. */
+GS_DEVICE_OPS_DEFINE(GSDeviceOGL, opengl);
+
+GSDeviceOGL::GSDeviceOGL()
+{
+	m_ops = &s_opengl_device_ops;
+}
 
 GSDeviceOGL::~GSDeviceOGL()
 {
@@ -275,7 +283,7 @@ bool GSDeviceOGL::CheckFeatures(bool& buggy_pbo)
 
 bool GSDeviceOGL::Create()
 {
-	if (!GSDevice::Create())
+	if (!CreateBase())
 		return false;
 
 	// GL is a pain and needs the window super early to create the context.
@@ -583,7 +591,7 @@ bool GSDeviceOGL::Create()
 
 void GSDeviceOGL::Destroy()
 {
-	GSDevice::Destroy();
+	DestroyBase();
 
 	if (m_gl_context)
 	{

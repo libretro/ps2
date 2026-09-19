@@ -83,7 +83,7 @@ const char* shaderName(ShaderConvert value)
 	return "ShaderConvertUnknownShader";
 }
 
-std::unique_ptr<GSDevice> g_gs_device;
+GSDevice* g_gs_device = NULL;
 
 GSDevice::GSDevice() = default;
 
@@ -113,12 +113,12 @@ int GSDevice::GetMipmapLevelsForSize(int width, int height)
 	return pcsx2_min_i(static_cast<int>(std::log2(pcsx2_max_i(width, height))) + 1, MAXIMUM_TEXTURE_MIPMAP_LEVELS);
 }
 
-bool GSDevice::Create()
+bool GSDevice::CreateBase()
 {
 	return true;
 }
 
-void GSDevice::Destroy()
+void GSDevice::DestroyBase()
 {
 	ClearCurrent();
 	PurgePool();
@@ -143,14 +143,6 @@ void GSDevice::ClearDepth(GSTexture* t, float d)
 void GSDevice::InvalidateRenderTarget(GSTexture* t)
 {
 	t->SetState(GSTexture::State::Invalidated);
-}
-
-void GSDevice::ResetAPIState()
-{
-}
-
-void GSDevice::RestoreAPIState()
-{
 }
 
 void GSDevice::TextureRecycleDeleter::operator()(GSTexture* const tex)
@@ -330,7 +322,7 @@ void GSDevice::StretchRect(GSTexture* sTex, GSTexture* dTex, const GSVector4& dR
 	StretchRect(sTex, GSVector4(0, 0, 1, 1), dTex, dRect, shader, linear);
 }
 
-void GSDevice::DrawMultiStretchRects(
+void GSDevice::DrawMultiStretchRectsBase(
 	const MultiStretchRect* rects, u32 num_rects, GSTexture* dTex, ShaderConvert shader)
 {
 	for (u32 i = 0; i < num_rects; i++)

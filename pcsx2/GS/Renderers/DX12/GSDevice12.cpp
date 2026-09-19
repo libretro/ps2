@@ -696,7 +696,15 @@ D3D_SHADER_MACRO* GSDevice12::ShaderMacro::GetPtr(void)
 	return (D3D_SHADER_MACRO*)mout.data();
 }
 
-GSDevice12::GSDevice12() = default;
+/* The table GSDevice calls this device through (gs_device_ops,
+ * Common/GSDevice.h): every entry is this class's function of that
+ * name, and each was a virtual function. */
+GS_DEVICE_OPS_DEFINE(GSDevice12, d3d12);
+
+GSDevice12::GSDevice12()
+{
+	m_ops = &s_d3d12_device_ops;
+}
 
 GSDevice12::~GSDevice12()
 {
@@ -709,7 +717,7 @@ RenderAPI GSDevice12::GetRenderAPI() const
 
 bool GSDevice12::Create()
 {
-	if (!GSDevice::Create())
+	if (!CreateBase())
 		return false;
 
 	m_dxgi_factory = D3D::CreateFactory(GSConfig.UseDebugDevice);
@@ -810,7 +818,7 @@ bool GSDevice12::Create()
 
 void GSDevice12::Destroy()
 {
-	GSDevice::Destroy();
+	DestroyBase();
 	/* With the pool's textures, and like them ahead of the last submit
 	 * below. The frontend holds its own reference to any it still shows. */
 	gs_d3d12_free_present_textures();

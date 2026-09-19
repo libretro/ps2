@@ -41,6 +41,10 @@
  * Stage 3: implement DoInterlace modes on CPU. */
 class GSDeviceSW final : public GSDevice
 {
+	/* The table this device answers through is a set of free functions
+	 * in its own .cpp (gs_device_ops, Common/GSDevice.h); they call what
+	 * used to be reached through a vtable, whatever its access. */
+	friend struct GSDeviceSW_ops_access;
 private:
 	/* Backing buffer for the frame we hand to video_cb when the
 	 * frontend doesn't support direct rendering. XRGB8888, pitch is
@@ -73,41 +77,41 @@ private:
 	bool AcquireDirectRenderBuffer(int width, int height);
 
 protected:
-	GSTexture* CreateSurface(GSTexture::Type type, int width, int height, int levels, GSTexture::Format format) final;
+	GSTexture* CreateSurface(GSTexture::Type type, int width, int height, int levels, GSTexture::Format format);
 	void DoMerge(GSTexture* sTex[3], GSVector4* sRect, GSTexture* dTex, GSVector4* dRect,
-		const GSRegPMODE& PMODE, const GSRegEXTBUF& EXTBUF, u32 c, const bool linear) final;
+		const GSRegPMODE& PMODE, const GSRegEXTBUF& EXTBUF, u32 c, const bool linear);
 	void DoInterlace(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect,
-		ShaderInterlace shader, bool linear, const InterlaceConstantBuffer& cb) final;
+		ShaderInterlace shader, bool linear, const InterlaceConstantBuffer& cb);
 
 public:
 	GSDeviceSW();
-	~GSDeviceSW() override;
+	~GSDeviceSW();
 
-	bool Create() override;
-	void Destroy() override;
+	bool Create();
+	void Destroy();
 
-	RenderAPI GetRenderAPI() const final { return RenderAPI::None; }
+	RenderAPI GetRenderAPI() const { return RenderAPI::None; }
 
-	PresentResult BeginPresent(bool frame_skip) final;
-	void EndPresent() final;
+	PresentResult BeginPresent(bool frame_skip);
+	void EndPresent();
 
-	std::unique_ptr<GSDownloadTexture> CreateDownloadTexture(u32 width, u32 height, GSTexture::Format format) final;
+	std::unique_ptr<GSDownloadTexture> CreateDownloadTexture(u32 width, u32 height, GSTexture::Format format);
 
-	void CopyRect(GSTexture* sTex, GSTexture* dTex, const GSVector4i& r, u32 destX, u32 destY) final;
+	void CopyRect(GSTexture* sTex, GSTexture* dTex, const GSVector4i& r, u32 destX, u32 destY);
 	void StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect,
-		ShaderConvert shader = ShaderConvert::COPY, bool linear = true) final;
+		ShaderConvert shader = ShaderConvert::COPY, bool linear = true);
 	void StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect,
-		bool red, bool green, bool blue, bool alpha, ShaderConvert shader = ShaderConvert::COPY) final;
+		bool red, bool green, bool blue, bool alpha, ShaderConvert shader = ShaderConvert::COPY);
 
-	void PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect) final;
+	void PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect);
 
 	void UpdateCLUTTexture(GSTexture* sTex, float sScale, u32 offsetX, u32 offsetY,
-		GSTexture* dTex, u32 dOffset, u32 dSize) final;
+		GSTexture* dTex, u32 dOffset, u32 dSize);
 	void ConvertToIndexedTexture(GSTexture* sTex, float sScale, u32 offsetX, u32 offsetY,
-		u32 SBW, u32 SPSM, GSTexture* dTex, u32 DBW, u32 DPSM) final;
+		u32 SBW, u32 SPSM, GSTexture* dTex, u32 DBW, u32 DPSM);
 	void FilteredDownsampleTexture(GSTexture* sTex, GSTexture* dTex, u32 downsample_factor,
-		const GSVector2i& clamp_min, const GSVector4& dRect) final;
+		const GSVector2i& clamp_min, const GSVector4& dRect);
 
-	void RenderHW(GSHWDrawConfig& config) final;
-	void ClearSamplerCache() final;
+	void RenderHW(GSHWDrawConfig& config);
+	void ClearSamplerCache();
 };

@@ -109,28 +109,37 @@ static GSRendererType GSsetRenderer(enum retro_hw_context_type api)
 	return  GSRendererType::SW;
 }
 
+/* A device that failed to come up: it destroys what it managed to make,
+ * and goes. */
+static void DropGSDevice(void)
+{
+	if (!g_gs_device)
+		return;
+	g_gs_device->Destroy();
+	g_gs_device->Free();
+	g_gs_device = NULL;
+}
+
 static bool OpenGSDevice(GSRendererType renderer, bool clear_state_on_fail)
 {
 	switch (hw_render.context_type)
 	{
 		case RETRO_HW_CONTEXT_D3D11:
 #ifdef _WIN32
-			g_gs_device = std::make_unique<GSDevice11>();
+			g_gs_device = new GSDevice11();
 			if (!g_gs_device->Create())
 			{
-				g_gs_device->Destroy();
-				g_gs_device.reset();
+				DropGSDevice();
 				return false;
 			}
 #endif
 			break;
 		case RETRO_HW_CONTEXT_D3D12:
 #ifdef _WIN32
-			g_gs_device = std::make_unique<GSDevice12>();
+			g_gs_device = new GSDevice12();
 			if (!g_gs_device->Create())
 			{
-				g_gs_device->Destroy();
-				g_gs_device.reset();
+				DropGSDevice();
 				return false;
 			}
 #endif
@@ -140,11 +149,10 @@ static bool OpenGSDevice(GSRendererType renderer, bool clear_state_on_fail)
 			// PGS fuses device and renderer together.
 			if (renderer != GSRendererType::ParallelGS)
 			{
-				g_gs_device = std::make_unique<GSDeviceVK>();
+				g_gs_device = new GSDeviceVK();
 				if (!g_gs_device->Create())
 				{
-					g_gs_device->Destroy();
-					g_gs_device.reset();
+						DropGSDevice();
 					return false;
 				}
 			}
@@ -156,11 +164,10 @@ static bool OpenGSDevice(GSRendererType renderer, bool clear_state_on_fail)
 		case RETRO_HW_CONTEXT_OPENGLES3:        /* TODO/FIXME */
 		case RETRO_HW_CONTEXT_OPENGLES_VERSION: /* TODO/FIXME */
 #ifdef ENABLE_OPENGL
-			g_gs_device = std::make_unique<GSDeviceOGL>();
+			g_gs_device = new GSDeviceOGL();
 			if (!g_gs_device->Create())
 			{
-				g_gs_device->Destroy();
-				g_gs_device.reset();
+				DropGSDevice();
 				return false;
 			}
 #endif
@@ -170,11 +177,10 @@ static bool OpenGSDevice(GSRendererType renderer, bool clear_state_on_fail)
 			 * SW renderer can run in this configuration; HW renderers
 			 * have nowhere to draw. The caller is responsible for
 			 * having forced GSRendererType::SW before reaching here. */
-			g_gs_device = std::make_unique<GSDeviceSW>();
+			g_gs_device = new GSDeviceSW();
 			if (!g_gs_device->Create())
 			{
-				g_gs_device->Destroy();
-				g_gs_device.reset();
+				DropGSDevice();
 				return false;
 			}
 			break;
@@ -187,11 +193,7 @@ static bool OpenGSDevice(GSRendererType renderer, bool clear_state_on_fail)
 
 static void CloseGSDevice(bool clear_state)
 {
-	if (!g_gs_device)
-		return;
-
-	g_gs_device->Destroy();
-	g_gs_device.reset();
+	DropGSDevice();
 }
 
 /* --- the renderer behind the entry points -------------------------------

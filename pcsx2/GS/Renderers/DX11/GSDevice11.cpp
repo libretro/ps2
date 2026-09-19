@@ -194,8 +194,14 @@ static bool SupportsTextureFormat(ID3D11Device* dev, DXGI_FORMAT format)
 	return (support & D3D11_FORMAT_SUPPORT_TEXTURE2D) != 0;
 }
 
+/* The table GSDevice calls this device through (gs_device_ops,
+ * Common/GSDevice.h): every entry is this class's function of that
+ * name, and each was a virtual function. */
+GS_DEVICE_OPS_DEFINE(GSDevice11, d3d11);
+
 GSDevice11::GSDevice11()
 {
+	m_ops = &s_d3d11_device_ops;
 	memset(&m_state, 0, sizeof(m_state));
 
 	m_state.topology = D3D11_PRIMITIVE_TOPOLOGY_UNDEFINED;
@@ -224,7 +230,7 @@ RenderAPI GSDevice11::GetRenderAPI() const
 
 bool GSDevice11::Create()
 {
-	if (!GSDevice::Create())
+	if (!CreateBase())
 		return false;
 	retro_hw_render_interface_d3d11 *d3d11 = nullptr;
 	if (!environ_cb(RETRO_ENVIRONMENT_GET_HW_RENDER_INTERFACE, (void **)&d3d11) || !d3d11) {
@@ -535,7 +541,7 @@ void GSDevice11::Destroy()
 	s_d3d11_v2           = NULL;
 	s_d3d11_resolved     = false;
 
-	GSDevice::Destroy();
+	DestroyBase();
 	/* With the pool's textures. The frontend holds its own reference to
 	 * any it still shows. */
 	gs_d3d11_free_present_textures();
