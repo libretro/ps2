@@ -5484,6 +5484,54 @@ static size_t s_source_stride;
 static u16    s_source_free[GSTextureCache::SOURCE_POOL_SIZE];
 static u32    s_source_free_count;
 
+/* The same, for targets. Two pools rather than one shared by size: a
+ * slot is whatever its class is, so neither needs a size check beyond
+ * the one below, and a target cannot land in a source's slot. */
+static u8*    s_target_pool;
+static size_t s_target_stride;
+static u16    s_target_free[GSTextureCache::TARGET_POOL_SIZE];
+static u32    s_target_free_count;
+
+void* GSTextureCache::Target::operator new(size_t size)
+{
+	if (!s_target_pool)
+	{
+		u32 i;
+		s_target_stride = (size + 31) & ~(size_t)31;
+		s_target_pool = (u8*)memalign_alloc(32, s_target_stride * TARGET_POOL_SIZE);
+		if (!s_target_pool)
+		{
+			s_target_stride = 0;
+			return memalign_alloc(32, size);
+		}
+		for (i = 0; i < TARGET_POOL_SIZE; i++)
+			s_target_free[i] = (u16)(TARGET_POOL_SIZE - 1 - i);
+		s_target_free_count = TARGET_POOL_SIZE;
+	}
+
+	if (s_target_free_count && size <= s_target_stride)
+		return s_target_pool + (size_t)s_target_free[--s_target_free_count] * s_target_stride;
+
+	return memalign_alloc(32, size);
+}
+
+void GSTextureCache::Target::operator delete(void* p)
+{
+	if (!p)
+		return;
+
+	if (s_target_pool && (u8*)p >= s_target_pool
+	 && (u8*)p < s_target_pool + s_target_stride * TARGET_POOL_SIZE)
+	{
+		const size_t off = (size_t)((u8*)p - s_target_pool);
+		if (s_target_free_count < TARGET_POOL_SIZE)
+			s_target_free[s_target_free_count++] = (u16)(off / s_target_stride);
+		return;
+	}
+
+	memalign_free(p);
+}
+
 void* GSTextureCache::Source::operator new(size_t size)
 {
 	if (!s_source_pool)
@@ -6525,7 +6573,6 @@ GSTextureCache::Palette::Palette(const u32* clut, u16 pal, bool need_gs_texture)
 	, m_pal(pal)
 {
 	const u16 palette_size = pal * sizeof(u32);
-	m_clut = (u32*)memalign_alloc(64, palette_size);
 	memcpy(m_clut, clut, palette_size);
 	if (need_gs_texture)
 	{
@@ -6555,8 +6602,6 @@ GSTextureCache::Palette::~Palette()
 		g_texture_cache->m_source_memory_usage -= m_tex_palette->GetMemUsage();
 		g_gs_device->Recycle(m_tex_palette);
 	}
-
-	memalign_free(m_clut);
 }
 
 std::pair<u8, u8> GSTextureCache::Palette::GetAlphaMinMax(u8 min_index, u8 max_index) const

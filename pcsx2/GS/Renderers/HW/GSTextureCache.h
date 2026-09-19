@@ -183,7 +183,11 @@ public:
 
 	private:
 	private:
-		u32* m_clut;
+		/* Sixteen or two hundred and fifty-six entries, in the object.
+		 * It was a 64-byte or 1 KB allocation per palette, made in the
+		 * constructor and freed in the destructor, for something a game
+		 * that animates its CLUT churns constantly. */
+		u32 m_clut[256];
 		GSTexture* m_tex_palette;
 		u16 m_pal;
 		std::pair<u8, u8> m_alpha_minmax;
@@ -222,9 +226,19 @@ public:
 		bool operator()(const PaletteKey& lhs, const PaletteKey& rhs) const;
 	};
 
+	/* Targets live longer than sources and there are far fewer of them -
+	 * a render target and a depth buffer per buffer in flight, plus what
+	 * the game switches between - but they are still made and destroyed
+	 * while a game runs. */
+	static constexpr u32 TARGET_POOL_SIZE = 128;
+
 	class Target : public Surface
 	{
 	public:
+		/* Out of a pool, as Source is. */
+		static void* operator new(size_t size);
+		static void operator delete(void* p);
+
 		const int m_type = 0;
 		int m_alpha_max = 0;
 		int m_alpha_min = 0;
