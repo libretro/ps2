@@ -102,6 +102,7 @@ CXXFLAGS += $(FLAGS)
 # libretro-common (C)
 # ============================================================================
 SOURCES_C += \
+	$(LRPS2_DIR)/GS/Renderers/HW/GSObjectPool.c \
 	$(LIBRETRO_COMM_DIR)/compat/compat_posix_string.c \
 	$(LIBRETRO_COMM_DIR)/compat/compat_fnmatch.c \
 	$(LIBRETRO_COMM_DIR)/file/retro_dirent.c \

@@ -1,32 +1,31 @@
-/* The source pool's slot arithmetic, on its own: take every slot, give
- * them back, take them again, and overflow past the pool. */
+/* The texture cache's object pool (GS/Renderers/HW/GSObjectPool.c), the
+ * real one: slots handed out once each, aligned, not overlapping,
+ * returned and reused, and NULL past the pool's size so the caller can
+ * fall back. */
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
 #include <set>
 #include "common/Pcsx2Defs.h"
 #include <memalign.h>
+#include "GS/Renderers/HW/GSObjectPool.h"
+
 #define POOL 384
-static unsigned char* pool; static size_t stride;
-static unsigned short freelist[POOL]; static unsigned freecount;
+static gs_object_pool_t pool_obj;
 static void* take(size_t size)
 {
-	if (!pool) { unsigned i; stride=(size+31)&~(size_t)31;
-		pool=(unsigned char*)memalign_alloc(32, stride*POOL);
-		for (i=0;i<POOL;i++) freelist[i]=(unsigned short)(POOL-1-i);
-		freecount=POOL; }
-	if (freecount && size<=stride) return pool + (size_t)freelist[--freecount]*stride;
-	return memalign_alloc(32, size);
+	void* p;
+	if (!pool_obj.slots)
+		gs_object_pool_init(&pool_obj, size, POOL);
+	p = gs_object_pool_take(&pool_obj, size);
+	return p ? p : memalign_alloc(32, size);
 }
 static void give(void* p)
 {
-	if (!p) return;
-	if (pool && (unsigned char*)p>=pool && (unsigned char*)p<pool+stride*POOL)
-	{ size_t off=(size_t)((unsigned char*)p-pool);
-	  if (freecount<POOL) freelist[freecount++]=(unsigned short)(off/stride);
-	  return; }
-	memalign_free(p);
+	if (p && !gs_object_pool_give(&pool_obj, p))
+		memalign_free(p);
 }
+
 static int fails;
 #define CHECK(c,m) do{ if(!(c)){ printf("  FAIL: %s\n", m); fails++; } }while(0)
 int main()

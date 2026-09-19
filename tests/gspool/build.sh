@@ -10,5 +10,5 @@ LC="$ROOT/libretro/libretro-common"
 INC="-I $ROOT -I $ROOT/pcsx2 -I $ROOT/common -I $ROOT/common/include -I $LC/include"
 
 ${CXX:-c++} -std=c++17 -O2 -g -w $SANFLAGS $INC -o "$DIR/gspool_test" \
-	"$DIR/main.cpp" "$LC/memmap/memalign.c"
+	"$DIR/main.cpp" "$ROOT/pcsx2/GS/Renderers/HW/GSObjectPool.c" "$LC/memmap/memalign.c"
 "$DIR/gspool_test"

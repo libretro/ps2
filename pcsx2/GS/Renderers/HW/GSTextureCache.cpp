@@ -17,6 +17,7 @@
 #include "common/HashCombine.h"
 
 #include "GSTextureCache.h"
+#include "GSObjectPool.h"
 #include "GSTextureReplacements.h"
 #include "GSRendererHW.h"
 
@@ -5469,111 +5470,44 @@ bool GSTextureCache::Surface::Overlaps(u32 bp, u32 bw, u32 psm, const GSVector4i
 
 // GSTextureCache::Source
 
-/* --- the source pool ---------------------------------------------------
- * One allocation, made the first time a source is asked for, holding
- * SOURCE_POOL_SIZE slots of whatever a Source is; a free list of slot
- * indices on top. Taking and returning one is a couple of loads and a
- * store, with no allocator, no lock and no per-draw cost that varies.
- * Sources past the pool's size come from the allocator as before, so a
- * game that somehow holds more of them still runs - slower, and no
- * worse than it was.
- *
- * The GS runs on one thread; none of this is shared. */
-static u8*    s_source_pool;
-static size_t s_source_stride;
-static u16    s_source_free[GSTextureCache::SOURCE_POOL_SIZE];
-static u32    s_source_free_count;
-
-/* The same, for targets. Two pools rather than one shared by size: a
- * slot is whatever its class is, so neither needs a size check beyond
- * the one below, and a target cannot land in a source's slot. */
-static u8*    s_target_pool;
-static size_t s_target_stride;
-static u16    s_target_free[GSTextureCache::TARGET_POOL_SIZE];
-static u32    s_target_free_count;
-
-void* GSTextureCache::Target::operator new(size_t size)
-{
-	if (!s_target_pool)
-	{
-		u32 i;
-		s_target_stride = (size + 31) & ~(size_t)31;
-		s_target_pool = (u8*)memalign_alloc(32, s_target_stride * TARGET_POOL_SIZE);
-		if (!s_target_pool)
-		{
-			s_target_stride = 0;
-			return memalign_alloc(32, size);
-		}
-		for (i = 0; i < TARGET_POOL_SIZE; i++)
-			s_target_free[i] = (u16)(TARGET_POOL_SIZE - 1 - i);
-		s_target_free_count = TARGET_POOL_SIZE;
-	}
-
-	if (s_target_free_count && size <= s_target_stride)
-		return s_target_pool + (size_t)s_target_free[--s_target_free_count] * s_target_stride;
-
-	return memalign_alloc(32, size);
-}
-
-void GSTextureCache::Target::operator delete(void* p)
-{
-	if (!p)
-		return;
-
-	if (s_target_pool && (u8*)p >= s_target_pool
-	 && (u8*)p < s_target_pool + s_target_stride * TARGET_POOL_SIZE)
-	{
-		const size_t off = (size_t)((u8*)p - s_target_pool);
-		if (s_target_free_count < TARGET_POOL_SIZE)
-			s_target_free[s_target_free_count++] = (u16)(off / s_target_stride);
-		return;
-	}
-
-	memalign_free(p);
-}
+/* --- the two pools -----------------------------------------------------
+ * The pool itself is C (GSObjectPool.c); what is left here is the pair
+ * of hooks the classes need, one call each. Sources and targets get a
+ * pool apiece rather than sharing one by size, so a target can never
+ * land in a slot sized for a source. */
+static gs_object_pool_t s_source_pool;
+static gs_object_pool_t s_target_pool;
 
 void* GSTextureCache::Source::operator new(size_t size)
 {
-	if (!s_source_pool)
-	{
-		u32 i;
-		/* Slots keep the 32-byte alignment the class asks for. */
-		s_source_stride = (size + 31) & ~(size_t)31;
-		s_source_pool = (u8*)memalign_alloc(32, s_source_stride * SOURCE_POOL_SIZE);
-		if (!s_source_pool)
-		{
-			s_source_stride = 0;
-			return memalign_alloc(32, size);
-		}
-		/* Handed out from the end, so the first sources of a run are the
-		 * low slots and stay together. */
-		for (i = 0; i < SOURCE_POOL_SIZE; i++)
-			s_source_free[i] = (u16)(SOURCE_POOL_SIZE - 1 - i);
-		s_source_free_count = SOURCE_POOL_SIZE;
-	}
-
-	if (s_source_free_count && size <= s_source_stride)
-		return s_source_pool + (size_t)s_source_free[--s_source_free_count] * s_source_stride;
-
-	return memalign_alloc(32, size);
+	void* p;
+	if (!s_source_pool.slots)
+		gs_object_pool_init(&s_source_pool, size, SOURCE_POOL_SIZE);
+	p = gs_object_pool_take(&s_source_pool, size);
+	return p ? p : memalign_alloc(32, size);
 }
 
 void GSTextureCache::Source::operator delete(void* p)
 {
-	if (!p)
-		return;
-
-	if (s_source_pool && (u8*)p >= s_source_pool
-	 && (u8*)p < s_source_pool + s_source_stride * SOURCE_POOL_SIZE)
-	{
-		const size_t off = (size_t)((u8*)p - s_source_pool);
-		if (s_source_free_count < SOURCE_POOL_SIZE)
-			s_source_free[s_source_free_count++] = (u16)(off / s_source_stride);
-		return;
-	}
-
-	memalign_free(p);
+	if (p && !gs_object_pool_give(&s_source_pool, p))
+		memalign_free(p);
 }
+
+void* GSTextureCache::Target::operator new(size_t size)
+{
+	void* p;
+	if (!s_target_pool.slots)
+		gs_object_pool_init(&s_target_pool, size, TARGET_POOL_SIZE);
+	p = gs_object_pool_take(&s_target_pool, size);
+	return p ? p : memalign_alloc(32, size);
+}
+
+void GSTextureCache::Target::operator delete(void* p)
+{
+	if (p && !gs_object_pool_give(&s_target_pool, p))
+		memalign_free(p);
+}
+
 
 GSTextureCache::Source::Source(const GIFRegTEX0& TEX0, const GIFRegTEXA& TEXA)
 {
