@@ -54,10 +54,6 @@
 #include <rthreads/rthreads.h>
 #include <rthreads/retro_eventcount.h>
 
-#ifdef HAVE_PARALLEL_GS
-extern std::unique_ptr<GSRendererPGS> g_pgs_renderer;
-#endif
-
 retro_environment_t environ_cb;
 retro_video_refresh_t video_cb;
 /* stderr when the frontend offers no log interface: every log line in
@@ -2058,71 +2054,34 @@ extern "C" void gs_d3d12_negotiate_hw_interface(retro_environment_t cb);
 extern "C" void gs_d3d11_negotiate_hw_interface(retro_environment_t cb);
 #endif
 
+/* The GS's state across a context the frontend takes away and gives
+ * back. Through GSfreeze, which calls whichever renderer is open through
+ * its table (gs_renderer_ops, GS.h): this file has no need to know which
+ * one that is. */
 static bool freeze(void)
 {
-#ifdef HAVE_PARALLEL_GS
-	if (g_pgs_renderer)
+	if (GSfreeze(FreezeAction::Size, &fd) != 0)
 	{
-		if (g_pgs_renderer->Freeze(&fd, true) != 0)
-		{
-			log_cb(RETRO_LOG_ERROR, "(context_destroy) Failed to get GS freeze size\n");
-			return false;
-		}
-	}
-	else
-#endif
-	{
-		if (g_gs_renderer->Freeze(&fd, true) != 0)
-		{
-			log_cb(RETRO_LOG_ERROR, "(context_destroy) Failed to get GS freeze size\n");
-			return false;
-		}
+		log_cb(RETRO_LOG_ERROR, "(context_destroy) Failed to get GS freeze size\n");
+		return false;
 	}
 
 	fd_data = std::make_unique<u8[]>(fd.size);
 	fd.data = fd_data.get();
 
-#ifdef HAVE_PARALLEL_GS
-	if (g_pgs_renderer)
+	if (GSfreeze(FreezeAction::Save, &fd) != 0)
 	{
-		if (g_pgs_renderer->Freeze(&fd, false) != 0)
-		{
-			log_cb(RETRO_LOG_ERROR, "(context_destroy) Failed to freeze GS\n");
-			return false;
-		}
-	}
-	else
-#endif
-	{
-		if (g_gs_renderer->Freeze(&fd, false) != 0)
-		{
-			log_cb(RETRO_LOG_ERROR, "(context_destroy) Failed to freeze GS\n");
-			return false;
-		}
+		log_cb(RETRO_LOG_ERROR, "(context_destroy) Failed to freeze GS\n");
+		return false;
 	}
 
 	return true;
 }
+
 static void defrost(void)
 {
-#ifdef HAVE_PARALLEL_GS
-	if (g_pgs_renderer)
-	{
-		if (g_pgs_renderer->Defrost(&fd) != 0)
-		{
-			log_cb(RETRO_LOG_ERROR, "(context_reset) Failed to defrost\n");
-			return;
-		}
-	}
-	else
-#endif
-	{
-		if (g_gs_renderer->Defrost(&fd) != 0)
-		{
-			log_cb(RETRO_LOG_ERROR, "(context_reset) Failed to defrost\n");
-			return;
-		}
-	}
+	if (GSfreeze(FreezeAction::Load, &fd) != 0)
+		log_cb(RETRO_LOG_ERROR, "(context_reset) Failed to defrost\n");
 }
 
 static void libretro_context_reset(void)
