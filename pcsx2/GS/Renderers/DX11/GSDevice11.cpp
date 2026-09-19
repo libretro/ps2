@@ -1517,6 +1517,17 @@ void GSDevice11::RestoreAPIState()
 	m_ctx->PSSetConstantBuffers(0, 1, &m_state.ps_cb);
 	m_ctx->IASetIndexBuffer(m_state.index_buffer, DXGI_FORMAT_R16_UINT, 0);
 
+	/* The vertex-expansion buffer is bound to VS slot 0 once, in Create,
+	 * and was never bound again: on the immediate context it stays,
+	 * since the frontend's frame leaves that slot alone. A frontend
+	 * running threaded video hands over a deferred context that may come
+	 * back from a present with nothing bound at all, and then every
+	 * sprite, line and point expands from an empty buffer into nothing --
+	 * screen and depth clears included, which is a black picture. It
+	 * belongs with the rest of what a present can take away. */
+	if (m_expand_vb_srv)
+		m_ctx->VSSetShaderResources(0, 1, m_expand_vb_srv.addressof());
+
 	// CD3D11_VIEWPORT is an MSVC d3d11.h-only C++ helper that mingw-w64
 	// doesn't ship.  Use the plain D3D11_VIEWPORT struct instead.
 	const D3D11_VIEWPORT vp = {
