@@ -64,6 +64,26 @@ void GSshutdown(void);
 bool GSIsHardwareRenderer(void);
 void GSopen(const Pcsx2Config::GSOptions& config, GSRendererType renderer, enum retro_hw_context_type api, u8* basemem);
 bool GSreopen(bool recreate_device, bool recreate_renderer, const Pcsx2Config::GSOptions& old_config);
+/* What the rest of the core needs of a GS renderer, as a table of plain
+ * functions. GS.cpp calls through whichever table is installed and knows
+ * nothing else about the renderer behind it: the GSdx renderers fill one
+ * in GS.cpp, paraLLEl-GS fills its own in GSRendererPGS.cpp. A NULL entry
+ * is something that renderer has no use for and is skipped. `mode` is a
+ * FreezeAction; it is an int here so the table stays plain C. */
+struct gs_renderer_ops
+{
+	void (*reset)(bool hardware_reset);
+	void (*gif_soft_reset)(u32 mask);
+	void (*write_csr)(u32 csr);
+	void (*init_and_read_fifo)(u8* mem, u32 size);
+	void (*read_local_memory_unsync)(u8* mem, u32 qwc, u64 BITBLITBUF, u64 TRXPOS, u64 TRXREG);
+	void (*transfer)(const u8* mem, u32 size);
+	void (*vsync)(u32 field, bool registers_written);
+	int  (*freeze)(int mode, freezeData* data);
+	void (*update_config)(void);
+	u8*  (*regs_mem)(void);
+};
+
 void GSreset(bool hardware_reset);
 void GSclose(void);
 void GSgifSoftReset(u32 mask);

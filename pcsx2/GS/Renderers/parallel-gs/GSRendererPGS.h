@@ -54,6 +54,9 @@ private:
 };
 
 // libretro integration.
+/* What GS.cpp calls this renderer through; see gs_renderer_ops in GS.h. */
+extern const struct gs_renderer_ops pgs_renderer_ops;
+
 void pgs_set_hwrender_interface(retro_hw_render_interface_vulkan *iface);
 
 const VkApplicationInfo *pgs_get_application_info();

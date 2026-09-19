@@ -759,3 +759,39 @@ void GSRendererPGS::GetInternalResolution(int *width, int *height)
 	*width = int(last_internal_width);
 	*height = int(last_internal_height);
 }
+
+/* --- the table GS.cpp calls through (see gs_renderer_ops in GS.h) -------
+ * Plain functions over the one renderer object. No entry for the soft
+ * reset, the CSR write or the unsynchronised local-memory read: this
+ * renderer takes all of that from the GIF stream and its own copy of GS
+ * memory. */
+extern std::unique_ptr<GSRendererPGS> g_pgs_renderer;
+
+static void pgs_op_reset(bool hardware_reset)            { g_pgs_renderer->Reset(hardware_reset); }
+static void pgs_op_read_fifo(u8* mem, u32 size)          { g_pgs_renderer->ReadFIFO(mem, size); }
+static void pgs_op_transfer(const u8* mem, u32 size)     { g_pgs_renderer->Transfer(mem, size); }
+static void pgs_op_vsync(u32 field, bool reg_written)    { g_pgs_renderer->VSync(field, reg_written); }
+static void pgs_op_update_config(void)                   { g_pgs_renderer->UpdateConfig(); }
+static u8*  pgs_op_regs_mem(void)                        { return g_pgs_renderer->GetRegsMem(); }
+
+static int pgs_op_freeze(int mode, freezeData* data)
+{
+	if (mode == static_cast<int>(FreezeAction::Save))
+		return g_pgs_renderer->Freeze(data, false);
+	if (mode == static_cast<int>(FreezeAction::Size))
+		return g_pgs_renderer->Freeze(data, true);
+	return g_pgs_renderer->Defrost(data);
+}
+
+const struct gs_renderer_ops pgs_renderer_ops = {
+	pgs_op_reset,
+	NULL, /* gif_soft_reset */
+	NULL, /* write_csr */
+	pgs_op_read_fifo,
+	NULL, /* read_local_memory_unsync */
+	pgs_op_transfer,
+	pgs_op_vsync,
+	pgs_op_freeze,
+	pgs_op_update_config,
+	pgs_op_regs_mem
+};
