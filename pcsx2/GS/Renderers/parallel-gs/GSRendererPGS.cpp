@@ -653,7 +653,17 @@ void GSRendererPGS::VSync(u32 field, bool registers_written)
 			 * mask is a contiguous run of bits: the ring is sized to
 			 * it once and again if it grows. */
 			uint32_t sync_index = hw_render_iface->get_sync_index(hw_render_iface->handle);
-			uint32_t sync_slots = hw_render_iface->get_sync_index_mask(hw_render_iface->handle) + 1;
+			/* A mask, not a count: bit i set means index i can be
+			 * returned, so the slots needed are one past the highest set
+			 * bit. Adding one to the mask asked for eight where the usual
+			 * 0b111 needs three. Same as GSDeviceVK (2005b82dc). */
+			uint32_t sync_mask  = hw_render_iface->get_sync_index_mask(hw_render_iface->handle);
+			uint32_t sync_slots = 0;
+			while (sync_mask)
+			{
+				sync_slots++;
+				sync_mask >>= 1;
+			}
 			if (sync_slots < 1)
 				sync_slots = 1;
 			if (sync_index >= sync_slots)
