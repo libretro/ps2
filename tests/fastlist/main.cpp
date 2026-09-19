@@ -60,6 +60,37 @@ int main()
 		l.MoveFront(idx[0]);
 		CHECK(*l.begin() == 0, "MoveFront of the front is a no-op");
 	}
+	{	/* A stale index - one into a list that has since been emptied -
+		 * must do nothing: not corrupt the list, not fault, and above all
+		 * not write past the buffer. This is what a Source's per-page
+		 * m_erase_it becomes when the texture cache is purged under it. */
+		FastList<int> l;
+		u16 idx[4];
+		int i;
+		for (i = 0; i < 4; i++) idx[i] = l.InsertFront(i);
+		l.clear();
+		for (i = 0; i < 4; i++) l.EraseIndex(idx[i]);
+		for (i = 0; i < 4; i++) l.MoveFront(idx[i]);
+		CHECK(l.size() == 0 && l.begin() == l.end(), "stale erase/move on a cleared list: still empty");
+		l.EraseIndex(0);
+		l.EraseIndex(60000);
+		CHECK(l.size() == 0, "index zero and an out-of-range one: ignored");
+
+		/* The heap corruptor: erasing from a list that is allocated but
+		 * holds nothing. The free-index top is a u16 at zero, and the
+		 * pre-decrement wrapped it to 65535, so the store landed 128 KB
+		 * past the buffer. Run this file under ASan and that write is
+		 * what it catches. */
+		FastList<int> l2;
+		l2.push_front(1);
+		l2.pop_back();
+		CHECK(l2.size() == 0, "allocated then emptied");
+		l2.EraseIndex(1);
+		l2.EraseIndex(2);
+		CHECK(l2.size() == 0, "erase from an allocated empty list: ignored");
+		l2.push_front(7);
+		CHECK(l2.size() == 1 && *l2.begin() == 7, "and it still works after");
+	}
 	printf(fails ? "fastlist: FAILED (%d)\n" : "fastlist: ok\n", fails);
 	return fails != 0;
 }

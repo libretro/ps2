@@ -32,6 +32,22 @@ class FastListIterator;
 template <class T>
 class FastListReverseIterator;
 
+/* Build with -DFASTLIST_CHECKS=1 to have a stale index say so, with the
+ * list and the index, instead of being ignored. The guards themselves are
+ * always on; this only makes them audible. */
+#ifndef FASTLIST_CHECKS
+#define FASTLIST_CHECKS 0
+#endif
+#if FASTLIST_CHECKS
+#include <cstdio>
+#define FASTLIST_REPORT(op, index) \
+	fprintf(stderr, "FastList %p: %s(%u) with capacity %u, %u held - stale index\n", \
+		(const void*)this, (op), (unsigned)(index), (unsigned)m_capacity, \
+		(unsigned)m_free_indexes_stack_top)
+#else
+#define FASTLIST_REPORT(op, index) ((void)0)
+#endif
+
 template <class T>
 class FastList
 {
@@ -154,12 +170,41 @@ public:
 
 	__forceinline void EraseIndex(const u16 index)
 	{
+		/* An index into a list that holds nothing is not an index, and
+		 * the line below writes through it twice over. It happens: a
+		 * Source keeps one m_erase_it per page and hands them back
+		 * later, and anything that emptied the list in between - a
+		 * texture cache purge, which a resolution change does - leaves
+		 * every one of them stale.
+		 *
+		 * The second write is the one that corrupts the heap. The top of
+		 * the free-index stack is a u16 at zero when the list is empty,
+		 * and the pre-decrement takes it to 65535: the store lands 128 KB
+		 * past the buffer, in whatever the allocator has there. Nothing
+		 * fails at that moment. The next free of a block whose header it
+		 * landed on reports heap corruption, in a call stack with no
+		 * connection to this one.
+		 *
+		 * FASTLIST_CHECKS says where a stale index came from. */
+		if (!m_buffer || index == 0 || index >= m_capacity
+		 || m_free_indexes_stack_top == 0)
+		{
+			FASTLIST_REPORT("EraseIndex", index);
+			return;
+		}
 		ListRemove(index);
 		m_free_indexes_stack[--m_free_indexes_stack_top] = index;
 	}
 
 	__forceinline void MoveFront(const u16 index)
 	{
+		/* As EraseIndex: a stale index here walks the chain through
+		 * m_buffer[index].prev_index and writes through both. */
+		if (!m_buffer || index == 0 || index >= m_capacity)
+		{
+			FASTLIST_REPORT("MoveFront", index);
+			return;
+		}
 		if (FirstIndex() != index)
 		{
 			ListRemove(index);
