@@ -141,7 +141,20 @@ static void gs_d3d11_context_begin(void)
 	/* True: the frontend has had the context since it was last ours, and
 	 * nothing this renderer believes is bound can be assumed to be. */
 	if (s_d3d11_locked->lock_context(s_d3d11_locked->handle) && s_d3d11_device_ready)
-		GSDevice11::GetInstance()->RestoreAPIState();
+	{
+		/* Both halves, as EndPresent() does after a present. Restore puts
+		 * back what this renderer binds; Reset takes off what it never
+		 * binds and the frontend does - its sprites, the on-screen text
+		 * among them, draw through a geometry shader and leave it bound.
+		 * With only the restore, every draw after the frontend's turn went
+		 * through that geometry shader and came out as nothing: a black
+		 * picture under threaded video, where the frontend's turn comes
+		 * between spans, and a right one without it, where the only turn
+		 * is the present and EndPresent() already did both. */
+		GSDevice11* dev = GSDevice11::GetInstance();
+		dev->ResetAPIState();
+		dev->RestoreAPIState();
+	}
 }
 
 /* Releases what the matching begin took, even if the device, and with it
