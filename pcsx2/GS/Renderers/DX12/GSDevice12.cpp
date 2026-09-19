@@ -2109,6 +2109,7 @@ void GSDevice12::DestroyResources()
 	for (auto& it : m_tfx_pipelines)
 		DeferObjectDestruction(it.second.get());
 	m_tfx_pipelines.clear();
+	m_last_tfx_pipeline = nullptr;
 	m_tfx_pixel_shaders.clear();
 	m_tfx_vertex_shaders.clear();
 	m_interlace = {};
@@ -2369,13 +2370,19 @@ GSDevice12::ComPtr<ID3D12PipelineState> GSDevice12::CreateTFXPipeline(const Pipe
 
 const ID3D12PipelineState* GSDevice12::GetTFXPipeline(const PipelineSelector& p)
 {
-	auto it = m_tfx_pipelines.find(p);
-	if (it != m_tfx_pipelines.end())
-		return it->second.get();
+	if (m_last_tfx_pipeline && m_last_tfx_pipeline_selector == p)
+		return m_last_tfx_pipeline;
 
-	ComPtr<ID3D12PipelineState> pipeline(CreateTFXPipeline(p));
-	it = m_tfx_pipelines.emplace(p, std::move(pipeline)).first;
-	return it->second.get();
+	auto it = m_tfx_pipelines.find(p);
+	if (it == m_tfx_pipelines.end())
+	{
+		ComPtr<ID3D12PipelineState> pipeline(CreateTFXPipeline(p));
+		it = m_tfx_pipelines.emplace(p, std::move(pipeline)).first;
+	}
+
+	m_last_tfx_pipeline_selector = p;
+	m_last_tfx_pipeline          = it->second.get();
+	return m_last_tfx_pipeline;
 }
 
 bool GSDevice12::BindDrawPipeline(const PipelineSelector& p)

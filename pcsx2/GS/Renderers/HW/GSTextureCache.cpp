@@ -6505,10 +6505,6 @@ bool GSTextureCache::PaletteKeyEqual::operator()(const PaletteKey& lhs, const Pa
 
 GSTextureCache::PaletteMap::PaletteMap()
 {
-	for (auto& map : m_maps)
-	{
-		map.reserve(MAX_SIZE);
-	}
 }
 
 std::shared_ptr<GSTextureCache::Palette> GSTextureCache::PaletteMap::LookupPalette(u16 pal, bool need_gs_texture)
@@ -6545,8 +6541,6 @@ std::shared_ptr<GSTextureCache::Palette> GSTextureCache::PaletteMap::LookupPalet
 	{
 		// If the map is too big, try to clean it by disposing and removing unused palettes, before adding the new one
 
-		const u32 current_size = map.size();
-
 		for (auto it = map.begin(); it != map.end();)
 		{
 			// If the palette is unused, there is only one shared pointers holding a reference to the unused Palette object,
@@ -6560,11 +6554,6 @@ std::shared_ptr<GSTextureCache::Palette> GSTextureCache::PaletteMap::LookupPalet
 			else
 				++it;
 		}
-
-		const u32 cleared_palette_count = current_size - static_cast<u32>(map.size());
-
-		if (cleared_palette_count != 0)
-			map.reserve(MAX_SIZE); // Ensure map capacity is not modified by the clearing
 	}
 
 	std::shared_ptr<Palette> palette = std::make_shared<Palette>(clut, pal, need_gs_texture);
@@ -6579,7 +6568,6 @@ void GSTextureCache::PaletteMap::Clear()
 	for (auto& map : m_maps)
 	{
 		map.clear(); // Clear all the nodes of the map, deleting Palette objects managed by shared pointers as they should be unused elsewhere
-		map.reserve(MAX_SIZE); // Ensure map capacity is not modified by the clearing
 	}
 }
 

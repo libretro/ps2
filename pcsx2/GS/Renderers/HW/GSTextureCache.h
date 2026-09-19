@@ -336,7 +336,14 @@ public:
 	class PaletteMap
 	{
 	private:
-		static const u16 MAX_SIZE = 65535; // Max size of each map.
+		/* When a map passes this, the palettes nothing is using are
+		 * dropped. It was 65535, and the two maps reserved that many
+		 * buckets outright - a megabyte of pointers, touched at random by
+		 * every lookup, for a count no game comes near: a few hundred
+		 * palettes is a lot, and a game that animates its CLUT can only
+		 * hold as many as it uses at once. The reserve is gone with it;
+		 * the maps grow into what they need. */
+		static const u16 MAX_SIZE = 1024; // Max size of each map.
 
 		// Array of 2 maps, the first for 64B palettes and the second for 1024B palettes.
 		// Each map stores the key PaletteKey (clut copy, pal value) pointing to the relevant shared pointer to Palette object.

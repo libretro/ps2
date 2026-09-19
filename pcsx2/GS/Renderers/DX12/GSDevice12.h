@@ -201,6 +201,11 @@ private:
 	std::unordered_map<u32, ComPtr<ID3DBlob>> m_tfx_vertex_shaders;
 	std::unordered_map<GSHWDrawConfig::PSSelector, ComPtr<ID3DBlob>, GSHWDrawConfig::PSSelectorHash> m_tfx_pixel_shaders;
 	std::unordered_map<PipelineSelector, ComPtr<ID3D12PipelineState>, PipelineSelectorHash> m_tfx_pipelines;
+	/* The draws of one frame come in runs that share a pipeline, and the
+	 * hash of a selector costs more than the comparison: remember the
+	 * last one and skip the map while the selector has not changed. */
+	PipelineSelector m_last_tfx_pipeline_selector;
+	const ID3D12PipelineState* m_last_tfx_pipeline = nullptr;
 
 	GSHWDrawConfig::VSConstantBuffer m_vs_cb_cache;
 	GSHWDrawConfig::PSConstantBuffer m_ps_cb_cache;

@@ -3041,6 +3041,7 @@ void GSDeviceVK::DestroyResources()
 	if (m_tfx_ubo_descriptor_set != VK_NULL_HANDLE)
 		FreeGlobalDescriptorSet(m_tfx_ubo_descriptor_set);
 
+	m_last_tfx_pipeline = VK_NULL_HANDLE;
 	for (auto& it : m_tfx_pipelines)
 	{
 		VkPipeline& p = it.second;
@@ -3381,12 +3382,21 @@ VkPipeline GSDeviceVK::CreateTFXPipeline(const PipelineSelector& p)
 
 VkPipeline GSDeviceVK::GetTFXPipeline(const PipelineSelector& p)
 {
-	const auto it = m_tfx_pipelines.find(p);
-	if (it != m_tfx_pipelines.end())
-		return it->second;
+	if (m_last_tfx_pipeline != VK_NULL_HANDLE && m_last_tfx_pipeline_selector == p)
+		return m_last_tfx_pipeline;
 
-	VkPipeline pipeline = CreateTFXPipeline(p);
-	m_tfx_pipelines.emplace(p, pipeline);
+	const auto it = m_tfx_pipelines.find(p);
+	VkPipeline pipeline;
+	if (it != m_tfx_pipelines.end())
+		pipeline = it->second;
+	else
+	{
+		pipeline = CreateTFXPipeline(p);
+		m_tfx_pipelines.emplace(p, pipeline);
+	}
+
+	m_last_tfx_pipeline_selector = p;
+	m_last_tfx_pipeline          = pipeline;
 	return pipeline;
 }
 
