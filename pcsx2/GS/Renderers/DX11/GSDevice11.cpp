@@ -71,6 +71,21 @@ static bool                                          s_d3d11_device_ready;
 static const struct retro_hw_render_interface_d3d11* s_d3d11_locked;   /* what the outermost begin locked */
 static unsigned                                      s_d3d11_lock_depth;
 
+/* Version 3: a present texture per sync index, so the frontend reads the
+ * core's texture itself and copies nothing at video_refresh. */
+#define GS_D3D11_MAX_SYNC_INDICES 32
+static GSTexture* s_d3d11_present_textures[GS_D3D11_MAX_SYNC_INDICES];
+
+static void gs_d3d11_free_present_textures(void)
+{
+	unsigned i;
+	for (i = 0; i < GS_D3D11_MAX_SYNC_INDICES; i++)
+	{
+		delete s_d3d11_present_textures[i];
+		s_d3d11_present_textures[i] = NULL;
+	}
+}
+
 static void gs_d3d11_context_begin(void);
 static void gs_d3d11_context_end(void);
 
@@ -94,7 +109,7 @@ extern "C" void gs_d3d11_negotiate_hw_interface(retro_environment_t cb)
 
 	s_d3d11_negotiation.interface_type               = RETRO_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE_D3D11;
 	s_d3d11_negotiation.interface_version            = RETRO_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE_D3D11_VERSION;
-	s_d3d11_negotiation.max_render_interface_version = RETRO_HW_RENDER_INTERFACE_D3D11_VERSION_2;
+	s_d3d11_negotiation.max_render_interface_version = RETRO_HW_RENDER_INTERFACE_D3D11_VERSION_3;
 	if (!cb(RETRO_ENVIRONMENT_SET_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE, &s_d3d11_negotiation))
 		return;
 
@@ -217,11 +232,11 @@ bool GSDevice11::Create()
 		return false;
 	}
 
-	/* Version 1, or version 2 if gs_d3d11_negotiate_hw_interface() asked
-	 * for it and the frontend has it. Anything else was not asked for. */
-	if (   d3d11->interface_version != RETRO_HW_RENDER_INTERFACE_D3D11_VERSION
-	    && d3d11->interface_version != RETRO_HW_RENDER_INTERFACE_D3D11_VERSION_2) {
-		log_cb(RETRO_LOG_ERROR, "HW render interface mismatch, expected %u or %u, got %u!\n", RETRO_HW_RENDER_INTERFACE_D3D11_VERSION, RETRO_HW_RENDER_INTERFACE_D3D11_VERSION_2, d3d11->interface_version);
+	/* Version 1, or as far as version 3 if gs_d3d11_negotiate_hw_interface()
+	 * asked and the frontend has it. Anything else was not asked for. */
+	if (   d3d11->interface_version < RETRO_HW_RENDER_INTERFACE_D3D11_VERSION
+	    || d3d11->interface_version > RETRO_HW_RENDER_INTERFACE_D3D11_VERSION_3) {
+		log_cb(RETRO_LOG_ERROR, "HW render interface mismatch, expected %u to %u, got %u!\n", RETRO_HW_RENDER_INTERFACE_D3D11_VERSION, RETRO_HW_RENDER_INTERFACE_D3D11_VERSION_3, d3d11->interface_version);
 		return false;
 	}
 	if (   d3d11->interface_version >= RETRO_HW_RENDER_INTERFACE_D3D11_VERSION_2
@@ -521,6 +536,9 @@ void GSDevice11::Destroy()
 	s_d3d11_resolved     = false;
 
 	GSDevice::Destroy();
+	/* With the pool's textures. The frontend holds its own reference to
+	 * any it still shows. */
+	gs_d3d11_free_present_textures();
 
 	m_convert = {};
 	m_merge = {};
@@ -832,6 +850,82 @@ void GSDevice11::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture*
 
 void GSDevice11::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect)
 {
+	if (   s_d3d11_v2
+	    && s_d3d11_v2->interface_version >= RETRO_HW_RENDER_INTERFACE_D3D11_VERSION_3
+	    && s_d3d11_v2->get_sync_index && s_d3d11_v2->wait_sync_index)
+	{
+		const unsigned index = s_d3d11_v2->get_sync_index(s_d3d11_v2->handle);
+		const bool     blank = (!sRect.right && !sRect.bottom);
+		GSTexture*     out   = NULL;
+		GSTexture*     present;
+		ID3D11RenderTargetView* nullView = nullptr;
+		extern retro_video_refresh_t video_cb;
+
+		if (index < GS_D3D11_MAX_SYNC_INDICES)
+		{
+			/* Not ours until the frontend has finished with what this index
+			 * carried last time round - and not with the context held while
+			 * it finishes, since finishing is what it needs the context for. */
+			gs_d3d11_context_end();
+			s_d3d11_v2->wait_sync_index(s_d3d11_v2->handle);
+			gs_d3d11_context_begin();
+
+			/* GSDevice::m_merge: this class has shaders of the same name. */
+			if (sTex == GSDevice::m_merge)
+			{
+				/* Not deinterlacing: what is presented is the merge target,
+				 * which Merge() rewrites in full every frame and so can be
+				 * any texture. Hand it over as it is, and let the one this
+				 * index carried be the merge target from here. Nothing is
+				 * copied, here or in the frontend. */
+				if (blank)
+					ClearRenderTarget(sTex, 0);
+				CommitClear(sTex);
+				out                             = sTex;
+				GSDevice::m_merge               = s_d3d11_present_textures[index];
+				m_current                       = GSDevice::m_merge;
+				s_d3d11_present_textures[index] = sTex;
+			}
+			else
+			{
+				/* The deinterlacers keep their target from field to field,
+				 * so that one is copied into the index's own texture. */
+				present = s_d3d11_present_textures[index];
+				if (   !present
+				    || present->GetWidth()  != sTex->GetWidth()
+				    || present->GetHeight() != sTex->GetHeight()
+				    || present->GetFormat() != sTex->GetFormat())
+				{
+					delete present;
+					present = CreateSurface(GSTexture::Type::RenderTarget,
+						sTex->GetWidth(), sTex->GetHeight(), 1, sTex->GetFormat());
+					s_d3d11_present_textures[index] = present;
+				}
+				if (present)
+				{
+					if (blank)
+						ClearRenderTarget(present, 0);
+					else
+						CopyRect(sTex, present, GSVector4i(0, 0, sTex->GetWidth(), sTex->GetHeight()), 0, 0);
+					CommitClear(present);
+					out = present;
+				}
+			}
+
+			if (out)
+			{
+				m_ctx->OMSetRenderTargets(1, &nullView, nullptr);
+				s_d3d11_v2->set_texture(s_d3d11_v2->handle, static_cast<ID3D11Texture2D*>(*(GSTexture11*)out));
+				gs_d3d11_context_end();
+				video_cb(RETRO_HW_FRAME_BUFFER_VALID, out->GetWidth(), out->GetHeight(), 0);
+				gs_d3d11_context_begin();
+				return;
+			}
+		}
+		/* No present texture to be had: version 2's handoff below is still
+		 * valid on a version 3 interface. */
+	}
+
 	CommitClear(sTex);
 
 	ID3D11RenderTargetView *nullView = nullptr;
