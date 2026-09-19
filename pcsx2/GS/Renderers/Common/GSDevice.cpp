@@ -364,6 +364,14 @@ void GSDevice::ClearCurrent()
 {
 	m_current = nullptr;
 
+	/* The colclip target is checked out of the pool for the length of a
+	 * colclip pass and handed back by whichever RenderHW resolves it. If
+	 * the device is torn down, or the state is dropped for a savestate
+	 * load or a reopen, with one still checked out, nothing freed it:
+	 * PurgePool only sees what is in the pool, and this is not. */
+	delete m_colclip_rt;
+	m_colclip_rt = nullptr;
+
 	for (u32 i = 0; i < NUM_RETIRED_PRESENT_TEXTURES; i++)
 	{
 		delete m_retired_present[i];

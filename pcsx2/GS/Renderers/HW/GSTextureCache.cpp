@@ -60,6 +60,14 @@ void GSTextureCache::RemoveAll(bool sources, bool targets, bool hash_cache)
 {
 	if (sources || targets)
 	{
+		/* The temporary source is not in m_surfaces - it is the one source
+		 * that is never Added - so RemoveAll walked straight past it: the
+		 * Source leaked, and with it its texture and its share of a
+		 * palette, every time the cache was purged or destroyed with one
+		 * live. Worse where targets go too, since it holds an
+		 * m_from_target that the loop below is about to delete. */
+		InvalidateTemporarySource();
+
 		m_src.RemoveAll();
 		m_palette_map.Clear();
 		m_source_memory_usage = 0;
@@ -4182,6 +4190,13 @@ void GSTextureCache::InvalidateVideoMemSubTarget(GSTextureCache::Target* rt)
 
 void GSTextureCache::InvalidateSourcesFromTarget(const Target* t)
 {
+	/* Same blind spot: this walks m_surfaces, and the temporary source is
+	 * the one source that is not in it. A source made from a target it
+	 * outlives is exactly what this function exists to prevent, and the
+	 * call sites all delete the target immediately after. */
+	if (m_temporary_source && m_temporary_source->m_from_target == t)
+		InvalidateTemporarySource();
+
 	for (auto it = m_src.m_surfaces.begin(); it != m_src.m_surfaces.end();)
 	{
 		Source* src = *it++;
