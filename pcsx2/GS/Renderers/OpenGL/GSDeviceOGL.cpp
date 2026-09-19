@@ -624,6 +624,7 @@ void GSDeviceOGL::DestroyResources()
 	if (m_palette_ss != 0)
 		glDeleteSamplers(1, &m_palette_ss);
 
+	m_last_program = nullptr;
 	m_programs.clear();
 
 	for (GSDepthStencilOGL* ds : m_om_dss)
@@ -1823,20 +1824,26 @@ __fi static void WriteToStreamBuffer(GLStreamBuffer* sb, u32 index, u32 align, c
 
 void GSDeviceOGL::SetupPipeline(const ProgramSelector& psel)
 {
-	auto it = m_programs.find(psel);
-	if (it != m_programs.end())
+	if (m_last_program && m_last_program_selector == psel)
 	{
-		it->second.Bind();
+		m_last_program->Bind();
 		return;
 	}
 
-	const std::string vs(GetVSSource(psel.vs));
-	const std::string ps(GetPSSource(psel.ps));
+	auto it = m_programs.find(psel);
+	if (it == m_programs.end())
+	{
+		const std::string vs(GetVSSource(psel.vs));
+		const std::string ps(GetPSSource(psel.ps));
 
-	GLProgram prog;
-	m_shader_cache.GetProgram(&prog, vs, ps);
-	it = m_programs.emplace(psel, std::move(prog)).first;
-	it->second.Bind();
+		GLProgram prog;
+		m_shader_cache.GetProgram(&prog, vs, ps);
+		it = m_programs.emplace(psel, std::move(prog)).first;
+	}
+
+	m_last_program_selector = psel;
+	m_last_program          = &it->second;
+	m_last_program->Bind();
 }
 
 void GSDeviceOGL::SetupSampler(PSSamplerSelector ssel)

@@ -215,6 +215,11 @@ private:
 	GLuint m_ps_ss[1 << 8];
 	GSDepthStencilOGL* m_om_dss[1 << 5] = {};
 	std::unordered_map<ProgramSelector, GLProgram, ProgramSelectorHash> m_programs;
+	/* The draws of one frame come in runs that share a program; remember
+	 * the last selector so the map is not walked for every draw, as the
+	 * D3D12 and Vulkan pipelines do (d9c02aae9). */
+	ProgramSelector m_last_program_selector;
+	GLProgram* m_last_program = nullptr;
 	GLShaderCache m_shader_cache;
 
 	GLuint m_palette_ss = 0;

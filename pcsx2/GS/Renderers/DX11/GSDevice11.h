@@ -201,6 +201,27 @@ private:
 	std::unordered_map<u32, wil::com_ptr_nothrow<ID3D11SamplerState>> m_ps_ss;
 	std::unordered_map<u32, wil::com_ptr_nothrow<ID3D11DepthStencilState>> m_om_dss;
 	std::unordered_map<u64, wil::com_ptr_nothrow<ID3D11BlendState>> m_om_bs;
+
+	/* The draws of one frame come in runs that share their state, and the
+	 * five maps above were walked for every draw. The last key of each is
+	 * kept with what it found, and the map is skipped while the key has
+	 * not changed, as the D3D12, Vulkan and OpenGL pipelines do
+	 * (d9c02aae9). A key that cannot occur means "nothing remembered":
+	 * the selectors are packed bitfields whose all-ones value is not a
+	 * state the renderer produces. */
+	static constexpr u32 NO_KEY32 = ~0u;
+	static constexpr u64 NO_KEY64 = ~0ull;
+	u32 m_last_vs_key = NO_KEY32;
+	const GSVertexShader11* m_last_vs = nullptr;
+	PSSelector m_last_ps_sel;
+	bool m_last_ps_valid = false;
+	ID3D11PixelShader* m_last_ps = nullptr;
+	u32 m_last_ps_ss_key = NO_KEY32;
+	ID3D11SamplerState* m_last_ps_ss = nullptr;
+	u32 m_last_dss_key = NO_KEY32;
+	ID3D11DepthStencilState* m_last_dss = nullptr;
+	u64 m_last_bs_key = NO_KEY64;
+	ID3D11BlendState* m_last_bs = nullptr;
 	wil::com_ptr_nothrow<ID3D11RasterizerState> m_rs;
 
 	GSHWDrawConfig::VSConstantBuffer m_vs_cb_cache;

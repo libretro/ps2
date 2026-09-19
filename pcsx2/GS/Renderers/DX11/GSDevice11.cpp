@@ -557,6 +557,14 @@ void GSDevice11::Destroy()
 	m_expand_vb.reset();
 	m_expand_ib.reset();
 
+	/* Nothing remembered across a teardown of these. */
+	m_last_vs       = nullptr;
+	m_last_ps       = nullptr;
+	m_last_ps_valid = false;
+	m_last_ps_ss    = nullptr;
+	m_last_dss      = nullptr;
+	m_last_bs       = nullptr;
+
 	m_vs.clear();
 	m_vs_cb.reset();
 	m_gs.clear();
@@ -1882,6 +1890,11 @@ bool GSDevice11::CreateTextureFX()
 
 void GSDevice11::SetupVS(VSSelector sel, const GSHWDrawConfig::VSConstantBuffer* cb)
 {
+	const GSVertexShader11* vsp;
+	if (m_last_vs && m_last_vs_key == sel.key)
+		vsp = m_last_vs;
+	else
+	{
 	auto i = std::as_const(m_vs).find(sel.key);
 
 	if (i == m_vs.end())
@@ -1916,19 +1929,28 @@ void GSDevice11::SetupVS(VSSelector sel, const GSHWDrawConfig::VSConstantBuffer*
 
 		i = m_vs.try_emplace(sel.key, std::move(vs)).first;
 	}
+	m_last_vs_key = sel.key;
+	m_last_vs     = &i->second;
+	vsp           = m_last_vs;
+	}
 
 	if (m_vs_cb_cache.Update(*cb))
 	{
 		m_ctx->UpdateSubresource(m_vs_cb.get(), 0, NULL, cb, 0, 0);
 	}
 
-	VSSetShader(i->second.vs.get(), m_vs_cb.get());
+	VSSetShader(vsp->vs.get(), m_vs_cb.get());
 
-	IASetInputLayout(i->second.il.get());
+	IASetInputLayout(vsp->il.get());
 }
 
 void GSDevice11::SetupPS(const PSSelector& sel, const GSHWDrawConfig::PSConstantBuffer* cb, PSSamplerSelector ssel)
 {
+	ID3D11PixelShader* psp;
+	if (m_last_ps_valid && m_last_ps_sel == sel)
+		psp = m_last_ps;
+	else
+	{
 	auto i = std::as_const(m_ps).find(sel);
 
 	if (i == m_ps.end())
@@ -1995,6 +2017,11 @@ void GSDevice11::SetupPS(const PSSelector& sel, const GSHWDrawConfig::PSConstant
 		wil::com_ptr_nothrow<ID3D11PixelShader> ps = m_shader_cache.GetPixelShader(m_dev.get(), tfx_fx_shader_raw, sm.GetPtr(), "ps_main");
 		i = m_ps.try_emplace(sel, std::move(ps)).first;
 	}
+	m_last_ps_sel   = sel;
+	m_last_ps_valid = true;
+	m_last_ps       = i->second.get();
+	psp             = m_last_ps;
+	}
 
 	if (cb && m_ps_cb_cache.Update(*cb))
 	{
@@ -2005,6 +2032,10 @@ void GSDevice11::SetupPS(const PSSelector& sel, const GSHWDrawConfig::PSConstant
 
 	if (sel.tfx != 4)
 	{
+		if (m_last_ps_ss && m_last_ps_ss_key == ssel.key)
+			ss0 = m_last_ps_ss;
+		else
+		{
 		auto i = std::as_const(m_ps_ss).find(ssel.key);
 
 		if (i != m_ps_ss.end())
@@ -2051,15 +2082,19 @@ void GSDevice11::SetupPS(const PSSelector& sel, const GSHWDrawConfig::PSConstant
 
 			m_ps_ss[ssel.key] = ss0;
 		}
+		m_last_ps_ss_key = ssel.key;
+		m_last_ps_ss     = ss0.get();
+		}
 	}
 
 	PSSetSamplerState(ss0.get());
 
-	PSSetShader(i->second.get(), m_ps_cb.get());
+	PSSetShader(psp, m_ps_cb.get());
 }
 
 void GSDevice11::ClearSamplerCache()
 {
+	m_last_ps_ss = nullptr;
 	m_ps_ss.clear();
 }
 
@@ -2077,6 +2112,11 @@ static constexpr std::array<D3D11_BLEND_OP, 4> s_d3d11_blend_ops = { {
 
 void GSDevice11::SetupOM(OMDepthStencilSelector dssel, OMBlendSelector bsel, u8 afix)
 {
+	ID3D11DepthStencilState* dssp;
+	if (m_last_dss && m_last_dss_key == dssel.key)
+		dssp = m_last_dss;
+	else
+	{
 	auto i = std::as_const(m_om_dss).find(dssel.key);
 
 	if (i == m_om_dss.end())
@@ -2121,8 +2161,18 @@ void GSDevice11::SetupOM(OMDepthStencilSelector dssel, OMBlendSelector bsel, u8 
 		i = m_om_dss.try_emplace(dssel.key, std::move(dss)).first;
 	}
 
-	OMSetDepthStencilState(i->second.get(), 1);
+	m_last_dss_key = dssel.key;
+	m_last_dss     = i->second.get();
+	dssp           = m_last_dss;
+	}
 
+	OMSetDepthStencilState(dssp, 1);
+
+	ID3D11BlendState* bsp;
+	if (m_last_bs && m_last_bs_key == bsel.key)
+		bsp = m_last_bs;
+	else
+	{
 	auto j = std::as_const(m_om_bs).find(bsel.key);
 
 	if (j == m_om_bs.end())
@@ -2168,6 +2218,10 @@ void GSDevice11::SetupOM(OMDepthStencilSelector dssel, OMBlendSelector bsel, u8 
 
 		j = m_om_bs.try_emplace(bsel.key, std::move(bs)).first;
 	}
+	m_last_bs_key = bsel.key;
+	m_last_bs     = j->second.get();
+	bsp           = m_last_bs;
+	}
 
-	OMSetBlendState(j->second.get(), afix);
+	OMSetBlendState(bsp, afix);
 }
