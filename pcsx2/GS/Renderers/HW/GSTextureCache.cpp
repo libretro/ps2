@@ -5477,6 +5477,24 @@ GSTextureCache::Source::Source(const GIFRegTEX0& TEX0, const GIFRegTEXA& TEXA)
 
 GSTextureCache::Source::~Source()
 {
+	/* Before any free: is this still a Source? A destructor running on
+	 * one that has already been destroyed - the same pointer freed twice,
+	 * which a stale m_temporary_source would do - reads a cleared marker.
+	 * One whose marker is neither ALIVE nor zero was overwritten by
+	 * something else, which is a different bug with a different fix.
+	 * Either way, say so and free nothing: leaking is recoverable and
+	 * corrupting the heap is not. */
+	if (m_alive != ALIVE)
+	{
+		log_cb(RETRO_LOG_ERROR,
+			"GS: destroying a source that is %s (marker 0x%08x, source %p). "
+			"Nothing freed.\n",
+			(m_alive == 0) ? "already destroyed" : "not a source at all",
+			m_alive, (void*)this);
+		return;
+	}
+	m_alive = 0;
+
 	memalign_free(m_write.rect);
 
 	// Shared textures are pointers copy. Therefore no allocation
@@ -6463,6 +6481,19 @@ GSTextureCache::Palette::Palette(const u32* clut, u16 pal, bool need_gs_texture)
 
 GSTextureCache::Palette::~Palette()
 {
+	/* As Source: a palette outlives its map when a source still holds a
+	 * reference, so a double release shows up here rather than there. */
+	if (m_alive != ALIVE)
+	{
+		log_cb(RETRO_LOG_ERROR,
+			"GS: destroying a palette that is %s (marker 0x%08x, palette %p). "
+			"Nothing freed.\n",
+			(m_alive == 0) ? "already destroyed" : "not a palette at all",
+			m_alive, (void*)this);
+		return;
+	}
+	m_alive = 0;
+
 	if (m_tex_palette)
 	{
 		g_texture_cache->m_source_memory_usage -= m_tex_palette->GetMemUsage();

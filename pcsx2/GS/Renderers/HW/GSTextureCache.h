@@ -177,6 +177,11 @@ public:
 
 	class Palette
 	{
+	public:
+		static constexpr u32 ALIVE = 0x4c415021u; /* 'PAL!' */
+		u32 m_alive = ALIVE;
+
+	private:
 	private:
 		u32* m_clut;
 		GSTexture* m_tex_palette;
@@ -273,6 +278,18 @@ public:
 
 	class Source : public Surface
 	{
+	public:
+		/* A source is freed in two places - SourceMap::RemoveAt, for one
+		 * that is in the map, and InvalidateTemporarySource, for the one
+		 * that never is - and a crash in the second, in free, says the
+		 * block was already gone or its header was overwritten. This
+		 * tells the two apart at the moment it happens instead of
+		 * afterwards: set on construction, cleared on destruction, and
+		 * checked before anything in the destructor touches the heap. */
+		static constexpr u32 ALIVE = 0x5253434eu; /* 'SRCN' */
+		u32 m_alive = ALIVE;
+
+	private:
 		struct
 		{
 			GSVector4i* rect;
