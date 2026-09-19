@@ -37,8 +37,6 @@ GSTextureCache::GSTextureCache()
 	// isn't enough in custom resolution)
 	// Test: onimusha 3 PAL 60Hz
 	s_unswizzle_buffer = (u8*)memalign_alloc(VECTOR_ALIGNMENT, 9 * 1024 * 1024);
-
-	m_surface_offset_cache.reserve(S_SURFACE_OFFSET_CACHE_MAX_SIZE);
 }
 
 GSTextureCache::~GSTextureCache()

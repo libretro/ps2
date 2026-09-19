@@ -438,7 +438,13 @@ protected:
 	int m_expected_dst_bp = -1;
 	int m_remembered_dst_bp = -1;
 
-	constexpr static size_t S_SURFACE_OFFSET_CACHE_MAX_SIZE = std::numeric_limits<u16>::max();
+	/* When the cache passes this it is emptied outright. It was 65535,
+	 * and the constructor reserved that many buckets - half a megabyte of
+	 * pointers, touched at random by every lookup, for entries that are
+	 * one per pair of overlapping surfaces. The reserve is gone; the map
+	 * grows into what it needs, and 4096 is still far more than a frame
+	 * asks for. */
+	constexpr static size_t S_SURFACE_OFFSET_CACHE_MAX_SIZE = 4096;
 	std::unordered_map<SurfaceOffsetKey, SurfaceOffset, SurfaceOffsetKeyHash, SurfaceOffsetKeyEqual> m_surface_offset_cache;
 
 	Source* m_temporary_source = nullptr; // invalidated after the draw
