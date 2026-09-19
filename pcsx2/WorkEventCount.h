@@ -68,10 +68,26 @@ typedef struct WorkEventCount
 {
 	retro_asym_eventcount_t work;    /* producer -> worker            */
 	retro_eventcount_t      empty;   /* worker -> producer            */
-	retro_atomic_int_t      seen;    /* work epoch the worker consumed */
-	retro_atomic_int_t      idle;    /* worker is between "no work" and "told of work" */
+	/* The epoch the worker has consumed and whether it is idle, in one
+	 * word: the low bit is idle, the rest the epoch. They were two
+	 * atomics, and a waiter that reads two atomics reads two moments -
+	 * it could take idle=1 from before the worker picked work up and the
+	 * new epoch from after, and conclude "idle and caught up" of a state
+	 * that never existed, returning from WaitForEmpty with work still
+	 * outstanding. No ordering between two variables fixes that; one
+	 * word does, because every transition publishes both halves at once. */
+	retro_atomic_int_t      state;
 	retro_atomic_int_t      dead;    /* Kill sets, Reset clears        */
 } WorkEventCount;
+
+/* The epoch is kept in 31 bits, which is what the eventcount's own
+ * comparisons amount to: it only ever asks whether two epochs are the
+ * same one. */
+#define WORK_EVENTCOUNT_STATE(epoch, idle) \
+	((int)((((uint32_t)(epoch)) << 1) | ((uint32_t)(idle) & 1u)))
+#define WORK_EVENTCOUNT_STATE_EPOCH(state) (((uint32_t)(state)) >> 1)
+#define WORK_EVENTCOUNT_STATE_IDLE(state)  (((uint32_t)(state)) & 1u)
+#define WORK_EVENTCOUNT_EPOCH_BITS(epoch)  ((((uint32_t)(epoch)) << 1) >> 1)
 
 /* Iterations of a read-only spin worth spending to dodge a kernel
  * sleep/wake pair; 0 on single-core hosts. Defined in MTGS.cpp. */
@@ -81,9 +97,9 @@ static INLINE void work_eventcount_init(WorkEventCount *w)
 {
 	retro_asym_eventcount_init(&w->work);
 	retro_eventcount_init(&w->empty);
-	retro_atomic_store_relaxed_int(&w->seen,
-			retro_atomic_load_relaxed_int(&w->work.epoch));
-	retro_atomic_store_relaxed_int(&w->idle, 1);
+	retro_atomic_store_relaxed_int(&w->state,
+			WORK_EVENTCOUNT_STATE(
+				retro_atomic_load_relaxed_int(&w->work.epoch), 1));
 	retro_atomic_store_relaxed_int(&w->dead, 0);
 }
 
@@ -93,20 +109,30 @@ static INLINE void work_eventcount_free(WorkEventCount *w)
 	retro_asym_eventcount_free(&w->work);
 }
 
-/* Worker took everything up to `epoch`; it is processing, not idle. */
+/* The epoch the worker has consumed, for its own comparisons. */
+static INLINE uint32_t work_eventcount_seen(const WorkEventCount *w)
+{
+	return WORK_EVENTCOUNT_STATE_EPOCH(
+			retro_atomic_load_relaxed_int((retro_atomic_int_t*)&w->state));
+}
+
+/* Worker took everything up to `epoch`; it is processing, not idle. One
+ * store, so nobody can see the new epoch without also seeing that the
+ * worker is busy with it. */
 static INLINE int work_eventcount_consume(WorkEventCount *w, int epoch)
 {
-	retro_atomic_store_release_int(&w->seen, epoch);
-	retro_atomic_store_release_int(&w->idle, 0);
+	retro_atomic_store_release_int(&w->state, WORK_EVENTCOUNT_STATE(epoch, 0));
 	return 1;
 }
 
-/* Worker found nothing to do: publish idle for the empty-waiters. Order
- * matters -- WaitForEmpty reads idle then seen, so idle is stored last,
- * with release, so a reader seeing idle=1 also sees the matching seen. */
-static INLINE void work_eventcount_go_idle(WorkEventCount *w)
+/* Worker found nothing to do at `epoch`: publish "idle, having seen
+ * epoch" for the empty-waiters, again as one store. A notify that lands
+ * after the epoch was read and before this store leaves the state idle
+ * at the older epoch, which is not empty, and the waiter keeps waiting -
+ * which is the point. */
+static INLINE void work_eventcount_go_idle(WorkEventCount *w, int epoch)
 {
-	retro_atomic_store_release_int(&w->idle, 1);
+	retro_atomic_store_release_int(&w->state, WORK_EVENTCOUNT_STATE(epoch, 1));
 	retro_eventcount_notify(&w->empty);
 }
 
@@ -123,9 +149,9 @@ static INLINE int work_eventcount_check(WorkEventCount *w)
 	/* Reading the epoch is what a non-blocking check is; cheaper than a
 	 * prepare/cancel pair, which would pay the barrier. */
 	epoch = retro_atomic_load_acquire_int(&w->work.epoch);
-	if (epoch != retro_atomic_load_relaxed_int(&w->seen))
+	if (WORK_EVENTCOUNT_EPOCH_BITS(epoch) != work_eventcount_seen(w))
 		return work_eventcount_consume(w, epoch);
-	work_eventcount_go_idle(w);
+	work_eventcount_go_idle(w, epoch);
 	return 0;
 }
 
@@ -138,13 +164,13 @@ static INLINE void work_eventcount_wait(WorkEventCount *w)
 		return;
 
 	epoch = retro_atomic_load_acquire_int(&w->work.epoch);
-	if (epoch != retro_atomic_load_relaxed_int(&w->seen))
+	if (WORK_EVENTCOUNT_EPOCH_BITS(epoch) != work_eventcount_seen(w))
 	{
 		work_eventcount_consume(w, epoch);
 		return;
 	}
 
-	work_eventcount_go_idle(w);
+	work_eventcount_go_idle(w, epoch);
 
 	if (spin_budget)
 	{
@@ -152,7 +178,7 @@ static INLINE void work_eventcount_wait(WorkEventCount *w)
 		while (spins-- > 0)
 		{
 			epoch = retro_atomic_load_acquire_int(&w->work.epoch);
-			if (epoch != retro_atomic_load_relaxed_int(&w->seen))
+			if (WORK_EVENTCOUNT_EPOCH_BITS(epoch) != work_eventcount_seen(w))
 			{
 				work_eventcount_consume(w, epoch);
 				return;
@@ -164,7 +190,7 @@ static INLINE void work_eventcount_wait(WorkEventCount *w)
 	}
 
 	key = retro_asym_eventcount_prepare_wait(&w->work);
-	if (key != retro_atomic_load_relaxed_int(&w->seen)
+	if (WORK_EVENTCOUNT_EPOCH_BITS(key) != work_eventcount_seen(w)
 	 || retro_atomic_load_acquire_int(&w->dead))
 	{
 		retro_asym_eventcount_cancel_wait(&w->work);
@@ -186,13 +212,13 @@ static INLINE int work_eventcount_wait_timed(WorkEventCount *w, u32 timeout_ms)
 		return 1;
 
 	epoch = retro_atomic_load_acquire_int(&w->work.epoch);
-	if (epoch != retro_atomic_load_relaxed_int(&w->seen))
+	if (WORK_EVENTCOUNT_EPOCH_BITS(epoch) != work_eventcount_seen(w))
 		return work_eventcount_consume(w, epoch);
 
-	work_eventcount_go_idle(w);
+	work_eventcount_go_idle(w, epoch);
 
 	key = retro_asym_eventcount_prepare_wait(&w->work);
-	if (key != retro_atomic_load_relaxed_int(&w->seen)
+	if (WORK_EVENTCOUNT_EPOCH_BITS(key) != work_eventcount_seen(w)
 	 || retro_atomic_load_acquire_int(&w->dead))
 	{
 		retro_asym_eventcount_cancel_wait(&w->work);
@@ -213,6 +239,21 @@ static INLINE int work_eventcount_wait_timed(WorkEventCount *w, u32 timeout_ms)
 	return 1;
 }
 
+/* Empty is one state, read as one word: the worker is idle AND the epoch
+ * it went idle at is still the current one. Reading the state first and
+ * the epoch second is what makes a late notify count as not-empty: a
+ * notify after this load leaves the epoch ahead of the state, and the
+ * caller waits. */
+static INLINE int work_eventcount_is_empty(WorkEventCount *w)
+{
+	const int state = retro_atomic_load_acquire_int(&w->state);
+	if (!WORK_EVENTCOUNT_STATE_IDLE(state))
+		return 0;
+	return WORK_EVENTCOUNT_STATE_EPOCH(state)
+		== WORK_EVENTCOUNT_EPOCH_BITS(
+			retro_atomic_load_acquire_int(&w->work.epoch));
+}
+
 static INLINE int work_eventcount_wait_empty(WorkEventCount *w)
 {
 	for (;;)
@@ -223,9 +264,7 @@ static INLINE int work_eventcount_wait_empty(WorkEventCount *w)
 		/* Idle alone is not empty: a notify can land after the worker's
 		 * last check and before its park, and that work is outstanding.
 		 * Empty is idle AND the worker went idle having seen everything. */
-		if (retro_atomic_load_acquire_int(&w->idle)
-		 && retro_atomic_load_acquire_int(&w->seen)
-		    == retro_atomic_load_acquire_int(&w->work.epoch))
+		if (work_eventcount_is_empty(w))
 			return 1;
 		key = retro_eventcount_prepare_wait(&w->empty);
 		if (retro_atomic_load_acquire_int(&w->dead))
@@ -233,9 +272,7 @@ static INLINE int work_eventcount_wait_empty(WorkEventCount *w)
 			retro_eventcount_cancel_wait(&w->empty);
 			return 0;
 		}
-		if (retro_atomic_load_acquire_int(&w->idle)
-		 && retro_atomic_load_acquire_int(&w->seen)
-		    == retro_atomic_load_acquire_int(&w->work.epoch))
+		if (work_eventcount_is_empty(w))
 		{
 			retro_eventcount_cancel_wait(&w->empty);
 			return 1;
@@ -254,9 +291,9 @@ static INLINE void work_eventcount_kill(WorkEventCount *w)
 static INLINE void work_eventcount_reset(WorkEventCount *w)
 {
 	retro_atomic_store_release_int(&w->dead, 0);
-	retro_atomic_store_release_int(&w->seen,
-			retro_atomic_load_acquire_int(&w->work.epoch));
-	retro_atomic_store_release_int(&w->idle, 1);
+	retro_atomic_store_release_int(&w->state,
+			WORK_EVENTCOUNT_STATE(
+				retro_atomic_load_acquire_int(&w->work.epoch), 1));
 }
 
 #endif

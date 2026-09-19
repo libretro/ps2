@@ -44,6 +44,9 @@ s32 WorkEventCount_SpinBudget(void) { return 2000; }
 
 static int fails = 0;
 #define CHECK(c, msg) do { if (!(c)) { printf("  FAIL: %s\n", msg); fails++; } } while (0)
+/* For a check inside a loop: one line if it ever fails, not sixty-four. */
+#define CHECK_QUIET(c) do { if (!(c)) { if (!quiet_failed) { printf("  FAIL: state looked empty mid-burst\n"); quiet_failed = 1; } fails++; } } while (0)
+static int quiet_failed;
 
 /* ---- 1, 2, 5, 6: single-threaded contract ------------------------- */
 static void contract_single(void)
@@ -166,6 +169,65 @@ static void contract_pair(void)
 	       retro_atomic_load_relaxed_int(&g_bad_empty));
 }
 
+/*  8. The state a WaitForEmpty waiter reads is one state, not two.
+ *
+ *  The one that shipped broken: "the worker has consumed everything" and
+ *  "the worker is idle" were two atomics, so a waiter could read idle=1
+ *  from before the worker picked the work up and the epoch from after,
+ *  and return with work outstanding. It takes two cores and the right
+ *  timing to see that as a failure, and this box may have one, so the
+ *  property is checked directly instead: whatever the worker is doing,
+ *  every intermediate state a waiter can observe is one the worker was
+ *  actually in.
+ *
+ *  Drive the worker's transitions one at a time, from this thread, and
+ *  read the state after each. The interleaving that used to lie -
+ *  notify, worker consumes, waiter looks - must never report empty. */
+static void contract_state_is_one_word(void)
+{
+	printf("  state is one word: ");
+	WorkEventCount ws;
+	int epoch;
+
+	work_eventcount_init(&ws);
+	CHECK(work_eventcount_is_empty(&ws), "fresh: empty");
+
+	/* Work arrives. Not empty, whatever else is true. */
+	work_eventcount_notify(&ws);
+	CHECK(!work_eventcount_is_empty(&ws), "notified, worker has not looked: not empty");
+
+	/* The worker picks it up. Still not empty: it is processing. This is
+	 * the moment the two-atomic version could report empty, having taken
+	 * idle from before this and the epoch from after. */
+	CHECK(work_eventcount_check(&ws), "worker sees the work");
+	CHECK(!work_eventcount_is_empty(&ws), "worker processing: not empty");
+
+	/* It finishes and finds nothing more. Now empty. */
+	CHECK(!work_eventcount_check(&ws), "worker finds nothing more");
+	CHECK(work_eventcount_is_empty(&ws), "worker idle and caught up: empty");
+
+	/* A notify landing while the worker is idle: not empty again, and the
+	 * worker must be able to see it. */
+	work_eventcount_notify(&ws);
+	CHECK(!work_eventcount_is_empty(&ws), "notify to an idle worker: not empty");
+	CHECK(work_eventcount_check(&ws), "idle worker sees the new work");
+
+	/* Many notifies while processing collapse into one epoch, and none of
+	 * them may make the state look empty. */
+	for (epoch = 0; epoch < 64; epoch++)
+	{
+		work_eventcount_notify(&ws);
+		CHECK_QUIET(!work_eventcount_is_empty(&ws));
+	}
+	CHECK(work_eventcount_check(&ws), "worker sees the burst");
+	CHECK(!work_eventcount_is_empty(&ws), "burst consumed, processing: not empty");
+	CHECK(!work_eventcount_check(&ws), "worker finishes the burst");
+	CHECK(work_eventcount_is_empty(&ws), "after the burst: empty");
+
+	work_eventcount_free(&ws);
+	printf("ok\n");
+}
+
 int main(void)
 {
 	long n = sysconf(_SC_NPROCESSORS_ONLN);
@@ -173,6 +235,7 @@ int main(void)
 	printf("work_eventcount\n  cpus: %ld%s\n", n,
 	       n > 1 ? "" : "  (lost-wake half not load-bearing on one core)");
 	contract_single();
+	contract_state_is_one_word();
 	contract_pair();
 	printf(fails ? "worksema: FAILED (%d)\n" : "worksema: ok\n", fails);
 	return fails != 0;
