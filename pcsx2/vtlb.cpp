@@ -1344,6 +1344,26 @@ bool vtlb_Core_Alloc(void)
 	if (!vtlbdata.fastmem_base)
 	{
 		s_fastmem_area = memshm_area_create(FASTMEM_AREA_SIZE);
+		/* The window is mapped a host page at a time, at whatever offset
+		 * the guest's TLB asks for. memshm_area also has a path for
+		 * Windows older than 10 1803 that maps whole 64 KB slots only;
+		 * an area from it is created fine and then refuses every page,
+		 * one error line each. SharedMemoryMappingArea had no such path
+		 * and returned nothing there, which is the case below. Ask the
+		 * area the one question that matters -- one page, off a slot
+		 * boundary -- and treat a refusal as no area. */
+		if (s_fastmem_area)
+		{
+			u8* const probe = memshm_area_base(s_fastmem_area) + __pagesize;
+			if (memshm_area_map(s_fastmem_area, GetVmMemory().MainMemory()->GetFileHandle(),
+					__pagesize, probe, __pagesize, PROT_READ))
+				memshm_area_unmap(s_fastmem_area, probe, __pagesize);
+			else
+			{
+				memshm_area_free(s_fastmem_area);
+				s_fastmem_area = NULL;
+			}
+		}
 		if (!s_fastmem_area)
 		{
 			/* Fastmem could not be allocated (Win10 placeholder APIs
