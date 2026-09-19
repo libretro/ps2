@@ -60,9 +60,11 @@ extern retro_video_refresh_t video_cb;
  * record and submit that copy on this thread. With version 2 the core
  * keeps a present texture per sync index, says when each is complete (the
  * fence its own submit signals), and is told when it may have it back.
- * The copy into the present texture rides in the command list that was
- * going to be submitted anyway, so nothing extra is submitted and nothing
- * is recorded by the frontend here at all.
+ * When the GS is not deinterlacing, the present texture is the merge
+ * target itself and the textures simply change places, so nothing is
+ * copied anywhere; otherwise the copy into the present texture rides in
+ * the command list that was going to be submitted anyway. Either way
+ * nothing extra is submitted and the frontend records nothing here.
  *
  * Plain C on purpose: a struct that lives for the process, a function
  * with C linkage main.cpp calls before SET_HW_RENDER, and an array. */
@@ -1028,6 +1030,38 @@ void GSDevice12::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture*
 			/* Not ours until the frontend has finished with what this index
 			 * carried last time round. */
 			d3d12->wait_sync_index(d3d12->handle);
+
+			/* No copy at all when what is being presented is the merge
+			 * target, which it is whenever the GS is not deinterlacing: hand
+			 * the merge target itself over, and let the texture this index
+			 * carried last time round - the frontend is finished with it,
+			 * that is what the wait above was for - be the merge target from
+			 * here. Merge() rewrites its target in full every frame
+			 * (ResizeRenderTarget with nothing preserved), so it does not
+			 * matter which texture it is handed, and it copes with none, or
+			 * one of another size, as it always has. The deinterlacers do
+			 * not get this: weave writes half the lines of its target a
+			 * field and needs the other half to still be there. */
+			/* GSDevice::m_merge: this class has pipelines of the same name. */
+			if (texture == GSDevice::m_merge)
+			{
+				if (blank)
+					ClearRenderTarget(texture, 0);
+				texture->CommitClear();
+				texture->TransitionToState(d3d12->required_state);
+
+				value = GetCurrentFenceValue();
+				ExecuteCommandList(false);
+
+				GSDevice::m_merge = s_d3d12_present_textures[index];
+				m_current         = GSDevice::m_merge;
+				s_d3d12_present_textures[index] = texture;
+
+				d3d12->set_texture_fenced(d3d12->handle, texture->GetResource(),
+					texture->GetResource()->GetDesc().Format, m_fence.get(), value);
+				video_cb(RETRO_HW_FRAME_BUFFER_VALID, texture->GetWidth(), texture->GetHeight(), 0);
+				return;
+			}
 
 			present = s_d3d12_present_textures[index];
 			if (   !present
