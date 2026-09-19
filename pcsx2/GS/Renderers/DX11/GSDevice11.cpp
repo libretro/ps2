@@ -58,9 +58,11 @@ extern struct retro_hw_render_callback hw_render;
  * the GS, with them. When the lock reports that the frontend has had the
  * context in between, the renderer's cached state goes back onto it.
  *
- * Plain C on purpose: statics, and functions with C linkage that MTGS.cpp
- * and main.cpp call. They do nothing unless D3D11 is the context and the
- * frontend handed out version 2. */
+ * Plain C on purpose: statics and plain functions. Nobody else knows this
+ * file exists: the bracket is the gs_hw_context_begin/end pair in GS.h,
+ * which is NULL - and so never called - unless this file installed it,
+ * and it installs it only when D3D11 is the context that was accepted
+ * and the frontend knows the version 2 negotiation. */
 
 static struct retro_hw_render_context_negotiation_interface_d3d11 s_d3d11_negotiation;
 static const struct retro_hw_render_interface_d3d11* s_d3d11_v2;       /* NULL: version 1, or not D3D11 */
@@ -69,6 +71,11 @@ static bool                                          s_d3d11_device_ready;
 static const struct retro_hw_render_interface_d3d11* s_d3d11_locked;   /* what the outermost begin locked */
 static unsigned                                      s_d3d11_lock_depth;
 
+static void gs_d3d11_context_begin(void);
+static void gs_d3d11_context_end(void);
+
+/* Called by main.cpp when D3D11 is the context that was accepted, and
+ * only then. */
 extern "C" void gs_d3d11_negotiate_hw_interface(retro_environment_t cb)
 {
 	struct retro_hw_render_context_negotiation_interface probe;
@@ -88,14 +95,21 @@ extern "C" void gs_d3d11_negotiate_hw_interface(retro_environment_t cb)
 	s_d3d11_negotiation.interface_type               = RETRO_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE_D3D11;
 	s_d3d11_negotiation.interface_version            = RETRO_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE_D3D11_VERSION;
 	s_d3d11_negotiation.max_render_interface_version = RETRO_HW_RENDER_INTERFACE_D3D11_VERSION_2;
-	cb(RETRO_ENVIRONMENT_SET_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE, &s_d3d11_negotiation);
+	if (!cb(RETRO_ENVIRONMENT_SET_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE, &s_d3d11_negotiation))
+		return;
+
+	/* Version 2 is on offer, so the context may have to be taken. If the
+	 * interface turns out to be version 1 after all, the first begin
+	 * takes the pair out again. */
+	gs_hw_context_begin = gs_d3d11_context_begin;
+	gs_hw_context_end   = gs_d3d11_context_end;
 }
 
 /* Takes the context, if it is one that has to be taken. Opening the GS is
  * bracketed too, and that is before GSDevice11::Create() has run, so the
  * interface is asked for here the first time and remembered until the
  * device goes. */
-extern "C" void gs_d3d11_context_begin(void)
+static void gs_d3d11_context_begin(void)
 {
 	if (s_d3d11_lock_depth == 0)
 	{
@@ -107,6 +121,15 @@ extern "C" void gs_d3d11_context_begin(void)
 			    && iface->lock_context && iface->unlock_context && iface->set_texture)
 				s_d3d11_v2 = iface;
 			s_d3d11_resolved = true;
+		}
+		if (s_d3d11_resolved && !s_d3d11_v2)
+		{
+			/* Version 1: there is nothing to take, now or for as long as
+			 * this context lasts. Out comes the pair, both halves at
+			 * once, so the caller's matching end finds nothing to call. */
+			gs_hw_context_begin = NULL;
+			gs_hw_context_end   = NULL;
+			return;
 		}
 		s_d3d11_locked = s_d3d11_v2;
 	}
@@ -123,7 +146,7 @@ extern "C" void gs_d3d11_context_begin(void)
 
 /* Releases what the matching begin took, even if the device, and with it
  * s_d3d11_v2, went in between: closing the GS is bracketed too. */
-extern "C" void gs_d3d11_context_end(void)
+static void gs_d3d11_context_end(void)
 {
 	if (s_d3d11_lock_depth == 0)
 		return;

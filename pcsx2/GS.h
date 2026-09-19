@@ -295,6 +295,17 @@ struct MTGS_FreezeData
 // --------------------------------------------------------------------------------------
 // MTGS
 // --------------------------------------------------------------------------------------
+/* A hardware context that has to be taken before the GS touches it and
+ * given back afterwards. NULL when the context in use needs no such
+ * thing, which is every context but one: whoever needs it installs the
+ * pair, and everyone who brackets GS work tests the pointer and calls
+ * nothing otherwise. Installed and cleared together. */
+extern void (*gs_hw_context_begin)(void);
+extern void (*gs_hw_context_end)(void);
+
+#define GS_HW_CONTEXT_BEGIN() do { if (gs_hw_context_begin) gs_hw_context_begin(); } while (0)
+#define GS_HW_CONTEXT_END()   do { if (gs_hw_context_end)   gs_hw_context_end();   } while (0)
+
 namespace MTGS
 {
 	bool IsOpen();

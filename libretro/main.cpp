@@ -2052,20 +2052,10 @@ void retro_reset(void)
 	cpu_thread_resume();
 }
 
-/* See GSDevice12.cpp and GSDevice11.cpp. The context bracket is for
- * libretro_d3d11.h version 2, where the immediate context is shared with
- * the frontend by taking turns; it does nothing otherwise. Freezing and
- * defrosting the GS read and write its textures, outside MTGS. */
+/* See GSDevice12.cpp and GSDevice11.cpp. */
 #ifdef _WIN32
 extern "C" void gs_d3d12_negotiate_hw_interface(retro_environment_t cb);
 extern "C" void gs_d3d11_negotiate_hw_interface(retro_environment_t cb);
-extern "C" void gs_d3d11_context_begin(void);
-extern "C" void gs_d3d11_context_end(void);
-#define GS_HW_CONTEXT_BEGIN() gs_d3d11_context_begin()
-#define GS_HW_CONTEXT_END()   gs_d3d11_context_end()
-#else
-#define GS_HW_CONTEXT_BEGIN() ((void)0)
-#define GS_HW_CONTEXT_END()   ((void)0)
 #endif
 
 static bool freeze(void)
@@ -2659,6 +2649,11 @@ bool retro_load_game(const struct retro_game_info* game)
 
 	if (is_software_setting(setting_renderer))
 		s_option_config.GS.Renderer = static_cast<decltype(s_option_config.GS.Renderer)>((int)GSRendererType::SW);
+
+	/* Whatever the last context needed taken, this one starts without;
+	 * the case below that needs it installs it (see GS.h). */
+	gs_hw_context_begin = NULL;
+	gs_hw_context_end   = NULL;
 
 	switch (hw_render.context_type)
 	{

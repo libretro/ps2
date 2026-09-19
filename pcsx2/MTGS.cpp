@@ -113,20 +113,9 @@ alignas(64) static u64 g_ee_wait_ticks;
 
 extern struct retro_hw_render_callback hw_render;
 
-/* A hardware context that has to be taken before it is used, and given
- * back: libretro_d3d11.h version 2, where the core and a frontend that
- * presents from another thread take turns on the one immediate context.
- * Everything that touches the GS goes between these. They do nothing for
- * every other context and interface version; see GSDevice11.cpp. */
-#ifdef _WIN32
-extern "C" void gs_d3d11_context_begin(void);
-extern "C" void gs_d3d11_context_end(void);
-#define GS_HW_CONTEXT_BEGIN() gs_d3d11_context_begin()
-#define GS_HW_CONTEXT_END()   gs_d3d11_context_end()
-#else
-#define GS_HW_CONTEXT_BEGIN() ((void)0)
-#define GS_HW_CONTEXT_END()   ((void)0)
-#endif
+/* See GS.h. NULL unless the renderer in use installed them. */
+void (*gs_hw_context_begin)(void) = NULL;
+void (*gs_hw_context_end)(void)   = NULL;
 
 /* One read of the CPU count, cached. Spinning on a single-core host only
  * steals the producer's timeslice, so the budget is 0 there. Defined here
