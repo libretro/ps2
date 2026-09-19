@@ -6411,7 +6411,18 @@ void GSTextureCache::InjectHashCacheTexture(const HashCacheKey& key, GSTexture* 
 	{
 		// We must've got evicted before we finished loading. No matter, add it in there anyway;
 		// if it's not used again, it'll get tossed out later.
-		const HashCacheEntry entry{tex, 1u, 0u, alpha_minmax, true, true};
+		//
+		// Refcount zero, not one: nobody is holding this. The entries the
+		// two paths in LookupHashCache insert are held by the Source being
+		// built around them, which releases on destruction; this one has
+		// no source - the one that asked for it was evicted while the
+		// replacement loaded. At one it could never come back down, and
+		// AgeHashCache skips anything still referenced, so the entry never
+		// aged, was never purged, and pinned its texture for the life of
+		// the cache - the opposite of what the comment above says happens.
+		// At zero it ages like any unused entry, and LookupHashCache
+		// raises it the moment something does pick it up.
+		const HashCacheEntry entry{tex, 0u, 0u, alpha_minmax, true, true};
 		m_hash_cache.emplace(key, entry);
 		return;
 	}
