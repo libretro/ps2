@@ -2180,6 +2180,10 @@ static void libretro_context_destroy(void)
 #endif
 }
 
+#ifdef _WIN32
+extern "C" void gs_d3d12_negotiate_hw_interface(retro_environment_t cb);
+#endif
+
 static bool libretro_set_hw_render(retro_hw_context_type type)
 {
 	hw_render.context_type       = type;
@@ -2645,6 +2649,13 @@ bool retro_load_game(const struct retro_game_info* game)
 		case RETRO_HW_CONTEXT_D3D12:
 			if (!is_software_setting(setting_renderer))
 				s_option_config.GS.Renderer = static_cast<decltype(s_option_config.GS.Renderer)>((int)GSRendererType::DX12);
+#ifdef _WIN32
+			/* Ask for libretro_d3d12.h version 2, where the Vulkan case
+			 * below sets its own negotiation interface: once D3D12 is the
+			 * context that was accepted, and before the frontend builds
+			 * its driver. See GSDevice12.cpp. */
+			gs_d3d12_negotiate_hw_interface(environ_cb);
+#endif
 			break;
 		case RETRO_HW_CONTEXT_D3D11:
 			if (!is_software_setting(setting_renderer))

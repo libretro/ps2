@@ -52,6 +52,58 @@ retro_hw_render_interface_d3d12 *d3d12;
 extern retro_environment_t environ_cb;
 extern retro_video_refresh_t video_cb;
 
+/* --- libretro_d3d12.h version 2 ------------------------------------------
+ *
+ * Version 1 hands the frontend the one texture the GS merges into, which
+ * it draws into again next frame; the frontend has to copy it before
+ * video_refresh returns, and one that presents from another thread has to
+ * record and submit that copy on this thread. With version 2 the core
+ * keeps a present texture per sync index, says when each is complete (the
+ * fence its own submit signals), and is told when it may have it back.
+ * The copy into the present texture rides in the command list that was
+ * going to be submitted anyway, so nothing extra is submitted and nothing
+ * is recorded by the frontend here at all.
+ *
+ * Plain C on purpose: a struct that lives for the process, a function
+ * with C linkage main.cpp calls before SET_HW_RENDER, and an array. */
+
+#define GS_D3D12_MAX_SYNC_INDICES 32
+
+static struct retro_hw_render_context_negotiation_interface_d3d12 s_d3d12_negotiation;
+static GSTexture12* s_d3d12_present_textures[GS_D3D12_MAX_SYNC_INDICES];
+
+extern "C" void gs_d3d12_negotiate_hw_interface(retro_environment_t cb)
+{
+	struct retro_hw_render_context_negotiation_interface probe;
+
+	if (!cb)
+		return;
+
+	/* A frontend that does not know the type answers version 0, or does
+	 * not answer; then nothing has been asked for and version 1 is what
+	 * GET_HW_RENDER_INTERFACE returns, as it always has. */
+	probe.interface_type    = RETRO_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE_D3D12;
+	probe.interface_version = 0;
+	if (   !cb(RETRO_ENVIRONMENT_GET_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE_SUPPORT, &probe)
+	    || probe.interface_version < RETRO_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE_D3D12_VERSION)
+		return;
+
+	s_d3d12_negotiation.interface_type               = RETRO_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE_D3D12;
+	s_d3d12_negotiation.interface_version            = RETRO_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE_D3D12_VERSION;
+	s_d3d12_negotiation.max_render_interface_version = RETRO_HW_RENDER_INTERFACE_D3D12_VERSION_2;
+	cb(RETRO_ENVIRONMENT_SET_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE, &s_d3d12_negotiation);
+}
+
+static void gs_d3d12_free_present_textures(void)
+{
+	unsigned i;
+	for (i = 0; i < GS_D3D12_MAX_SYNC_INDICES; i++)
+	{
+		delete s_d3d12_present_textures[i];
+		s_d3d12_present_textures[i] = NULL;
+	}
+}
+
 using namespace D3D12;
 
 // Private D3D12 state
@@ -646,8 +698,11 @@ bool GSDevice12::Create()
 		return false;
 	}
 
-	if (d3d12->interface_version != RETRO_HW_RENDER_INTERFACE_D3D12_VERSION) {
-		log_cb(RETRO_LOG_ERROR, "HW render interface mismatch, expected %u, got %u!\n", RETRO_HW_RENDER_INTERFACE_D3D12_VERSION, d3d12->interface_version);
+	/* Version 1, or version 2 if gs_d3d12_negotiate_hw_interface() asked
+	 * for it and the frontend has it. Anything else was not asked for. */
+	if (   d3d12->interface_version != RETRO_HW_RENDER_INTERFACE_D3D12_VERSION
+	    && d3d12->interface_version != RETRO_HW_RENDER_INTERFACE_D3D12_VERSION_2) {
+		log_cb(RETRO_LOG_ERROR, "HW render interface mismatch, expected %u or %u, got %u!\n", RETRO_HW_RENDER_INTERFACE_D3D12_VERSION, RETRO_HW_RENDER_INTERFACE_D3D12_VERSION_2, d3d12->interface_version);
 		return false;
 	}
 
@@ -726,6 +781,9 @@ bool GSDevice12::Create()
 void GSDevice12::Destroy()
 {
 	GSDevice::Destroy();
+	/* With the pool's textures, and like them ahead of the last submit
+	 * below. The frontend holds its own reference to any it still shows. */
+	gs_d3d12_free_present_textures();
 
 	if (GetCommandList())
 	{
@@ -956,6 +1014,62 @@ void GSDevice12::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture*
 void GSDevice12::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect)
 {
 	GSTexture12* texture = (GSTexture12*)sTex;
+
+	if (   d3d12->interface_version >= RETRO_HW_RENDER_INTERFACE_D3D12_VERSION_2
+	    && d3d12->get_sync_index && d3d12->wait_sync_index && d3d12->set_texture_fenced)
+	{
+		const unsigned index = d3d12->get_sync_index(d3d12->handle);
+		const bool     blank = (!sRect.right && !sRect.bottom);
+		GSTexture12*   present;
+		u64            value;
+
+		if (index < GS_D3D12_MAX_SYNC_INDICES)
+		{
+			/* Not ours until the frontend has finished with what this index
+			 * carried last time round. */
+			d3d12->wait_sync_index(d3d12->handle);
+
+			present = s_d3d12_present_textures[index];
+			if (   !present
+			    || present->GetWidth()  != texture->GetWidth()
+			    || present->GetHeight() != texture->GetHeight()
+			    || present->GetFormat() != texture->GetFormat())
+			{
+				delete present;
+				present = static_cast<GSTexture12*>(CreateSurface(GSTexture::Type::RenderTarget,
+					texture->GetWidth(), texture->GetHeight(), 1, texture->GetFormat()));
+				s_d3d12_present_textures[index] = present;
+			}
+
+			if (present)
+			{
+				/* Blanking enforce, see 'GSRenderer::VSync()' */
+				if (blank)
+					ClearRenderTarget(present, 0);
+				else
+					CopyRect(texture, present, GSVector4i(0, 0, texture->GetWidth(), texture->GetHeight()), 0, 0);
+				present->CommitClear();
+				present->TransitionToState(d3d12->required_state);
+
+				/* The value the list being recorded signals when it is
+				 * submitted, which is the next line: the present texture is
+				 * complete, and in required_state, once the fence is there. */
+				value = GetCurrentFenceValue();
+				ExecuteCommandList(false);
+
+				if (blank)
+					ClearRenderTarget(texture, 0);
+
+				d3d12->set_texture_fenced(d3d12->handle, present->GetResource(),
+					present->GetResource()->GetDesc().Format, m_fence.get(), value);
+				video_cb(RETRO_HW_FRAME_BUFFER_VALID, present->GetWidth(), present->GetHeight(), 0);
+				return;
+			}
+		}
+		/* No present texture to be had: version 1's handoff is still valid
+		 * on a version 2 interface, and costs what it always did. */
+	}
+
 	texture->CommitClear();
 	texture->TransitionToState(d3d12->required_state);
 	ExecuteCommandList(false);
