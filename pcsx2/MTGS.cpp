@@ -326,9 +326,11 @@ bool MTGS::MainLoop(bool flush_all)
 		while (s_RingOk && (span = retro_spsc_read_begin(&s_Ring, &span_ptr)) >= sizeof(PacketTagType))
 		{
 		size_t consumed = 0;
-		/* Per span, not per call: the frontend's thread gets the context
-		 * between spans instead of waiting out a whole frame of the GS. */
-		GS_HW_CONTEXT_BEGIN();
+		/* The hardware context, where it has to be taken, is taken around
+		 * each call into the GS below and nothing else. Not around a span:
+		 * a span can be a whole frame, and it includes the waits for the
+		 * VU1 worker, and for all of that the frontend's thread could not
+		 * start its frame. */
 		while (consumed < span)
 		{
 			const PacketTagType& tag = *(const PacketTagType*)((const u8*)span_ptr + consumed);
@@ -341,7 +343,11 @@ bool MTGS::MainLoop(bool flush_all)
 						u32 offset     = tag.data[0];
 						u32 size       = tag.data[1];
 						if (offset != ~0u)
+						{
+							GS_HW_CONTEXT_BEGIN();
 							GSgifTransfer((u8*)&path.buffer[offset], size / 16);
+							GS_HW_CONTEXT_END();
+						}
 						retro_atomic_fetch_sub_int(&path.readAmount, size);
 					}
 					break;
@@ -390,7 +396,11 @@ bool MTGS::MainLoop(bool flush_all)
 						}
 						GS_Packet gsPack = path.GetGSPacketMTVU(); // Get vu1 program's xgkick packet(s)
 						if (gsPack.size)
+						{
+							GS_HW_CONTEXT_BEGIN();
 							GSgifTransfer((u8*)&path.buffer[gsPack.offset], gsPack.size / 16);
+							GS_HW_CONTEXT_END();
+						}
 						retro_atomic_fetch_sub_int(&path.readAmount, gsPack.size + gsPack.readAmount);
 						const bool final_packet = gsPack.cycles == 0;
 						path.PopGSPacketMTVU(); // Should be done last, for proper WaitGS(isMTVU)
@@ -408,8 +418,12 @@ bool MTGS::MainLoop(bool flush_all)
 					// without rendering), but in single-threaded mode MainLoop(true)
 					// IS the render path — call GSvsync.
 					if(!flush_all || sthread_get_current_thread_id() == s_thread)
+					{
+						GS_HW_CONTEXT_BEGIN();
 						GSvsync((gsCSRload() & GS_CSR_FIELD) ? 0 : 1,
 						        (bool)retro_atomic_exchange_int(&s_GSRegistersWritten, 0));
+						GS_HW_CONTEXT_END();
+					}
 					else
 						retro_atomic_store_release_int(&s_GSRegistersWritten, 0);
 					break;
@@ -417,14 +431,20 @@ bool MTGS::MainLoop(bool flush_all)
 					{
 						MTGS_FreezeData* data = (MTGS_FreezeData*)tag.pointer;
 						int mode = tag.data[0];
+						GS_HW_CONTEXT_BEGIN();
 						GSfreeze((FreezeAction)mode, (freezeData*)data->fdata);
+						GS_HW_CONTEXT_END();
 					}
 					break;
 				case GS_RINGTYPE_RESET:
+					GS_HW_CONTEXT_BEGIN();
 					GSreset(tag.data[0] != 0);
+					GS_HW_CONTEXT_END();
 					break;
 				case GS_RINGTYPE_INIT_AND_READ_FIFO:
+					GS_HW_CONTEXT_BEGIN();
 					GSInitAndReadFIFO((u8*)tag.pointer, tag.data[0]);
+					GS_HW_CONTEXT_END();
 					break;
 				// Optimized performance in non-Dev builds.
 				default:
@@ -454,12 +474,10 @@ bool MTGS::MainLoop(bool flush_all)
 				 * state machine absorbs spurious wakes by design. */
 				if (retro_spsc_read_avail(&s_Ring) != 0)
 					work_eventcount_notify(&s_sem_event);
-				GS_HW_CONTEXT_END();
 				return true;
 			}
 		}
 		retro_spsc_read_end(&s_Ring, consumed);
-		GS_HW_CONTEXT_END();
 		}
 	}
 

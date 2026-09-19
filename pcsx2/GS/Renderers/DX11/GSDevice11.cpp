@@ -851,8 +851,18 @@ void GSDevice11::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture*
 	if (s_d3d11_v2)
 		s_d3d11_v2->set_texture(s_d3d11_v2->handle, static_cast<ID3D11Texture2D*>(*(GSTexture11*)sTex));
 
+	/* Not with the context held. video_refresh is where a frontend that
+	 * presents from another thread paces the core: it waits for that
+	 * thread to take the frame before, and that thread cannot finish the
+	 * frame it is on without the context. Held across the call, every such
+	 * wait ran to its timeout. The frontend takes the context itself in
+	 * there for what it needs of the texture, and this thread cannot draw
+	 * into it meanwhile. Taking it again reports the frontend's turn, and
+	 * the state goes back as after any other. */
+	gs_d3d11_context_end();
 	extern retro_video_refresh_t video_cb;
 	video_cb(RETRO_HW_FRAME_BUFFER_VALID, sTex->GetWidth(), sTex->GetHeight(), 0);
+	gs_d3d11_context_begin();
 }
 
 void GSDevice11::UpdateCLUTTexture(GSTexture* sTex, float sScale, u32 offsetX, u32 offsetY, GSTexture* dTex, u32 dOffset, u32 dSize)
