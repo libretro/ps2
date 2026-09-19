@@ -2294,8 +2294,19 @@ struct FaultThreadScope
 	~FaultThreadScope() { retro_faulthandler_unregister_thread(); }
 };
 
+/* The EE is the GS ring's producer for as long as this thread lives;
+ * MTGS::WaitGS parks a producer and lets anyone else drain. Set before
+ * the boot handshake below publishes, which is what orders it ahead of
+ * the frontend's first read, and cleared before the join. */
+struct MtgsProducerScope
+{
+	MtgsProducerScope()  { MTGS::SetProducerThread(true); }
+	~MtgsProducerScope() { MTGS::SetProducerThread(false); }
+};
+
 static void cpu_thread_entry(VMBootParameters boot_params)
 {
+	MtgsProducerScope producer_scope_;
 	FaultThreadScope fault_scope_;
 	if (!VMManager::Initialize(boot_params))
 	{
@@ -2973,6 +2984,11 @@ static void update_av_info(void)
 void retro_run(void)
 {
 	bool updated = false;
+
+	/* Before anything that can wait on the GS: check_variables and
+	 * update_av_info below both do. */
+	MTGS::ClaimRing();
+
 	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
 		check_variables(false);
 
@@ -2980,9 +2996,6 @@ void retro_run(void)
 		update_av_info();
 
 	Input::Update();
-
-	/* This thread drains the GS ring; see MTGS::WaitGS. */
-	MTGS::ClaimRing();
 
 	if (!MTGS::IsOpen())
 		MTGS::TryOpenGS();

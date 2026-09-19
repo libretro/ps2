@@ -27,6 +27,7 @@
 #include "Gif_Unit.h"
 #include "MTVU.h"
 #include "WorkEventCount.h"
+#include "MTGSOwner.h"
 #if !defined(_WIN32)
 #include <unistd.h>
 #endif
@@ -137,6 +138,7 @@ namespace MTGS
 
 
 	static uintptr_t s_thread;
+	static uintptr_t s_producer_thread;
 	static retro_atomic_int_t s_open_flag = RETRO_ATOMIC_INT_INITIALIZER(0);
 };
 
@@ -471,26 +473,13 @@ void MTGS::CloseGS(void)
 // If isMTVU, then this implies this function is being called from the MTVU thread...
 void MTGS::WaitGS(bool isMTVU)
 {
-	/* One thread drains this ring: the frontend's, from MainLoop. The
-	 * ring is single-consumer, the GS it feeds holds a hardware context
-	 * that is current on that thread only, and a vsync inside it calls
-	 * the frontend's video callback. None of that may happen on the EE.
-	 *
-	 * So the owner's own wait pumps, because nobody else will; and every
-	 * other thread's wait parks until the owner has drained the ring,
-	 * which its next retro_run does. A wait with no owner at all -- after
-	 * WaitForClose(), with the VM already down -- pumps too, since there
-	 * is no EE left to race and nothing else would serve it.
-	 *
-	 * What this replaces let any non-MTVU caller pump. The EE waits here
-	 * from the GIF unit, from Reset and from ApplySettings while the
-	 * frontend is inside MainLoop(false): two consumers on a
-	 * single-consumer ring, and GS commands run on a thread with no
-	 * context. */
+	/* See MTGSOwner.h for who drains and why it is decided by who
+	 * produces. A producer's wait parks until the frontend's side has
+	 * drained the ring, which every retro_run does; anyone else's wait
+	 * drains it here. */
 	if (!isMTVU)
 	{
-		const uintptr_t owner = s_thread;
-		if (owner == 0 || owner == sthread_get_current_thread_id())
+		if (mtgs_wait_drains(sthread_get_current_thread_id(), s_producer_thread, 0))
 		{
 			/* Entries may have been written without a notify (a frame
 			 * with no completed GIF packets between PostVsyncStart and
@@ -584,11 +573,18 @@ void MTGS::WaitForClose()
 	s_thread = 0;
 }
 
-/* The frontend's thread, at the top of every retro_run: it is the one
- * that drains the ring, whichever thread happened to open the GS. */
+/* The frontend's thread, first thing in every retro_run. s_thread is
+ * what the vsync and blank-packet tests compare against -- "is this the
+ * thread that renders" -- and no longer decides who drains a wait. */
 void MTGS::ClaimRing(void)
 {
 	s_thread = sthread_get_current_thread_id();
+}
+
+/* The EE thread, as it starts and as it ends. See MTGSOwner.h. */
+void MTGS::SetProducerThread(bool on)
+{
+	s_producer_thread = on ? sthread_get_current_thread_id() : 0;
 }
 
 void MTGS::Freeze(FreezeAction mode, MTGS_FreezeData& data)
