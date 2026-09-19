@@ -41,6 +41,98 @@ extern char interlace_fx_shader_raw[];
 }
 
 extern retro_environment_t environ_cb;
+extern struct retro_hw_render_callback hw_render;
+
+/* --- libretro_d3d11.h version 2 ------------------------------------------
+ *
+ * Under version 1 a frontend that presents from another thread cannot
+ * share the device's one immediate context with the core, so it hands
+ * over a deferred context: one that records but cannot read anything
+ * back, so GS readbacks fail, and whose state and object lifetimes do not
+ * behave like the context this renderer was written for.
+ *
+ * Version 2 gives the core the immediate context whatever thread the
+ * frontend presents from, shared by taking turns. Everything that touches
+ * the GS sits between gs_d3d11_context_begin() and gs_d3d11_context_end():
+ * MTGS brackets each span of the ring it drains, and opening and closing
+ * the GS, with them. When the lock reports that the frontend has had the
+ * context in between, the renderer's cached state goes back onto it.
+ *
+ * Plain C on purpose: statics, and functions with C linkage that MTGS.cpp
+ * and main.cpp call. They do nothing unless D3D11 is the context and the
+ * frontend handed out version 2. */
+
+static struct retro_hw_render_context_negotiation_interface_d3d11 s_d3d11_negotiation;
+static const struct retro_hw_render_interface_d3d11* s_d3d11_v2;       /* NULL: version 1, or not D3D11 */
+static bool                                          s_d3d11_resolved; /* the interface has been asked for */
+static bool                                          s_d3d11_device_ready;
+static const struct retro_hw_render_interface_d3d11* s_d3d11_locked;   /* what the outermost begin locked */
+static unsigned                                      s_d3d11_lock_depth;
+
+extern "C" void gs_d3d11_negotiate_hw_interface(retro_environment_t cb)
+{
+	struct retro_hw_render_context_negotiation_interface probe;
+
+	if (!cb)
+		return;
+
+	/* A frontend that does not know the type answers version 0, or does
+	 * not answer; then nothing has been asked for and version 1 is what
+	 * GET_HW_RENDER_INTERFACE returns, as it always has. */
+	probe.interface_type    = RETRO_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE_D3D11;
+	probe.interface_version = 0;
+	if (   !cb(RETRO_ENVIRONMENT_GET_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE_SUPPORT, &probe)
+	    || probe.interface_version < RETRO_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE_D3D11_VERSION)
+		return;
+
+	s_d3d11_negotiation.interface_type               = RETRO_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE_D3D11;
+	s_d3d11_negotiation.interface_version            = RETRO_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE_D3D11_VERSION;
+	s_d3d11_negotiation.max_render_interface_version = RETRO_HW_RENDER_INTERFACE_D3D11_VERSION_2;
+	cb(RETRO_ENVIRONMENT_SET_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE, &s_d3d11_negotiation);
+}
+
+/* Takes the context, if it is one that has to be taken. Opening the GS is
+ * bracketed too, and that is before GSDevice11::Create() has run, so the
+ * interface is asked for here the first time and remembered until the
+ * device goes. */
+extern "C" void gs_d3d11_context_begin(void)
+{
+	if (s_d3d11_lock_depth == 0)
+	{
+		if (!s_d3d11_resolved && hw_render.context_type == RETRO_HW_CONTEXT_D3D11)
+		{
+			retro_hw_render_interface_d3d11* iface = nullptr;
+			if (   environ_cb(RETRO_ENVIRONMENT_GET_HW_RENDER_INTERFACE, (void**)&iface) && iface
+			    && iface->interface_version >= RETRO_HW_RENDER_INTERFACE_D3D11_VERSION_2
+			    && iface->lock_context && iface->unlock_context && iface->set_texture)
+				s_d3d11_v2 = iface;
+			s_d3d11_resolved = true;
+		}
+		s_d3d11_locked = s_d3d11_v2;
+	}
+	s_d3d11_lock_depth++;
+
+	if (!s_d3d11_locked)
+		return;
+
+	/* True: the frontend has had the context since it was last ours, and
+	 * nothing this renderer believes is bound can be assumed to be. */
+	if (s_d3d11_locked->lock_context(s_d3d11_locked->handle) && s_d3d11_device_ready)
+		GSDevice11::GetInstance()->RestoreAPIState();
+}
+
+/* Releases what the matching begin took, even if the device, and with it
+ * s_d3d11_v2, went in between: closing the GS is bracketed too. */
+extern "C" void gs_d3d11_context_end(void)
+{
+	if (s_d3d11_lock_depth == 0)
+		return;
+	s_d3d11_lock_depth--;
+	if (s_d3d11_locked)
+		s_d3d11_locked->unlock_context(s_d3d11_locked->handle);
+	if (s_d3d11_lock_depth == 0)
+		s_d3d11_locked = NULL;
+}
 
 static bool SupportsTextureFormat(ID3D11Device* dev, DXGI_FORMAT format)
 {
@@ -89,10 +181,19 @@ bool GSDevice11::Create()
 		return false;
 	}
 
-	if (d3d11->interface_version != RETRO_HW_RENDER_INTERFACE_D3D11_VERSION) {
-		log_cb(RETRO_LOG_ERROR, "HW render interface mismatch, expected %u, got %u!\n", RETRO_HW_RENDER_INTERFACE_D3D11_VERSION, d3d11->interface_version);
+	/* Version 1, or version 2 if gs_d3d11_negotiate_hw_interface() asked
+	 * for it and the frontend has it. Anything else was not asked for. */
+	if (   d3d11->interface_version != RETRO_HW_RENDER_INTERFACE_D3D11_VERSION
+	    && d3d11->interface_version != RETRO_HW_RENDER_INTERFACE_D3D11_VERSION_2) {
+		log_cb(RETRO_LOG_ERROR, "HW render interface mismatch, expected %u or %u, got %u!\n", RETRO_HW_RENDER_INTERFACE_D3D11_VERSION, RETRO_HW_RENDER_INTERFACE_D3D11_VERSION_2, d3d11->interface_version);
 		return false;
 	}
+	if (   d3d11->interface_version >= RETRO_HW_RENDER_INTERFACE_D3D11_VERSION_2
+	    && d3d11->lock_context && d3d11->unlock_context && d3d11->set_texture)
+		s_d3d11_v2 = d3d11;
+	else
+		s_d3d11_v2 = NULL;
+	s_d3d11_resolved = true;
 
 	if (FAILED(d3d11->device->QueryInterface(&m_dev)))
 	{
@@ -369,11 +470,20 @@ bool GSDevice11::Create()
 			return false;
 	}
 
+	/* From here a lock that reports the context disturbed can be answered
+	 * with RestoreAPIState(). */
+	s_d3d11_device_ready = true;
 	return true;
 }
 
 void GSDevice11::Destroy()
 {
+	/* The next device asks for the interface again; whoever holds the
+	 * lock around this call still has what it needs to release it. */
+	s_d3d11_device_ready = false;
+	s_d3d11_v2           = NULL;
+	s_d3d11_resolved     = false;
+
 	GSDevice::Destroy();
 
 	m_convert = {};
@@ -697,6 +807,13 @@ void GSDevice11::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture*
 	/* Blanking enforce, see 'GSRenderer::VSync()' */
 	if (!sRect.right && !sRect.bottom)
 		ClearRenderTarget(sTex, 0);
+
+	/* Version 2 names the frame outright. The frontend has taken what it
+	 * needs of the texture by the time video_refresh returns, so it is
+	 * drawn into again next frame as always. The shader resource binding
+	 * above is version 1's way of saying the same thing. */
+	if (s_d3d11_v2)
+		s_d3d11_v2->set_texture(s_d3d11_v2->handle, static_cast<ID3D11Texture2D*>(*(GSTexture11*)sTex));
 
 	extern retro_video_refresh_t video_cb;
 	video_cb(RETRO_HW_FRAME_BUFFER_VALID, sTex->GetWidth(), sTex->GetHeight(), 0);

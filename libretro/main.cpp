@@ -2052,6 +2052,22 @@ void retro_reset(void)
 	cpu_thread_resume();
 }
 
+/* See GSDevice12.cpp and GSDevice11.cpp. The context bracket is for
+ * libretro_d3d11.h version 2, where the immediate context is shared with
+ * the frontend by taking turns; it does nothing otherwise. Freezing and
+ * defrosting the GS read and write its textures, outside MTGS. */
+#ifdef _WIN32
+extern "C" void gs_d3d12_negotiate_hw_interface(retro_environment_t cb);
+extern "C" void gs_d3d11_negotiate_hw_interface(retro_environment_t cb);
+extern "C" void gs_d3d11_context_begin(void);
+extern "C" void gs_d3d11_context_end(void);
+#define GS_HW_CONTEXT_BEGIN() gs_d3d11_context_begin()
+#define GS_HW_CONTEXT_END()   gs_d3d11_context_end()
+#else
+#define GS_HW_CONTEXT_BEGIN() ((void)0)
+#define GS_HW_CONTEXT_END()   ((void)0)
+#endif
+
 static bool freeze(void)
 {
 #ifdef HAVE_PARALLEL_GS
@@ -2141,7 +2157,9 @@ static void libretro_context_reset(void)
 	if (defrost_requested)
 	{
 		defrost_requested = false;
+		GS_HW_CONTEXT_BEGIN();
 		defrost();
+		GS_HW_CONTEXT_END();
 	}
 
 	cpu_thread_resume();
@@ -2167,8 +2185,10 @@ static void libretro_context_destroy(void)
 	}
 #endif
 
+	GS_HW_CONTEXT_BEGIN();
 	if (freeze())
 		defrost_requested = true;
+	GS_HW_CONTEXT_END();
 
 	MTGS::CloseGS();
 #ifdef ENABLE_VULKAN
@@ -2179,10 +2199,6 @@ static void libretro_context_destroy(void)
 #endif
 #endif
 }
-
-#ifdef _WIN32
-extern "C" void gs_d3d12_negotiate_hw_interface(retro_environment_t cb);
-#endif
 
 static bool libretro_set_hw_render(retro_hw_context_type type)
 {
@@ -2660,6 +2676,11 @@ bool retro_load_game(const struct retro_game_info* game)
 		case RETRO_HW_CONTEXT_D3D11:
 			if (!is_software_setting(setting_renderer))
 				s_option_config.GS.Renderer = static_cast<decltype(s_option_config.GS.Renderer)>((int)GSRendererType::DX11);
+#ifdef _WIN32
+			/* Ask for libretro_d3d11.h version 2, as the D3D12 case does
+			 * for its own. See GSDevice11.cpp. */
+			gs_d3d11_negotiate_hw_interface(environ_cb);
+#endif
 			break;
 #ifdef ENABLE_VULKAN
 		case RETRO_HW_CONTEXT_VULKAN:

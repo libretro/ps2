@@ -113,6 +113,21 @@ alignas(64) static u64 g_ee_wait_ticks;
 
 extern struct retro_hw_render_callback hw_render;
 
+/* A hardware context that has to be taken before it is used, and given
+ * back: libretro_d3d11.h version 2, where the core and a frontend that
+ * presents from another thread take turns on the one immediate context.
+ * Everything that touches the GS goes between these. They do nothing for
+ * every other context and interface version; see GSDevice11.cpp. */
+#ifdef _WIN32
+extern "C" void gs_d3d11_context_begin(void);
+extern "C" void gs_d3d11_context_end(void);
+#define GS_HW_CONTEXT_BEGIN() gs_d3d11_context_begin()
+#define GS_HW_CONTEXT_END()   gs_d3d11_context_end()
+#else
+#define GS_HW_CONTEXT_BEGIN() ((void)0)
+#define GS_HW_CONTEXT_END()   ((void)0)
+#endif
+
 /* One read of the CPU count, cached. Spinning on a single-core host only
  * steals the producer's timeslice, so the budget is 0 there. Defined here
  * rather than in the header so the header pulls in no platform code. */
@@ -254,7 +269,9 @@ void MTGS::TryOpenGS(void)
 			log_cb(RETRO_LOG_ERROR, "MTGS: command ring allocation failed; GS commands will be dropped\n");
 	}
 
+	GS_HW_CONTEXT_BEGIN();
 	GSopen(EmuConfig.GS, EmuConfig.GS.Renderer, hw_render.context_type, PS2MEM_GS);
+	GS_HW_CONTEXT_END();
 
 	retro_atomic_store_release_int(&s_open_flag, true);
 }
@@ -320,6 +337,9 @@ bool MTGS::MainLoop(bool flush_all)
 		while (s_RingOk && (span = retro_spsc_read_begin(&s_Ring, &span_ptr)) >= sizeof(PacketTagType))
 		{
 		size_t consumed = 0;
+		/* Per span, not per call: the frontend's thread gets the context
+		 * between spans instead of waiting out a whole frame of the GS. */
+		GS_HW_CONTEXT_BEGIN();
 		while (consumed < span)
 		{
 			const PacketTagType& tag = *(const PacketTagType*)((const u8*)span_ptr + consumed);
@@ -445,10 +465,12 @@ bool MTGS::MainLoop(bool flush_all)
 				 * state machine absorbs spurious wakes by design. */
 				if (retro_spsc_read_avail(&s_Ring) != 0)
 					work_eventcount_notify(&s_sem_event);
+				GS_HW_CONTEXT_END();
 				return true;
 			}
 		}
 		retro_spsc_read_end(&s_Ring, consumed);
+		GS_HW_CONTEXT_END();
 		}
 	}
 
@@ -464,7 +486,9 @@ bool MTGS::MainLoop(bool flush_all)
 
 void MTGS::CloseGS(void)
 {
+	GS_HW_CONTEXT_BEGIN();
 	GSclose();
+	GS_HW_CONTEXT_END();
 	retro_atomic_store_release_int(&s_open_flag, false);
 }
 
