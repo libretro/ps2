@@ -232,12 +232,11 @@ void MTGS::InitAndReadFIFO(u8* mem, u32 qwc)
 
 void MTGS::TryOpenGS(void)
 {
-	/* Opening the GS does not make this thread the one that runs it:
-	 * the ring is pumped from MainLoop(), which claims ownership as it
-	 * runs (see below). Opening happens wherever the renderer is
-	 * brought up - for the Vulkan renderer that is the frontend's
-	 * context_reset, on its video thread under threaded video, which
-	 * never pumps anything. */
+	/* Whoever opens the GS owns the ring until the frontend's thread
+	 * says otherwise (ClaimRing, every retro_run). There is never a
+	 * moment with the GS open and nobody owning it, which is the moment
+	 * the EE used to fall into. */
+	s_thread = sthread_get_current_thread_id();
 
 	if (!s_RingOk)
 	{
@@ -260,13 +259,6 @@ void MTGS::TryOpenGS(void)
 
 bool MTGS::MainLoop(bool flush_all)
 {
-	/* The thread that runs the ring owns it, for as long as it keeps
-	 * running it: WaitGS() issued on this thread has to pump rather
-	 * than park, and every other thread's wait is served by this one.
-	 * Claimed here rather than at open, because the two are not the
-	 * same thread. */
-	s_thread = sthread_get_current_thread_id();
-
 	// Threading info: run in MTGS thread
 
 	/* MTVU handoff needs no lock: the WaitGS(isMTVU) rendezvous this
@@ -479,38 +471,40 @@ void MTGS::CloseGS(void)
 // If isMTVU, then this implies this function is being called from the MTVU thread...
 void MTGS::WaitGS(bool isMTVU)
 {
-	/* The ring is pumped by whichever thread opened the GS, and that
-	 * thread drains it from inside MainLoop(): a wait issued on it can
-	 * only be served by pumping here. The same holds when no thread
-	 * owns the ring at all - WaitForClose() gives up ownership while
-	 * the GS stays open, and a wait in that window would otherwise
-	 * park every caller on a pump that does not exist, which is the
-	 * whole emulator stopped with the EE and the frontend's thread
-	 * both waiting for a GS nobody runs. */
-	/* Nothing drains this ring but a thread standing in MainLoop: there
-	 * is no GS thread of its own, and s_thread only records whichever
-	 * caller is pumping at the moment. A caller that parks here is
-	 * waiting for a worker that does not exist unless another thread
-	 * happens to be inside MainLoop -- and the two threads that do pump
-	 * it need each other. The EE reaches MainLoop through rcntUpdate,
-	 * and a vsync inside it calls the frontend's video callback, which
-	 * on Win32 sends a message to the window's own thread and blocks
-	 * until that thread pumps its queue; that thread is the one in
-	 * retro_run, which had parked here. Neither moves again.
+	/* One thread drains this ring: the frontend's, from MainLoop. The
+	 * ring is single-consumer, the GS it feeds holds a hardware context
+	 * that is current on that thread only, and a vsync inside it calls
+	 * the frontend's video callback. None of that may happen on the EE.
 	 *
-	 * So a caller that can pump, does. The wait it asked for is
-	 * satisfied by the same work either way. The MTVU path below is the
-	 * exception and must not pump: running the ring there would execute
-	 * GS commands, and the frontend's video callback with them, on the
-	 * VU thread. */
+	 * So the owner's own wait pumps, because nobody else will; and every
+	 * other thread's wait parks until the owner has drained the ring,
+	 * which its next retro_run does. A wait with no owner at all -- after
+	 * WaitForClose(), with the VM already down -- pumps too, since there
+	 * is no EE left to race and nothing else would serve it.
+	 *
+	 * What this replaces let any non-MTVU caller pump. The EE waits here
+	 * from the GIF unit, from Reset and from ApplySettings while the
+	 * frontend is inside MainLoop(false): two consumers on a
+	 * single-consumer ring, and GS commands run on a thread with no
+	 * context. */
 	if (!isMTVU)
 	{
-		// Ensure MainLoop(true) doesn't bail immediately from
-		// CheckForWork() — entries may have been written without
-		// a prior NotifyOfWork (e.g. a frame with no completed
-		// GIF packets between PostVsyncStart and WaitGS).
+		const uintptr_t owner = s_thread;
+		if (owner == 0 || owner == sthread_get_current_thread_id())
+		{
+			/* Entries may have been written without a notify (a frame
+			 * with no completed GIF packets between PostVsyncStart and
+			 * here); without this MainLoop(true) returns at once. */
+			work_eventcount_notify(&s_sem_event);
+			MainLoop(true);
+			return;
+		}
+		if (!IsOpen())
+			return;
 		work_eventcount_notify(&s_sem_event);
-		MainLoop(true);
+		/* Blocks until the ring drains. The return value (false if the
+		 * ring was killed) is unused, as at the other wait_empty sites. */
+		work_eventcount_wait_empty(&s_sem_event);
 		return;
 	}
 	if (!IsOpen()) /* WaitGS issued on a closed thread! */
@@ -588,6 +582,13 @@ void MTGS::WaitForClose()
 	 * until CloseGS(), and a WaitGS in between pumps the ring itself
 	 * (see WaitGS). */
 	s_thread = 0;
+}
+
+/* The frontend's thread, at the top of every retro_run: it is the one
+ * that drains the ring, whichever thread happened to open the GS. */
+void MTGS::ClaimRing(void)
+{
+	s_thread = sthread_get_current_thread_id();
 }
 
 void MTGS::Freeze(FreezeAction mode, MTGS_FreezeData& data)

@@ -2981,6 +2981,9 @@ void retro_run(void)
 
 	Input::Update();
 
+	/* This thread drains the GS ring; see MTGS::WaitGS. */
+	MTGS::ClaimRing();
+
 	if (!MTGS::IsOpen())
 		MTGS::TryOpenGS();
 

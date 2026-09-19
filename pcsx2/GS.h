@@ -318,6 +318,7 @@ namespace MTGS
 	void ApplySettings();
 
 	void TryOpenGS(void);
+	void ClaimRing(void);
 	void CloseGS(void);
 };
 
