@@ -55,6 +55,12 @@ jobs:
       - name: Run the suites
         env:
           SANFLAGS: ${{ matrix.sanflags }}
+          # The concurrency suites are races: a single run of one proves
+          # little. The WaitForEmpty failure that reached master showed up
+          # about a dozen times in fifty thousand items on a loaded
+          # multi-core host and not at all on a quiet single-core one, so
+          # the pair runs many times here rather than once.
+          WORKSEMA_REPS: 200
         run: sh tests/run-all.sh
 
   # The hardware-test suites compare against the PS2 test images and check

@@ -47,6 +47,7 @@ static int fails = 0;
 /* For a check inside a loop: one line if it ever fails, not sixty-four. */
 #define CHECK_QUIET(c) do { if (!(c)) { if (!quiet_failed) { printf("  FAIL: state looked empty mid-burst\n"); quiet_failed = 1; } fails++; } } while (0)
 static int quiet_failed;
+static int g_quiet_pair;
 
 /* ---- 1, 2, 5, 6: single-threaded contract ------------------------- */
 static void contract_single(void)
@@ -164,6 +165,8 @@ static void contract_pair(void)
 	work_eventcount_kill(&g_ws);
 	sthread_join(th);
 	work_eventcount_free(&g_ws);
+	if (g_quiet_pair && !fails)
+		return;
 	printf("  pair: %d items, %d WaitForEmpty calls, %d returned early\n",
 	       retro_atomic_load_relaxed_int(&g_queue), empties,
 	       retro_atomic_load_relaxed_int(&g_bad_empty));
@@ -231,12 +234,32 @@ static void contract_state_is_one_word(void)
 int main(void)
 {
 	long n = sysconf(_SC_NPROCESSORS_ONLN);
+	/* The pair is a race: one run of it proves little, and the failure it
+	 * exists to catch showed up a dozen times in fifty thousand items on
+	 * a busy multi-core host and not at all on a quiet one. WORKSEMA_REPS
+	 * repeats it; CI sets it, and anyone chasing a suspected lost wake
+	 * can set it higher. */
+	const char* reps_env = getenv("WORKSEMA_REPS");
+	int reps = reps_env ? atoi(reps_env) : 1;
+	int i;
+	if (reps < 1)
+		reps = 1;
+
 	setvbuf(stdout, NULL, _IONBF, 0);
 	printf("work_eventcount\n  cpus: %ld%s\n", n,
 	       n > 1 ? "" : "  (lost-wake half not load-bearing on one core)");
 	contract_single();
 	contract_state_is_one_word();
-	contract_pair();
+	for (i = 0; i < reps; i++)
+	{
+		/* One line per repetition is noise at two hundred: the interesting
+		 * run is the one that fails, and contract_pair prints its own
+		 * counts, so only the last is shown when all of them pass. */
+		g_quiet_pair = (reps > 1 && i + 1 < reps);
+		contract_pair();
+		if (fails)
+			break;
+	}
 	printf(fails ? "worksema: FAILED (%d)\n" : "worksema: ok\n", fails);
 	return fails != 0;
 }
