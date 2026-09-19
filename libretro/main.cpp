@@ -2595,7 +2595,15 @@ bool retro_load_game(const struct retro_game_info* game)
 
 	s_option_config = Pcsx2Config();
 	VMManager::ApplyHardwareDefaults(s_option_config);
-
+	/* The two values that ride beside the config start over with it.
+	 * The settings map did this at every load: SetDefaults put the
+	 * memory-card folder back to "memcards" and SetDefaultSettings put
+	 * fast boot back to on, before the options were read. Without it the
+	 * per-content directory of the last game outlives the option being
+	 * switched back to shared cards, for as long as the core stays
+	 * loaded. */
+	s_option_memcards[0] = '\0';
+	s_option_fast_boot   = true;
 
 	EmuFolders::LoadConfig(s_option_memcards);
 	EmuFolders::EnsureFoldersExist();
