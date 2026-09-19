@@ -299,7 +299,7 @@ public:
 		bool m_repeating = false;
 		bool m_valid_alpha_minmax = false;
 		std::pair<u8, u8> m_alpha_minmax = {0u, 255u};
-		std::vector<GSVector2i>* m_p2t = nullptr;
+		GSPage2TileMap* m_p2t = nullptr;
 		// Keep a trace of the target origin. There is no guarantee that pointer will
 		// still be valid on future. However it ought to be good when the source is created
 		// so it can be used to access un-converted data for the current draw call.

@@ -254,9 +254,7 @@ GSLocalMemory::~GSLocalMemory()
 		memalign_free(i.second);
 
 	for (auto& i : m_p2tmap)
-	{
-		delete[] i.second;
-	}
+		memalign_free(i.second);
 }
 
 GSPixelOffset* GSLocalMemory::GetPixelOffset(const GIFRegFRAME& FRAME, const GIFRegZBUF& ZBUF)
@@ -361,7 +359,7 @@ GSPixelOffset4* GSLocalMemory::GetPixelOffset4(const GIFRegFRAME& FRAME, const G
 	return off;
 }
 
-std::vector<GSVector2i>* GSLocalMemory::GetPage2TileMap(const GIFRegTEX0& TEX0)
+GSPage2TileMap* GSLocalMemory::GetPage2TileMap(const GIFRegTEX0& TEX0)
 {
 	u64 hash = TEX0.U64 & 0x3ffffffffull; // TBP0 TBW PSM TW TH
 
@@ -399,13 +397,15 @@ std::vector<GSVector2i>* GSLocalMemory::GetPage2TileMap(const GIFRegTEX0& TEX0)
 
 	// combine the lower 5 bits of the address into a 9:5 pointer:mask form, so the "valid bits" can be tested against an u32 array
 
-	auto p2t = new std::vector<GSVector2i>[GS_MAX_PAGES];
+	/* Two passes into one block: count each page's entries, lay the pages
+	 * out back to back, then fill. What this replaced allocated a vector
+	 * per page - up to GS_MAX_PAGES of them, a handful of entries each. */
+	std::vector<std::vector<GSVector2i>> rows(GS_MAX_PAGES);
 
 	for (const auto& i : tmp)
 	{
-		u32 page = i.first;
-
-		auto& tiles = i.second;
+		const u32 page = i.first;
+		const auto& tiles = i.second;
 
 		std::unordered_map<u32, u32> m;
 
@@ -422,16 +422,36 @@ std::vector<GSVector2i>* GSLocalMemory::GetPage2TileMap(const GIFRegTEX0& TEX0)
 				m[row] = col;
 		}
 
-		// Allocate vector with initial size
-		p2t[page].reserve(m.size());
+		rows[page].reserve(m.size());
 
 		// sort by x and flip the mask (it will be used to erase a lot of bits in a loop, [x] &= ~y)
 
 		for (const auto& j : m)
-			p2t[page].push_back(GSVector2i(j.first, ~j.second));
+			rows[page].push_back(GSVector2i(j.first, ~j.second));
 
-		std::sort(p2t[page].begin(), p2t[page].end(), [](const GSVector2i& a, const GSVector2i& b) { return a.x < b.x; });
+		std::sort(rows[page].begin(), rows[page].end(), [](const GSVector2i& a, const GSVector2i& b) { return a.x < b.x; });
 	}
+
+	u32 total = 0;
+	for (u32 page = 0; page < GS_MAX_PAGES; page++)
+		total += static_cast<u32>(rows[page].size());
+
+	/* The header and the entries in one allocation, so a page's run and
+	 * the next page's are neighbours in memory. */
+	const size_t entries_bytes = static_cast<size_t>(total) * sizeof(GSVector2i);
+	u8* block = static_cast<u8*>(memalign_alloc(16, sizeof(GSPage2TileMap) + entries_bytes));
+	GSPage2TileMap* p2t = reinterpret_cast<GSPage2TileMap*>(block);
+	GSVector2i* entries = reinterpret_cast<GSVector2i*>(block + sizeof(GSPage2TileMap));
+	p2t->entries = entries;
+
+	u32 at = 0;
+	for (u32 page = 0; page < GS_MAX_PAGES; page++)
+	{
+		p2t->first[page] = at;
+		for (const GSVector2i& e : rows[page])
+			entries[at++] = e;
+	}
+	p2t->first[GS_MAX_PAGES] = at;
 
 	m_p2tmap[hash] = p2t;
 

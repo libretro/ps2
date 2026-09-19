@@ -3165,9 +3165,10 @@ void GSTextureCache::InvalidateVideoMem(const GSOffset& off, const GSVector4i& r
 							if (s->m_repeating)
 							{
 								// Note: very hot path on snowbling engine game
-								for (const GSVector2i& k : s->m_p2t[page])
+								for (const GSVector2i* k = s->m_p2t->begin(page),
+										*ke = s->m_p2t->end(page); k != ke; k++)
 								{
-									valid[k.x] &= k.y;
+									valid[k->x] &= k->y;
 								}
 							}
 							else

@@ -81,8 +81,9 @@ void GSTextureCacheSW::InvalidatePages(const GSOffset::PageLooper& pages, u32 ps
 
 				if (t->m_repeating)
 				{
-					for (const GSVector2i& j : t->m_p2t[page])
-						valid[j.x] &= j.y;
+					for (const GSVector2i* j = t->m_p2t->begin(page),
+							*je = t->m_p2t->end(page); j != je; j++)
+						valid[j->x] &= j->y;
 				}
 				else
 					valid[page] = 0;
