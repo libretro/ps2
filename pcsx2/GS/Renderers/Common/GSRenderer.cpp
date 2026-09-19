@@ -28,24 +28,11 @@ extern retro_video_refresh_t video_cb;
 
 std::unique_ptr<GSRenderer> g_gs_renderer;
 
-GSRenderer::GSRenderer() { }
-
-GSRenderer::~GSRenderer() = default;
-
-void GSRenderer::Reset(bool hardware_reset)
-{
-	// clear the current display texture
-	if (hardware_reset)
-		g_gs_device->ClearCurrent();
-
-	GSState::Reset(hardware_reset);
-}
-
-void GSRenderer::Destroy()
+void GSState::Destroy()
 {
 }
 
-void GSRenderer::PurgePool()
+void GSState::PurgePool()
 {
 	// FIXME: PurgePool crashes d3d11+glcore
 	switch (g_gs_device->GetRenderAPI())
@@ -60,11 +47,11 @@ void GSRenderer::PurgePool()
 	g_gs_device->PurgePool();
 }
 
-void GSRenderer::UpdateRenderFixes()
+void GSState::UpdateRenderFixes()
 {
 }
 
-bool GSRenderer::Merge(int field)
+bool GSState::Merge(int field)
 {
 	GSVector2i fs(0, 0);
 	GSTexture* tex[3] = { nullptr, nullptr, nullptr };
@@ -242,7 +229,7 @@ bool GSRenderer::Merge(int field)
 	return true;
 }
 
-float GSRenderer::GetModXYOffset()
+float GSState::GetModXYOffset()
 {
 	// Scaled Bilinear HPO depending on the gradient.
 	if (GSConfig.UserHacks_HalfPixelOffset == 4)
@@ -275,7 +262,7 @@ float GSRenderer::GetModXYOffset()
 	return 0.0f;
 }
 
-bool GSRenderer::BeginPresentFrame(bool frame_skip)
+bool GSState::BeginPresentFrame(bool frame_skip)
 {
 	const GSDevice::PresentResult res = g_gs_device->BeginPresent(frame_skip);
 	if (res == GSDevice::PresentResult::FrameSkipped)
@@ -292,7 +279,7 @@ bool GSRenderer::BeginPresentFrame(bool frame_skip)
 	return false;
 }
 
-void GSRenderer::VSync(u32 field, bool registers_written, bool idle_frame)
+void GSState::VSync(u32 field, bool registers_written, bool idle_frame)
 {
 	bool is_unique_frame       = false;
 	const int fb_sprite_blits  = m_disp_fb_sprite_blits;
@@ -365,12 +352,12 @@ void GSRenderer::VSync(u32 field, bool registers_written, bool idle_frame)
 		PerformanceMetrics::Update(registers_written, fb_sprite_frame);
 }
 
-GSTexture* GSRenderer::LookupPaletteSource(u32 CBP, u32 CPSM, u32 CBW, GSVector2i& offset, float* scale, const GSVector2i& size)
+GSTexture* GSState::LookupPaletteSource(u32 CBP, u32 CPSM, u32 CBW, GSVector2i& offset, float* scale, const GSVector2i& size)
 {
 	return nullptr;
 }
 
-bool GSRenderer::IsIdleFrame() const
+bool GSState::IsIdleFrame() const
 {
 	return (m_last_draw_n == s_n && m_last_transfer_n == s_transfer_n);
 }

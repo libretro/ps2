@@ -141,6 +141,12 @@ GSState::~GSState()
 
 void GSState::Reset(bool hardware_reset)
 {
+	/* From GSRenderer::Reset, which did this and then called here: clear
+	 * the current display texture. The constructor resets too, with
+	 * hardware_reset false, so it never reaches this. */
+	if (hardware_reset && g_gs_device)
+		g_gs_device->ClearCurrent();
+
 	Flush(GSFlushReason::RESET);
 
 	// FIXME: bios logo not shown cut in half after reset, missing graphics in GoW after first FMV

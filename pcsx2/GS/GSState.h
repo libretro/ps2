@@ -419,6 +419,45 @@ public:
 	virtual void Reset(bool hardware_reset);
 	virtual void UpdateSettings(const Pcsx2Config::GSOptions& old_config);
 
+	/* --- presentation ---------------------------------------------------
+	 * What used to be a class of its own between this one and the two
+	 * renderers, GSRenderer: the vsync, the merge of the two read
+	 * circuits, and the handful of things a renderer answers about
+	 * itself. It added nothing a renderer could be without, so it is part
+	 * of this class now and GSRenderer is another name for it
+	 * (Renderers/Common/GSRenderer.h). The definitions are still in
+	 * Renderers/Common/GSRenderer.cpp. */
+	virtual void Destroy();
+	virtual void UpdateRenderFixes();
+	void PurgePool();
+	virtual void VSync(u32 field, bool registers_written, bool idle_frame);
+	virtual bool CanUpscale() { return false; }
+	virtual float GetUpscaleMultiplier() { return 1.0f; }
+	virtual float GetTextureScaleFactor() { return 1.0f; }
+	float GetModXYOffset();
+	virtual GSTexture* LookupPaletteSource(u32 CBP, u32 CPSM, u32 CBW, GSVector2i& offset, float* scale, const GSVector2i& size);
+	bool IsIdleFrame() const;
+
+protected:
+	GSVector2i m_real_size{0, 0};
+	bool m_process_texture = false;
+	bool m_downscale_source = false;
+
+	virtual GSTexture* GetOutput(int i, float& scale, int& y_offset) = 0;
+	virtual GSTexture* GetFeedbackOutput(float& scale) { return nullptr; }
+
+private:
+	bool Merge(int field);
+	bool BeginPresentFrame(bool frame_skip);
+
+	u32 m_skipped_duplicate_frames = 0;
+
+	// Tracking draw counters for idle frame detection.
+	int m_last_draw_n = 0;
+	int m_last_transfer_n = 0;
+
+public:
+
 	void Flush(GSFlushReason reason);
 	u32 CalcMask(int exp, int max_exp);
 	void FlushPrim();
