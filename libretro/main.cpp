@@ -23,6 +23,7 @@
 
 #include <cmath>
 #include "../pcsx2/GS.h"
+#include "../pcsx2/MTGSOwner.h"
 #include "../pcsx2/SPU2/Global.h"
 #include "../pcsx2/ps2/BiosTools.h"
 #include "../pcsx2/CDVD/CDVD.h"
@@ -109,7 +110,14 @@ static void cpu_thread_entry(VMBootParameters boot_params);
 static void cpu_thread_entry_trampoline(void* arg)
 {
 	(void)arg;
+	/* The EE is the GS ring's producer for as long as this thread lives:
+	 * mtgs_wait_drains parks a producer and lets anyone else drain. Set
+	 * here, around the entry, so every way out of it is covered; it is
+	 * ahead of the boot handshake the entry publishes, which orders it
+	 * before the frontend's first read, and cleared before the join. */
+	mtgs_set_producer_thread(1);
 	cpu_thread_entry(cpu_thread_boot_params);
+	mtgs_set_producer_thread(0);
 }
 
 /* Pause/resume coordination for cpu_thread.
@@ -2294,19 +2302,8 @@ struct FaultThreadScope
 	~FaultThreadScope() { retro_faulthandler_unregister_thread(); }
 };
 
-/* The EE is the GS ring's producer for as long as this thread lives;
- * MTGS::WaitGS parks a producer and lets anyone else drain. Set before
- * the boot handshake below publishes, which is what orders it ahead of
- * the frontend's first read, and cleared before the join. */
-struct MtgsProducerScope
-{
-	MtgsProducerScope()  { MTGS::SetProducerThread(true); }
-	~MtgsProducerScope() { MTGS::SetProducerThread(false); }
-};
-
 static void cpu_thread_entry(VMBootParameters boot_params)
 {
-	MtgsProducerScope producer_scope_;
 	FaultThreadScope fault_scope_;
 	if (!VMManager::Initialize(boot_params))
 	{
@@ -2987,7 +2984,7 @@ void retro_run(void)
 
 	/* Before anything that can wait on the GS: check_variables and
 	 * update_av_info below both do. */
-	MTGS::ClaimRing();
+	mtgs_claim_ring();
 
 	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
 		check_variables(false);

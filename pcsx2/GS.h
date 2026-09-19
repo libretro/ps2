@@ -318,8 +318,6 @@ namespace MTGS
 	void ApplySettings();
 
 	void TryOpenGS(void);
-	void ClaimRing(void);
-	void SetProducerThread(bool on);
 	void CloseGS(void);
 };
 

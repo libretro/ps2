@@ -159,12 +159,12 @@ int main(void)
 	while (!retro_atomic_load_acquire_int(&ee_done))
 	{
 #if RULE != 1
-		owner = sthread_get_current_thread_id();        /* ClaimRing, first */
+		owner = sthread_get_current_thread_id();        /* claim, first     */
 #endif
 		if (first)
 			wait_gs();                                  /* update_av_info   */
 #if RULE == 1
-		owner = sthread_get_current_thread_id();        /* ClaimRing, late  */
+		owner = sthread_get_current_thread_id();        /* claim, late      */
 #endif
 		first = 0;
 		drain(0);

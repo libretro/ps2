@@ -235,7 +235,7 @@ void MTGS::InitAndReadFIFO(u8* mem, u32 qwc)
 void MTGS::TryOpenGS(void)
 {
 	/* Whoever opens the GS owns the ring until the frontend's thread
-	 * says otherwise (ClaimRing, every retro_run). There is never a
+	 * says otherwise (mtgs_claim_ring, every retro_run). There is never a
 	 * moment with the GS open and nobody owning it, which is the moment
 	 * the EE used to fall into. */
 	s_thread = sthread_get_current_thread_id();
@@ -576,15 +576,15 @@ void MTGS::WaitForClose()
 /* The frontend's thread, first thing in every retro_run. s_thread is
  * what the vsync and blank-packet tests compare against -- "is this the
  * thread that renders" -- and no longer decides who drains a wait. */
-void MTGS::ClaimRing(void)
+void mtgs_claim_ring(void)
 {
-	s_thread = sthread_get_current_thread_id();
+	MTGS::s_thread = sthread_get_current_thread_id();
 }
 
 /* The EE thread, as it starts and as it ends. See MTGSOwner.h. */
-void MTGS::SetProducerThread(bool on)
+void mtgs_set_producer_thread(int on)
 {
-	s_producer_thread = on ? sthread_get_current_thread_id() : 0;
+	MTGS::s_producer_thread = on ? sthread_get_current_thread_id() : 0;
 }
 
 void MTGS::Freeze(FreezeAction mode, MTGS_FreezeData& data)

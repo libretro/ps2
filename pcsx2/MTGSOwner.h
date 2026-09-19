@@ -39,4 +39,15 @@ static int mtgs_wait_drains(uintptr_t self, uintptr_t producer, int is_mtvu)
 	return self != producer;
 }
 
+/* Defined in MTGS.cpp. Plain C names and linkage: callable from a C
+ * file the day the callers are one. */
+#ifdef __cplusplus
+extern "C" {
+#endif
+void mtgs_claim_ring(void);            /* frontend, first thing in retro_run */
+void mtgs_set_producer_thread(int on); /* EE thread, as it starts and ends   */
+#ifdef __cplusplus
+}
+#endif
+
 #endif
