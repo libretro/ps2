@@ -119,7 +119,7 @@ bool GSHwHack::GSC_SandGrainGames(GSRendererHW& r, int& skip)
 				return false;
 
 			r.m_mem.m_clut.Read32(next_ctx.TEX0, r.m_env.TEXA);
-			std::shared_ptr<GSTextureCache::Palette> palette =
+			GSTexture* palette =
 				g_texture_cache->LookupPaletteObject(r.m_mem.m_clut, GSLocalMemory::m_psm[next_ctx.TEX0.PSM].pal, true);
 
 			if (!palette)
@@ -140,7 +140,7 @@ bool GSHwHack::GSC_SandGrainGames(GSRendererHW& r, int& skip)
 			GSHWDrawConfig& modulate_config = r.BeginHLEHardwareDraw(
 				rt->GetTexture(), nullptr, rt->GetScale(), rt->GetTexture(), rt->GetScale(), rt->GetUnscaledRect());
 
-			modulate_config.pal = palette->GetPaletteGSTexture();
+			modulate_config.pal = palette;
 			modulate_config.ps.aem_fmt = 0;
 			modulate_config.ps.aem = 0;
 			modulate_config.ps.pal_fmt = 3;
@@ -274,14 +274,14 @@ bool GSHwHack::GSC_Tekken5(GSRendererHW& r, int& skip)
 
 			// have to set up the palette ourselves too, since GSC executes before it does
 			r.m_mem.m_clut.Read32(RTEX0, r.m_draw_env->TEXA);
-			std::shared_ptr<GSTextureCache::Palette> palette =
+			GSTexture* palette =
 				g_texture_cache->LookupPaletteObject(r.m_mem.m_clut, GSLocalMemory::m_psm[RTEX0.PSM].pal, true);
 			if (!palette)
 				return false;
 
 			GSHWDrawConfig& conf = r.BeginHLEHardwareDraw(
 				rt->GetTexture(), nullptr, rt->GetScale(), rt->GetTexture(), rt->GetScale(), rt->GetUnscaledRect());
-			conf.pal = palette->GetPaletteGSTexture();
+			conf.pal = palette;
 			conf.ps.channel = ChannelFetch_RGB;
 			conf.colormask.wa = false;
 			r.EndHLEHardwareDraw(false);
@@ -643,7 +643,7 @@ bool GSHwHack::GSC_PolyphonyDigitalGames(GSRendererHW& r, int& skip)
 
 	// have to set up the palette ourselves too, since GSC executes before it does
 	r.m_mem.m_clut.Read32(RTEX0, r.m_draw_env->TEXA);
-	std::shared_ptr<GSTextureCache::Palette> palette =
+	GSTexture* palette =
 		g_texture_cache->LookupPaletteObject(r.m_mem.m_clut, GSLocalMemory::m_psm[RTEX0.PSM].pal, true);
 	if (!palette)
 		return false;
@@ -658,7 +658,7 @@ bool GSHwHack::GSC_PolyphonyDigitalGames(GSRendererHW& r, int& skip)
 	{
 		GSHWDrawConfig& config = r.BeginHLEHardwareDraw(
 			src->GetTexture(), nullptr, src->GetScale(), src->GetTexture(), src->GetScale(), src->GetUnscaledRect());
-		config.pal = palette->GetPaletteGSTexture();
+		config.pal = palette;
 		config.ps.channel = ChannelFetch_RGB;
 		config.colormask.wrgba = 1 | 2 | 4;
 		r.EndHLEHardwareDraw(false);
@@ -710,7 +710,7 @@ bool GSHwHack::GSC_PolyphonyDigitalGames(GSRendererHW& r, int& skip)
 
 			GSHWDrawConfig& config = r.BeginHLEHardwareDraw(
 				dst->GetTexture(), nullptr, dst->GetScale(), src->GetTexture(), src->GetScale(), src->GetUnscaledRect());
-			config.pal = palette->GetPaletteGSTexture();
+			config.pal = palette;
 			config.ps.tfx = TFX_DECAL;
 			config.ps.tcc = true;
 			config.ps.channel = ChannelFetch_RED + channel;

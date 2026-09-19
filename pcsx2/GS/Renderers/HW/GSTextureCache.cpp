@@ -5253,9 +5253,18 @@ GSTexture* GSTextureCache::LookupPaletteSource(u32 CBP, u32 CPSM, u32 CBW, GSVec
 	return nullptr;
 }
 
-std::shared_ptr<GSTextureCache::Palette> GSTextureCache::LookupPaletteObject(const u32* clut, u16 pal, bool need_gs_texture)
+GSTexture* GSTextureCache::LookupPaletteObject(const u32* clut, u16 pal, bool need_gs_texture)
 {
-	return m_palette_map.LookupPalette(clut, pal, need_gs_texture);
+	/* The callers want the GS texture, or just to know one could be made.
+	 * The reference is taken and given straight back: the palette stays
+	 * in the map, which owns it, and none of them outlive the draw. */
+	Palette* palette = m_palette_map.LookupPalette(clut, pal, need_gs_texture);
+	GSTexture* tex;
+	if (!palette)
+		return nullptr;
+	tex = palette->GetPaletteGSTexture();
+	palette->Release();
+	return tex;
 }
 
 void GSTextureCache::Read(Target* t, const GSVector4i& r)
@@ -5478,6 +5487,23 @@ bool GSTextureCache::Surface::Overlaps(u32 bp, u32 bw, u32 psm, const GSVector4i
 static gs_object_pool_t s_source_pool;
 static gs_object_pool_t s_target_pool;
 
+static gs_object_pool_t s_palette_pool;
+
+void* GSTextureCache::Palette::operator new(size_t size)
+{
+	void* p;
+	if (!s_palette_pool.slots)
+		gs_object_pool_init(&s_palette_pool, size, PALETTE_POOL_SIZE);
+	p = gs_object_pool_take(&s_palette_pool, size);
+	return p ? p : memalign_alloc(32, size);
+}
+
+void GSTextureCache::Palette::operator delete(void* p)
+{
+	if (p && !gs_object_pool_give(&s_palette_pool, p))
+		memalign_free(p);
+}
+
 void* GSTextureCache::Source::operator new(size_t size)
 {
 	void* p;
@@ -5534,6 +5560,14 @@ GSTextureCache::Source::~Source()
 		return;
 	}
 	m_alive = 0;
+
+	/* The reference taken in AttachPaletteToSource. The palette itself
+	 * belongs to the map. */
+	if (m_palette_obj)
+	{
+		m_palette_obj->Release();
+		m_palette_obj = nullptr;
+	}
 
 	// Shared textures are pointers copy. Therefore no allocation
 	// to recycle.
@@ -6268,6 +6302,8 @@ void GSTextureCache::SourceMap::RemoveAt(Source* s)
 
 void GSTextureCache::AttachPaletteToSource(Source* s, u16 pal, bool need_gs_texture, bool update_alpha_minmax)
 {
+	if (s->m_palette_obj)
+		s->m_palette_obj->Release();
 	s->m_palette_obj = m_palette_map.LookupPalette(pal, need_gs_texture);
 	s->m_palette = need_gs_texture ? s->m_palette_obj->GetPaletteGSTexture() : nullptr;
 	if (update_alpha_minmax)
@@ -6283,6 +6319,8 @@ void GSTextureCache::AttachPaletteToSource(Source* s, u16 pal, bool need_gs_text
 
 void GSTextureCache::AttachPaletteToSource(Source* s, GSTexture* gpu_clut)
 {
+	if (s->m_palette_obj)
+		s->m_palette_obj->Release();
 	s->m_palette_obj = nullptr;
 	s->m_palette = gpu_clut;
 
@@ -6598,12 +6636,12 @@ GSTextureCache::PaletteMap::PaletteMap()
 {
 }
 
-std::shared_ptr<GSTextureCache::Palette> GSTextureCache::PaletteMap::LookupPalette(u16 pal, bool need_gs_texture)
+GSTextureCache::Palette* GSTextureCache::PaletteMap::LookupPalette(u16 pal, bool need_gs_texture)
 {
 	return LookupPalette(g_gs_renderer->m_mem.m_clut, pal, need_gs_texture);
 }
 
-std::shared_ptr<GSTextureCache::Palette> GSTextureCache::PaletteMap::LookupPalette(const u32* clut, u16 pal, bool need_gs_texture)
+GSTextureCache::Palette* GSTextureCache::PaletteMap::LookupPalette(const u32* clut, u16 pal, bool need_gs_texture)
 {
 	// Choose which hash map search into:
 	//    pal == 16  : index 0
@@ -6623,6 +6661,7 @@ std::shared_ptr<GSTextureCache::Palette> GSTextureCache::PaletteMap::LookupPalet
 			// Generate GSTexture and upload clut content if needed and not done yet
 			it1->second->InitializeTexture();
 		}
+		it1->second->AddRef();
 		return it1->second;
 	}
 
@@ -6634,23 +6673,25 @@ std::shared_ptr<GSTextureCache::Palette> GSTextureCache::PaletteMap::LookupPalet
 
 		for (auto it = map.begin(); it != map.end();)
 		{
-			// If the palette is unused, there is only one shared pointers holding a reference to the unused Palette object,
-			// and this shared pointer is the one stored in the map itself
-			if (it->second.use_count() <= 1)
+			// Nobody is using this one: the map owns it and no Source
+			// holds a reference.
+			if (it->second->m_refs == 0)
 			{
-				// Palette is unused
-				it = map.erase(it); // Erase element from map
-									// The palette object should now be gone as the shared pointer to the object in the map is deleted
+				delete it->second;
+				it = map.erase(it);
 			}
 			else
 				++it;
 		}
 	}
 
-	std::shared_ptr<Palette> palette = std::make_shared<Palette>(clut, pal, need_gs_texture);
+	Palette* palette = new Palette(clut, pal, need_gs_texture);
 
 	map.emplace(palette->GetPaletteKey(), palette);
 
+	/* One for the map's own ownership is not counted - m_refs counts the
+	 * users, and the caller is the first. */
+	palette->AddRef();
 	return palette;
 }
 
@@ -6658,7 +6699,12 @@ void GSTextureCache::PaletteMap::Clear()
 {
 	for (auto& map : m_maps)
 	{
-		map.clear(); // Clear all the nodes of the map, deleting Palette objects managed by shared pointers as they should be unused elsewhere
+		/* The map owns them, so it deletes them. Anything still holding a
+		 * reference is a source, and sources are removed before this is
+		 * called (RemoveAll). */
+		for (auto& it : map)
+			delete it.second;
+		map.clear();
 	}
 }
 

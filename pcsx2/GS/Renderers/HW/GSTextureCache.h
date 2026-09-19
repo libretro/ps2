@@ -175,11 +175,33 @@ public:
 		u16 pal;
 	};
 
+	/* Palettes outlive a draw but a game that animates its CLUT makes
+	 * them steadily; the map's cap is MAX_SIZE per map, two maps. */
+	static constexpr u32 PALETTE_POOL_SIZE = 512;
+
 	class Palette
 	{
 	public:
 		static constexpr u32 ALIVE = 0x4c415021u; /* 'PAL!' */
 		u32 m_alive = ALIVE;
+
+		/* What shared_ptr did, as a number. A palette is owned by the map
+		 * it is in and referenced by every Source using it; the map drops
+		 * the ones nobody references when it grows past MAX_SIZE, which
+		 * is the use_count() <= 1 test it replaces. AddRef and Release
+		 * are the only things that touch it, and the GS is one thread, so
+		 * it is a plain u32 and not an atomic. */
+		u32 m_refs = 0;
+
+		__fi void AddRef() { m_refs++; }
+		__fi void Release()
+		{
+			if (m_refs)
+				m_refs--;
+		}
+
+		static void* operator new(size_t size);
+		static void operator delete(void* p);
 
 	private:
 	private:
@@ -326,7 +348,9 @@ public:
 
 	public:
 		HashCacheEntry* m_from_hash_cache = nullptr;
-		std::shared_ptr<Palette> m_palette_obj;
+		/* A reference, taken with AddRef and given back in the
+		 * destructor and wherever it is replaced. */
+		Palette* m_palette_obj = nullptr;
 		/* One bit per block, 32 blocks to a page, in the object rather
 		 * than a 2 KB allocation made the first time a source is written
 		 * to and freed with it. m_valid_init says whether it has been
@@ -401,14 +425,15 @@ public:
 		// Array of 2 maps, the first for 64B palettes and the second for 1024B palettes.
 		// Each map stores the key PaletteKey (clut copy, pal value) pointing to the relevant shared pointer to Palette object.
 		// There is one PaletteKey per Palette, and the hashing and comparison of PaletteKey is done with custom operators PaletteKeyHash and PaletteKeyEqual.
-		std::array<std::unordered_map<PaletteKey, std::shared_ptr<Palette>, PaletteKeyHash, PaletteKeyEqual>, 2> m_maps;
+		std::array<std::unordered_map<PaletteKey, Palette*, PaletteKeyHash, PaletteKeyEqual>, 2> m_maps;
 
 	public:
 		PaletteMap();
 
 		// Retrieves a shared pointer to a valid Palette from m_maps or creates a new one adding it to the data structure
-		std::shared_ptr<Palette> LookupPalette(u16 pal, bool need_gs_texture);
-		std::shared_ptr<Palette> LookupPalette(const u32* clut, u16 pal, bool need_gs_texture);
+		/* Both return a reference the caller owns and must Release. */
+		Palette* LookupPalette(u16 pal, bool need_gs_texture);
+		Palette* LookupPalette(const u32* clut, u16 pal, bool need_gs_texture);
 
 		void Clear(); // Clears m_maps, thus deletes Palette objects
 	};
@@ -557,7 +582,10 @@ public:
 	void DirtyRectByPage(u32 sbp, u32 spsm, u32 sbw, Target* t, GSVector4i src_r);
 	void DirtyRectByPageOld(u32 sbp, u32 spsm, u32 sbw, Target* t, GSVector4i src_r);
 	GSTexture* LookupPaletteSource(u32 CBP, u32 CPSM, u32 CBW, GSVector2i& offset, float* scale, const GSVector2i& size);
-	std::shared_ptr<Palette> LookupPaletteObject(const u32* clut, u16 pal, bool need_gs_texture);
+	/* Makes sure a palette for this CLUT exists, with its GS texture if
+	 * asked for, and hands back the GS texture or NULL. The palette itself
+	 * stays with the map; the callers only ever wanted the texture. */
+	GSTexture* LookupPaletteObject(const u32* clut, u16 pal, bool need_gs_texture);
 
 	Source* LookupSource(const bool is_color, const GIFRegTEX0& TEX0, const GIFRegTEXA& TEXA, const GIFRegCLAMP& CLAMP, const GSVector4i& r, const GSVector2i* lod, const bool possible_shuffle, const bool linear, const u32 frame_fbp = 0xFFFFFFFF, bool req_color = true, bool req_alpha = true);
 	Source* LookupDepthSource(const bool is_depth, const GIFRegTEX0& TEX0, const GIFRegTEXA& TEXA, const GIFRegCLAMP& CLAMP, const GSVector4i& r, const bool possible_shuffle, const bool linear, const u32 frame_fbp = 0xFFFFFFFF, bool req_color = true, bool req_alpha = true, bool palette = false);
