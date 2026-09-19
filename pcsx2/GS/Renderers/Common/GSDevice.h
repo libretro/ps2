@@ -794,11 +794,25 @@ protected:
 	 * them through this ring instead; entries die once enough frames
 	 * have passed for every frontend reference to be gone. */
 	static constexpr u32 NUM_RETIRED_PRESENT_TEXTURES = 8;
+	/* How many presents a retired texture is held for when nothing better
+	 * is known - a guess at how long the frontend might still reference
+	 * it, which a frontend that caches frames for longer would outlive.
+	 * Where the frontend tells us, SyncIndexWaited below is used instead
+	 * and this does not apply. */
 	static constexpr u32 RETIRED_PRESENT_MIN_AGE = 8;
 	GSTexture* m_retired_present[NUM_RETIRED_PRESENT_TEXTURES] = {};
 	u32 m_retired_present_age[NUM_RETIRED_PRESENT_TEXTURES] = {};
 	u32 m_retired_present_slot = 0;
 	u32 m_present_age = 0;
+	/* What the frontend has actually told us, where it does. A backend
+	 * that hands textures over per sync index calls SyncIndexWaited right
+	 * after its wait_sync_index returns; once one full trip of the
+	 * frontend's slots has been waited through since a texture was
+	 * retired, the frontend has demonstrably finished with it, and no
+	 * guess at a frame count is involved. */
+	u32 m_sync_waits = 0;
+	u32 m_sync_slots = 0;
+	u32 m_retired_present_waits[NUM_RETIRED_PRESENT_TEXTURES] = {};
 	GSTexture* m_target_tmp = nullptr;
 	GSTexture* m_current = nullptr;
 	GSTexture* m_colclip_rt = nullptr; ///< Temp hw colclip texture
@@ -918,6 +932,13 @@ public:
 
 	bool ResizeRenderTarget(GSTexture** t, int w, int h, bool preserve_contents, bool recycle, bool defer_destroy = false);
 	void RetirePresentTexture(GSTexture* t);
+	/* Called by a backend immediately after wait_sync_index returns;
+	 * `slots` is how many indices the frontend cycles through. */
+	__fi void SyncIndexWaited(u32 slots)
+	{
+		m_sync_slots = slots;
+		m_sync_waits++;
+	}
 
 	bool IsRBSwapped() { return m_rbswapped; }
 

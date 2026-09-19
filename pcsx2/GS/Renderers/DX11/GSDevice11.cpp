@@ -862,6 +862,21 @@ void GSDevice11::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture*
 	DrawPrimitive();
 }
 
+/* How many indices the frontend cycles through: the mask is a mask, so
+ * it is one past its highest set bit. Told to GSDevice after each wait
+ * so a retired present texture is freed on the frontend's own signal
+ * rather than on a guessed frame count (GSDevice::AgePool). */
+static u32 gs_sync_slots_from_mask(u32 mask)
+{
+	u32 slots = 0;
+	while (mask)
+	{
+		slots++;
+		mask >>= 1;
+	}
+	return slots ? slots : 1;
+}
+
 void GSDevice11::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect)
 {
 	if (   s_d3d11_v2
@@ -883,6 +898,9 @@ void GSDevice11::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture*
 			gs_d3d11_context_end();
 			s_d3d11_v2->wait_sync_index(s_d3d11_v2->handle);
 			gs_d3d11_context_begin();
+			SyncIndexWaited(s_d3d11_v2->get_sync_index_mask
+					? gs_sync_slots_from_mask(s_d3d11_v2->get_sync_index_mask(s_d3d11_v2->handle))
+					: 1);
 
 			/* GSDevice::m_merge: this class has shaders of the same name. */
 			if (sTex == GSDevice::m_merge)

@@ -1049,6 +1049,21 @@ void GSDevice12::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture*
 		m_color_copy[index + rta_offset].get(), false, allow_discard);
 }
 
+/* How many indices the frontend cycles through: the mask is a mask, so
+ * it is one past its highest set bit. Told to GSDevice after each wait
+ * so a retired present texture is freed on the frontend's own signal
+ * rather than on a guessed frame count (GSDevice::AgePool). */
+static u32 gs_sync_slots_from_mask(u32 mask)
+{
+	u32 slots = 0;
+	while (mask)
+	{
+		slots++;
+		mask >>= 1;
+	}
+	return slots ? slots : 1;
+}
+
 void GSDevice12::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect)
 {
 	GSTexture12* texture = (GSTexture12*)sTex;
@@ -1066,6 +1081,9 @@ void GSDevice12::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture*
 			/* Not ours until the frontend has finished with what this index
 			 * carried last time round. */
 			d3d12->wait_sync_index(d3d12->handle);
+			SyncIndexWaited(d3d12->get_sync_index_mask
+					? gs_sync_slots_from_mask(d3d12->get_sync_index_mask(d3d12->handle))
+					: 1);
 
 			/* No copy at all when what is being presented is the merge
 			 * target, which it is whenever the GS is not deinterlacing: hand

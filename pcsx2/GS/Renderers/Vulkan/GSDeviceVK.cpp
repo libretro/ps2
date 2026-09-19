@@ -1706,6 +1706,7 @@ void GSDeviceVK::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture*
 			if (vk_present_descs.size() < sync_slots)
 				vk_present_descs.resize(sync_slots);
 			vulkan->wait_sync_index(vulkan->handle);
+			SyncIndexWaited(sync_slots);
 
 			retro_vulkan_image &vkimage = vk_present_descs[sync_index];
 			vkimage = {};

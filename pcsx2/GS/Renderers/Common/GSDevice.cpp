@@ -260,12 +260,24 @@ void GSDevice::Recycle(GSTexture* t)
 
 void GSDevice::AgePool()
 {
-	/* Retired present textures only need to outlive the frontend's frame
-	 * queue; drop them once enough presents have passed. */
+	/* A retired present texture has to outlive the frontend's hold on it.
+	 * Where the frontend says when that ends - a backend handing textures
+	 * over per sync index, calling SyncIndexWaited after each
+	 * wait_sync_index - one full trip of its slots since the texture was
+	 * retired is that, exactly: every index it could have been handed to
+	 * has since been waited through. Otherwise there is nothing to go on
+	 * but a count of presents. */
 	m_present_age++;
 	for (u32 i = 0; i < NUM_RETIRED_PRESENT_TEXTURES; i++)
 	{
-		if (m_retired_present[i] && (m_present_age - m_retired_present_age[i]) > RETIRED_PRESENT_MIN_AGE)
+		bool done;
+		if (!m_retired_present[i])
+			continue;
+		if (m_sync_slots)
+			done = (m_sync_waits - m_retired_present_waits[i]) > m_sync_slots;
+		else
+			done = (m_present_age - m_retired_present_age[i]) > RETIRED_PRESENT_MIN_AGE;
+		if (done)
 		{
 			delete m_retired_present[i];
 			m_retired_present[i] = nullptr;
@@ -451,13 +463,16 @@ void GSDevice::RetirePresentTexture(GSTexture* t)
 	if (!t)
 		return;
 
-	/* One trip around the ring is NUM_RETIRED_PRESENT_TEXTURES presents;
-	 * by then no frontend reference to the texture can remain live. */
+	/* The ring holds the last NUM_RETIRED_PRESENT_TEXTURES of these; what
+	 * decides when one is freed is in AgePool. Reaching the slot again
+	 * before then frees it regardless, which is the one case the ring's
+	 * size still governs. */
 	const u32 slot = m_retired_present_slot;
 	m_retired_present_slot = (slot + 1) % NUM_RETIRED_PRESENT_TEXTURES;
 	delete m_retired_present[slot];
 	m_retired_present[slot] = t;
 	m_retired_present_age[slot] = m_present_age;
+	m_retired_present_waits[slot] = m_sync_waits;
 }
 
 bool GSDevice::ResizeRenderTarget(GSTexture** t, int w, int h, bool preserve_contents, bool recycle, bool defer_destroy)
