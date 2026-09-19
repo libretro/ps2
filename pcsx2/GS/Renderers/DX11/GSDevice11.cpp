@@ -401,6 +401,12 @@ void GSDevice11::Destroy()
 		m_state.rt_view->Release();
 	if (m_state.dsv)
 		m_state.dsv->Release();
+	for (size_t i = 0; i < m_state.ps_sr_views.size(); i++)
+	{
+		if (m_state.ps_sr_views[i])
+			m_state.ps_sr_views[i]->Release();
+		m_state.ps_sr_views[i] = nullptr;
+	}
 
 	m_shader_cache.Close();
 
@@ -1125,7 +1131,26 @@ void GSDevice11::VSSetShader(ID3D11VertexShader* vs, ID3D11Buffer* vs_cb)
 
 void GSDevice11::PSSetShaderResource(int i, GSTexture* sr)
 {
-	m_state.ps_sr_views[i] = *static_cast<GSTexture11*>(sr);
+	/* The cache owns what it holds, the way rt_view and dsv already do.
+	 * It used to hold the bare pointer, and RestoreAPIState hands every
+	 * slot back to the context after every present -- including a slot
+	 * last written many draws ago, whose texture the cache has since
+	 * freed. That only ever worked because the immediate context keeps
+	 * an object alive for as long as it is bound there. A frontend
+	 * running threaded video gives the core a deferred context, where a
+	 * binding lives in the command list and goes with it; the pointer
+	 * was then to freed memory, and PSSetShaderResources read through it
+	 * (an access violation inside d3d11.dll, under RestoreAPIState). */
+	ID3D11ShaderResourceView* srv = sr ? static_cast<ID3D11ShaderResourceView*>(*static_cast<GSTexture11*>(sr)) : nullptr;
+	ID3D11ShaderResourceView* old = m_state.ps_sr_views[i];
+
+	if (old == srv)
+		return;
+	if (srv)
+		srv->AddRef();
+	m_state.ps_sr_views[i] = srv;
+	if (old)
+		old->Release();
 }
 
 void GSDevice11::PSSetSamplerState(ID3D11SamplerState* ss0)
