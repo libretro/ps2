@@ -100,8 +100,20 @@ void GSTexture12::Destroy(bool defer)
 		if (m_uav_descriptor)
 			dev->GetDescriptorHeapManager().Free(&m_uav_descriptor);
 
+		/* The descriptors can go now, but the span cannot. Handing it
+		 * back here lets the next resource be placed in memory a
+		 * command list still refers to, and the two then alias: the
+		 * RTV made for this texture resolves to whatever was placed
+		 * over it, which is what "the render target format does not
+		 * match that specified by the current pipeline state" means
+		 * when the formats were never different to begin with. A
+		 * committed resource could be released the moment the caller
+		 * was done because it owned its memory; a placed one cannot.
+		 * So the span is deferred here too - at teardown the lists are
+		 * dropped and the heap is shut down straight after, so nothing
+		 * is lost by it. */
+		dev->DeferResourceDestruction(&m_alloc, m_resource.get());
 		m_resource.reset();
-		gs_d3d12_heap_free(GSDevice12::GetInstance()->GetHeap(), &m_alloc);
 		m_alloc = gs_d3d12_alloc_t();
 	}
 
