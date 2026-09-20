@@ -143,20 +143,23 @@ std::unique_ptr<GSTexture12> GSTexture12::Create(Type type, Format format, int w
 			break;
 
 		case Type::RenderTarget:
-			// RT's tend to be larger, so we'll keep them committed for speed.
-			allocationDesc.Flags        |= D3D12MA::ALLOCATION_FLAG_COMMITTED;
+			/* Not committed. A committed resource is a heap of its own,
+			 * which is the same mistake Vulkan was making with dedicated
+			 * allocations: one driver allocation per target, spent on
+			 * churn, until the driver stops giving them out. Placed in a
+			 * heap the allocator already has, a target costs an offset.
+			 * The comment this replaces said committed was "for speed" -
+			 * it is a heap creation per target, which is the opposite. */
 			desc.Flags                   = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 			optimized_clear_value.Format = rtv_format;
 			state                        = D3D12_RESOURCE_STATE_RENDER_TARGET;
 			break;
 		case Type::DepthStencil:
-			allocationDesc.Flags        |= D3D12MA::ALLOCATION_FLAG_COMMITTED;
 			desc.Flags                   = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
 			optimized_clear_value.Format = dsv_format;
 			state                        = D3D12_RESOURCE_STATE_DEPTH_WRITE;
 			break;
 		case Type::RWTexture:
-			allocationDesc.Flags        |= D3D12MA::ALLOCATION_FLAG_COMMITTED;
 			state                        = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
 			break;
 		default:

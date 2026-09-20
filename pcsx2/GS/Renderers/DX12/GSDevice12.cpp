@@ -213,6 +213,21 @@ bool GSDevice12::CreateAllocator()
 	allocatorDesc.pAdapter = m_adapter.get();
 	allocatorDesc.Flags    = D3D12MA::ALLOCATOR_FLAG_SINGLETHREADED | D3D12MA::ALLOCATOR_FLAG_DEFAULT_POOLS_NOT_ZEROED /* | D3D12MA::ALLOCATOR_FLAG_ALWAYS_COMMITTED*/;
 
+	/* Heaps big enough that a frame's targets come out of one of them, so
+	 * that making a target is a placement inside a heap that exists
+	 * rather than a heap of its own. What the console needs of it: all of
+	 * GS memory at this upscale, twice, within reason. Vulkan reserves
+	 * the same way (GSDeviceVK::CreateTargetMemoryPool). */
+	{
+		const float scale = GSConfig.UpscaleMultiplier > 0.0f ? GSConfig.UpscaleMultiplier : 1.0f;
+		u64 block = (u64)((float)VM_SIZE * scale * scale) * 2u;
+		if (block < 64ull * 1024ull * 1024ull)
+			block = 64ull * 1024ull * 1024ull;
+		if (block > 512ull * 1024ull * 1024ull)
+			block = 512ull * 1024ull * 1024ull;
+		allocatorDesc.PreferredBlockSize = block;
+	}
+
 	const HRESULT hr = D3D12MA::CreateAllocator(&allocatorDesc, m_allocator.put());
 	if (FAILED(hr))
 	{
