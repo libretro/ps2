@@ -270,33 +270,24 @@ void GSDevice::Recycle(GSTexture* t)
 	pool.push_front(t);
 	m_pool_memory_usage[idx] += t->GetMemUsage();
 
-	const u32 max_size = t->IsTexture() ? MAX_POOLED_TEXTURES : MAX_POOLED_TARGETS;
-	const u32 max_age = t->IsTexture() ? MAX_TEXTURE_AGE : MAX_TARGET_AGE;
-	const u64 max_bytes = PoolByteBudget(idx);
-
-	while (pool.size() > max_size || m_pool_memory_usage[idx] > max_bytes)
-	{
-		GSTexture* back = pool.back();
-
-		/* Over the byte budget, the oldest goes whatever its age: holding
-		 * it is what makes the next allocation fail, and a texture the
-		 * game wants again is cheaper to recreate than a frame that does
-		 * not draw. Under it, the frame's own textures are kept as
-		 * before. */
-		if (m_pool_memory_usage[idx] <= max_bytes
-		 && (m_frame - back->GetLastFrameUsed()) < max_age)
-			break;
-
-		/* Except the ones this frame is still using - freeing those is
-		 * not a slow frame, it is a wrong one. */
-		if (back->GetLastFrameUsed() == m_frame && pool.size() <= 2)
-			break;
-
-		m_pool_memory_usage[idx] -= back->GetMemUsage();
-		delete back;
-
-		pool.pop_back();
-	}
+	/* Nothing is freed here. Recycle runs inside a draw, and freeing
+	 * inside a draw is what the allocation churn is made of: a texture
+	 * goes back, is deleted, and the next draw asks the driver for the
+	 * same size again. Returning it to the pool is the whole job.
+	 *
+	 * What the pool may hold is decided once per frame instead, in
+	 * AgePool. In steady state - a game using the same handful of target
+	 * sizes, which is all a PS2 game can do, since they all live in four
+	 * megabytes of GS memory - nothing is created and nothing is
+	 * destroyed at all: the first frames make the textures and every
+	 * frame after that hands the same ones out.
+	 *
+	 * This is the part of paraLLEl-GS's model that GSdx can have. It
+	 * reserves its four megabytes once because it rasterises out of GS
+	 * memory directly; GSdx has to keep a host texture per target to
+	 * upscale, so the inventory is per size rather than one buffer - but
+	 * the inventory is still made once and reused, not built and thrown
+	 * away inside a frame. */
 }
 
 void GSDevice::AgePool()
@@ -329,14 +320,23 @@ void GSDevice::AgePool()
 	// Toss out textures when they're not too-recently used.
 	for (u32 pool_idx = 0; pool_idx < m_pool.size(); pool_idx++)
 	{
+		/* The one place a pooled texture is freed, and it runs between
+		 * frames rather than inside one. Oldest first, until both the
+		 * count and the byte budget are met; a texture this frame used
+		 * is never taken. */
 		const u32 max_age = (pool_idx == 0) ? MAX_TEXTURE_AGE : MAX_TARGET_AGE;
+		const u32 max_size = (pool_idx == 0) ? MAX_POOLED_TEXTURES : MAX_POOLED_TARGETS;
 		const u64 max_bytes = PoolByteBudget(pool_idx);
 		FastList<GSTexture*>& pool = m_pool[pool_idx];
 		while (!pool.empty())
 		{
 			GSTexture* back = pool.back();
-			if (m_pool_memory_usage[pool_idx] <= max_bytes
-			 && (m_frame - back->GetLastFrameUsed()) < max_age)
+			const bool over = (pool.size() > max_size)
+				|| (m_pool_memory_usage[pool_idx] > max_bytes);
+
+			if (!over && (m_frame - back->GetLastFrameUsed()) < max_age)
+				break;
+			if (back->GetLastFrameUsed() == m_frame)
 				break;
 
 			m_pool_memory_usage[pool_idx] -= back->GetMemUsage();
