@@ -219,6 +219,55 @@ int main(void)
       gs_vk_heap_shutdown(&capped);
    }
 
+   /* Trim gives empty blocks back, and the block indices live
+    * allocations carry keep pointing at the right memory afterwards -
+    * the reason trim leaves holes instead of closing the array up. */
+   {
+      gs_vk_heap_t t2;
+      gs_vk_alloc_t keep[4];
+      gs_vk_alloc_t drop[4];
+      VkDeviceMemory keep_mem[4];
+      VkDeviceSize keep_off[4];
+      int k;
+
+      memset(&t2, 0, sizeof(t2));
+      CHECK(gs_vk_heap_init(&t2, (VkDevice)1, &props, &fns, 1024 * 1024, 256, 0) != 0, "trim: init");
+
+      /* Four blocks' worth, alternating between ones kept and ones
+       * dropped, so trim has holes to make in the middle. */
+      req(&r, 1024 * 1024, 256, 0x1u);
+      for (k = 0; k < 4; k++)
+      {
+         CHECK(gs_vk_heap_alloc(&t2, &r, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, &keep[k]) != 0, "trim: keep");
+         CHECK(gs_vk_heap_alloc(&t2, &r, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, &drop[k]) != 0, "trim: drop");
+         keep_mem[k] = keep[k].memory;
+         keep_off[k] = keep[k].offset;
+      }
+      for (k = 0; k < 4; k++)
+         gs_vk_heap_free(&t2, &drop[k]);
+
+      CHECK(gs_vk_heap_trim(&t2) == 4, "trim gave back the four empty blocks");
+
+      for (k = 0; k < 4; k++)
+      {
+         CHECK(keep[k].memory == keep_mem[k], "a live allocation still names its own memory");
+         CHECK(keep[k].offset == keep_off[k], "at its own offset");
+         CHECK(keep[k].block < t2.block_count, "and its block index is still in range");
+      }
+
+      /* And the freed room is usable again. */
+      CHECK(gs_vk_heap_alloc(&t2, &r, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, &drop[0]) != 0,
+            "the trimmed room comes back");
+
+      /* Freeing the ones kept still works, which is what a stale block
+       * index would break. */
+      for (k = 0; k < 4; k++)
+         gs_vk_heap_free(&t2, &keep[k]);
+      gs_vk_heap_free(&t2, &drop[0]);
+      CHECK(t2.bytes_used == 0, "everything given back after a trim");
+      gs_vk_heap_shutdown(&t2);
+   }
+
    frees = 0;
    gs_vk_heap_shutdown(&heap);
    CHECK(frees > 0, "shutdown gives the blocks back");

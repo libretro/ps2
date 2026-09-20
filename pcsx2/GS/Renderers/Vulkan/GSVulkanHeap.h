@@ -119,6 +119,16 @@ int  gs_vk_heap_alloc(gs_vk_heap_t *heap, const VkMemoryRequirements *req,
 
 void gs_vk_heap_free(gs_vk_heap_t *heap, const gs_vk_alloc_t *alloc);
 
+/* Gives empty blocks back to the driver. Blocks are per memory type and
+ * are kept for the life of the heap, so a run that filled the ceiling
+ * with upload blocks has nothing left for an image even when most of it
+ * is free - "4096 MB reserved, 2687 MB used" and no room for a 128x64
+ * texture. paraLLEl-GS meets the same wall and answers it the same way:
+ * past the high-water mark it drops the slab and starts over, with the
+ * comment that there is no need to be more clever. Returns how many
+ * blocks went back. */
+unsigned gs_vk_heap_trim(gs_vk_heap_t *heap);
+
 /* For host-visible memory that is not coherent. Both round to
  * nonCoherentAtomSize themselves. */
 void gs_vk_heap_flush(gs_vk_heap_t *heap, const gs_vk_alloc_t *alloc);

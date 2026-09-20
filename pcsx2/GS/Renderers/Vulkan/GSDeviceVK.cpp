@@ -670,6 +670,7 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 			return false;
 		}
 
+
 		if (vkBindImageMemory(vk_init_info.device, *image, alloc->memory, alloc->offset) != VK_SUCCESS)
 		{
 			gs_vk_heap_free(&m_heap, alloc);
@@ -1196,7 +1197,7 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 		/* All of GS memory at this upscale is more than a frame's
 		 * uploads can need; under that the free list keeps everything. */
 		const float scale = GSConfig.UpscaleMultiplier > 0.0f ? GSConfig.UpscaleMultiplier : 1.0f;
-		u64 ceiling = (u64)((float)VM_SIZE * scale * scale);
+		u64 ceiling = (u64)((float)VM_SIZE * scale * scale) * 4u;
 		u32 want = 64 * 1024;
 		size_t i;
 		StagingBuffer sb;
@@ -1221,8 +1222,22 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 		 * to a power of two. Thirty gigabytes of a thirty-two gigabyte
 		 * card, none of it in any counter, because none of it was
 		 * anybody's to count. */
+		/* A full submit and wait here is correct and very slow: it is a
+		 * GPU sync in the middle of a texture upload, and a game that
+		 * uploads a lot hits it many times a frame. So it is the last
+		 * resort, not the first - and the ceiling it guards is four
+		 * times GS memory rather than one, because a frame's uploads
+		 * legitimately run to several times what the console holds. */
 		if (m_staging_inflight_bytes + want > ceiling)
-			ExecuteCommandBufferAndRestartRenderPass(true);
+		{
+			/* Empty blocks back to the driver first. That is free, and
+			 * it is usually all that was needed: the room exists, it is
+			 * just in blocks of the wrong memory type. */
+			gs_vk_heap_trim(&m_heap);
+
+			if (m_staging_inflight_bytes + want > ceiling)
+				ExecuteCommandBufferAndRestartRenderPass(true);
+		}
 
 		for (i = 0; i < m_staging_free.size(); i++)
 		{

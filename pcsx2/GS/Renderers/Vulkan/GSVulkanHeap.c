@@ -67,8 +67,21 @@ static int gs_vk_heap_add_block(gs_vk_heap_t *heap, unsigned type, VkDeviceSize 
    gs_vk_block_t *b;
    VkDeviceMemory memory = VK_NULL_HANDLE;
    void *mapped = NULL;
+   unsigned i_hole;
 
-   if (heap->block_count >= GS_VK_HEAP_MAX_BLOCKS)
+   unsigned slot = heap->block_count;
+
+   /* A slot trim left empty, if there is one. */
+   for (i_hole = 0; i_hole < heap->block_count; i_hole++)
+   {
+      if (!heap->blocks[i_hole].memory)
+      {
+         slot = i_hole;
+         break;
+      }
+   }
+
+   if (slot >= GS_VK_HEAP_MAX_BLOCKS)
       return 0;
 
    /* The ceiling. Without one the heap will hand out blocks until the
@@ -94,7 +107,7 @@ static int gs_vk_heap_add_block(gs_vk_heap_t *heap, unsigned type, VkDeviceSize 
          mapped = NULL;
    }
 
-   b = &heap->blocks[heap->block_count];
+   b = &heap->blocks[slot];
    memset(b, 0, sizeof(*b));
    b->memory = memory;
    b->mapped = mapped;
@@ -109,7 +122,8 @@ static int gs_vk_heap_add_block(gs_vk_heap_t *heap, unsigned type, VkDeviceSize 
       return 0;
    }
 
-   heap->block_count++;
+   if (slot == heap->block_count)
+      heap->block_count++;
    heap->bytes_reserved += size;
    return 1;
 }
@@ -139,6 +153,8 @@ void gs_vk_heap_shutdown(gs_vk_heap_t *heap)
    for (i = 0; i < heap->block_count; i++)
    {
       gs_vk_block_t *b = &heap->blocks[i];
+      if (!b->memory)
+         continue;
       if (b->mapped)
          heap->fns.unmap_memory(heap->device, b->memory);
       heap->fns.free_memory(heap->device, b->memory, NULL);
@@ -225,6 +241,37 @@ static int gs_vk_block_alloc(gs_vk_heap_t *heap, gs_vk_block_t *b, unsigned inde
    return 0;
 }
 
+unsigned gs_vk_heap_trim(gs_vk_heap_t *heap)
+{
+   unsigned freed = 0;
+   unsigned i;
+
+   for (i = 0; i < heap->block_count; i++)
+   {
+      gs_vk_block_t *b = &heap->blocks[i];
+
+      if (!b->memory || b->used != 0)
+         continue;
+
+      if (b->mapped)
+         heap->fns.unmap_memory(heap->device, b->memory);
+      heap->fns.free_memory(heap->device, b->memory, NULL);
+      if (b->free_spans)
+         free(b->free_spans);
+
+      heap->bytes_reserved -= b->size;
+      freed++;
+
+      /* A hole, not a gap closed up. Every live allocation carries the
+       * index of its block, so the array must not be compacted - moving
+       * the last block into this slot would leave those allocations
+       * pointing at someone else's memory. The slot is reused by the
+       * next block instead. */
+      memset(b, 0, sizeof(*b));
+   }
+   return freed;
+}
+
 int gs_vk_heap_alloc(gs_vk_heap_t *heap, const VkMemoryRequirements *req,
       VkMemoryPropertyFlags required, VkMemoryPropertyFlags preferred,
       gs_vk_alloc_t *out)
@@ -238,7 +285,7 @@ int gs_vk_heap_alloc(gs_vk_heap_t *heap, const VkMemoryRequirements *req,
 
    for (i = 0; i < heap->block_count; i++)
    {
-      if (heap->blocks[i].type != type)
+      if (!heap->blocks[i].memory || heap->blocks[i].type != type)
          continue;
       if (gs_vk_block_alloc(heap, &heap->blocks[i], i, req->size, req->alignment, out))
          return 1;
@@ -252,10 +299,25 @@ int gs_vk_heap_alloc(gs_vk_heap_t *heap, const VkMemoryRequirements *req,
       block_size = gs_vk_align_up(req->size, 64u * 1024u);
 
    if (!gs_vk_heap_add_block(heap, type, block_size))
-      return 0;
+   {
+      /* No room for another block. Empty ones are given back first -
+       * a run that filled the ceiling with upload blocks has nothing
+       * for an image even with most of it free - and then one more
+       * try. */
+      if (!gs_vk_heap_trim(heap))
+         return 0;
+      if (!gs_vk_heap_add_block(heap, type, block_size))
+         return 0;
+   }
 
-   return gs_vk_block_alloc(heap, &heap->blocks[heap->block_count - 1],
-         heap->block_count - 1, req->size, req->alignment, out);
+   for (i = 0; i < heap->block_count; i++)
+   {
+      if (!heap->blocks[i].memory || heap->blocks[i].type != type)
+         continue;
+      if (gs_vk_block_alloc(heap, &heap->blocks[i], i, req->size, req->alignment, out))
+         return 1;
+   }
+   return 0;
 }
 
 void gs_vk_heap_free(gs_vk_heap_t *heap, const gs_vk_alloc_t *alloc)
