@@ -255,8 +255,16 @@ bool GSDevice12::CreateHeap()
 	block = (u64)((float)VM_SIZE * scale * scale) * 2u;
 	if (block < 64ull * 1024ull * 1024ull)
 		block = 64ull * 1024ull * 1024ull;
-	if (block > 512ull * 1024ull * 1024ull)
-		block = 512ull * 1024ull * 1024ull;
+	/* 64 MB, not 512, for the reasons the Vulkan side found the hard
+	 * way: a block is only given back when it is entirely empty, which
+	 * at 512 MB never happens once allocations are scattered through
+	 * it, so trim returns nothing and the tails of the blocks are
+	 * memory nothing can reach. It is worse here than there, because a
+	 * resource-heap-tier-1 device needs separate blocks for buffers,
+	 * for render targets and depth stencils, and for other textures -
+	 * three 512 MB blocks before a frame has drawn anything. */
+	if (block > 64ull * 1024ull * 1024ull)
+		block = 64ull * 1024ull * 1024ull;
 
 	/* And the same ceiling, for the same reason: the budgets above the
 	 * heap already come to more than half of it, and a ceiling under
@@ -269,6 +277,12 @@ bool GSDevice12::CreateHeap()
 
 	fns.create_heap  = gs_d3d12_create_heap_cb;
 	fns.release_heap = gs_d3d12_release_heap_cb;
+
+	log_cb(RETRO_LOG_INFO,
+		"GS: D3D12 heap, %llu MB blocks, %llu MB ceiling, heaps hold %s.\n",
+		(unsigned long long)(block >> 20),
+		(unsigned long long)(ceiling >> 20),
+		m_heaps_hold_anything ? "anything (tier 2)" : "one kind of thing (tier 1)");
 
 	if (!gs_d3d12_heap_init(&m_heap, m_device.get(), &fns, block, ceiling))
 	{
@@ -309,7 +323,20 @@ bool GSDevice12::CreatePlacedResource(const D3D12_RESOURCE_DESC* desc, D3D12_HEA
 
 	if (!gs_d3d12_heap_alloc(&m_heap, info.SizeInBytes, info.Alignment,
 			static_cast<uint32_t>(heap_type), static_cast<uint32_t>(heap_flags), &alloc))
+	{
+		/* Silence here is a black screen and nothing to go on, which is
+		 * how the Vulkan side of this cost a week. Say what was asked
+		 * for and what the heap is holding. */
+		log_cb(RETRO_LOG_ERROR,
+			"GS: no room for a %llu KB resource (heap %llu MB reserved, %llu MB used: "
+			"%llu MB uploads and readbacks, %llu MB device).\n",
+			(unsigned long long)(info.SizeInBytes >> 10),
+			(unsigned long long)(m_heap.bytes_reserved >> 20),
+			(unsigned long long)(m_heap.bytes_used >> 20),
+			(unsigned long long)(m_heap.bytes_host >> 20),
+			(unsigned long long)(m_heap.bytes_device >> 20));
 		return false;
+	}
 
 	hr = m_device->CreatePlacedResource(static_cast<ID3D12Heap*>(alloc.heap), alloc.offset,
 		desc, state, clear_value, IID_PPV_ARGS(out_resource));
