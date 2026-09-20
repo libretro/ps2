@@ -161,27 +161,40 @@ void GSDevice::PrewarmPool()
 	const u64 budget = PoolByteBudget(1);
 	u64 spent = 0;
 	u32 made = 0;
+	u32 pass;
 	u32 i;
 
-	for (i = 0; i < sizeof(sizes) / sizeof(sizes[0]); i++)
+	/* Colour first, then depth: a game drawing to a target of some size
+	 * wants a depth buffer of it too, and if the budget only stretches to
+	 * one of the two the colour one is the one that matters. Within each
+	 * pass, most used size first. */
+	for (pass = 0; pass < 2; pass++)
 	{
-		const int w = (int)((float)sizes[i].w * scale);
-		const int h = (int)((float)sizes[i].h * scale);
-		const u64 cost = (u64)w * (u64)h * 4u;
-		GSTexture* t;
+		const GSTexture::Type type = (pass == 0)
+			? GSTexture::Type::RenderTarget : GSTexture::Type::DepthStencil;
+		const GSTexture::Format format = (pass == 0)
+			? GSTexture::Format::Color : GSTexture::Format::DepthStencil;
 
-		/* Half the budget, so a game wanting something not on the list
-		 * has room for it without the first frame evicting what was
-		 * just made. */
-		if (spent + cost > budget / 2u)
-			break;
+		for (i = 0; i < sizeof(sizes) / sizeof(sizes[0]); i++)
+		{
+			const int w = (int)((float)sizes[i].w * scale);
+			const int h = (int)((float)sizes[i].h * scale);
+			const u64 cost = (u64)w * (u64)h * 4u;
+			GSTexture* t;
 
-		t = CreateSurface(GSTexture::Type::RenderTarget, w, h, 1, GSTexture::Format::Color);
-		if (!t)
-			break;
-		spent += cost;
-		made++;
-		Recycle(t);
+			/* Three quarters of the budget. The rest is for sizes a game
+			 * asks for that are not on this list - those are made once,
+			 * on first sight, and then kept like everything else. */
+			if (spent + cost > (budget / 4u) * 3u)
+				break;
+
+			t = CreateSurface(type, w, h, 1, format);
+			if (!t)
+				break;
+			spent += cost;
+			made++;
+			Recycle(t);
+		}
 	}
 
 	log_cb(RETRO_LOG_INFO, "GS: pool prewarmed, %u target sizes, %llu MB.\n",
@@ -396,24 +409,31 @@ void GSDevice::AgePool()
 	}
 	m_frame++;
 
-	// Toss out textures when they're not too-recently used.
+	/* Age is not a reason to free a texture. It was: anything unused for
+	 * ten frames went, and the next time the game wanted that size it was
+	 * made again - the allocate-and-free cycle, once a frame, for the
+	 * life of the run.
+	 *
+	 * A PS2 game's targets are a handful of sizes, all of them inside
+	 * four megabytes of GS memory, and it asks for the same ones every
+	 * frame. Keeping them costs the pool's ceiling and nothing else. The
+	 * only reason left to free one is that the pool is over that ceiling,
+	 * which in steady state it never is, and which the prewarm has
+	 * already sized for.
+	 *
+	 * So in steady state nothing is created and nothing is destroyed, on
+	 * every backend: this is GSDevice, above D3D11, D3D12, OpenGL, Vulkan
+	 * and the software renderer alike. */
 	for (u32 pool_idx = 0; pool_idx < m_pool.size(); pool_idx++)
 	{
-		/* The one place a pooled texture is freed, and it runs between
-		 * frames rather than inside one. Oldest first, until both the
-		 * count and the byte budget are met; a texture this frame used
-		 * is never taken. */
-		const u32 max_age = (pool_idx == 0) ? MAX_TEXTURE_AGE : MAX_TARGET_AGE;
 		const u32 max_size = (pool_idx == 0) ? MAX_POOLED_TEXTURES : MAX_POOLED_TARGETS;
 		const u64 max_bytes = PoolByteBudget(pool_idx);
 		FastList<GSTexture*>& pool = m_pool[pool_idx];
 		while (!pool.empty())
 		{
 			GSTexture* back = pool.back();
-			const bool over = (pool.size() > max_size)
-				|| (m_pool_memory_usage[pool_idx] > max_bytes);
 
-			if (!over && (m_frame - back->GetLastFrameUsed()) < max_age)
+			if (pool.size() <= max_size && m_pool_memory_usage[pool_idx] <= max_bytes)
 				break;
 			if (back->GetLastFrameUsed() == m_frame)
 				break;

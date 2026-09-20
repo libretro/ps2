@@ -774,10 +774,12 @@ private:
 protected:
 	static constexpr int NUM_INTERLACE_SHADERS = 5;
 	static constexpr float MAD_SENSITIVITY = 0.08f;
+	/* How many the pool may hold. The ages that used to sit beside these
+	 * are gone: a pooled texture is not freed for being old, only for
+	 * putting the pool over one of its two ceilings, so in steady state
+	 * nothing is freed at all. */
 	static constexpr u32 MAX_POOLED_TARGETS = 300;
-	static constexpr u32 MAX_TARGET_AGE = 20;
 	static constexpr u32 MAX_POOLED_TEXTURES = 300;
-	static constexpr u32 MAX_TEXTURE_AGE = 10;
 
 	/* What the pool may hold, in bytes, from what the console has rather
 	 * than from a number someone picked.
