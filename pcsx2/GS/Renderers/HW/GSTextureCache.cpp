@@ -4288,6 +4288,8 @@ void GSTextureCache::IncAge()
 		}
 	}
 
+	EnforceTargetBudget();
+
 	for (auto it = m_target_heights.begin(); it != m_target_heights.end();)
 	{
 		TargetHeightElem& elem = const_cast<TargetHeightElem&>(*it);
@@ -5119,6 +5121,68 @@ void GSTextureCache::RemoveFromHashCache(HashCacheMap::iterator it)
 		m_hash_cache_memory_usage -= mem_usage;
 	g_gs_device->Recycle(e.texture);
 	m_hash_cache.erase(it);
+}
+
+/* For the device's allocation failure message: who is holding the video
+ * memory it could not get. Its own pool it knows; this is the rest. */
+const char* GSTextureCacheMemoryUsage(void)
+{
+	static char buf[192];
+	if (!g_texture_cache)
+		return "no texture cache";
+	snprintf(buf, sizeof(buf),
+		"%llu MB targets (budget %llu), %llu MB sources, %llu MB hashed",
+		(unsigned long long)(g_texture_cache->GetTargetMemoryUsage() >> 20),
+		(unsigned long long)(g_texture_cache->TargetByteBudget() >> 20),
+		(unsigned long long)(g_texture_cache->GetSourceMemoryUsage() >> 20),
+		(unsigned long long)(g_texture_cache->GetTotalHashCacheMemoryUsage() >> 20));
+	return buf;
+}
+
+u64 GSTextureCache::TargetByteBudget() const
+{
+	const float scale = GSConfig.UpscaleMultiplier > 0.0f ? GSConfig.UpscaleMultiplier : 1.0f;
+	return (u64)((float)VM_SIZE * scale * scale) * TARGET_LIVE_SETS;
+}
+
+void GSTextureCache::EnforceTargetBudget()
+{
+	const u64 budget = TargetByteBudget();
+	int type;
+
+	if (m_target_memory_usage <= budget)
+		return;
+
+	/* Over it. The lists are most recently used first, so the oldest are
+	 * at the back: drop from there until it fits. A target dropped while
+	 * the game still wants it is redrawn - the game writes it before it
+	 * reads it, that is what ageing them out at all relies on - whereas
+	 * the allocation that fails without this takes the draw with it. */
+	for (type = 1; type >= 0 && m_target_memory_usage > budget; type--)
+	{
+		auto& list = m_dst[type];
+		while (!list.empty() && m_target_memory_usage > budget)
+		{
+			Target* t = list.back();
+
+			/* Not the one being drawn to right now. */
+			if (t->m_age == 0 && list.size() <= 2)
+				break;
+
+			InvalidateSourcesFromTarget(t);
+			list.pop_back();
+			delete t;
+		}
+	}
+
+	if (m_target_memory_usage > budget)
+	{
+		log_cb(RETRO_LOG_WARN,
+			"GS: targets still over budget after dropping what could be dropped "
+			"(%llu MB against %llu MB).\n",
+			(unsigned long long)(m_target_memory_usage >> 20),
+			(unsigned long long)(budget >> 20));
+	}
 }
 
 void GSTextureCache::AgeHashCache()

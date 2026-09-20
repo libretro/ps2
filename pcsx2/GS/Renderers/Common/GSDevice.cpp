@@ -20,6 +20,10 @@
 #include "common/Align.h"
 
 #include "GSDevice.h"
+
+/* What the texture cache is holding, for the allocation failure message.
+ * Defined in GSTextureCache.cpp; the device cannot include its header. */
+extern const char* GSTextureCacheMemoryUsage(void);
 #include "../../GS.h"
 #include "../../../Host.h"
 
@@ -194,7 +198,17 @@ GSTexture* GSDevice::FetchSurface(GSTexture::Type type, int width, int height, i
 			t = CreateSurface(type, width, height, levels, format);
 			if (!t)
 			{
-				log_cb(RETRO_LOG_ERROR, "GS: Memory allocation failure for %dx%d texture. Purging pool and retrying.\n", width, height);
+				log_cb(RETRO_LOG_ERROR,
+					"GS: Memory allocation failure for %dx%d texture (%u MB). Purging pool and retrying.\n"
+					"GS:   held: pool %llu MB textures + %llu MB targets"
+					" (budgets %llu / %llu), cache %s\n",
+					width, height,
+					(unsigned)((u64)width * (u64)height * 4u >> 20),
+					(unsigned long long)(m_pool_memory_usage[0] >> 20),
+					(unsigned long long)(m_pool_memory_usage[1] >> 20),
+					(unsigned long long)(PoolByteBudget(0) >> 20),
+					(unsigned long long)(PoolByteBudget(1) >> 20),
+					GSTextureCacheMemoryUsage());
 				PurgePool();
 				/* The retry the message promises. Without it the purge freed
 				 * memory, and descriptors, for nobody: t was still NULL and

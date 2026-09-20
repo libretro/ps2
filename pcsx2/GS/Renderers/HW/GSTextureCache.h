@@ -519,6 +519,26 @@ protected:
 	FastList<TargetHeightElem> m_target_heights;
 	u64 m_target_memory_usage = 0;
 
+	/* What the live targets may hold, from the console: every render
+	 * target and depth buffer a game has at once lives in the PS2's four
+	 * megabytes of GS memory, so the host copy of all of them is that
+	 * times the upscale squared. Twice that, because a game double
+	 * buffers and because GSdx extends target heights past what the
+	 * game asked for.
+	 *
+	 * Ageing alone does not bound this: a target is kept for sixty
+	 * frames, and a game that makes large ones quickly - Tomb Raider
+	 * Legend's RAD camera at 4x asks for 4096x3584, 58 MB each - has
+	 * gigabytes of them live before the first one is a second old. The
+	 * counters for this were already kept; nothing read them. */
+	static constexpr u32 TARGET_LIVE_SETS = 2;
+	void EnforceTargetBudget();
+
+public:
+	u64 TargetByteBudget() const;
+
+private:
+
 	int m_expected_src_bp = -1;
 	int m_remembered_src_bp = -1;
 	int m_expected_dst_bp = -1;
