@@ -26,10 +26,7 @@
 
 #include <limits>
 
-namespace D3D12MA
-{
-	class Allocation;
-}
+#include "GSD3D12Heap.h"
 
 class GSTexture12 final : public GSTexture
 {
@@ -83,7 +80,7 @@ private:
 	};
 
 	GSTexture12(Type type, Format format, int width, int height, int levels, DXGI_FORMAT dxgi_format,
-		wil::com_ptr_nothrow<ID3D12Resource> resource, wil::com_ptr_nothrow<D3D12MA::Allocation> allocation,
+		wil::com_ptr_nothrow<ID3D12Resource> resource, const gs_d3d12_alloc_t& alloc,
 		const D3D12DescriptorHandle& srv_descriptor, const D3D12DescriptorHandle& write_descriptor,
 		const D3D12DescriptorHandle& uav_descriptor, WriteDescriptorType wdtype, D3D12_RESOURCE_STATES resource_state);
 
@@ -98,7 +95,7 @@ private:
 	void CopyTextureDataForUpload(void* dst, const void* src, u32 pitch, u32 upload_pitch, u32 height) const;
 
 	wil::com_ptr_nothrow<ID3D12Resource> m_resource;
-	wil::com_ptr_nothrow<D3D12MA::Allocation> m_allocation;
+	gs_d3d12_alloc_t m_alloc = {};
 
 	D3D12DescriptorHandle m_srv_descriptor = {};
 	D3D12DescriptorHandle m_write_descriptor = {};
@@ -134,7 +131,7 @@ public:
 private:
 	GSDownloadTexture12(u32 width, u32 height, GSTexture::Format format);
 
-	wil::com_ptr_nothrow<D3D12MA::Allocation> m_allocation;
+	gs_d3d12_alloc_t m_alloc = {};
 	wil::com_ptr_nothrow<ID3D12Resource> m_buffer;
 
 	u64 m_copy_fence_value = 0;

@@ -23,10 +23,7 @@
 #include <deque>
 #include <utility>
 
-namespace D3D12MA
-{
-	class Allocation;
-}
+#include "GSD3D12Heap.h"
 
 class D3D12StreamBuffer
 {
@@ -61,7 +58,7 @@ class D3D12StreamBuffer
 		u32 m_current_gpu_position = 0;
 
 		wil::com_ptr_nothrow<ID3D12Resource> m_buffer;
-		wil::com_ptr_nothrow<D3D12MA::Allocation> m_allocation;
+		gs_d3d12_alloc_t m_alloc = {};
 		D3D12_GPU_VIRTUAL_ADDRESS m_gpu_pointer = {};
 		u8* m_host_pointer = nullptr;
 

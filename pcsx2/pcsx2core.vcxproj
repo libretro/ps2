@@ -45,7 +45,7 @@
       <AdditionalIncludeDirectories>$(SolutionDir)3rdparty\imgui\include;$(SolutionDir)3rdparty\imgui\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories>$(SolutionDir)3rdparty\sdl2\include;$(SolutionDir)3rdparty\sdl2\SDL\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories>$(SolutionDir)3rdparty\libzip;$(SolutionDir)3rdparty\libzip\libzip\lib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <AdditionalIncludeDirectories>$(SolutionDir)3rdparty\d3d12memalloc\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(SolutionDir)3rdparty\zstd\zstd\lib</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(SolutionDir)3rdparty\rcheevos\rcheevos\include;$(SolutionDir)3rdparty\rainterface</AdditionalIncludeDirectories>
@@ -518,9 +518,6 @@
     <ClInclude Include="CDVD\IsoFS\SectorSource.h" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\3rdparty\d3d12memalloc\d3d12memalloc.vcxproj">
-      <Project>{d45cec7a-3171-40dd-975d-e1544cf16139}</Project>
-    </ProjectReference>
     <ProjectReference Include="..\3rdparty\glad\glad.vcxproj">
       <Project>{c0293b32-5acf-40f0-aa6c-e6da6f3bf33a}</Project>
     </ProjectReference>

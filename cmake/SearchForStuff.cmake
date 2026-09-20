@@ -8,7 +8,6 @@ endif()
 # libretro-common (rinflate/rpng), compiled into the libretro target.
 if (WIN32)
 	# We bundle everything on Windows
-	add_subdirectory(3rdparty/D3D12MemAlloc EXCLUDE_FROM_ALL)
 else()
 	# Using find_package OpenGL without either setting your opengl preference to GLVND or LEGACY
 	# is deprecated as of cmake 3.11.

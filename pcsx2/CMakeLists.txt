@@ -493,6 +493,7 @@ target_compile_options(PCSX2_FLAGS INTERFACE "-DHAVE_D3D12")
 		GS/Renderers/DX12/D3D12DescriptorHeapManager.cpp
 		GS/Renderers/DX12/D3D12ShaderCache.cpp
 		GS/Renderers/DX12/D3D12StreamBuffer.cpp
+		GS/Renderers/DX12/GSD3D12Heap.c
 	)
 	list(APPEND pcsx2GSHeaders
 		GS/Renderers/DX11/D3D.h
@@ -501,6 +502,7 @@ target_compile_options(PCSX2_FLAGS INTERFACE "-DHAVE_D3D12")
 		GS/Renderers/DX11/D3D11ShaderCache.h
 		GS/Renderers/DX12/GSDevice12.h
 		GS/Renderers/DX12/GSTexture12.h
+		GS/Renderers/DX12/GSD3D12Heap.h
 		GS/Renderers/DX12/D3D12Builders.h
 		GS/Renderers/DX12/D3D12DescriptorHeapManager.h
 		GS/Renderers/DX12/D3D12ShaderCache.h
@@ -951,7 +953,6 @@ target_link_libraries(PCSX2_FLAGS INTERFACE
 
 if(WIN32)
 	target_link_libraries(PCSX2_FLAGS INTERFACE
-		D3D12MemAlloc
 		d3dcompiler.lib
 		d3d11.lib
 		d3d12.lib

@@ -28,7 +28,6 @@
 #include "D3D12Builders.h"
 #include "D3D12ShaderCache.h"
 
-#include "D3D12MemAlloc.h"
 
 #include <limits>
 #include <algorithm>
@@ -206,35 +205,124 @@ u32 GSDevice12::GetAdapterVendorID() const
 	return desc.VendorId;
 }
 
-bool GSDevice12::CreateAllocator()
+/* The device calls the heap needs, so that GSD3D12Heap.c needs no
+ * d3d12.h and can be built and tested without a GPU. */
+static int gs_d3d12_create_heap_cb(void *device, uint64_t size, uint32_t heap_type,
+	uint32_t heap_flags, void **out_heap)
 {
-	D3D12MA::ALLOCATOR_DESC allocatorDesc = {};
-	allocatorDesc.pDevice  = m_device.get();
-	allocatorDesc.pAdapter = m_adapter.get();
-	allocatorDesc.Flags    = D3D12MA::ALLOCATOR_FLAG_SINGLETHREADED | D3D12MA::ALLOCATOR_FLAG_DEFAULT_POOLS_NOT_ZEROED /* | D3D12MA::ALLOCATOR_FLAG_ALWAYS_COMMITTED*/;
+	ID3D12Device*   dev = static_cast<ID3D12Device*>(device);
+	ID3D12Heap*     heap = nullptr;
+	D3D12_HEAP_DESC hd = {};
 
-	/* Heaps big enough that a frame's targets come out of one of them, so
-	 * that making a target is a placement inside a heap that exists
-	 * rather than a heap of its own. What the console needs of it: all of
-	 * GS memory at this upscale, twice, within reason. Vulkan reserves
-	 * the same way (GSDeviceVK::CreateTargetMemoryPool). */
-	{
-		const float scale = GSConfig.UpscaleMultiplier > 0.0f ? GSConfig.UpscaleMultiplier : 1.0f;
-		u64 block = (u64)((float)VM_SIZE * scale * scale) * 2u;
-		if (block < 64ull * 1024ull * 1024ull)
-			block = 64ull * 1024ull * 1024ull;
-		if (block > 512ull * 1024ull * 1024ull)
-			block = 512ull * 1024ull * 1024ull;
-		allocatorDesc.PreferredBlockSize = block;
-	}
+	hd.SizeInBytes           = size;
+	hd.Properties.Type       = static_cast<D3D12_HEAP_TYPE>(heap_type);
+	hd.Alignment             = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
+	hd.Flags                 = static_cast<D3D12_HEAP_FLAGS>(heap_flags);
 
-	const HRESULT hr = D3D12MA::CreateAllocator(&allocatorDesc, m_allocator.put());
-	if (FAILED(hr))
+	if (FAILED(dev->CreateHeap(&hd, IID_PPV_ARGS(&heap))) || !heap)
+		return 0;
+
+	*out_heap = heap;
+	return 1;
+}
+
+static void gs_d3d12_release_heap_cb(void *device, void *heap)
+{
+	(void)device;
+	if (heap)
+		static_cast<ID3D12Heap*>(heap)->Release();
+}
+
+bool GSDevice12::CreateHeap()
+{
+	D3D12_FEATURE_DATA_D3D12_OPTIONS options = {};
+	gs_d3d12_heap_fns_t fns;
+	const float scale = GSConfig.UpscaleMultiplier > 0.0f ? GSConfig.UpscaleMultiplier : 1.0f;
+	u64 block;
+	u64 ceiling;
+
+	/* Tier 1 keeps buffers, render targets and other textures in heaps
+	 * of their own; tier 2 takes them all in one, which means fewer
+	 * heaps and less of each one wasted. */
+	m_heaps_hold_anything = false;
+	if (SUCCEEDED(m_device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &options, sizeof(options))))
+		m_heaps_hold_anything = (options.ResourceHeapTier >= D3D12_RESOURCE_HEAP_TIER_2);
+
+	/* Heaps big enough that a frame's targets come out of one of them,
+	 * so that making a target is a placement inside a heap that exists
+	 * rather than a heap of its own. Vulkan sizes its blocks the same
+	 * way (GSDeviceVK::CreateTargetMemoryPool). */
+	block = (u64)((float)VM_SIZE * scale * scale) * 2u;
+	if (block < 64ull * 1024ull * 1024ull)
+		block = 64ull * 1024ull * 1024ull;
+	if (block > 512ull * 1024ull * 1024ull)
+		block = 512ull * 1024ull * 1024ull;
+
+	/* And the same ceiling, for the same reason: the budgets above the
+	 * heap already come to more than half of it, and a ceiling under
+	 * that sum refuses allocations the renderer is entitled to make.
+	 * Never fewer than four blocks, or at native it would be smaller
+	 * than one block. */
+	ceiling = (u64)((float)VM_SIZE * scale * scale) * 16u;
+	if (ceiling < block * 4u)
+		ceiling = block * 4u;
+
+	fns.create_heap  = gs_d3d12_create_heap_cb;
+	fns.release_heap = gs_d3d12_release_heap_cb;
+
+	if (!gs_d3d12_heap_init(&m_heap, m_device.get(), &fns, block, ceiling))
 	{
-		log_cb(RETRO_LOG_ERROR, "D3D12MA::CreateAllocator() failed with HRESULT %08X\n", hr);
+		log_cb(RETRO_LOG_ERROR, "Failed to create the D3D12 heap\n");
 		return false;
 	}
 
+	return true;
+}
+
+/* The heap flags a resource of this description needs. On tier 2 they
+ * all share, so everything lands in the same blocks. */
+static D3D12_HEAP_FLAGS GetHeapFlagsForResource(const D3D12_RESOURCE_DESC* desc, bool heaps_hold_anything)
+{
+	if (heaps_hold_anything)
+		return D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES;
+
+	if (desc->Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
+		return D3D12_HEAP_FLAG_ALLOW_ONLY_BUFFERS;
+
+	if (desc->Flags & (D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL))
+		return D3D12_HEAP_FLAG_ALLOW_ONLY_RT_DS_TEXTURES;
+
+	return D3D12_HEAP_FLAG_ALLOW_ONLY_NON_RT_DS_TEXTURES;
+}
+
+bool GSDevice12::CreatePlacedResource(const D3D12_RESOURCE_DESC* desc, D3D12_HEAP_TYPE heap_type,
+	D3D12_RESOURCE_STATES state, const D3D12_CLEAR_VALUE* clear_value,
+	ID3D12Resource** out_resource, gs_d3d12_alloc_t* out_alloc)
+{
+	const D3D12_RESOURCE_ALLOCATION_INFO info = m_device->GetResourceAllocationInfo(0, 1, desc);
+	const D3D12_HEAP_FLAGS heap_flags = GetHeapFlagsForResource(desc, m_heaps_hold_anything);
+	gs_d3d12_alloc_t alloc = {};
+	HRESULT hr;
+
+	if (info.SizeInBytes == UINT64_MAX)
+		return false;
+
+	if (!gs_d3d12_heap_alloc(&m_heap, info.SizeInBytes, info.Alignment,
+			static_cast<uint32_t>(heap_type), static_cast<uint32_t>(heap_flags), &alloc))
+		return false;
+
+	hr = m_device->CreatePlacedResource(static_cast<ID3D12Heap*>(alloc.heap), alloc.offset,
+		desc, state, clear_value, IID_PPV_ARGS(out_resource));
+	if (FAILED(hr))
+	{
+		gs_d3d12_heap_free(&m_heap, &alloc);
+		/* Out of memory is not fatal; the caller retries with less. */
+		if (hr != E_OUTOFMEMORY)
+			log_cb(RETRO_LOG_ERROR, "CreatePlacedResource() failed with HRESULT %08X\n", hr);
+		return false;
+	}
+
+	*out_alloc = alloc;
 	return true;
 }
 
@@ -347,7 +435,6 @@ void GSDevice12::MoveToNextCommandList()
 	ID3D12DescriptorHeap* heaps[2] = {res.descriptor_allocator.GetDescriptorHeap(), res.sampler_allocator.GetDescriptorHeap()};
 	res.command_lists[1]->SetDescriptorHeaps(C89_ARRAY_SIZE(heaps), heaps);
 
-	m_allocator->SetCurrentFrameIndex(static_cast<UINT>(m_current_fence_value));
 }
 
 ID3D12GraphicsCommandList4* GSDevice12::GetInitCommandList()
@@ -510,19 +597,25 @@ void GSDevice12::DeferObjectDestruction(ID3D12DeviceChild* resource)
 		return;
 
 	resource->AddRef();
-	m_command_lists[m_current_command_list].pending_resources.emplace_back(nullptr, resource);
+	{
+		PendingResource pr = {};
+		pr.resource = resource;
+		m_command_lists[m_current_command_list].pending_resources.push_back(pr);
+	}
 }
 
-void GSDevice12::DeferResourceDestruction(D3D12MA::Allocation* allocation, ID3D12Resource* resource)
+void GSDevice12::DeferResourceDestruction(const gs_d3d12_alloc_t* alloc, ID3D12Resource* resource)
 {
+	PendingResource pr = {};
+
 	if (!resource)
 		return;
 
-	if (allocation)
-		allocation->AddRef();
-
 	resource->AddRef();
-	m_command_lists[m_current_command_list].pending_resources.emplace_back(allocation, resource);
+	if (alloc)
+		pr.alloc = *alloc;
+	pr.resource = resource;
+	m_command_lists[m_current_command_list].pending_resources.push_back(pr);
 }
 
 void GSDevice12::DeferDescriptorDestruction(D3D12DescriptorHeapManager& manager, u32 index)
@@ -547,9 +640,10 @@ void GSDevice12::DestroyPendingResources(CommandListResources& cmdlist)
 
 	for (const auto& it : cmdlist.pending_resources)
 	{
-		it.second->Release();
-		if (it.first)
-			it.first->Release();
+		it.resource->Release();
+		/* The heap span goes back now, with the GPU finished with it. */
+		if (it.alloc.heap)
+			gs_d3d12_heap_free(&m_heap, &it.alloc);
 	}
 	cmdlist.pending_resources.clear();
 }
@@ -593,7 +687,7 @@ void GSDevice12::WaitForGPUIdle()
 }
 
 bool GSDevice12::AllocatePreinitializedGPUBuffer(u32 size, ID3D12Resource** gpu_buffer,
-	D3D12MA::Allocation** gpu_allocation, const std::function<void(void*)>& fill_callback)
+	gs_d3d12_alloc_t* gpu_alloc, const std::function<void(void*)>& fill_callback)
 {
 	// Try to place the fixed index buffer in GPU local memory.
 	// Use the staging buffer to copy into it.
@@ -601,15 +695,12 @@ bool GSDevice12::AllocatePreinitializedGPUBuffer(u32 size, ID3D12Resource** gpu_
 		DXGI_FORMAT_UNKNOWN, {1, 0}, D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
 		D3D12_RESOURCE_FLAG_NONE};
 
-	const D3D12MA::ALLOCATION_DESC cpu_ad = {
-		D3D12MA::ALLOCATION_FLAG_NONE,
-		D3D12_HEAP_TYPE_UPLOAD};
-
 	ComPtr<ID3D12Resource> cpu_buffer;
-	ComPtr<D3D12MA::Allocation> cpu_allocation;
-	HRESULT hr = m_allocator->CreateResource(&cpu_ad, &rd, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
-		cpu_allocation.put(), IID_PPV_ARGS(cpu_buffer.put()));
-	if (FAILED(hr))
+	gs_d3d12_alloc_t cpu_alloc = {};
+	HRESULT hr;
+
+	if (!CreatePlacedResource(&rd, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr, cpu_buffer.put(), &cpu_alloc))
 		return false;
 
 	static constexpr const D3D12_RANGE read_range = {};
@@ -621,14 +712,12 @@ bool GSDevice12::AllocatePreinitializedGPUBuffer(u32 size, ID3D12Resource** gpu_
 	fill_callback(mapped);
 	cpu_buffer->Unmap(0, &write_range);
 
-	const D3D12MA::ALLOCATION_DESC gpu_ad = {
-		D3D12MA::ALLOCATION_FLAG_COMMITTED,
-		D3D12_HEAP_TYPE_DEFAULT};
-
-	hr = m_allocator->CreateResource(&gpu_ad, &rd, D3D12_RESOURCE_STATE_COMMON, nullptr,
-		gpu_allocation, IID_PPV_ARGS(gpu_buffer));
-	if (FAILED(hr))
+	if (!CreatePlacedResource(&rd, D3D12_HEAP_TYPE_DEFAULT, D3D12_RESOURCE_STATE_COMMON,
+			nullptr, gpu_buffer, gpu_alloc))
+	{
+		gs_d3d12_heap_free(&m_heap, &cpu_alloc);
 		return false;
+	}
 
 	GetInitCommandList()->CopyBufferRegion(*gpu_buffer, 0, cpu_buffer.get(), 0, size);
 
@@ -639,7 +728,7 @@ bool GSDevice12::AllocatePreinitializedGPUBuffer(u32 size, ID3D12Resource** gpu_
 	rb.Transition.StateAfter = D3D12_RESOURCE_STATE_INDEX_BUFFER;
 	GetInitCommandList()->ResourceBarrier(1, &rb);
 
-	DeferResourceDestruction(cpu_allocation.get(), cpu_buffer.get());
+	DeferResourceDestruction(&cpu_alloc, cpu_buffer.get());
 	return true;
 }
 
@@ -774,7 +863,7 @@ bool GSDevice12::Create()
 
 	if (
 		
-		   !CreateAllocator()
+		   !CreateHeap()
 		|| !CreateFence()
 		|| !CreateDescriptorHeaps() 
 		|| !CreateCommandLists())
@@ -1875,7 +1964,7 @@ bool GSDevice12::CreateBuffers()
 	}
 
 	if (!AllocatePreinitializedGPUBuffer(EXPAND_BUFFER_SIZE, &m_expand_index_buffer,
-			&m_expand_index_buffer_allocation, &GSDevice::GenerateExpansionIndexBuffer))
+			&m_expand_index_buffer_alloc, &GSDevice::GenerateExpansionIndexBuffer))
 	{
 		log_cb(RETRO_LOG_ERROR, "Failed to allocate expansion index buffer\n");
 		return false;
@@ -2164,7 +2253,8 @@ void GSDevice12::DestroyResources()
 	InvalidateSamplerGroups();
 
 	m_expand_index_buffer.reset();
-	m_expand_index_buffer_allocation.reset();
+	gs_d3d12_heap_free(&m_heap, &m_expand_index_buffer_alloc);
+	m_expand_index_buffer_alloc = gs_d3d12_alloc_t();
 	m_texture_stream_buffer.Destroy(false);
 	m_pixel_constant_buffer.Destroy(false);
 	m_vertex_constant_buffer.Destroy(false);
@@ -2197,7 +2287,7 @@ void GSDevice12::DestroyResources()
 		m_fence_event = {};
 	}
 
-	m_allocator.reset();
+	gs_d3d12_heap_shutdown(&m_heap);
 	m_command_queue.reset();
 	m_debug_interface.reset();
 	m_device.reset();

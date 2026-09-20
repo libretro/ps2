@@ -30,7 +30,6 @@ INCFLAGS := \
 	-I$(DEPS_DIR) \
 	-I$(DEPS_DIR)/include \
 	-I$(DEPS_DIR)/xbyak \
-	-I$(DEPS_DIR)/d3d12memalloc/include
 
 ifeq ($(HAVE_OPENGL), 1)
 	INCFLAGS += -I$(DEPS_DIR)/glad/include
@@ -105,6 +104,7 @@ SOURCES_C += \
 	$(LRPS2_DIR)/GS/Renderers/HW/GSObjectPool.c \
 	$(LRPS2_DIR)/GS/Renderers/HW/GSHashTable.c \
 	$(LRPS2_DIR)/GS/Renderers/Vulkan/GSVulkanHeap.c \
+	$(LRPS2_DIR)/GS/Renderers/DX12/GSD3D12Heap.c \
 	$(LIBRETRO_COMM_DIR)/compat/compat_posix_string.c \
 	$(LIBRETRO_COMM_DIR)/compat/compat_fnmatch.c \
 	$(LIBRETRO_COMM_DIR)/file/retro_dirent.c \
@@ -657,11 +657,6 @@ ifeq ($(IS_ARM64), 1)
 SOURCES_CC += \
 	$(wildcard $(DEPS_DIR)/vixl/src/*.cc) \
 	$(wildcard $(DEPS_DIR)/vixl/src/aarch64/*.cc)
-endif
-
-# D3D12MemAlloc (Windows only)
-ifeq ($(IS_WINDOWS), 1)
-SOURCES_CXX += $(DEPS_DIR)/d3d12memalloc/src/D3D12MemAlloc.cpp
 endif
 
 # glad (OpenGL)

@@ -40,11 +40,7 @@
 struct IDXGIAdapter;
 struct IDXGIFactory;
 
-namespace D3D12MA
-{
-	class Allocation;
-	class Allocator;
-} // namespace D3D12MA
+#include "GSD3D12Heap.h"
 
 class GSDevice12 final : public GSDevice
 {
@@ -182,7 +178,7 @@ private:
 	D3D12StreamBuffer m_vertex_constant_buffer;
 	D3D12StreamBuffer m_pixel_constant_buffer;
 	ComPtr<ID3D12Resource> m_expand_index_buffer;
-	ComPtr<D3D12MA::Allocation> m_expand_index_buffer_allocation;
+	gs_d3d12_alloc_t m_expand_index_buffer_alloc = {};
 
 	D3D12DescriptorHandle m_point_sampler_cpu;
 	D3D12DescriptorHandle m_linear_sampler_cpu;
@@ -356,7 +352,16 @@ public:
 
        __fi IDXGIAdapter* GetAdapter() const { return m_adapter.get(); }
        __fi ID3D12Device* GetDevice() const { return m_device.get(); }
-       __fi D3D12MA::Allocator* GetAllocator() const { return m_allocator.get(); }
+       __fi gs_d3d12_heap_t* GetHeap() { return &m_heap; }
+
+       /* One place that turns a resource description into memory: it
+        * asks the device how big and how aligned, takes that from the
+        * heap, and places the resource at the offset. What
+        * D3D12MA::CreateResource did, without the library deciding when
+        * to take a heap from the driver. */
+       bool CreatePlacedResource(const D3D12_RESOURCE_DESC* desc, D3D12_HEAP_TYPE heap_type,
+               D3D12_RESOURCE_STATES state, const D3D12_CLEAR_VALUE* clear_value,
+               ID3D12Resource** out_resource, gs_d3d12_alloc_t* out_alloc);
 
        /// Returns the PCI vendor ID of the device, if known.
        u32 GetAdapterVendorID() const;
@@ -425,14 +430,14 @@ public:
        void DeferObjectDestruction(ID3D12DeviceChild* resource);
 
        /// Defers destruction of a D3D resource (associates it with the current list).
-       void DeferResourceDestruction(D3D12MA::Allocation* allocation, ID3D12Resource* resource);
+       void DeferResourceDestruction(const gs_d3d12_alloc_t* alloc, ID3D12Resource* resource);
 
        /// Defers destruction of a descriptor handle (associates it with the current list).
        void DeferDescriptorDestruction(D3D12DescriptorHeapManager& manager, u32 index);
        void DeferDescriptorDestruction(D3D12DescriptorHeapManager& manager, D3D12DescriptorHandle* handle);
 
        // Allocates a temporary CPU staging buffer, fires the callback with it to populate, then copies to a GPU buffer.
-       bool AllocatePreinitializedGPUBuffer(u32 size, ID3D12Resource** gpu_buffer, D3D12MA::Allocation** gpu_allocation,
+       bool AllocatePreinitializedGPUBuffer(u32 size, ID3D12Resource** gpu_buffer, gs_d3d12_alloc_t* gpu_alloc,
 		       const std::function<void(void*)>& fill_callback);
 
 private:
@@ -491,13 +496,22 @@ private:
 	       std::array<ComPtr<ID3D12GraphicsCommandList4>, 2> command_lists;
 	       D3D12DescriptorAllocator descriptor_allocator;
 	       D3D12GroupedSamplerAllocator<SAMPLER_GROUP_SIZE> sampler_allocator;
-	       std::vector<std::pair<D3D12MA::Allocation*, ID3D12DeviceChild*>> pending_resources;
+	       /* A resource waiting on this list owns its span of the heap
+		* until the GPU is done with it; the span goes back when the
+		* command list retires, not when the caller let go. A zeroed
+		* alloc means the resource came from somewhere else. */
+	       struct PendingResource
+	       {
+		       gs_d3d12_alloc_t   alloc;
+		       ID3D12DeviceChild* resource;
+	       };
+	       std::vector<PendingResource> pending_resources;
 	       std::vector<std::pair<D3D12DescriptorHeapManager&, u32>> pending_descriptors;
 	       u64 ready_fence_value = 0;
 	       bool init_command_list_used = false;
        };
 
-       bool CreateAllocator();
+       bool CreateHeap();
        bool CreateFence();
        bool CreateDescriptorHeaps();
        bool CreateCommandLists();
@@ -508,7 +522,10 @@ private:
        ComPtr<ID3D12Debug> m_debug_interface;
        ComPtr<ID3D12Device> m_device;
        ComPtr<ID3D12CommandQueue> m_command_queue;
-       ComPtr<D3D12MA::Allocator> m_allocator;
+       gs_d3d12_heap_t m_heap = {};
+       /* Tier 1 wants buffers, render targets and other textures in
+        * heaps of their own; tier 2 takes them all in one. */
+       bool m_heaps_hold_anything = false;
 
        ComPtr<ID3D12Fence> m_fence;
        HANDLE m_fence_event = {};

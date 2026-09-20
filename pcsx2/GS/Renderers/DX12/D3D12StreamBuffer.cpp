@@ -17,7 +17,6 @@
 #include "common/Pcsx2Defs.h"
 #include "GSDevice12.h"
 #include "common/Align.h"
-#include "D3D12MemAlloc.h"
 
 #include <algorithm>
 #include <functional>
@@ -36,28 +35,26 @@ bool D3D12StreamBuffer::Create(u32 size)
 		D3D12_RESOURCE_DIMENSION_BUFFER, 0, size, 1, 1, 1, DXGI_FORMAT_UNKNOWN, {1, 0}, D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
 		D3D12_RESOURCE_FLAG_NONE};
 
-	D3D12MA::ALLOCATION_DESC allocationDesc = {};
-	allocationDesc.Flags = D3D12MA::ALLOCATION_FLAG_COMMITTED;
-	allocationDesc.HeapType = D3D12_HEAP_TYPE_UPLOAD;
-
 	wil::com_ptr_nothrow<ID3D12Resource> buffer;
-	wil::com_ptr_nothrow<D3D12MA::Allocation> allocation;
-	HRESULT hr = dev->GetAllocator()->CreateResource(&allocationDesc,
-		&resource_desc, D3D12_RESOURCE_STATE_GENERIC_READ,
-		nullptr, allocation.put(), IID_PPV_ARGS(buffer.put()));
-	if (FAILED(hr))
+	gs_d3d12_alloc_t alloc = {};
+
+	if (!dev->CreatePlacedResource(&resource_desc, D3D12_HEAP_TYPE_UPLOAD,
+			D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, buffer.put(), &alloc))
 		return false;
 
 	static const D3D12_RANGE read_range = {};
 	u8* host_pointer;
-	hr = buffer->Map(0, &read_range, reinterpret_cast<void**>(&host_pointer));
-	if (FAILED(hr))
+	if (FAILED(buffer->Map(0, &read_range, reinterpret_cast<void**>(&host_pointer))))
+	{
+		buffer.reset();
+		gs_d3d12_heap_free(dev->GetHeap(), &alloc);
 		return false;
+	}
 
 	Destroy(true);
 
 	m_buffer = std::move(buffer);
-	m_allocation = std::move(allocation);
+	m_alloc = alloc;
 	m_host_pointer = host_pointer;
 	m_size = size;
 	m_gpu_pointer = m_buffer->GetGPUVirtualAddress();
@@ -149,9 +146,17 @@ void D3D12StreamBuffer::Destroy(bool defer)
 	}
 
 	if (m_buffer && defer)
-		dev->DeferResourceDestruction(m_allocation.get(), m_buffer.get());
-	m_buffer.reset();
-	m_allocation.reset();
+	{
+		/* Deferred: the span goes back with the command list. */
+		dev->DeferResourceDestruction(&m_alloc, m_buffer.get());
+		m_buffer.reset();
+	}
+	else
+	{
+		m_buffer.reset();
+		gs_d3d12_heap_free(dev->GetHeap(), &m_alloc);
+	}
+	m_alloc = gs_d3d12_alloc_t();
 
 	m_current_offset = 0;
 	m_current_space = 0;

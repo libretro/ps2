@@ -17,7 +17,6 @@
 #include "common/Pcsx2Defs.h"
 
 #include "D3D12Builders.h"
-#include "D3D12MemAlloc.h"
 #include "GSDevice12.h"
 #include "GSTexture12.h"
 
@@ -26,11 +25,11 @@
 GS_TEXTURE_OPS_DEFINE_MIPMAP(GSTexture12, d3d12);
 
 GSTexture12::GSTexture12(Type type, Format format, int width, int height, int levels, DXGI_FORMAT dxgi_format,
-	wil::com_ptr_nothrow<ID3D12Resource> resource, wil::com_ptr_nothrow<D3D12MA::Allocation> allocation,
+	wil::com_ptr_nothrow<ID3D12Resource> resource, const gs_d3d12_alloc_t& alloc,
 	const D3D12DescriptorHandle& srv_descriptor, const D3D12DescriptorHandle& write_descriptor,
 	const D3D12DescriptorHandle& uav_descriptor, WriteDescriptorType wdtype, D3D12_RESOURCE_STATES resource_state)
 	: m_resource(std::move(resource))
-	, m_allocation(std::move(allocation))
+	, m_alloc(alloc)
 	, m_srv_descriptor(srv_descriptor)
 	, m_write_descriptor(write_descriptor)
 	, m_uav_descriptor(uav_descriptor)
@@ -76,9 +75,10 @@ void GSTexture12::Destroy(bool defer)
 		if (m_uav_descriptor)
 			dev->DeferDescriptorDestruction(dev->GetDescriptorHeapManager(), &m_uav_descriptor);
 
-		dev->DeferResourceDestruction(m_allocation.get(), m_resource.get());
+		/* The span goes back when the command list retires, not now. */
+		dev->DeferResourceDestruction(&m_alloc, m_resource.get());
 		m_resource.reset();
-		m_allocation.reset();
+		m_alloc = gs_d3d12_alloc_t();
 	}
 	else
 	{
@@ -101,7 +101,8 @@ void GSTexture12::Destroy(bool defer)
 			dev->GetDescriptorHeapManager().Free(&m_uav_descriptor);
 
 		m_resource.reset();
-		m_allocation.reset();
+		gs_d3d12_heap_free(GSDevice12::GetInstance()->GetHeap(), &m_alloc);
+		m_alloc = gs_d3d12_alloc_t();
 	}
 
 	m_write_descriptor_type = WriteDescriptorType::None;
@@ -115,7 +116,6 @@ std::unique_ptr<GSTexture12> GSTexture12::Create(Type type, Format format, int w
 	D3D12_RESOURCE_STATES state;
 	GSDevice12* const dev = GSDevice12::GetInstance();
 	D3D12_RESOURCE_DESC desc = {};
-	D3D12MA::ALLOCATION_DESC allocationDesc = {};
 	D3D12_CLEAR_VALUE optimized_clear_value = {};
 
 	desc.Dimension           = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
@@ -126,9 +126,6 @@ std::unique_ptr<GSTexture12> GSTexture12::Create(Type type, Format format, int w
 	desc.Format              = dxgi_format;
 	desc.SampleDesc.Count    = 1;
 	desc.Layout              = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-
-	allocationDesc.Flags     = D3D12MA::ALLOCATION_FLAG_WITHIN_BUDGET;
-	allocationDesc.HeapType  = D3D12_HEAP_TYPE_DEFAULT;
 
 
 	switch (type)
@@ -170,18 +167,11 @@ std::unique_ptr<GSTexture12> GSTexture12::Create(Type type, Format format, int w
 		desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
 	wil::com_ptr_nothrow<ID3D12Resource> resource;
-	wil::com_ptr_nothrow<D3D12MA::Allocation> allocation;
-	HRESULT hr = dev->GetAllocator()->CreateResource(&allocationDesc, &desc, state,
-		(type == Type::RenderTarget || type == Type::DepthStencil) ? &optimized_clear_value : nullptr, allocation.put(),
-		IID_PPV_ARGS(resource.put()));
-	if (FAILED(hr))
-	{
-		// OOM isn't fatal.
-		if (hr != E_OUTOFMEMORY)
-			log_cb(RETRO_LOG_ERROR, "Create texture failed: 0x%08X\n", hr);
-
+	gs_d3d12_alloc_t alloc = {};
+	if (!dev->CreatePlacedResource(&desc, D3D12_HEAP_TYPE_DEFAULT, state,
+			(type == Type::RenderTarget || type == Type::DepthStencil) ? &optimized_clear_value : nullptr,
+			resource.put(), &alloc))
 		return {};
-	}
 
 	D3D12DescriptorHandle srv_descriptor, write_descriptor, uav_descriptor;
 	WriteDescriptorType write_descriptor_type = WriteDescriptorType::None;
@@ -225,7 +215,7 @@ std::unique_ptr<GSTexture12> GSTexture12::Create(Type type, Format format, int w
 	}
 
 	return std::unique_ptr<GSTexture12>(
-		new GSTexture12(type, format, width, height, levels, dxgi_format, std::move(resource), std::move(allocation),
+		new GSTexture12(type, format, width, height, levels, dxgi_format, std::move(resource), alloc,
 			srv_descriptor, write_descriptor, uav_descriptor, write_descriptor_type, state));
 }
 
@@ -356,22 +346,20 @@ ID3D12Resource* GSTexture12::AllocateUploadStagingBuffer(const void* data, u32 p
 	GSDevice12* const dev = GSDevice12::GetInstance();
 	const u32 buffer_size = CalcUploadSize(height, upload_pitch);
 	wil::com_ptr_nothrow<ID3D12Resource> resource;
-	wil::com_ptr_nothrow<D3D12MA::Allocation> allocation;
+	gs_d3d12_alloc_t alloc = {};
 
-	const D3D12MA::ALLOCATION_DESC allocation_desc = {D3D12MA::ALLOCATION_FLAG_NONE, D3D12_HEAP_TYPE_UPLOAD};
 	const D3D12_RESOURCE_DESC resource_desc = {
 		D3D12_RESOURCE_DIMENSION_BUFFER, 0, buffer_size, 1, 1, 1, DXGI_FORMAT_UNKNOWN, {1, 0}, D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
 		D3D12_RESOURCE_FLAG_NONE};
-	HRESULT hr = dev->GetAllocator()->CreateResource(&allocation_desc, &resource_desc, D3D12_RESOURCE_STATE_GENERIC_READ,
-		nullptr, allocation.put(), IID_PPV_ARGS(resource.put()));
-	if (FAILED(hr))
+	if (!dev->CreatePlacedResource(&resource_desc, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr, resource.put(), &alloc))
 	{
-		log_cb(RETRO_LOG_INFO, "(AllocateUploadStagingBuffer) CreateCommittedResource() failed with %08X\n", hr);
+		log_cb(RETRO_LOG_INFO, "(AllocateUploadStagingBuffer) no room for a %u byte staging buffer\n", buffer_size);
 		return nullptr;
 	}
 
 	void* map_ptr;
-	hr = resource->Map(0, nullptr, &map_ptr);
+	HRESULT hr = resource->Map(0, nullptr, &map_ptr);
 	if (FAILED(hr))
 	{
 		log_cb(RETRO_LOG_INFO, "(AllocateUploadStagingBuffer) Map() failed with %08X\n", hr);
@@ -385,7 +373,7 @@ ID3D12Resource* GSTexture12::AllocateUploadStagingBuffer(const void* data, u32 p
 
 	// Immediately queue it for freeing after the command buffer finishes, since it's only needed for the copy.
 	// This adds the reference needed to keep the buffer alive.
-	dev->DeferResourceDestruction(allocation.get(), resource.get());
+	dev->DeferResourceDestruction(&alloc, resource.get());
 	return resource.get();
 }
 
@@ -648,7 +636,7 @@ GSDownloadTexture12::~GSDownloadTexture12()
 		GSDownloadTexture12::Unmap();
 
 	if (m_buffer)
-		dev->DeferResourceDestruction(m_allocation.get(), m_buffer.get());
+		dev->DeferResourceDestruction(&m_alloc, m_buffer.get());
 }
 
 std::unique_ptr<GSDownloadTexture12> GSDownloadTexture12::Create(u32 width, u32 height, GSTexture::Format format)
@@ -656,25 +644,21 @@ std::unique_ptr<GSDownloadTexture12> GSDownloadTexture12::Create(u32 width, u32 
 	GSDevice12* const dev = GSDevice12::GetInstance();
 	const u32 buffer_size = GetBufferSize(width, height, format, D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
 
-	D3D12MA::ALLOCATION_DESC allocation_desc = {};
-	allocation_desc.HeapType = D3D12_HEAP_TYPE_READBACK;
-
 	const D3D12_RESOURCE_DESC resource_desc = {D3D12_RESOURCE_DIMENSION_BUFFER, 0, buffer_size, 1, 1, 1, DXGI_FORMAT_UNKNOWN, {1, 0},
 		D3D12_TEXTURE_LAYOUT_ROW_MAJOR, D3D12_RESOURCE_FLAG_NONE};
 
-	wil::com_ptr_nothrow<D3D12MA::Allocation> allocation;
+	gs_d3d12_alloc_t alloc = {};
 	wil::com_ptr_nothrow<ID3D12Resource> buffer;
 
-	HRESULT hr = dev->GetAllocator()->CreateResource(
-		&allocation_desc, &resource_desc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, allocation.put(), IID_PPV_ARGS(buffer.put()));
-	if (FAILED(hr))
+	if (!dev->CreatePlacedResource(&resource_desc, D3D12_HEAP_TYPE_READBACK, D3D12_RESOURCE_STATE_COPY_DEST,
+			nullptr, buffer.put(), &alloc))
 	{
-		log_cb(RETRO_LOG_ERROR, "(GSDownloadTexture12::Create) CreateResource() failed with HRESULT %08X\n", hr);
+		log_cb(RETRO_LOG_ERROR, "(GSDownloadTexture12::Create) no room for a %u byte readback buffer\n", buffer_size);
 		return {};
 	}
 
 	std::unique_ptr<GSDownloadTexture12> tex(new GSDownloadTexture12(width, height, format));
-	tex->m_allocation = std::move(allocation);
+	tex->m_alloc = alloc;
 	tex->m_buffer = std::move(buffer);
 	tex->m_buffer_size = buffer_size;
 	return tex;
