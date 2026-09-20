@@ -23,6 +23,14 @@
 extern "C" {
 #endif
 
+/* Slots are aligned to this, and so is anything the caller falls back to
+ * the allocator for. Sixty-four because the GS compares and copies with
+ * aligned SSE loads - GSVector4i::compare64 and friends cast a pointer
+ * and index it - and the buffers those run over live inside pooled
+ * objects. Sixteen would do for SSE; sixty-four is the cache line and is
+ * what the allocations these pools replaced asked for. */
+#define GS_OBJECT_POOL_ALIGN 64
+
 typedef struct gs_object_pool
 {
    unsigned char  *slots;        /* one allocation, count * stride     */

@@ -5495,7 +5495,7 @@ void* GSTextureCache::Palette::operator new(size_t size)
 	if (!s_palette_pool.slots)
 		gs_object_pool_init(&s_palette_pool, size, PALETTE_POOL_SIZE);
 	p = gs_object_pool_take(&s_palette_pool, size);
-	return p ? p : memalign_alloc(32, size);
+	return p ? p : memalign_alloc(GS_OBJECT_POOL_ALIGN, size);
 }
 
 void GSTextureCache::Palette::operator delete(void* p)
@@ -5510,7 +5510,7 @@ void* GSTextureCache::Source::operator new(size_t size)
 	if (!s_source_pool.slots)
 		gs_object_pool_init(&s_source_pool, size, SOURCE_POOL_SIZE);
 	p = gs_object_pool_take(&s_source_pool, size);
-	return p ? p : memalign_alloc(32, size);
+	return p ? p : memalign_alloc(GS_OBJECT_POOL_ALIGN, size);
 }
 
 void GSTextureCache::Source::operator delete(void* p)
@@ -5525,7 +5525,7 @@ void* GSTextureCache::Target::operator new(size_t size)
 	if (!s_target_pool.slots)
 		gs_object_pool_init(&s_target_pool, size, TARGET_POOL_SIZE);
 	p = gs_object_pool_take(&s_target_pool, size);
-	return p ? p : memalign_alloc(32, size);
+	return p ? p : memalign_alloc(GS_OBJECT_POOL_ALIGN, size);
 }
 
 void GSTextureCache::Target::operator delete(void* p)

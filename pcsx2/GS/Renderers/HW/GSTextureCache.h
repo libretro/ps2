@@ -20,6 +20,7 @@
 #include <limits>
 
 #include "../Common/GSRenderer.h"
+#include "GSObjectPool.h"
 #include "../Common/GSFastList.h"
 #include "../Common/GSDirtyRect.h"
 
@@ -208,8 +209,15 @@ public:
 		/* Sixteen or two hundred and fifty-six entries, in the object.
 		 * It was a 64-byte or 1 KB allocation per palette, made in the
 		 * constructor and freed in the destructor, for something a game
-		 * that animates its CLUT churns constantly. */
-		u32 m_clut[256];
+		 * that animates its CLUT churns constantly.
+		 *
+		 * alignas because the allocation it replaced was memalign_alloc's
+		 * at 64, and PaletteKeyEqual compares two of these with
+		 * GSVector4i::compare64, which casts to a vector pointer and
+		 * indexes it - an aligned SSE load. Inside the object without
+		 * this it sat at offset eight, and every comparison was a
+		 * general protection fault. */
+		alignas(GS_OBJECT_POOL_ALIGN) u32 m_clut[256];
 		GSTexture* m_tex_palette;
 		u16 m_pal;
 		std::pair<u8, u8> m_alpha_minmax;

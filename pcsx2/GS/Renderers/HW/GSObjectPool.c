@@ -10,8 +10,6 @@
 
 #include "GSObjectPool.h"
 
-#define GS_OBJECT_POOL_ALIGN 32
-
 int gs_object_pool_init(gs_object_pool_t *pool, size_t size, unsigned count)
 {
    unsigned i;
