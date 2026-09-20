@@ -119,7 +119,71 @@ int GSDevice::GetMipmapLevelsForSize(int width, int height)
 
 bool GSDevice::CreateBase()
 {
+	PrewarmPool();
 	return true;
+}
+
+/* --- the inventory ------------------------------------------------------
+ * Made here, once, rather than discovered during the first frames of a
+ * game. What a PS2 game can ask for is not open-ended: a frame buffer is
+ * described by FBW, which is a multiple of 64 pixels and at most 1024,
+ * and the heights a game uses are the handful the video modes have. All
+ * of them live in four megabytes of GS memory. So the sizes a target can
+ * be are a short list, and at a fixed upscale the host sizes are that
+ * list times the scale.
+ *
+ * This creates the common ones up front and puts them in the pool. After
+ * it, the first draw of a game takes its targets out of the pool like
+ * any later one: no allocation on the path that draws, from the first
+ * frame rather than from whenever the pool happened to fill up.
+ *
+ * Sizes outside the list still allocate the first time they are asked
+ * for - a game with an unusual FBW, or a source bigger than any of
+ * these. They are then kept, because nothing frees inside a draw any
+ * more.
+ */
+void GSDevice::PrewarmPool()
+{
+	/* Native sizes, most used first, because the budget runs out before
+	 * the list does and what gets made should be what a game asks for
+	 * first. 640x448 is NTSC, 640x512 PAL, the 512s and the half heights
+	 * are what games pick to save GS memory, and 704 is the widest FBW
+	 * in common use. */
+	static const struct { int w, h; } sizes[] =
+	{
+		{ 640, 448 }, { 512, 448 }, { 640, 224 }, { 512, 224 },
+		{ 640, 512 }, { 512, 256 }, { 640, 256 }, { 512, 512 },
+		{ 704, 448 }, { 704, 512 }, { 704, 224 }, { 704, 256 },
+	};
+	const float scale = GSConfig.UpscaleMultiplier > 0.0f ? GSConfig.UpscaleMultiplier : 1.0f;
+	const u64 budget = PoolByteBudget(1);
+	u64 spent = 0;
+	u32 made = 0;
+	u32 i;
+
+	for (i = 0; i < sizeof(sizes) / sizeof(sizes[0]); i++)
+	{
+		const int w = (int)((float)sizes[i].w * scale);
+		const int h = (int)((float)sizes[i].h * scale);
+		const u64 cost = (u64)w * (u64)h * 4u;
+		GSTexture* t;
+
+		/* Half the budget, so a game wanting something not on the list
+		 * has room for it without the first frame evicting what was
+		 * just made. */
+		if (spent + cost > budget / 2u)
+			break;
+
+		t = CreateSurface(GSTexture::Type::RenderTarget, w, h, 1, GSTexture::Format::Color);
+		if (!t)
+			break;
+		spent += cost;
+		made++;
+		Recycle(t);
+	}
+
+	log_cb(RETRO_LOG_INFO, "GS: pool prewarmed, %u target sizes, %llu MB.\n",
+		made, (unsigned long long)(spent >> 20));
 }
 
 void GSDevice::DestroyBase()
