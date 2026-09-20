@@ -527,12 +527,17 @@ bool GSDevice12::ContextExecuteCommandList(bool wait_for_completion)
 	HRESULT hr;
 	bool    closed_ok = true;
 
+	/* Anything the runtime objected to while this list was being
+	 * recorded, whether or not the Close below fails. */
+	DrainDebugMessages();
+
 	if (res.init_command_list_used)
 	{
 		hr = res.command_lists[0]->Close();
 		if (FAILED(hr))
 		{
 			ReportRecurring("Closing init command list", hr);
+			DrainDebugMessages();
 			closed_ok = false;
 		}
 	}
@@ -544,6 +549,7 @@ bool GSDevice12::ContextExecuteCommandList(bool wait_for_completion)
 		if (FAILED(hr))
 		{
 			ReportRecurring("Closing main command list", hr);
+			DrainDebugMessages();
 			closed_ok = false;
 		}
 	}
@@ -891,6 +897,23 @@ bool GSDevice12::Create()
 	}
 
 	m_device = d3d12->device;
+
+	/* If something forced the debug layer on before the frontend made
+	 * this device - dxcpl, or a RetroArch built for it - then say what
+	 * it objects to rather than letting it break. Left as a break, the
+	 * first validation error is an unhandled exception inside
+	 * D3D12SDKLayers and the process is gone before anything is logged,
+	 * which is the whole of what a report has to go on. */
+	if (FAILED(m_device->QueryInterface(IID_PPV_ARGS(m_info_queue.put()))))
+		m_info_queue.reset();
+	else
+	{
+		m_info_queue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, FALSE);
+		m_info_queue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR,      FALSE);
+		m_info_queue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING,    FALSE);
+		log_cb(RETRO_LOG_INFO,
+			"GS: D3D12 debug layer is on; validation messages go to this log.\n");
+	}
 
 	const LUID luid(m_device->GetAdapterLuid());
 
@@ -2264,6 +2287,37 @@ bool GSDevice12::CompilePostProcessingPipelines()
 	gpb.SetVertexShader(m_convert_vs.get());
 
 	return true;
+}
+
+/* Whatever the runtime has queued since last time. The text is the
+ * point: a failed Close says a command was invalid, this says which. */
+void GSDevice12::DrainDebugMessages()
+{
+	UINT64 count;
+	UINT64 i;
+
+	if (!m_info_queue)
+		return;
+
+	count = m_info_queue->GetNumStoredMessages();
+	for (i = 0; i < count; i++)
+	{
+		SIZE_T         length = 0;
+		D3D12_MESSAGE *msg;
+
+		if (FAILED(m_info_queue->GetMessage(i, NULL, &length)) || !length)
+			continue;
+
+		msg = (D3D12_MESSAGE*)malloc(length);
+		if (!msg)
+			continue;
+
+		if (SUCCEEDED(m_info_queue->GetMessage(i, msg, &length)) && msg->pDescription)
+			log_cb(RETRO_LOG_ERROR, "GS: D3D12 validation: %s\n", msg->pDescription);
+
+		free(msg);
+	}
+	m_info_queue->ClearStoredMessages();
 }
 
 void GSDevice12::DestroyResources()

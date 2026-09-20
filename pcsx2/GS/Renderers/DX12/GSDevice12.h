@@ -243,6 +243,7 @@ private:
 	bool CompilePostProcessingPipelines();
 
 	void DestroyResources();
+	void DrainDebugMessages();
 
 public:
 	GSDevice12();
@@ -523,6 +524,12 @@ private:
 
        ComPtr<IDXGIAdapter> m_adapter;
        ComPtr<ID3D12Debug> m_debug_interface;
+       /* Non-null only when the debug layer was forced on before the
+        * frontend made the device - the core cannot enable it, the
+        * device is not ours. When it is on, this is what turns a
+        * validation error into a line in the libretro log instead of a
+        * breakpoint that takes the process with it. */
+       ComPtr<ID3D12InfoQueue> m_info_queue;
        ComPtr<ID3D12Device> m_device;
        ComPtr<ID3D12CommandQueue> m_command_queue;
        gs_d3d12_heap_t m_heap = {};
