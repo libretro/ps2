@@ -25,7 +25,7 @@ VKStreamBuffer::VKStreamBuffer(VKStreamBuffer&& move)
 	, m_current_offset(move.m_current_offset)
 	, m_current_space(move.m_current_space)
 	, m_current_gpu_position(move.m_current_gpu_position)
-	, m_allocation(move.m_allocation)
+	, m_alloc(move.m_alloc)
 	, m_buffer(move.m_buffer)
 	, m_host_pointer(move.m_host_pointer)
 	  , m_tracked_fences(std::move(move.m_tracked_fences))
@@ -34,7 +34,7 @@ VKStreamBuffer::VKStreamBuffer(VKStreamBuffer&& move)
 	move.m_current_offset = 0;
 	move.m_current_space = 0;
 	move.m_current_gpu_position = 0;
-	move.m_allocation = VK_NULL_HANDLE;
+	move.m_alloc = gs_vk_alloc_t{};
 	move.m_buffer = VK_NULL_HANDLE;
 	move.m_host_pointer = nullptr;
 }
@@ -66,16 +66,15 @@ bool VKStreamBuffer::Create(VkBufferUsageFlags usage, u32 size)
 	const VkBufferCreateInfo bci = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO, nullptr, 0,
 		static_cast<VkDeviceSize>(size), usage, VK_SHARING_MODE_EXCLUSIVE, 0, nullptr};
 
-	VmaAllocationCreateInfo aci = {};
-	aci.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT;
-	aci.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
-	aci.preferredFlags = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-
-	VmaAllocationInfo ai = {};
 	VkBuffer new_buffer = VK_NULL_HANDLE;
-	VmaAllocation new_allocation = VK_NULL_HANDLE;
-	VkResult res = vmaCreateBuffer(GSDeviceVK::GetInstance()->GetAllocator(), &bci, &aci, &new_buffer, &new_allocation, &ai);
-	if (res != VK_SUCCESS)
+	gs_vk_alloc_t new_alloc = {};
+	void* mapped = nullptr;
+
+	/* Host visible, and device local too where the driver offers both -
+	 * that is what VMA's CPU_TO_GPU usage meant. */
+	if (!GSDeviceVK::GetInstance()->CreateBufferInHeap(&bci,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &new_buffer, &new_alloc, &mapped))
 		return false;
 
 	if (IsValid())
@@ -86,9 +85,9 @@ bool VKStreamBuffer::Create(VkBufferUsageFlags usage, u32 size)
 	m_current_offset = 0;
 	m_current_gpu_position = 0;
 	m_tracked_fences.clear();
-	m_allocation = new_allocation;
+	m_alloc = new_alloc;
 	m_buffer = new_buffer;
-	m_host_pointer = static_cast<u8*>(ai.pMappedData);
+	m_host_pointer = static_cast<u8*>(mapped);
 	return true;
 }
 
@@ -97,9 +96,12 @@ void VKStreamBuffer::Destroy(bool defer)
 	if (m_buffer != VK_NULL_HANDLE)
 	{
 		if (defer)
-			GSDeviceVK::GetInstance()->DeferBufferDestruction(m_buffer, m_allocation);
+			GSDeviceVK::GetInstance()->DeferBufferDestruction(m_buffer, m_alloc);
 		else
-			vmaDestroyBuffer(GSDeviceVK::GetInstance()->GetAllocator(), m_buffer, m_allocation);
+		{
+			vkDestroyBuffer(vk_init_info.device, m_buffer, nullptr);
+			gs_vk_heap_free(GSDeviceVK::GetInstance()->GetHeap(), &m_alloc);
+		}
 	}
 
 	m_size = 0;
@@ -107,7 +109,7 @@ void VKStreamBuffer::Destroy(bool defer)
 	m_current_gpu_position = 0;
 	m_tracked_fences.clear();
 	m_buffer = VK_NULL_HANDLE;
-	m_allocation = VK_NULL_HANDLE;
+	m_alloc = gs_vk_alloc_t{};
 	m_host_pointer = nullptr;
 }
 
@@ -182,7 +184,9 @@ bool VKStreamBuffer::ReserveMemory(u32 num_bytes, u32 alignment)
 void VKStreamBuffer::CommitMemory(u32 final_num_bytes)
 {
 	// For non-coherent mappings, flush the memory range
-	vmaFlushAllocation(GSDeviceVK::GetInstance()->GetAllocator(), m_allocation, m_current_offset, final_num_bytes);
+	/* The heap rounds the range to nonCoherentAtomSize itself, and does
+	 * nothing at all when the memory is coherent. */
+	gs_vk_heap_flush(GSDeviceVK::GetInstance()->GetHeap(), &m_alloc);
 
 	m_current_offset += final_num_bytes;
 	m_current_space -= final_num_bytes;

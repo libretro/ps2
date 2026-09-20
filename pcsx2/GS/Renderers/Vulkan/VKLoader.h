@@ -22,22 +22,6 @@
 
 #include "VKEntryPoints.h"
 
-// We include vk_mem_alloc globally, so we don't accidentally include it before the vulkan header somewhere.
-#ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wnullability-completeness"
-#pragma clang diagnostic ignored "-Wunused-variable"
-#endif
-
-#define VMA_STATIC_VULKAN_FUNCTIONS 1
-#define VMA_DYNAMIC_VULKAN_FUNCTIONS 0
-#define VMA_STATS_STRING_ENABLED 0
-#include "vk_mem_alloc.h"
-
-#ifdef __clang__
-#pragma clang diagnostic pop
-#endif
-
 namespace Vulkan
 {
 	bool LoadVulkanLibrary();

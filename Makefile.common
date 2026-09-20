@@ -497,7 +497,6 @@ ifeq ($(HAVE_VULKAN), 1)
 SOURCES_CXX += \
 	$(LRPS2_DIR)/GS/Renderers/Vulkan/GSDeviceVK.cpp \
 	$(LRPS2_DIR)/GS/Renderers/Vulkan/GSTextureVK.cpp \
-	$(LRPS2_DIR)/GS/Renderers/Vulkan/vk_mem_alloc.cpp \
 	$(LRPS2_DIR)/GS/Renderers/Vulkan/VKBuilders.cpp \
 	$(LRPS2_DIR)/GS/Renderers/Vulkan/VKLoader.cpp \
 	$(LRPS2_DIR)/GS/Renderers/Vulkan/VKShaderCache.cpp \

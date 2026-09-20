@@ -18,9 +18,9 @@
 #include "GSTextureVK.h"
 #include "GS/GSVector.h"
 #include "GS/Renderers/Common/GSDevice.h"
+#include "GSVulkanHeap.h"
 #include "VKStreamBuffer.h"
 #include "common/HashCombine.h"
-#include "vk_mem_alloc.h"
 #include <array>
 #include <functional>
 #include <map>
@@ -154,15 +154,17 @@ public:
        static GPUNameList EnumerateGPUNames(VkInstance instance);
 
        // Global state accessors
-       __fi VmaAllocator GetAllocator() const { return m_allocator; }
+       __fi gs_vk_heap_t* GetHeap() { return &m_heap; }
 
-       /* The arena render target and depth buffer images are bound into.
-        * Its blocks are allocated when the device is created and reused
-        * for the run: a target made during a frame is an offset inside
-        * memory that already exists, not a call to the driver. NULL if
-        * the pool could not be made, in which case images go to the
-        * allocator as before. */
-       __fi VmaPool GetTargetMemoryPool() const { return m_target_pool; }
+       /* An image or a buffer with heap memory bound to it - what
+        * vmaCreateImage and vmaCreateBuffer did, with the allocation
+        * coming out of blocks taken at startup. */
+       bool CreateImageInHeap(const VkImageCreateInfo* ici, VkMemoryPropertyFlags required,
+	       VkImage* image, gs_vk_alloc_t* alloc);
+       bool CreateBufferInHeap(const VkBufferCreateInfo* bci, VkMemoryPropertyFlags required,
+	       VkMemoryPropertyFlags preferred, VkBuffer* buffer, gs_vk_alloc_t* alloc,
+	       void** mapped);
+
 
        /* Called when an image is put on a cleanup list, with what it
         * costs. Returns true when so much is waiting that the caller
@@ -173,7 +175,7 @@ public:
         * the free list when one fits and made only when none does; given
         * back when the command buffer being recorded finishes, not
         * destroyed. */
-       VkBuffer AcquireStagingBuffer(u32 size, void** mapped, VmaAllocation* allocation);
+       VkBuffer AcquireStagingBuffer(u32 size, void** mapped, gs_vk_alloc_t* alloc);
        __fi VkQueue GetGraphicsQueue() const { return m_graphics_queue; }
        __fi u32 GetGraphicsQueueFamilyIndex() const { return m_graphics_queue_family_index; }
        __fi const VkPhysicalDeviceProperties& GetDeviceProperties() const { return m_device_properties; }
@@ -250,10 +252,10 @@ public:
        // Schedule a vulkan resource for destruction later on. This will occur when the command buffer
        // is next re-used, and the GPU has finished working with the specified resource.
        void DeferBufferDestruction(VkBuffer object);
-       void DeferBufferDestruction(VkBuffer object, VmaAllocation allocation);
+       void DeferBufferDestruction(VkBuffer object, const gs_vk_alloc_t& alloc);
        void DeferFramebufferDestruction(VkFramebuffer object);
        void DeferImageDestruction(VkImage object);
-       void DeferImageDestruction(VkImage object, VmaAllocation allocation);
+       void DeferImageDestruction(VkImage object, const gs_vk_alloc_t& alloc);
        void DeferImageViewDestruction(VkImageView object);
 
        // Wait for a fence to be completed.
@@ -263,7 +265,7 @@ public:
        void WaitForGPUIdle();
 
        // Allocates a temporary CPU staging buffer, fires the callback with it to populate, then copies to a GPU buffer.
-       bool AllocatePreinitializedGPUBuffer(u32 size, VkBuffer* gpu_buffer, VmaAllocation* gpu_allocation,
+       bool AllocatePreinitializedGPUBuffer(u32 size, VkBuffer* gpu_buffer, gs_vk_alloc_t* gpu_alloc,
 		       VkBufferUsageFlags gpu_usage, const std::function<void(void*)>& fill_callback);
 
 private:
@@ -294,7 +296,7 @@ private:
 		       const VkPhysicalDeviceFeatures* required_features);
        bool ProcessDeviceExtensions();
 
-       bool CreateAllocator();
+       bool CreateHeap();
        bool CreateCommandBuffers();
        void DestroyCommandBuffers();
        bool CreateGlobalDescriptorPool();
@@ -309,10 +311,10 @@ private:
        /* A mapped upload buffer, kept and reused. */
        struct StagingBuffer
        {
-	       VkBuffer      buffer     = VK_NULL_HANDLE;
-	       VmaAllocation allocation = VK_NULL_HANDLE;
-	       void*         mapped     = nullptr;
-	       u32           size       = 0;
+	       VkBuffer      buffer = VK_NULL_HANDLE;
+	       gs_vk_alloc_t alloc  = {};
+	       void*         mapped = nullptr;
+	       u32           size   = 0;
        };
 
        struct FrameResources
@@ -341,27 +343,30 @@ private:
 		* incurs for non-SBO captures. */
 	       enum class CleanupKind : u8
 	       {
-		       Buffer,         /* vkDestroyBuffer */
-		       BufferVMA,      /* vmaDestroyBuffer */
-		       Framebuffer,    /* vkDestroyFramebuffer */
-		       Image,          /* vkDestroyImage */
-		       ImageVMA,       /* vmaDestroyImage */
-		       ImageView,      /* vkDestroyImageView */
+		       Buffer,         /* vkDestroyBuffer                  */
+		       BufferHeap,     /* vkDestroyBuffer + heap free      */
+		       Framebuffer,    /* vkDestroyFramebuffer             */
+		       Image,          /* vkDestroyImage                   */
+		       ImageHeap,      /* vkDestroyImage + heap free       */
+		       ImageView,      /* vkDestroyImageView               */
 	       };
 	       struct CleanupEntry
 	       {
 		       CleanupKind kind;
-		       /* Two handle slots; meaning depends on `kind`.
-			* h0: VkBuffer / VkFramebuffer / VkImage / VkImageView.
-			* h1: VmaAllocation (only for BufferVMA / ImageVMA). */
+		       /* h0: VkBuffer / VkFramebuffer / VkImage / VkImageView.
+			* alloc: the heap span behind it, for the Heap kinds -
+			* a span rather than an opaque handle now, which is
+			* why it does not fit in a second u64. */
 		       u64 h0;
-		       u64 h1;
+		       gs_vk_alloc_t alloc;
 	       };
 	       std::vector<CleanupEntry> cleanup_resources;
        };
 
-       VmaAllocator m_allocator = VK_NULL_HANDLE;
-       VmaPool m_target_pool = VK_NULL_HANDLE;
+       /* Device memory: blocks taken at startup, offsets handed out from
+        * them. What VMA used to do, with the decisions in our own file. */
+       gs_vk_heap_t m_heap = {};
+       bool m_heap_ready = false;
 
        /* Upload buffers no command buffer is using. */
        std::vector<StagingBuffer> m_staging_free;
@@ -371,7 +376,6 @@ private:
        /* Bytes of image sitting in the cleanup lists, waiting for the
         * command buffer that might still be reading them to finish. */
        u64 m_deferred_bytes = 0;
-       bool CreateTargetMemoryPool(void);
 
        VkCommandBuffer m_current_command_buffer = VK_NULL_HANDLE;
 
@@ -408,7 +412,7 @@ private:
 	VKStreamBuffer m_vertex_uniform_stream_buffer;
 	VKStreamBuffer m_fragment_uniform_stream_buffer;
 	VkBuffer m_expand_index_buffer = VK_NULL_HANDLE;
-	VmaAllocation m_expand_index_buffer_allocation = VK_NULL_HANDLE;
+	gs_vk_alloc_t m_expand_index_buffer_alloc = {};
 
 	VkSampler m_point_sampler = VK_NULL_HANDLE;
 	VkSampler m_linear_sampler = VK_NULL_HANDLE;

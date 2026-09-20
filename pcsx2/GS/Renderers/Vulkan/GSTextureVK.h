@@ -16,6 +16,7 @@
 #pragma once
 
 #include "GS/GS.h"
+#include "GSVulkanHeap.h"
 #include "GS/Renderers/Vulkan/GSDeviceVK.h"
 #include "GS/Renderers/Common/GSTexture.h"
 #include "GS/Renderers/Vulkan/VKLoader.h"
@@ -97,7 +98,7 @@ public:
 	u64 m_use_fence_counter = 0;
 
 private:
-	GSTextureVK(Type type, Format format, int width, int height, int levels, VkImage image, VmaAllocation allocation,
+	GSTextureVK(Type type, Format format, int width, int height, int levels, VkImage image, const gs_vk_alloc_t& alloc,
 		VkImageView view, VkFormat vk_format);
 
 	VkCommandBuffer GetCommandBufferForUpdate();
@@ -107,7 +108,7 @@ private:
 			u32 buffer_height, u32 row_length, VkBuffer buffer, u32 buffer_offset);
 
 	VkImage m_image = VK_NULL_HANDLE;
-	VmaAllocation m_allocation = VK_NULL_HANDLE;
+	gs_vk_alloc_t m_alloc = {};
 	VkImageView m_view = VK_NULL_HANDLE;
 	VkFormat m_vk_format = VK_FORMAT_UNDEFINED;
 	Layout m_layout = Layout::Undefined;
@@ -139,7 +140,7 @@ public:
 private:
 	GSDownloadTextureVK(u32 width, u32 height, GSTexture::Format format);
 
-	VmaAllocation m_allocation = VK_NULL_HANDLE;
+	gs_vk_alloc_t m_alloc = {};
 	VkBuffer m_buffer = VK_NULL_HANDLE;
 
 	u64 m_copy_fence_counter = 0;

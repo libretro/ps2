@@ -583,24 +583,114 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 		return true;
 	}
 
-	bool GSDeviceVK::CreateAllocator()
+	bool GSDeviceVK::CreateHeap()
 	{
-		VmaAllocatorCreateInfo ci = {};
-		ci.vulkanApiVersion       = VK_API_VERSION_1_1;
-		ci.flags                  = VMA_ALLOCATOR_CREATE_EXTERNALLY_SYNCHRONIZED_BIT;
-		ci.physicalDevice         = vk_init_info.gpu;
-		ci.device                 = vk_init_info.device;
-		ci.instance               = vk_init_info.instance;
+		/* One VkDeviceMemory is this big, and the blocks reserved below
+		 * are taken now so that a frame never asks the driver for one.
+		 * The size is the console's: everything a PS2 game has at once
+		 * lives in four megabytes of GS memory, so all of it as host
+		 * textures at this upscale is that times the scale squared, and
+		 * a block holds a couple of those. */
+		const float scale = GSConfig.UpscaleMultiplier > 0.0f ? GSConfig.UpscaleMultiplier : 1.0f;
+		u64 block = (u64)((float)VM_SIZE * scale * scale) * 2u;
+		VkPhysicalDeviceMemoryProperties mem_props;
+		VkPhysicalDeviceProperties dev_props;
+		gs_vk_heap_fns_t fns;
 
-		if (m_optional_extensions.vk_ext_memory_budget)
-			ci.flags |= VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT;
+		if (block < 64ull * 1024ull * 1024ull)
+			block = 64ull * 1024ull * 1024ull;
+		if (block > 512ull * 1024ull * 1024ull)
+			block = 512ull * 1024ull * 1024ull;
 
-		VkResult res = vmaCreateAllocator(&ci, &m_allocator);
-		if (res == VK_SUCCESS)
-			CreateTargetMemoryPool();
-		if (res != VK_SUCCESS)
+		vkGetPhysicalDeviceMemoryProperties(vk_init_info.gpu, &mem_props);
+		vkGetPhysicalDeviceProperties(vk_init_info.gpu, &dev_props);
+
+		fns.allocate_memory   = vkAllocateMemory;
+		fns.free_memory       = vkFreeMemory;
+		fns.map_memory        = vkMapMemory;
+		fns.unmap_memory      = vkUnmapMemory;
+		fns.flush_ranges      = vkFlushMappedMemoryRanges;
+		fns.invalidate_ranges = vkInvalidateMappedMemoryRanges;
+
+		if (!gs_vk_heap_init(&m_heap, vk_init_info.device, &mem_props, &fns, block,
+				dev_props.limits.nonCoherentAtomSize))
 			return false;
 
+		m_heap_ready = true;
+
+		/* Taken now: two blocks of device memory for targets and
+		 * textures, one host-visible for uploads. A game that stays
+		 * inside them never reaches vkAllocateMemory again. */
+		gs_vk_heap_reserve(&m_heap, ~0u, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 2);
+		gs_vk_heap_reserve(&m_heap, ~0u,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 1);
+
+		log_cb(RETRO_LOG_INFO, "GS: device memory heap, %llu MB blocks, %llu MB reserved.\n",
+			(unsigned long long)(block >> 20),
+			(unsigned long long)(m_heap.bytes_reserved >> 20));
+		return true;
+	}
+
+	/* An image, with memory from the heap behind it. Replaces
+	 * vmaCreateImage: create, ask what it needs, find room, bind. */
+	bool GSDeviceVK::CreateImageInHeap(const VkImageCreateInfo* ici,
+		VkMemoryPropertyFlags required, VkImage* image, gs_vk_alloc_t* alloc)
+	{
+		VkMemoryRequirements req;
+
+		if (vkCreateImage(vk_init_info.device, ici, nullptr, image) != VK_SUCCESS)
+			return false;
+
+		vkGetImageMemoryRequirements(vk_init_info.device, *image, &req);
+
+		if (!gs_vk_heap_alloc(&m_heap, &req, required, 0, alloc))
+		{
+			vkDestroyImage(vk_init_info.device, *image, nullptr);
+			*image = VK_NULL_HANDLE;
+			return false;
+		}
+
+		if (vkBindImageMemory(vk_init_info.device, *image, alloc->memory, alloc->offset) != VK_SUCCESS)
+		{
+			gs_vk_heap_free(&m_heap, alloc);
+			vkDestroyImage(vk_init_info.device, *image, nullptr);
+			*image = VK_NULL_HANDLE;
+			return false;
+		}
+		return true;
+	}
+
+	/* The same for a buffer. Replaces vmaCreateBuffer; mapped comes back
+	 * non-NULL when the memory is host visible, because the heap maps a
+	 * block once and keeps it mapped. */
+	bool GSDeviceVK::CreateBufferInHeap(const VkBufferCreateInfo* bci,
+		VkMemoryPropertyFlags required, VkMemoryPropertyFlags preferred,
+		VkBuffer* buffer, gs_vk_alloc_t* alloc, void** mapped)
+	{
+		VkMemoryRequirements req;
+
+		if (vkCreateBuffer(vk_init_info.device, bci, nullptr, buffer) != VK_SUCCESS)
+			return false;
+
+		vkGetBufferMemoryRequirements(vk_init_info.device, *buffer, &req);
+
+		if (!gs_vk_heap_alloc(&m_heap, &req, required, preferred, alloc))
+		{
+			vkDestroyBuffer(vk_init_info.device, *buffer, nullptr);
+			*buffer = VK_NULL_HANDLE;
+			return false;
+		}
+
+		if (vkBindBufferMemory(vk_init_info.device, *buffer, alloc->memory, alloc->offset) != VK_SUCCESS)
+		{
+			gs_vk_heap_free(&m_heap, alloc);
+			vkDestroyBuffer(vk_init_info.device, *buffer, nullptr);
+			*buffer = VK_NULL_HANDLE;
+			return false;
+		}
+
+		if (mapped)
+			*mapped = alloc->mapped;
 		return true;
 	}
 
@@ -849,84 +939,6 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 		vkDeviceWaitIdle(vk_init_info.device);
 	}
 
-	/* --- the arena targets live in ------------------------------------
-	 * paraLLEl-GS's model, applied to images: reserve the memory once and
-	 * hand out offsets inside it. Its scratch allocator is a 32 MB buffer
-	 * and a bumped offset, with the comment "reduces pressure on the
-	 * Granite allocator"; the same pressure here is worse, because an
-	 * image asks the driver for a VkDeviceMemory and a device only gives
-	 * out maxMemoryAllocationCount of those.
-	 *
-	 * So: one pool, blocks allocated up front, and every render target
-	 * and depth buffer suballocated from them. During a frame nothing
-	 * calls the driver. The ceiling is stated here - blocks times block
-	 * size - rather than being whatever the game happens to ask for, and
-	 * past it VMA refuses rather than the driver running out, which is a
-	 * failure this code can see coming.
-	 */
-	bool GSDeviceVK::CreateTargetMemoryPool(void)
-	{
-		/* What the console needs of it: every target a game has lives in
-		 * four megabytes of GS memory, so all of them at this upscale is
-		 * that times the scale squared. Two blocks of that, rounded to
-		 * something the driver will give in one piece. */
-		const float scale = GSConfig.UpscaleMultiplier > 0.0f ? GSConfig.UpscaleMultiplier : 1.0f;
-		u64 block = (u64)((float)VM_SIZE * scale * scale) * 2u;
-		VmaPoolCreateInfo pci = {};
-		VkImageCreateInfo ici = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
-		VmaAllocationCreateInfo aci = {};
-		u32 type_index = 0;
-		VkResult res;
-
-		if (block < 64u * 1024u * 1024u)
-			block = 64u * 1024u * 1024u;
-		if (block > 512u * 1024u * 1024u)
-			block = 512u * 1024u * 1024u;
-
-		/* The memory type a colour target would want, asked for with a
-		 * representative image rather than assumed. */
-		ici.imageType     = VK_IMAGE_TYPE_2D;
-		ici.format        = VK_FORMAT_R8G8B8A8_UNORM;
-		ici.extent        = {1024, 1024, 1};
-		ici.mipLevels     = 1;
-		ici.arrayLayers   = 1;
-		ici.samples       = VK_SAMPLE_COUNT_1_BIT;
-		ici.tiling        = VK_IMAGE_TILING_OPTIMAL;
-		ici.usage         = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT |
-			VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT |
-			VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
-		ici.sharingMode   = VK_SHARING_MODE_EXCLUSIVE;
-		ici.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		aci.usage         = VMA_MEMORY_USAGE_GPU_ONLY;
-
-		res = vmaFindMemoryTypeIndexForImageInfo(m_allocator, &ici, &aci, &type_index);
-		if (res != VK_SUCCESS)
-		{
-			log_cb(RETRO_LOG_WARN,
-				"GS: no memory type for a target arena; targets will allocate one at a time.\n");
-			return false;
-		}
-
-		pci.memoryTypeIndex = type_index;
-		pci.blockSize       = block;
-		pci.minBlockCount   = 1;  /* allocated now, not during a frame */
-		pci.maxBlockCount   = 4;  /* and the ceiling                    */
-
-		res = vmaCreatePool(m_allocator, &pci, &m_target_pool);
-		if (res != VK_SUCCESS)
-		{
-			m_target_pool = VK_NULL_HANDLE;
-			log_cb(RETRO_LOG_WARN,
-				"GS: could not reserve a %llu MB target arena; targets will allocate one at a time.\n",
-				(unsigned long long)(block >> 20));
-			return false;
-		}
-
-		log_cb(RETRO_LOG_INFO,
-			"GS: target arena reserved, %llu MB per block, up to %u blocks.\n",
-			(unsigned long long)(block >> 20), (unsigned)pci.maxBlockCount);
-		return true;
-	}
 
 	void GSDeviceVK::WaitForCommandBufferCompletion(u32 index)
 	{
@@ -995,8 +1007,9 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 				case FrameResources::CleanupKind::Buffer:
 					vkDestroyBuffer(vk_init_info.device, (VkBuffer)it.h0, nullptr);
 					break;
-				case FrameResources::CleanupKind::BufferVMA:
-					vmaDestroyBuffer(m_allocator, (VkBuffer)it.h0, (VmaAllocation)it.h1);
+				case FrameResources::CleanupKind::BufferHeap:
+					vkDestroyBuffer(vk_init_info.device, (VkBuffer)it.h0, nullptr);
+					gs_vk_heap_free(&m_heap, &it.alloc);
 					break;
 				case FrameResources::CleanupKind::Framebuffer:
 					vkDestroyFramebuffer(vk_init_info.device, (VkFramebuffer)it.h0, nullptr);
@@ -1004,8 +1017,9 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 				case FrameResources::CleanupKind::Image:
 					vkDestroyImage(vk_init_info.device, (VkImage)it.h0, nullptr);
 					break;
-				case FrameResources::CleanupKind::ImageVMA:
-					vmaDestroyImage(m_allocator, (VkImage)it.h0, (VmaAllocation)it.h1);
+				case FrameResources::CleanupKind::ImageHeap:
+					vkDestroyImage(vk_init_info.device, (VkImage)it.h0, nullptr);
+					gs_vk_heap_free(&m_heap, &it.alloc);
 					break;
 				case FrameResources::CleanupKind::ImageView:
 					vkDestroyImageView(vk_init_info.device, (VkImageView)it.h0, nullptr);
@@ -1064,43 +1078,41 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 		m_current_frame = index;
 		m_current_command_buffer = resources.command_buffers[1];
 
-		// using the lower 32 bits of the fence index should be sufficient here, I hope...
-		vmaSetCurrentFrameIndex(m_allocator, static_cast<u32>(m_next_fence_counter));
 	}
 
 	void GSDeviceVK::DeferBufferDestruction(VkBuffer object)
 	{
 		FrameResources& resources = m_frame_resources[m_current_frame];
 		resources.cleanup_resources.push_back({
-			FrameResources::CleanupKind::Buffer, (u64)object, 0});
+			FrameResources::CleanupKind::Buffer, (u64)object, gs_vk_alloc_t{}});
 	}
 
-	void GSDeviceVK::DeferBufferDestruction(VkBuffer object, VmaAllocation allocation)
+	void GSDeviceVK::DeferBufferDestruction(VkBuffer object, const gs_vk_alloc_t& alloc)
 	{
 		FrameResources& resources = m_frame_resources[m_current_frame];
 		resources.cleanup_resources.push_back({
-			FrameResources::CleanupKind::BufferVMA, (u64)object, (u64)allocation});
+			FrameResources::CleanupKind::BufferHeap, (u64)object, alloc});
 	}
 
 	void GSDeviceVK::DeferFramebufferDestruction(VkFramebuffer object)
 	{
 		FrameResources& resources = m_frame_resources[m_current_frame];
 		resources.cleanup_resources.push_back({
-			FrameResources::CleanupKind::Framebuffer, (u64)object, 0});
+			FrameResources::CleanupKind::Framebuffer, (u64)object, gs_vk_alloc_t{}});
 	}
 
 	void GSDeviceVK::DeferImageDestruction(VkImage object)
 	{
 		FrameResources& resources = m_frame_resources[m_current_frame];
 		resources.cleanup_resources.push_back({
-			FrameResources::CleanupKind::Image, (u64)object, 0});
+			FrameResources::CleanupKind::Image, (u64)object, gs_vk_alloc_t{}});
 	}
 
-	void GSDeviceVK::DeferImageDestruction(VkImage object, VmaAllocation allocation)
+	void GSDeviceVK::DeferImageDestruction(VkImage object, const gs_vk_alloc_t& alloc)
 	{
 		FrameResources& resources = m_frame_resources[m_current_frame];
 		resources.cleanup_resources.push_back({
-			FrameResources::CleanupKind::ImageVMA, (u64)object, (u64)allocation});
+			FrameResources::CleanupKind::ImageHeap, (u64)object, alloc});
 	}
 
 	/* --- how much may be waiting to be freed ---------------------------
@@ -1134,7 +1146,7 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 	 * nothing is destroyed while the free list is under its ceiling. In
 	 * steady state a game uploads textures without allocating anything.
 	 */
-	VkBuffer GSDeviceVK::AcquireStagingBuffer(u32 size, void** mapped, VmaAllocation* allocation)
+	VkBuffer GSDeviceVK::AcquireStagingBuffer(u32 size, void** mapped, gs_vk_alloc_t* alloc_out)
 	{
 		/* All of GS memory at this upscale is more than a frame's
 		 * uploads can need; under that the free list keeps everything. */
@@ -1143,10 +1155,7 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 		u32 want = 64 * 1024;
 		size_t i;
 		StagingBuffer sb;
-		VmaAllocationInfo ai;
 		VkBufferCreateInfo bci = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
-		VmaAllocationCreateInfo aci = {};
-		VkResult res;
 
 		if (ceiling < 64ull * 1024ull * 1024ull)
 			ceiling = 64ull * 1024ull * 1024ull;
@@ -1163,8 +1172,8 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 			m_staging_free.pop_back();
 			m_staging_bytes -= sb.size;
 			m_frame_resources[m_current_frame].staging_in_flight.push_back(sb);
-			*mapped     = sb.mapped;
-			*allocation = sb.allocation;
+			*mapped    = sb.mapped;
+			*alloc_out = sb.alloc;
 			return sb.buffer;
 		}
 
@@ -1173,15 +1182,13 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 		bci.size        = want;
 		bci.usage       = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 		bci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-		aci.flags       = VMA_ALLOCATION_CREATE_MAPPED_BIT;
-		aci.usage       = VMA_MEMORY_USAGE_CPU_TO_GPU;
 
-		res = vmaCreateBuffer(m_allocator, &bci, &aci, &sb.buffer, &sb.allocation, &ai);
-		if (res != VK_SUCCESS)
+		if (!CreateBufferInHeap(&bci,
+				VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+				0, &sb.buffer, &sb.alloc, &sb.mapped))
 			return VK_NULL_HANDLE;
 
-		sb.mapped = ai.pMappedData;
-		sb.size   = want;
+		sb.size = want;
 		m_frame_resources[m_current_frame].staging_in_flight.push_back(sb);
 
 		/* Only the ceiling frees one, and only from the free list. */
@@ -1189,12 +1196,13 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 		{
 			StagingBuffer& dead = m_staging_free.back();
 			m_staging_bytes -= dead.size;
-			vmaDestroyBuffer(m_allocator, dead.buffer, dead.allocation);
+			vkDestroyBuffer(vk_init_info.device, dead.buffer, nullptr);
+			gs_vk_heap_free(&m_heap, &dead.alloc);
 			m_staging_free.pop_back();
 		}
 
-		*mapped     = sb.mapped;
-		*allocation = sb.allocation;
+		*mapped    = sb.mapped;
+		*alloc_out = sb.alloc;
 		return sb.buffer;
 	}
 
@@ -1204,14 +1212,20 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 		u32 f;
 
 		for (i = 0; i < m_staging_free.size(); i++)
-			vmaDestroyBuffer(m_allocator, m_staging_free[i].buffer, m_staging_free[i].allocation);
+		{
+			vkDestroyBuffer(vk_init_info.device, m_staging_free[i].buffer, nullptr);
+			gs_vk_heap_free(&m_heap, &m_staging_free[i].alloc);
+		}
 		m_staging_free.clear();
 
 		for (f = 0; f < NUM_COMMAND_BUFFERS; f++)
 		{
 			std::vector<StagingBuffer>& v = m_frame_resources[f].staging_in_flight;
 			for (i = 0; i < v.size(); i++)
-				vmaDestroyBuffer(m_allocator, v[i].buffer, v[i].allocation);
+			{
+				vkDestroyBuffer(vk_init_info.device, v[i].buffer, nullptr);
+				gs_vk_heap_free(&m_heap, &v[i].alloc);
+			}
 			v.clear();
 		}
 		m_staging_bytes = 0;
@@ -1236,7 +1250,7 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 	{
 		FrameResources& resources = m_frame_resources[m_current_frame];
 		resources.cleanup_resources.push_back({
-			FrameResources::CleanupKind::ImageView, (u64)object, 0});
+			FrameResources::CleanupKind::ImageView, (u64)object, gs_vk_alloc_t{}});
 	}
 
 	VkRenderPass GSDeviceVK::CreateCachedRenderPass(RenderPassCacheKey key)
@@ -1320,47 +1334,43 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 		return pass;
 	}
 
-	bool GSDeviceVK::AllocatePreinitializedGPUBuffer(u32 size, VkBuffer* gpu_buffer, VmaAllocation* gpu_allocation,
+	bool GSDeviceVK::AllocatePreinitializedGPUBuffer(u32 size, VkBuffer* gpu_buffer, gs_vk_alloc_t* gpu_alloc,
 		VkBufferUsageFlags gpu_usage, const std::function<void(void*)>& fill_callback)
 	{
 		// Try to place the fixed index buffer in GPU local memory.
 		// Use the staging buffer to copy into it.
-
 		const VkBufferCreateInfo cpu_bci = {
 			VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
 			nullptr,
 			0, size,
 			VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_SHARING_MODE_EXCLUSIVE};
-		const VmaAllocationCreateInfo cpu_aci = {
-			VMA_ALLOCATION_CREATE_MAPPED_BIT, VMA_MEMORY_USAGE_CPU_ONLY, 0, 0};
-		VkBuffer cpu_buffer;
-		VmaAllocation cpu_allocation;
-		VmaAllocationInfo cpu_ai;
-		VkResult res = vmaCreateBuffer(m_allocator, &cpu_bci, &cpu_aci, &cpu_buffer,
-			&cpu_allocation, &cpu_ai);
-		if (res != VK_SUCCESS)
-			return false;
-
 		const VkBufferCreateInfo gpu_bci = {
 			VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
 			nullptr,
 			0, size,
 			VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_SHARING_MODE_EXCLUSIVE};
-		const VmaAllocationCreateInfo gpu_aci = {
-			0, VMA_MEMORY_USAGE_GPU_ONLY, 0, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT};
-		VmaAllocationInfo ai;
-		res = vmaCreateBuffer(m_allocator, &gpu_bci, &gpu_aci, gpu_buffer, gpu_allocation, &ai);
-		if (res != VK_SUCCESS)
+		const VkBufferCopy buf_copy = {0u, 0u, size};
+		gs_vk_alloc_t cpu_alloc = {};
+		VkBuffer cpu_buffer = VK_NULL_HANDLE;
+		void* cpu_mapped = nullptr;
+
+		if (!CreateBufferInHeap(&cpu_bci,
+				VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+				0, &cpu_buffer, &cpu_alloc, &cpu_mapped))
+			return false;
+
+		if (!CreateBufferInHeap(&gpu_bci, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0,
+				gpu_buffer, gpu_alloc, nullptr))
 		{
-			vmaDestroyBuffer(m_allocator, cpu_buffer, cpu_allocation);
+			vkDestroyBuffer(vk_init_info.device, cpu_buffer, nullptr);
+			gs_vk_heap_free(&m_heap, &cpu_alloc);
 			return false;
 		}
 
-		const VkBufferCopy buf_copy = {0u, 0u, size};
-		fill_callback(cpu_ai.pMappedData);
-		vmaFlushAllocation(m_allocator, cpu_allocation, 0, size);
+		fill_callback(cpu_mapped);
+		gs_vk_heap_flush(&m_heap, &cpu_alloc);
 		vkCmdCopyBuffer(GetCurrentInitCommandBuffer(), cpu_buffer, *gpu_buffer, 1, &buf_copy);
-		DeferBufferDestruction(cpu_buffer, cpu_allocation);
+		DeferBufferDestruction(cpu_buffer, cpu_alloc);
 		return true;
 	}
 
@@ -1549,16 +1559,12 @@ void GSDeviceVK::Destroy()
 
 	DestroyCommandBuffers();
 
-	if (m_allocator != VK_NULL_HANDLE)
+	if (m_heap_ready)
+	{
 		DestroyStagingBuffers();
-
-		if (m_target_pool != VK_NULL_HANDLE)
-		{
-			vmaDestroyPool(m_allocator, m_target_pool);
-			m_target_pool = VK_NULL_HANDLE;
-		}
-		vmaDestroyAllocator(m_allocator);
-	m_allocator = VK_NULL_HANDLE;
+		gs_vk_heap_shutdown(&m_heap);
+		m_heap_ready = false;
+	}
 
 	Vulkan::UnloadVulkanLibrary();
 }
@@ -1625,7 +1631,7 @@ bool GSDeviceVK::CreateDeviceAndSwapChain()
 				vk_init_info.required_device_layers,
 				vk_init_info.num_required_device_layers,
 				vk_init_info.required_features)
-			|| !CreateAllocator()
+			|| !CreateHeap()
 			|| !CreateGlobalDescriptorPool()
 			|| !CreateCommandBuffers()
 			|| !CreateTextureStreamBuffer())
@@ -2806,7 +2812,7 @@ bool GSDeviceVK::CreateBuffers()
 	}
 
 	if (!AllocatePreinitializedGPUBuffer(EXPAND_BUFFER_SIZE, &m_expand_index_buffer,
-			&m_expand_index_buffer_allocation, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+			&m_expand_index_buffer_alloc, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
 			&GSDevice::GenerateExpansionIndexBuffer))
 	{
 		log_cb(RETRO_LOG_ERROR, "Failed to allocate expansion index buffer\n");
@@ -3381,9 +3387,10 @@ void GSDeviceVK::DestroyResources()
 	m_vertex_stream_buffer.Destroy(false);
 	if (m_expand_index_buffer != VK_NULL_HANDLE)
 	{
-		vmaDestroyBuffer(GetAllocator(), m_expand_index_buffer, m_expand_index_buffer_allocation);
+		vkDestroyBuffer(vk_init_info.device, m_expand_index_buffer, nullptr);
+		gs_vk_heap_free(&m_heap, &m_expand_index_buffer_alloc);
 		m_expand_index_buffer = VK_NULL_HANDLE;
-		m_expand_index_buffer_allocation = VK_NULL_HANDLE;
+		m_expand_index_buffer_alloc = gs_vk_alloc_t{};
 	}
 
 	SafeDestroyPipelineLayout(m_device, m_tfx_pipeline_layout);

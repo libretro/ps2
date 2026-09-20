@@ -51,10 +51,10 @@ static VkImageLayout GetVkImageLayout(GSTextureVK::Layout layout)
 GS_TEXTURE_OPS_DEFINE_MIPMAP(GSTextureVK, vulkan);
 
 GSTextureVK::GSTextureVK(Type type, Format format, int width, int height, int levels, VkImage image,
-	VmaAllocation allocation, VkImageView view, VkFormat vk_format)
+	const gs_vk_alloc_t& alloc, VkImageView view, VkFormat vk_format)
 	: GSTexture()
 	, m_image(image)
-	, m_allocation(allocation)
+	, m_alloc(alloc)
 	, m_view(view)
 	, m_vk_format(vk_format)
 {
@@ -78,11 +78,6 @@ std::unique_ptr<GSTextureVK> GSTextureVK::Create(Type type, Format format, int w
 	VkImageCreateInfo ici = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO, nullptr, 0, VK_IMAGE_TYPE_2D, vk_format,
 		{static_cast<u32>(width), static_cast<u32>(height), 1}, static_cast<u32>(levels), 1, VK_SAMPLE_COUNT_1_BIT,
 		VK_IMAGE_TILING_OPTIMAL};
-
-	VmaAllocationCreateInfo aci = {};
-	aci.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-	aci.flags = VMA_ALLOCATION_CREATE_WITHIN_BUDGET_BIT;
-	aci.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
 	VkImageViewCreateInfo vci = {VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO, nullptr, 0, VK_NULL_HANDLE,
 		VK_IMAGE_VIEW_TYPE_2D, vk_format, s_identity_swizzle, VK_IMAGE_ASPECT_COLOR_BIT, 0, static_cast<u32>(levels), 0,
@@ -126,55 +121,34 @@ std::unique_ptr<GSTextureVK> GSTextureVK::Create(Type type, Format format, int w
 			return {};
 	}
 
-	// Use dedicated allocations for typical RT size
-	if ((type == Type::RenderTarget || type == Type::DepthStencil) && width >= 512 && height >= 448)
-		aci.flags |= VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
-
-	/* Out of the arena reserved when the device was made, so this is an
-	 * offset inside memory that already exists rather than a call to the
-	 * driver (GSDeviceVK::CreateTargetMemoryPool). Textures the game
-	 * uploads are small and many, and go to the allocator as before. */
-	if (type == Type::RenderTarget || type == Type::DepthStencil)
-	{
-		const VmaPool pool = GSDeviceVK::GetInstance()->GetTargetMemoryPool();
-		if (pool != VK_NULL_HANDLE)
-			aci.pool = pool;
-	}
-
 	VkImage image = VK_NULL_HANDLE;
-	VmaAllocation allocation = VK_NULL_HANDLE;
-	VkResult res = vmaCreateImage(GSDeviceVK::GetInstance()->GetAllocator(), &ici, &aci, &image, &allocation, nullptr);
-	if (res != VK_SUCCESS && aci.pool != VK_NULL_HANDLE)
+	gs_vk_alloc_t alloc = {};
+
+	/* Out of the heap's blocks, which were taken when the device was
+	 * made: this is an offset, not a call to the driver, unless every
+	 * block is full and a new one is needed. */
+	if (!GSDeviceVK::GetInstance()->CreateImageInHeap(&ici,
+			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &image, &alloc))
 	{
-		/* The arena is full, or this image cannot live in it - a depth
-		 * format the pool's memory type does not take, say. The
-		 * allocator still has the rest of the device. */
-		aci.pool = VK_NULL_HANDLE;
-		res = vmaCreateImage(GSDeviceVK::GetInstance()->GetAllocator(), &ici, &aci, &image, &allocation, nullptr);
-	}
-	if (res == VK_ERROR_OUT_OF_DEVICE_MEMORY)
-	{
-		log_cb(RETRO_LOG_ERROR, "Failed to allocate device memory for %ux%u texture\n", width, height);
-		return {};
-	}
-	else if (res != VK_SUCCESS)
-	{
-		log_cb(RETRO_LOG_ERROR, "vmaCreateImage failed: \n");
+		log_cb(RETRO_LOG_ERROR, "GS: no room for a %ux%u texture (heap %llu MB reserved, %llu MB used).\n",
+			width, height,
+			(unsigned long long)(GSDeviceVK::GetInstance()->GetHeap()->bytes_reserved >> 20),
+			(unsigned long long)(GSDeviceVK::GetInstance()->GetHeap()->bytes_used >> 20));
 		return {};
 	}
 
 	VkImageView view = VK_NULL_HANDLE;
 	vci.image = image;
-	res = vkCreateImageView(vk_init_info.device, &vci, nullptr, &view);
-	if (res != VK_SUCCESS)
+	if (vkCreateImageView(vk_init_info.device, &vci, nullptr, &view) != VK_SUCCESS)
 	{
 		log_cb(RETRO_LOG_ERROR, "vkCreateImageView failed: \n");
-		vmaDestroyImage(GSDeviceVK::GetInstance()->GetAllocator(), image, allocation);
+		vkDestroyImage(vk_init_info.device, image, nullptr);
+		gs_vk_heap_free(GSDeviceVK::GetInstance()->GetHeap(), &alloc);
 		return {};
 	}
 
 	return std::unique_ptr<GSTextureVK>(
-		new GSTextureVK(type, format, width, height, levels, image, allocation, view, vk_format));
+		new GSTextureVK(type, format, width, height, levels, image, alloc, view, vk_format));
 }
 
 std::unique_ptr<GSTextureVK> GSTextureVK::Adopt(
@@ -197,7 +171,7 @@ std::unique_ptr<GSTextureVK> GSTextureVK::Adopt(
 	}
 
 	return std::unique_ptr<GSTextureVK>(
-		new GSTextureVK(type, format, width, height, levels, image, VK_NULL_HANDLE, view, vk_format));
+		new GSTextureVK(type, format, width, height, levels, image, gs_vk_alloc_t{}, view, vk_format));
 }
 
 void GSTextureVK::Destroy(bool defer)
@@ -240,19 +214,32 @@ void GSTextureVK::Destroy(bool defer)
 	}
 
 	// If we don't have device memory allocated, the image is not owned by us (e.g. swapchain)
-	if (m_allocation != VK_NULL_HANDLE)
+	if (m_alloc.memory != VK_NULL_HANDLE)
 	{
 		if (defer)
-			GSDeviceVK::GetInstance()->DeferImageDestruction(m_image, m_allocation);
+		{
+			GSDeviceVK::GetInstance()->DeferImageDestruction(m_image, m_alloc);
+
 			/* And if too much is now waiting on fences, get the GPU to
 			 * a point where it can be freed rather than letting the
-			 * list grow to the size of the card. */
+			 * list grow to the size of the card.
+			 *
+			 * The braces matter and were missing: without them the else
+			 * below belonged to this if, so every deferred image whose
+			 * budget check came back false was destroyed here as well -
+			 * a second destroy of an image already on a cleanup list,
+			 * and its memory handed back while the GPU was still
+			 * reading it. Mine, from the commit that added the budget. */
 			if (GSDeviceVK::GetInstance()->DeferredDestructionOverBudget(GetMemUsage()))
 				GSDeviceVK::GetInstance()->ExecuteCommandBufferAndRestartRenderPass(true);
+		}
 		else
-			vmaDestroyImage(GSDeviceVK::GetInstance()->GetAllocator(), m_image, m_allocation);
-		m_image      = VK_NULL_HANDLE;
-		m_allocation = VK_NULL_HANDLE;
+		{
+			vkDestroyImage(vk_init_info.device, m_image, nullptr);
+			gs_vk_heap_free(GSDeviceVK::GetInstance()->GetHeap(), &m_alloc);
+		}
+		m_image = VK_NULL_HANDLE;
+		m_alloc = gs_vk_alloc_t{};
 	}
 }
 
@@ -284,7 +271,7 @@ VkBuffer GSTextureVK::AllocateUploadStagingBuffer(const void* data, u32 pitch, u
 {
 	const u32 size = upload_pitch * height;
 	void* mapped = nullptr;
-	VmaAllocation allocation = VK_NULL_HANDLE;
+	gs_vk_alloc_t alloc = {};
 	VkBuffer buffer;
 
 	/* Out of the device's inventory of upload buffers rather than made
@@ -293,7 +280,7 @@ VkBuffer GSTextureVK::AllocateUploadStagingBuffer(const void* data, u32 pitch, u
 	 * driver allocations a frame, none of them counted anywhere. The
 	 * device hands one back to its free list when the command buffer that
 	 * reads it completes. */
-	buffer = GSDeviceVK::GetInstance()->AcquireStagingBuffer(size, &mapped, &allocation);
+	buffer = GSDeviceVK::GetInstance()->AcquireStagingBuffer(size, &mapped, &alloc);
 	if (buffer == VK_NULL_HANDLE)
 		return VK_NULL_HANDLE;
 
@@ -301,7 +288,7 @@ VkBuffer GSTextureVK::AllocateUploadStagingBuffer(const void* data, u32 pitch, u
 	// that set in StreamBuffer was for MoltenVK, which would upload the whole buffer on
 	// smaller uploads, but we're writing to the whole thing anyway.
 	CopyTextureDataForUpload(mapped, data, pitch, upload_pitch, height);
-	vmaFlushAllocation(GSDeviceVK::GetInstance()->GetAllocator(), allocation, 0, size);
+	gs_vk_heap_flush(GSDeviceVK::GetInstance()->GetHeap(), &alloc);
 	return buffer;
 }
 
@@ -772,7 +759,7 @@ GSDownloadTextureVK::~GSDownloadTextureVK()
 {
 	// Buffer was created mapped, no need to manually unmap.
 	if (m_buffer != VK_NULL_HANDLE)
-		GSDeviceVK::GetInstance()->DeferBufferDestruction(m_buffer, m_allocation);
+		GSDeviceVK::GetInstance()->DeferBufferDestruction(m_buffer, m_alloc);
 }
 
 std::unique_ptr<GSDownloadTextureVK> GSDownloadTextureVK::Create(u32 width, u32 height, GSTexture::Format format)
@@ -782,23 +769,22 @@ std::unique_ptr<GSDownloadTextureVK> GSDownloadTextureVK::Create(u32 width, u32 
 	const VkBufferCreateInfo bci = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO, nullptr, 0u, buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT,
 		VK_SHARING_MODE_EXCLUSIVE, 0u, nullptr};
 
-	VmaAllocationCreateInfo aci = {};
-	aci.usage = VMA_MEMORY_USAGE_GPU_TO_CPU;
-	aci.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT;
-	aci.preferredFlags = VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
+	gs_vk_alloc_t alloc = {};
+	VkBuffer buffer = VK_NULL_HANDLE;
+	void* mapped = nullptr;
 
-	VmaAllocationInfo ai = {};
-	VmaAllocation allocation;
-	VkBuffer buffer;
-	VkResult res = vmaCreateBuffer(GSDeviceVK::GetInstance()->GetAllocator(), &bci, &aci, &buffer, &allocation, &ai);
-	if (res != VK_SUCCESS)
+	/* Host visible so it can be read back, cached where the driver has
+	 * such a type - that is what GPU_TO_CPU meant. */
+	if (!GSDeviceVK::GetInstance()->CreateBufferInHeap(&bci,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
+			&buffer, &alloc, &mapped))
 		return {};
 
 	std::unique_ptr<GSDownloadTextureVK> tex = std::unique_ptr<GSDownloadTextureVK>(new GSDownloadTextureVK(width, height, format));
-	tex->m_allocation = allocation;
+	tex->m_alloc = alloc;
 	tex->m_buffer = buffer;
 	tex->m_buffer_size = buffer_size;
-	tex->m_map_pointer = static_cast<const u8*>(ai.pMappedData);
+	tex->m_map_pointer = static_cast<const u8*>(mapped);
 	return tex;
 }
 
@@ -862,9 +848,9 @@ bool GSDownloadTextureVK::Map(const GSVector4i& read_rc)
 	// Always mapped, but we might need to invalidate the cache.
 	if (m_needs_cache_invalidate)
 	{
-		u32 copy_offset, copy_size, copy_rows;
-		GetTransferSize(read_rc, &copy_offset, &copy_size, &copy_rows);
-		vmaInvalidateAllocation(GSDeviceVK::GetInstance()->GetAllocator(), m_allocation, copy_offset, copy_size);
+		/* The heap invalidates the whole allocation, rounded to the
+		 * atom size, and does nothing when the memory is coherent. */
+		gs_vk_heap_invalidate(GSDeviceVK::GetInstance()->GetHeap(), &m_alloc);
 		m_needs_cache_invalidate = false;
 	}
 

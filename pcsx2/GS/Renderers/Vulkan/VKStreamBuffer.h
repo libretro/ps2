@@ -16,9 +16,9 @@
 #pragma once
 
 #include "common/Pcsx2Defs.h"
+#include "GSVulkanHeap.h"
 #include <utility>
 #include "VKLoader.h"
-#include "vk_mem_alloc.h"
 #include <deque>
 #include <memory>
 
@@ -59,7 +59,7 @@ class VKStreamBuffer
 		u32 m_current_space = 0;
 		u32 m_current_gpu_position = 0;
 
-		VmaAllocation m_allocation = VK_NULL_HANDLE;
+		gs_vk_alloc_t m_alloc = {};
 		VkBuffer m_buffer = VK_NULL_HANDLE;
 		u8* m_host_pointer = nullptr;
 

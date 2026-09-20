@@ -446,7 +446,6 @@ if(USE_VULKAN)
 		GS/Renderers/Vulkan/VKLoader.cpp
 		GS/Renderers/Vulkan/VKStreamBuffer.cpp
 		GS/Renderers/Vulkan/VKBuilders.cpp
-		GS/Renderers/Vulkan/vk_mem_alloc.cpp
 	)
 	list(APPEND pcsx2GSHeaders
 		GS/Renderers/Vulkan/GSDeviceVK.h
