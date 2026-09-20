@@ -100,8 +100,8 @@ GSClut::GSClut(GSLocalMemory* mem)
 
 GSClut::~GSClut()
 {
-	delete m_gpu_clut4;
-	delete m_gpu_clut8;
+	gs_texture_free(m_gpu_clut4);
+	gs_texture_free(m_gpu_clut8);
 
 	memalign_free(m_clut);
 }
