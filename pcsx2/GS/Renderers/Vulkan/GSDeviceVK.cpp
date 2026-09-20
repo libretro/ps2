@@ -599,8 +599,15 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 
 		if (block < 64ull * 1024ull * 1024ull)
 			block = 64ull * 1024ull * 1024ull;
-		if (block > 512ull * 1024ull * 1024ull)
-			block = 512ull * 1024ull * 1024ull;
+		/* 64 MB, not 512. Two reasons, both from the last run's log.
+		 * "4096 MB reserved, 3199 MB used" is 900 MB of block tails
+		 * that nothing can reach, and a block is only given back when
+		 * it is entirely empty, which at 512 MB never happens once
+		 * allocations are scattered through it - so the trim added last
+		 * time returned nothing. A block a game can actually empty is
+		 * one small enough to be filled by one kind of thing. */
+		if (block > 64ull * 1024ull * 1024ull)
+			block = 64ull * 1024ull * 1024ull;
 
 		vkGetPhysicalDeviceMemoryProperties(vk_init_info.gpu, &mem_props);
 		vkGetPhysicalDeviceProperties(vk_init_info.gpu, &dev_props);
@@ -1197,7 +1204,7 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 		/* All of GS memory at this upscale is more than a frame's
 		 * uploads can need; under that the free list keeps everything. */
 		const float scale = GSConfig.UpscaleMultiplier > 0.0f ? GSConfig.UpscaleMultiplier : 1.0f;
-		u64 ceiling = (u64)((float)VM_SIZE * scale * scale) * 4u;
+		u64 ceiling = (u64)((float)VM_SIZE * scale * scale);
 		u32 want = 64 * 1024;
 		size_t i;
 		StagingBuffer sb;
@@ -1222,22 +1229,15 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 		 * to a power of two. Thirty gigabytes of a thirty-two gigabyte
 		 * card, none of it in any counter, because none of it was
 		 * anybody's to count. */
-		/* A full submit and wait here is correct and very slow: it is a
-		 * GPU sync in the middle of a texture upload, and a game that
-		 * uploads a lot hits it many times a frame. So it is the last
-		 * resort, not the first - and the ceiling it guards is four
-		 * times GS memory rather than one, because a frame's uploads
-		 * legitimately run to several times what the console holds. */
-		if (m_staging_inflight_bytes + want > ceiling)
-		{
-			/* Empty blocks back to the driver first. That is free, and
-			 * it is usually all that was needed: the room exists, it is
-			 * just in blocks of the wrong memory type. */
-			gs_vk_heap_trim(&m_heap);
-
-			if (m_staging_inflight_bytes + want > ceiling)
-				ExecuteCommandBufferAndRestartRenderPass(true);
-		}
+		/* The ceiling covers every upload buffer that exists, in flight
+		 * and on the free list together. Guarding the two halves
+		 * separately let each reach the ceiling on its own, and raising
+		 * that ceiling to four times GS memory - which I did last time,
+		 * to buy back the framerate the sync below costs - is why used
+		 * went from 2687 MB to 3199 MB rather than down. The sync is
+		 * slow; it is not as bad as running out. */
+		if (m_staging_bytes + m_staging_inflight_bytes + want > ceiling)
+			ExecuteCommandBufferAndRestartRenderPass(true);
 
 		for (i = 0; i < m_staging_free.size(); i++)
 		{
@@ -1269,8 +1269,9 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 		m_staging_inflight_bytes += sb.size;
 		m_frame_resources[m_current_frame].staging_in_flight.push_back(sb);
 
-		/* Only the ceiling frees one, and only from the free list. */
-		while (m_staging_bytes > ceiling && !m_staging_free.empty())
+		/* Trim the free list against the same total. */
+		while (m_staging_bytes + m_staging_inflight_bytes > ceiling
+				&& !m_staging_free.empty())
 		{
 			StagingBuffer& dead = m_staging_free.back();
 			m_staging_bytes -= dead.size;

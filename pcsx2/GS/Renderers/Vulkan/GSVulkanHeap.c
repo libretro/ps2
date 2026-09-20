@@ -164,6 +164,8 @@ void gs_vk_heap_shutdown(gs_vk_heap_t *heap)
    heap->block_count    = 0;
    heap->bytes_reserved = 0;
    heap->bytes_used     = 0;
+   heap->bytes_host     = 0;
+   heap->bytes_device   = 0;
 }
 
 unsigned gs_vk_heap_reserve(gs_vk_heap_t *heap, uint32_t type_bits,
@@ -229,6 +231,11 @@ static int gs_vk_block_alloc(gs_vk_heap_t *heap, gs_vk_block_t *b, unsigned inde
 
       b->used          += size;
       heap->bytes_used += size;
+      if (heap->props.memoryTypes[b->type].propertyFlags
+            & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
+         heap->bytes_host += size;
+      else
+         heap->bytes_device += size;
 
       out->memory = b->memory;
       out->offset = aligned;
@@ -333,6 +340,14 @@ void gs_vk_heap_free(gs_vk_heap_t *heap, const gs_vk_alloc_t *alloc)
       b->used -= alloc->size;
    if (heap->bytes_used >= alloc->size)
       heap->bytes_used -= alloc->size;
+   if (heap->props.memoryTypes[b->type].propertyFlags
+         & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
+   {
+      if (heap->bytes_host >= alloc->size)
+         heap->bytes_host -= alloc->size;
+   }
+   else if (heap->bytes_device >= alloc->size)
+      heap->bytes_device -= alloc->size;
 
    /* Merge with whatever it touches, so a block does not turn into a
     * thousand unusable slivers over a run. Two passes because a freed

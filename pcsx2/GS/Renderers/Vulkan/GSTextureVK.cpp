@@ -130,10 +130,12 @@ std::unique_ptr<GSTextureVK> GSTextureVK::Create(Type type, Format format, int w
 	if (!GSDeviceVK::GetInstance()->CreateImageInHeap(&ici,
 			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &image, &alloc))
 	{
-		log_cb(RETRO_LOG_ERROR, "GS: no room for a %ux%u texture (heap %llu MB reserved, %llu MB used).\n",
+		log_cb(RETRO_LOG_ERROR, "GS: no room for a %ux%u texture (heap %llu MB reserved, %llu MB used: %llu MB uploads, %llu MB images).\n",
 			width, height,
 			(unsigned long long)(GSDeviceVK::GetInstance()->GetHeap()->bytes_reserved >> 20),
-			(unsigned long long)(GSDeviceVK::GetInstance()->GetHeap()->bytes_used >> 20));
+			(unsigned long long)(GSDeviceVK::GetInstance()->GetHeap()->bytes_used >> 20),
+			(unsigned long long)(GSDeviceVK::GetInstance()->GetHeap()->bytes_host >> 20),
+			(unsigned long long)(GSDeviceVK::GetInstance()->GetHeap()->bytes_device >> 20));
 		return {};
 	}
 

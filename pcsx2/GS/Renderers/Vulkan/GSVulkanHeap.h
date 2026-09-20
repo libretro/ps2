@@ -79,7 +79,11 @@ typedef struct gs_vk_block
    unsigned       type;
 } gs_vk_block_t;
 
-#define GS_VK_HEAP_MAX_BLOCKS 64
+/* Enough that the ceiling is what stops the heap growing, never this
+ * array: 64 MB blocks against the 4 GB ceiling at 8x is 64 blocks
+ * exactly, and hitting the array first would refuse an allocation the
+ * budget allows. */
+#define GS_VK_HEAP_MAX_BLOCKS 256
 
 typedef struct gs_vk_heap
 {
@@ -93,6 +97,14 @@ typedef struct gs_vk_heap
    VkDeviceSize                     max_bytes;      /* never asks past this */
    VkDeviceSize                     bytes_reserved; /* asked of the driver */
    VkDeviceSize                     bytes_used;     /* handed out          */
+
+   /* The same total split by what the memory is for, because the total
+    * alone cannot answer the question that matters when an allocation
+    * fails: 3199 MB used against a texture cache holding 359 MB says
+    * something else has it, and these two lines say which. Uploads are
+    * host-visible, images and targets are device-local. */
+   VkDeviceSize                     bytes_host;
+   VkDeviceSize                     bytes_device;
 } gs_vk_heap_t;
 
 /* block_size is what one VkDeviceMemory is; anything larger than it gets
