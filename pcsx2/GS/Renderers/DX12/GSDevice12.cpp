@@ -349,6 +349,21 @@ bool GSDevice12::CreatePlacedResource(const D3D12_RESOURCE_DESC* desc, D3D12_HEA
 		return false;
 	}
 
+	/* The span this resource was placed in may have held another one a
+	 * moment ago, and D3D12 requires an aliasing barrier before the new
+	 * one is used or the command list is invalid - Close() returns
+	 * E_INVALIDARG and the frame never reaches the screen. A committed
+	 * resource owned its memory and never needed this, which is why it
+	 * appears now and only in games that churn through targets fast
+	 * enough to reuse a span. NULL before means "whatever was here". */
+	{
+		D3D12_RESOURCE_BARRIER rb = {D3D12_RESOURCE_BARRIER_TYPE_ALIASING,
+			D3D12_RESOURCE_BARRIER_FLAG_NONE};
+		rb.Aliasing.pResourceBefore = nullptr;
+		rb.Aliasing.pResourceAfter  = *out_resource;
+		GetInitCommandList()->ResourceBarrier(1, &rb);
+	}
+
 	*out_alloc = alloc;
 	return true;
 }
