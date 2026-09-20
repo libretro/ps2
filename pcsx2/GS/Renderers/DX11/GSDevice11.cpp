@@ -109,7 +109,7 @@ extern "C" void gs_d3d11_negotiate_hw_interface(retro_environment_t cb)
 
 	s_d3d11_negotiation.interface_type               = RETRO_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE_D3D11;
 	s_d3d11_negotiation.interface_version            = RETRO_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE_D3D11_VERSION;
-	s_d3d11_negotiation.max_render_interface_version = RETRO_HW_RENDER_INTERFACE_D3D11_VERSION_3;
+	s_d3d11_negotiation.max_render_interface_version = RETRO_HW_RENDER_INTERFACE_D3D11_VERSION_2;
 	if (!cb(RETRO_ENVIRONMENT_SET_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE, &s_d3d11_negotiation))
 		return;
 
@@ -238,11 +238,11 @@ bool GSDevice11::Create()
 		return false;
 	}
 
-	/* Version 1, or as far as version 3 if gs_d3d11_negotiate_hw_interface()
-	 * asked and the frontend has it. Anything else was not asked for. */
+	/* Version 1, or version 2 if gs_d3d11_negotiate_hw_interface() asked
+	 * and the frontend has it. Anything else was not asked for. */
 	if (   d3d11->interface_version < RETRO_HW_RENDER_INTERFACE_D3D11_VERSION
-	    || d3d11->interface_version > RETRO_HW_RENDER_INTERFACE_D3D11_VERSION_3) {
-		log_cb(RETRO_LOG_ERROR, "HW render interface mismatch, expected %u to %u, got %u!\n", RETRO_HW_RENDER_INTERFACE_D3D11_VERSION, RETRO_HW_RENDER_INTERFACE_D3D11_VERSION_3, d3d11->interface_version);
+	    || d3d11->interface_version > RETRO_HW_RENDER_INTERFACE_D3D11_VERSION_2) {
+		log_cb(RETRO_LOG_ERROR, "HW render interface mismatch, expected %u to %u, got %u!\n", RETRO_HW_RENDER_INTERFACE_D3D11_VERSION, RETRO_HW_RENDER_INTERFACE_D3D11_VERSION_2, d3d11->interface_version);
 		return false;
 	}
 	if (   d3d11->interface_version >= RETRO_HW_RENDER_INTERFACE_D3D11_VERSION_2
@@ -880,7 +880,7 @@ static u32 gs_sync_slots_from_mask(u32 mask)
 void GSDevice11::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect)
 {
 	if (   s_d3d11_v2
-	    && s_d3d11_v2->interface_version >= RETRO_HW_RENDER_INTERFACE_D3D11_VERSION_3
+	    && s_d3d11_v2->interface_version >= RETRO_HW_RENDER_INTERFACE_D3D11_VERSION_2
 	    && s_d3d11_v2->get_sync_index && s_d3d11_v2->wait_sync_index)
 	{
 		const unsigned index = s_d3d11_v2->get_sync_index(s_d3d11_v2->handle);
