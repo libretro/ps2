@@ -105,7 +105,20 @@ protected:
 
 public:
 	GSTexture();
+
+	/* Not public, and not virtual either. The backends' virtual
+	 * functions became the m_ops table in the C conversion and the
+	 * destructor went with them - but a destructor that is neither
+	 * virtual nor reachable through the table is a destructor that
+	 * never runs: "delete t" on a GSTexture* ran this empty one and
+	 * left the backend's image and its memory behind. Every texture
+	 * the device ever deleted, on every backend, for the life of the
+	 * run. m_ops->free is the one that deletes the real type, so
+	 * gs_texture_free below is how a texture is destroyed, and this
+	 * being protected is what makes the compiler say so. */
+protected:
 	~GSTexture() {}
+public:
 
 	/* What each backend's texture does differently, as a table of plain
 	 * functions with the texture as the first argument; this is what the
@@ -282,6 +295,9 @@ struct gs_download_texture_ops
 };
 
 __forceinline_odr void GSTexture::Free() { m_ops->free(this); }
+/* What "delete t" was meant to be: dispatches to the backend's free,
+ * which deletes the real type and so runs the real destructor. */
+__forceinline_odr void gs_texture_free(GSTexture* t) { if (t) t->Free(); }
 __forceinline_odr bool GSTexture::Update(const GSVector4i& r, const void* data, int pitch, int layer)
 { return m_ops->update(this, &r, data, pitch, layer); }
 __forceinline_odr bool GSTexture::Map(GSMap& m, const GSVector4i* r, int layer)

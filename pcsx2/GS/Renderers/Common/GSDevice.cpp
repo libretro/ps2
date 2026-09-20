@@ -403,7 +403,7 @@ void GSDevice::AgePool()
 			done = (m_present_age - m_retired_present_age[i]) > RETIRED_PRESENT_MIN_AGE;
 		if (done)
 		{
-			delete m_retired_present[i];
+			gs_texture_free(m_retired_present[i]);
 			m_retired_present[i] = nullptr;
 		}
 	}
@@ -439,7 +439,7 @@ void GSDevice::AgePool()
 				break;
 
 			m_pool_memory_usage[pool_idx] -= back->GetMemUsage();
-			delete back;
+			gs_texture_free(back);
 
 			pool.pop_back();
 		}
@@ -452,7 +452,7 @@ void GSDevice::PurgePool()
 	for (FastList<GSTexture*>& pool : m_pool)
 	{
 		for (GSTexture* t : pool)
-			delete t;
+			gs_texture_free(t);
 		pool.clear();
 		m_pool_memory_usage[idx++] = 0;
 	}
@@ -514,20 +514,20 @@ void GSDevice::ClearCurrent()
 	 * the device is torn down, or the state is dropped for a savestate
 	 * load or a reopen, with one still checked out, nothing freed it:
 	 * PurgePool only sees what is in the pool, and this is not. */
-	delete m_colclip_rt;
+	gs_texture_free(m_colclip_rt);
 	m_colclip_rt = nullptr;
 
 	for (u32 i = 0; i < NUM_RETIRED_PRESENT_TEXTURES; i++)
 	{
-		delete m_retired_present[i];
+		gs_texture_free(m_retired_present[i]);
 		m_retired_present[i] = nullptr;
 	}
 
-	delete m_merge;
-	delete m_weavebob;
-	delete m_blend;
-	delete m_mad;
-	delete m_target_tmp;
+	gs_texture_free(m_merge);
+	gs_texture_free(m_weavebob);
+	gs_texture_free(m_blend);
+	gs_texture_free(m_mad);
+	gs_texture_free(m_target_tmp);
 
 	m_merge = nullptr;
 	m_weavebob = nullptr;
@@ -622,7 +622,7 @@ void GSDevice::RetirePresentTexture(GSTexture* t)
 	 * size still governs. */
 	const u32 slot = m_retired_present_slot;
 	m_retired_present_slot = (slot + 1) % NUM_RETIRED_PRESENT_TEXTURES;
-	delete m_retired_present[slot];
+	gs_texture_free(m_retired_present[slot]);
 	m_retired_present[slot] = t;
 	m_retired_present_age[slot] = m_present_age;
 	m_retired_present_waits[slot] = m_sync_waits;
@@ -663,7 +663,7 @@ bool GSDevice::ResizeRenderTarget(GSTexture** t, int w, int h, bool preserve_con
 		else if (recycle)
 			Recycle(orig_tex);
 		else
-			delete orig_tex;
+			gs_texture_free(orig_tex);
 	}
 
 	*t = new_tex;

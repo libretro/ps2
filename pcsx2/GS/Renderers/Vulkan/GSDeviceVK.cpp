@@ -76,7 +76,7 @@ static void vk_free_present_textures(void)
 	unsigned i;
 	for (i = 0; i < VK_PRESENT_MAX_SYNC_INDICES; i++)
 	{
-		delete vk_present_textures[i];
+		gs_texture_free(vk_present_textures[i]);
 		vk_present_textures[i] = NULL;
 	}
 }
@@ -1851,7 +1851,7 @@ GSTexture* GSDeviceVK::CreateSurface(GSTexture::Type type, int width, int height
 	const u32 clamped_width  = static_cast<u32>(pcsx2_clamp_i(width, 1, max_img_dim));
 	const u32 clamped_height = static_cast<u32>(pcsx2_clamp_i(height, 1, max_img_dim));
 
-	std::unique_ptr<GSTexture> tex(GSTextureVK::Create(type, format, clamped_width, clamped_height, levels));
+	std::unique_ptr<GSTextureVK> tex(GSTextureVK::Create(type, format, clamped_width, clamped_height, levels));
 	if (!tex)
 	{
 		// We're probably out of vram, try flushing the command buffer to release pending textures.

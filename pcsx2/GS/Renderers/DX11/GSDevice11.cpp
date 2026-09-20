@@ -81,7 +81,7 @@ static void gs_d3d11_free_present_textures(void)
 	unsigned i;
 	for (i = 0; i < GS_D3D11_MAX_SYNC_INDICES; i++)
 	{
-		delete s_d3d11_present_textures[i];
+		gs_texture_free(s_d3d11_present_textures[i]);
 		s_d3d11_present_textures[i] = NULL;
 	}
 }
@@ -928,7 +928,7 @@ void GSDevice11::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture*
 				    || present->GetHeight() != sTex->GetHeight()
 				    || present->GetFormat() != sTex->GetFormat())
 				{
-					delete present;
+					gs_texture_free(present);
 					present = CreateSurface(GSTexture::Type::RenderTarget,
 						sTex->GetWidth(), sTex->GetHeight(), 1, sTex->GetFormat());
 					s_d3d11_present_textures[index] = present;

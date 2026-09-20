@@ -108,8 +108,7 @@ void GSRendererSW::Destroy()
 
 	for (i = 0; i < 3; i++)
 	{
-		if (m_texture[i])
-			delete m_texture[i];
+		gs_texture_free(m_texture[i]);
 		m_texture[i] = nullptr;
 	}
 
