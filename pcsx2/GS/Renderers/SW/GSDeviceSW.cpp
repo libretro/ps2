@@ -940,12 +940,21 @@ namespace
 /* Defined after the class, whose thunks it names. */
 extern const struct gs_download_texture_ops s_sw_download_texture_ops;
 
+/* Declared here, at file scope, because the class below is in an
+ * anonymous namespace and befriends it. An unqualified friend
+ * declaration of a name that has not been seen yet declares that name
+ * in the nearest enclosing namespace - the anonymous one - and the real
+ * struct further down is then a second, different type of the same
+ * name. gcc lets the ambiguity pass; MSVC does not, and says so:
+ * "'GSDownloadTextureSW_ops_access': ambiguous symbol". */
+struct GSDownloadTextureSW_ops_access;
+
 namespace
 {
 	class GSDownloadTextureSW final : public GSDownloadTexture
 	{
 		/* Its table is below; see gs_download_texture_ops. */
-		friend struct GSDownloadTextureSW_ops_access;
+		friend struct ::GSDownloadTextureSW_ops_access;
 	private:
 		u8* m_buffer = nullptr;
 		u32 m_buffer_size = 0;
