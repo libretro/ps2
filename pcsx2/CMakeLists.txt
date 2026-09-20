@@ -353,6 +353,8 @@ set(pcsx2GSSources
 	GS/Renderers/HW/GSHwHack.cpp
 	GS/Renderers/HW/GSRendererHW.cpp
 	GS/Renderers/HW/GSObjectPool.c
+	GS/Renderers/HW/GSHashTable.c
+	GS/Renderers/HW/GSHashTable.h
 	GS/Renderers/HW/GSObjectPool.h
 	GS/Renderers/HW/GSTextureCache.cpp
 	GS/Renderers/HW/GSTextureReplacementLoaders.cpp

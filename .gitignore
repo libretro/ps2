@@ -114,6 +114,7 @@ build*/
 
 # Test binaries (tests/*/build.sh outputs)
 /tests/spsc/spsc_test
+/tests/gshash/gshash_test
 /tests/spsc/spsc_test_tsan
 /tests/spsc/spsc_test.exe
 /tests/faultstress/fault_test
