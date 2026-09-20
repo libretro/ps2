@@ -364,6 +364,25 @@ bool GSDevice12::CreatePlacedResource(const D3D12_RESOURCE_DESC* desc, D3D12_HEA
 		GetInitCommandList()->ResourceBarrier(1, &rb);
 	}
 
+	/* Name it. The runtime prints the name of a resource it complains
+	 * about, and "Unnamed ID3D12Resource Object" in a validation
+	 * message is the difference between knowing whose resource it is
+	 * and guessing. Everything this backend places gets one, so
+	 * anything still unnamed in a message belongs to the frontend. */
+	{
+		static unsigned s_placed_serial;
+		wchar_t name[96];
+
+		_snwprintf(name, sizeof(name) / sizeof(name[0]),
+			L"GS placed %u: %s %ux%u fmt %u heap %u",
+			++s_placed_serial,
+			(desc->Dimension == D3D12_RESOURCE_DIMENSION_BUFFER) ? L"buffer" : L"texture",
+			(unsigned)desc->Width, (unsigned)desc->Height,
+			(unsigned)desc->Format, (unsigned)heap_type);
+		name[(sizeof(name) / sizeof(name[0])) - 1] = 0;
+		(*out_resource)->SetName(name);
+	}
+
 	*out_alloc = alloc;
 	return true;
 }
