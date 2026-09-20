@@ -490,21 +490,24 @@ private:
 
 	void ApplyBaseState(u32 flags, ID3D12GraphicsCommandList* cmdlist);
 
+       /* A resource waiting on a command list owns its span of the heap
+        * until the GPU is done with it; the span goes back when the list
+        * retires, not when the caller let go. A zeroed alloc means the
+        * resource came from somewhere else. Named at class scope because
+        * the functions that queue one are members of the device, not of
+        * the list. */
+       struct PendingResource
+       {
+	       gs_d3d12_alloc_t   alloc;
+	       ID3D12DeviceChild* resource;
+       };
+
        struct CommandListResources
        {
 	       std::array<ComPtr<ID3D12CommandAllocator>, 2> command_allocators;
 	       std::array<ComPtr<ID3D12GraphicsCommandList4>, 2> command_lists;
 	       D3D12DescriptorAllocator descriptor_allocator;
 	       D3D12GroupedSamplerAllocator<SAMPLER_GROUP_SIZE> sampler_allocator;
-	       /* A resource waiting on this list owns its span of the heap
-		* until the GPU is done with it; the span goes back when the
-		* command list retires, not when the caller let go. A zeroed
-		* alloc means the resource came from somewhere else. */
-	       struct PendingResource
-	       {
-		       gs_d3d12_alloc_t   alloc;
-		       ID3D12DeviceChild* resource;
-	       };
 	       std::vector<PendingResource> pending_resources;
 	       std::vector<std::pair<D3D12DescriptorHeapManager&, u32>> pending_descriptors;
 	       u64 ready_fence_value = 0;
