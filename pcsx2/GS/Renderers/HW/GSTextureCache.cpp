@@ -5857,6 +5857,12 @@ void GSTextureCache::Source::PreloadLevel(int level)
 
 bool GSTextureCache::Source::ClutMatch(const PaletteKey& palette_key)
 {
+	/* A source with no palette object matches no CLUT. One of the two
+	 * callers checked this and the other did not; with shared_ptr the
+	 * second would have read through a null and faulted at offset zero,
+	 * which is the same bug wearing a different address. */
+	if (!m_palette_obj)
+		return false;
 	return PaletteKeyEqual()(palette_key, m_palette_obj->GetPaletteKey());
 }
 
@@ -6677,8 +6683,17 @@ GSTextureCache::Palette* GSTextureCache::PaletteMap::LookupPalette(const u32* cl
 			// holds a reference.
 			if (it->second->m_refs == 0)
 			{
-				delete it->second;
+				/* Erase first, delete after. The key in the map is
+				 * {clut, pal} and its clut points into the palette's own
+				 * m_clut, so the key is only readable while the palette
+				 * is: erase has to unlink the node, and whether that
+				 * reads the key back depends on whether the container
+				 * cached the hash - which is not something to rely on.
+				 * shared_ptr hid this, because the node's destruction
+				 * during erase was what released the object. */
+				Palette* dead = it->second;
 				it = map.erase(it);
+				delete dead;
 			}
 			else
 				++it;
@@ -6699,12 +6714,15 @@ void GSTextureCache::PaletteMap::Clear()
 {
 	for (auto& map : m_maps)
 	{
-		/* The map owns them, so it deletes them. Anything still holding a
-		 * reference is a source, and sources are removed before this is
-		 * called (RemoveAll). */
+		/* Same order as the prune above: the keys point into the palettes,
+		 * so the map has to be emptied before any of them is freed. */
+		std::vector<Palette*> dead;
+		dead.reserve(map.size());
 		for (auto& it : map)
-			delete it.second;
+			dead.push_back(it.second);
 		map.clear();
+		for (Palette* p : dead)
+			delete p;
 	}
 }
 
