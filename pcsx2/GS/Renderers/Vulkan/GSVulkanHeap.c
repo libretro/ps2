@@ -71,6 +71,14 @@ static int gs_vk_heap_add_block(gs_vk_heap_t *heap, unsigned type, VkDeviceSize 
    if (heap->block_count >= GS_VK_HEAP_MAX_BLOCKS)
       return 0;
 
+   /* The ceiling. Without one the heap will hand out blocks until the
+    * card is gone, which is what it did: sixty-four blocks of half a
+    * gigabyte is thirty-two, and a 5090 has thirty-one and a half. A
+    * heap that refuses is a renderer with a missing texture and a line
+    * in the log; a heap that does not is a dead machine. */
+   if (heap->max_bytes && heap->bytes_reserved + size > heap->max_bytes)
+      return 0;
+
    memset(&mai, 0, sizeof(mai));
    mai.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
    mai.allocationSize  = size;
@@ -109,7 +117,7 @@ static int gs_vk_heap_add_block(gs_vk_heap_t *heap, unsigned type, VkDeviceSize 
 int gs_vk_heap_init(gs_vk_heap_t *heap, VkDevice device,
       const VkPhysicalDeviceMemoryProperties *props,
       const gs_vk_heap_fns_t *fns, VkDeviceSize block_size,
-      VkDeviceSize non_coherent_atom_size)
+      VkDeviceSize non_coherent_atom_size, VkDeviceSize max_bytes)
 {
    if (!heap || !props || !fns || !fns->allocate_memory)
       return 0;
@@ -120,6 +128,7 @@ int gs_vk_heap_init(gs_vk_heap_t *heap, VkDevice device,
    heap->fns        = *fns;
    heap->block_size = block_size ? block_size : (64u * 1024u * 1024u);
    heap->atom_size  = non_coherent_atom_size ? non_coherent_atom_size : 256u;
+   heap->max_bytes  = max_bytes;
    return 1;
 }
 

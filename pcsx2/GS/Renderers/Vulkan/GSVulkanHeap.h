@@ -90,6 +90,7 @@ typedef struct gs_vk_heap
    VkDeviceSize                     atom_size;      /* nonCoherentAtomSize */
    gs_vk_block_t                    blocks[GS_VK_HEAP_MAX_BLOCKS];
    unsigned                         block_count;
+   VkDeviceSize                     max_bytes;      /* never asks past this */
    VkDeviceSize                     bytes_reserved; /* asked of the driver */
    VkDeviceSize                     bytes_used;     /* handed out          */
 } gs_vk_heap_t;
@@ -99,7 +100,7 @@ typedef struct gs_vk_heap
 int  gs_vk_heap_init(gs_vk_heap_t *heap, VkDevice device,
       const VkPhysicalDeviceMemoryProperties *props,
       const gs_vk_heap_fns_t *fns, VkDeviceSize block_size,
-      VkDeviceSize non_coherent_atom_size);
+      VkDeviceSize non_coherent_atom_size, VkDeviceSize max_bytes);
 
 void gs_vk_heap_shutdown(gs_vk_heap_t *heap);
 

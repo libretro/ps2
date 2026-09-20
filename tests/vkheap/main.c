@@ -115,7 +115,7 @@ int main(void)
    fns.unmap_memory    = stub_unmap;
    fns.flush_ranges    = stub_flush;
 
-   CHECK(gs_vk_heap_init(&heap, (VkDevice)1, &props, &fns, 1024 * 1024, 256) != 0, "init");
+   CHECK(gs_vk_heap_init(&heap, (VkDevice)1, &props, &fns, 1024 * 1024, 256, 0) != 0, "init");
 
    /* Reserving takes blocks now. */
    allocations = 0;
@@ -196,6 +196,28 @@ int main(void)
    req(&r, 1024, 256, 0x0u);
    CHECK(gs_vk_heap_alloc(&heap, &r, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, &a[3]) == 0,
          "no type, no allocation");
+
+   /* A ceiling is a ceiling: with one set, the heap refuses rather than
+    * taking another block, which is the difference between a missing
+    * texture and a card with nothing left on it. */
+   {
+      gs_vk_heap_t capped;
+      gs_vk_alloc_t c;
+      int taken = 0;
+      memset(&capped, 0, sizeof(capped));
+      CHECK(gs_vk_heap_init(&capped, (VkDevice)1, &props, &fns,
+            1024 * 1024, 256, 4 * 1024 * 1024) != 0, "init with a ceiling");
+      req(&r, 1024 * 1024, 256, 0x1u);
+      while (gs_vk_heap_alloc(&capped, &r, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, &c))
+      {
+         taken++;
+         if (taken > 64)
+            break;
+      }
+      CHECK(taken == 4, "four megabytes of ceiling is four one-megabyte blocks");
+      CHECK(capped.bytes_reserved <= 4u * 1024u * 1024u, "and it never went past it");
+      gs_vk_heap_shutdown(&capped);
+   }
 
    frees = 0;
    gs_vk_heap_shutdown(&heap);

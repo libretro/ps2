@@ -612,8 +612,18 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 		fns.flush_ranges      = vkFlushMappedMemoryRanges;
 		fns.invalidate_ranges = vkInvalidateMappedMemoryRanges;
 
+		/* And a ceiling, because a heap without one takes blocks until
+		 * the card is gone. Eight times what everything a PS2 game has
+		 * at once costs at this upscale - and never fewer than four
+		 * blocks, or at native the ceiling would be smaller than a
+		 * block and the first allocation would fail. */
+		u64 ceiling = (u64)((float)VM_SIZE * scale * scale) * 8u;
+
+		if (ceiling < block * 4u)
+			ceiling = block * 4u;
+
 		if (!gs_vk_heap_init(&m_heap, vk_init_info.device, &mem_props, &fns, block,
-				dev_props.limits.nonCoherentAtomSize))
+				dev_props.limits.nonCoherentAtomSize, ceiling))
 			return false;
 
 		m_heap_ready = true;
@@ -625,9 +635,11 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 		gs_vk_heap_reserve(&m_heap, ~0u,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 1);
 
-		log_cb(RETRO_LOG_INFO, "GS: device memory heap, %llu MB blocks, %llu MB reserved.\n",
+		log_cb(RETRO_LOG_INFO,
+			"GS: device memory heap, %llu MB blocks, %llu MB reserved, %llu MB ceiling.\n",
 			(unsigned long long)(block >> 20),
-			(unsigned long long)(m_heap.bytes_reserved >> 20));
+			(unsigned long long)(m_heap.bytes_reserved >> 20),
+			(unsigned long long)(m_heap.max_bytes >> 20));
 		return true;
 	}
 
@@ -636,6 +648,7 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 	bool GSDeviceVK::CreateImageInHeap(const VkImageCreateInfo* ici,
 		VkMemoryPropertyFlags required, VkImage* image, gs_vk_alloc_t* alloc)
 	{
+		const unsigned blocks_before = m_heap.block_count;
 		VkMemoryRequirements req;
 
 		if (vkCreateImage(vk_init_info.device, ici, nullptr, image) != VK_SUCCESS)
@@ -656,6 +669,25 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 			vkDestroyImage(vk_init_info.device, *image, nullptr);
 			*image = VK_NULL_HANDLE;
 			return false;
+		}
+
+		m_live_images++;
+
+		/* A block was taken, which in steady state should never happen
+		 * after startup. What matters is the pair of numbers: images
+		 * made against images destroyed. Far apart means something is
+		 * holding them, and the heap is only the thing that noticed. */
+		if (m_heap.block_count != blocks_before)
+		{
+			log_cb(RETRO_LOG_WARN,
+				"GS: heap took a block - %u blocks, %llu MB reserved, %llu MB used, "
+				"%llu images made and %llu destroyed (%llu live).\n",
+				m_heap.block_count,
+				(unsigned long long)(m_heap.bytes_reserved >> 20),
+				(unsigned long long)(m_heap.bytes_used >> 20),
+				(unsigned long long)m_live_images,
+				(unsigned long long)m_dead_images,
+				(unsigned long long)(m_live_images - m_dead_images));
 		}
 		return true;
 	}
@@ -1020,6 +1052,7 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 				case FrameResources::CleanupKind::ImageHeap:
 					vkDestroyImage(vk_init_info.device, (VkImage)it.h0, nullptr);
 					gs_vk_heap_free(&m_heap, &it.alloc);
+					m_dead_images++;
 					break;
 				case FrameResources::CleanupKind::ImageView:
 					vkDestroyImageView(vk_init_info.device, (VkImageView)it.h0, nullptr);
@@ -1030,8 +1063,13 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 		 * out again - back to the list, not to the driver. */
 		for (size_t i = 0; i < resources.staging_in_flight.size(); i++)
 		{
+			const u64 sz = resources.staging_in_flight[i].size;
 			m_staging_free.push_back(resources.staging_in_flight[i]);
-			m_staging_bytes += resources.staging_in_flight[i].size;
+			m_staging_bytes += sz;
+			if (m_staging_inflight_bytes >= sz)
+				m_staging_inflight_bytes -= sz;
+			else
+				m_staging_inflight_bytes = 0;
 		}
 		resources.staging_in_flight.clear();
 
@@ -1163,6 +1201,22 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 		while (want < size)
 			want <<= 1;
 
+		/* Before anything else: if this command buffer is already
+		 * holding more upload buffers than a frame has any business
+		 * holding, submit it and wait. That returns every one of them to
+		 * the free list, and the loop below then finds one.
+		 *
+		 * This is where the video memory went. The free list has had a
+		 * ceiling since these became inventory, but the buffers a
+		 * command buffer is reading had none, and those are the ones
+		 * that accumulate: one per upload, hundreds or thousands inside
+		 * a single buffer when a game churns textures, each rounded up
+		 * to a power of two. Thirty gigabytes of a thirty-two gigabyte
+		 * card, none of it in any counter, because none of it was
+		 * anybody's to count. */
+		if (m_staging_inflight_bytes + want > ceiling)
+			ExecuteCommandBufferAndRestartRenderPass(true);
+
 		for (i = 0; i < m_staging_free.size(); i++)
 		{
 			if (m_staging_free[i].size < want)
@@ -1171,6 +1225,7 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 			m_staging_free[i] = m_staging_free.back();
 			m_staging_free.pop_back();
 			m_staging_bytes -= sb.size;
+			m_staging_inflight_bytes += sb.size;
 			m_frame_resources[m_current_frame].staging_in_flight.push_back(sb);
 			*mapped    = sb.mapped;
 			*alloc_out = sb.alloc;
@@ -1189,6 +1244,7 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 			return VK_NULL_HANDLE;
 
 		sb.size = want;
+		m_staging_inflight_bytes += sb.size;
 		m_frame_resources[m_current_frame].staging_in_flight.push_back(sb);
 
 		/* Only the ceiling frees one, and only from the free list. */
@@ -1227,6 +1283,7 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 				gs_vk_heap_free(&m_heap, &v[i].alloc);
 			}
 			v.clear();
+			m_staging_inflight_bytes = 0;
 		}
 		m_staging_bytes = 0;
 	}

@@ -237,6 +237,7 @@ void GSTextureVK::Destroy(bool defer)
 		{
 			vkDestroyImage(vk_init_info.device, m_image, nullptr);
 			gs_vk_heap_free(GSDeviceVK::GetInstance()->GetHeap(), &m_alloc);
+			GSDeviceVK::GetInstance()->CountImageDestroyed();
 		}
 		m_image = VK_NULL_HANDLE;
 		m_alloc = gs_vk_alloc_t{};

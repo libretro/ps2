@@ -368,9 +368,24 @@ private:
        gs_vk_heap_t m_heap = {};
        bool m_heap_ready = false;
 
+       /* Images made and images whose memory came back. In steady state
+        * these grow together; apart means a leak, and the heap taking a
+        * block is when that gets said out loud. */
+       u64 m_live_images = 0;
+       u64 m_dead_images = 0;
+
+public:
+       __fi void CountImageDestroyed() { m_dead_images++; }
+private:
+
        /* Upload buffers no command buffer is using. */
        std::vector<StagingBuffer> m_staging_free;
        u64 m_staging_bytes = 0;
+       /* And the ones a command buffer is still reading. This is the one
+        * that grows without limit: a buffer per texture upload, given
+        * back only when the buffer completes, so a command buffer with
+        * thousands of uploads in it holds thousands of them at once. */
+       u64 m_staging_inflight_bytes = 0;
        void DestroyStagingBuffers();
 
        /* Bytes of image sitting in the cleanup lists, waiting for the
