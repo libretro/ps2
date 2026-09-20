@@ -168,6 +168,12 @@ public:
         * costs. Returns true when so much is waiting that the caller
         * should get the GPU to a point where it can be freed. */
        bool DeferredDestructionOverBudget(u64 bytes);
+
+       /* An upload buffer of at least this many bytes, mapped. Taken from
+        * the free list when one fits and made only when none does; given
+        * back when the command buffer being recorded finishes, not
+        * destroyed. */
+       VkBuffer AcquireStagingBuffer(u32 size, void** mapped, VmaAllocation* allocation);
        __fi VkQueue GetGraphicsQueue() const { return m_graphics_queue; }
        __fi u32 GetGraphicsQueueFamilyIndex() const { return m_graphics_queue_family_index; }
        __fi const VkPhysicalDeviceProperties& GetDeviceProperties() const { return m_device_properties; }
@@ -300,6 +306,15 @@ private:
        void ActivateCommandBuffer(u32 index);
        void WaitForCommandBufferCompletion(u32 index);
 
+       /* A mapped upload buffer, kept and reused. */
+       struct StagingBuffer
+       {
+	       VkBuffer      buffer     = VK_NULL_HANDLE;
+	       VmaAllocation allocation = VK_NULL_HANDLE;
+	       void*         mapped     = nullptr;
+	       u32           size       = 0;
+       };
+
        struct FrameResources
        {
 	       // [0] - Init (upload) command buffer, [1] - draw command buffer
@@ -312,6 +327,11 @@ private:
 	       /* Bytes of image on this buffer's cleanup list, so the total
 		* waiting to be freed can be bounded. */
 	       u64 cleanup_bytes = 0;
+
+	       /* Staging buffers this command buffer is reading from. They
+		* go back to the free list when it completes; they are not
+		* destroyed, because the next upload of that size wants one. */
+	       std::vector<StagingBuffer> staging_in_flight;
 
 	       /* Cleanup queue: per-frame list of Vulkan resources to be
 		* destroyed once the GPU is done with this command buffer.
@@ -342,6 +362,11 @@ private:
 
        VmaAllocator m_allocator = VK_NULL_HANDLE;
        VmaPool m_target_pool = VK_NULL_HANDLE;
+
+       /* Upload buffers no command buffer is using. */
+       std::vector<StagingBuffer> m_staging_free;
+       u64 m_staging_bytes = 0;
+       void DestroyStagingBuffers();
 
        /* Bytes of image sitting in the cleanup lists, waiting for the
         * command buffer that might still be reading them to finish. */

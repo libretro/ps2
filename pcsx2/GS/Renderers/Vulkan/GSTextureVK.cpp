@@ -283,28 +283,24 @@ void GSTextureVK::CopyTextureDataForUpload(void* dst, const void* src, u32 pitch
 VkBuffer GSTextureVK::AllocateUploadStagingBuffer(const void* data, u32 pitch, u32 upload_pitch, u32 height) const
 {
 	const u32 size = upload_pitch * height;
-	const VkBufferCreateInfo bci = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO, nullptr, 0,
-		static_cast<VkDeviceSize>(size), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_SHARING_MODE_EXCLUSIVE, 0, nullptr};
+	void* mapped = nullptr;
+	VmaAllocation allocation = VK_NULL_HANDLE;
+	VkBuffer buffer;
+
+	/* Out of the device's inventory of upload buffers rather than made
+	 * here and thrown away: this ran once per texture upload that did not
+	 * fit the stream buffer, which under any texture churn is hundreds of
+	 * driver allocations a frame, none of them counted anywhere. The
+	 * device hands one back to its free list when the command buffer that
+	 * reads it completes. */
+	buffer = GSDeviceVK::GetInstance()->AcquireStagingBuffer(size, &mapped, &allocation);
+	if (buffer == VK_NULL_HANDLE)
+		return VK_NULL_HANDLE;
 
 	// Don't worry about setting the coherent bit for this upload, the main reason we had
 	// that set in StreamBuffer was for MoltenVK, which would upload the whole buffer on
 	// smaller uploads, but we're writing to the whole thing anyway.
-	VmaAllocationCreateInfo aci = {};
-	aci.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT;
-	aci.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
-
-	VmaAllocationInfo ai;
-	VkBuffer buffer;
-	VmaAllocation allocation;
-	VkResult res = vmaCreateBuffer(GSDeviceVK::GetInstance()->GetAllocator(), &bci, &aci, &buffer, &allocation, &ai);
-	if (res != VK_SUCCESS)
-		return VK_NULL_HANDLE;
-
-	// Immediately queue it for freeing after the command buffer finishes, since it's only needed for the copy.
-	GSDeviceVK::GetInstance()->DeferBufferDestruction(buffer, allocation);
-
-	// And write the data.
-	CopyTextureDataForUpload(ai.pMappedData, data, pitch, upload_pitch, height);
+	CopyTextureDataForUpload(mapped, data, pitch, upload_pitch, height);
 	vmaFlushAllocation(GSDeviceVK::GetInstance()->GetAllocator(), allocation, 0, size);
 	return buffer;
 }

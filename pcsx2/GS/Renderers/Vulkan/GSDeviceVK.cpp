@@ -1012,6 +1012,15 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 					break;
 			}
 		}
+		/* The GPU is done reading these, so they are free to be handed
+		 * out again - back to the list, not to the driver. */
+		for (size_t i = 0; i < resources.staging_in_flight.size(); i++)
+		{
+			m_staging_free.push_back(resources.staging_in_flight[i]);
+			m_staging_bytes += resources.staging_in_flight[i].size;
+		}
+		resources.staging_in_flight.clear();
+
 		if (m_deferred_bytes >= resources.cleanup_bytes)
 			m_deferred_bytes -= resources.cleanup_bytes;
 		else
@@ -1110,6 +1119,104 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 	 * and waits, which frees every list up to it - a stutter where the
 	 * alternative is the allocator running out and the draw going on
 	 * without a texture, which is the corruption in the report. */
+	/* --- upload buffers are inventory, not litter -----------------------
+	 * GSTextureVK::AllocateUploadStagingBuffer made a VkBuffer for every
+	 * texture upload that did not fit the stream buffer and queued it for
+	 * destruction in the same breath. Hundreds a frame when a game churns
+	 * textures, each one a driver allocation, and all of it invisible to
+	 * the byte counts in the texture cache and the pool - which is why
+	 * the card filled up while those counters read a few hundred
+	 * megabytes.
+	 *
+	 * They are kept and reused now. Sizes are rounded to a power of two
+	 * so that the same buffer serves every upload in a range, a command
+	 * buffer's buffers go back to the free list when it completes, and
+	 * nothing is destroyed while the free list is under its ceiling. In
+	 * steady state a game uploads textures without allocating anything.
+	 */
+	VkBuffer GSDeviceVK::AcquireStagingBuffer(u32 size, void** mapped, VmaAllocation* allocation)
+	{
+		/* All of GS memory at this upscale is more than a frame's
+		 * uploads can need; under that the free list keeps everything. */
+		const float scale = GSConfig.UpscaleMultiplier > 0.0f ? GSConfig.UpscaleMultiplier : 1.0f;
+		u64 ceiling = (u64)((float)VM_SIZE * scale * scale);
+		u32 want = 64 * 1024;
+		size_t i;
+		StagingBuffer sb;
+		VmaAllocationInfo ai;
+		VkBufferCreateInfo bci = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+		VmaAllocationCreateInfo aci = {};
+		VkResult res;
+
+		if (ceiling < 64ull * 1024ull * 1024ull)
+			ceiling = 64ull * 1024ull * 1024ull;
+
+		while (want < size)
+			want <<= 1;
+
+		for (i = 0; i < m_staging_free.size(); i++)
+		{
+			if (m_staging_free[i].size < want)
+				continue;
+			sb = m_staging_free[i];
+			m_staging_free[i] = m_staging_free.back();
+			m_staging_free.pop_back();
+			m_staging_bytes -= sb.size;
+			m_frame_resources[m_current_frame].staging_in_flight.push_back(sb);
+			*mapped     = sb.mapped;
+			*allocation = sb.allocation;
+			return sb.buffer;
+		}
+
+		/* None fits: make one, at the rounded size, and it joins the
+		 * inventory for good. */
+		bci.size        = want;
+		bci.usage       = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+		bci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		aci.flags       = VMA_ALLOCATION_CREATE_MAPPED_BIT;
+		aci.usage       = VMA_MEMORY_USAGE_CPU_TO_GPU;
+
+		res = vmaCreateBuffer(m_allocator, &bci, &aci, &sb.buffer, &sb.allocation, &ai);
+		if (res != VK_SUCCESS)
+			return VK_NULL_HANDLE;
+
+		sb.mapped = ai.pMappedData;
+		sb.size   = want;
+		m_frame_resources[m_current_frame].staging_in_flight.push_back(sb);
+
+		/* Only the ceiling frees one, and only from the free list. */
+		while (m_staging_bytes > ceiling && !m_staging_free.empty())
+		{
+			StagingBuffer& dead = m_staging_free.back();
+			m_staging_bytes -= dead.size;
+			vmaDestroyBuffer(m_allocator, dead.buffer, dead.allocation);
+			m_staging_free.pop_back();
+		}
+
+		*mapped     = sb.mapped;
+		*allocation = sb.allocation;
+		return sb.buffer;
+	}
+
+	void GSDeviceVK::DestroyStagingBuffers()
+	{
+		size_t i;
+		u32 f;
+
+		for (i = 0; i < m_staging_free.size(); i++)
+			vmaDestroyBuffer(m_allocator, m_staging_free[i].buffer, m_staging_free[i].allocation);
+		m_staging_free.clear();
+
+		for (f = 0; f < NUM_COMMAND_BUFFERS; f++)
+		{
+			std::vector<StagingBuffer>& v = m_frame_resources[f].staging_in_flight;
+			for (i = 0; i < v.size(); i++)
+				vmaDestroyBuffer(m_allocator, v[i].buffer, v[i].allocation);
+			v.clear();
+		}
+		m_staging_bytes = 0;
+	}
+
 	bool GSDeviceVK::DeferredDestructionOverBudget(u64 bytes)
 	{
 		/* All of GS memory at this upscale, which is more than a frame
@@ -1443,6 +1550,8 @@ void GSDeviceVK::Destroy()
 	DestroyCommandBuffers();
 
 	if (m_allocator != VK_NULL_HANDLE)
+		DestroyStagingBuffers();
+
 		if (m_target_pool != VK_NULL_HANDLE)
 		{
 			vmaDestroyPool(m_allocator, m_target_pool);
