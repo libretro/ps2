@@ -157,7 +157,7 @@ void GSDevice::PrewarmPool()
 		{ 640, 512 }, { 512, 256 }, { 640, 256 }, { 512, 512 },
 		{ 704, 448 }, { 704, 512 }, { 704, 224 }, { 704, 256 },
 	};
-	const float scale = GSConfig.UpscaleMultiplier > 0.0f ? GSConfig.UpscaleMultiplier : 1.0f;
+	const float scale = PoolScale();
 	const u64 budget = PoolByteBudget(1);
 	u64 spent = 0;
 	u32 made = 0;
@@ -314,11 +314,24 @@ GSTexture* GSDevice::FetchSurface(GSTexture::Type type, int width, int height, i
 	return t;
 }
 
+float GSDevice::PoolScale() const
+{
+	/* The scale the textures in this pool are actually at. The software
+	 * renderer draws at native whatever the upscale option says - it sets
+	 * m_nativeres and ignores it - and its textures are system memory, so
+	 * taking the option at face value there would reserve hundreds of
+	 * megabytes of RAM for textures that are never bigger than a PS2
+	 * frame buffer. */
+	if (GetRenderAPI() == RenderAPI::None)
+		return 1.0f;
+	return GSConfig.UpscaleMultiplier > 0.0f ? GSConfig.UpscaleMultiplier : 1.0f;
+}
+
 u64 GSDevice::PoolByteBudget(u32 pool_idx) const
 {
 	/* What the whole of GS memory costs as host textures at the current
 	 * upscale, times how many of those the pool keeps around. */
-	const float scale = GSConfig.UpscaleMultiplier > 0.0f ? GSConfig.UpscaleMultiplier : 1.0f;
+	const float scale = PoolScale();
 	const u64 live_set = (u64)((float)VM_SIZE * scale * scale);
 	const u64 sets = (pool_idx == 0) ? POOL_LIVE_SETS_TEXTURES : POOL_LIVE_SETS_TARGETS;
 	return live_set * sets;

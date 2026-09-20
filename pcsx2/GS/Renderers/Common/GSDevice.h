@@ -805,6 +805,9 @@ protected:
 	static constexpr u32 POOL_LIVE_SETS_TEXTURES = 2;
 
 	/* pool_idx 0 is textures, 1 is targets. */
+	/* The upscale the pool's textures are at, which is not the option's
+	 * value for the software renderer. */
+	float PoolScale() const;
 	u64 PoolByteBudget(u32 pool_idx) const;
 
 
