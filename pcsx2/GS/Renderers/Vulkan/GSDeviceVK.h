@@ -376,6 +376,8 @@ private:
 
 public:
        __fi void CountImageDestroyed() { m_dead_images++; }
+       __fi u64  GetImagesMade() const { return m_live_images; }
+       __fi u64  GetImagesDestroyed() const { return m_dead_images; }
 private:
 
        /* Upload buffers no command buffer is using. */

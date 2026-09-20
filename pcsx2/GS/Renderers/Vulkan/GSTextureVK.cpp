@@ -130,12 +130,20 @@ std::unique_ptr<GSTextureVK> GSTextureVK::Create(Type type, Format format, int w
 	if (!GSDeviceVK::GetInstance()->CreateImageInHeap(&ici,
 			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &image, &alloc))
 	{
-		log_cb(RETRO_LOG_ERROR, "GS: no room for a %ux%u texture (heap %llu MB reserved, %llu MB used: %llu MB uploads, %llu MB images).\n",
+		/* The counts matter as much as the bytes. 3870 MB of images with
+		 * a cache holding 350 MB says something is keeping them, and made
+		 * against destroyed says whether they are live objects nobody
+		 * freed or memory the heap failed to take back from freed ones. */
+		log_cb(RETRO_LOG_ERROR, "GS: no room for a %ux%u texture (heap %llu MB reserved, %llu MB used: %llu MB uploads, %llu MB images; %llu images made, %llu destroyed, %llu live).\n",
 			width, height,
 			(unsigned long long)(GSDeviceVK::GetInstance()->GetHeap()->bytes_reserved >> 20),
 			(unsigned long long)(GSDeviceVK::GetInstance()->GetHeap()->bytes_used >> 20),
 			(unsigned long long)(GSDeviceVK::GetInstance()->GetHeap()->bytes_host >> 20),
-			(unsigned long long)(GSDeviceVK::GetInstance()->GetHeap()->bytes_device >> 20));
+			(unsigned long long)(GSDeviceVK::GetInstance()->GetHeap()->bytes_device >> 20),
+			(unsigned long long)GSDeviceVK::GetInstance()->GetImagesMade(),
+			(unsigned long long)GSDeviceVK::GetInstance()->GetImagesDestroyed(),
+			(unsigned long long)(GSDeviceVK::GetInstance()->GetImagesMade()
+				- GSDeviceVK::GetInstance()->GetImagesDestroyed()));
 		return {};
 	}
 
