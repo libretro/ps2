@@ -244,6 +244,11 @@ void GSTextureVK::Destroy(bool defer)
 	{
 		if (defer)
 			GSDeviceVK::GetInstance()->DeferImageDestruction(m_image, m_allocation);
+			/* And if too much is now waiting on fences, get the GPU to
+			 * a point where it can be freed rather than letting the
+			 * list grow to the size of the card. */
+			if (GSDeviceVK::GetInstance()->DeferredDestructionOverBudget(GetMemUsage()))
+				GSDeviceVK::GetInstance()->ExecuteCommandBufferAndRestartRenderPass(true);
 		else
 			vmaDestroyImage(GSDeviceVK::GetInstance()->GetAllocator(), m_image, m_allocation);
 		m_image      = VK_NULL_HANDLE;

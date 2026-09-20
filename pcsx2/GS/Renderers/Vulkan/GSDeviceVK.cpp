@@ -1012,6 +1012,11 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 					break;
 			}
 		}
+		if (m_deferred_bytes >= resources.cleanup_bytes)
+			m_deferred_bytes -= resources.cleanup_bytes;
+		else
+			m_deferred_bytes = 0;
+		resources.cleanup_bytes = 0;
 		resources.cleanup_resources.clear();
 	}
 
@@ -1087,6 +1092,37 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 		FrameResources& resources = m_frame_resources[m_current_frame];
 		resources.cleanup_resources.push_back({
 			FrameResources::CleanupKind::ImageVMA, (u64)object, (u64)allocation});
+	}
+
+	/* --- how much may be waiting to be freed ---------------------------
+	 * A destroyed image is not freed when it is destroyed: the command
+	 * buffer being recorded may still read it, so it goes on that
+	 * buffer's cleanup list and is freed when the buffer completes. One
+	 * frame, a handful of images, fine.
+	 *
+	 * A game that churns targets puts hundreds on the list inside a
+	 * single buffer, and at an upscale where one is 73 MB the list is
+	 * gigabytes before the buffer is submitted. That is the thirty-one
+	 * gigabytes on a card with thirty-two: not held by the cache, not by
+	 * the pool, waiting on a fence that has not been signalled yet.
+	 *
+	 * So it is bounded. Past the budget the caller submits what it has
+	 * and waits, which frees every list up to it - a stutter where the
+	 * alternative is the allocator running out and the draw going on
+	 * without a texture, which is the corruption in the report. */
+	bool GSDeviceVK::DeferredDestructionOverBudget(u64 bytes)
+	{
+		/* All of GS memory at this upscale, which is more than a frame
+		 * has any business destroying. */
+		const float scale = GSConfig.UpscaleMultiplier > 0.0f ? GSConfig.UpscaleMultiplier : 1.0f;
+		u64 budget = (u64)((float)VM_SIZE * scale * scale) * 2u;
+
+		if (budget < 64ull * 1024ull * 1024ull)
+			budget = 64ull * 1024ull * 1024ull;
+
+		m_frame_resources[m_current_frame].cleanup_bytes += bytes;
+		m_deferred_bytes += bytes;
+		return m_deferred_bytes > budget;
 	}
 
 	void GSDeviceVK::DeferImageViewDestruction(VkImageView object)

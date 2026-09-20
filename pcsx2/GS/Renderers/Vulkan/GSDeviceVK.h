@@ -163,6 +163,11 @@ public:
         * the pool could not be made, in which case images go to the
         * allocator as before. */
        __fi VmaPool GetTargetMemoryPool() const { return m_target_pool; }
+
+       /* Called when an image is put on a cleanup list, with what it
+        * costs. Returns true when so much is waiting that the caller
+        * should get the GPU to a point where it can be freed. */
+       bool DeferredDestructionOverBudget(u64 bytes);
        __fi VkQueue GetGraphicsQueue() const { return m_graphics_queue; }
        __fi u32 GetGraphicsQueueFamilyIndex() const { return m_graphics_queue_family_index; }
        __fi const VkPhysicalDeviceProperties& GetDeviceProperties() const { return m_device_properties; }
@@ -304,6 +309,9 @@ private:
 	       VkFence fence = VK_NULL_HANDLE;
 	       u64 fence_counter = 0;
 	       bool init_buffer_used = false;
+	       /* Bytes of image on this buffer's cleanup list, so the total
+		* waiting to be freed can be bounded. */
+	       u64 cleanup_bytes = 0;
 
 	       /* Cleanup queue: per-frame list of Vulkan resources to be
 		* destroyed once the GPU is done with this command buffer.
@@ -334,6 +342,10 @@ private:
 
        VmaAllocator m_allocator = VK_NULL_HANDLE;
        VmaPool m_target_pool = VK_NULL_HANDLE;
+
+       /* Bytes of image sitting in the cleanup lists, waiting for the
+        * command buffer that might still be reading them to finish. */
+       u64 m_deferred_bytes = 0;
        bool CreateTargetMemoryPool(void);
 
        VkCommandBuffer m_current_command_buffer = VK_NULL_HANDLE;
