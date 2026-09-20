@@ -807,10 +807,7 @@ protected:
 	/* pool_idx 0 is textures, 1 is targets. */
 	u64 PoolByteBudget(u32 pool_idx) const;
 
-	/* Creates the target sizes a PS2 game actually uses, at the current
-	 * upscale, and puts them in the pool - so the first draw allocates
-	 * nothing either. */
-	void PrewarmPool();
+
 
 	u64 m_pool_memory_usage[2] = {};
 	static constexpr u32 EXPAND_BUFFER_SIZE = sizeof(u16) * 16383 * 6;
@@ -960,6 +957,12 @@ public:
 	void RenderHW(GSHWDrawConfig& config);
 
 	void ClearSamplerCache();
+
+	/* Creates the target sizes a PS2 game actually uses, at the current
+	 * upscale, and puts them in the pool - so the first draw allocates
+	 * nothing either. Called once the device is fully up, by
+	 * OpenGSDevice, not from the device's own Create. */
+	void PrewarmPool();
 
 	void ClearCurrent();
 	void Merge(GSTexture* sTex[3], GSVector4* sRect, GSVector4* dRect, const GSVector2i& fs, const GSRegPMODE& PMODE, const GSRegEXTBUF& EXTBUF, u32 c);

@@ -188,6 +188,12 @@ static bool OpenGSDevice(GSRendererType renderer, bool clear_state_on_fail)
 			return false;
 	}
 
+	/* The device is up and has its command buffers, so the pool can be
+	 * filled with the sizes a game is going to ask for. Doing this inside
+	 * a backend's Create is too early - see GSDevice::PrewarmPool. */
+	if (g_gs_device)
+		g_gs_device->PrewarmPool();
+
 	return true;
 }
 

@@ -119,13 +119,15 @@ int GSDevice::GetMipmapLevelsForSize(int width, int height)
 
 bool GSDevice::CreateBase()
 {
-	PrewarmPool();
 	return true;
 }
 
 /* --- the inventory ------------------------------------------------------
- * Made here, once, rather than discovered during the first frames of a
- * game. What a PS2 game can ask for is not open-ended: a frame buffer is
+ * Made once, after the device is up, rather than discovered during the
+ * first frames of a game. After, and not from CreateBase: that runs as
+ * the first thing a backend's Create does, before it has command
+ * buffers, and a CreateSurface there reaches the out-of-memory path that
+ * flushes one. OpenGSDevice calls this when the device is finished. What a PS2 game can ask for is not open-ended: a frame buffer is
  * described by FBW, which is a multiple of 64 pixels and at most 1024,
  * and the heights a game uses are the handful the video modes have. All
  * of them live in four megabytes of GS memory. So the sizes a target can
