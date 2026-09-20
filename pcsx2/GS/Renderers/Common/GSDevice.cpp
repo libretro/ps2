@@ -167,6 +167,7 @@ GSTexture* GSDevice::FetchSurface(GSTexture::Type type, int width, int height, i
 		{
 			if (!prefer_new_texture || t->GetLastFrameUsed() != m_frame)
 			{
+				m_pool_memory_usage[type != GSTexture::Type::Texture] -= t->GetMemUsage();
 				pool.erase(i);
 				break;
 			}
@@ -185,6 +186,7 @@ GSTexture* GSDevice::FetchSurface(GSTexture::Type type, int width, int height, i
 			fallback != pool.end())
 		{
 			t = *fallback;
+			m_pool_memory_usage[type != GSTexture::Type::Texture] -= t->GetMemUsage();
 			pool.erase(fallback);
 		}
 		else
@@ -232,6 +234,16 @@ GSTexture* GSDevice::FetchSurface(GSTexture::Type type, int width, int height, i
 	return t;
 }
 
+u64 GSDevice::PoolByteBudget(u32 pool_idx) const
+{
+	/* What the whole of GS memory costs as host textures at the current
+	 * upscale, times how many of those the pool keeps around. */
+	const float scale = GSConfig.UpscaleMultiplier > 0.0f ? GSConfig.UpscaleMultiplier : 1.0f;
+	const u64 live_set = (u64)((float)VM_SIZE * scale * scale);
+	const u64 sets = (pool_idx == 0) ? POOL_LIVE_SETS_TEXTURES : POOL_LIVE_SETS_TARGETS;
+	return live_set * sets;
+}
+
 void GSDevice::Recycle(GSTexture* t)
 {
 	if (!t)
@@ -239,19 +251,34 @@ void GSDevice::Recycle(GSTexture* t)
 
 	t->SetLastFrameUsed(m_frame);
 
-	FastList<GSTexture*>& pool = m_pool[!t->IsTexture()];
+	const u32 idx = !t->IsTexture();
+	FastList<GSTexture*>& pool = m_pool[idx];
 	pool.push_front(t);
+	m_pool_memory_usage[idx] += t->GetMemUsage();
 
 	const u32 max_size = t->IsTexture() ? MAX_POOLED_TEXTURES : MAX_POOLED_TARGETS;
 	const u32 max_age = t->IsTexture() ? MAX_TEXTURE_AGE : MAX_TARGET_AGE;
-	while (pool.size() > max_size)
+	const u64 max_bytes = PoolByteBudget(idx);
+
+	while (pool.size() > max_size || m_pool_memory_usage[idx] > max_bytes)
 	{
-		// Don't toss when the texture was last used in this frame.
-		// Because we're going to need to keep it alive anyway.
 		GSTexture* back = pool.back();
-		if ((m_frame - back->GetLastFrameUsed()) < max_age)
+
+		/* Over the byte budget, the oldest goes whatever its age: holding
+		 * it is what makes the next allocation fail, and a texture the
+		 * game wants again is cheaper to recreate than a frame that does
+		 * not draw. Under it, the frame's own textures are kept as
+		 * before. */
+		if (m_pool_memory_usage[idx] <= max_bytes
+		 && (m_frame - back->GetLastFrameUsed()) < max_age)
 			break;
 
+		/* Except the ones this frame is still using - freeing those is
+		 * not a slow frame, it is a wrong one. */
+		if (back->GetLastFrameUsed() == m_frame && pool.size() <= 2)
+			break;
+
+		m_pool_memory_usage[idx] -= back->GetMemUsage();
 		delete back;
 
 		pool.pop_back();
@@ -289,13 +316,16 @@ void GSDevice::AgePool()
 	for (u32 pool_idx = 0; pool_idx < m_pool.size(); pool_idx++)
 	{
 		const u32 max_age = (pool_idx == 0) ? MAX_TEXTURE_AGE : MAX_TARGET_AGE;
+		const u64 max_bytes = PoolByteBudget(pool_idx);
 		FastList<GSTexture*>& pool = m_pool[pool_idx];
 		while (!pool.empty())
 		{
 			GSTexture* back = pool.back();
-			if ((m_frame - back->GetLastFrameUsed()) < max_age)
+			if (m_pool_memory_usage[pool_idx] <= max_bytes
+			 && (m_frame - back->GetLastFrameUsed()) < max_age)
 				break;
 
+			m_pool_memory_usage[pool_idx] -= back->GetMemUsage();
 			delete back;
 
 			pool.pop_back();
@@ -305,11 +335,13 @@ void GSDevice::AgePool()
 
 void GSDevice::PurgePool()
 {
+	u32 idx = 0;
 	for (FastList<GSTexture*>& pool : m_pool)
 	{
 		for (GSTexture* t : pool)
 			delete t;
 		pool.clear();
+		m_pool_memory_usage[idx++] = 0;
 	}
 }
 

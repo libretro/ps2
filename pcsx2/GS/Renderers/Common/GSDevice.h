@@ -778,6 +778,36 @@ protected:
 	static constexpr u32 MAX_TARGET_AGE = 20;
 	static constexpr u32 MAX_POOLED_TEXTURES = 300;
 	static constexpr u32 MAX_TEXTURE_AGE = 10;
+
+	/* What the pool may hold, in bytes, from what the console has rather
+	 * than from a number someone picked.
+	 *
+	 * A count bounds nothing. A target at 4x is 4096x3584, 58 MB, and
+	 * three hundred of those is seventeen gigabytes the pool sits on
+	 * instead of handing back - which is what "Failed to allocate device
+	 * memory for 4096x3584 texture" is: not a card too small for the
+	 * game, a pool holding every size the game has ever used.
+	 *
+	 * The PS2 has four megabytes of GS memory, and every render target,
+	 * depth buffer and texture the game has at any moment lives in those
+	 * four megabytes. That is the real bound, and the host copy of it is
+	 * the same thing multiplied by the upscale squared: 64 MB at 4x, 16
+	 * at 2x, 4 at native. The pool holds a few times the live set so
+	 * that a target returned this frame and wanted the next is still
+	 * there, and nothing beyond that.
+	 *
+	 * For comparison, paraLLEl-GS allocates one buffer of exactly
+	 * GSLocalMemory::m_vmsize and renders out of it; its video memory is
+	 * bounded by construction, because it never makes a host texture per
+	 * target at all. GSdx has to, but the count of them is still the
+	 * console's, not three hundred. */
+	static constexpr u32 POOL_LIVE_SETS_TARGETS  = 4;
+	static constexpr u32 POOL_LIVE_SETS_TEXTURES = 2;
+
+	/* pool_idx 0 is textures, 1 is targets. */
+	u64 PoolByteBudget(u32 pool_idx) const;
+
+	u64 m_pool_memory_usage[2] = {};
 	static constexpr u32 EXPAND_BUFFER_SIZE = sizeof(u16) * 16383 * 6;
 
 	WindowInfo m_window_info;

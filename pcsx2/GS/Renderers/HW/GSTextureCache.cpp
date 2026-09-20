@@ -5068,6 +5068,8 @@ GSTextureCache::HashCacheEntry* GSTextureCache::LookupHashCache(const GIFRegTEX0
 	if (!tex)
 	{
 		// out of video memory if we hit here
+		log_cb(RETRO_LOG_ERROR,
+			"GS: no %dx%d texture for the hash cache; this draw goes without one.\n", tw, th);
 		return nullptr;
 	}
 
