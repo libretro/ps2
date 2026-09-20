@@ -596,6 +596,8 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 			ci.flags |= VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT;
 
 		VkResult res = vmaCreateAllocator(&ci, &m_allocator);
+		if (res == VK_SUCCESS)
+			CreateTargetMemoryPool();
 		if (res != VK_SUCCESS)
 			return false;
 
@@ -845,6 +847,85 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 	void GSDeviceVK::WaitForGPUIdle()
 	{
 		vkDeviceWaitIdle(vk_init_info.device);
+	}
+
+	/* --- the arena targets live in ------------------------------------
+	 * paraLLEl-GS's model, applied to images: reserve the memory once and
+	 * hand out offsets inside it. Its scratch allocator is a 32 MB buffer
+	 * and a bumped offset, with the comment "reduces pressure on the
+	 * Granite allocator"; the same pressure here is worse, because an
+	 * image asks the driver for a VkDeviceMemory and a device only gives
+	 * out maxMemoryAllocationCount of those.
+	 *
+	 * So: one pool, blocks allocated up front, and every render target
+	 * and depth buffer suballocated from them. During a frame nothing
+	 * calls the driver. The ceiling is stated here - blocks times block
+	 * size - rather than being whatever the game happens to ask for, and
+	 * past it VMA refuses rather than the driver running out, which is a
+	 * failure this code can see coming.
+	 */
+	bool GSDeviceVK::CreateTargetMemoryPool(void)
+	{
+		/* What the console needs of it: every target a game has lives in
+		 * four megabytes of GS memory, so all of them at this upscale is
+		 * that times the scale squared. Two blocks of that, rounded to
+		 * something the driver will give in one piece. */
+		const float scale = GSConfig.UpscaleMultiplier > 0.0f ? GSConfig.UpscaleMultiplier : 1.0f;
+		u64 block = (u64)((float)VM_SIZE * scale * scale) * 2u;
+		VmaPoolCreateInfo pci = {};
+		VkImageCreateInfo ici = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
+		VmaAllocationCreateInfo aci = {};
+		u32 type_index = 0;
+		VkResult res;
+
+		if (block < 64u * 1024u * 1024u)
+			block = 64u * 1024u * 1024u;
+		if (block > 512u * 1024u * 1024u)
+			block = 512u * 1024u * 1024u;
+
+		/* The memory type a colour target would want, asked for with a
+		 * representative image rather than assumed. */
+		ici.imageType     = VK_IMAGE_TYPE_2D;
+		ici.format        = VK_FORMAT_R8G8B8A8_UNORM;
+		ici.extent        = {1024, 1024, 1};
+		ici.mipLevels     = 1;
+		ici.arrayLayers   = 1;
+		ici.samples       = VK_SAMPLE_COUNT_1_BIT;
+		ici.tiling        = VK_IMAGE_TILING_OPTIMAL;
+		ici.usage         = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT |
+			VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT |
+			VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
+		ici.sharingMode   = VK_SHARING_MODE_EXCLUSIVE;
+		ici.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		aci.usage         = VMA_MEMORY_USAGE_GPU_ONLY;
+
+		res = vmaFindMemoryTypeIndexForImageInfo(m_allocator, &ici, &aci, &type_index);
+		if (res != VK_SUCCESS)
+		{
+			log_cb(RETRO_LOG_WARN,
+				"GS: no memory type for a target arena; targets will allocate one at a time.\n");
+			return false;
+		}
+
+		pci.memoryTypeIndex = type_index;
+		pci.blockSize       = block;
+		pci.minBlockCount   = 1;  /* allocated now, not during a frame */
+		pci.maxBlockCount   = 4;  /* and the ceiling                    */
+
+		res = vmaCreatePool(m_allocator, &pci, &m_target_pool);
+		if (res != VK_SUCCESS)
+		{
+			m_target_pool = VK_NULL_HANDLE;
+			log_cb(RETRO_LOG_WARN,
+				"GS: could not reserve a %llu MB target arena; targets will allocate one at a time.\n",
+				(unsigned long long)(block >> 20));
+			return false;
+		}
+
+		log_cb(RETRO_LOG_INFO,
+			"GS: target arena reserved, %llu MB per block, up to %u blocks.\n",
+			(unsigned long long)(block >> 20), (unsigned)pci.maxBlockCount);
+		return true;
 	}
 
 	void GSDeviceVK::WaitForCommandBufferCompletion(u32 index)
@@ -1326,6 +1407,11 @@ void GSDeviceVK::Destroy()
 	DestroyCommandBuffers();
 
 	if (m_allocator != VK_NULL_HANDLE)
+		if (m_target_pool != VK_NULL_HANDLE)
+		{
+			vmaDestroyPool(m_allocator, m_target_pool);
+			m_target_pool = VK_NULL_HANDLE;
+		}
 		vmaDestroyAllocator(m_allocator);
 	m_allocator = VK_NULL_HANDLE;
 

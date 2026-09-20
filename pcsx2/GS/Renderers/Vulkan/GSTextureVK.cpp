@@ -130,13 +130,26 @@ std::unique_ptr<GSTextureVK> GSTextureVK::Create(Type type, Format format, int w
 	if ((type == Type::RenderTarget || type == Type::DepthStencil) && width >= 512 && height >= 448)
 		aci.flags |= VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
 
+	/* Out of the arena reserved when the device was made, so this is an
+	 * offset inside memory that already exists rather than a call to the
+	 * driver (GSDeviceVK::CreateTargetMemoryPool). Textures the game
+	 * uploads are small and many, and go to the allocator as before. */
+	if (type == Type::RenderTarget || type == Type::DepthStencil)
+	{
+		const VmaPool pool = GSDeviceVK::GetInstance()->GetTargetMemoryPool();
+		if (pool != VK_NULL_HANDLE)
+			aci.pool = pool;
+	}
+
 	VkImage image = VK_NULL_HANDLE;
 	VmaAllocation allocation = VK_NULL_HANDLE;
 	VkResult res = vmaCreateImage(GSDeviceVK::GetInstance()->GetAllocator(), &ici, &aci, &image, &allocation, nullptr);
-	if (aci.flags & VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT && res != VK_SUCCESS)
+	if (res != VK_SUCCESS && aci.pool != VK_NULL_HANDLE)
 	{
-		// try without dedicated allocation
-		aci.flags &= ~VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
+		/* The arena is full, or this image cannot live in it - a depth
+		 * format the pool's memory type does not take, say. The
+		 * allocator still has the rest of the device. */
+		aci.pool = VK_NULL_HANDLE;
 		res = vmaCreateImage(GSDeviceVK::GetInstance()->GetAllocator(), &ici, &aci, &image, &allocation, nullptr);
 	}
 	if (res == VK_ERROR_OUT_OF_DEVICE_MEMORY)

@@ -155,6 +155,14 @@ public:
 
        // Global state accessors
        __fi VmaAllocator GetAllocator() const { return m_allocator; }
+
+       /* The arena render target and depth buffer images are bound into.
+        * Its blocks are allocated when the device is created and reused
+        * for the run: a target made during a frame is an offset inside
+        * memory that already exists, not a call to the driver. NULL if
+        * the pool could not be made, in which case images go to the
+        * allocator as before. */
+       __fi VmaPool GetTargetMemoryPool() const { return m_target_pool; }
        __fi VkQueue GetGraphicsQueue() const { return m_graphics_queue; }
        __fi u32 GetGraphicsQueueFamilyIndex() const { return m_graphics_queue_family_index; }
        __fi const VkPhysicalDeviceProperties& GetDeviceProperties() const { return m_device_properties; }
@@ -325,6 +333,8 @@ private:
        };
 
        VmaAllocator m_allocator = VK_NULL_HANDLE;
+       VmaPool m_target_pool = VK_NULL_HANDLE;
+       bool CreateTargetMemoryPool(void);
 
        VkCommandBuffer m_current_command_buffer = VK_NULL_HANDLE;
 
