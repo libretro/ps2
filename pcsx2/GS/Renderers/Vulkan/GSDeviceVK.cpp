@@ -613,11 +613,18 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 		fns.invalidate_ranges = vkInvalidateMappedMemoryRanges;
 
 		/* And a ceiling, because a heap without one takes blocks until
-		 * the card is gone. Eight times what everything a PS2 game has
-		 * at once costs at this upscale - and never fewer than four
-		 * blocks, or at native the ceiling would be smaller than a
-		 * block and the first allocation would fail. */
-		u64 ceiling = (u64)((float)VM_SIZE * scale * scale) * 8u;
+		 * the card is gone.
+		 *
+		 * Sixteen times what everything a PS2 game has at once costs at
+		 * this upscale, because the budgets above the heap already come
+		 * to more than half that: the pool may hold four live sets of
+		 * targets and two of textures, the cache two of live targets,
+		 * the upload buffers one, and the hash cache its own. A ceiling
+		 * under that sum refuses allocations the renderer is entitled to
+		 * make, and the code above does not all cope with being refused.
+		 * Never fewer than four blocks either, or at native the ceiling
+		 * would be smaller than one block. */
+		u64 ceiling = (u64)((float)VM_SIZE * scale * scale) * 16u;
 
 		if (ceiling < block * 4u)
 			ceiling = block * 4u;

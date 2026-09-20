@@ -5363,6 +5363,15 @@ GSTexture* GSTextureCache::LookupPaletteObject(const u32* clut, u16 pal, bool ne
 
 void GSTextureCache::Read(Target* t, const GSVector4i& r)
 {
+	/* A target with no texture has nothing to read back. That used to be
+	 * impossible - every path that makes one checks the allocation and
+	 * gives up - and now it is not, because the heap has a ceiling and
+	 * refuses past it, so a target can outlive the allocation that
+	 * failed. ReadbackAll walks every target at reset and this one
+	 * dereferenced it for GetSize. */
+	if (!t->m_texture)
+		return;
+
 	if ((!t->m_dirty.empty() && !t->m_dirty.GetTotalRect(t->m_TEX0, t->m_unscaled_size).rintersect(r).rempty())
 		|| r.width() == 0 || r.height() == 0)
 		return;
@@ -5504,6 +5513,9 @@ void GSTextureCache::Read(Target* t, const GSVector4i& r)
 
 void GSTextureCache::Read(Source* t, const GSVector4i& r)
 {
+	if (!t->m_texture)
+		return;
+
 	// Same clamp as the Target variant: keep the source box inside the texture.
 	const GSVector4i tr = r.rintersect(GSVector4i(0, 0, t->m_texture->GetWidth(), t->m_texture->GetHeight()));
 	if (tr.rempty())
