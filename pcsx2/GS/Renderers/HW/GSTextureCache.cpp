@@ -5194,7 +5194,19 @@ void GSTextureCache::AgeHashCache()
 	constexpr u32 MAX_HASH_CACHE_SIZE = 800;
 	constexpr u32 MAX_HASH_CACHE_AGE = 30;
 
-	bool might_need_cache_purge = (m_hash_cache.size() > MAX_HASH_CACHE_SIZE);
+	/* And the same number in bytes, because eight hundred bounds nothing
+	 * on its own: Corvette's are 17x17 and a game with 1024x1024 textures
+	 * reaches the same count at four thousand times the memory. These are
+	 * the game's own textures rather than upscaled targets, so the
+	 * console's bound applies directly - everything a game has is in four
+	 * megabytes of GS memory - with room for the ones this keeps beyond
+	 * what is live, and for replacements, which are not the console's
+	 * size at all. */
+	constexpr u64 MAX_HASH_CACHE_BYTES = 8ull * VM_SIZE;
+
+	const u64 hash_bytes = m_hash_cache_memory_usage + m_hash_cache_replacement_memory_usage;
+	bool might_need_cache_purge = (m_hash_cache.size() > MAX_HASH_CACHE_SIZE
+			|| hash_bytes > MAX_HASH_CACHE_BYTES);
 	if (might_need_cache_purge)
 		s_hash_cache_purge_list.clear();
 
@@ -5216,7 +5228,9 @@ void GSTextureCache::AgeHashCache()
 		// We might free up enough just with "normal" removals above.
 		if (might_need_cache_purge)
 		{
-			might_need_cache_purge = (m_hash_cache.size() > MAX_HASH_CACHE_SIZE);
+			might_need_cache_purge = (m_hash_cache.size() > MAX_HASH_CACHE_SIZE
+					|| (m_hash_cache_memory_usage + m_hash_cache_replacement_memory_usage)
+						> MAX_HASH_CACHE_BYTES);
 			if (might_need_cache_purge)
 				s_hash_cache_purge_list.emplace_back(it, static_cast<s32>(e.age));
 		}
@@ -5230,9 +5244,23 @@ void GSTextureCache::AgeHashCache()
 		std::sort(s_hash_cache_purge_list.begin(), s_hash_cache_purge_list.end(),
 			[](const auto& lhs, const auto& rhs) { return lhs.second > rhs.second; });
 
-		const u32 entries_to_purge = pcsx2_min_u(static_cast<u32>(m_hash_cache.size() - MAX_HASH_CACHE_SIZE), static_cast<u32>(s_hash_cache_purge_list.size()));
-		for (u32 i = 0; i < entries_to_purge; i++)
+		/* Oldest first, as before, but stopping on either bound rather
+		 * than only on the count - over the byte budget with a count
+		 * under eight hundred, the old code purged nothing at all. */
+		const u32 over_count = (m_hash_cache.size() > MAX_HASH_CACHE_SIZE)
+			? static_cast<u32>(m_hash_cache.size() - MAX_HASH_CACHE_SIZE) : 0;
+		const u32 purgeable = static_cast<u32>(s_hash_cache_purge_list.size());
+		u32 i;
+
+		for (i = 0; i < purgeable; i++)
+		{
+			const bool over_bytes =
+				(m_hash_cache_memory_usage + m_hash_cache_replacement_memory_usage)
+					> MAX_HASH_CACHE_BYTES;
+			if (i >= over_count && !over_bytes)
+				break;
 			RemoveFromHashCache(s_hash_cache_purge_list[i].first);
+		}
 	}
 }
 
