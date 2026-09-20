@@ -36,6 +36,18 @@ int gs_object_pool_init(gs_object_pool_t *pool, size_t size, unsigned count)
       return 0;
    }
 
+   /* Zeroed: nothing is out with a caller yet. */
+   pool->in_use = (unsigned char*)calloc(count, 1);
+   if (!pool->in_use)
+   {
+      free(pool->free_indices);
+      pool->free_indices = NULL;
+      memalign_free(pool->slots);
+      pool->slots = NULL;
+      return 0;
+   }
+   pool->double_frees = 0;
+
    /* Handed out from the end, so a run of takes gets the low slots and
     * they stay near each other. */
    for (i = 0; i < count; i++)
@@ -53,8 +65,11 @@ void gs_object_pool_free(gs_object_pool_t *pool)
       memalign_free(pool->slots);
    if (pool->free_indices)
       free(pool->free_indices);
+   if (pool->in_use)
+      free(pool->in_use);
    pool->slots        = NULL;
    pool->free_indices = NULL;
+   pool->in_use       = NULL;
    pool->stride       = 0;
    pool->count        = 0;
    pool->free_count   = 0;

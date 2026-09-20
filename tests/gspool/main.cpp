@@ -64,6 +64,32 @@ int main()
 		CHECK(q[0] == (i & 0xff) && q[sz - 1] == (i & 0xff), "slot contents intact");
 	}
 	for (i = 0; i < POOL; i++) give(p[i]);
+	/* A second free of the same object must not put the slot on the free
+	 * list twice: that hands one slot to two callers, and a live object
+	 * gets overwritten by an unrelated one - which shows up as the same
+	 * address being destroyed over and over, and then a lockup.
+	 *
+	 * paraLLEl-GS cannot have this bug, because it owns images through a
+	 * refcounted handle and a second free is not something a call site
+	 * can express. Sources and targets here are raw pointers. */
+	{
+		gs_object_pool_t dbl;
+		void* x;
+		void* y;
+		void* z;
+		memset(&dbl, 0, sizeof(dbl));
+		gs_object_pool_init(&dbl, 64, 4);
+		x = gs_object_pool_take(&dbl, 64);
+		CHECK(x != NULL, "took one");
+		CHECK(gs_object_pool_give(&dbl, x) == 1, "gave it back");
+		CHECK(gs_object_pool_give(&dbl, x) == 1, "gave it back twice, which is a caller bug");
+		CHECK(dbl.double_frees == 1, "and the pool counted it rather than corrupting itself");
+		y = gs_object_pool_take(&dbl, 64);
+		z = gs_object_pool_take(&dbl, 64);
+		CHECK(y != z, "two takes never hand out one slot");
+		gs_object_pool_free(&dbl);
+	}
+
 	printf(fails ? "pool: FAILED (%d)\n" : "pool: ok\n", fails);
 	return fails != 0;
 }

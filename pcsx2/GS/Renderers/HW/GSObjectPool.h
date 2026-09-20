@@ -35,9 +35,14 @@ typedef struct gs_object_pool
 {
    unsigned char  *slots;        /* one allocation, count * stride     */
    unsigned short *free_indices; /* the slots nobody holds             */
+   /* One byte a slot: out with a caller, or on the free list. What
+    * makes a second free of the same object detectable instead of
+    * fatal. */
+   unsigned char  *in_use;
    size_t          stride;       /* bytes per slot, 32-byte aligned    */
    unsigned        count;        /* how many slots there are           */
    unsigned        free_count;   /* how many of them are free          */
+   unsigned        double_frees; /* callers that freed twice           */
 } gs_object_pool_t;
 
 /* Sizes the pool for objects of `size` bytes and allocates it. Returns 0
@@ -58,9 +63,14 @@ void gs_object_pool_free(gs_object_pool_t *pool);
 /* A slot, or NULL when the pool is empty or `size` does not fit one. */
 static void *gs_object_pool_take(gs_object_pool_t *pool, size_t size)
 {
+   unsigned index;
+
    if (!pool->free_count || size > pool->stride)
       return NULL;
-   return pool->slots + (size_t)pool->free_indices[--pool->free_count] * pool->stride;
+   index = pool->free_indices[--pool->free_count];
+   if (pool->in_use)
+      pool->in_use[index] = 1;
+   return pool->slots + (size_t)index * pool->stride;
 }
 
 /* Returns a slot to the pool. Tells the caller whether `p` was one:
@@ -69,6 +79,7 @@ static void *gs_object_pool_take(gs_object_pool_t *pool, size_t size)
 static int gs_object_pool_give(gs_object_pool_t *pool, void *p)
 {
    size_t off;
+   unsigned index;
 
    if (!pool->slots)
       return 0;
@@ -78,8 +89,28 @@ static int gs_object_pool_give(gs_object_pool_t *pool, void *p)
    if (off >= pool->stride * pool->count)
       return 0;
 
+   index = (unsigned)(off / pool->stride);
+
+   /* Already back. Something freed this object twice, and putting the
+    * slot on the free list again hands it to two callers at once - a
+    * live object overwritten by an unrelated one, which is the same
+    * address destroyed over and over in the log and then a lockup.
+    *
+    * paraLLEl-GS does not need this: it owns images through a refcounted
+    * handle, so a second free is not something a call site can express.
+    * Sources and targets here are raw pointers freed by whoever
+    * remembers to. Until that is a handle, the pool refuses. */
+   if (pool->in_use && !pool->in_use[index])
+   {
+      pool->double_frees++;
+      return 1;
+   }
+
+   if (pool->in_use)
+      pool->in_use[index] = 0;
+
    if (pool->free_count < pool->count)
-      pool->free_indices[pool->free_count++] = (unsigned short)(off / pool->stride);
+      pool->free_indices[pool->free_count++] = (unsigned short)index;
    return 1;
 }
 

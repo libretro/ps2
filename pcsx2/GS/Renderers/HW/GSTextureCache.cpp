@@ -5658,11 +5658,18 @@ GSTextureCache::Source::~Source()
 	 * corrupting the heap is not. */
 	if (m_alive != ALIVE)
 	{
-		log_cb(RETRO_LOG_ERROR,
-			"GS: destroying a source that is %s (marker 0x%08x, source %p). "
-			"Nothing freed.\n",
-			(m_alive == 0) ? "already destroyed" : "not a source at all",
-			m_alive, (void*)this);
+		/* Once. This fired thousands of times a second on one address and
+		 * the log was the lockup as much as anything else was. */
+		static bool said = false;
+		if (!said)
+		{
+			said = true;
+			log_cb(RETRO_LOG_ERROR,
+				"GS: destroying a source that is %s (marker 0x%08x, source %p). "
+				"Nothing freed; this is said once.\n",
+				(m_alive == 0) ? "already destroyed" : "not a source at all",
+				m_alive, (void*)this);
+		}
 		return;
 	}
 	m_alive = 0;
@@ -6396,6 +6403,16 @@ void GSTextureCache::SourceMap::RemoveAll()
 
 void GSTextureCache::SourceMap::RemoveAt(Source* s)
 {
+	/* A source that has already been destroyed is taken out of the
+	 * structures and left alone. Freeing it again would put its pool slot
+	 * on the free list twice, and the log that led here was the same
+	 * address destroyed over and over until the game stopped. */
+	if (s->m_alive != Source::ALIVE)
+	{
+		m_surfaces.erase(s);
+		return;
+	}
+
 	m_surfaces.erase(s);
 
 	s->m_pages.loopPages([this, s](u32 page)
