@@ -12,8 +12,10 @@ CC=${CC:-cc}
 SANFLAGS=""
 [ -n "$SANITIZER" ] && SANFLAGS="-fsanitize=$SANITIZER"
 
-# -DNDEBUG matters: __fi is always_inline only under it, so without it none
-# of the GTE inlines and the census describes a build nobody ships.
+# Measured with the flags the core actually ships with. Makefile builds the
+# emulator at -O3 -DNDEBUG -fno-strict-aliasing, and __fi is always_inline
+# only under NDEBUG -- without it nothing inlines, the units come out a
+# fraction of their real size, and the census describes a build nobody runs.
 #
 # --bench times the converted GTE against the C++ it came from, both linked
 # into one process (the old one's symbols prefixed with objcopy) so the two
@@ -53,10 +55,10 @@ void iopMemWrite32(u32 m, u32 v) { (void)m; (void)v; }
 }
 PROLOGUE
 
-	${CXX:-c++} -O2 -DNDEBUG -std=c++17 -w $INC -c "$TMP/old.cpp"   -o "$TMP/old.o"
+	${CXX:-c++} -O3 -DNDEBUG -fno-strict-aliasing -std=c++17 -w $INC -c "$TMP/old.cpp"   -o "$TMP/old.o"
 	${CXX:-c++} -O2 -std=c++17 -w $INC -c "$TMP/state.cpp"     -o "$TMP/state.o"
 	${CXX:-c++} -O2 -std=c++17 -w $INC -c "$DIR/gtebench.cpp"  -o "$TMP/bench.o"
-	${CC:-cc}   -O2 -DNDEBUG -std=gnu89 -w $INC -c "$ROOT/pcsx2/IopGte.c" -o "$TMP/new.o"
+	${CC:-cc}   -O3 -DNDEBUG -fno-strict-aliasing -std=gnu89 -w $INC -c "$ROOT/pcsx2/IopGte.c" -o "$TMP/new.o"
 	objcopy --prefix-symbols=old_ "$TMP/old.o"   "$TMP/old_p.o"
 	objcopy --prefix-symbols=old_ "$TMP/state.o" "$TMP/state_p.o"
 	${CXX:-c++} -O2 -no-pie -o "$TMP/gtebench" "$TMP/bench.o" "$TMP/new.o" \

@@ -10,10 +10,15 @@ g++ -O2 -std=c++17 -msse4.1 -o "$DIR/gs_vertex_oracle" "$DIR/gs_vertex_oracle.cp
     -I"$ROOT/libretro/libretro-common/include"
 "$DIR/gs_vertex_oracle"
 
+# The two benchmarks below build with the flags the core ships with. __fi is
+# always_inline only under NDEBUG, so at plain -O2 the kernels they time are
+# not the kernels the emulator runs.
+REALFLAGS="-O3 -DNDEBUG -fno-strict-aliasing"
+
 # Micro-benchmark: is the vector accept/cull decision worth replacing on this
 # host? Prints ns/prim for the shipped kernel and for the scalar-outcode form
 # GV-3 proposes, after checking the two agree.
-g++ -O2 -std=c++17 -msse4.1 -o "$DIR/gs_vertex_bench" "$DIR/gs_vertex_bench.cpp" \
+g++ $REALFLAGS -std=c++17 -msse4.1 -o "$DIR/gs_vertex_bench" "$DIR/gs_vertex_bench.cpp" \
     -I"$ROOT" -I"$ROOT/common" -I"$ROOT/common/include" -I"$ROOT/pcsx2" \
     -I"$ROOT/3rdparty" -I"$ROOT/3rdparty/include" \
     -I"$ROOT/libretro/libretro-common/include"
@@ -22,7 +27,7 @@ g++ -O2 -std=c++17 -msse4.1 -o "$DIR/gs_vertex_bench" "$DIR/gs_vertex_bench.cpp"
 # Would fusing FindMinMax into the kick pay off on this host? Compares the
 # legacy index walk against accumulate-at-kick, with the sticky-NaN work x86
 # would need included on the fused side.
-g++ -O2 -std=c++17 -msse4.1 -o "$DIR/gs_fmm_bench" "$DIR/gs_fmm_bench.cpp" \
+g++ $REALFLAGS -std=c++17 -msse4.1 -o "$DIR/gs_fmm_bench" "$DIR/gs_fmm_bench.cpp" \
     -I"$ROOT" -I"$ROOT/common" -I"$ROOT/common/include" -I"$ROOT/pcsx2" \
     -I"$ROOT/3rdparty" -I"$ROOT/3rdparty/include" \
     -I"$ROOT/libretro/libretro-common/include"

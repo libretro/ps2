@@ -26,6 +26,10 @@ trap 'rm -rf "$TMP"' EXIT
 
 STRL="$ROOT/libretro/libretro-common/compat/compat_strl.c"
 
+# The flags the core ships with; __fi is always_inline only under NDEBUG,
+# so a measurement without it describes a build nobody runs.
+REALFLAGS="-O3 -DNDEBUG -fno-strict-aliasing"
+
 # --bench times the new struct against the class it replaced, and --codegen
 # prints what each emits on the two hot paths. Both are reproducible claims
 # rather than a number in a commit message.
@@ -33,8 +37,8 @@ if [ "$1" = "--codegen" ]; then
 	for CC in gcc clang; do
 		command -v "$CC" >/dev/null 2>&1 || continue
 		case $CC in gcc) CXX=g++ ;; clang) CXX=clang++ ;; esac
-		$CC  -O2 -std=gnu89 $INC -c "$ROOT/pcsx2/SaveStateBase.c" -o "$TMP/n.o"
-		$CXX -O2 -std=c++17 -DBENCH_OLD_NOINLINE $INC -c "$DIR/bench_old.cpp" -o "$TMP/o.o"
+		$CC  $REALFLAGS -std=gnu89 $INC -c "$ROOT/pcsx2/SaveStateBase.c" -o "$TMP/n.o"
+		$CXX $REALFLAGS -std=c++17 -DBENCH_OLD_NOINLINE $INC -c "$DIR/bench_old.cpp" -o "$TMP/o.o"
 		echo
 		echo "=== $CXX: the class ==="
 		objdump -d --no-show-raw-insn -C "$TMP/o.o" |
@@ -53,10 +57,10 @@ if [ "$1" = "--bench" ]; then
 		case $CC in gcc) CXX=g++ ;; clang) CXX=clang++ ;; esac
 		echo
 		echo "=== $CC ==="
-		$CC  -O2 -std=gnu89 $INC -c "$ROOT/pcsx2/SaveStateBase.c" -o "$TMP/ss.o"
-		$CC  -O2 -std=gnu89 $INC -c "$STRL"                   -o "$TMP/strl.o"
-		$CC  -O2 -std=gnu89 $INC -c "$DIR/bench.c"            -o "$TMP/bench.o"
-		$CXX -O2 -std=c++17 $INC -c "$DIR/bench_old.cpp"      -o "$TMP/old.o"
+		$CC  $REALFLAGS -std=gnu89 $INC -c "$ROOT/pcsx2/SaveStateBase.c" -o "$TMP/ss.o"
+		$CC  $REALFLAGS -std=gnu89 $INC -c "$STRL"            -o "$TMP/strl.o"
+		$CC  $REALFLAGS -std=gnu89 $INC -c "$DIR/bench.c"     -o "$TMP/bench.o"
+		$CXX $REALFLAGS -std=c++17 $INC -c "$DIR/bench_old.cpp" -o "$TMP/old.o"
 		$CXX -O2 "$TMP/bench.o" "$TMP/old.o" "$TMP/ss.o" "$TMP/strl.o" \
 		     -o "$TMP/savestate_bench"
 		"$TMP/savestate_bench" "${2:-15}" "${3:-20}"

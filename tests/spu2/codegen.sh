@@ -15,6 +15,10 @@
 #
 # Run it under both compilers: the census covers g++ and clang++ and tags
 # each line, so a change that only helps one of them is visible.
+# Measured with the flags the core actually ships with. Makefile builds the
+# emulator at -O3 -DNDEBUG -fno-strict-aliasing, and __fi is always_inline
+# only under NDEBUG -- without it nothing inlines, the units come out a
+# fraction of their real size, and the census describes a build nobody runs.
 set -e
 DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 ROOT=$(CDPATH= cd -- "$DIR/../.." && pwd)
@@ -34,8 +38,8 @@ for CXX in g++ clang++; do
 		[ -f "$src" ] || continue
 		case $src in
 		*.c) CC=$(echo "$CXX" | sed 's/++$//;s/^g$/gcc/')
-		     $CC -O2 -std=gnu89 -msse4.1 $INC -S "$src" -o "$TMP/u.s" ;;
-		*)   $CXX -O2 -std=c++17 -msse4.1 $INC -S "$src" -o "$TMP/u.s" ;;
+		     $CC -O3 -DNDEBUG -fno-strict-aliasing -std=gnu89 -msse4.1 $INC -S "$src" -o "$TMP/u.s" ;;
+		*)   $CXX -O3 -DNDEBUG -fno-strict-aliasing -std=c++17 -msse4.1 $INC -S "$src" -o "$TMP/u.s" ;;
 		esac
 		awk -v tag="$CXX" -v unit="$u" '
 			/^[_A-Za-z][_A-Za-z0-9.$]*:$/ { cur=substr($0,1,length($0)-1); n=0; m=0; next }
