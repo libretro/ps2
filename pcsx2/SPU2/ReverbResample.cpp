@@ -4,14 +4,6 @@ extern "C" {
 #include "../GS/gs_vector.h"
 }
 
-/* The 256-bit paths stay on raw intrinsics: gs_vector is a 128-bit
- * header, and AVX2 is the only place a 16-lane form exists at all. */
-#if _M_SSE >= 0x501
-#include <immintrin.h>
-#endif
-
-MULTI_ISA_UNSHARED_START
-
 #define NUM_TAPS 39
 // 39 tap filter, the 0's could be optimized out
 alignas(32) static const s16 filter_down_coefs[48] = {
@@ -96,29 +88,6 @@ static void make_up_coefs(void)
  * paths are bit-identical to each other.
  */
 
-#if _M_SSE >= 0x501
-s32 __forceinline ReverbDownsample_avx(V_Core *core, bool right)
-{
-	__m256i acc, c, s;
-	const s16 *buf = &core->RevbDownBuf[right][(core->RevbSampleBufPos - NUM_TAPS) & 63];
-
-#define TAP(k) _mm256_mulhrs_epi16( \
-                  _mm256_loadu_si256((const __m256i *)&buf[k]), \
-                  _mm256_load_si256((const __m256i *)&filter_down_coefs[k]))
-	acc = TAP(0);
-	acc = _mm256_adds_epi16(acc, TAP(16));
-	acc = _mm256_adds_epi16(acc, TAP(32));
-#undef TAP
-
-	/* fold the upper half onto the lower, then the lower onto itself */
-	acc = _mm256_adds_epi16(acc, _mm256_permute2x128_si256(acc, acc, 0x01));
-	acc = _mm256_hadds_epi16(acc, acc);
-	acc = _mm256_hadds_epi16(acc, acc);
-	acc = _mm256_hadds_epi16(acc, acc);
-
-	return (s16)_mm_extract_epi16(_mm256_castsi256_si128(acc), 0);
-}
-#endif
 
 s32 __forceinline ReverbDownsample_sse(V_Core *core, bool right)
 {
@@ -148,11 +117,7 @@ s32 __forceinline ReverbDownsample_sse(V_Core *core, bool right)
 
 s32 ReverbDownsample(V_Core *core, bool right)
 {
-#if _M_SSE >= 0x501
-	return ReverbDownsample_avx(core, right);
-#else
 	return ReverbDownsample_sse(core, right);
-#endif
 }
 
 /*
@@ -162,42 +127,6 @@ s32 ReverbDownsample(V_Core *core, bool right)
  * implementation; a full-precision scalar accumulate would not be bit-exact.
  */
 
-#if _M_SSE >= 0x501
-StereoOut32 __forceinline ReverbUpsample_avx(V_Core *core)
-{
-	__m256i lacc, racc;
-	StereoOut32 ret;
-	const int index = (core->RevbSampleBufPos - NUM_TAPS) & 63;
-	const s16 *lbuf = &core->RevbUpBuf[0][index];
-	const s16 *rbuf = &core->RevbUpBuf[1][index];
-
-#define TAP(b, k) _mm256_mulhrs_epi16( \
-                     _mm256_loadu_si256((const __m256i *)&(b)[k]), \
-                     _mm256_load_si256((const __m256i *)&filter_up_coefs[k]))
-	lacc = TAP(lbuf, 0);
-	racc = TAP(rbuf, 0);
-	lacc = _mm256_adds_epi16(lacc, TAP(lbuf, 16));
-	racc = _mm256_adds_epi16(racc, TAP(rbuf, 16));
-	lacc = _mm256_adds_epi16(lacc, TAP(lbuf, 32));
-	racc = _mm256_adds_epi16(racc, TAP(rbuf, 32));
-#undef TAP
-
-	lacc = _mm256_adds_epi16(lacc, _mm256_permute2x128_si256(lacc, lacc, 0x01));
-	racc = _mm256_adds_epi16(racc, _mm256_permute2x128_si256(racc, racc, 0x01));
-
-	lacc = _mm256_hadds_epi16(lacc, lacc);
-	lacc = _mm256_hadds_epi16(lacc, lacc);
-	lacc = _mm256_hadds_epi16(lacc, lacc);
-
-	racc = _mm256_hadds_epi16(racc, racc);
-	racc = _mm256_hadds_epi16(racc, racc);
-	racc = _mm256_hadds_epi16(racc, racc);
-
-	ret.Left  = (s16)_mm_extract_epi16(_mm256_castsi256_si128(lacc), 0);
-	ret.Right = (s16)_mm_extract_epi16(_mm256_castsi256_si128(racc), 0);
-	return ret;
-}
-#endif
 
 StereoOut32 __forceinline ReverbUpsample_sse(V_Core *core)
 {
@@ -240,11 +169,5 @@ StereoOut32 __forceinline ReverbUpsample_sse(V_Core *core)
 StereoOut32 ReverbUpsample(V_Core *core)
 {
 	make_up_coefs();
-#if _M_SSE >= 0x501
-	return ReverbUpsample_avx(core);
-#else
 	return ReverbUpsample_sse(core);
-#endif
 }
-
-MULTI_ISA_UNSHARED_END

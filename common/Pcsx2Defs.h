@@ -30,12 +30,19 @@
 #endif
 
 #include "Pcsx2Types.h"
+#ifdef __cplusplus
 #include <cstddef>
 #include <cassert>
+#else
+#include <stddef.h>
+#include <assert.h>
+#endif
 
+#ifdef __cplusplus
 // The C++ standard doesn't allow `offsetof` to be used on non-constant values (e.g. `offsetof(class, field[i])`)
 // Use this in those situations
 #define OFFSETOF(a, b) (reinterpret_cast<size_t>(&(static_cast<a*>(0)->b)))
+#endif
 
 // Coarse CPU family selector used to pick SIMD backends (SSE vs NEON), e.g. the
 // GSVector implementation. Mirrors the scheme used by the modern PCSX2/ARMSX2
@@ -486,10 +493,12 @@ PCSX2_DEFINE_MINMAX(d,   double)
 \
 	extern const char* EnumToString(enumName id)
 
+#ifdef __cplusplus
 class pxEnumEnd_t
 {
 };
 static const pxEnumEnd_t pxEnumEnd = {};
+#endif
 
 // --------------------------------------------------------------------------------------
 //  DeclareNoncopyableObject
@@ -510,6 +519,9 @@ public: \
 // --------------------------------------------------------------------------------------
 //  Handy Human-readable constants for common immediate values (_16kb -> _4gb)
 
+/* C++ keeps the typed constants it always had; C gets macros of the same
+ * values, since the SPU2 sources are built as C. */
+#ifdef __cplusplus
 static constexpr sptr _1kb = 1024 * 1;
 static constexpr sptr _4kb = _1kb * 4;
 static constexpr sptr _16kb = _1kb * 16;
@@ -526,6 +538,24 @@ static constexpr s64 _64mb = _1mb * 64;
 static constexpr s64 _256mb = _1mb * 256;
 static constexpr s64 _1gb = _1mb * 1024;
 static constexpr s64 _4gb = _1gb * 4;
+#else
+#define _1kb   (1024 * 1)
+#define _4kb   (_1kb * 4)
+#define _16kb  (_1kb * 16)
+#define _32kb  (_1kb * 32)
+#define _64kb  (_1kb * 64)
+#define _128kb (_1kb * 128)
+#define _256kb (_1kb * 256)
+
+#define _1mb   (1024 * 1024)
+#define _8mb   (_1mb * 8)
+#define _16mb  (_1mb * 16)
+#define _32mb  (_1mb * 32)
+#define _64mb  (_1mb * 64)
+#define _256mb (_1mb * 256)
+#define _1gb   ((s64)_1mb * 1024)
+#define _4gb   (_1gb * 4)
+#endif
 
 // Disable some spammy warnings which wx appeared to disable.
 // We probably should fix these at some point.

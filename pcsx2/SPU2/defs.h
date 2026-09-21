@@ -18,8 +18,7 @@
 #include "Mixer.h"
 #include "SndOut.h"
 #include "Global.h"
-
-#include "../GS/MultiISA.h"
+#include "../../common/Pcsx2Defs.h"
 
 struct V_SPDIF
 {
@@ -462,13 +461,8 @@ static __fi void V_Core_DmaWrite(V_Core *c, u16 value)
 	c->TSA = c->ActiveTSA;
 }
 
-MULTI_ISA_DEF(
-	StereoOut32 ReverbUpsample(V_Core *core);
-	s32 ReverbDownsample(V_Core *core, bool right);
-)
-
-extern StereoOut32 (*ReverbUpsample)(V_Core *core);
-extern s32 (*ReverbDownsample)(V_Core *core, bool right);
+StereoOut32 ReverbUpsample(V_Core *core);
+s32         ReverbDownsample(V_Core *core, bool right);
 
 extern bool has_to_call_irq[2];
 extern bool has_to_call_irq_dma[2];

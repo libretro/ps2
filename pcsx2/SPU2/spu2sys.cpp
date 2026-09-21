@@ -50,8 +50,6 @@ int PlayMode;
 bool has_to_call_irq[2]     = { false, false };
 bool has_to_call_irq_dma[2] = { false, false };
 bool has_irq_armed          = false;
-StereoOut32 (*ReverbUpsample)(V_Core *core);
-s32 (*ReverbDownsample)(V_Core *core, bool right);
 
 static bool psxmode = false;
 
@@ -73,8 +71,6 @@ __fi void spu2M_Write(u32 addr, s16 value)
 
 void V_Core_Init(V_Core *c, int index)
 {
-	ReverbDownsample = MULTI_ISA_SELECT(ReverbDownsample);
-	ReverbUpsample = MULTI_ISA_SELECT(ReverbUpsample);
 
 	// Explicitly initializing variables instead.
 	c->Mute = false;

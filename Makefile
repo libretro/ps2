@@ -659,8 +659,7 @@ MULTI_ISA_UNSHARED_SRC := \
 	$(LRPS2_DIR)/GS/Renderers/SW/GSSetupPrimCodeGenerator.all.cpp \
 	$(LRPS2_DIR)/IPU/IPU_MultiISA.cpp \
 	$(LRPS2_DIR)/IPU/IPUdither.cpp \
-	$(LRPS2_DIR)/IPU/yuv2rgb.cpp \
-	$(LRPS2_DIR)/SPU2/ReverbResample.cpp
+	$(LRPS2_DIR)/IPU/yuv2rgb.cpp
 
 ifeq ($(IS_X86),1)
 ifeq ($(ENABLE_MULTI_ISA),1)

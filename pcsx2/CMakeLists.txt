@@ -274,12 +274,9 @@ set(pcsx2SPU2Sources
 	SPU2/spu2sys.cpp
 )
 
-# SPU2 sources that use the MULTI_ISA per-ISA namespace machinery and must be
-# compiled once per ISA (sse4/avx/avx2) when DISABLE_ADVANCE_SIMD is on, not
-# as a shared TU. Matches upstream's pcsx2SPU2SourcesUnshared.
-set(pcsx2SPU2SourcesUnshared
-	SPU2/ReverbResample.cpp
-)
+# No SPU2 source needs the MULTI_ISA per-ISA machinery: the reverb
+# resampler is one 128-bit path, built once like the rest of SPU2.
+set(pcsx2SPU2SourcesUnshared)
 
 # SPU2 headers
 set(pcsx2SPU2Headers
