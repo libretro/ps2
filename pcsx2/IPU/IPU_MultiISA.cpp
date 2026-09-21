@@ -32,6 +32,7 @@
 #include "yuv2rgb.h"
 #include "IPU_MultiISA.h"
 #include "ipu_dct_lut.h"
+#include "ipu_bitstream.h"
 #include "ipu_idct.h"
 
 // the IPU is fixed to 16 byte strides (128-bit / QWC resolution):
@@ -82,35 +83,14 @@ static void ipu_vq(macroblock_rgb16& rgb16, u8* indx4);
 //  Buffer reader
 // --------------------------------------------------------------------------------------
 
-__ri static u32 UBITS(uint bits)
+__fi static u32 UBITS(uint bits)
 {
-	uint readpos8 = g_BP.BP/8;
-
-	uint result = BigEndian(*(u32*)( (u8*)g_BP.internal_qwc + readpos8 ));
-	uint bp7 = (g_BP.BP & 7);
-	result <<= bp7;
-	result >>= (32 - bits);
-
-	return result;
+	return ipu_bits_u32(g_BP.internal_qwc[0]._u8, g_BP.BP, bits);
 }
 
-__ri static s32 SBITS(uint bits)
+__fi static s32 SBITS(uint bits)
 {
-	// Read an unaligned 32 bit value and then shift the bits up and then back down.
-
-	uint readpos8 = g_BP.BP/8;
-
-	/* memcpy: the bitstream position is byte-, not word-aligned, so a
-	 * typed s32 load is UB.  Do the left shift in the unsigned domain:
-	 * shifting a negative/overflowing int is UB too, and the bit
-	 * pattern is identical. */
-	u32 rawbits;
-	memcpy(&rawbits, (const s8*)g_BP.internal_qwc + readpos8, sizeof(rawbits));
-	uint bp7 = (g_BP.BP & 7);
-	s32 result = (s32)(BigEndian(rawbits) << bp7);
-	result >>= (32 - bits);
-
-	return result;
+	return ipu_bits_s32(g_BP.internal_qwc[0]._u8, g_BP.BP, bits);
 }
 
 #define GETWORD() g_BP.FillBuffer(16)
@@ -127,73 +107,25 @@ __fi static u32 GETBITS(uint num)
 	return ret;
 }
 
-// whenever reading fractions of bytes. The low bits always come from the next byte
-// while the high bits come from the current byte
-__ri static u8 getBits64(u8 *address)
+__fi static u8 getBits64(u8 *address)
 {
 	if (!g_BP.FillBuffer(64)) return 0;
-
-	const u8* readpos = &g_BP.internal_qwc[0]._u8[g_BP.BP/8];
-
-	if (uint shift = (g_BP.BP & 7))
-	{
-		u64 mask = (0xff >> shift);
-		mask = mask | (mask << 8) | (mask << 16) | (mask << 24) | (mask << 32) | (mask << 40) | (mask << 48) | (mask << 56);
-
-		*(u64*)address = ((~mask & *(u64*)(readpos + 1)) >> (8 - shift)) | (((mask) & *(u64*)readpos) << shift);
-	}
-	else
-		*(u64*)address = *(u64*)readpos;
-
+	ipu_bits_copy64(g_BP.internal_qwc[0]._u8, g_BP.BP, address);
 	g_BP.Advance(64);
-
 	return 1;
 }
 
-// whenever reading fractions of bytes. The low bits always come from the next byte
-// while the high bits come from the current byte
-__ri static u8 getBits32(u8 *address)
+__fi static u8 getBits32(u8 *address)
 {
 	if (!g_BP.FillBuffer(32)) return 0;
-
-	const u8* readpos = &g_BP.internal_qwc->_u8[g_BP.BP/8];
-
-	if(uint shift = (g_BP.BP & 7))
-	{
-		u32 mask = (0xff >> shift);
-		mask = mask | (mask << 8) | (mask << 16) | (mask << 24);
-
-		u32 lo_, hi_;
-		memcpy(&lo_, readpos, sizeof(lo_));
-		memcpy(&hi_, readpos + 1, sizeof(hi_));
-		const u32 merged_ = ((~mask & hi_) >> (8 - shift)) | ((mask & lo_) << shift);
-		memcpy(address, &merged_, sizeof(merged_));
-	}
-	else
-	{
-		// Bit position-aligned -- no masking/shifting necessary
-		u32 word_;
-		memcpy(&word_, readpos, sizeof(word_));
-		memcpy(address, &word_, sizeof(word_));
-	}
-
+	ipu_bits_copy32(g_BP.internal_qwc[0]._u8, g_BP.BP, address);
 	return 1;
 }
 
-__ri static u8 getBits8(u8 *address)
+__fi static u8 getBits8(u8 *address)
 {
 	if (!g_BP.FillBuffer(8)) return 0;
-
-	const u8* readpos     = &g_BP.internal_qwc[0]._u8[g_BP.BP/8];
-
-	if (uint shift = (g_BP.BP & 7))
-	{
-		uint mask     = (0xff >> shift);
-		*(u8*)address = (((~mask) & readpos[1]) >> (8 - shift)) | (((mask) & *readpos) << shift);
-	}
-	else
-		*(u8*)address = *(u8*)readpos;
-
+	ipu_bits_copy8(g_BP.internal_qwc[0]._u8, g_BP.BP, address);
 	return 1;
 }
 

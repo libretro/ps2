@@ -534,6 +534,7 @@ set(pcsx2IPUHeaders
 	IPU/ipu_dct_lut.h
 	IPU/ipu_vlc.h
 	IPU/ipu_vlc_codes.h
+	IPU/ipu_bitstream.h
 	IPU/ipu_idct.h
 	IPU/yuv2rgb.h
 )
