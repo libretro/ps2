@@ -3268,13 +3268,10 @@ __forceinline void GSState::VertexKick(u32 skip, u32& maxcount)
 
 	// callers should write XYZUVF to m_v.m[1] in one piece to have this load store-forwarded, either by the cpu or the compiler when this function is inlined
 
-	const GSVector4i new_v0(m_v.m[0]);
 	const GSVector4i new_v1(m_v.m[1]);
 
-	GSVector4i* RESTRICT tailptr = (GSVector4i*)&m_vertex.buff[tail];
-
-	tailptr[0] = new_v0;
-	tailptr[1] = new_v1;
+	gs_vertex_store((union gs_vertex*)&m_vertex.buff[tail],
+		(const union gs_vertex*)&m_v);
 
 	// We maintain the X/Y coordinates for the last 4 vertices, as well as the head for triangle fans, so we can compute
 	// the min/max, and cull degenerate triangles, which saves draws in some cases. Why 4? Mod 4 is cheaper than Mod 3.
