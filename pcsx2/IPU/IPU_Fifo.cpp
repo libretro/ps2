@@ -171,3 +171,10 @@ void WriteFIFO_IPUin(const mem128_t* value)
 		}
 	}
 }
+
+/* The bit pointer is C and cannot call a member function, so this is how it
+ * reaches the input FIFO. */
+extern "C" int ipu_fifo_in_read(void *value)
+{
+	return ipu_fifo.in.read(value);
+}

@@ -58,7 +58,7 @@ alignas(16) const int non_linear_quantizer_scale[32] =
 // while the high bits come from the current byte
 __ri static u8 getBits32(u8* address)
 {
-	if (!g_BP.FillBuffer(32))
+	if (!ipu_bp_fill_buffer(&g_BP, 32))
 		return 0;
 
 	const u8* readpos = &g_BP.internal_qwc->_u8[g_BP.BP / 8];
@@ -214,7 +214,7 @@ __fi u64 ipuRead64(u32 mem)
 			 * EE User's Manual 8.3 describes IPU_TOP as a read-time peek
 			 * of the next 32 bits that does not advance the stream, and
 			 * peeking here looks equivalent - but it is not.  getBits32
-			 * goes through g_BP.FillBuffer, which pulls quadwords out of
+			 * goes through ipu_bp_fill_buffer, which pulls quadwords out of
 			 * IPU_in_FIFO into the internal buffer (IFC down, FP up) and
 			 * can set IPUCoreStatus.WaitingOnIPUTo, requesting to-IPU
 			 * DMA.  Doing that from a register read on the EE thread,
@@ -393,7 +393,7 @@ __fi void IPUCMD_WRITE(u32 val)
 		case SCE_IPU_IDEC:
 			{
 				tIPU_CMD_IDEC _val;
-				g_BP.Advance(val & 0x3F);
+				ipu_bp_advance(&g_BP, val & 0x3F);
 				_val._u32       = val;
 				ipuIDEC(_val);
 				ipuRegs.topbusy = 0x80000000;
@@ -403,7 +403,7 @@ __fi void IPUCMD_WRITE(u32 val)
 		case SCE_IPU_BDEC:
 			{
 				tIPU_CMD_BDEC _val;
-				g_BP.Advance(val & 0x3F);
+				ipu_bp_advance(&g_BP, val & 0x3F);
 				_val._u32       = val;
 				ipuBDEC(_val);
 				ipuRegs.topbusy = 0x80000000;
@@ -412,13 +412,13 @@ __fi void IPUCMD_WRITE(u32 val)
 
 		case SCE_IPU_VDEC:
 		case SCE_IPU_FDEC:
-			g_BP.Advance(val & 0x3F);
+			ipu_bp_advance(&g_BP, val & 0x3F);
 			ipuRegs.cmd.BUSY = 0x80000000;
 			ipuRegs.topbusy  = 0x80000000;
 			break;
 
 		case SCE_IPU_SETIQ:
-			g_BP.Advance(val & 0x3F);
+			ipu_bp_advance(&g_BP, val & 0x3F);
 			break;
 
 		case SCE_IPU_SETVQ:

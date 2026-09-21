@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2010  PCSX2 Dev Team
+ *  Copyright (C) 2002-2023  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -15,21 +15,24 @@
 
 #pragma once
 
-#include "ipu_status.h"
+/* Why the IPU core is not running: it wants data from IPU1, or it wants
+ * IPU0 to take what it has. Read from both the C and the C++ side, so it
+ * lives apart from IPUdma.h. */
 
-#include "IPU.h"
+#include "../../common/Pcsx2Types.h"
 
-struct IPUDMAStatus {
-	bool InProgress;
-	bool DMAFinished;
-};
+typedef struct IPUStatus {
+	bool DataRequested;
+	bool WaitingOnIPUFrom;
+	bool WaitingOnIPUTo;
+} IPUStatus;
 
-extern void ipu0Interrupt();
-extern void ipu1Interrupt();
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-extern void dmaIPU0();
-extern void dmaIPU1();
-extern void IPU0dma();
-extern void IPU1dma();
+extern IPUStatus IPUCoreStatus;
 
-extern void ipuDmaReset();
+#ifdef __cplusplus
+}
+#endif

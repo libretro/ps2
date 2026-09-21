@@ -15,6 +15,8 @@
 
 #pragma once
 
+#include "ipu_bp.h"
+
 #include "IPU_Fifo.h"
 #include "IPUdma.h"
 
@@ -61,74 +63,6 @@ union tIPU_CTRL {
 		u32 BUSY : 1;	// Busy
 	};
 	u32 _u32;
-};
-
-struct alignas(16) tIPU_BP {
-	alignas(16) u128 internal_qwc[2];
-
-	u32 BP;		// Bit stream point (0 to 128*2)
-	u32 IFC;	// Input FIFO counter (8QWC) (0 to 8)
-	u32 FP;		// internal FIFO (2QWC) fill status (0 to 2)
-
-	__fi void Align()
-	{
-		BP = (BP + 7) & ~7;
-		Advance(0);
-	}
-
-	__fi void Advance(uint bits)
-	{
-		FillBuffer(bits);
-
-		BP += bits;
-
-		if (BP >= 128)
-		{
-			BP -= 128;
-
-			if (FP == 2)
-			{
-				// when BP is over 128 it means we're reading data from the second quadword.  Shift that one
-				// to the front and load the new quadword into the second QWC (its a manualized ringbuffer!)
-				void      *dest = &internal_qwc[0];
-				const void *src = &internal_qwc[1];
-				CopyQWC(dest, src);
-				FP = 1;
-			}
-			else
-			{
-				// if FP == 1 then the buffer has been completely drained.
-				// if FP == 0 then an already-drained buffer is being advanced, and we need to drop a
-				// quadword from the IPU FIFO.
-
-				if (ipu_fifo.in.read(&internal_qwc[0]))
-					FP = 1;
-				else
-					FP = 0;
-			}
-		}
-	}
-
-	__fi bool FillBuffer(u32 bits)
-	{
-		while ((FP * 128) < (BP + bits))
-		{
-			if (ipu_fifo.in.read(&internal_qwc[FP]) == 0)
-			{
-				// Here we *try* to fill the entire internal QWC buffer; however that may not necessarily
-				// be possible -- so if the fill fails we'll only return 0 if we don't have enough
-				// remaining bits in the FIFO to fill the request.
-				// Used to do ((FP!=0) && (BP + bits) <= 128) if we get here there's defo not enough data now though
-
-				IPUCoreStatus.WaitingOnIPUTo = true;
-				return false;
-			}
-
-			++FP;
-		}
-
-		return true;
-	}
 };
 
 union tIPU_CMD_IDEC

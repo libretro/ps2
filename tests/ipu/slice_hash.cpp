@@ -92,6 +92,13 @@ int IPU_Fifo_Input::read(void *value)
 	return 1;
 }
 
+/* The bit pointer reaches the FIFO through this, as IPU_Fifo.cpp provides
+ * it in the emulator. */
+extern "C" int ipu_fifo_in_read(void *value)
+{
+	return ipu_fifo.in.read(value);
+}
+
 /* ---- the output FIFO is not what this checks; mb8 is ---- */
 
 int IPU_Fifo_Output::write(const u32 *, u32 size)
@@ -148,7 +155,7 @@ static void note(int err, const char *where)
 static u32 hread(u32 n)
 {
 	const u32 v = ipu_bits_u32(g_BP.internal_qwc[0]._u8, g_BP.BP, n);
-	g_BP.Advance(n);
+	ipu_bp_advance(&g_BP, n);
 	return v;
 }
 
@@ -245,7 +252,7 @@ static void setup(const ipu_stream *st, const ipu_slice *sl)
 
 	g_BP.FP = 0;
 	g_BP.BP = (u32)(sl->bitpos - (((sl->bitpos / 8) & ~15) * 8));
-	g_BP.FillBuffer(32);
+	ipu_bp_fill_buffer(&g_BP, 32);
 }
 
 int main(int argc, char **argv)

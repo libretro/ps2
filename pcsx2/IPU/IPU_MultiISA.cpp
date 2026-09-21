@@ -93,38 +93,38 @@ __fi static s32 SBITS(uint bits)
 	return ipu_bits_s32(g_BP.internal_qwc[0]._u8, g_BP.BP, bits);
 }
 
-#define GETWORD() g_BP.FillBuffer(16)
+#define GETWORD() ipu_bp_fill_buffer(&g_BP, 16)
 
 // Removes bits from the bitstream.  This is done independently of UBITS/SBITS because a
 // lot of mpeg streams have to read ahead and rewind bits and re-read them at different
 // bit depths or sign'age.
-#define DUMPBITS(num) g_BP.Advance(num)
+#define DUMPBITS(num) ipu_bp_advance(&g_BP, num)
 
 __fi static u32 GETBITS(uint num)
 {
 	uint ret = UBITS(num);
-	g_BP.Advance(num);
+	ipu_bp_advance(&g_BP, num);
 	return ret;
 }
 
 __fi static u8 getBits64(u8 *address)
 {
-	if (!g_BP.FillBuffer(64)) return 0;
+	if (!ipu_bp_fill_buffer(&g_BP, 64)) return 0;
 	ipu_bits_copy64(g_BP.internal_qwc[0]._u8, g_BP.BP, address);
-	g_BP.Advance(64);
+	ipu_bp_advance(&g_BP, 64);
 	return 1;
 }
 
 __fi static u8 getBits32(u8 *address)
 {
-	if (!g_BP.FillBuffer(32)) return 0;
+	if (!ipu_bp_fill_buffer(&g_BP, 32)) return 0;
 	ipu_bits_copy32(g_BP.internal_qwc[0]._u8, g_BP.BP, address);
 	return 1;
 }
 
 __fi static u8 getBits8(u8 *address)
 {
-	if (!g_BP.FillBuffer(8)) return 0;
+	if (!ipu_bp_fill_buffer(&g_BP, 8)) return 0;
 	ipu_bits_copy8(g_BP.internal_qwc[0]._u8, g_BP.BP, address);
 	return 1;
 }
@@ -602,7 +602,7 @@ __ri static bool mpeg2sliceIDEC(void)
 
 		case 1:
 			ipu_cmd.pos[0] = 1;
-			if (!g_BP.FillBuffer(32))
+			if (!ipu_bp_fill_buffer(&g_BP, 32))
 				return false;
 			/* fall-through */
 
@@ -833,10 +833,10 @@ finish_idec:
 
 				if (bit8 == 0)
 				{
-					g_BP.Align();
+					ipu_bp_align(&g_BP);
 					for (;;)
 					{
-						if (!g_BP.FillBuffer(24))
+						if (!ipu_bp_fill_buffer(&g_BP, 24))
 						{
 							ipu_cmd.pos[0] = 3;
 							return false;
@@ -895,7 +895,7 @@ __fi static bool mpeg2_slice(void)
 			/* fallthrough */
 
 		case 1:
-			if (!g_BP.FillBuffer(32))
+			if (!ipu_bp_fill_buffer(&g_BP, 32))
 			{
 				ipu_cmd.pos[0] = 1;
 				return false;
@@ -1173,11 +1173,11 @@ __fi static bool mpeg2_slice(void)
 
 				if (bit8 == 0)
 				{
-					g_BP.Align();
+					ipu_bp_align(&g_BP);
 
 					for (;;)
 					{
-						if (!g_BP.FillBuffer(24))
+						if (!ipu_bp_fill_buffer(&g_BP, 24))
 						{
 							ipu_cmd.pos[0] = 4;
 							return false;
@@ -1220,7 +1220,7 @@ __fi static bool ipuVDEC(u32 val)
 	switch (ipu_cmd.pos[0])
 	{
 		case 0:
-			if (!g_BP.FillBuffer(32))
+			if (!ipu_bp_fill_buffer(&g_BP, 32))
 				return false;
 
 			switch ((val >> 26) & 3)
