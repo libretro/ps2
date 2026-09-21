@@ -216,10 +216,24 @@ bool pgs_create_device2(
 	factory.wrapper = create_device_wrapper;
 	factory.opaque = opaque;
 
+	/* Only a frontend that takes a presentation_queue in the graphics
+	 * family gets one - negotiation interface v3. Earlier ones reject
+	 * any presentation_queue that is not the graphics queue and fail
+	 * context creation, so they keep the shared queue. */
+	bool present_queue_ok = false;
+	{
+		struct retro_hw_render_context_negotiation_interface iface = {};
+		iface.interface_type = RETRO_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE_VULKAN;
+		if (environ_cb && environ_cb(
+			RETRO_ENVIRONMENT_GET_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE_SUPPORT, &iface))
+			present_queue_ok = iface.interface_version >= 3;
+	}
+
 	/* Which family Granite will pick is its choice; the extra queue is
 	 * only requested for the graphics family, and only when the family
 	 * has more queues than the create info asks for. The properties
 	 * are read here, before init_device, through the instance. */
+	if (present_queue_ok)
 	{
 		auto gipa = Vulkan::Context::get_instance_proc_addr();
 		auto get_props = reinterpret_cast<PFN_vkGetPhysicalDeviceQueueFamilyProperties>(
