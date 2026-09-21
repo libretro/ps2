@@ -2,8 +2,8 @@
 #ifndef GS_VERTEX_H
 #define GS_VERTEX_H
 
-/* The GS vertex record and the operations on it, as C89 with a backend per
- * instruction set chosen at run time.
+/* The GS vertex record and the operations on it, as C89 with a body per
+ * instruction set.
  *
  * The record is 32 bytes and its layout is the one the whole GS agrees on --
  * the GIF register handlers build it, VertexKick stores it, the vertex trace
@@ -21,14 +21,12 @@
  * all; these use the intrinsics directly, which is also what lets the file
  * compile as C89.
  *
- * Dispatch granularity is the point of the design. A field accessor is two
- * or three instructions, so calling one through a pointer would cost several
- * times what it does. So:
- *
- *   - per-vertex operations resolve at compile time, or on a branch over a
- *     cached flag that a loop predicts perfectly;
- *   - batch operations, where the work per call is large enough to absorb it,
- *     go through gs_vertex_ops, resolved once by gs_vertex_init().
+ * Everything here resolves at compile time. A field accessor is two or three
+ * instructions and the store is one or two, so reaching any of them through
+ * a function pointer would cost several times what the work itself does;
+ * run-time dispatch only pays where one call covers many vertices, and the
+ * GS has no such caller -- the vertex trace fuses colour, texture and
+ * position into a single pass of its own.
  *
  * Shape note: written in the C89 form the emitters in this tree use --
  * declarations at the head of each block, no mixed declarations, no early
@@ -54,22 +52,14 @@
 #if defined(__x86_64__) || defined(_M_X64) || defined(_M_AMD64) || \
     defined(__i386__) || defined(_M_IX86)
 #define GS_VERTEX_X86 1
-/* immintrin declares every x86 intrinsic regardless of the -m flags in
- * force, which is what lets the wider bodies in gs_vertex.c carry a target
- * attribute instead of needing a translation unit each. The two macros
- * below still say what this build may emit *inline*, which is a separate
- * question from what it may emit behind an attribute. */
 #if defined(_MSC_VER)
 #include <intrin.h>
 #else
 #include <immintrin.h>
 #endif
-/* What this build may emit inline. Inside PCSX2 the project's own ladder
- * decides, since that is what the rest of the GS is compiled against and it
- * can be set on the command line; standalone, fall back to the predefined
- * macros. Not keyed on the compiler: MSVC defines no SSE4.1 macro of its
- * own, and treating "is MSVC" as "has SSE4.1" would emit pmovzx inline on a
- * baseline x64 build, which is an SSE2 target. */
+/* What this build may emit. Not keyed on the compiler: MSVC defines no
+ * SSE4.1 macro of its own, and treating "is MSVC" as "has SSE4.1" would put
+ * pmovzx in a baseline x64 build, which is an SSE2 target. */
 #if defined(_MSC_VER) && !defined(__clang__)
 /* cl.exe predefines no SSE4.1 macro and checks no target feature, so the
  * project's ladder is both the only statement of intent available and one
@@ -140,50 +130,6 @@ union GS_VERTEX_ALIGN32 gs_vertex
    uint32_t               w[8];
    uint8_t                b[32];
 };
-
-/* ------------------------------------------------------------------ */
-/* Run-time backend selection.                                          */
-/* ------------------------------------------------------------------ */
-
-enum
-{
-   GS_VERTEX_BACKEND_SCALAR = 0,
-   GS_VERTEX_BACKEND_SSE2   = 1,
-   GS_VERTEX_BACKEND_SSE41  = 2,
-   GS_VERTEX_BACKEND_AVX    = 3,
-   GS_VERTEX_BACKEND_NEON   = 4
-};
-
-/* Batch operations. One indirect call covers n vertices, so the call costs
- * nothing per vertex. */
-struct gs_vertex_ops
-{
-   void (*copy)(union gs_vertex *dst, const union gs_vertex *src, size_t n);
-   void (*gather_xy)(int32_t *dst, const union gs_vertex *src, size_t n);
-   void (*gather_uv)(int32_t *dst, const union gs_vertex *src, size_t n);
-   void (*minmax_xy)(int32_t *lo, int32_t *hi, const union gs_vertex *src, size_t n);
-   const char *name;
-   int backend;
-};
-
-extern const struct gs_vertex_ops *gs_vertex_op;
-
-/* True when the host has a 32-byte move. It reports what gs_vertex_op will
- * do in bulk; it cannot change what gs_vertex_store emits, because that is
- * inlined into the caller and so fixed by the flags that translation unit
- * was built with. Going out of line to reach a wider store would cost more
- * than the store saves -- the batch copy is the runtime-dispatched path. */
-extern int gs_vertex_wide_store;
-
-/* Resolves both of the above from libretro-common's cpu_features_get().
- * Idempotent; call before any other entry point here. */
-void gs_vertex_init(void);
-
-/* Pins one backend, for triage and for tests that need to reach a body the
- * host would otherwise skip over. Refuses, returning -1 and changing
- * nothing, for a backend this CPU cannot execute or this build does not
- * contain; returns 0 on success. Scalar is always available. */
-int gs_vertex_set_backend(int backend);
 
 /* ------------------------------------------------------------------ */
 /* Per-vertex store. dst must be 32-byte aligned, which any object of    */

@@ -13,10 +13,9 @@
 #               included. GSVertex has an arm64 backend of its own, so this
 #               lane compares NEON against NEON there rather than against
 #               scalar.
-#   batch     : every batch backend the build contains and the host can run,
-#               not only the one dispatch picks -- gs_vertex_set_backend()
-#               pins each in turn -- against the scalar contract, over every
-#               length from 0 to 33 so each body's scalar tail is exercised.
+#   store     : the per-vertex store, byte-for-byte, both when the source is
+#               cold and when its upper half was written an instruction
+#               earlier, which is how VertexKick reaches it.
 #   numbers   : ns/vertex, gs_vertex beside GSVertex.
 #
 # Everything runs under BOTH g++ and clang++, at each ISA level. The two
@@ -24,30 +23,24 @@
 # decides nothing here; a form is only kept when neither regresses.
 #
 # With a cross toolchain present (aarch64-linux-gnu-gcc, qemu-aarch64) the
-# NEON backend runs too -- pass --neon.
+# NEON bodies run too -- pass --neon.
 set -e
 DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 ROOT=$(CDPATH= cd -- "$DIR/../.." && pwd)
 INC="-I$ROOT -I$ROOT/pcsx2 -I$ROOT/common -I$ROOT/libretro/libretro-common/include"
 INC="$INC -I$ROOT/3rdparty -I$ROOT/3rdparty/include -I$ROOT/pcsx2/GS/Renderers/Common"
-SRC="$ROOT/pcsx2/GS/Renderers/Common/gs_vertex.c"
-LRC="$ROOT/libretro/libretro-common"
 N=${N:-4000000}
 R=${R:-9}
-
-# libretro-common units gs_vertex.c needs. Built as the project builds them.
-build_support()
-{
-	$1 -O2 -std=gnu99 -I"$LRC/include" -c "$LRC/features/features_cpu.c" -o "$2/features_cpu.o"
-	$1 -O2 -std=gnu99 -I"$LRC/include" -c "$LRC/compat/compat_strl.c"     -o "$2/compat_strl.o"
-}
 
 TMP=${TMPDIR:-/tmp}/gsv.$$
 mkdir -p "$TMP"
 trap 'rm -rf "$TMP"' EXIT
 
+# gs_vertex.h is header-only, so C89 conformance is checked by compiling a
+# C translation unit that includes it and calls every entry point.
 echo "=== strict C89 ==="
-gcc -std=c89 -pedantic -Wno-long-long -Wall -Wextra -O2 -msse4.1 $INC -c "$SRC" -o "$TMP/c89.o"
+printf '#include "gs_vertex.h"\nint main(void){ union gs_vertex a, b; gs_vec4i r;\n b.w[0]=1; gs_vertex_store(&a,&b);\n r=gs_vertex_xy(&a); r=gs_vertex_z(&a); r=gs_vertex_uv(&a);\n r=gs_vertex_rgba(&a); r=gs_vertex_fog(&a); (void)r;\n (void)gs_vertex_st(&a); (void)gs_vertex_q(&a); return 0; }\n' > "$TMP/c89.c"
+gcc -std=c89 -pedantic -Wno-long-long -Wall -Wextra -O2 -msse4.1 $INC -c "$TMP/c89.c" -o "$TMP/c89.o"
 echo "gcc -std=c89 -pedantic: clean"
 
 for CC in gcc clang; do
@@ -58,38 +51,20 @@ for CC in gcc clang; do
 		clang) CXX=clang++; Q=-Wno-c99-extensions ;;
 	esac
 	command -v $CC >/dev/null 2>&1 || { echo "skipping $CC, not installed"; continue; }
-	build_support $CC "$TMP"
 	for ISA in "-msse2" "-msse4.1" "-mavx" "-mavx2"; do
 		echo
 		echo "=== $CXX $ISA ==="
-		$CC  -O2 -std=c89 -pedantic -Wall -Wextra $Q $ISA $INC -c "$SRC" -o "$TMP/v.o"
-		$CXX -O2 -std=c++17 $ISA $INC "$DIR/gs_vertex_equiv.cpp" \
-		     "$TMP/v.o" "$TMP/features_cpu.o" "$TMP/compat_strl.o" -o "$TMP/t"
+		$CC  -O2 -std=c89 -pedantic -Wall -Wextra $Q $ISA $INC -c "$TMP/c89.c" -o "$TMP/c89.o"
+		$CXX -O2 -std=c++17 $ISA $INC "$DIR/gs_vertex_equiv.cpp" -o "$TMP/t"
 		"$TMP/t" "$N" "$R"
 	done
-done
-
-# The portable shape: no target attributes, so only the tiers the baseline
-# can name get compiled and dispatch has to cap there. This is what MSVC-mode
-# compilers take -- clang-cl gates intrinsic declarations on /arch -- and it
-# is reachable here on any compiler through the define.
-for ISA in "-msse2" "-msse4.1" "-mavx2"; do
-	echo
-	echo "=== g++ $ISA, GS_VERTEX_NO_MULTIVERSION ==="
-	gcc -O2 -std=c89 -pedantic -Wall -Wextra -DGS_VERTEX_NO_MULTIVERSION \
-	    $ISA $INC -c "$SRC" -o "$TMP/v.o"
-	g++ -O2 -std=c++17 $ISA $INC "$DIR/gs_vertex_equiv.cpp" \
-	    "$TMP/v.o" "$TMP/features_cpu.o" "$TMP/compat_strl.o" -o "$TMP/t"
-	"$TMP/t" "$N" 1
 done
 
 if [ "$1" = "--neon" ]; then
 	echo
 	echo "=== aarch64 / NEON ==="
-	build_support aarch64-linux-gnu-gcc "$TMP"
-	aarch64-linux-gnu-gcc -O2 -std=c89 -pedantic -Wall -Wextra $INC -c "$SRC" -o "$TMP/v64.o"
-	aarch64-linux-gnu-g++ -O2 -std=c++17 $INC "$DIR/gs_vertex_equiv.cpp" \
-	     "$TMP/v64.o" "$TMP/features_cpu.o" "$TMP/compat_strl.o" -o "$TMP/t64"
+	aarch64-linux-gnu-gcc -O2 -std=c89 -pedantic -Wall -Wextra $INC -c "$TMP/c89.c" -o "$TMP/c64.o"
+	aarch64-linux-gnu-g++ -O2 -std=c++17 $INC "$DIR/gs_vertex_equiv.cpp" -o "$TMP/t64"
 	# qemu times nothing meaningful -- it is here for the correctness lanes.
 	qemu-aarch64 -L /usr/aarch64-linux-gnu "$TMP/t64" 200000 3
 fi
