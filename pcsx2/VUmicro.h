@@ -75,11 +75,19 @@ extern const struct VUmicroCpu* CpuVU0;
 extern const struct VUmicroCpu* CpuVU1;
 
 
+/* COP2.c calls these two, so they carry C linkage. */
+#ifdef __cplusplus
+extern "C" {
+#endif
+extern void vu0ExecMicro(u32 addr);
+extern void _vu0FinishMicro(void);
+#ifdef __cplusplus
+}
+#endif
+
 // VU0
 extern void vu0ResetRegs();
-extern void vu0ExecMicro(u32 addr);
 extern void vu0Exec(VURegs* VU);
-extern void _vu0FinishMicro();
 extern void vu0Finish();
 
 // VU1

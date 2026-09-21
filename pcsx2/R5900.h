@@ -230,13 +230,23 @@ void intSetBranch();
 
 // This is a special form of the interpreter's doBranch that is run from various
 // parts of the Recs (namely COP0's branch codes and stuff).
+#ifdef __cplusplus
+extern "C" {
+#endif
 void intDoBranch(u32 target);
+#ifdef __cplusplus
+}
+#endif
 
-// modules loaded at hardcoded addresses by the kernel
-const u32 EEKERNEL_START	= 0;
-const u32 EENULL_START		= 0x81FC0;
-const u32 EELOAD_START		= 0x82000;
-const u32 EELOAD_SIZE		= 0x20000; // overestimate for searching
+/* modules loaded at hardcoded addresses by the kernel.
+ *
+ * static: a bare `const u32` is internal linkage in C++ but external in C,
+ * so without it every C unit including this header defines them again and
+ * the link fails on the second one. */
+static const u32 EEKERNEL_START	= 0;
+static const u32 EENULL_START	= 0x81FC0;
+static const u32 EELOAD_START	= 0x82000;
+static const u32 EELOAD_SIZE	= 0x20000; /* overestimate for searching */
 extern u32 g_eeloadMain, g_eeloadExec;
 
 extern void eeGameStarting(void);
