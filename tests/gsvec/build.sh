@@ -70,6 +70,25 @@ for CXX in g++ clang++; do
 	done
 done
 
+echo
+echo "=== access shapes, GSVector4i vs gs_vector ==="
+for CXX in g++ clang++; do
+	command -v "$CXX" >/dev/null 2>&1 || continue
+	for ISA in "-msse4.1" "-mavx2"; do
+		$CXX -O2 -std=c++17 $ISA $INC -S "$DIR/gs_vector_access.cpp" -o "$TMP/ac.s"
+		awk -v tag="$CXX $ISA" '
+			/^cpp_|^c89_/ { n=$0; sub(":.*","",n); cur=n; next }
+			/^[ \t]+[a-z]/ && cur != "" && $1 !~ /^(ret|endbr64)/ { c[cur]++ }
+			/\.size/ { cur="" }
+			END {
+				for (k in c) { b=k; sub(/^(cpp|c89)_/,"",b); if (k ~ /^cpp_/) C[b]=c[k]; else N[b]=c[k] }
+				d=""
+				for (b in C) if (C[b]!=N[b]) d=d" "b":"C[b]"->"N[b]
+				printf "  %-18s %s\n", tag, (d=="" ? "(all shapes identical)" : d)
+			}' "$TMP/ac.s"
+	done
+done
+
 if [ "$1" = "--neon" ]; then
 	echo
 	echo "=== aarch64 / NEON ==="
