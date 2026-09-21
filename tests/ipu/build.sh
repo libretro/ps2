@@ -19,7 +19,7 @@ INC="-I$ROOT -I$ROOT/pcsx2 -I$ROOT/common"
 INC="$INC -I$ROOT/libretro/libretro-common/include -I$ROOT/3rdparty -I$ROOT/3rdparty/include"
 # Both kernels build as C; the harness itself is C++, which is also what
 # the emulator links them from.
-UNITS="IPU/yuv2rgb IPU/IPUdither"
+UNITS="IPU/yuv2rgb IPU/IPUdither IPU/ipu_csc"
 N=${N:-20000}
 ISAS=${ISAS:-"-msse2 -msse4.1 -mavx2"}
 
@@ -39,7 +39,7 @@ for CXX in g++ clang++; do
 		done
 		$CXX -O2 -std=c++17 $ISA $INC -c "$DIR/ipu_kernel_hash.cpp" \
 		     -o "$TMP/hash.o"
-		$CXX -O2 "$TMP/hash.o" "$TMP"/yuv2rgb.o "$TMP"/IPUdither.o \
+		$CXX -O2 "$TMP/hash.o" "$TMP"/yuv2rgb.o "$TMP"/IPUdither.o "$TMP"/ipu_csc.o \
 		     -o "$TMP/ipu_kernel_hash"
 		"$TMP/ipu_kernel_hash" "$N" "$1"
 	done
@@ -61,7 +61,7 @@ if command -v aarch64-linux-gnu-g++ >/dev/null 2>&1 &&
 	aarch64-linux-gnu-g++ -O2 -std=c++17 $INC -c "$DIR/ipu_kernel_hash.cpp" \
 	     -o "$TMP/hash.o"
 	aarch64-linux-gnu-g++ -O2 -static "$TMP/hash.o" "$TMP"/yuv2rgb.o \
-	     "$TMP"/IPUdither.o -o "$TMP/ipu_kernel_hash64"
+	     "$TMP"/IPUdither.o "$TMP"/ipu_csc.o -o "$TMP/ipu_kernel_hash64"
 	qemu-aarch64 "$TMP/ipu_kernel_hash64" "$N" "$1"
 else
 	echo

@@ -37,14 +37,14 @@ for CXX in g++ clang++; do
 	for ISA in -msse2 -msse4.1 -mavx2; do
 		echo
 		echo "=== $CXX $ISA ==="
-		for k in ipu_idct yuv2rgb IPUdither; do
+		for k in ipu_idct yuv2rgb IPUdither ipu_csc; do
 			$CC -O2 -std=gnu89 $ISA $INC -c "$ROOT/pcsx2/IPU/$k.c" \
 			    -o "$TMP/$k.o"
 		done
 		$CXX -O2 -std=c++17 $ISA $INC -c "$DIR/slice_hash.cpp" \
 		     -o "$TMP/slice.o"
 		$CXX -O2 "$TMP/slice.o" "$TMP/ipu_idct.o" "$TMP/yuv2rgb.o" \
-		     "$TMP/IPUdither.o" -o "$TMP/slice_hash"
+		     "$TMP/IPUdither.o" "$TMP/ipu_csc.o" -o "$TMP/slice_hash"
 		"$TMP/slice_hash" "$1"
 	done
 done

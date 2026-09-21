@@ -327,6 +327,7 @@ SOURCES_CXX += \
 # pcsx2/IPU. The leaf kernels build as C; the decoder stays C++.
 SOURCES_C += \
 	$(LRPS2_DIR)/IPU/IPUdither.c \
+	$(LRPS2_DIR)/IPU/ipu_csc.c \
 	$(LRPS2_DIR)/IPU/ipu_idct.c \
 	$(LRPS2_DIR)/IPU/yuv2rgb.c
 

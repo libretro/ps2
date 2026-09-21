@@ -33,6 +33,7 @@
 #include "IPU_MultiISA.h"
 #include "ipu_dct_lut.h"
 #include "ipu_bitstream.h"
+#include "ipu_csc.h"
 #include "ipu_idct.h"
 
 // the IPU is fixed to 16 byte strides (128-bit / QWC resolution):
@@ -75,9 +76,6 @@ alignas(16) const mpeg2_scan_pack mpeg2_scan = make_scan_pack();
 #endif
 
 MULTI_ISA_UNSHARED_START
-
-static void ipu_csc(macroblock_8& mb8, macroblock_rgb32& rgb32, int sgn);
-static void ipu_vq(macroblock_rgb16& rgb16, u8* indx4);
 
 // --------------------------------------------------------------------------------------
 //  Buffer reader
@@ -711,7 +709,7 @@ __ri static bool mpeg2sliceIDEC(void)
 						}
 
 						// Send The MacroBlock via DmaIpuFrom
-						ipu_csc(mb8, rgb32, decoder.sgn);
+						ipu_csc(&mb8, &rgb32, decoder.sgn, g_ipu_thresh);
 
 						if (decoder.ofm == 0)
 							decoder.SetOutputTo(rgb32);
@@ -1357,7 +1355,7 @@ __ri static bool ipuCSC(tIPU_CMD_CSC csc)
 			if (!getBits64((u8*)&decoder.mb8 + 8 * ipu_cmd.pos[0])) return false;
 		}
 
-		ipu_csc(decoder.mb8, decoder.rgb32, 0);
+		ipu_csc(&decoder.mb8, &decoder.rgb32, 0, g_ipu_thresh);
 
 		if (csc.OFM)
 		{
@@ -1408,7 +1406,7 @@ __ri static bool ipuPACK(tIPU_CMD_CSC csc)
 		}
 		else
 		{
-			ipu_vq(decoder.rgb16, g_ipu_indx4);
+			ipu_vq(&decoder.rgb16, g_ipu_indx4, g_ipu_vqclut);
 			ipu_cmd.pos[1] += ipu_fifo.out.write(((u32*)g_ipu_indx4) + 4 * ipu_cmd.pos[1], 8 - ipu_cmd.pos[1]);
 			if (ipu_cmd.pos[1] < 8)
 			{
@@ -1427,73 +1425,6 @@ __ri static bool ipuPACK(tIPU_CMD_CSC csc)
 // --------------------------------------------------------------------------------------
 //  CORE Functions (referenced from MPEG library)
 // --------------------------------------------------------------------------------------
-
-__fi static void ipu_csc(macroblock_8& mb8, macroblock_rgb32& rgb32, int sgn)
-{
-	int i;
-	u8* p = (u8*)&rgb32;
-
-	::yuv2rgb(&mb8, &rgb32);
-
-	if (g_ipu_thresh[0] > 0)
-	{
-		for (i = 0; i < 16*16; i++, p += 4)
-		{
-			if ((p[0] < g_ipu_thresh[0]) && (p[1] < g_ipu_thresh[0]) && (p[2] < g_ipu_thresh[0]))
-				*(u32*)p = 0;
-			else if ((p[0] < g_ipu_thresh[1]) && (p[1] < g_ipu_thresh[1]) && (p[2] < g_ipu_thresh[1]))
-				p[3] = 0x40;
-		}
-	}
-	else if (g_ipu_thresh[1] > 0)
-	{
-		for (i = 0; i < 16*16; i++, p += 4)
-		{
-			if ((p[0] < g_ipu_thresh[1]) && (p[1] < g_ipu_thresh[1]) && (p[2] < g_ipu_thresh[1]))
-				p[3] = 0x40;
-		}
-	}
-	if (sgn)
-	{
-		/* p has been advanced through the whole macroblock by the
-		 * threshold pass above; without this reset the XOR walks the
-		 * kilobyte PAST rgb32 whenever a threshold is active, flipping
-		 * bits in whatever follows in decoder_t instead of the pixels. */
-		p = (u8*)&rgb32;
-		for (i = 0; i < 16*16; i++, p += 4)
-			*(u32*)p ^= 0x808080;
-	}
-}
-
-__fi static void ipu_vq(macroblock_rgb16& rgb16, u8* indx4)
-{
-	const auto closest_index = [&](int i, int j) {
-		u8 index = 0;
-		int min_distance = INT_MAX;
-		for (u8 k = 0; k < 16; ++k)
-		{
-			const int dr = rgb16.c[i][j].r - g_ipu_vqclut[k].r;
-			const int dg = rgb16.c[i][j].g - g_ipu_vqclut[k].g;
-			const int db = rgb16.c[i][j].b - g_ipu_vqclut[k].b;
-			const int distance = dr * dr + dg * dg + db * db;
-
-				/* Ties: the manual (8.6.3) describes a sequential scan
-			 * i=0..15 taking the minimum, so the lowest index wins -
-			 * which the strict > below implements. */
-			if (min_distance > distance)
-			{
-				index = k;
-				min_distance = distance;
-			}
-		}
-
-		return index;
-	};
-
-	for (int i = 0; i < 16; ++i)
-		for (int j = 0; j < 8; ++j)
-			indx4[i * 8 + j] = closest_index(i, 2 * j + 1) << 4 | closest_index(i, 2 * j);
-}
 
 __noinline void IPUWorker(void)
 {
