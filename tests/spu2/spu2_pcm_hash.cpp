@@ -205,6 +205,7 @@ static double g_rms;
 static long   g_hi_rail;   /* samples at +0x7fff */
 static long   g_lo_rail;   /* samples at -0x8000 */
 static double g_dc;        /* mean output level, both channels */
+static int    g_freeze_bad;/* set when a thaw did not restore the mixer */
 
 static uint64_t run(int samples)
 {
@@ -402,6 +403,61 @@ static uint64_t scen_input(int samples)
 	return run(samples);
 }
 
+/* Freeze in the middle of a run, scribble over everything the mixer
+ * reads, thaw, and carry on. The second half has to hash the same as an
+ * uninterrupted run: a savestate that does not restore a field leaves the
+ * mixer running on the scribble. The DMA pointers are the interesting
+ * part, since they are turned into offsets on the way out and back into
+ * pointers on the way in. */
+static uint64_t scen_freeze(int samples)
+{
+	uint64_t plain, restored;
+	void *blk = malloc((size_t)SPU2Savestate_SizeIt() + 64);
+	struct SPU2Savestate_DataBlock *spud;
+	int half = samples / 2, v;
+
+	/* an uninterrupted run, for the second half's hash to match */
+	reset_core();
+	for (v = 0; v < 8; v++)
+		start_voice(0, v, 0x1000 + (u32)v * 0x400, (u16)(0x400 + v * 0x90),
+		            0x00ff, 0x1fc0, 0x3000, 0x3000);
+	Cores[0].DryGate.SndL = Cores[0].DryGate.SndR = -1;
+	Cores[0].MasterVol.Left.Value = Cores[0].MasterVol.Right.Value = 0x3fff;
+	Cores[1].MasterVol.Left.Value = Cores[1].MasterVol.Right.Value = 0x3fff;
+	open_ext_path();
+	run(half);
+	plain = run(samples - half);
+
+	/* the same, with a freeze/thaw across the seam */
+	fill_sample_ram();
+	reset_core();
+	for (v = 0; v < 8; v++)
+		start_voice(0, v, 0x1000 + (u32)v * 0x400, (u16)(0x400 + v * 0x90),
+		            0x00ff, 0x1fc0, 0x3000, 0x3000);
+	Cores[0].DryGate.SndL = Cores[0].DryGate.SndR = -1;
+	Cores[0].MasterVol.Left.Value = Cores[0].MasterVol.Right.Value = 0x3fff;
+	Cores[1].MasterVol.Left.Value = Cores[1].MasterVol.Right.Value = 0x3fff;
+	open_ext_path();
+	run(half);
+
+	spud = (struct SPU2Savestate_DataBlock *)
+	       (((uintptr_t)blk + 63) & ~(uintptr_t)63);
+	SPU2Savestate_FreezeIt(spud);
+
+	memset(Cores, 0x5a, sizeof(Cores));
+	memset(spu2regs, 0x5a, sizeof(spu2regs));
+	memset(&Spdif, 0x5a, sizeof(Spdif));
+	OutPos = 0x1234; InputPos = 0x4321; Cycles = 0xdeadbeef; PlayMode = 7;
+
+	if (SPU2Savestate_ThawIt(spud) != 0)
+		printf("  (thaw refused the block)\n");
+	restored = run(samples - half);
+	free(blk);
+
+	g_freeze_bad = (restored != plain);
+	return restored;
+}
+
 /* A steady offset on the input, which the DC blocker at the end of Mix()
  * exists to take back out. The input sits at +0x4000 for three quarters of
  * each period and -0x4000 for the rest, so it carries a large positive
@@ -562,6 +618,7 @@ int main(int argc, char **argv)
 		{ "clipping",    scen_clipping,    0x5519bccef104759eull },
 		{ "input",       scen_input,       0x5f01fc536a90f4b0ull },
 		{ "regwrite",    scen_regwrite,    0x15ab243a6adc9545ull },
+		{ "freeze",      scen_freeze,      0xe535aab6afa7feb5ull },
 		{ "dcblock",     scen_dcblock,     0xa91c0091521349d7ull },
 	};
 
@@ -581,6 +638,13 @@ int main(int argc, char **argv)
 		{
 			printf("  %-12s NOT SATURATING: rails +%ld/-%ld -- the clamps are untested\n",
 			       scen[i].name, g_hi_rail, g_lo_rail);
+			bad++;
+			continue;
+		}
+		if (strcmp(scen[i].name, "freeze") == 0 && g_freeze_bad)
+		{
+			printf("  %-12s the mixer does not resume where it froze\n",
+			       scen[i].name);
 			bad++;
 			continue;
 		}

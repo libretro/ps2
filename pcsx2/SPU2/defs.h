@@ -481,14 +481,11 @@ extern bool has_to_call_irq_dma[2];
  * ever set has_to_call_irq, so the result is unchanged. */
 extern bool has_irq_armed;
 
-namespace SPU2Savestate
-{
-	struct DataBlock;
+struct SPU2Savestate_DataBlock;
 
-	extern void FreezeIt(DataBlock& spud);
-	extern s32 ThawIt(DataBlock& spud);
-	extern s32 SizeIt();
-} // namespace SPU2Savestate
+void SPU2Savestate_FreezeIt(struct SPU2Savestate_DataBlock *spud);
+s32  SPU2Savestate_ThawIt(struct SPU2Savestate_DataBlock *spud);
+s32  SPU2Savestate_SizeIt(void);
 
 // --------------------------------------------------------------------------------------
 //  ADPCM Decoder Cache

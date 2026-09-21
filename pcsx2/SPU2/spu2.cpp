@@ -117,20 +117,20 @@ s32 SPU2freeze(FreezeAction mode, freezeData* data)
 		return -1;
 
 	if (mode == FreezeAction::Size)
-		data->size = SPU2Savestate::SizeIt();
+		data->size = SPU2Savestate_SizeIt();
 	else
 	{
 		if (data->data == nullptr)
 			return -1;
 
-		auto& spud = (SPU2Savestate::DataBlock&)*(data->data);
+		struct SPU2Savestate_DataBlock *spud = (struct SPU2Savestate_DataBlock *)data->data;
 
 		switch (mode)
 		{
 			case FreezeAction::Load:
-				return SPU2Savestate::ThawIt(spud);
+				return SPU2Savestate_ThawIt(spud);
 			case FreezeAction::Save:
-				SPU2Savestate::FreezeIt(spud);
+				SPU2Savestate_FreezeIt(spud);
 				break;
 			default:
 				break;
