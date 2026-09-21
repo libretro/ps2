@@ -167,9 +167,9 @@ int main(int argc, char **argv)
 			bs2[0] = 1 << (1 + (k & 3));
 			bs2[1] = 1 << (1 + ((k >> 2) & 3));
 			GSVector2i BS(bs2[0], bs2[1]);
-			chk("ralign_outside", gs_v4i_ralign_outside(a, bs2[0], bs2[1]),
+			chk("ralign_outside", gs_v4i_ralign_outside(a, bs2),
 			    A.ralign<Align_Outside>(BS));
-			chk("ralign_neginf",  gs_v4i_ralign_neginf(a, bs2[0], bs2[1]),
+			chk("ralign_neginf",  gs_v4i_ralign_neginf(a, bs2),
 			    A.ralign<Align_NegInf>(BS));
 			chk("loadh",          gs_v4i_loadh(bs2),            GSVector4i::loadh(BS));
 			chk("set4", gs_v4i_set4(bs2[0], bs2[1], bs2[0], bs2[1]),

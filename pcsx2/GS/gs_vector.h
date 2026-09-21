@@ -687,28 +687,31 @@ static GS_VEC_INLINE gs_vec4i gs_v4i_runion(gs_vec4i a, gs_vec4i b)
    return gs_v4i_upl64v(lo, hi);
 }
 
-/* Align a rect to a block size, which is always a power of two.
+/* Align a rect to a block size, which is always a power of two. bs points
+ * at the two sizes as a packed pair, because that is how callers hold them
+ * and one 8-byte load beats rebuilding the vector from two ints.
  *
  * The mask is (bsx-1, bsy-1, 0, 0), so adding its halves swapped leaves the
  * left and top edges alone and pushes the right and bottom ones up to the
  * next boundary; the andnot then rounds every edge down, which for the two
  * that were pushed is a round up. NegInf skips the addend and rounds all
  * four down. */
-static GS_VEC_INLINE gs_vec4i gs_v4i_ralign_outside(
-      gs_vec4i r, int32_t bsx, int32_t bsy)
+static GS_VEC_INLINE gs_vec4i gs_v4i_ralign_mask(const void *bs)
 {
-   gs_vec4i mask = gs_v4i_set4(bsx - 1, bsy - 1, 0, 0);
+   return gs_v4i_sub32(gs_v4i_loadl(bs), gs_v4i_set4(1, 1, 0, 0));
+}
+
+static GS_VEC_INLINE gs_vec4i gs_v4i_ralign_outside(gs_vec4i r, const void *bs)
+{
+   gs_vec4i mask = gs_v4i_ralign_mask(bs);
 
    return gs_v4i_andnot(GS_V4I_SHUFFLE32(mask, 0x44),
                         gs_v4i_add32(r, GS_V4I_SHUFFLE32(mask, 0x4e)));
 }
 
-static GS_VEC_INLINE gs_vec4i gs_v4i_ralign_neginf(
-      gs_vec4i r, int32_t bsx, int32_t bsy)
+static GS_VEC_INLINE gs_vec4i gs_v4i_ralign_neginf(gs_vec4i r, const void *bs)
 {
-   gs_vec4i mask = gs_v4i_set4(bsx - 1, bsy - 1, 0, 0);
-
-   return gs_v4i_andnot(GS_V4I_SHUFFLE32(mask, 0x44), r);
+   return gs_v4i_andnot(GS_V4I_SHUFFLE32(gs_v4i_ralign_mask(bs), 0x44), r);
 }
 
 #endif /* GS_VECTOR_H */
