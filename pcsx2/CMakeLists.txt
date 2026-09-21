@@ -263,15 +263,16 @@ set(pcsx2CDVDHeaders
 
 # SPU2 sources
 set(pcsx2SPU2Sources
-	SPU2/ADSR.cpp
-	SPU2/Dma.cpp
-	SPU2/Mixer.cpp
+	SPU2/ADSR.c
+	SPU2/Dma.c
+	SPU2/Mixer.c
 	SPU2/spu2.cpp
-	SPU2/ReadInput.cpp
-	SPU2/RegTable.cpp
-	SPU2/Reverb.cpp
-	SPU2/spu2freeze.cpp
-	SPU2/spu2sys.cpp
+	SPU2/ReadInput.c
+	SPU2/RegTable.c
+	SPU2/Reverb.c
+	SPU2/ReverbResample.c
+	SPU2/spu2freeze.c
+	SPU2/spu2sys.c
 )
 
 # No SPU2 source needs the MULTI_ISA per-ISA machinery: the reverb

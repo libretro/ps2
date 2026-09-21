@@ -209,6 +209,9 @@ struct dma_mbct
 	u32 tadr;
 };
 
+/* Reference bindings onto the register block; C sees the HW_DMA* macros
+ * below instead. */
+#ifdef __cplusplus
 static dma_mbc&		hw_dma0		= (dma_mbc&) iopHw[0x1080];
 static dma_mbc&		hw_dma1		= (dma_mbc&) iopHw[0x1090];
 static dma_mbct&	hw_dma2		= (dma_mbct&)iopHw[0x10a0];
@@ -223,6 +226,7 @@ static dma_mbc&		hw_dma11	= (dma_mbc&) iopHw[0x1540];
 static dma_mbc&		hw_dma12	= (dma_mbc&) iopHw[0x1550];
 
 #define hw_dma(x)	hw_dma##x
+#endif
 
 #define HW_DMA0_MADR (psxHu32(0x1080)) // MDEC in DMA
 #define HW_DMA0_BCR  (psxHu32(0x1084))
@@ -286,7 +290,7 @@ static dma_mbc&		hw_dma12	= (dma_mbc&) iopHw[0x1550];
 #define HW_DMA_PCR2  (psxHu32(0x1570))
 #define HW_DMA_ICR2  (psxHu32(0x1574))
 
-enum IopEventId
+typedef enum IopEventId
 {
 	IopEvt_SIF2,
 	IopEvt_Cdvd,		// General Cdvd commands (Seek, Standby, Break, etc)
@@ -301,7 +305,7 @@ enum IopEventId
 	IopEvt_CdvdSectorReady,
 	IopEvt_DEV9,
 	IopEvt_USB,
-};
+} IopEventId;
 
 extern void PSX_INT( IopEventId n, s32 ecycle);
 extern int psxRemainingCycles(IopEventId n);
@@ -313,5 +317,11 @@ extern void psxHwReset();
 extern u8   psxHw4Read8 (u32 add);
 extern void psxHw4Write8(u32 add, u8  value);
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 extern void psxDmaInterrupt(int n);
 extern void psxDmaInterrupt2(int n);
+#ifdef __cplusplus
+}
+#endif

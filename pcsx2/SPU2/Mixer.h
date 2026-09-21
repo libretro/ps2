@@ -15,4 +15,13 @@
 
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 extern void Mix(short *left, short *right);
+
+#ifdef __cplusplus
+}
+#endif

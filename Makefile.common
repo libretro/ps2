@@ -355,18 +355,20 @@ SOURCES_CXX += \
 	$(LRPS2_DIR)/ps2/Iop/IopHwWrite.cpp \
 	$(LRPS2_DIR)/ps2/Iop/PsxBios.cpp
 
-# pcsx2/SPU2
+# pcsx2/SPU2. Everything but the emulator-facing shim builds as C.
+SOURCES_C += \
+	$(LRPS2_DIR)/SPU2/ADSR.c \
+	$(LRPS2_DIR)/SPU2/Dma.c \
+	$(LRPS2_DIR)/SPU2/Mixer.c \
+	$(LRPS2_DIR)/SPU2/ReadInput.c \
+	$(LRPS2_DIR)/SPU2/RegTable.c \
+	$(LRPS2_DIR)/SPU2/Reverb.c \
+	$(LRPS2_DIR)/SPU2/ReverbResample.c \
+	$(LRPS2_DIR)/SPU2/spu2freeze.c \
+	$(LRPS2_DIR)/SPU2/spu2sys.c
+
 SOURCES_CXX += \
-	$(LRPS2_DIR)/SPU2/ADSR.cpp \
-	$(LRPS2_DIR)/SPU2/Dma.cpp \
-	$(LRPS2_DIR)/SPU2/Mixer.cpp \
-	$(LRPS2_DIR)/SPU2/ReadInput.cpp \
-	$(LRPS2_DIR)/SPU2/RegTable.cpp \
-	$(LRPS2_DIR)/SPU2/Reverb.cpp \
-	$(LRPS2_DIR)/SPU2/ReverbResample.cpp \
-	$(LRPS2_DIR)/SPU2/spu2.cpp \
-	$(LRPS2_DIR)/SPU2/spu2freeze.cpp \
-	$(LRPS2_DIR)/SPU2/spu2sys.cpp
+	$(LRPS2_DIR)/SPU2/spu2.cpp
 
 # pcsx2 CPU recompilers. x86_64 uses the x86 dynarec; aarch64 uses the native
 # arm64 EE/IOP/VU recompilers + NEON VIF unpack transplanted from ARMSX2 (the

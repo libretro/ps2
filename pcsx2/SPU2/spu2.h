@@ -29,23 +29,27 @@ struct freezeData;
 
 namespace SPU2
 {
-	/// Initialization/cleanup, call at process startup/shutdown.
+	/*/ Initialization/cleanup, call at process startup/shutdown. */
 	void Initialize(void);
 	void Shutdown(void);
 
-	/// Open/close, call at VM startup/shutdown.
+	/*/ Open/close, call at VM startup/shutdown. */
 	void Open(void);
 	void Close(void);
 
-	/// Reset, rebooting VM or going into PSX mode.
+	/*/ Reset, rebooting VM or going into PSX mode. */
 	void Reset(bool psxmode);
 
-	/// Returns true if we're currently running in PSX mode.
+	/*/ Returns true if we're currently running in PSX mode. */
 	bool IsRunningPSXMode(void);
 }
 
 s32 SPU2freeze(FreezeAction mode, freezeData* data);
 
+#endif
+
+#ifdef __cplusplus
+extern "C" {
 #endif
 
 void SPU2write(u32 mem, u16 value);
@@ -58,3 +62,6 @@ extern const u16 tbl_reg_args[0x401];
 
 extern void TimeUpdate(u64 cClocks);
 
+#ifdef __cplusplus
+}
+#endif

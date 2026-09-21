@@ -40,33 +40,58 @@
 
 #include "common/Pcsx2Types.h"
 
+/* The zone list is outside the namespace: a C translation unit names the
+ * same zones through PROFILE_ZONE_BEGIN. */
+enum PCSX2ProfilerZone
+{
+	PCSX2_ZONE_IOP_EXEC,    /* IOP recompiler/interpreter dispatch */
+	PCSX2_ZONE_VU1,         /* VU1 microprogram execution */
+	PCSX2_ZONE_VIF_UNPACK,  /* VIF unpack of vertex data into VU memory */
+	PCSX2_ZONE_SPU2_MIX,    /* SPU2 voice mixing */
+	PCSX2_ZONE_GS_TRANSFER, /* GIF packets handed to whichever renderer */
+	PCSX2_ZONE_GS_VSYNC,    /* end-of-frame renderer work */
+	PCSX2_ZONE_GS_SYNC,     /* blocked waiting for the GPU, not working */
+	PCSX2_ZONE_GS_DRAWKICK, /* batched packed-vertex handler inside a transfer */
+	PCSX2_ZONE_GS_REGWRITE, /* per-register writes inside a transfer */
+	PCSX2_ZONE_GS_KICKTEX,  /* texture-cache resolution inside a drawing kick */
+	PCSX2_ZONE_GS_VS_FLUSH, /* flush_submit inside vsync: draining pending GS work */
+	PCSX2_ZONE_GS_VS_CIRC,  /* building the scanout circuits */
+	PCSX2_ZONE_GS_VS_MERGE, /* merge render pass and present handoff */
+	PCSX2_ZONE_GS_VS_IMG,   /* allocating the merged scanout image */
+	PCSX2_ZONE_COUNT
+};
+
+#ifdef __cplusplus
+
 #if defined(_M_X86) || defined(__x86_64__) || defined(__i386__)
 #include <x86intrin.h>
 #endif
 
 namespace PCSX2Profiler
 {
-	enum Zone
+	typedef enum PCSX2ProfilerZone Zone;
+
+	enum
 	{
-		ZONE_IOP_EXEC,    /* IOP recompiler/interpreter dispatch */
-		ZONE_VU1,         /* VU1 microprogram execution */
-		ZONE_VIF_UNPACK,  /* VIF unpack of vertex data into VU memory */
-		ZONE_SPU2_MIX,    /* SPU2 voice mixing */
-		ZONE_GS_TRANSFER, /* GIF packets handed to whichever renderer */
-		ZONE_GS_VSYNC,    /* end-of-frame renderer work */
-		ZONE_GS_SYNC,     /* blocked waiting for the GPU, not working */
-		ZONE_GS_DRAWKICK, /* batched packed-vertex handler inside a transfer */
-		ZONE_GS_REGWRITE, /* per-register writes inside a transfer */
-		ZONE_GS_KICKTEX,  /* texture-cache resolution inside a drawing kick */
-		ZONE_GS_VS_FLUSH, /* flush_submit inside vsync: draining pending GS work */
-		ZONE_GS_VS_CIRC,  /* building the scanout circuits */
-		ZONE_GS_VS_MERGE, /* merge render pass and present handoff */
-		ZONE_GS_VS_IMG,   /* allocating the merged scanout image */
-		ZONE_COUNT
+		ZONE_IOP_EXEC    = PCSX2_ZONE_IOP_EXEC,
+		ZONE_VU1         = PCSX2_ZONE_VU1,
+		ZONE_VIF_UNPACK  = PCSX2_ZONE_VIF_UNPACK,
+		ZONE_SPU2_MIX    = PCSX2_ZONE_SPU2_MIX,
+		ZONE_GS_TRANSFER = PCSX2_ZONE_GS_TRANSFER,
+		ZONE_GS_VSYNC    = PCSX2_ZONE_GS_VSYNC,
+		ZONE_GS_SYNC     = PCSX2_ZONE_GS_SYNC,
+		ZONE_GS_DRAWKICK = PCSX2_ZONE_GS_DRAWKICK,
+		ZONE_GS_REGWRITE = PCSX2_ZONE_GS_REGWRITE,
+		ZONE_GS_KICKTEX  = PCSX2_ZONE_GS_KICKTEX,
+		ZONE_GS_VS_FLUSH = PCSX2_ZONE_GS_VS_FLUSH,
+		ZONE_GS_VS_CIRC  = PCSX2_ZONE_GS_VS_CIRC,
+		ZONE_GS_VS_MERGE = PCSX2_ZONE_GS_VS_MERGE,
+		ZONE_GS_VS_IMG   = PCSX2_ZONE_GS_VS_IMG,
+		ZONE_COUNT       = PCSX2_ZONE_COUNT
 	};
 
-	extern u64 g_zone_ticks[ZONE_COUNT];
-	extern u64 g_zone_calls[ZONE_COUNT];
+	extern u64 g_zone_ticks[PCSX2_ZONE_COUNT];
+	extern u64 g_zone_calls[PCSX2_ZONE_COUNT];
 
 	/* Zones nest: a VU1 microprogram XGKICKs into GS transfer, and the EE
 	 * enters all of them. Charging a zone its whole span would count the
@@ -136,9 +161,29 @@ namespace PCSX2Profiler
 #define PROFILE_SCOPE(z) PCSX2Profiler::Scope profile_scope_##__LINE__(PCSX2Profiler::z)
 #define PROFILE_FRAME_END() PCSX2Profiler::FrameEnd()
 
+#endif /* __cplusplus */
+
+/* The same measurement for a C translation unit, which has no destructor
+ * to close the scope with: begin returns what end has to hand back. The
+ * caller keeps it in a local, so a function with one exit spells the pair
+ * out and a function with several closes on each. */
+#ifdef __cplusplus
+extern "C" {
+#endif
+int  pcsx2_profile_zone_begin(int zone);
+void pcsx2_profile_zone_end(int zone, int prev);
+#ifdef __cplusplus
+}
+#endif
+
+#define PROFILE_ZONE_BEGIN(z) pcsx2_profile_zone_begin(PCSX2_##z)
+#define PROFILE_ZONE_END(z, prev) pcsx2_profile_zone_end(PCSX2_##z, (prev))
+
 #else
 
 #define PROFILE_SCOPE(z) do {} while (0)
 #define PROFILE_FRAME_END() do {} while (0)
+#define PROFILE_ZONE_BEGIN(z) 0
+#define PROFILE_ZONE_END(z, prev) do { (void)(prev); } while (0)
 
 #endif

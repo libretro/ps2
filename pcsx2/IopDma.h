@@ -34,7 +34,13 @@ extern void dev9Interrupt();
 extern void dev9Irq(int cycles);
 extern void usbInterrupt();
 extern void fwIrq();
-extern void spu2Irq();
+#ifdef __cplusplus
+extern "C" {
+#endif
+extern void spu2Irq(void);
+#ifdef __cplusplus
+}
+#endif
 
 extern void iopIntcIrq( uint irqType );
 extern void iopTestIntc();

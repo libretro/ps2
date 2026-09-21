@@ -1,15 +1,11 @@
+#include <string.h>
+
 #include "Global.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 #include "../GS/gs_vector.h"
-#ifdef __cplusplus
-}
-#endif
 
 #define NUM_TAPS 39
-// 39 tap filter, the 0's could be optimized out
+/* 39 tap filter, the 0's could be optimized out */
 SPU2_ALIGN(32) static const s16 filter_down_coefs[48] = {
 	-1,
 	0,

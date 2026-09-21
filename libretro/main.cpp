@@ -1696,7 +1696,7 @@ static void discard_buffered_audio(void)
       retro_spsc_read_end(&audio_spsc, span_bytes);
 }
 
-int16_t *retro_audio_reserve(int32_t max_samples)
+extern "C" int16_t *retro_audio_reserve(int32_t max_samples)
 {
    void  *span;
    size_t span_bytes;
@@ -1720,7 +1720,7 @@ int16_t *retro_audio_reserve(int32_t max_samples)
    return audio_staging;
 }
 
-void retro_audio_commit(int32_t samples)
+extern "C" void retro_audio_commit(int32_t samples)
 {
    const size_t bytes = (size_t)samples * sizeof(int16_t);
    if (!samples)

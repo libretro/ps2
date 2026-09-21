@@ -152,6 +152,30 @@ namespace PCSX2Profiler
 		}
 		last_report = now;
 	}
-} // namespace PCSX2Profiler
+} /* namespace PCSX2Profiler */
+
+/* The C entry points: same accounting the Scope constructor and destructor
+ * do, spelled as a pair a C caller can place by hand. */
+extern "C" int pcsx2_profile_zone_begin(int zone)
+{
+	const u64 now = PCSX2Profiler::NowTicks();
+	int prev;
+	if (PCSX2Profiler::g_current >= 0)
+		PCSX2Profiler::g_zone_ticks[PCSX2Profiler::g_current] +=
+			now - PCSX2Profiler::g_last;
+	prev = PCSX2Profiler::g_current;
+	PCSX2Profiler::g_current = zone;
+	PCSX2Profiler::g_last = now;
+	PCSX2Profiler::g_zone_calls[zone]++;
+	return prev;
+}
+
+extern "C" void pcsx2_profile_zone_end(int zone, int prev)
+{
+	const u64 now = PCSX2Profiler::NowTicks();
+	PCSX2Profiler::g_zone_ticks[zone] += now - PCSX2Profiler::g_last;
+	PCSX2Profiler::g_current = prev;
+	PCSX2Profiler::g_last = now;
+}
 
 #endif

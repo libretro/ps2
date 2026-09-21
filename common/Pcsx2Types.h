@@ -15,6 +15,24 @@
 
 #pragma once
 
+/* MSVC's C89 mode has no bool. One byte matches what the C++ side uses on
+ * every ABI this builds for, which matters because V_Core and V_Voice are
+ * shared between the two. */
+#ifndef __cplusplus
+#if defined(_MSC_VER) && !defined(__clang__)
+#if _MSC_VER < 1800
+typedef unsigned char bool;
+#define true  1
+#define false 0
+#else
+#include <stdbool.h>
+#endif
+#else
+#include <stdbool.h>
+#endif
+#endif
+
+
 #ifdef __cplusplus
 #include <cstdint>
 #else

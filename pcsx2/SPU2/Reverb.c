@@ -13,13 +13,18 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <array>
+
+#include <string.h>
 
 #include "Global.h"
-#include "../GS/GSVector.h"
 
 StereoOut32 V_Core_DoReverb(V_Core *c, StereoOut32 Input)
 {
+	int i;
+	u32 rv_start, rv_end, rv_size, rv_phase;
+	bool R;
+	s32 apf2;
+
 	if (c->EffectsStartA >= c->EffectsEndA)
 	{
 		StereoOut32 ret;
@@ -34,10 +39,10 @@ StereoOut32 V_Core_DoReverb(V_Core *c, StereoOut32 Input)
 	 * once here instead of re-deriving the masks on each of the 14 indexer
 	 * calls below. Arithmetic is identical to the previous per-call form,
 	 * so the produced indices are bit-for-bit unchanged. */
-	const u32 rv_start = c->EffectsStartA & 0x3fffff;
-	const u32 rv_end   = (c->EffectsEndA & 0x3fffff) | 0xffff;
-	const u32 rv_size  = (rv_end - rv_start) + 1;
-	const u32 rv_phase = Cycles >> 1;
+	rv_start = c->EffectsStartA & 0x3fffff;
+	rv_end   = (c->EffectsEndA & 0x3fffff) | 0xffff;
+	rv_size  = (rv_end - rv_start) + 1;
+	rv_phase = Cycles >> 1;
 	/* Reads rv_phase, rv_size and rv_start from the enclosing scope, which
 	 * is what the lambda this replaces captured; offset is used once. */
 #define Indexer(offset) \
@@ -51,10 +56,11 @@ StereoOut32 V_Core_DoReverb(V_Core *c, StereoOut32 Input)
 	c->RevbDownBuf[0][c->RevbSampleBufPos | 64] = Input.Left;
 	c->RevbDownBuf[1][c->RevbSampleBufPos | 64] = Input.Right;
 
-	bool R = Cycles & 1;
+	R = Cycles & 1;
 
-	// Calculate the read/write addresses we'll be needing for this session of reverb.
-
+	/* Calculate the read/write addresses we'll be needing for this session of reverb.
+	 * They open a block of their own so they can stay named constants in C89. */
+	{
 	const u32 same_src = Indexer(R ? c->Revb.SAME_R_SRC : c->Revb.SAME_L_SRC);
 	const u32 same_dst = Indexer(R ? c->Revb.SAME_R_DST : c->Revb.SAME_L_DST);
 	const u32 same_prv = Indexer(R ? c->Revb.SAME_R_DST - 1 : c->Revb.SAME_L_DST - 1);
@@ -73,16 +79,16 @@ StereoOut32 V_Core_DoReverb(V_Core *c, StereoOut32 Input)
 	const u32 apf2_src = Indexer(R ? (c->Revb.APF2_R_DST - c->Revb.APF2_SIZE) : (c->Revb.APF2_L_DST - c->Revb.APF2_SIZE));
 	const u32 apf2_dst = Indexer(R ? c->Revb.APF2_R_DST : c->Revb.APF2_L_DST);
 
-	// -----------------------------------------
-	//          Optimized IRQ Testing !
-	// -----------------------------------------
+	/* ----------------------------------------- */
+	/*          Optimized IRQ Testing ! */
+	/* ----------------------------------------- */
 
-	// This test is enhanced by using the reverb effects area begin/end test as a
-	// shortcut, since all buffer addresses are within that area.  If the IRQA isn't
-	// within that zone then the "bulk" of the test is skipped, so this should only
-	// be a slowdown on a few evil games.
+	/* This test is enhanced by using the reverb effects area begin/end test as a */
+	/* shortcut, since all buffer addresses are within that area.  If the IRQA isn't */
+	/* within that zone then the "bulk" of the test is skipped, so this should only */
+	/* be a slowdown on a few evil games. */
 
-	for (int i = 0; has_irq_armed && i < 2; i++)
+	for (i = 0; has_irq_armed && i < 2; i++)
 	{
 		if (c->FxEnable && Cores[i].IRQEnable && ((Cores[i].IRQA >= c->EffectsStartA) && (Cores[i].IRQA <= c->EffectsEndA)))
 		{
@@ -99,10 +105,8 @@ StereoOut32 V_Core_DoReverb(V_Core *c, StereoOut32 Input)
 		}
 	}
 
-	// Reverb algorithm pretty much directly ripped from http://drhell.web.fc2.com/ps1/
-	// minus the 35 step FIR which just seems to break things.
-
-	s32 apf2;
+	/* Reverb algorithm pretty much directly ripped from http://drhell.web.fc2.com/ps1/ */
+	/* minus the 35 step FIR which just seems to break things. */
 
 /* The product does not fit in 32 bits once the work area is driven near
  * full scale with the coefficients wide open: the second operand travels
@@ -111,6 +115,7 @@ StereoOut32 V_Core_DoReverb(V_Core *c, StereoOut32 Input)
  * Note the SPU2 itself saturates these intermediates to 16 bits, which
  * this does not yet model. */
 #define MUL(x, y) ((s32)((u32)(x) * (u32)(y)) >> 15)
+	{
 	s32 in   = MUL(R ? c->Revb.IN_COEF_R : c->Revb.IN_COEF_L, ReverbDownsample(c, R));
 
 	s32 same = MUL(c->Revb.IIR_VOL, in + MUL(c->Revb.WALL_VOL, _spu2mem[same_src]) - _spu2mem[same_prv]) + _spu2mem[same_prv];
@@ -123,7 +128,7 @@ StereoOut32 V_Core_DoReverb(V_Core *c, StereoOut32 Input)
 	apf2     = out - MUL(c->Revb.APF2_VOL, _spu2mem[apf2_src]);
 	out      = _spu2mem[apf2_src] + MUL(c->Revb.APF2_VOL, apf2);
 
-	// According to no$psx the effects always run but don't always write back, see check in V_Core::Mix
+	/* According to no$psx the effects always run but don't always write back, see check in V_Core::Mix */
 	if (c->FxEnable)
 	{
 		_spu2mem[same_dst] = pcsx2_clamp_i(same, -0x8000, 0x7fff);
@@ -141,6 +146,8 @@ StereoOut32 V_Core_DoReverb(V_Core *c, StereoOut32 Input)
 	c->RevbUpBuf[!R][c->RevbSampleBufPos | 64] = 0;
 
 	c->RevbSampleBufPos = (c->RevbSampleBufPos + 1) & 63;
+	}
+	}
 
 	return ReverbUpsample(c);
 }

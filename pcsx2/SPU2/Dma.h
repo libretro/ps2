@@ -15,5 +15,7 @@
 
 #pragma once
 
-#define MADR(c) ((c)->Index == 0 ? HW_DMA4_MADR : HW_DMA7_MADR)
-#define TADR(c) ((c)->Index == 0 ? HW_DMA4_TADR : HW_DMA7_TADR)
+/* Through a pointer: a conditional expression is not an lvalue in C, and
+ * both of these are assigned to. */
+#define MADR(c) (*((c)->Index == 0 ? &HW_DMA4_MADR : &HW_DMA7_MADR))
+#define TADR(c) (*((c)->Index == 0 ? &HW_DMA4_TADR : &HW_DMA7_TADR))

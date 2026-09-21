@@ -13,6 +13,8 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <string.h>
+
 #include "Global.h"
 
 #define ADSR_MAX_VOL 0x7fff

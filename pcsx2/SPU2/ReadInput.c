@@ -13,6 +13,8 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <string.h>
+
 #include "Global.h"
 #include "Dma.h"
 #include "../IopDma.h"
@@ -20,22 +22,22 @@
 
 #include "spu2.h"
 
-// Core 0 Input is "SPDIF mode" - Source audio is AC3 compressed.
+/* Core 0 Input is "SPDIF mode" - Source audio is AC3 compressed. */
 
-// Core 1 Input is "CDDA mode" - Source audio data is 32 bits.
-// PS2 note:  Very! few PS2 games use this mode.  Some PSX games used it, however no
-// *known* PS2 game does since it was likely only available if the game was recorded to CD
-// media (ie, not available in DVD mode, which almost all PS2 games use).  Plus PS2 games
-// generally prefer to use ADPCM streaming audio since they need as much storage space as
-// possible for FMVs and high-def textures.
-//
+/* Core 1 Input is "CDDA mode" - Source audio data is 32 bits. */
+/* PS2 note:  Very! few PS2 games use this mode.  Some PSX games used it, however no */
+/* *known* PS2 game does since it was likely only available if the game was recorded to CD */
+/* media (ie, not available in DVD mode, which almost all PS2 games use).  Plus PS2 games */
+/* generally prefer to use ADPCM streaming audio since they need as much storage space as */
+/* possible for FMVs and high-def textures. */
+/* */
 StereoOut32 V_Core_ReadInput_HiFi(V_Core *c)
 {
 	StereoOut32 retval;
 	const u16 ReadIndex = (OutPos * 2) & 0x1FF;
 
-	retval.Left  = (s32&)(*GetMemPtr(0x2000 + (c->Index << 10) + ReadIndex));
-	retval.Right = (s32&)(*GetMemPtr(0x2200 + (c->Index << 10) + ReadIndex));
+	retval.Left  = *(s32 *)GetMemPtr(0x2000 + (c->Index << 10) + ReadIndex);
+	retval.Right = *(s32 *)GetMemPtr(0x2200 + (c->Index << 10) + ReadIndex);
 
 	if (c->Index == 1)
 	{
@@ -43,15 +45,15 @@ StereoOut32 V_Core_ReadInput_HiFi(V_Core *c)
 		retval.Right >>= 16;
 	}
 
-	// Simulate MADR increase, GTA VC tracks the MADR address for calculating a certain point in the buffer
+	/* Simulate MADR increase, GTA VC tracks the MADR address for calculating a certain point in the buffer */
 	if (c->InputDataTransferred)
 	{
 		u32 amount = pcsx2_min_u(c->InputDataTransferred, (u32)0x180);
 
 		c->InputDataTransferred -= amount;
 		MADR(c) += amount;
-		// Because some games watch the MADR to see when it reaches the end we need to end the DMA here
-		// Tom & Jerry War of the Whiskers is one such game, the music will skip
+		/* Because some games watch the MADR to see when it reaches the end we need to end the DMA here */
+		/* Tom & Jerry War of the Whiskers is one such game, the music will skip */
 		if (!c->InputDataTransferred && !c->InputDataLeft)
 		{
 			if (c->Index == 0)
@@ -103,22 +105,23 @@ StereoOut32 V_Core_ReadInput_HiFi(V_Core *c)
 
 StereoOut32 V_Core_ReadInput(V_Core *c)
 {
+	int i;
 	StereoOut32 retval;
 	u16 ReadIndex = OutPos;
 
 	if (has_irq_armed)
-		for (int i = 0; i < 2; i++)
+		for (i = 0; i < 2; i++)
 			if (Cores[i].IRQEnable && (0x2000 + (c->Index << 10) + ReadIndex) == (Cores[i].IRQA & 0xfffffdff))
 				{ has_to_call_irq[i] = true; }
 
-	// PlayMode & 2 is Bypass Mode, so it doesn't go through the SPU
+	/* PlayMode & 2 is Bypass Mode, so it doesn't go through the SPU */
 	if ((c->Index == 1) || !(c->Index == 0 && (PlayMode & 2) != 0))
 	{
 		retval.Left  = (s32)(*GetMemPtr(0x2000 + (c->Index << 10) + ReadIndex));
 		retval.Right = (s32)(*GetMemPtr(0x2200 + (c->Index << 10) + ReadIndex));
 	}
 
-	// Simulate MADR increase, GTA VC tracks the MADR address for calculating a certain point in the buffer
+	/* Simulate MADR increase, GTA VC tracks the MADR address for calculating a certain point in the buffer */
 	if (c->InputDataTransferred)
 	{
 		u32 amount = pcsx2_min_u(c->InputDataTransferred, (u32)0x180);
@@ -126,8 +129,8 @@ StereoOut32 V_Core_ReadInput(V_Core *c)
 		c->InputDataTransferred -= amount;
 		MADR(c) += amount;
 
-		// Because some games watch the MADR to see when it reaches the end we need to end the DMA here
-		// Tom & Jerry War of the Whiskers is one such game, the music will skip
+		/* Because some games watch the MADR to see when it reaches the end we need to end the DMA here */
+		/* Tom & Jerry War of the Whiskers is one such game, the music will skip */
 		if (!c->InputDataTransferred && !c->InputDataLeft)
 		{
 			if (c->Index == 0)
@@ -157,7 +160,7 @@ StereoOut32 V_Core_ReadInput(V_Core *c)
 		}
 	}
 
-	if (PlayMode == 2 && c->Index == 0) //Bitstream bypass refills twice as quickly (GTA VC)
+	if (PlayMode == 2 && c->Index == 0) /*Bitstream bypass refills twice as quickly (GTA VC) */
 		ReadIndex = (ReadIndex * 2) & 0x1FF;
 
 	if (ReadIndex == 0x100 || ReadIndex == 0x0 || ReadIndex == 0x80 || ReadIndex == 0x180)

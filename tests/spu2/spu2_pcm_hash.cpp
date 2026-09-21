@@ -63,20 +63,22 @@ s32 psxNextDeltaCounter;
 u32 psxNextStartCounter;
 /* lClocks lives in spu2.cpp, which the harness links for SPU2write. */
 
+extern "C" const size_t spu2_layout_probe[5];
+
 /* Savestates are reached only through SPU2freeze, which no scenario calls. */
 extern "C" void *memalign_alloc(size_t a, size_t n);
 extern "C" void memalign_free(void *p);
 void *memalign_alloc(size_t a, size_t n) { (void)a; return malloc(n); }
 void memalign_free(void *p) { free(p); }
 
-void psxDmaInterrupt(int) {}
-void psxDmaInterrupt2(int) {}
-void spu2Irq(void) {}
+extern "C" void psxDmaInterrupt(int) {}
+extern "C" void psxDmaInterrupt2(int) {}
+extern "C" void spu2Irq(void) {}
 
 /* The sink. Mix() is called directly, so these are only reached if the
  * core tries to hand samples off on its own. */
-s16 *retro_audio_reserve(int) { static s16 buf[4096]; return buf; }
-void retro_audio_commit(int) {}
+extern "C" s16 *retro_audio_reserve(int) { static s16 buf[4096]; return buf; }
+extern "C" void retro_audio_commit(int) {}
 
 /* ------------------------------------------------------------------ */
 /* A hash with no library behind it, so the number is reproducible
@@ -621,6 +623,26 @@ int main(int argc, char **argv)
 		{ "freeze",      scen_freeze,      0xe535aab6afa7feb5ull },
 		{ "dcblock",     scen_dcblock,     0xa91c0091521349d7ull },
 	};
+
+	/* The DSP is compiled as C and this harness as C++; if the two
+	 * disagree about V_Core -- bool's size is the likely way -- every
+	 * offset after it is wrong and the hashes would be meaningless. */
+	{
+		const size_t mine[5] = {
+			sizeof(V_Core), sizeof(V_Voice), offsetof(V_Core, Voices),
+			offsetof(V_Voice, Volume), offsetof(V_Core, Regs)
+		};
+		int k;
+		for (k = 0; k < 5; k++)
+		{
+			if (mine[k] != spu2_layout_probe[k])
+			{
+				printf("  LAYOUT MISMATCH at %d: C++ %zu, C %zu\n",
+				       k, mine[k], spu2_layout_probe[k]);
+				return 1;
+			}
+		}
+	}
 
 	fill_sample_ram();
 
