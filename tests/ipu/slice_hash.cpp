@@ -64,6 +64,13 @@ u16 g_ipu_thresh[2];
 void CPU_INT(EE_EventType, int) {}
 void hwIntcIrq(int) {}
 
+/* The IDEC and CSC paths reach EE memory. They are not on the route this
+ * drives, and at -O1 and above the optimiser drops them, but the harness
+ * should link without depending on that -- not least so it can be built at
+ * -O0, where a sanitizer reports most clearly. */
+RETURNS_R128 vtlb_memRead128(u32) { return r128_zero(); }
+void TAKES_R128 vtlb_memWrite128(u32, r128) {}
+
 /* ---- the input FIFO is where the slice bits come from ---- */
 
 static u8 g_srcbuf[1 << 16];
