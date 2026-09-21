@@ -162,9 +162,11 @@ static_assert(offsetof(decoder_t, rgb16) % 16 == 0, "rgb16 must stay 16-byte ali
 alignas(16) extern decoder_t decoder;
 alignas(16) extern tIPU_BP g_BP;
 
-MULTI_ISA_DEF(
-	extern void ipu_dither(const macroblock_rgb32& rgb32, macroblock_rgb16& rgb16, const int dte);
+/* One build: the SSE2 form this is written in measures the same at every
+ * tier, so there is nothing for a per-ISA copy to pick up. */
+extern void ipu_dither(const macroblock_rgb32& rgb32, macroblock_rgb16& rgb16, const int dte);
 
+MULTI_ISA_DEF(
 	void IPUWorker();
 )
 

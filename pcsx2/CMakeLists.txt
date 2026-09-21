@@ -514,13 +514,13 @@ endif()
 set(pcsx2IPUSources
 	IPU/IPU.cpp
 	IPU/IPU_Fifo.cpp
+	IPU/IPUdither.cpp
 	IPU/IPUdma.cpp
+	IPU/yuv2rgb.cpp
 )
 
 set(pcsx2IPUSourcesUnshared
 	IPU/IPU_MultiISA.cpp
-	IPU/IPUdither.cpp
-	IPU/yuv2rgb.cpp
 )
 
 # IPU headers

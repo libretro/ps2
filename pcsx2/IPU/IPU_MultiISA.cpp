@@ -1074,7 +1074,7 @@ __ri static bool mpeg2sliceIDEC(void)
 							decoder.SetOutputTo(rgb32);
 						else
 						{
-							ipu_dither(rgb32, rgb16, decoder.dte);
+							::ipu_dither(rgb32, rgb16, decoder.dte);
 							decoder.SetOutputTo(rgb16);
 						}
 						ipu_cmd.pos[1] = 2;
@@ -1718,7 +1718,7 @@ __ri static bool ipuCSC(tIPU_CMD_CSC csc)
 
 		if (csc.OFM)
 		{
-			ipu_dither(decoder.rgb32, decoder.rgb16, csc.DTE);
+			::ipu_dither(decoder.rgb32, decoder.rgb16, csc.DTE);
 			ipu_cmd.pos[1] += ipu_fifo.out.write(((u32*) & decoder.rgb16) + 4 * ipu_cmd.pos[1], 32 - ipu_cmd.pos[1]);
 			if (ipu_cmd.pos[1] < 32)
 			{
@@ -1752,7 +1752,7 @@ __ri static bool ipuPACK(tIPU_CMD_CSC csc)
 			if (!getBits64((u8*)&decoder.rgb32 + 8 * ipu_cmd.pos[0])) return false;
 		}
 
-		ipu_dither(decoder.rgb32, decoder.rgb16, csc.DTE);
+		::ipu_dither(decoder.rgb32, decoder.rgb16, csc.DTE);
 
 		if (csc.OFM)
 		{
@@ -1790,7 +1790,7 @@ __fi static void ipu_csc(macroblock_8& mb8, macroblock_rgb32& rgb32, int sgn)
 	int i;
 	u8* p = (u8*)&rgb32;
 
-	yuv2rgb();
+	::yuv2rgb();
 
 	if (g_ipu_thresh[0] > 0)
 	{

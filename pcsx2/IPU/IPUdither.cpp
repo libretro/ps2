@@ -15,14 +15,9 @@
 
 #include "../../common/VectorIntrin.h"
 
-#include "../Common.h"
 
-#include "IPU.h"
-#include "IPUdma.h"
 #include "yuv2rgb.h"
 #include "IPU_MultiISA.h"
-
-MULTI_ISA_UNSHARED_START
 
 __ri void ipu_dither(const macroblock_rgb32 &rgb32, macroblock_rgb16 &rgb16, const int dte)
 {
@@ -158,5 +153,3 @@ __ri void ipu_dither(const macroblock_rgb32 &rgb32, macroblock_rgb16 &rgb16, con
 	}
 #endif
 }
-
-MULTI_ISA_UNSHARED_END

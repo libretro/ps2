@@ -18,8 +18,6 @@
 
 #include "../../common/VectorIntrin.h"
 
-#include "../Common.h"
-#include "IPU.h"
 #include "IPU_MultiISA.h"
 #include "yuv2rgb.h"
 
@@ -43,8 +41,6 @@
 #define IPU_GCB_COEFF (-0x32)	// -0.390625
 #define IPU_RCR_COEFF 0xcc	//  1.59375
 #define IPU_BCB_COEFF 0x102	//  2.015625
-
-MULTI_ISA_UNSHARED_START
 
 void yuv2rgb(void)
 {
@@ -255,5 +251,3 @@ void yuv2rgb(void)
 		}
 #endif
 }
-
-MULTI_ISA_UNSHARED_END

@@ -17,4 +17,5 @@
 
 #include "../GS/MultiISA.h"
 
-MULTI_ISA_DEF(extern void yuv2rgb(void);)
+/* One build; see the note beside ipu_dither in IPU_MultiISA.h. */
+extern void yuv2rgb(void);
