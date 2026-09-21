@@ -453,6 +453,60 @@ static __forceinline void MixCoreVoices(VoiceMixSet& dest, const uint coreidx)
 	}
 }
 
+
+/* ------------------------------------------------------------------ */
+/* A VoiceMixSet is Dry.Left, Dry.Right, Wet.Left, Wet.Right -- four
+ * adjacent int32 -- so saturating the set is one pair of packed min and
+ * max rather than four compare-and-move pairs. The result is the same
+ * integers; only the instruction count differs.
+ *
+ * Unaligned loads and stores: VoiceMixSet has no alignment of its own and
+ * lives on the stack and inside V_Core, so nothing guarantees 16 bytes.
+ * ------------------------------------------------------------------ */
+
+#if defined(__x86_64__) || defined(_M_X64) || defined(_M_AMD64) || \
+    defined(__i386__) || defined(_M_IX86)
+#define SPU2_MIX_X86 1
+#include <emmintrin.h>
+#if defined(__SSE4_1__) || defined(__AVX__)
+#include <smmintrin.h>
+#define SPU2_MIX_SSE41 1
+#endif
+#elif defined(__aarch64__) || defined(_M_ARM64) || defined(__ARM_NEON)
+#define SPU2_MIX_NEON 1
+#include <arm_neon.h>
+#endif
+
+static __forceinline void ClampMixSet(VoiceMixSet& dst, const VoiceMixSet& src)
+{
+#if defined(SPU2_MIX_SSE41)
+	__m128i v = _mm_loadu_si128((const __m128i*)&src);
+	v = _mm_min_epi32(_mm_max_epi32(v, _mm_set1_epi32(-0x8000)),
+	                  _mm_set1_epi32(0x7fff));
+	_mm_storeu_si128((__m128i*)&dst, v);
+#elif defined(SPU2_MIX_X86)
+	/* No packed 32-bit min or max before SSE4.1, so select on the
+	 * comparison, which is what the instruction does anyway. */
+	__m128i v  = _mm_loadu_si128((const __m128i*)&src);
+	__m128i lo = _mm_set1_epi32(-0x8000);
+	__m128i hi = _mm_set1_epi32(0x7fff);
+	__m128i ml = _mm_cmpgt_epi32(lo, v);
+	v = _mm_or_si128(_mm_and_si128(ml, lo), _mm_andnot_si128(ml, v));
+	__m128i mh = _mm_cmpgt_epi32(v, hi);
+	v = _mm_or_si128(_mm_and_si128(mh, hi), _mm_andnot_si128(mh, v));
+	_mm_storeu_si128((__m128i*)&dst, v);
+#elif defined(SPU2_MIX_NEON)
+	int32x4_t v = vld1q_s32((const int32_t*)&src);
+	v = vminq_s32(vmaxq_s32(v, vdupq_n_s32(-0x8000)), vdupq_n_s32(0x7fff));
+	vst1q_s32((int32_t*)&dst, v);
+#else
+	dst.Dry.Left  = pcsx2_clamp_i(src.Dry.Left, -0x8000, 0x7fff);
+	dst.Dry.Right = pcsx2_clamp_i(src.Dry.Right, -0x8000, 0x7fff);
+	dst.Wet.Left  = pcsx2_clamp_i(src.Wet.Left, -0x8000, 0x7fff);
+	dst.Wet.Right = pcsx2_clamp_i(src.Wet.Right, -0x8000, 0x7fff);
+#endif
+}
+
 StereoOut32 V_Core::Mix(const VoiceMixSet& inVoices, const StereoOut32& Input, const StereoOut32& Ext)
 {
 	StereoOut32 TD;
@@ -464,10 +518,7 @@ StereoOut32 V_Core::Mix(const VoiceMixSet& inVoices, const StereoOut32& Input, c
 	UpdateNoise(*this);
 
 	// Saturate final result to standard 16 bit range.
-	Voices.Dry.Left  = pcsx2_clamp_i(inVoices.Dry.Left, -0x8000, 0x7fff);
-	Voices.Dry.Right = pcsx2_clamp_i(inVoices.Dry.Right, -0x8000, 0x7fff);
-	Voices.Wet.Left  = pcsx2_clamp_i(inVoices.Wet.Left, -0x8000, 0x7fff);
-	Voices.Wet.Right = pcsx2_clamp_i(inVoices.Wet.Right, -0x8000, 0x7fff);
+	ClampMixSet(Voices, inVoices);
 
 	// Write Mixed results To Output Area
 	if (Index == 0)
