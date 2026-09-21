@@ -29,32 +29,32 @@
 // generally prefer to use ADPCM streaming audio since they need as much storage space as
 // possible for FMVs and high-def textures.
 //
-StereoOut32 V_Core::ReadInput_HiFi()
+StereoOut32 V_Core_ReadInput_HiFi(V_Core *c)
 {
 	StereoOut32 retval;
 	const u16 ReadIndex = (OutPos * 2) & 0x1FF;
 
-	retval.Left  = (s32&)(*GetMemPtr(0x2000 + (Index << 10) + ReadIndex));
-	retval.Right = (s32&)(*GetMemPtr(0x2200 + (Index << 10) + ReadIndex));
+	retval.Left  = (s32&)(*GetMemPtr(0x2000 + (c->Index << 10) + ReadIndex));
+	retval.Right = (s32&)(*GetMemPtr(0x2200 + (c->Index << 10) + ReadIndex));
 
-	if (Index == 1)
+	if (c->Index == 1)
 	{
 		retval.Left >>= 16;
 		retval.Right >>= 16;
 	}
 
 	// Simulate MADR increase, GTA VC tracks the MADR address for calculating a certain point in the buffer
-	if (InputDataTransferred)
+	if (c->InputDataTransferred)
 	{
-		u32 amount = pcsx2_min_u(InputDataTransferred, (u32)0x180);
+		u32 amount = pcsx2_min_u(c->InputDataTransferred, (u32)0x180);
 
-		InputDataTransferred -= amount;
-		MADR += amount;
+		c->InputDataTransferred -= amount;
+		MADR(c) += amount;
 		// Because some games watch the MADR to see when it reaches the end we need to end the DMA here
 		// Tom & Jerry War of the Whiskers is one such game, the music will skip
-		if (!InputDataTransferred && !InputDataLeft)
+		if (!c->InputDataTransferred && !c->InputDataLeft)
 		{
-			if (Index == 0)
+			if (c->Index == 0)
 			{
 				if (Cores[0].DmaMode)
 					Cores[0].Regs.STATX |= 0x80;
@@ -84,53 +84,53 @@ StereoOut32 V_Core::ReadInput_HiFi()
 	if (ReadIndex == 0x100 || ReadIndex == 0x0 || ReadIndex == 0x80 || ReadIndex == 0x180)
 	{
 		if (ReadIndex == 0x100)
-			InputPosWrite = 0;
+			c->InputPosWrite = 0;
 		else if (ReadIndex == 0)
-			InputPosWrite = 0x100;
+			c->InputPosWrite = 0x100;
 
-		if (InputDataLeft >= 0x100)
+		if (c->InputDataLeft >= 0x100)
 		{
-			AutoDMAReadBuffer(0);
-			AdmaInProgress = 1;
-			if (InputDataLeft < 0x100)
-				InputDataLeft = 0;
+			V_Core_AutoDMAReadBuffer(c, 0);
+			c->AdmaInProgress = 1;
+			if (c->InputDataLeft < 0x100)
+				c->InputDataLeft = 0;
 		}
-		else if ((AutoDMACtrl & (Index + 1)))
-			AutoDMACtrl |= ~3;
+		else if ((c->AutoDMACtrl & (c->Index + 1)))
+			c->AutoDMACtrl |= ~3;
 	}
 	return retval;
 }
 
-StereoOut32 V_Core::ReadInput()
+StereoOut32 V_Core_ReadInput(V_Core *c)
 {
 	StereoOut32 retval;
 	u16 ReadIndex = OutPos;
 
 	if (has_irq_armed)
 		for (int i = 0; i < 2; i++)
-			if (Cores[i].IRQEnable && (0x2000 + (Index << 10) + ReadIndex) == (Cores[i].IRQA & 0xfffffdff))
+			if (Cores[i].IRQEnable && (0x2000 + (c->Index << 10) + ReadIndex) == (Cores[i].IRQA & 0xfffffdff))
 				{ has_to_call_irq[i] = true; }
 
 	// PlayMode & 2 is Bypass Mode, so it doesn't go through the SPU
-	if ((Index == 1) || !(Index == 0 && (PlayMode & 2) != 0))
+	if ((c->Index == 1) || !(c->Index == 0 && (PlayMode & 2) != 0))
 	{
-		retval.Left  = (s32)(*GetMemPtr(0x2000 + (Index << 10) + ReadIndex));
-		retval.Right = (s32)(*GetMemPtr(0x2200 + (Index << 10) + ReadIndex));
+		retval.Left  = (s32)(*GetMemPtr(0x2000 + (c->Index << 10) + ReadIndex));
+		retval.Right = (s32)(*GetMemPtr(0x2200 + (c->Index << 10) + ReadIndex));
 	}
 
 	// Simulate MADR increase, GTA VC tracks the MADR address for calculating a certain point in the buffer
-	if (InputDataTransferred)
+	if (c->InputDataTransferred)
 	{
-		u32 amount = pcsx2_min_u(InputDataTransferred, (u32)0x180);
+		u32 amount = pcsx2_min_u(c->InputDataTransferred, (u32)0x180);
 
-		InputDataTransferred -= amount;
-		MADR += amount;
+		c->InputDataTransferred -= amount;
+		MADR(c) += amount;
 
 		// Because some games watch the MADR to see when it reaches the end we need to end the DMA here
 		// Tom & Jerry War of the Whiskers is one such game, the music will skip
-		if (!InputDataTransferred && !InputDataLeft)
+		if (!c->InputDataTransferred && !c->InputDataLeft)
 		{
-			if (Index == 0)
+			if (c->Index == 0)
 			{
 				if (Cores[0].DmaMode)
 					Cores[0].Regs.STATX |= 0x80;
@@ -157,25 +157,25 @@ StereoOut32 V_Core::ReadInput()
 		}
 	}
 
-	if (PlayMode == 2 && Index == 0) //Bitstream bypass refills twice as quickly (GTA VC)
+	if (PlayMode == 2 && c->Index == 0) //Bitstream bypass refills twice as quickly (GTA VC)
 		ReadIndex = (ReadIndex * 2) & 0x1FF;
 
 	if (ReadIndex == 0x100 || ReadIndex == 0x0 || ReadIndex == 0x80 || ReadIndex == 0x180)
 	{
 		if (ReadIndex == 0x100)
-			InputPosWrite = 0;
+			c->InputPosWrite = 0;
 		else if (ReadIndex == 0)
-			InputPosWrite = 0x100;
+			c->InputPosWrite = 0x100;
 
-		if (InputDataLeft >= 0x100)
+		if (c->InputDataLeft >= 0x100)
 		{
-			AutoDMAReadBuffer(0);
-			AdmaInProgress = 1;
-			if (InputDataLeft < 0x100)
-				InputDataLeft = 0;
+			V_Core_AutoDMAReadBuffer(c, 0);
+			c->AdmaInProgress = 1;
+			if (c->InputDataLeft < 0x100)
+				c->InputDataLeft = 0;
 		}
-		else if ((AutoDMACtrl & (Index + 1)))
-			AutoDMACtrl |= ~3;
+		else if ((c->AutoDMACtrl & (c->Index + 1)))
+			c->AutoDMACtrl |= ~3;
 	}
 	return retval;
 }

@@ -70,73 +70,73 @@ __fi void spu2M_Write(u32 addr, s16 value)
 	*GetMemPtr(addr) = value;
 }
 
-void V_Core::Init(int index)
+void V_Core_Init(V_Core *c, int index)
 {
 	ReverbDownsample = MULTI_ISA_SELECT(ReverbDownsample);
 	ReverbUpsample = MULTI_ISA_SELECT(ReverbUpsample);
 
 	// Explicitly initializing variables instead.
-	Mute = false;
-	DMABits = 0;
-	NoiseClk = 0;
-	NoiseCnt = 0;
-	NoiseOut = 0;
-	AutoDMACtrl = 0;
-	InputDataLeft = 0;
-	InputPosWrite = 0x100;
-	InputDataProgress = 0;
-	InputDataTransferred = 0;
-	LastEffect.Left = 0;
-	LastEffect.Right = 0;
-	CoreEnabled = 0;
-	AttrBit0 = 0;
-	DmaMode = 0;
-	DMAPtr = nullptr;
-	KeyOn = 0;
+	c->Mute = false;
+	c->DMABits = 0;
+	c->NoiseClk = 0;
+	c->NoiseCnt = 0;
+	c->NoiseOut = 0;
+	c->AutoDMACtrl = 0;
+	c->InputDataLeft = 0;
+	c->InputPosWrite = 0x100;
+	c->InputDataProgress = 0;
+	c->InputDataTransferred = 0;
+	c->LastEffect.Left = 0;
+	c->LastEffect.Right = 0;
+	c->CoreEnabled = 0;
+	c->AttrBit0 = 0;
+	c->DmaMode = 0;
+	c->DMAPtr = nullptr;
+	c->KeyOn = 0;
 	OutPos = 0;
 	DCFilterIn = {};
 	DCFilterOut = {};
 
 	psxmode = false;
-	psxSoundDataTransferControl = 0;
-	psxSPUSTAT = 0;
+	c->psxSoundDataTransferControl = 0;
+	c->psxSPUSTAT = 0;
 
-	const int c  = Index = index;
+	const int ci = c->Index = index;
 
-	Regs.STATX   = 0;
-	Regs.ATTR    = 0;
-	ExtVol.Left  = 0x7FFF;
-	ExtVol.Right = 0x7FFF;
-	InpVol.Left  = 0x7FFF;
-	InpVol.Right = 0x7FFF;
-	FxVol.Left   = 0;
-	FxVol.Right  = 0;
-	MasterVol.Left.Reg_VOL = 0;
-	MasterVol.Left.Counter = 0;
-	MasterVol.Left.Value   = 0;
-	MasterVol.Right.Reg_VOL = 0;
-	MasterVol.Right.Counter = 0;
-	MasterVol.Right.Value   = 0;
+	c->Regs.STATX   = 0;
+	c->Regs.ATTR    = 0;
+	c->ExtVol.Left  = 0x7FFF;
+	c->ExtVol.Right = 0x7FFF;
+	c->InpVol.Left  = 0x7FFF;
+	c->InpVol.Right = 0x7FFF;
+	c->FxVol.Left   = 0;
+	c->FxVol.Right  = 0;
+	c->MasterVol.Left.Reg_VOL = 0;
+	c->MasterVol.Left.Counter = 0;
+	c->MasterVol.Left.Value   = 0;
+	c->MasterVol.Right.Reg_VOL = 0;
+	c->MasterVol.Right.Counter = 0;
+	c->MasterVol.Right.Value   = 0;
 
-	memset(&DryGate, -1, sizeof(DryGate));
-	memset(&WetGate, -1, sizeof(WetGate));
-	DryGate.ExtL = 0;
-	DryGate.ExtR = 0;
-	if (!c)
+	memset(&c->DryGate, -1, sizeof(c->DryGate));
+	memset(&c->WetGate, -1, sizeof(c->WetGate));
+	c->DryGate.ExtL = 0;
+	c->DryGate.ExtR = 0;
+	if (!ci)
 	{
-		WetGate.ExtL = 0;
-		WetGate.ExtR = 0;
+		c->WetGate.ExtL = 0;
+		c->WetGate.ExtR = 0;
 	}
 
-	Regs.MMIX = c ? 0xFFC : 0xFF0; // PS2 confirmed (f3c and f30 after BIOS ran, ffc and ff0 after sdinit)
-	Regs.VMIXL = 0xFFFFFF;
-	Regs.VMIXR = 0xFFFFFF;
-	Regs.VMIXEL = 0xFFFFFF;
-	Regs.VMIXER = 0xFFFFFF;
-	EffectsStartA = c ? 0xFFFF8 : 0xEFFF8;
-	EffectsEndA = c ? 0xFFFFF : 0xEFFFF;
+	c->Regs.MMIX = ci ? 0xFFC : 0xFF0; // PS2 confirmed (f3c and f30 after BIOS ran, ffc and ff0 after sdinit)
+	c->Regs.VMIXL = 0xFFFFFF;
+	c->Regs.VMIXR = 0xFFFFFF;
+	c->Regs.VMIXEL = 0xFFFFFF;
+	c->Regs.VMIXER = 0xFFFFFF;
+	c->EffectsStartA = c ? 0xFFFF8 : 0xEFFF8;
+	c->EffectsEndA = c ? 0xFFFFF : 0xEFFFF;
 
-	FxEnable = false; // Uninitialized it's 0 for both cores. Resetting libs however may set this to 0 or 1.
+	c->FxEnable = false; // Uninitialized it's 0 for both cores. Resetting libs however may set this to 0 or 1.
 	// These are real PS2 values, mainly constant apart from a few bits: 0x3220EAA4, 0x40505E9C.
 	// These values mean nothing.  They do not reflect the actual address the SPU2 is testing,
 	// it would seem that reading the IRQA register returns the last written value, not the
@@ -145,42 +145,42 @@ void V_Core::Init(int index)
 	// The exact boot value is unknown and probably unknowable, but it seems to be somewhere
 	// in the input or output areas, so we're using 0x800.
 	// F1 2005 is known to rely on an uninitialised IRQA being an address which will be hit.
-	IRQA = 0x800;
-	IRQEnable = false; // PS2 confirmed
+	c->IRQA = 0x800;
+	c->IRQEnable = false; // PS2 confirmed
 
 	for (uint v = 0; v < SPU2_NUM_VOICES; ++v)
 	{
-		VoiceGates[v].DryL = -1;
-		VoiceGates[v].DryR = -1;
-		VoiceGates[v].WetL = -1;
-		VoiceGates[v].WetR = -1;
+		c->VoiceGates[v].DryL = -1;
+		c->VoiceGates[v].DryR = -1;
+		c->VoiceGates[v].WetL = -1;
+		c->VoiceGates[v].WetR = -1;
 
-		Voices[v].Volume.Left.Reg_VOL = 0;
-		Voices[v].Volume.Left.Counter = 0;
-		Voices[v].Volume.Left.Value   = 0;
-		Voices[v].Volume.Right.Reg_VOL = 0;
-		Voices[v].Volume.Right.Counter = 0;
-		Voices[v].Volume.Right.Value   = 0;
-		Voices[v].SCurrent = 28;
+		c->Voices[v].Volume.Left.Reg_VOL = 0;
+		c->Voices[v].Volume.Left.Counter = 0;
+		c->Voices[v].Volume.Left.Value   = 0;
+		c->Voices[v].Volume.Right.Reg_VOL = 0;
+		c->Voices[v].Volume.Right.Counter = 0;
+		c->Voices[v].Volume.Right.Value   = 0;
+		c->Voices[v].SCurrent = 28;
 
-		Voices[v].ADSR.Counter = 0;
-		Voices[v].ADSR.Value = 0;
-		Voices[v].ADSR.Phase = 0;
-		Voices[v].Pitch = 0x3FFF;
-		Voices[v].NextA = 0x2801;
-		Voices[v].StartA = 0x2800;
-		Voices[v].LoopStartA = 0x2800;
+		c->Voices[v].ADSR.Counter = 0;
+		c->Voices[v].ADSR.Value = 0;
+		c->Voices[v].ADSR.Phase = 0;
+		c->Voices[v].Pitch = 0x3FFF;
+		c->Voices[v].NextA = 0x2801;
+		c->Voices[v].StartA = 0x2800;
+		c->Voices[v].LoopStartA = 0x2800;
 	}
 
-	DMAICounter = 0;
-	AdmaInProgress = false;
+	c->DMAICounter = 0;
+	c->AdmaInProgress = false;
 
-	Regs.STATX = 0x80;
-	Regs.ENDX = 0xffffff; // PS2 confirmed
+	c->Regs.STATX = 0x80;
+	c->Regs.ENDX = 0xffffff; // PS2 confirmed
 
-	RevbSampleBufPos = 0;
-	memset(RevbDownBuf, 0, sizeof(RevbDownBuf));
-	memset(RevbUpBuf, 0, sizeof(RevbUpBuf));
+	c->RevbSampleBufPos = 0;
+	memset(c->RevbDownBuf, 0, sizeof(c->RevbDownBuf));
+	memset(c->RevbUpBuf, 0, sizeof(c->RevbUpBuf));
 }
 
 #define TICKINTERVAL 768
@@ -337,9 +337,9 @@ __fi void TimeUpdate(u64 cClocks)
 			if (((Cores[0].AutoDMACtrl & 1) != 1) && Cores[0].ReadSize)
 			{
 				if (Cores[0].IsDMARead)
-					Cores[0].FinishDMAread();
+					V_Core_FinishDMAread(&Cores[0]);
 				else
-					Cores[0].FinishDMAwrite();
+					V_Core_FinishDMAwrite(&Cores[0]);
 			}
 
 			if (Cores[0].DMAICounter <= 0)
@@ -398,9 +398,9 @@ __fi void TimeUpdate(u64 cClocks)
 			if (((Cores[1].AutoDMACtrl & 2) != 2) && Cores[1].ReadSize)
 			{
 				if (Cores[1].IsDMARead)
-					Cores[1].FinishDMAread();
+					V_Core_FinishDMAread(&Cores[1]);
 				else
-					Cores[1].FinishDMAwrite();
+					V_Core_FinishDMAwrite(&Cores[1]);
 			}
 
 			if (Cores[1].DMAICounter <= 0)
@@ -458,7 +458,7 @@ __fi void UpdateSpdifMode(void)
 #define map_spu1to2(addr) ((addr) * 4 + ((addr) >= 0x200 ? 0xc0000 : 0))
 #define map_spu2to1(addr) (((addr) - ((addr) >= 0xc0000 ? 0xc0000 : 0)) / 4)
 
-void V_Core::WriteRegPS1(u32 mem, u16 value)
+void V_Core_WriteRegPS1(V_Core *c, u32 mem, u16 value)
 {
 	const u32 reg = mem & 0xffff;
 
@@ -470,37 +470,37 @@ void V_Core::WriteRegPS1(u32 mem, u16 value)
 		switch (vval)
 		{
 			case 0x0: //VOLL (Volume L)
-				Voices[voice].Volume.Left.Reg_VOL = value;
-				if (!Voices[voice].Volume.Left.Enable)
-					Voices[voice].Volume.Left.Value = (s16)(value << 1);
+				c->Voices[voice].Volume.Left.Reg_VOL = value;
+				if (!c->Voices[voice].Volume.Left.Enable)
+					c->Voices[voice].Volume.Left.Value = (s16)(value << 1);
 				break;
 			case 0x2: //VOLR (Volume R)
-				Voices[voice].Volume.Right.Reg_VOL = value;
-				if (!Voices[voice].Volume.Right.Enable)
-					Voices[voice].Volume.Right.Value = (s16)(value << 1);
+				c->Voices[voice].Volume.Right.Reg_VOL = value;
+				if (!c->Voices[voice].Volume.Right.Enable)
+					c->Voices[voice].Volume.Right.Value = (s16)(value << 1);
 				break;
 			case 0x4:
-				Voices[voice].Pitch = value;
+				c->Voices[voice].Pitch = value;
 				break;
 			case 0x6:
-				Voices[voice].StartA = map_spu1to2(value);
+				c->Voices[voice].StartA = map_spu1to2(value);
 				break;
 
 			case 0x8: // ADSR1 (Envelope)
-				Voices[voice].ADSR.regADSR1 = value;
-				ADSR_UpdateCache(Voices[voice].ADSR);
+				c->Voices[voice].ADSR.regADSR1 = value;
+				ADSR_UpdateCache(c->Voices[voice].ADSR);
 				break;
 
 			case 0xa: // ADSR2 (Envelope)
-				Voices[voice].ADSR.regADSR2 = value;
-				ADSR_UpdateCache(Voices[voice].ADSR);
+				c->Voices[voice].ADSR.regADSR2 = value;
+				ADSR_UpdateCache(c->Voices[voice].ADSR);
 				break;
 			case 0xc: // Voice 0..23 ADSR Current Volume
 				// not commonly set by games
-				Voices[voice].ADSR.Value = value;
+				c->Voices[voice].ADSR.Value = value;
 				break;
 			case 0xe:
-				Voices[voice].LoopStartA = map_spu1to2(value);
+				c->Voices[voice].LoopStartA = map_spu1to2(value);
 				break;
 			default:
 				break;
@@ -511,23 +511,23 @@ void V_Core::WriteRegPS1(u32 mem, u16 value)
 		switch (reg)
 		{
 			case 0x1d80: //         Mainvolume left
-				MasterVol.Left.Reg_VOL = value;
-				if (!MasterVol.Left.Enable)
-					MasterVol.Left.Value = (s16)(value << 1);
+				c->MasterVol.Left.Reg_VOL = value;
+				if (!c->MasterVol.Left.Enable)
+					c->MasterVol.Left.Value = (s16)(value << 1);
 				break;
 
 			case 0x1d82: //         Mainvolume right
-				MasterVol.Right.Reg_VOL = value;
-				if (!MasterVol.Right.Enable)
-					MasterVol.Right.Value = (s16)(value << 1);
+				c->MasterVol.Right.Reg_VOL = value;
+				if (!c->MasterVol.Right.Enable)
+					c->MasterVol.Right.Value = (s16)(value << 1);
 				break;
 
 			case 0x1d84: //         Reverberation depth left
-				FxVol.Left = (s16)value;
+				c->FxVol.Left = (s16)value;
 				break;
 
 			case 0x1d86: //         Reverberation depth right
-				FxVol.Right = (s16)value;
+				c->FxVol.Right = (s16)value;
 				break;
 
 			case 0x1d88: //         Voice ON  (0-15)
@@ -576,15 +576,15 @@ void V_Core::WriteRegPS1(u32 mem, u16 value)
 				break;
 
 			case 0x1da2: //         Reverb work area start
-				EffectsStartA = map_spu1to2(value);
+				c->EffectsStartA = map_spu1to2(value);
 				break;
 
 			case 0x1da4:
-				IRQA = map_spu1to2(value);
+				c->IRQA = map_spu1to2(value);
 				break;
 
 			case 0x1da6:
-				TSA = map_spu1to2(value);
+				c->TSA = map_spu1to2(value);
 				break;
 
 			case 0x1da8: // Spu Write to Memory
@@ -594,7 +594,7 @@ void V_Core::WriteRegPS1(u32 mem, u16 value)
 					has_to_call_irq[0] = true;
 					spu2Irq();
 				}
-				DmaWrite(value);
+				V_Core_DmaWrite(c, value);
 				break;
 
 			case 0x1daa:
@@ -602,7 +602,7 @@ void V_Core::WriteRegPS1(u32 mem, u16 value)
 				break;
 
 			case 0x1dac: // 1F801DACh - Sound RAM Data Transfer Control (should be 0004h)
-				psxSoundDataTransferControl = value;
+				c->psxSoundDataTransferControl = value;
 				break;
 
 			case 0x1dae: // 1F801DAEh - SPU Status Register (SPUSTAT) (R)
@@ -620,107 +620,107 @@ void V_Core::WriteRegPS1(u32 mem, u16 value)
 				break;
 
 			case 0x1DC0:
-				Revb.APF1_SIZE = value * 4;
+				c->Revb.APF1_SIZE = value * 4;
 				break;
 			case 0x1DC2:
-				Revb.APF2_SIZE = value * 4;
+				c->Revb.APF2_SIZE = value * 4;
 				break;
 			case 0x1DC4:
-				Revb.IIR_VOL = value;
+				c->Revb.IIR_VOL = value;
 				break;
 			case 0x1DC6:
-				Revb.COMB1_VOL = value;
+				c->Revb.COMB1_VOL = value;
 				break;
 			case 0x1DC8:
-				Revb.COMB2_VOL = value;
+				c->Revb.COMB2_VOL = value;
 				break;
 			case 0x1DCA:
-				Revb.COMB3_VOL = value;
+				c->Revb.COMB3_VOL = value;
 				break;
 			case 0x1DCC:
-				Revb.COMB4_VOL = value;
+				c->Revb.COMB4_VOL = value;
 				break;
 			case 0x1DCE:
-				Revb.WALL_VOL = value;
+				c->Revb.WALL_VOL = value;
 				break;
 			case 0x1DD0:
-				Revb.APF1_VOL = value;
+				c->Revb.APF1_VOL = value;
 				break;
 			case 0x1DD2:
-				Revb.APF2_VOL = value;
+				c->Revb.APF2_VOL = value;
 				break;
 			case 0x1DD4:
-				Revb.SAME_L_DST = value * 4;
+				c->Revb.SAME_L_DST = value * 4;
 				break;
 			case 0x1DD6:
-				Revb.SAME_R_DST = value * 4;
+				c->Revb.SAME_R_DST = value * 4;
 				break;
 			case 0x1DD8:
-				Revb.COMB1_L_SRC = value * 4;
+				c->Revb.COMB1_L_SRC = value * 4;
 				break;
 			case 0x1DDA:
-				Revb.COMB1_R_SRC = value * 4;
+				c->Revb.COMB1_R_SRC = value * 4;
 				break;
 			case 0x1DDC:
-				Revb.COMB2_L_SRC = value * 4;
+				c->Revb.COMB2_L_SRC = value * 4;
 				break;
 			case 0x1DDE:
-				Revb.COMB2_R_SRC = value * 4;
+				c->Revb.COMB2_R_SRC = value * 4;
 				break;
 			case 0x1DE0:
-				Revb.SAME_L_SRC = value * 4;
+				c->Revb.SAME_L_SRC = value * 4;
 				break;
 			case 0x1DE2:
-				Revb.SAME_R_SRC = value * 4;
+				c->Revb.SAME_R_SRC = value * 4;
 				break;
 			case 0x1DE4:
-				Revb.DIFF_L_DST = value * 4;
+				c->Revb.DIFF_L_DST = value * 4;
 				break;
 			case 0x1DE6:
-				Revb.DIFF_R_DST = value * 4;
+				c->Revb.DIFF_R_DST = value * 4;
 				break;
 			case 0x1DE8:
-				Revb.COMB3_L_SRC = value * 4;
+				c->Revb.COMB3_L_SRC = value * 4;
 				break;
 			case 0x1DEA:
-				Revb.COMB3_R_SRC = value * 4;
+				c->Revb.COMB3_R_SRC = value * 4;
 				break;
 			case 0x1DEC:
-				Revb.COMB4_L_SRC = value * 4;
+				c->Revb.COMB4_L_SRC = value * 4;
 				break;
 			case 0x1DEE:
-				Revb.COMB4_R_SRC = value * 4;
+				c->Revb.COMB4_R_SRC = value * 4;
 				break;
 			case 0x1DF0:
-				Revb.DIFF_L_SRC = value * 4;
+				c->Revb.DIFF_L_SRC = value * 4;
 				break; // DIFF_R_SRC and DIFF_L_SRC supposedly swapped on SPU2
 			case 0x1DF2:
-				Revb.DIFF_R_SRC = value * 4;
+				c->Revb.DIFF_R_SRC = value * 4;
 				break; // but I don't believe it! (games in psxmode sound better unswapped)
 			case 0x1DF4:
-				Revb.APF1_L_DST = value * 4;
+				c->Revb.APF1_L_DST = value * 4;
 				break;
 			case 0x1DF6:
-				Revb.APF1_R_DST = value * 4;
+				c->Revb.APF1_R_DST = value * 4;
 				break;
 			case 0x1DF8:
-				Revb.APF2_L_DST = value * 4;
+				c->Revb.APF2_L_DST = value * 4;
 				break;
 			case 0x1DFA:
-				Revb.APF2_R_DST = value * 4;
+				c->Revb.APF2_R_DST = value * 4;
 				break;
 			case 0x1DFC:
-				Revb.IN_COEF_L = value;
+				c->Revb.IN_COEF_L = value;
 				break;
 			case 0x1DFE:
-				Revb.IN_COEF_R = value;
+				c->Revb.IN_COEF_R = value;
 				break;
 		}
 
 	spu2Ru16(mem) = value;
 }
 
-u16 V_Core::ReadRegPS1(u32 mem)
+u16 V_Core_ReadRegPS1(V_Core *c, u32 mem)
 {
 	u16 value = spu2Ru16(mem);
 
@@ -734,21 +734,21 @@ u16 V_Core::ReadRegPS1(u32 mem)
 		switch (vval)
 		{
 			case 0x0: //VOLL (Volume L)
-				return Voices[voice].Volume.Left.Reg_VOL;
+				return c->Voices[voice].Volume.Left.Reg_VOL;
 			case 0x2: //VOLR (Volume R)
-				return Voices[voice].Volume.Right.Reg_VOL;
+				return c->Voices[voice].Volume.Right.Reg_VOL;
 			case 0x4:
-				return Voices[voice].Pitch;
+				return c->Voices[voice].Pitch;
 			case 0x6:
-				return map_spu2to1(Voices[voice].StartA);
+				return map_spu2to1(c->Voices[voice].StartA);
 			case 0x8:
-				return Voices[voice].ADSR.regADSR1;
+				return c->Voices[voice].ADSR.regADSR1;
 			case 0xa:
-				return Voices[voice].ADSR.regADSR2;
+				return c->Voices[voice].ADSR.regADSR2;
 			case 0xc: // Voice 0..23 ADSR Current Volume
-				return Voices[voice].ADSR.Value;
+				return c->Voices[voice].ADSR.Value;
 			case 0xe:
-				return map_spu2to1(Voices[voice].LoopStartA);
+				return map_spu2to1(c->Voices[voice].LoopStartA);
 			default:
 				break;
 		}
@@ -757,47 +757,47 @@ u16 V_Core::ReadRegPS1(u32 mem)
 		switch (reg)
 		{
 			case 0x1d80:
-				return MasterVol.Left.Value;
+				return c->MasterVol.Left.Value;
 			case 0x1d82:
-				return MasterVol.Right.Value;
+				return c->MasterVol.Right.Value;
 			case 0x1d84:
-				return FxVol.Left;
+				return c->FxVol.Left;
 			case 0x1d86:
-				return FxVol.Right;
+				return c->FxVol.Right;
 			case 0x1d88:
 			case 0x1d8a:
 			case 0x1d8c:
 			case 0x1d8e:
 				return 0;
 			case 0x1d90:
-				return (Regs.PMON & 0xFFFF);
+				return (c->Regs.PMON & 0xFFFF);
 			case 0x1d92:
-				return (Regs.PMON >> 16);
+				return (c->Regs.PMON >> 16);
 			case 0x1d94:
-				return (Regs.NON & 0xFFFF);
+				return (c->Regs.NON & 0xFFFF);
 			case 0x1d96:
-				return (Regs.NON >> 16);
+				return (c->Regs.NON >> 16);
 			case 0x1d98:
-				return (Regs.VMIXEL & 0xFFFF);
+				return (c->Regs.VMIXEL & 0xFFFF);
 			case 0x1d9a:
-				return (Regs.VMIXEL >> 16);
+				return (c->Regs.VMIXEL >> 16);
 			case 0x1d9c:
-				return Regs.ENDX & 0xFFFF;
+				return c->Regs.ENDX & 0xFFFF;
 			case 0x1d9e:
-				return Regs.ENDX >> 16;
+				return c->Regs.ENDX >> 16;
 			case 0x1da2:
-				return map_spu2to1(EffectsStartA);
+				return map_spu2to1(c->EffectsStartA);
 			case 0x1da4:
-				return map_spu2to1(IRQA);
+				return map_spu2to1(c->IRQA);
 			case 0x1da6:
-				return map_spu2to1(TSA);
+				return map_spu2to1(c->TSA);
 			case 0x1da8:
-				ActiveTSA = TSA;
-				return DmaRead();
+				c->ActiveTSA = c->TSA;
+				return V_Core_DmaRead(c);
 			case 0x1daa:
 				return Cores[0].Regs.ATTR;
 			case 0x1dac: // 1F801DACh - Sound RAM Data Transfer Control (should be 0004h)
-				return psxSoundDataTransferControl;
+				return c->psxSoundDataTransferControl;
 			case 0x1dae:
 				return Cores[0].Regs.STATX;
 		}
@@ -929,7 +929,7 @@ static void RegWrite_Core(u16 value)
 				if (Cores[i].IRQEnable && (Cores[i].IRQA == thiscore.ActiveTSA))
 					{ has_to_call_irq[i] = true; }
 			}
-			thiscore.DmaWrite(value);
+			V_Core_DmaWrite(&thiscore, value);
 			break;
 
 		case REG_C_ATTR:

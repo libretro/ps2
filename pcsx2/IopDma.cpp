@@ -55,12 +55,12 @@ static void psxDmaGeneric(u32 madr, u32 bcr, u32 chcr, u32 spuCore)
 			if (dmaNum == 7)
 			{
 				TimeUpdate(psxRegs.cycle);
-				Cores[1].DoDMAwrite((u16*)&iopMem->Main[madr & 0x1fffff], size * 2);
+				V_Core_DoDMAwrite(&Cores[1], (u16*)&iopMem->Main[madr & 0x1fffff], size * 2);
 			}
 			else if (dmaNum == 4)
 			{
 				TimeUpdate(psxRegs.cycle);
-				Cores[0].DoDMAwrite((u16*)&iopMem->Main[madr & 0x1fffff], size * 2);
+				V_Core_DoDMAwrite(&Cores[0], (u16*)&iopMem->Main[madr & 0x1fffff], size * 2);
 			}
 			break;
 
@@ -68,12 +68,12 @@ static void psxDmaGeneric(u32 madr, u32 bcr, u32 chcr, u32 spuCore)
 			if (dmaNum == 7)
 			{
 				TimeUpdate(psxRegs.cycle);
-				Cores[1].DoDMAread((u16*)&iopMem->Main[madr & 0x1fffff], size * 2);
+				V_Core_DoDMAread(&Cores[1], (u16*)&iopMem->Main[madr & 0x1fffff], size * 2);
 			}
 			else if (dmaNum == 4)
 			{
 				TimeUpdate(psxRegs.cycle);
-				Cores[0].DoDMAread((u16*)&iopMem->Main[madr & 0x1fffff], size * 2);
+				V_Core_DoDMAread(&Cores[0], (u16*)&iopMem->Main[madr & 0x1fffff], size * 2);
 			}
 			psxCpu->Clear(spuCore ? HW_DMA7_MADR : HW_DMA4_MADR, size);
 			break;

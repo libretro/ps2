@@ -125,8 +125,8 @@ static void reset_core(void)
 	memset(spu2regs, 0, sizeof(spu2regs));
 	memset(&DCFilterIn, 0, sizeof(DCFilterIn));
 	memset(&DCFilterOut, 0, sizeof(DCFilterOut));
-	Cores[0].Init(0);
-	Cores[1].Init(1);
+	V_Core_Init(&Cores[0], 0);
+	V_Core_Init(&Cores[1], 1);
 	OutPos = 0;
 	InputPos = 0;
 	Cycles = 0;

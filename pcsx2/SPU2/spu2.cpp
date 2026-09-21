@@ -40,8 +40,8 @@ static void SPU2_InternalReset(bool psxmode)
 
 		Spdif.Info = 0; // Reset IRQ Status if it got set in a previously run game
 
-		Cores[0].Init(0);
-		Cores[1].Init(1);
+		V_Core_Init(&Cores[0], 0);
+		V_Core_Init(&Cores[1], 1);
 	}
 }
 
@@ -80,14 +80,14 @@ u16 SPU2read(u32 rmem)
 			if (Cores[i].IRQEnable && (Cores[i].IRQA == Cores[core].ActiveTSA))
 				{ has_to_call_irq[i] = true; }
 		}
-		ret = Cores[core].DmaRead();
+		ret = V_Core_DmaRead(&Cores[core]);
 	}
 	else
 	{
 		TimeUpdate(psxRegs.cycle);
 
 		if (rmem >> 16 == 0x1f80)
-			ret = Cores[0].ReadRegPS1(rmem);
+			ret = V_Core_ReadRegPS1(&Cores[0], rmem);
 		else if (mem >= 0x800)
 			ret = spu2Ru16(mem);
 		else
@@ -106,7 +106,7 @@ void SPU2write(u32 rmem, u16 value)
 	TimeUpdate(psxRegs.cycle);
 
 	if (rmem >> 16 == 0x1f80)
-		Cores[0].WriteRegPS1(rmem, value);
+		V_Core_WriteRegPS1(&Cores[0], rmem, value);
 	else
 		tbl_reg_writes[(rmem & 0x7ff) / 2](value);
 }

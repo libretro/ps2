@@ -422,62 +422,47 @@ struct V_Core
 	u16 psxSoundDataTransferControl;
 	u16 psxSPUSTAT;
 
-	// ----------------------------------------------------------------------------------
-	//  V_Core Methods
-	// ----------------------------------------------------------------------------------
-
-	// uninitialized constructor
-	V_Core()
-		: Index(-1)
-		, DMAPtr(nullptr)
-	{
-	}
-
-	void Init(int index);
-
-	void WriteRegPS1(u32 mem, u16 value);
-	u16 ReadRegPS1(u32 mem);
-
-	// --------------------------------------------------------------------------------------
-	//  Mixer Section
-	// --------------------------------------------------------------------------------------
-
-	StereoOut32 Mix(const VoiceMixSet& inVoices, const StereoOut32& Input, const StereoOut32& Ext);
-	StereoOut32 DoReverb(StereoOut32 Input);
-
-	StereoOut32 ReadInput();
-	StereoOut32 ReadInput_HiFi();
-
-	// --------------------------------------------------------------------------
-	//  DMA Section
-	// --------------------------------------------------------------------------
-
-	__forceinline u16 DmaRead()
-	{
-		const u16 ret = static_cast<u16>(spu2M_Read(ActiveTSA));
-		++ActiveTSA;
-		ActiveTSA &= 0xfffff;
-		TSA = ActiveTSA;
-		return ret;
-	}
-
-	__forceinline void DmaWrite(u16 value)
-	{
-		spu2M_Write(ActiveTSA, value);
-		++ActiveTSA;
-		ActiveTSA &= 0xfffff;
-		TSA = ActiveTSA;
-	}
-
-	void DoDMAwrite(u16* pMem, u32 size);
-	void DoDMAread(u16* pMem, u32 size);
-	void FinishDMAread();
-
-	void AutoDMAReadBuffer(int mode);
-	void StartADMAWrite(u16* pMem, u32 sz);
-	void PlainDMAWrite(u16* pMem, u32 sz);
-	void FinishDMAwrite();
 };
+
+void        V_Core_Init(V_Core *c, int index);
+
+void        V_Core_WriteRegPS1(V_Core *c, u32 mem, u16 value);
+u16         V_Core_ReadRegPS1(V_Core *c, u32 mem);
+
+/* Mixer */
+StereoOut32 V_Core_Mix(V_Core *c, const VoiceMixSet *inVoices,
+                       const StereoOut32 *Input, const StereoOut32 *Ext);
+StereoOut32 V_Core_DoReverb(V_Core *c, StereoOut32 Input);
+
+StereoOut32 V_Core_ReadInput(V_Core *c);
+StereoOut32 V_Core_ReadInput_HiFi(V_Core *c);
+
+/* DMA */
+void        V_Core_DoDMAwrite(V_Core *c, u16 *pMem, u32 size);
+void        V_Core_DoDMAread(V_Core *c, u16 *pMem, u32 size);
+void        V_Core_FinishDMAread(V_Core *c);
+
+void        V_Core_AutoDMAReadBuffer(V_Core *c, int mode);
+void        V_Core_StartADMAWrite(V_Core *c, u16 *pMem, u32 sz);
+void        V_Core_PlainDMAWrite(V_Core *c, u16 *pMem, u32 sz);
+void        V_Core_FinishDMAwrite(V_Core *c);
+
+static __fi u16 V_Core_DmaRead(V_Core *c)
+{
+	const u16 ret = (u16)spu2M_Read(c->ActiveTSA);
+	++c->ActiveTSA;
+	c->ActiveTSA &= 0xfffff;
+	c->TSA = c->ActiveTSA;
+	return ret;
+}
+
+static __fi void V_Core_DmaWrite(V_Core *c, u16 value)
+{
+	spu2M_Write(c->ActiveTSA, value);
+	++c->ActiveTSA;
+	c->ActiveTSA &= 0xfffff;
+	c->TSA = c->ActiveTSA;
+}
 
 MULTI_ISA_DEF(
 	StereoOut32 ReverbUpsample(V_Core& core);

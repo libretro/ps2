@@ -22,35 +22,36 @@
 #include "../IopHw.h"
 #include "../Config.h"
 
-void V_Core::AutoDMAReadBuffer(int mode) //mode: 0= split stereo; 1 = do not split stereo
+/* mode: 0 = split stereo; 1 = do not split stereo */
+void V_Core_AutoDMAReadBuffer(V_Core *c, int mode)
 {
-	u32 spos = InputPosWrite & 0x100; // Starting position passed by TSA
-	bool leftbuffer = !(InputPosWrite & 0x80);
+	u32 spos = c->InputPosWrite & 0x100; // Starting position passed by TSA
+	bool leftbuffer = !(c->InputPosWrite & 0x80);
 
-	if (InputPosWrite == 0xFFFF) // Data request not made yet
+	if (c->InputPosWrite == 0xFFFF) // Data request not made yet
 		return;
 
-	AutoDMACtrl &= 0x3;
+	c->AutoDMACtrl &= 0x3;
 
-	int size = pcsx2_min_u(InputDataLeft, (u32)0x200);
+	int size = pcsx2_min_u(c->InputDataLeft, (u32)0x200);
 	if (!leftbuffer)
 		size = pcsx2_min_i(size, 0x100);
 	// HACKFIX!! DMAPtr can be invalid after a savestate load, so the savestate just forces it
 	// to nullptr and we ignore it here.  (used to work in old VM editions of PCSX2 with fixed
 	// addressing, but new PCSX2s have dynamic memory addressing).
-	if (DMAPtr == nullptr)
+	if (c->DMAPtr == nullptr)
 	{
-		DMAPtr = (u16*)&iopMem->Main[MADR & 0x1fffff];
-		InputDataProgress = 0;
+		c->DMAPtr = (u16*)&iopMem->Main[MADR(c) & 0x1fffff];
+		c->InputDataProgress = 0;
 	}
 
 	if (mode)
 	{
-		if (DMAPtr != nullptr)
-			memcpy(GetMemPtr(0x2000 + (Index << 10) + spos), DMAPtr + InputDataProgress, size);
-		MADR += size;
-		InputDataLeft -= 0x200;
-		InputDataProgress += 0x200;
+		if (c->DMAPtr != nullptr)
+			memcpy(GetMemPtr(0x2000 + (c->Index << 10) + spos), c->DMAPtr + c->InputDataProgress, size);
+		MADR(c) += size;
+		c->InputDataLeft -= 0x200;
+		c->InputDataProgress += 0x200;
 	}
 	else
 	{
@@ -61,72 +62,72 @@ void V_Core::AutoDMAReadBuffer(int mode) //mode: 0= split stereo; 1 = do not spl
 			else
 				spos &= ~0x200;
 
-			if (DMAPtr != nullptr)
-				memcpy(GetMemPtr(0x2000 + (Index << 10) + spos), DMAPtr + InputDataProgress, 0x200);
-			InputDataTransferred += 0x200;
-			InputDataLeft -= 0x100;
-			InputDataProgress += 0x100;
+			if (c->DMAPtr != nullptr)
+				memcpy(GetMemPtr(0x2000 + (c->Index << 10) + spos), c->DMAPtr + c->InputDataProgress, 0x200);
+			c->InputDataTransferred += 0x200;
+			c->InputDataLeft -= 0x100;
+			c->InputDataProgress += 0x100;
 			leftbuffer = !leftbuffer;
 			size -= 0x100;
-			InputPosWrite += 0x80;
+			c->InputPosWrite += 0x80;
 		}
 	}
-	if (!(InputPosWrite & 0x80))
-		InputPosWrite = 0xFFFF;
+	if (!(c->InputPosWrite & 0x80))
+		c->InputPosWrite = 0xFFFF;
 }
 
-void V_Core::StartADMAWrite(u16* pMem, u32 sz)
+void V_Core_StartADMAWrite(V_Core *c, u16* pMem, u32 sz)
 {
 	int size = sz;
 
 	TimeUpdate(psxRegs.cycle);
 
-	InputDataProgress = 0;
-	TADR = MADR + (size << 1);
-	if ((AutoDMACtrl & (Index + 1)) == 0)
+	c->InputDataProgress = 0;
+	TADR(c) = MADR(c) + (size << 1);
+	if ((c->AutoDMACtrl & (c->Index + 1)) == 0)
 	{
-		ActiveTSA = 0x2000 + (Index << 10);
-		DMAICounter = size * 4;
-		LastClock = psxRegs.cycle;
+		c->ActiveTSA = 0x2000 + (c->Index << 10);
+		c->DMAICounter = size * 4;
+		c->LastClock = psxRegs.cycle;
 	}
 	else if (size >= 256)
 	{
-		InputDataLeft = size;
-		if (InputPosWrite != 0xFFFF)
-			AutoDMAReadBuffer(0);
-		AdmaInProgress = 1;
+		c->InputDataLeft = size;
+		if (c->InputPosWrite != 0xFFFF)
+			V_Core_AutoDMAReadBuffer(c, 0);
+		c->AdmaInProgress = 1;
 	}
 	else
 	{
-		InputDataLeft = 0;
-		DMAICounter = size * 4;
-		LastClock = psxRegs.cycle;
+		c->InputDataLeft = 0;
+		c->DMAICounter = size * 4;
+		c->LastClock = psxRegs.cycle;
 	}
 }
 
-void V_Core::PlainDMAWrite(u16* pMem, u32 size)
+void V_Core_PlainDMAWrite(V_Core *c, u16* pMem, u32 size)
 {
 	TimeUpdate(psxRegs.cycle);
 
-	ReadSize = size;
-	IsDMARead = false;
-	DMAICounter = 0;
-	LastClock = psxRegs.cycle;
-	Regs.STATX &= ~0x80;
-	Regs.STATX |= 0x400;
-	TADR = MADR + (size << 1);
+	c->ReadSize = size;
+	c->IsDMARead = false;
+	c->DMAICounter = 0;
+	c->LastClock = psxRegs.cycle;
+	c->Regs.STATX &= ~0x80;
+	c->Regs.STATX |= 0x400;
+	TADR(c) = MADR(c) + (size << 1);
 
-	FinishDMAwrite();
+	V_Core_FinishDMAwrite(c);
 }
 
-void V_Core::FinishDMAwrite()
+void V_Core_FinishDMAwrite(V_Core *c)
 {
-	if (!DMAPtr)
-		DMAPtr = (u16*)&iopMem->Main[MADR & 0x1fffff];
+	if (!c->DMAPtr)
+		c->DMAPtr = (u16*)&iopMem->Main[MADR(c) & 0x1fffff];
 
-	DMAICounter = ReadSize;
+	c->DMAICounter = c->ReadSize;
 
-	u32 buff1end = ActiveTSA + pcsx2_min_u(ReadSize, (u32)0x100 + abs(DMAICounter / 4));
+	u32 buff1end = c->ActiveTSA + pcsx2_min_u(c->ReadSize, (u32)0x100 + abs(c->DMAICounter / 4));
 	u32 buff2end = 0;
 
 	if (buff1end > 0x100000)
@@ -135,7 +136,7 @@ void V_Core::FinishDMAwrite()
 		buff1end = 0x100000;
 	}
 
-	const int cacheIdxStart = ActiveTSA / pcm_WordsPerBlock;
+	const int cacheIdxStart = c->ActiveTSA / pcm_WordsPerBlock;
 	const int cacheIdxEnd = (buff1end + pcm_WordsPerBlock - 1) / pcm_WordsPerBlock;
 	PcmCacheEntry* cacheLine = &pcm_cache_data[cacheIdxStart];
 	PcmCacheEntry& cacheEnd = pcm_cache_data[cacheIdxEnd];
@@ -149,8 +150,8 @@ void V_Core::FinishDMAwrite()
 	// First Branch needs cleared:
 	// It starts at TSA and goes to buff1end.
 
-	const u32 buff1size = (buff1end - ActiveTSA);
-	memcpy(GetMemPtr(ActiveTSA), DMAPtr, buff1size * 2);
+	const u32 buff1size = (buff1end - c->ActiveTSA);
+	memcpy(GetMemPtr(c->ActiveTSA), c->DMAPtr, buff1size * 2);
 
 	u32 TDA;
 
@@ -161,15 +162,15 @@ void V_Core::FinishDMAwrite()
 
 		// endpoint cache should be irrelevant, since it's almost certainly dynamic
 		// memory below 0x2800 (registers and such)
-		const u32 start = ActiveTSA;
+		const u32 start = c->ActiveTSA;
 		TDA = buff1end;
 
-		DMAPtr += TDA - ActiveTSA;
-		ReadSize -= TDA - ActiveTSA;
-		ActiveTSA = 0;
+		c->DMAPtr += TDA - c->ActiveTSA;
+		c->ReadSize -= TDA - c->ActiveTSA;
+		c->ActiveTSA = 0;
 		// Emulation Grayarea: Should addresses wrap around to zero, or wrap around to
 		// 0x2800?  Hard to know for sure (almost no games depend on this)
-		memcpy(GetMemPtr(0), DMAPtr, buff2end * 2);
+		memcpy(GetMemPtr(0), c->DMAPtr, buff2end * 2);
 		TDA = (buff2end) & 0xfffff;
 
 		// Flag interrupt?  If IRQA occurs between start and dest, flag it.
@@ -202,20 +203,20 @@ void V_Core::FinishDMAwrite()
 		// Important: Test both core IRQ settings for either DMA!
 		for (int i = 0; i < 2; i++)
 		{
-			if (Cores[i].IRQEnable && (Cores[i].IRQA > ActiveTSA && Cores[i].IRQA < TDA))
+			if (Cores[i].IRQEnable && (Cores[i].IRQA > c->ActiveTSA && Cores[i].IRQA < TDA))
 				{ has_to_call_irq_dma[i] = true; }
 		}
 	}
 
-	DMAPtr += TDA - ActiveTSA;
-	ReadSize -= TDA - ActiveTSA;
+	c->DMAPtr += TDA - c->ActiveTSA;
+	c->ReadSize -= TDA - c->ActiveTSA;
 
-	DMAICounter = (DMAICounter - ReadSize) * 4;
+	c->DMAICounter = (c->DMAICounter - c->ReadSize) * 4;
 
-	if (((psxCounters[6].startCycle + psxCounters[6].deltaCycles) - psxRegs.cycle) > (u32)DMAICounter)
+	if (((psxCounters[6].startCycle + psxCounters[6].deltaCycles) - psxRegs.cycle) > (u32)c->DMAICounter)
 	{
 		psxCounters[6].startCycle = psxRegs.cycle;
-		psxCounters[6].deltaCycles = DMAICounter;
+		psxCounters[6].deltaCycles = c->DMAICounter;
 
 		psxNextDeltaCounter -= (psxRegs.cycle - psxNextStartCounter);
 		psxNextStartCounter = psxRegs.cycle;
@@ -223,14 +224,14 @@ void V_Core::FinishDMAwrite()
 			psxNextDeltaCounter = psxCounters[6].deltaCycles;
 	}
 
-	ActiveTSA = TDA;
-	ActiveTSA &= 0xfffff;
-	TSA = ActiveTSA;
+	c->ActiveTSA = TDA;
+	c->ActiveTSA &= 0xfffff;
+	c->TSA = c->ActiveTSA;
 }
 
-void V_Core::FinishDMAread()
+void V_Core_FinishDMAread(V_Core *c)
 {
-	u32 buff1end = ActiveTSA + pcsx2_min_u(ReadSize, (u32)0x100 + abs(DMAICounter / 4));
+	u32 buff1end = c->ActiveTSA + pcsx2_min_u(c->ReadSize, (u32)0x100 + abs(c->DMAICounter / 4));
 	u32 buff2end = 0;
 
 	if (buff1end > 0x100000)
@@ -239,11 +240,11 @@ void V_Core::FinishDMAread()
 		buff1end = 0x100000;
 	}
 
-	if (DMAPtr == nullptr)
-		DMAPtr = (u16*)&iopMem->Main[MADR & 0x1fffff];
+	if (c->DMAPtr == nullptr)
+		c->DMAPtr = (u16*)&iopMem->Main[MADR(c) & 0x1fffff];
 
-	const u32 buff1size = (buff1end - ActiveTSA);
-	memcpy(DMARPtr, GetMemPtr(ActiveTSA), buff1size * 2);
+	const u32 buff1size = (buff1end - c->ActiveTSA);
+	memcpy(c->DMARPtr, GetMemPtr(c->ActiveTSA), buff1size * 2);
 	// Note on TSA's position after our copy finishes:
 	// IRQA should be measured by the end of the writepos+0x20.  But the TDA
 	// should be written back at the precise endpoint of the xfer.
@@ -251,16 +252,16 @@ void V_Core::FinishDMAread()
 
 	if (buff2end > 0)
 	{
-		const u32 start = ActiveTSA;
+		const u32 start = c->ActiveTSA;
 		TDA = buff1end;
 
-		DMARPtr += TDA - ActiveTSA;
-		ReadSize -= TDA - ActiveTSA;
-		ActiveTSA = 0;
+		c->DMARPtr += TDA - c->ActiveTSA;
+		c->ReadSize -= TDA - c->ActiveTSA;
+		c->ActiveTSA = 0;
 
 		// second branch needs cleared:
 		// It starts at the beginning of memory and moves forward to buff2end
-		memcpy(DMARPtr, GetMemPtr(0), buff2end * 2);
+		memcpy(c->DMARPtr, GetMemPtr(0), buff2end * 2);
 
 		TDA = (buff2end) & 0xfffff;
 
@@ -286,24 +287,24 @@ void V_Core::FinishDMAread()
 
 		for (int i = 0; i < 2; i++)
 		{
-			if (Cores[i].IRQEnable && (Cores[i].IRQA > ActiveTSA && Cores[i].IRQA < TDA))
+			if (Cores[i].IRQEnable && (Cores[i].IRQA > c->ActiveTSA && Cores[i].IRQA < TDA))
 				{ has_to_call_irq_dma[i] = true; }
 		}
 	}
 
-	DMARPtr += TDA - ActiveTSA;
-	ReadSize -= TDA - ActiveTSA;
+	c->DMARPtr += TDA - c->ActiveTSA;
+	c->ReadSize -= TDA - c->ActiveTSA;
 
 	// DMA Reads are done AFTER the delay, so to get the timing right we need to scheule one last DMA to catch IRQ's
-	if (ReadSize)
-		DMAICounter = pcsx2_min_u(ReadSize, (u32)0x100) * 4;
+	if (c->ReadSize)
+		c->DMAICounter = pcsx2_min_u(c->ReadSize, (u32)0x100) * 4;
 	else
-		DMAICounter = 4;
+		c->DMAICounter = 4;
 
-	if (((psxCounters[6].startCycle + psxCounters[6].deltaCycles) - psxRegs.cycle) > (u32)DMAICounter)
+	if (((psxCounters[6].startCycle + psxCounters[6].deltaCycles) - psxRegs.cycle) > (u32)c->DMAICounter)
 	{
 		psxCounters[6].startCycle = psxRegs.cycle;
-		psxCounters[6].deltaCycles = DMAICounter;
+		psxCounters[6].deltaCycles = c->DMAICounter;
 
 		psxNextDeltaCounter -= (psxRegs.cycle - psxNextStartCounter);
 		psxNextStartCounter = psxRegs.cycle;
@@ -311,30 +312,30 @@ void V_Core::FinishDMAread()
 			psxNextDeltaCounter = psxCounters[6].deltaCycles;
 	}
 
-	ActiveTSA = TDA;
-	ActiveTSA &= 0xfffff;
-	TSA = ActiveTSA;
+	c->ActiveTSA = TDA;
+	c->ActiveTSA &= 0xfffff;
+	c->TSA = c->ActiveTSA;
 }
 
-void V_Core::DoDMAread(u16* pMem, u32 size)
+void V_Core_DoDMAread(V_Core *c, u16* pMem, u32 size)
 {
 	TimeUpdate(psxRegs.cycle);
 
-	DMARPtr = pMem;
-	ActiveTSA = TSA & 0xfffff;
-	ReadSize = size;
-	IsDMARead = true;
-	LastClock = psxRegs.cycle;
-	DMAICounter = pcsx2_min_u(ReadSize, (u32)0x100) * 4;
+	c->DMARPtr = pMem;
+	c->ActiveTSA = c->TSA & 0xfffff;
+	c->ReadSize = size;
+	c->IsDMARead = true;
+	c->LastClock = psxRegs.cycle;
+	c->DMAICounter = pcsx2_min_u(c->ReadSize, (u32)0x100) * 4;
 
-	Regs.STATX &= ~0x80;
-	Regs.STATX |= 0x400;
-	TADR = MADR + (size << 1);
+	c->Regs.STATX &= ~0x80;
+	c->Regs.STATX |= 0x400;
+	TADR(c) = MADR(c) + (size << 1);
 
-	if (((psxCounters[6].startCycle + psxCounters[6].deltaCycles) - psxRegs.cycle) > (u32)DMAICounter)
+	if (((psxCounters[6].startCycle + psxCounters[6].deltaCycles) - psxRegs.cycle) > (u32)c->DMAICounter)
 	{
 		psxCounters[6].startCycle  = psxRegs.cycle;
-		psxCounters[6].deltaCycles = DMAICounter;
+		psxCounters[6].deltaCycles = c->DMAICounter;
 
 		psxNextDeltaCounter -= (psxRegs.cycle - psxNextStartCounter);
 		psxNextStartCounter = psxRegs.cycle;
@@ -343,30 +344,30 @@ void V_Core::DoDMAread(u16* pMem, u32 size)
 	}
 }
 
-void V_Core::DoDMAwrite(u16* pMem, u32 size)
+void V_Core_DoDMAwrite(V_Core *c, u16* pMem, u32 size)
 {
-	DMAPtr = pMem;
+	c->DMAPtr = pMem;
 
 	if (size < 2)
 	{
-		Regs.STATX &= ~0x80;
-		DMAICounter = 1 * 4;
-		LastClock = psxRegs.cycle;
+		c->Regs.STATX &= ~0x80;
+		c->DMAICounter = 1 * 4;
+		c->LastClock = psxRegs.cycle;
 		return;
 	}
 
-	ActiveTSA = TSA & 0xfffff;
+	c->ActiveTSA = c->TSA & 0xfffff;
 
-	const bool adma_enable = ((AutoDMACtrl & (Index + 1)) == (Index + 1));
+	const bool adma_enable = ((c->AutoDMACtrl & (c->Index + 1)) == (c->Index + 1));
 
 	if (adma_enable)
 	{
-		StartADMAWrite(pMem, size);
+		V_Core_StartADMAWrite(c, pMem, size);
 	}
 	else
 	{
-		PlainDMAWrite(pMem, size);
-		Regs.STATX &= ~0x80;
-		Regs.STATX |= 0x400;
+		V_Core_PlainDMAWrite(c, pMem, size);
+		c->Regs.STATX &= ~0x80;
+		c->Regs.STATX |= 0x400;
 	}
 }
