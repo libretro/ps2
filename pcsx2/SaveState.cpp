@@ -13,9 +13,7 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-
-#include <cstring> /* memset */
-#include <compat/strl.h>
+#include <cstring> /* memset, memcpy, strlen */
 
 #include "SaveState.h"
 
@@ -36,52 +34,10 @@
 #include "PAD/PAD.h"
 #include "USB/USB.h"
 
-// --------------------------------------------------------------------------------------
-//  SaveStateBase  (implementations)
-// --------------------------------------------------------------------------------------
-SaveStateBase::SaveStateBase( std::vector<u8>& memblock, bool is_saving )
-	: m_memory(memblock) {
-	m_is_saving = is_saving; }
-
-void SaveStateBase::PrepBlock(int size)
-{
-	if (m_error)
-		return;
-	const int end = m_idx+size;
-	if (IsSaving())
-	{
-		if (static_cast<u32>(end) >= m_memory.size())
-			m_memory.resize(static_cast<u32>(end));
-	}
-	else
-	{
-		if (m_memory.size() < static_cast<u32>(end))
-			m_error = true;
-	}
-}
-
-bool SaveStateBase::FreezeTag(const char *src)
-{
-	if (m_error)
-		return false;
-
-	memset(m_tagspace, 0, sizeof(m_tagspace));
-	strlcpy( m_tagspace, src, sizeof(m_tagspace) );
-	Freeze( m_tagspace );
-
-	if(strcmp( m_tagspace, src ) != 0 )
-	{
-		m_error = true;
-		return false;
-	}
-
-	return true;
-}
-
-bool SaveStateBase::FreezeBios()
+bool SaveState_FreezeBios(SaveStateBase *s)
 {
 	char biosdesc[256];
-	if (!FreezeTag("BIOS"))
+	if (!SaveState_FreezeTag(s, "BIOS"))
 		return false;
 
 	// Check the BIOS, and issue a warning if the bios for this state
@@ -91,135 +47,79 @@ bool SaveStateBase::FreezeBios()
 	memset(biosdesc, 0, sizeof(biosdesc));
 	memcpy( biosdesc, BiosDescription, pcsx2_min_sz(sizeof(biosdesc), strlen(BiosDescription)) );
 
-	Freeze( bioscheck );
-	Freeze( biosdesc );
+	SaveState_Freeze(s, bioscheck);
+	SaveState_Freeze(s, biosdesc);
 
-	return IsOkay();
+	return SaveState_IsOkay(s);
 }
 
-bool SaveStateBase::FreezeInternals()
+bool SaveState_FreezeInternals(SaveStateBase *s)
 {
 	// Second Block - Various CPU Registers and States
 	// -----------------------------------------------
-	if (!FreezeTag( "cpuRegs" ))
+	if (!SaveState_FreezeTag(s,  "cpuRegs" ))
 		return false;
 
-	Freeze(cpuRegs);		// cpu regs + COP0
-	Freeze(psxRegs);		// iop regs
-	Freeze(fpuRegs);
-	Freeze(tlb);			// tlbs
-	Freeze(AllowParams1);	//OSDConfig written (Fast Boot)
-	Freeze(AllowParams2);
-	Freeze(g_GameStarted);
-	Freeze(g_GameLoading);
-	Freeze(ElfCRC);
+	SaveState_Freeze(s, cpuRegs);		// cpu regs + COP0
+	SaveState_Freeze(s, psxRegs);		// iop regs
+	SaveState_Freeze(s, fpuRegs);
+	SaveState_Freeze(s, tlb);			// tlbs
+	SaveState_Freeze(s, AllowParams1);	//OSDConfig written (Fast Boot)
+	SaveState_Freeze(s, AllowParams2);
+	SaveState_Freeze(s, g_GameStarted);
+	SaveState_Freeze(s, g_GameLoading);
+	SaveState_Freeze(s, ElfCRC);
 
 	// Third Block - Cycle Timers and Events
 	// -------------------------------------
-	if (!(FreezeTag( "Cycles" )))
+	if (!(SaveState_FreezeTag(s,  "Cycles" )))
 		return false;
-	Freeze(EEsCycle);
-	Freeze(EEoCycle);
-	Freeze(nextDeltaCounter);
-	Freeze(nextStartCounter);
-	Freeze(psxNextStartCounter);
-	Freeze(psxNextDeltaCounter);
+	SaveState_Freeze(s, EEsCycle);
+	SaveState_Freeze(s, EEoCycle);
+	SaveState_Freeze(s, nextDeltaCounter);
+	SaveState_Freeze(s, nextStartCounter);
+	SaveState_Freeze(s, psxNextStartCounter);
+	SaveState_Freeze(s, psxNextDeltaCounter);
 
 	// Fourth Block - EE-related systems
 	// ---------------------------------
-	if (!(FreezeTag( "EE-Subsystems" )))
+	if (!(SaveState_FreezeTag(s,  "EE-Subsystems" )))
 		return false;
 
-	bool okay = rcntFreeze();
-	okay = okay && gsFreeze();
-	okay = okay && vuMicroFreeze();
+	bool okay = rcntFreeze(s);
+	okay = okay && gsFreeze(s);
+	okay = okay && vuMicroFreeze(s);
 #ifndef ARCH_ARM64
-	okay = okay && vuJITFreeze();	// no VU JIT state to (de)serialise on arm64
+	okay = okay && vuJITFreeze(s);	// no VU JIT state to (de)serialise on arm64
 #endif
-	okay = okay && vif0Freeze();
-	okay = okay && vif1Freeze();
-	okay = okay && sifFreeze();
-	okay = okay && ipuFreeze();
-	okay = okay && ipuDmaFreeze();
-	okay = okay && gifFreeze();
-	okay = okay && gifDmaFreeze();
-	okay = okay && sprFreeze();
-	okay = okay && mtvuFreeze();
+	okay = okay && vif0Freeze(s);
+	okay = okay && vif1Freeze(s);
+	okay = okay && sifFreeze(s);
+	okay = okay && ipuFreeze(s);
+	okay = okay && ipuDmaFreeze(s);
+	okay = okay && gifFreeze(s);
+	okay = okay && gifDmaFreeze(s);
+	okay = okay && sprFreeze(s);
+	okay = okay && mtvuFreeze(s);
 	if (!okay)
 		return false;
 
 	// Fifth Block - iop-related systems
 	// ---------------------------------
-	if (!(FreezeTag( "IOP-Subsystems" )))
+	if (!(SaveState_FreezeTag(s,  "IOP-Subsystems" )))
 		return false;
 
-	FreezeMem(iopMem->Sif, sizeof(iopMem->Sif));		// iop's sif memory (not really needed, but oh well)
+	SaveState_FreezeMem(s, iopMem->Sif, sizeof(iopMem->Sif));		// iop's sif memory (not really needed, but oh well)
 
-	okay = okay && psxRcntFreeze();
-	okay = okay && sioFreeze();
-	okay = okay && sio2Freeze();
-	okay = okay && cdrFreeze();
-	okay = okay && cdvdFreeze();
+	okay = okay && psxRcntFreeze(s);
+	okay = okay && sioFreeze(s);
+	okay = okay && sio2Freeze(s);
+	okay = okay && cdrFreeze(s);
+	okay = okay && cdvdFreeze(s);
 
 	// technically this is HLE BIOS territory, but we don't have enough such stuff
 	// to merit an HLE Bios sub-section... yet.
-	okay = okay && deci2Freeze();
+	okay = okay && deci2Freeze(s);
 
 	return okay;
 }
-
-
-// --------------------------------------------------------------------------------------
-//  SaveStateBase memory I/O
-// --------------------------------------------------------------------------------------
-// uncompressed to/from memory state saves implementation
-
-/* One FreezeMem for both directions. Saving grows the buffer and copies in;
- * loading copies out, and after an error it zero-fills rather than reading
- * past whatever went wrong. */
-void SaveStateBase::FreezeMem(void* data, int size)
-{
-	if (!size)
-		return;
-
-	if (m_is_saving)
-	{
-		const int new_size = m_idx + size;
-		if ((u32)new_size > m_memory.size())
-			m_memory.resize((u32)new_size);
-
-		memcpy(&m_memory[m_idx], data, size);
-		m_idx += size;
-		return;
-	}
-
-	if (m_error)
-	{
-		memset(data, 0, size);
-		return;
-	}
-
-	{
-		const u8* const src = &m_memory[m_idx];
-		m_idx += size;
-		memcpy(data, src, size);
-	}
-}
-
-// --------------------------------------------------------------------------------------
-//  BaseSavestateEntry
-// --------------------------------------------------------------------------------------
-class BaseSavestateEntry
-{
-protected:
-	BaseSavestateEntry() = default;
-public:
-	virtual ~BaseSavestateEntry() = default;
-};
-
-class MemorySavestateEntry : public BaseSavestateEntry
-{
-protected:
-	MemorySavestateEntry() {}
-	virtual ~MemorySavestateEntry() = default;
-};

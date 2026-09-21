@@ -875,16 +875,16 @@ void cdvdReset(void)
 	cdvdCtrlTrayClose();
 }
 
-bool SaveStateBase::cdvdFreeze()
+bool cdvdFreeze(SaveStateBase *s)
 {
-	if (!(FreezeTag("cdvd")))
+	if (!(SaveState_FreezeTag(s, "cdvd")))
 		return false;
 
-	Freeze(cdvd);
-	if (!IsOkay())
+	SaveState_Freeze(s, cdvd);
+	if (!SaveState_IsOkay(s))
 		return false;
 
-	if (IsLoading())
+	if (SaveState_IsLoading(s))
 	{
 		// Make sure the Cdvd source has the expected track loaded into the buffer.
 		// If cdvd.SeekCompleted is cleared it means we need to load the SeekToSector (ie, a

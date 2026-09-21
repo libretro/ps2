@@ -96,16 +96,16 @@ void Deci2Reset(void)
 	memset(deci2buffer, 0, sizeof(deci2buffer));
 }
 
-bool SaveStateBase::deci2Freeze()
+bool deci2Freeze(SaveStateBase *s)
 {
-	if (!(FreezeTag( "deci2" )))
+	if (!(SaveState_FreezeTag(s,  "deci2" )))
 		return false;
 
-	Freeze( deci2addr );
-	Freeze( deci2handler );
-	Freeze( deci2buffer );
+	SaveState_Freeze(s, deci2addr);
+	SaveState_Freeze(s, deci2handler);
+	SaveState_Freeze(s, deci2buffer);
 
-	return IsOkay();
+	return SaveState_IsOkay(s);
 }
 
 /*

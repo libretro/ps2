@@ -106,6 +106,7 @@ set(pcsx2Sources
 	FiFo.cpp
 	FPU.cpp
 	ps2float.c
+	SaveState.c
 	Gif.cpp
 	Gif_Unit.cpp
 	GS.cpp

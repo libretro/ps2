@@ -200,7 +200,8 @@ SOURCES_C += \
 	$(LRPS2_DIR)/DEV9/ATA/Commands/ATA_SCE.c
 
 SOURCES_C += \
-	$(LRPS2_DIR)/ps2float.c
+	$(LRPS2_DIR)/ps2float.c \
+	$(LRPS2_DIR)/SaveState.c
 
 ifeq ($(HAVE_PCAP), 1)
 SOURCES_CXX += $(LRPS2_DIR)/DEV9/pcap_io.cpp
@@ -359,7 +360,7 @@ SOURCES_CXX += \
 	$(LRPS2_DIR)/ps2/Iop/IopHwWrite.cpp \
 	$(LRPS2_DIR)/ps2/Iop/PsxBios.cpp
 
-# pcsx2/SPU2. Everything but the emulator-facing shim builds as C.
+# pcsx2/SPU2. Every unit builds as C, the emulator-facing shim included.
 SOURCES_C += \
 	$(LRPS2_DIR)/SPU2/ADSR.c \
 	$(LRPS2_DIR)/SPU2/Dma.c \

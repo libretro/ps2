@@ -3038,7 +3038,7 @@ size_t retro_serialize_size(void)
 bool retro_serialize(void* data, size_t size)
 {
 	freezeData fP;
-	std::vector<u8> buffer;
+	SaveStateBase saveme;
 
 	cpu_thread_pause();
 
@@ -3050,63 +3050,68 @@ bool retro_serialize(void* data, size_t size)
 	vu1Thread.WaitVU();
 	MTGS::WaitGS(false);
 
-	/* retro_serialize_size() already computed the exact upper bound on
-	 * what we need. Reserve once so SaveStateBase's incremental
-	 * resize() calls inside FreezeMem/PrepBlock don't realloc and copy
-	 * the partial buffer multiple times as different sections (BIOS,
-	 * internals, EE/IOP/VU memory, SPU2/PAD/GS freeze blocks) accumulate. */
-	buffer.reserve(size);
+	/* retro_serialize_size() already computed the upper bound on what we
+	 * need, so hand the writer an allocation that already covers it: the
+	 * growth inside FreezeMem/PrepBlock then never fires, and no section
+	 * (BIOS, internals, EE/IOP/VU memory, the SPU2/PAD/GS blocks) copies
+	 * the partial state as it accumulates. */
+	SaveState_Init(&saveme, (u8 *)malloc(size), 0, size, true);
+	if (!saveme.memory)
+	{
+		cpu_thread_resume();
+		return false;
+	}
 
-	SaveStateBase saveme(buffer, true);
+	SaveState_FreezeBios(&saveme);
+	SaveState_FreezeInternals(&saveme);
 
-	saveme.FreezeBios();
-	saveme.FreezeInternals();
-
-	saveme.FreezeMem(eeMem->Main, sizeof(eeMem->Main));
-	saveme.FreezeMem(iopMem->Main, sizeof(iopMem->Main));
-	saveme.FreezeMem(eeHw, sizeof(eeHw));
-	saveme.FreezeMem(iopHw, sizeof(iopHw));
-	saveme.FreezeMem(eeMem->Scratch, sizeof(eeMem->Scratch));
-	saveme.FreezeMem(vuRegs[0].Mem, VU0_MEMSIZE);
-	saveme.FreezeMem(vuRegs[1].Mem, VU1_MEMSIZE);
-	saveme.FreezeMem(vuRegs[0].Micro, VU0_PROGSIZE);
-	saveme.FreezeMem(vuRegs[1].Micro, VU1_PROGSIZE);
+	SaveState_FreezeMem(&saveme, eeMem->Main, sizeof(eeMem->Main));
+	SaveState_FreezeMem(&saveme, iopMem->Main, sizeof(iopMem->Main));
+	SaveState_FreezeMem(&saveme, eeHw, sizeof(eeHw));
+	SaveState_FreezeMem(&saveme, iopHw, sizeof(iopHw));
+	SaveState_FreezeMem(&saveme, eeMem->Scratch, sizeof(eeMem->Scratch));
+	SaveState_FreezeMem(&saveme, vuRegs[0].Mem, VU0_MEMSIZE);
+	SaveState_FreezeMem(&saveme, vuRegs[1].Mem, VU1_MEMSIZE);
+	SaveState_FreezeMem(&saveme, vuRegs[0].Micro, VU0_PROGSIZE);
+	SaveState_FreezeMem(&saveme, vuRegs[1].Micro, VU1_PROGSIZE);
 
 	fP.size = 0;
 	fP.data = nullptr;
 	SPU2freeze(FREEZE_SIZE, &fP);
-	saveme.PrepBlock(fP.size);
-	fP.data = saveme.GetBlockPtr();
+	SaveState_PrepBlock(&saveme, fP.size);
+	fP.data = SaveState_BlockPtr(&saveme);
 	SPU2freeze(FREEZE_SAVE, &fP);
-	saveme.CommitBlock(fP.size);
+	SaveState_CommitBlock(&saveme, fP.size);
 
 	fP.size = 0;
 	fP.data = nullptr;
 	PADfreeze(FREEZE_SIZE, &fP);
-	saveme.PrepBlock(fP.size);
-	fP.data = saveme.GetBlockPtr();
+	SaveState_PrepBlock(&saveme, fP.size);
+	fP.data = SaveState_BlockPtr(&saveme);
 	PADfreeze(FREEZE_SAVE, &fP);
-	saveme.CommitBlock(fP.size);
+	SaveState_CommitBlock(&saveme, fP.size);
 
 	fP.size = 0;
 	fP.data = nullptr;
 	GSfreeze(FREEZE_SIZE, &fP);
-	saveme.PrepBlock(fP.size);
-	fP.data = saveme.GetBlockPtr();
+	SaveState_PrepBlock(&saveme, fP.size);
+	fP.data = SaveState_BlockPtr(&saveme);
 	GSfreeze(FREEZE_SAVE, &fP);
-	saveme.CommitBlock(fP.size);
+	SaveState_CommitBlock(&saveme, fP.size);
 
 	/* Bound the copy by the frontend-provided buffer size: if the
 	 * actual saved size somehow exceeds what retro_serialize_size()
 	 * predicted, refuse rather than overrun the caller's buffer. */
-	if (buffer.size() > size)
+	if (saveme.memory_size > size)
 	{
 		log_cb(RETRO_LOG_ERROR, "retro_serialize: produced %zu bytes, "
-			"frontend buffer is only %zu\n", buffer.size(), size);
+			"frontend buffer is only %zu\n", saveme.memory_size, size);
+		free(saveme.memory);
 		cpu_thread_resume();
 		return false;
 	}
-	memcpy(data, buffer.data(), buffer.size());
+	memcpy(data, saveme.memory, saveme.memory_size);
+	free(saveme.memory);
 
 	cpu_thread_resume();
 	return true;
@@ -3115,7 +3120,7 @@ bool retro_serialize(void* data, size_t size)
 bool retro_unserialize(const void* data, size_t size)
 {
 	freezeData fP;
-	std::vector<u8> buffer;
+	SaveStateBase loadme;
 
 	cpu_thread_pause();
 
@@ -3133,44 +3138,49 @@ bool retro_unserialize(const void* data, size_t size)
 	vu1Thread.WaitVU();
 	MTGS::WaitGS(false);
 
-	/* resize() (not reserve()): m_memory.size() is what PrepBlock and
-	 * SaveStateBase::FreezeMem uses for bounds-checking. With reserve()
-	 * size() stays 0, the very first PrepBlock for SPU2/PAD/GS sets
-	 * m_error=true, and every subsequent freeze block silently loads as
-	 * zeros - SPU2/PAD/GS state was effectively never restored. */
-	buffer.resize(size);
-	memcpy(buffer.data(), data, size);
-	SaveStateBase loadme(buffer, false);
+	/* The live size is what PrepBlock and FreezeMem bound against, so the
+	 * whole payload counts as present from the start: otherwise the first
+	 * PrepBlock for SPU2, PAD or GS sets the error flag and every block
+	 * after it loads as zeros.
+	 *
+	 * The frontend's buffer serves directly rather than being copied into
+	 * one of ours: a loading SaveStateBase only ever reads from it, and so
+	 * does every FREEZE_LOAD handler downstream -- SPU2Savestate_ThawIt
+	 * copies to an aligned temp when it needs one rather than working in
+	 * place, and the PAD and GS defrosts read through const pointers. The
+	 * const_cast is discharged by that, and it saves copying the whole
+	 * state on every load. */
+	SaveState_Init(&loadme, (u8 *)const_cast<void *>(data), size, size, false);
 
-	loadme.FreezeBios();
-	loadme.FreezeInternals();
+	SaveState_FreezeBios(&loadme);
+	SaveState_FreezeInternals(&loadme);
 
 	VMManager::Internal::ClearCPUExecutionCaches();
-	loadme.FreezeMem(eeMem->Main, sizeof(eeMem->Main));
-	loadme.FreezeMem(iopMem->Main, sizeof(iopMem->Main));
-	loadme.FreezeMem(eeHw, sizeof(eeHw));
-	loadme.FreezeMem(iopHw, sizeof(iopHw));
-	loadme.FreezeMem(eeMem->Scratch, sizeof(eeMem->Scratch));
-	loadme.FreezeMem(vuRegs[0].Mem, VU0_MEMSIZE);
-	loadme.FreezeMem(vuRegs[1].Mem, VU1_MEMSIZE);
-	loadme.FreezeMem(vuRegs[0].Micro, VU0_PROGSIZE);
-	loadme.FreezeMem(vuRegs[1].Micro, VU1_PROGSIZE);
+	SaveState_FreezeMem(&loadme, eeMem->Main, sizeof(eeMem->Main));
+	SaveState_FreezeMem(&loadme, iopMem->Main, sizeof(iopMem->Main));
+	SaveState_FreezeMem(&loadme, eeHw, sizeof(eeHw));
+	SaveState_FreezeMem(&loadme, iopHw, sizeof(iopHw));
+	SaveState_FreezeMem(&loadme, eeMem->Scratch, sizeof(eeMem->Scratch));
+	SaveState_FreezeMem(&loadme, vuRegs[0].Mem, VU0_MEMSIZE);
+	SaveState_FreezeMem(&loadme, vuRegs[1].Mem, VU1_MEMSIZE);
+	SaveState_FreezeMem(&loadme, vuRegs[0].Micro, VU0_PROGSIZE);
+	SaveState_FreezeMem(&loadme, vuRegs[1].Micro, VU1_PROGSIZE);
 
 	fP.size = 0;
 	fP.data = nullptr;
 	SPU2freeze(FREEZE_SIZE, &fP);
-	loadme.PrepBlock(fP.size);
-	fP.data = loadme.GetBlockPtr();
+	SaveState_PrepBlock(&loadme, fP.size);
+	fP.data = SaveState_BlockPtr(&loadme);
 	SPU2freeze(FREEZE_LOAD, &fP);
-	loadme.CommitBlock(fP.size);
+	SaveState_CommitBlock(&loadme, fP.size);
 
 	fP.size = 0;
 	fP.data = nullptr;
 	PADfreeze(FREEZE_SIZE, &fP);
-	loadme.PrepBlock(fP.size);
-	fP.data = loadme.GetBlockPtr();
+	SaveState_PrepBlock(&loadme, fP.size);
+	fP.data = SaveState_BlockPtr(&loadme);
 	PADfreeze(FREEZE_LOAD, &fP);
-	loadme.CommitBlock(fP.size);
+	SaveState_CommitBlock(&loadme, fP.size);
 
 	/* GS is the final block: hand Defrost the actual remaining payload
 	 * rather than this session's freeze-size expectation. The saved GS
@@ -3181,15 +3191,15 @@ bool retro_unserialize(const void* data, size_t size)
 	 * wrong span silently. Also check the result: a rejected defrost
 	 * (newer state version, truncated payload) previously "succeeded"
 	 * into a reset, empty GS. */
-	fP.size = static_cast<int>(size) - loadme.GetCurrentPos();
+	fP.size = static_cast<int>(size) - loadme.idx;
 	if (fP.size <= 0)
 	{
 		cpu_thread_resume();
 		log_cb(RETRO_LOG_ERROR, "retro_unserialize: no GS payload left "
-			"(offset=%d size=%zu)\n", loadme.GetCurrentPos(), size);
+			"(offset=%d size=%zu)\n", loadme.idx, size);
 		return false;
 	}
-	fP.data = loadme.GetBlockPtr();
+	fP.data = SaveState_BlockPtr(&loadme);
 	if (GSfreeze(FREEZE_LOAD, &fP) != 0)
 	{
 		cpu_thread_resume();
@@ -3197,7 +3207,7 @@ bool retro_unserialize(const void* data, size_t size)
 			"(payload=%d bytes)\n", fP.size);
 		return false;
 	}
-	loadme.CommitBlock(fP.size);
+	SaveState_CommitBlock(&loadme, fP.size);
 
 	/* Discard buffered audio: any pre-load samples in the buffer no
 	 * longer match the SPU2 state we just restored. */
@@ -3220,7 +3230,7 @@ bool retro_unserialize(const void* data, size_t size)
 	VMManager::RefreshRunningGameAfterStateLoad();
 
 	cpu_thread_resume();
-	if (!loadme.IsOkay())
+	if (!SaveState_IsOkay(&loadme))
 	{
 		log_cb(RETRO_LOG_ERROR, "retro_unserialize: short or "
 			"corrupt savestate (size=%zu)\n", size);

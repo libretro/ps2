@@ -27,13 +27,13 @@ void sifReset(void)
 	memset(&sif1, 0, sizeof(sif1));
 }
 
-bool SaveStateBase::sifFreeze()
+bool sifFreeze(SaveStateBase *s)
 {
-	if (!(FreezeTag("SIFdma")))
+	if (!(SaveState_FreezeTag(s, "SIFdma")))
 		return false;
 
-	Freeze(sif0);
-	Freeze(sif1);
+	SaveState_Freeze(s, sif0);
+	SaveState_Freeze(s, sif1);
 
-	return IsOkay();
+	return SaveState_IsOkay(s);
 }

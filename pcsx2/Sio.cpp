@@ -689,21 +689,57 @@ void sioSetGameSerial( const char* serial )
 	}
 }
 
-bool SaveStateBase::sio2Freeze()
+/* A SioFifo goes in as a u32 count followed by its bytes in front-to-back
+ * order, which is the shape the state has always carried. */
+static void FreezeSioFifo(SaveStateBase *s, SioFifo &q)
 {
-	if (!(FreezeTag("sio2")))
+	u32 count = (u32)q.size();
+
+	SaveState_Freeze(s, count);
+
+	if (count == 0)
+	{
+		if (SaveState_IsLoading(s))
+			q.clear();
+		return;
+	}
+
+	if (SaveState_IsSaving(s))
+	{
+		SaveState_FreezeMem(s, q.data + q.head, (int)count);
+		return;
+	}
+
+	/* Size the fifo first, then read straight into it. A cleared fifo
+	 * starts at index 0 and push_back grows it geometrically, so after
+	 * count pushes the bytes are contiguous from data[0] -- which is
+	 * where they were written from. No temporary, and so no allocation
+	 * that can fail partway through a load. */
+	q.clear();
+	{
+		u32 i;
+
+		for (i = 0; i < count; i++)
+			q.push_back(0);
+		SaveState_FreezeMem(s, q.data, (int)count);
+	}
+}
+
+bool sio2Freeze(SaveStateBase *s)
+{
+	if (!(SaveState_FreezeTag(s, "sio2")))
 		return false;
 
-	Freeze(sio2);
-	FreezeSioFifo(fifoIn);
-	FreezeSioFifo(fifoOut);
-	if (!IsOkay())
+	SaveState_Freeze(s, sio2);
+	FreezeSioFifo(s, fifoIn);
+	FreezeSioFifo(s, fifoOut);
+	if (!SaveState_IsOkay(s))
 		return false;
 
 	// CRCs for memory cards.
 	// If the memory card hasn't changed when loading state, we can safely skip ejecting it.
 	u64 mcdCrcs[SIO::PORTS][SIO::SLOTS];
-	if (IsSaving())
+	if (SaveState_IsSaving(s))
 	{
 		for (u32 port = 0; port < SIO::PORTS; port++)
 		{
@@ -711,11 +747,11 @@ bool SaveStateBase::sio2Freeze()
 				mcdCrcs[port][slot] = FileMcd_GetCRC(port, slot);
 		}
 	}
-	Freeze(mcdCrcs);
-	if (!IsOkay())
+	SaveState_Freeze(s, mcdCrcs);
+	if (!SaveState_IsOkay(s))
 		return false;
 
-	if (IsLoading())
+	if (SaveState_IsLoading(s))
 	{
 		bool ejected = false;
 		for (u32 port = 0; port < SIO::PORTS && !ejected; port++)
@@ -735,14 +771,14 @@ bool SaveStateBase::sio2Freeze()
 	return true;
 }
 
-bool SaveStateBase::sioFreeze()
+bool sioFreeze(SaveStateBase *s)
 {
-	if (!(FreezeTag("sio0")))
+	if (!(SaveState_FreezeTag(s, "sio0")))
 		return false;
 
-	Freeze(sio0);
+	SaveState_Freeze(s, sio0);
 
-	return IsOkay();
+	return SaveState_IsOkay(s);
 }
 
 std::tuple<u32, u32> sioConvertPadToPortAndSlot(u32 index)

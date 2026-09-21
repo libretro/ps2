@@ -15,160 +15,96 @@
 
 #pragma once
 
-#include <memory>
-#include <vector>
+#include <stddef.h> /* size_t */
 
 #include "FreezeTypes.h"
-#include "Memory.h"
 
-// Savestate Versioning!
+/* Savestate Versioning!
+ *
+ * NOTICE: When updating g_SaveVersion, please make sure you add the following
+ * line to your commit message somewhere:
+ * [SAVEVERSION+] */
 
-// NOTICE: When updating g_SaveVersion, please make sure you add the following line to your commit message somewhere:
-// [SAVEVERSION+]
+#define g_SaveVersion ((u32)((0x9A57 << 16) | 0x0000))
 
-static const u32 g_SaveVersion = (0x9A57 << 16) | 0x0000;
+/* --------------------------------------------------------------------------
+ *  SaveStateBase
+ * --------------------------------------------------------------------------
+ * Reading and writing a savestate both run through this. is_saving picks the
+ * direction, and the buffer grows on demand while saving, so the owner hands
+ * over an allocation and takes back whatever it became.
+ *
+ * Members are ordered widest first so the struct packs without padding
+ * between them. */
 
-
-// --------------------------------------------------------------------------------------
-//  SaveStateBase class
-// --------------------------------------------------------------------------------------
-// Provides the base API for both loading and saving savestates.  Normally you'll want to
-// use one of the four "functional" derived classes rather than this class directly: gzLoadingState, gzSavingState (gzipped disk-saved
-// states), and memLoadingState, memSavingState (uncompressed memory states).
-class SaveStateBase
+typedef struct SaveStateBase
 {
-protected:
-	std::vector<u8>& m_memory;
-	char m_tagspace[32];
+	u8    *memory;       /* the block being written to or read from */
+	size_t memory_size;  /* bytes live in it */
+	size_t memory_cap;   /* bytes allocated */
+	int    idx;          /* read/write cursor */
+	char   tagspace[32];
+	bool   error;        /* something went wrong reading or writing */
+	bool   is_saving;    /* direction: saving when set, loading when not */
+} SaveStateBase;
 
-	int m_idx = 0;			// current read/write index of the allocation
-	bool m_error = false; // error occurred while reading/writing
-	bool m_is_saving = false; // direction: save when true, load when false
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-public:
-	/* is_saving picks the direction; there is no vtable. The two former
-	 * subclasses (memSavingState / memLoadingState) differed only in
-	 * FreezeMem and in what IsSaving() returned, so they are constructor
-	 * arguments now rather than derived types. */
-	SaveStateBase( std::vector<u8>& memblock, bool is_saving );
-	~SaveStateBase() { }
+/* Point one at a block. While saving, memory may be NULL and cap 0; it is
+ * grown as needed and the caller reads memory and memory_size back out
+ * afterwards. While loading, the block has to hold the whole state. */
+void SaveState_Init(SaveStateBase *s, u8 *memory, size_t size, size_t cap,
+                    bool is_saving);
 
-	__fi bool IsOkay() const { return !m_error; }
+/* Loads or saves a block of memory, in whichever direction Init picked. */
+void SaveState_FreezeMem(SaveStateBase *s, void *data, int size);
 
-	bool FreezeBios();
-	bool FreezeInternals();
+/* Make sure size bytes are available at the cursor. */
+void SaveState_PrepBlock(SaveStateBase *s, int size);
 
-	// Loads or saves an arbitrary data type.  Usable on atomic types, structs, and arrays.
-	// For dynamically allocated pointers use FreezeMem instead.
-	template<typename T>
-	void Freeze( T& data )
-	{
-		FreezeMem( const_cast<void*>((void*)&data), sizeof( T ) );
-	}
+/* An identifier, for working out where a state went skew: if the tag that
+ * comes back is not the one written, the damage is somewhere before it. */
+bool SaveState_FreezeTag(SaveStateBase *s, const char *src);
 
-	void PrepBlock( int size );
+bool SaveState_FreezeBios(SaveStateBase *s);
+bool SaveState_FreezeInternals(SaveStateBase *s);
 
-	// A SioFifo goes in as a u32 count followed by the bytes in
-	// front-to-back order.
-	// Templated so the body only instantiates in TUs where the FIFO type is
-	// complete (SaveState.h does not include Sio.h).
-	template <typename FifoT>
-	void FreezeSioFifo(FifoT& q)
-	{
-		u32 count = static_cast<u32>(q.size());
-		Freeze(count);
+/* Load or save one object. Usable on scalars, structs and arrays; for a
+ * pointer to memory the object does not contain, use SaveState_FreezeMem. */
+#define SaveState_Freeze(s, obj) \
+	SaveState_FreezeMem((s), (void *)&(obj), (int)sizeof(obj))
 
-		if (count > 0 && IsSaving())
-			FreezeMem(q.data + q.head, static_cast<int>(sizeof(u8) * count));
+#define SaveState_IsOkay(s)    (!(s)->error)
+#define SaveState_IsSaving(s)  ((s)->is_saving)
+#define SaveState_IsLoading(s) (!(s)->is_saving)
+#define SaveState_BlockPtr(s)  (&(s)->memory[(s)->idx])
+#define SaveState_CommitBlock(s, n) ((s)->idx += (n))
 
-		if (IsLoading())
-		{
-			q.clear();
-			if (count > 0)
-			{
-				std::unique_ptr<u8[]> temp = std::make_unique<u8[]>(count);
-				FreezeMem(temp.get(), static_cast<int>(sizeof(u8) * count));
-				for (u32 i = 0; i < count; i++)
-					q.push_back(temp[i]);
-			}
-		}
-	}
+/* Load/Save for the various components of our glorious emulator. gsFreeze is
+ * reached from the GSState recorder as well as from here. */
+bool gsFreeze(SaveStateBase *s);
+bool mtvuFreeze(SaveStateBase *s);
+bool rcntFreeze(SaveStateBase *s);
+bool vuMicroFreeze(SaveStateBase *s);
+bool vuJITFreeze(SaveStateBase *s);
+bool vif0Freeze(SaveStateBase *s);
+bool vif1Freeze(SaveStateBase *s);
+bool sifFreeze(SaveStateBase *s);
+bool ipuFreeze(SaveStateBase *s);
+bool ipuDmaFreeze(SaveStateBase *s);
+bool gifFreeze(SaveStateBase *s);
+bool gifDmaFreeze(SaveStateBase *s);
+bool gifPathFreeze(SaveStateBase *s, u32 path); /* called by gifFreeze */
+bool sprFreeze(SaveStateBase *s);
+bool sioFreeze(SaveStateBase *s);
+bool cdrFreeze(SaveStateBase *s);
+bool cdvdFreeze(SaveStateBase *s);
+bool psxRcntFreeze(SaveStateBase *s);
+bool sio2Freeze(SaveStateBase *s);
+bool deci2Freeze(SaveStateBase *s);
 
-	int GetCurrentPos() const
-	{
-		return m_idx;
-	}
-
-	u8* GetBlockPtr()
-	{
-		return &m_memory[m_idx];
-	}
-
-	u8* GetPtrEnd() const
-	{
-		return &m_memory[m_idx];
-	}
-
-	void CommitBlock( int size )
-	{
-		m_idx += size;
-	}
-
-	// Freezes an identifier value into the savestate for troubleshooting purposes.
-	// Identifiers can be used to determine where in a savestate that data has become
-	// skewed (if the value does not match then the error occurs somewhere prior to that
-	// position).
-	bool FreezeTag( const char* src );
-
-	// Returns true if this object is a StateLoading type object.
-	bool IsLoading() const { return !IsSaving(); }
-
-	// Loads or saves a memory block, according to m_is_saving.
-	void FreezeMem( void* data, int size );
-
-	// Returns true if this object is a StateSaving type object.
-	bool IsSaving() const { return m_is_saving; }
-
-public:
-	// note: gsFreeze() needs to be public because of the GSState recorder.
-	bool gsFreeze();
-
-protected:
-	void Init( std::vector<u8>* memblock );
-
-	// Load/Save functions for the various components of our glorious emulator!
-	//bool vmFreeze();
-	bool mtvuFreeze();
-	bool rcntFreeze();
-	bool vuMicroFreeze();
-	bool vuJITFreeze();
-	bool vif0Freeze();
-	bool vif1Freeze();
-	bool sifFreeze();
-	bool ipuFreeze();
-	bool ipuDmaFreeze();
-	bool gifFreeze();
-	bool gifDmaFreeze();
-	bool gifPathFreeze(u32 path); // called by gifFreeze()
-
-	bool sprFreeze();
-
-	bool sioFreeze();
-	bool cdrFreeze();
-	bool cdvdFreeze();
-	bool psxRcntFreeze();
-	bool sio2Freeze();
-
-	bool deci2Freeze();
-
-};
-
-// --------------------------------------------------------------------------------------
-//  Saving and Loading Specialized Implementations...
-// --------------------------------------------------------------------------------------
-
-/* memSavingState / memLoadingState were the only two SaveStateBase
- * subclasses and existed solely to supply FreezeMem and IsSaving. Construct
- * SaveStateBase directly with the direction instead. The 256k reallocation
- * block size and the 8MB base allocation the saving side declared were both
- * unused. */
+#ifdef __cplusplus
+}
+#endif

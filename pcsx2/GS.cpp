@@ -328,11 +328,11 @@ __fi u64 gsRead64(u32 mem)
 	return *(u64*)PS2GS_BASE(GS_CSR + (mem & 0x8));
 }
 
-bool SaveStateBase::gsFreeze()
+bool gsFreeze(SaveStateBase *s)
 {
-	FreezeMem(PS2MEM_GS, 0x2000);
-	Freeze(gsVideoMode);
+	SaveState_FreezeMem(s, PS2MEM_GS, 0x2000);
+	SaveState_Freeze(s, gsVideoMode);
 
-	return IsOkay();
+	return SaveState_IsOkay(s);
 }
 

@@ -26,14 +26,14 @@ void ipuDmaReset(void)
 	IPU1Status.DMAFinished	= true;
 }
 
-bool SaveStateBase::ipuDmaFreeze()
+bool ipuDmaFreeze(SaveStateBase *s)
 {
-	if (!(FreezeTag( "IPUdma" )))
+	if (!(SaveState_FreezeTag(s,  "IPUdma" )))
 		return false;
 
-	Freeze(IPU1Status);
+	SaveState_Freeze(s, IPU1Status);
 
-	return IsOkay();
+	return SaveState_IsOkay(s);
 }
 
 static __fi int IPU1chain(void)

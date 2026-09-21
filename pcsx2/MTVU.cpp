@@ -56,12 +56,12 @@ static void MTVU_Unpack(void* data, VIFregisters& vifRegs)
 }
 
 // Called on Saving/Loading states...
-bool SaveStateBase::mtvuFreeze()
+bool mtvuFreeze(SaveStateBase *s)
 {
-	if (!(FreezeTag("MTVU")))
+	if (!(SaveState_FreezeTag(s, "MTVU")))
 		return false;
 
-	if (!IsSaving())
+	if (!SaveState_IsSaving(s))
 	{
 		vu1Thread.Reset();
 		vu1Thread.WriteCol(vif1);
@@ -74,22 +74,22 @@ bool SaveStateBase::mtvuFreeze()
 	for (size_t i = 0; i < 4; ++i)
 	{
 		unsigned int v = (unsigned int)retro_atomic_load_acquire_int(&vu1Thread.vuCycles[i]);
-		Freeze(v);
+		SaveState_Freeze(s, v);
 	}
 
 	u32 gsInterrupts = (u32)retro_atomic_load_acquire_int(&vu1Thread.mtvuInterrupts);
-	Freeze(gsInterrupts);
+	SaveState_Freeze(s, gsInterrupts);
 	retro_atomic_store_release_int(&vu1Thread.mtvuInterrupts, (int)gsInterrupts);
 	u64 gsSignal = (u64)retro_atomic_load_acquire_64(&vu1Thread.gsSignal);
-	Freeze(gsSignal);
+	SaveState_Freeze(s, gsSignal);
 	retro_atomic_store_release_64(&vu1Thread.gsSignal, (int64_t)gsSignal);
 	u64 gsLabel = (u64)retro_atomic_load_acquire_64(&vu1Thread.gsLabel);
-	Freeze(gsLabel);
+	SaveState_Freeze(s, gsLabel);
 	retro_atomic_store_release_64(&vu1Thread.gsLabel, (int64_t)gsLabel);
 
-	Freeze(vu1Thread.vuCycleIdx);
+	SaveState_Freeze(s, vu1Thread.vuCycleIdx);
 
-	return IsOkay();
+	return SaveState_IsOkay(s);
 }
 
 void VU_Thread::ThreadEntry(void* self)

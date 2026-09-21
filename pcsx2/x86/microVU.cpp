@@ -495,15 +495,15 @@ static void rec_vu1_resume_xgkick(void)
 	((mVUrecCallXG)microVU1.startFunctXG)();
 }
 
-bool SaveStateBase::vuJITFreeze()
+bool vuJITFreeze(SaveStateBase *s)
 {
-	if (IsSaving())
+	if (SaveState_IsSaving(s))
 		vu1Thread.WaitVU();
 
-	Freeze(microVU0.prog.lpState);
-	Freeze(microVU1.prog.lpState);
+	SaveState_Freeze(s, microVU0.prog.lpState);
+	SaveState_Freeze(s, microVU1.prog.lpState);
 
-	return IsOkay();
+	return SaveState_IsOkay(s);
 }
 
 const struct VUmicroCpu vucpu_rec_vu0 =

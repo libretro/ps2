@@ -176,44 +176,44 @@ void Gif_FinishIRQ(void)
 	}
 }
 
-bool SaveStateBase::gifPathFreeze(u32 path)
+bool gifPathFreeze(SaveStateBase *s, u32 path)
 {
 	Gif_Path& gifPath = gifUnit.gifPath[path];
 
 	if (!gifPath.isMTVU()) // FixMe: savestate freeze bug (Gust games) with MTVU enabled
 	{ 
-		if (IsSaving()) // Move all the buffered data to the start of buffer
+		if (SaveState_IsSaving(s)) // Move all the buffered data to the start of buffer
 			gifPath.RealignPacket(); // May add readAmount which we need to clear on load
 	}
 	u8* bufferPtr = gifPath.buffer; // Backup current buffer ptr
-	Freeze(gifPath.mtvu.fakePackets);
-	FreezeMem(&gifPath, sizeof(gifPath) - sizeof(gifPath.mtvu));
-	FreezeMem(bufferPtr, gifPath.curSize);
+	SaveState_Freeze(s, gifPath.mtvu.fakePackets);
+	SaveState_FreezeMem(s, &gifPath, sizeof(gifPath) - sizeof(gifPath.mtvu));
+	SaveState_FreezeMem(s, bufferPtr, gifPath.curSize);
 	gifPath.buffer = bufferPtr;
-	if (!IsSaving())
+	if (!SaveState_IsSaving(s))
 	{
 		gifPath.readAmount = 0;
 		gifPath.gsPack.readAmount = 0;
 	}
 
-	return IsOkay();
+	return SaveState_IsOkay(s);
 }
 
-bool SaveStateBase::gifFreeze(void)
+bool gifFreeze(SaveStateBase *s)
 {
 	bool mtvuMode = THREAD_VU1;
 	MTGS::WaitGS(false);
-	if (!(FreezeTag("Gif Unit")))
+	if (!(SaveState_FreezeTag(s, "Gif Unit")))
 		return false;
 
-	Freeze(mtvuMode);
-	Freeze(gifUnit.stat);
-	Freeze(gifUnit.gsSIGNAL);
-	Freeze(gifUnit.gsFINISH);
-	Freeze(gifUnit.lastTranType);
-	gifPathFreeze(GIF_PATH_1);
-	gifPathFreeze(GIF_PATH_2);
-	gifPathFreeze(GIF_PATH_3);
+	SaveState_Freeze(s, mtvuMode);
+	SaveState_Freeze(s, gifUnit.stat);
+	SaveState_Freeze(s, gifUnit.gsSIGNAL);
+	SaveState_Freeze(s, gifUnit.gsFINISH);
+	SaveState_Freeze(s, gifUnit.lastTranType);
+	gifPathFreeze(s, GIF_PATH_1);
+	gifPathFreeze(s, GIF_PATH_2);
+	gifPathFreeze(s, GIF_PATH_3);
 
 	return true;
 }

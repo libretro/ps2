@@ -496,14 +496,14 @@ void SPRTOinterrupt(void)
 	hwDmacIrq(DMAC_TO_SPR);
 }
 
-bool SaveStateBase::sprFreeze()
+bool sprFreeze(SaveStateBase *s)
 {
-	if (!(FreezeTag("SPRdma")))
+	if (!(SaveState_FreezeTag(s, "SPRdma")))
 		return false;
 
-	Freeze(spr0finished);
-	Freeze(spr1finished);
-	Freeze(mfifotransferred);
+	SaveState_Freeze(s, spr0finished);
+	SaveState_Freeze(s, spr1finished);
+	SaveState_Freeze(s, mfifotransferred);
 
-	return IsOkay();
+	return SaveState_IsOkay(s);
 }

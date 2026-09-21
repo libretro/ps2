@@ -1004,20 +1004,20 @@ __fi bool rcntWrite32(u32 mem, mem32_t& value)
 	return true;
 }
 
-bool SaveStateBase::rcntFreeze()
+bool rcntFreeze(SaveStateBase *s)
 {
-	Freeze(counters);
-	Freeze(hsyncCounter);
-	Freeze(vsyncCounter);
-	Freeze(nextDeltaCounter);
-	Freeze(nextStartCounter);
-	Freeze(vSyncInfo);
-	Freeze(gsVideoMode);
-	Freeze(gsIsInterlaced);
-	Freeze(gates);
+	SaveState_Freeze(s, counters);
+	SaveState_Freeze(s, hsyncCounter);
+	SaveState_Freeze(s, vsyncCounter);
+	SaveState_Freeze(s, nextDeltaCounter);
+	SaveState_Freeze(s, nextStartCounter);
+	SaveState_Freeze(s, vSyncInfo);
+	SaveState_Freeze(s, gsVideoMode);
+	SaveState_Freeze(s, gsIsInterlaced);
+	SaveState_Freeze(s, gates);
 
-	if (IsLoading())
+	if (SaveState_IsLoading(s))
 		cpuRcntSet();
 
-	return IsOkay();
+	return SaveState_IsOkay(s);
 }

@@ -116,23 +116,23 @@ void ipuReset(void)
 	ipuDmaReset();
 }
 
-bool SaveStateBase::ipuFreeze(void)
+bool ipuFreeze(SaveStateBase *s)
 {
 	// Get a report of the status of the ipu variables when saving and loading savestates.
-	if (!(FreezeTag("IPU")))
+	if (!(SaveState_FreezeTag(s, "IPU")))
 		return false;
 
-	Freeze(ipu_fifo);
+	SaveState_Freeze(s, ipu_fifo);
 
-	Freeze(g_BP);
-	Freeze(g_ipu_vqclut);
-	Freeze(g_ipu_thresh);
-	Freeze(coded_block_pattern);
-	Freeze(decoder);
-	Freeze(ipu_cmd);
-	Freeze(IPUCoreStatus);
+	SaveState_Freeze(s, g_BP);
+	SaveState_Freeze(s, g_ipu_vqclut);
+	SaveState_Freeze(s, g_ipu_thresh);
+	SaveState_Freeze(s, coded_block_pattern);
+	SaveState_Freeze(s, decoder);
+	SaveState_Freeze(s, ipu_cmd);
+	SaveState_Freeze(s, IPUCoreStatus);
 
-	return IsOkay();
+	return SaveState_IsOkay(s);
 }
 
 
