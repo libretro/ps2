@@ -515,6 +515,7 @@ set(pcsx2IPUSources
 	IPU/IPU.cpp
 	IPU/IPU_Fifo.cpp
 	IPU/IPUdither.c
+	IPU/ipu_idct.c
 	IPU/IPUdma.cpp
 	IPU/yuv2rgb.c
 )
@@ -533,6 +534,7 @@ set(pcsx2IPUHeaders
 	IPU/ipu_dct_lut.h
 	IPU/ipu_vlc.h
 	IPU/ipu_vlc_codes.h
+	IPU/ipu_idct.h
 	IPU/yuv2rgb.h
 )
 
