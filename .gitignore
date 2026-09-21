@@ -138,3 +138,4 @@ pcsx2/GameDatabaseBuiltin.cpp
 /tests/mtgsown/mtgsown_rule1
 /tests/mtgsown/mtgsown_rule2
 /tests/mtgsown/mtgsown_tsan
+/.build-tag
