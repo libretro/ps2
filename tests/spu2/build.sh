@@ -32,9 +32,25 @@ UNITS_CXX="spu2"
 N=${N:-48000}
 ISAS=${ISAS:-"-msse2 -msse4.1 -mavx2"}
 
+# mingw spells __forceinline with a storage class in C but not in C++, so a
+# `static ... __forceinline` that builds here fails there. The project's own
+# __fi is empty on mingw, which is what these sources use; this lane compiles
+# them the way mingw's C preprocessor sees them so the difference cannot come
+# back unnoticed.
+MINGW_FORCEINLINE='extern __inline__ __attribute__((__always_inline__,__gnu_inline__))'
+
 TMP=${TMPDIR:-/tmp}/spu2.$$
 mkdir -p "$TMP"
 trap 'rm -rf "$TMP"' EXIT
+
+echo
+echo "=== mingw C decoration ==="
+for u in $UNITS_C; do
+	gcc -O2 -std=gnu99 -msse4.1 $INC -D__MINGW32__ \
+	    "-D__forceinline=$MINGW_FORCEINLINE" \
+	    -fsyntax-only "$ROOT/pcsx2/SPU2/$u.c" 2>&1 | grep ": error:" && exit 1
+done
+echo "  ok, $UNITS_C"
 
 for CXX in g++ clang++; do
 	command -v "$CXX" >/dev/null 2>&1 || { echo "skipping $CXX"; continue; }

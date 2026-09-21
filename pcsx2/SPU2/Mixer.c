@@ -21,7 +21,7 @@
 #include "spu2.h"
 #include "interpolate_table.h"
 
-static void __forceinline XA_decode_block(s16* buffer, const s16* block, s32 *prev1, s32 *prev2)
+static __fi void XA_decode_block(s16* buffer, const s16* block, s32 *prev1, s32 *prev2)
 {
 	static const s32 tbl_XA_Factor[16][2] =
 	{
@@ -59,7 +59,7 @@ static void __forceinline XA_decode_block(s16* buffer, const s16* block, s32 *pr
 	}
 }
 
-static void __forceinline IncrementNextA(V_Voice *vc)
+static __fi void IncrementNextA(V_Voice *vc)
 {
 	int i;
 
@@ -93,7 +93,7 @@ PcmCacheEntry pcm_cache_data[pcm_BlockCount];
 #define XAFLAG_LOOP (1ul << 1)
 #define XAFLAG_LOOP_START (1ul << 2)
 
-static __forceinline s32 GetNextDataBuffered(V_Core *thiscore, V_Voice *vc, uint voiceidx)
+static __fi s32 GetNextDataBuffered(V_Core *thiscore, V_Voice *vc, uint voiceidx)
 {
 	int i;
 
@@ -167,7 +167,7 @@ static __forceinline s32 GetNextDataBuffered(V_Core *thiscore, V_Voice *vc, uint
 	return vc->SBuffer[vc->SCurrent++];
 }
 
-static __forceinline void GetNextDataDummy(V_Core *thiscore, V_Voice *vc, uint voiceidx)
+static __fi void GetNextDataDummy(V_Core *thiscore, V_Voice *vc, uint voiceidx)
 {
 	int i;
 
@@ -203,7 +203,7 @@ static __forceinline void GetNextDataDummy(V_Core *thiscore, V_Voice *vc, uint v
 	vc->SCurrent += 4 - (vc->SCurrent & 3);
 }
 
-static void __forceinline UpdatePitch(V_Voice *vc, uint coreidx, uint voiceidx)
+static __fi void UpdatePitch(V_Voice *vc, uint coreidx, uint voiceidx)
 {
 	s32 pitch;
 	/* [Air] : re-ordered comparisons: Modulated is much more likely to be zero than voice, */
@@ -219,7 +219,7 @@ static void __forceinline UpdatePitch(V_Voice *vc, uint coreidx, uint voiceidx)
 	vc->SP    += pitch;
 }
 
-static __forceinline s32 GetVoiceValues(V_Core *thiscore, V_Voice *vc, uint voiceidx)
+static __fi s32 GetVoiceValues(V_Core *thiscore, V_Voice *vc, uint voiceidx)
 {
 	s32 mu, pv4, pv3, pv2, pv1, i;
 
@@ -248,7 +248,7 @@ static __forceinline s32 GetVoiceValues(V_Core *thiscore, V_Voice *vc, uint voic
 
 /* This is Dr. Hell's noise algorithm as implemented in pcsxr */
 /* Supposedly this is 100% accurate */
-static __forceinline void UpdateNoise(V_Core *thiscore)
+static __fi void UpdateNoise(V_Core *thiscore)
 {
 	static const uint8_t noise_add[64] = {
 		1, 0, 0, 1, 0, 1, 1, 0,
@@ -288,7 +288,7 @@ static __forceinline void UpdateNoise(V_Core *thiscore)
 /* writes a signed value to the SPU2 RAM
  * Performs no cache invalidation -- use only for dynamic memory ranges
  * of the SPU2 (between 0x0000 and SPU2_DYN_MEMLINE) */
-static __forceinline void spu2M_WriteFast(u32 addr, s16 value)
+static __fi void spu2M_WriteFast(u32 addr, s16 value)
 {
 	int i;
 
@@ -360,7 +360,7 @@ static void V_VolumeSlide_Update(V_VolumeSlide *vs)
 	}
 }
 
-static __forceinline StereoOut32 MixVoice(V_Core *thiscore, V_Voice *vc, uint coreidx, uint voiceidx)
+static __fi StereoOut32 MixVoice(V_Core *thiscore, V_Voice *vc, uint coreidx, uint voiceidx)
 {
 	StereoOut32 voiceOut;
 	s32 Value;
@@ -444,7 +444,7 @@ static __forceinline StereoOut32 MixVoice(V_Core *thiscore, V_Voice *vc, uint co
 }
 
 
-static __forceinline void MixCoreVoices(VoiceMixSet *dest, const uint coreidx)
+static __fi void MixCoreVoices(VoiceMixSet *dest, const uint coreidx)
 {
 	V_Core *thiscore = &Cores[coreidx];
 	uint voiceidx;
@@ -506,7 +506,7 @@ PCSX2_STATIC_ASSERT(offsetof(StereoOut32, Right) == 4, "Right is the high lane")
 PCSX2_STATIC_ASSERT(offsetof(VoiceMixSet, Wet) == offsetof(VoiceMixSet, Dry) + 8,
                     "Dry and Wet are one contiguous run of four");
 
-static __forceinline void ClampMixSet(VoiceMixSet *dst, const VoiceMixSet *src)
+static __fi void ClampMixSet(VoiceMixSet *dst, const VoiceMixSet *src)
 {
 #if defined(SPU2_MIX_SSE41)
 	__m128i v = _mm_loadu_si128((const __m128i*)src);

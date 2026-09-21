@@ -89,7 +89,7 @@ static void make_up_coefs(void)
  */
 
 
-s32 __forceinline ReverbDownsample_sse(V_Core *core, bool right)
+static __fi s32 ReverbDownsample_sse(V_Core *core, bool right)
 {
 	union gs_v4i_view out;
 	gs_vec4i acc;
@@ -128,7 +128,7 @@ s32 ReverbDownsample(V_Core *core, bool right)
  */
 
 
-StereoOut32 __forceinline ReverbUpsample_sse(V_Core *core)
+static __fi StereoOut32 ReverbUpsample_sse(V_Core *core)
 {
 	union gs_v4i_view lo, ro;
 	gs_vec4i lacc, racc;
