@@ -602,12 +602,23 @@ private:
 	void drawing_kick_invalid(bool);
 	void post_draw_kick_handler();
 
+	/* A sliding window of at most three vertices. Strips move the window by
+	 * one on every kick, so the window is addressed through a rolling head
+	 * and the entries that stay live are never copied. One slot spare keeps
+	 * the wrap a mask rather than a compare. */
 	struct
 	{
-		enum { MaxEntries = 3 };
+		enum { MaxEntries = 4 };
 		VertexPosition pos[MaxEntries];
 		VertexAttribute attr[MaxEntries];
 		unsigned count = 0;
+		unsigned head = 0;
+
+		/* Slot holding the i'th oldest live vertex. */
+		unsigned slot(unsigned i) const
+		{
+			return (head + i) & (MaxEntries - 1);
+		}
 	} vertex_queue;
 
 	void handle_tex0_write(uint32_t ctx);

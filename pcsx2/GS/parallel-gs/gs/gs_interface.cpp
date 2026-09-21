@@ -854,10 +854,7 @@ void GSInterface::shift_vertex_queue()
 {
 	if (vertex_queue.count == 3)
 	{
-		vertex_queue.pos[0] = vertex_queue.pos[1];
-		vertex_queue.attr[0] = vertex_queue.attr[1];
-		vertex_queue.pos[1] = vertex_queue.pos[2];
-		vertex_queue.attr[1] = vertex_queue.attr[2];
+		vertex_queue.head = vertex_queue.slot(1);
 		vertex_queue.count = 2;
 	}
 }
@@ -889,9 +886,9 @@ void GSInterface::vertex_kick_xyz(Reg64<XYZBits> xyz)
 	gather_kick_regs(g);
 
 	pgs_build_position(&g, xyz.words[0], xyz.words[1],
-	                   &vertex_queue.pos[vertex_queue.count]);
+	                   &vertex_queue.pos[vertex_queue.slot(vertex_queue.count)]);
 	pgs_build_attribute(&g, float(g.fog),
-	                    &vertex_queue.attr[vertex_queue.count]);
+	                    &vertex_queue.attr[vertex_queue.slot(vertex_queue.count)]);
 
 	vertex_queue.count++;
 	TRACE_INDEXED("VERT", vertex_queue.count, xyz);
@@ -906,9 +903,9 @@ void GSInterface::vertex_kick_xyzf(Reg64<XYZFBits> xyzf)
 
 	/* XYZF2 carries Z in 24 bits and fog in the top byte of the same word. */
 	pgs_build_position(&g, xyzf.words[0], xyzf.words[1] & 0xffffffu,
-	                   &vertex_queue.pos[vertex_queue.count]);
+	                   &vertex_queue.pos[vertex_queue.slot(vertex_queue.count)]);
 	pgs_build_attribute(&g, float(xyzf.words[1] >> 24),
-	                    &vertex_queue.attr[vertex_queue.count]);
+	                    &vertex_queue.attr[vertex_queue.slot(vertex_queue.count)]);
 
 	vertex_queue.count++;
 	TRACE_INDEXED("VERT", vertex_queue.count, xyzf);
@@ -2511,8 +2508,8 @@ void GSInterface::drawing_kick_append()
 
 	if (num_vertices == 1)
 	{
-		pos[0] = vertex_queue.pos[vertex_queue.count - 1];
-		attr[0] = vertex_queue.attr[vertex_queue.count - 1];
+		pos[0] = vertex_queue.pos[vertex_queue.slot(vertex_queue.count - 1)];
+		attr[0] = vertex_queue.attr[vertex_queue.slot(vertex_queue.count - 1)];
 
 		// According to TJnotJT: half pixel points round up.
 		// Make use of top-left rules here to contruct a primitive
@@ -2528,16 +2525,16 @@ void GSInterface::drawing_kick_append()
 	{
 		for (uint32_t i = 0; i < num_vertices; i++)
 		{
-			pos[i] = vertex_queue.pos[vertex_queue.count - 1 - i];
-			attr[i] = vertex_queue.attr[vertex_queue.count - 1 - i];
+			pos[i] = vertex_queue.pos[vertex_queue.slot(vertex_queue.count - 1 - i)];
+			attr[i] = vertex_queue.attr[vertex_queue.slot(vertex_queue.count - 1 - i)];
 		}
 	}
 	else if (num_vertices == 3)
 	{
 		for (uint32_t i = 0; i < num_vertices; i++)
 		{
-			pos[i] = vertex_queue.pos[2 - i];
-			attr[i] = vertex_queue.attr[2 - i];
+			pos[i] = vertex_queue.pos[vertex_queue.slot(2 - i)];
+			attr[i] = vertex_queue.attr[vertex_queue.slot(2 - i)];
 		}
 	}
 
@@ -2875,8 +2872,10 @@ void GSInterface::drawing_kick_maintain_queue()
 
 	if (fan_primitive)
 	{
-		vertex_queue.pos[1] = vertex_queue.pos[2];
-		vertex_queue.attr[1] = vertex_queue.attr[2];
+		/* The fan origin is the oldest entry and has to survive, so the
+		 * head stays put and the middle vertex is the one overwritten. */
+		vertex_queue.pos[vertex_queue.slot(1)] = vertex_queue.pos[vertex_queue.slot(2)];
+		vertex_queue.attr[vertex_queue.slot(1)] = vertex_queue.attr[vertex_queue.slot(2)];
 		vertex_queue.count = 2;
 	}
 	else if (list_primitive)
@@ -2976,6 +2975,7 @@ void GSInterface::post_draw_kick_handler()
 void GSInterface::reset_vertex_queue()
 {
 	vertex_queue.count = 0;
+	vertex_queue.head = 0;
 }
 
 template <int CTX>
