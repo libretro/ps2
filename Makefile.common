@@ -100,6 +100,7 @@ CXXFLAGS += $(FLAGS)
 # libretro-common (C)
 # ============================================================================
 SOURCES_C += \
+	$(LRPS2_DIR)/GS/Renderers/Common/gs_vertex.c \
 	$(LRPS2_DIR)/GS/Renderers/HW/GSObjectPool.c \
 	$(LRPS2_DIR)/GS/Renderers/HW/GSHashTable.c \
 	$(LRPS2_DIR)/GS/Renderers/Vulkan/GSVulkanHeap.c \

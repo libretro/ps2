@@ -352,6 +352,7 @@ set(pcsx2GSSources
 	GS/Renderers/Common/GSVertexTrace.cpp
 	GS/Renderers/HW/GSHwHack.cpp
 	GS/Renderers/HW/GSRendererHW.cpp
+	GS/Renderers/Common/gs_vertex.c
 	GS/Renderers/HW/GSObjectPool.c
 	GS/Renderers/HW/GSHashTable.c
 	GS/Renderers/HW/GSHashTable.h
@@ -395,6 +396,7 @@ set(pcsx2GSHeaders
 	GS/Renderers/Common/GSRenderer.h
 	GS/Renderers/Common/GSTexture.h
 	GS/Renderers/Common/GSVertex.h
+	GS/Renderers/Common/gs_vertex.h
 	GS/Renderers/Common/GSVertexTrace.h
 	GS/Renderers/HW/GSHwHack.h
 	GS/Renderers/HW/GSRendererHW.h
