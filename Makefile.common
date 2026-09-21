@@ -533,12 +533,11 @@ SOURCES_CXX += \
 	$(PGS_DIR)/gs/page_tracker.cpp
 
 # Granite math
-# aabb, frustum, interpolation, math, transforms are excluded: nm on the build
-# shows none of their defined symbols are referenced by anything we link in
-# (paraLLEl-GS does not use Granite's scene-graph / culling / colour helpers).
-# muglm is the only actually-used math TU.
-SOURCES_CXX += \
-	$(GRANITE_DIR)/math/muglm/muglm.cpp
+# Nothing here is compiled. aabb, frustum, interpolation, math and transforms
+# were already excluded as unreferenced; muglm.cpp joins them -- it defines
+# only matrix and quaternion helpers, and no matrix or quat type appears
+# anywhere in paraLLEl-GS or the Granite subset this core links. What the GS
+# code uses of muglm is the header-only vector types.
 
 # Granite util
 # cli_parser, dynamic_library, message_queue are excluded: their consumers

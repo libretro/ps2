@@ -5,7 +5,6 @@
 #include "common/Pcsx2Defs.h"
 #include "GS/GSState.h"
 #include "GS.h"
-#include "math.hpp"
 #include "muglm/muglm_impl.hpp"
 #include "PerformanceMetrics.h"
 #include "logging.hpp"
