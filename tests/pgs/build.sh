@@ -7,6 +7,9 @@
 # pgs_queue_equiv   : a ring-buffer vertex queue must deliver the same
 #                     (position, attribute) triples to drawing_kick_append
 #                     as the shift queue, for every topology.
+# pgs_prim_record_equiv : the cached per-primitive record must equal one
+#                     rebuilt from the registers every primitive -- a register
+#                     writer that forgets its dirty bit shows up here.
 # pgs_kick_bench    : ns/vertex per candidate.
 #
 # Everything runs under BOTH g++ and clang++. The two disagree about which
@@ -31,10 +34,11 @@ rm -f "$DIR/pgs_c89_check.o"
 for CXX in g++ clang++; do
 	command -v "$CXX" >/dev/null 2>&1 || continue
 	echo "=== $CXX ==="
-	for t in pgs_vertex_oracle pgs_queue_equiv pgs_kick_bench; do
+	for t in pgs_vertex_oracle pgs_queue_equiv pgs_prim_record_equiv pgs_kick_bench; do
 		$CXX -O2 -std=c++17 -msse4.1 $INC -o "$DIR/$t" "$DIR/$t.cpp"
 	done
 	"$DIR/pgs_vertex_oracle"
 	"$DIR/pgs_queue_equiv"
+	"$DIR/pgs_prim_record_equiv"
 	"$DIR/pgs_kick_bench" 2500 25
 done

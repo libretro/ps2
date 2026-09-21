@@ -1993,6 +1993,20 @@ void GSInterface::drawing_kick_update_state(FBFeedbackMode feedback_mode, const 
 		p.state |= 1u << STATE_BIT_IIP;
 	if (prim.desc.FIX)
 		p.state |= 1u << STATE_BIT_FIX;
+
+	/* Everything in the per-primitive record that a state change decides.
+	 * The bounding box and the topology bits are the primitive's own and
+	 * are filled in at the kick. */
+	{
+		auto &base = state_tracker.prim_attr_base;
+		base.tex = p.tex;
+		base.tex2 = p.tex2;
+		base.state = p.state;
+		base.fbmsk = ctx.frame.desc.FBMSK;
+		base.fogcol = registers.fogcol.words[0];
+		base.alpha = (ctx.alpha.desc.FIX << ALPHA_AFIX_OFFSET) |
+		             (ctx.test.desc.AREF << ALPHA_AREF_OFFSET);
+	}
 }
 
 PageRect GSInterface::compute_fb_rect() const
@@ -2694,16 +2708,8 @@ void GSInterface::drawing_kick_append()
 
 	auto &fb_instance = render_pass.instances[render_pass.current_instance];
 
-	const auto &prim_state = state_tracker.prim_template;
-
 	PrimitiveAttribute prim_attr;
-	prim_attr.tex = prim_state.tex;
-	prim_attr.tex2 = prim_state.tex2;
-	prim_attr.state = prim_state.state;
-	prim_attr.fbmsk = ctx.frame.desc.FBMSK;
-	prim_attr.fogcol = registers.fogcol.words[0];
-	prim_attr.alpha = (ctx.alpha.desc.FIX << ALPHA_AFIX_OFFSET) |
-	                  (ctx.test.desc.AREF << ALPHA_AREF_OFFSET);
+	memcpy(&prim_attr, &state_tracker.prim_attr_base, sizeof(prim_attr));
 
 	if (quad)
 	{
@@ -3859,6 +3865,8 @@ void GSInterface::a_d_TEXA(uint64_t payload)
 void GSInterface::a_d_FOGCOL(uint64_t payload)
 {
 	registers.fogcol.bits = payload;
+	/* The cached primitive record carries the fog colour. */
+	state_tracker.dirty_flags |= STATE_DIRTY_PRIM_TEMPLATE_BIT;
 	TRACE("FOGCOL", registers.fogcol);
 }
 

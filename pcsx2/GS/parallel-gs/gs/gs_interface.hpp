@@ -540,6 +540,14 @@ private:
 	struct StateTracker
 	{
 		PrimitiveTemplate prim_template = {};
+
+		/* The per-primitive record with everything a state change decides
+		 * already in place; a kick copies it and fills in the bits that
+		 * belong to the primitive itself. Rebuilt with prim_template, so
+		 * every register it reads must dirty STATE_DIRTY_PRIM_TEMPLATE_BIT:
+		 * FRAME, ALPHA, TEST and FOGCOL for both contexts, and PRIM when it
+		 * switches context. */
+		PrimitiveAttribute prim_attr_base = {};
 		StateDirtyFlags dirty_flags = STATE_DIRTY_ALL_BITS;
 		bool degenerate_draw = false;
 
