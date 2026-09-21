@@ -168,7 +168,7 @@ static void start_voice(int core, int v, u32 addr, u16 pitch,
 	vc.ADSR.Phase   = PHASE_ATTACK;
 	vc.ADSR.Counter = 0;
 	vc.ADSR.Value   = 0;
-	ADSR_UpdateCache(vc.ADSR);
+	ADSR_UpdateCache(&vc.ADSR);
 	vc.SCurrent  = 28;
 	vc.LoopMode  = 0;
 	vc.SP        = -1;

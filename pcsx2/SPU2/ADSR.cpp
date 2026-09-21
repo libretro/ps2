@@ -17,33 +17,33 @@
 
 #define ADSR_MAX_VOL 0x7fff
 
-void ADSR_UpdateCache(V_ADSR &v)
+void ADSR_UpdateCache(V_ADSR *v)
 {
-	v.CachedPhases[PHASE_ATTACK].Decr   = false;
-	v.CachedPhases[PHASE_ATTACK].Exp    = v.AttackMode;
-	v.CachedPhases[PHASE_ATTACK].Shift  = v.AttackShift;
-	v.CachedPhases[PHASE_ATTACK].Step   = 7 - v.AttackStep;
-	v.CachedPhases[PHASE_ATTACK].Target = ADSR_MAX_VOL;
+	v->CachedPhases[PHASE_ATTACK].Decr   = false;
+	v->CachedPhases[PHASE_ATTACK].Exp    = v->AttackMode;
+	v->CachedPhases[PHASE_ATTACK].Shift  = v->AttackShift;
+	v->CachedPhases[PHASE_ATTACK].Step   = 7 - v->AttackStep;
+	v->CachedPhases[PHASE_ATTACK].Target = ADSR_MAX_VOL;
 
-	v.CachedPhases[PHASE_DECAY].Decr    = true;
-	v.CachedPhases[PHASE_DECAY].Exp     = true;
-	v.CachedPhases[PHASE_DECAY].Shift   = v.DecayShift;
-	v.CachedPhases[PHASE_DECAY].Step    = -8;
-	v.CachedPhases[PHASE_DECAY].Target  = (v.SustainLevel + 1) << 11;
+	v->CachedPhases[PHASE_DECAY].Decr    = true;
+	v->CachedPhases[PHASE_DECAY].Exp     = true;
+	v->CachedPhases[PHASE_DECAY].Shift   = v->DecayShift;
+	v->CachedPhases[PHASE_DECAY].Step    = -8;
+	v->CachedPhases[PHASE_DECAY].Target  = (v->SustainLevel + 1) << 11;
 
-	v.CachedPhases[PHASE_SUSTAIN].Decr  = v.SustainDir;
-	v.CachedPhases[PHASE_SUSTAIN].Exp   = v.SustainMode;
-	v.CachedPhases[PHASE_SUSTAIN].Shift = v.SustainShift;
-	v.CachedPhases[PHASE_SUSTAIN].Step  = 7 - v.SustainStep;
+	v->CachedPhases[PHASE_SUSTAIN].Decr  = v->SustainDir;
+	v->CachedPhases[PHASE_SUSTAIN].Exp   = v->SustainMode;
+	v->CachedPhases[PHASE_SUSTAIN].Shift = v->SustainShift;
+	v->CachedPhases[PHASE_SUSTAIN].Step  = 7 - v->SustainStep;
 
-	if (v.CachedPhases[PHASE_SUSTAIN].Decr)
-		v.CachedPhases[PHASE_SUSTAIN].Step = ~v.CachedPhases[PHASE_SUSTAIN].Step;
+	if (v->CachedPhases[PHASE_SUSTAIN].Decr)
+		v->CachedPhases[PHASE_SUSTAIN].Step = ~v->CachedPhases[PHASE_SUSTAIN].Step;
 
-	v.CachedPhases[PHASE_SUSTAIN].Target = 0;
+	v->CachedPhases[PHASE_SUSTAIN].Target = 0;
 
-	v.CachedPhases[PHASE_RELEASE].Decr   = true;
-	v.CachedPhases[PHASE_RELEASE].Exp    = v. ReleaseMode;
-	v.CachedPhases[PHASE_RELEASE].Shift  = v.ReleaseShift;
-	v.CachedPhases[PHASE_RELEASE].Step   = -8;
-	v.CachedPhases[PHASE_RELEASE].Target = 0;
+	v->CachedPhases[PHASE_RELEASE].Decr   = true;
+	v->CachedPhases[PHASE_RELEASE].Exp    = v->ReleaseMode;
+	v->CachedPhases[PHASE_RELEASE].Shift  = v->ReleaseShift;
+	v->CachedPhases[PHASE_RELEASE].Step   = -8;
+	v->CachedPhases[PHASE_RELEASE].Target = 0;
 }

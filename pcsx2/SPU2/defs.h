@@ -21,8 +21,6 @@
 
 #include "../GS/MultiISA.h"
 
-#include <array>
-
 struct V_SPDIF
 {
 	u16 Out;
@@ -96,7 +94,7 @@ extern int PlayMode;
 // --------------------------------------------------------------------------------------
 //  SPU2 Register Table LUT
 // --------------------------------------------------------------------------------------
-extern const std::array<u16*, 0x401> regtable;
+extern u16 * const regtable[0x401];
 
 // --------------------------------------------------------------------------------------
 //  SPU2 Memory Indexers
@@ -145,6 +143,15 @@ struct V_VolumeSlideLR
 
 #define ADSR_PHASES 5
 
+struct CachedADSR
+{
+	bool Decr;
+	bool Exp;
+	u8 Shift;
+	s8 Step;
+	s32 Target;
+};
+
 #define PHASE_STOPPED 0
 #define PHASE_ATTACK 1
 #define PHASE_DECAY 2
@@ -180,89 +187,79 @@ struct V_ADSR
 		};
 	};
 
-
-	struct CachedADSR
-	{
-		bool Decr;
-		bool Exp;
-		u8 Shift;
-		s8 Step;
-		s32 Target;
-	};
-
-	std::array<CachedADSR, ADSR_PHASES> CachedPhases;
+	struct CachedADSR CachedPhases[ADSR_PHASES];
 
 	u32 Counter;
 	s32 Value; // Ranges from 0 to 0x7fff (signed values are clamped to 0) [Reg_ENVX]
 	u8 Phase; // monitors current phase of ADSR envelope
 };
 
-static __fi void ADSR_Release(V_ADSR &v)
+static __fi void ADSR_Release(V_ADSR *v)
 {
-	if (v.Phase != PHASE_STOPPED)
+	if (v->Phase != PHASE_STOPPED)
 	{
-		v.Phase   = PHASE_RELEASE;
-		v.Counter = 0;
+		v->Phase   = PHASE_RELEASE;
+		v->Counter = 0;
 	}
 }
 
-static __fi bool ADSR_Calculate(V_ADSR &v)
+static __fi bool ADSR_Calculate(V_ADSR *v)
 {
-	/* v.Phase is by construction always in [PHASE_STOPPED .. PHASE_RELEASE]
+	/* v->Phase is by construction always in [PHASE_STOPPED .. PHASE_RELEASE]
 	 * (range 0..4), bounded by every site that writes to it: ADSR_Release
-	 * sets PHASE_RELEASE, the KeyOn path sets PHASE_ATTACK, the v.Phase++
+	 * sets PHASE_RELEASE, the KeyOn path sets PHASE_ATTACK, the v->Phase++
 	 * below is gated by the PHASE_RELEASE termination check, and the
 	 * scattered PHASE_STOPPED/PHASE_SUSTAIN assignments are also in range.
 	 * Use unchecked indexing to skip the .at() bounds check on every call;
 	 * this function runs per-active-voice per-sample at 48 kHz. */
-	auto& p = v.CachedPhases[v.Phase];
+	struct CachedADSR *p = &v->CachedPhases[v->Phase];
 
 	// maybe not correct for the "infinite" settings
-	s32 counter_shift = p.Shift - 11;
-	s32 level_shift   = 11 - p.Shift;
+	s32 counter_shift = p->Shift - 11;
+	s32 level_shift   = 11 - p->Shift;
 	u32 counter_inc = 0x8000 >> (counter_shift > 0 ? counter_shift : 0);
-	/* p.Step can be negative; shift in the unsigned domain (same bits). */
-	s32 level_inc   = (s32)((u32)p.Step << (level_shift > 0 ? level_shift : 0));
+	/* p->Step can be negative; shift in the unsigned domain (same bits). */
+	s32 level_inc   = (s32)((u32)p->Step << (level_shift > 0 ? level_shift : 0));
 
-	if (p.Exp)
+	if (p->Exp)
 	{
-		if (p.Decr)
-			level_inc = (s16)((level_inc * v.Value) >> 15);
+		if (p->Decr)
+			level_inc = (s16)((level_inc * v->Value) >> 15);
 		else
 		{
-			if (v.Value > 0x6000)
+			if (v->Value > 0x6000)
 				counter_inc >>= 2;
 		}
 	}
 
 	if (counter_inc == 0) counter_inc = 1;
-	v.Counter  += counter_inc;
+	v->Counter  += counter_inc;
 
-	if (v.Counter >= 0x8000)
+	if (v->Counter >= 0x8000)
 	{
-		s32 next   = v.Value + level_inc;
+		s32 next   = v->Value + level_inc;
 		if (next < 0)         next = 0;
 		if (next > INT16_MAX) next = INT16_MAX;
-		v.Counter  = 0;
-		v.Value    = next;
+		v->Counter  = 0;
+		v->Value    = next;
 	}
 
 	// Stay in sustain until key off or silence
-	if (v.Phase == PHASE_SUSTAIN)
-		return v.Value != 0;
+	if (v->Phase == PHASE_SUSTAIN)
+		return v->Value != 0;
 
 	// Check if target is reached to advance phase
-	if ((!p.Decr && v.Value >= p.Target) || (p.Decr && v.Value <= p.Target))
-		v.Phase++;
+	if ((!p->Decr && v->Value >= p->Target) || (p->Decr && v->Value <= p->Target))
+		v->Phase++;
 
 	// All phases done, stop the voice
-	if (v.Phase > PHASE_RELEASE)
+	if (v->Phase > PHASE_RELEASE)
 		return false;
 
 	return true;
 }
 
-void ADSR_UpdateCache(V_ADSR &v);
+void ADSR_UpdateCache(V_ADSR *v);
 
 // V_Voice field layout is optimized for cache line access in the mixer 
 // hot path.

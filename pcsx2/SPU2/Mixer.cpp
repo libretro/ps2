@@ -408,7 +408,7 @@ static __forceinline StereoOut32 MixVoice(V_Core *thiscore, V_Voice *vc, uint co
 
 	if (vc->ADSR.Phase == PHASE_STOPPED)
 		vc->ADSR.Value = 0;
-	else if (!ADSR_Calculate(vc->ADSR))
+	else if (!ADSR_Calculate(&vc->ADSR))
 	{
 		vc->ADSR.Value = 0;
 		vc->ADSR.Phase = PHASE_STOPPED;

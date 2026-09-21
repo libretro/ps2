@@ -255,7 +255,7 @@ __fi void TimeUpdate(u64 cClocks)
 				for (u8 vc = 0; vc < SPU2_NUM_VOICES; vc++)
 				{
 					if (((Cores[c].KeyOff >> vc) & 1))
-						ADSR_Release(Cores[c].Voices[vc].ADSR);
+						ADSR_Release(&Cores[c].Voices[vc].ADSR);
 				}
 				Cores[c].KeyOff = 0;
 			}
@@ -274,7 +274,7 @@ __fi void TimeUpdate(u64 cClocks)
 						vc.ADSR.Phase   = PHASE_ATTACK;
 						vc.ADSR.Counter = 0;
 						vc.ADSR.Value   = 0;
-						ADSR_UpdateCache(vc.ADSR);
+						ADSR_UpdateCache(&vc.ADSR);
 
 						vc.SCurrent     = 28;
 						vc.LoopMode     = 0;
@@ -488,12 +488,12 @@ void V_Core_WriteRegPS1(V_Core *c, u32 mem, u16 value)
 
 			case 0x8: // ADSR1 (Envelope)
 				c->Voices[voice].ADSR.regADSR1 = value;
-				ADSR_UpdateCache(c->Voices[voice].ADSR);
+				ADSR_UpdateCache(&c->Voices[voice].ADSR);
 				break;
 
 			case 0xa: // ADSR2 (Envelope)
 				c->Voices[voice].ADSR.regADSR2 = value;
-				ADSR_UpdateCache(c->Voices[voice].ADSR);
+				ADSR_UpdateCache(&c->Voices[voice].ADSR);
 				break;
 			case 0xc: // Voice 0..23 ADSR Current Volume
 				// not commonly set by games
@@ -833,12 +833,12 @@ static void RegWrite_VoiceParams(u16 value)
 
 		case 3: // ADSR1 (Envelope)
 			thisvoice.ADSR.regADSR1 = value;
-			ADSR_UpdateCache(thisvoice.ADSR);
+			ADSR_UpdateCache(&thisvoice.ADSR);
 			break;
 
 		case 4: // ADSR2 (Envelope)
 			thisvoice.ADSR.regADSR2 = value;
-			ADSR_UpdateCache(thisvoice.ADSR);
+			ADSR_UpdateCache(&thisvoice.ADSR);
 			break;
 
 			// REG_VP_ENVX, REG_VP_VOLXL and REG_VP_VOLXR are all writable, only ENVX has any effect when written to.
