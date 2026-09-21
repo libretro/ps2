@@ -72,3 +72,30 @@ for CXX in g++ clang++; do
 		"$TMP/spu2_pcm_hash" "$N" "$1"
 	done
 done
+
+# aarch64 runs the NEON spellings gs_vector carries for adds16, hadds16 and
+# mul16hrs, which the reverb resampler leans on for every tap. Nothing had
+# ever executed them -- the x86 lanes cannot reach them and a compile check
+# does not say the arithmetic agrees. Same PCM or it is a finding.
+if command -v aarch64-linux-gnu-g++ >/dev/null 2>&1 &&
+   command -v qemu-aarch64 >/dev/null 2>&1; then
+	echo
+	echo "=== aarch64 (NEON reverb resampler) ==="
+	for u in $UNITS_C; do
+		aarch64-linux-gnu-gcc -O2 -std=gnu89 -Wdeclaration-after-statement \
+		    $INC -c "$ROOT/pcsx2/SPU2/$u.c" -o "$TMP/a_$u.o"
+	done
+	for u in $UNITS_CXX; do
+		aarch64-linux-gnu-g++ -O2 -std=c++17 $INC \
+		    -c "$ROOT/pcsx2/SPU2/$u.cpp" -o "$TMP/a_$u.o"
+	done
+	aarch64-linux-gnu-g++ -O2 -std=c++17 $INC -c "$DIR/spu2_pcm_hash.cpp" \
+	     -o "$TMP/a_hash.o"
+	aarch64-linux-gnu-g++ -O2 -static "$TMP/a_hash.o" \
+	     $(for u in $UNITS_C $UNITS_CXX; do echo "$TMP/a_$u.o"; done) \
+	     -o "$TMP/spu2_pcm_hash64"
+	qemu-aarch64 "$TMP/spu2_pcm_hash64" "$N" "$1"
+else
+	echo
+	echo "skipping aarch64 lane (no cross toolchain or qemu)"
+fi
