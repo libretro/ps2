@@ -72,20 +72,28 @@ static void make_up_coefs(void)
 /*
  * Reverb resampling is a 39-tap symmetric FIR (filter_down_coefs /
  * filter_up_coefs, Q15) converting between the core rate and the reverb rate.
- * The SPU2 evaluates it on a 16-bit saturating accumulator, so the SIMD paths
- * below are the authoritative implementations: each tap is a rounding
- * fixed-point multiply (mul16hrs) and the running sum saturates at every step
- * (adds16 / hadds16). A naive full-precision scalar accumulate, i.e.
+ * The SPU2 evaluates it in 16 bits throughout, so the SIMD paths below are
+ * the authoritative implementations: every tap is a rounding fixed-point
+ * multiply (mul16hrs), and the sums are taken with saturation.
+ *
+ * Where that saturation bites is worth knowing. A lane of the tap
+ * accumulator collects coefficients i, i+8, ... i+32, and the widest of
+ * those eight groups reaches 16384 -- half of full scale -- so the adds16
+ * chain cannot clamp for this coefficient set. The hadds16 folds that
+ * follow can and regularly do, since the last of them carries the whole
+ * filter, whose absolute coefficient sum is about 1.45x unity.
+ *
+ * A naive full-precision scalar accumulate, i.e.
  *
  *     s32 out = 0;
  *     for (i = 0; i < NUM_TAPS; i++)
  *         out += RevbDownBuf[right][index + i] * filter_down_coefs[i];
  *     out = clamp(out >> 15);
  *
- * reads more clearly but is NOT bit-exact: it drops the intermediate
- * saturation and rounds differently, diverging by up to ~7 LSB. It is
- * therefore intentionally not kept as a callable "reference". The SSE and AVX
- * paths are bit-identical to each other.
+ * reads more clearly but is NOT bit-exact: rounding once at the end rather
+ * than per tap, and folding without the clamp, puts it up to 6 LSB away. It
+ * is therefore intentionally not kept as a callable "reference". The SSE and
+ * AVX paths are bit-identical to each other, and so is the NEON one.
  */
 
 
