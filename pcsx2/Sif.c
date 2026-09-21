@@ -13,12 +13,12 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <cstring> /* memset */
+#include <string.h> /* memset */
 
 #define _PC_	/* disables MIPS opcode macros. */
 
 #include "R3000A.h"
-#include "Common.h"
+#include "SaveState.h"
 #include "Sif.h"
 
 void sifReset(void)

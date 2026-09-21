@@ -15,7 +15,16 @@
 
 #pragma once
 
-#include <cstring> /* memset */
+/* C++ keeps <cstring>: it declares std::memcpy and friends, which TUs
+ * reaching this header have always been able to use. */
+#ifdef __cplusplus
+#include <cstring>
+#else
+#include <string.h>
+#endif
+
+#include "MemoryTypes.h"
+#include "Dmac.h"
 
 #define FIFO_SIF_W 128
 
@@ -23,22 +32,26 @@
 // the EE's DMAtag in its upper 64 bits.  Note that only the lower 24 bits of 'data' is
 // the IOP's chain transfer address (loaded into MADR).  Bits 30 and 31 are transfer stop
 // bits of some sort.
-struct sifData
+typedef struct sifData
 {
 	s32 data;
 	s32 words;
 
 	tDMA_TAG	tag_lo;		// EE DMA tag
 	tDMA_TAG	tag_hi;		// EE DMA tag
-};
+} sifData;
 
-struct sifFifo
+typedef struct sifFifo
 {
 	u32 data[FIFO_SIF_W];
 	u32 junk[4];
 	s32 readPos;
 	s32 writePos;
 	s32 size;
+
+	/* The accessors are C++; the fifo itself is just the words above,
+	 * and that is all C needs to see of it. */
+#ifdef __cplusplus
 
 	void write(u32 *from, int words)
 	{
@@ -129,9 +142,10 @@ struct sifFifo
 		writePos = 0;
 		size = 0;
 	}
-};
+#endif
+} sifFifo;
 
-struct old_sif_structure
+typedef struct old_sif_structure
 {
 	sifFifo fifo; // Used in both.
 	s32 chain; // Not used.
@@ -139,17 +153,17 @@ struct old_sif_structure
 	s32 tagMode; // No longer used.
 	s32 counter; // Used to keep track of how much is left in IOP.
 	struct sifData data; // Only used in IOP.
-};
+} old_sif_structure;
 
-struct sif_ee
+typedef struct sif_ee
 {
 	bool end; // Only used for EE.
 	bool busy;
 
 	s32 cycles;
-};
+} sif_ee;
 
-struct sif_iop
+typedef struct sif_iop
 {
 	bool end;
 	bool busy;
@@ -159,35 +173,43 @@ struct sif_iop
 
 	s32 counter; // Used to keep track of how much is left in IOP.
 	struct sifData data; // Only used in IOP.
-};
+} sif_iop;
 
-struct _sif
+typedef struct _sif
 {
 	sifFifo fifo; // Used in both.
 	sif_ee ee;
 	sif_iop iop;
-};
+} _sif;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 extern _sif sif0, sif1, sif2;
 
-extern void sifReset();
+extern void sifReset(void);
 
-extern void SIF0Dma();
-extern void SIF1Dma();
-extern void SIF2Dma();
+extern void SIF0Dma(void);
+extern void SIF1Dma(void);
+extern void SIF2Dma(void);
 
-extern void dmaSIF0();
-extern void dmaSIF1();
-extern void dmaSIF2();
+extern void dmaSIF0(void);
+extern void dmaSIF1(void);
+extern void dmaSIF2(void);
 
-extern void EEsif0Interrupt();
-extern void EEsif1Interrupt();
+extern void EEsif0Interrupt(void);
+extern void EEsif1Interrupt(void);
 
-extern void sif0Interrupt();
-extern void sif1Interrupt();
-extern void sif2Interrupt();
+extern void sif0Interrupt(void);
+extern void sif1Interrupt(void);
+extern void sif2Interrupt(void);
 
 extern void ReadFifoSingleWord(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #define sif0data sif0.iop.data.data
 #define sif1data sif1.iop.data.data

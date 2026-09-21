@@ -38,6 +38,7 @@ Dmac.h
 Hw.h
 Memory.h
 Common.h
+Sif.h
 "
 
 TMP=${TMPDIR:-/tmp}/cheaders.$$
@@ -71,7 +72,7 @@ done
 
 # The savestate units themselves, since they are what pulled these headers
 # into C in the first place.
-for u in SaveStateBase SaveStateFreeze; do
+for u in SaveStateBase SaveStateFreeze Sif; do
 	printf '%-22s' "$u.c"
 	gcc -std=gnu89 -Wall -Wextra -Wno-comment \
 	    -Werror=declaration-after-statement \
