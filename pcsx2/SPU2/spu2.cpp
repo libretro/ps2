@@ -120,7 +120,7 @@ s32 SPU2freeze(FreezeAction mode, freezeData* data)
 		data->size = SPU2Savestate_SizeIt();
 	else
 	{
-		if (data->data == nullptr)
+		if (data->data == NULL)
 			return -1;
 
 		struct SPU2Savestate_DataBlock *spud = (struct SPU2Savestate_DataBlock *)data->data;

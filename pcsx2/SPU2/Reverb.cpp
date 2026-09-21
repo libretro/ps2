@@ -38,11 +38,10 @@ StereoOut32 V_Core_DoReverb(V_Core *c, StereoOut32 Input)
 	const u32 rv_end   = (c->EffectsEndA & 0x3fffff) | 0xffff;
 	const u32 rv_size  = (rv_end - rv_start) + 1;
 	const u32 rv_phase = Cycles >> 1;
-	auto Indexer = [rv_start, rv_size, rv_phase](s32 offset) -> u32
-	{
-		u32 x = (rv_phase + (u32)offset) % rv_size;
-		return ((x + rv_start) & 0xfffff);
-	};
+	/* Reads rv_phase, rv_size and rv_start from the enclosing scope, which
+	 * is what the lambda this replaces captured; offset is used once. */
+#define Indexer(offset) \
+	(((((rv_phase + (u32)(offset)) % rv_size) + rv_start) & 0xfffff))
 
 	Input.Left  = pcsx2_clamp_i(Input.Left, -0x8000, 0x7fff);
 	Input.Right = pcsx2_clamp_i(Input.Right, -0x8000, 0x7fff);
@@ -145,3 +144,5 @@ StereoOut32 V_Core_DoReverb(V_Core *c, StereoOut32 Input)
 
 	return ReverbUpsample(c);
 }
+
+#undef Indexer

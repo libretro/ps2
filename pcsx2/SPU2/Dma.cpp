@@ -37,9 +37,9 @@ void V_Core_AutoDMAReadBuffer(V_Core *c, int mode)
 	if (!leftbuffer)
 		size = pcsx2_min_i(size, 0x100);
 	// HACKFIX!! DMAPtr can be invalid after a savestate load, so the savestate just forces it
-	// to nullptr and we ignore it here.  (used to work in old VM editions of PCSX2 with fixed
+	// to NULL and we ignore it here.  (used to work in old VM editions of PCSX2 with fixed
 	// addressing, but new PCSX2s have dynamic memory addressing).
-	if (c->DMAPtr == nullptr)
+	if (c->DMAPtr == NULL)
 	{
 		c->DMAPtr = (u16*)&iopMem->Main[MADR(c) & 0x1fffff];
 		c->InputDataProgress = 0;
@@ -47,7 +47,7 @@ void V_Core_AutoDMAReadBuffer(V_Core *c, int mode)
 
 	if (mode)
 	{
-		if (c->DMAPtr != nullptr)
+		if (c->DMAPtr != NULL)
 			memcpy(GetMemPtr(0x2000 + (c->Index << 10) + spos), c->DMAPtr + c->InputDataProgress, size);
 		MADR(c) += size;
 		c->InputDataLeft -= 0x200;
@@ -62,7 +62,7 @@ void V_Core_AutoDMAReadBuffer(V_Core *c, int mode)
 			else
 				spos &= ~0x200;
 
-			if (c->DMAPtr != nullptr)
+			if (c->DMAPtr != NULL)
 				memcpy(GetMemPtr(0x2000 + (c->Index << 10) + spos), c->DMAPtr + c->InputDataProgress, 0x200);
 			c->InputDataTransferred += 0x200;
 			c->InputDataLeft -= 0x100;
@@ -240,7 +240,7 @@ void V_Core_FinishDMAread(V_Core *c)
 		buff1end = 0x100000;
 	}
 
-	if (c->DMAPtr == nullptr)
+	if (c->DMAPtr == NULL)
 		c->DMAPtr = (u16*)&iopMem->Main[MADR(c) & 0x1fffff];
 
 	const u32 buff1size = (buff1end - c->ActiveTSA);

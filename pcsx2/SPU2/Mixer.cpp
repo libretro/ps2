@@ -438,7 +438,7 @@ static __forceinline void MixCoreVoices(VoiceMixSet *dest, const uint coreidx)
 	{
 		// Prefetch next voice's hot cache lines while processing this one.
 		// Voices are 192-byte aligned (3 cache lines); CL0 = ADSR, CL1 = pitch/volume.
-		const char* next = reinterpret_cast<const char*>(&thiscore->Voices[voiceidx + 1]);
+		const char* next = (const char *)(&thiscore->Voices[voiceidx + 1]);
 		__prefetch_r(next);
 		__prefetch_r(next + 64);
 

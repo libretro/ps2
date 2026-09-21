@@ -92,7 +92,7 @@ void V_Core_Init(V_Core *c, int index)
 	c->CoreEnabled = 0;
 	c->AttrBit0 = 0;
 	c->DmaMode = 0;
-	c->DMAPtr = nullptr;
+	c->DMAPtr = NULL;
 	c->KeyOn = 0;
 	OutPos = 0;
 	DCFilterIn = {};

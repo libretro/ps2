@@ -12,7 +12,7 @@ extern "C" {
 
 MULTI_ISA_UNSHARED_START
 
-static constexpr u32 NUM_TAPS = 39;
+#define NUM_TAPS 39
 // 39 tap filter, the 0's could be optimized out
 alignas(32) static const s16 filter_down_coefs[48] = {
 	-1,
