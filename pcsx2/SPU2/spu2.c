@@ -13,9 +13,11 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <string.h>
+
 #include "Global.h"
 #include "spu2.h"
-#include "../SaveState.h"
+#include "../FreezeTypes.h"
 #include "Dma.h"
 
 #include "../R3000A.h"
@@ -25,9 +27,9 @@ static bool s_psxmode = false;
 u32 lClocks = 0;
 
 
-// --------------------------------------------------------------------------------------
-//  DMA 4/7 Callbacks from Core Emulator
-// --------------------------------------------------------------------------------------
+/* -------------------------------------------------------------------------------------- */
+/*  DMA 4/7 Callbacks from Core Emulator */
+/* -------------------------------------------------------------------------------------- */
 
 static void SPU2_InternalReset(bool psxmode)
 {
@@ -36,29 +38,29 @@ static void SPU2_InternalReset(bool psxmode)
 	{
 		memset(spu2regs, 0, 0x010000);
 		memset(_spu2mem, 0, 0x200000);
-		memset(_spu2mem + 0x2800, 7, 0x10); // from BIOS reversal. Locks the voices so they don't run free.
-		memset(_spu2mem + 0xe870, 7, 0x10); // Loop which gets left over by the BIOS, Megaman X7 relies on it being there.
+		memset(_spu2mem + 0x2800, 7, 0x10); /* from BIOS reversal. Locks the voices so they don't run free. */
+		memset(_spu2mem + 0xe870, 7, 0x10); /* Loop which gets left over by the BIOS, Megaman X7 relies on it being there. */
 
-		Spdif.Info = 0; // Reset IRQ Status if it got set in a previously run game
+		Spdif.Info = 0; /* Reset IRQ Status if it got set in a previously run game */
 
 		V_Core_Init(&Cores[0], 0);
 		V_Core_Init(&Cores[1], 1);
 	}
 }
 
-void SPU2::Reset(bool psxmode) { SPU2_InternalReset(psxmode); }
-void SPU2::Initialize(void)    { }
+void SPU2_Reset(bool psxmode) { SPU2_InternalReset(psxmode); }
+void SPU2_Initialize(void)    { }
 
-void SPU2::Open()
+void SPU2_Open(void)
 {
 	lClocks = psxRegs.cycle;
 
 	SPU2_InternalReset(false);
 }
 
-void SPU2::Close() { }
-void SPU2::Shutdown() { }
-bool SPU2::IsRunningPSXMode() { return s_psxmode; }
+void SPU2_Close(void) { }
+void SPU2_Shutdown(void) { }
+bool SPU2_IsRunningPSXMode(void) { return s_psxmode; }
 
 u16 SPU2read(u32 rmem)
 {
@@ -76,10 +78,13 @@ u16 SPU2read(u32 rmem)
 	if (omem == 0x1f9001AC)
 	{
 		Cores[core].ActiveTSA = Cores[core].TSA;
-		for (int i = 0; i < 2; i++)
 		{
-			if (Cores[i].IRQEnable && (Cores[i].IRQA == Cores[core].ActiveTSA))
-				{ has_to_call_irq[i] = true; }
+			int i;
+			for (i = 0; i < 2; i++)
+			{
+				if (Cores[i].IRQEnable && (Cores[i].IRQA == Cores[core].ActiveTSA))
+					has_to_call_irq[i] = true;
+			}
 		}
 		ret = V_Core_DmaRead(&Cores[core]);
 	}
@@ -100,9 +105,9 @@ u16 SPU2read(u32 rmem)
 
 void SPU2write(u32 rmem, u16 value)
 {
-	// Note: Reverb/Effects are very sensitive to having precise update timings.
-	// If the SPU2 isn't in in sync with the IOP, samples can end up playing at rather
-	// incorrect pitches and loop lengths.
+	/* Note: Reverb/Effects are very sensitive to having precise update timings. */
+	/* If the SPU2 isn't in in sync with the IOP, samples can end up playing at rather */
+	/* incorrect pitches and loop lengths. */
 
 	TimeUpdate(psxRegs.cycle);
 
@@ -117,20 +122,22 @@ s32 SPU2freeze(FreezeAction mode, freezeData* data)
 	if (!data)
 		return -1;
 
-	if (mode == FreezeAction::Size)
+	if (mode == FREEZE_SIZE)
 		data->size = SPU2Savestate_SizeIt();
 	else
 	{
+		struct SPU2Savestate_DataBlock *spud;
+
 		if (data->data == NULL)
 			return -1;
 
-		struct SPU2Savestate_DataBlock *spud = (struct SPU2Savestate_DataBlock *)data->data;
+		spud = (struct SPU2Savestate_DataBlock *)data->data;
 
 		switch (mode)
 		{
-			case FreezeAction::Load:
+			case FREEZE_LOAD:
 				return SPU2Savestate_ThawIt(spud);
-			case FreezeAction::Save:
+			case FREEZE_SAVE:
 				SPU2Savestate_FreezeIt(spud);
 				break;
 			default:

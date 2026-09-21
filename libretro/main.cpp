@@ -2060,7 +2060,7 @@ extern "C" void gs_d3d11_negotiate_hw_interface(retro_environment_t cb);
  * one that is. */
 static bool freeze(void)
 {
-	if (GSfreeze(FreezeAction::Size, &fd) != 0)
+	if (GSfreeze(FREEZE_SIZE, &fd) != 0)
 	{
 		log_cb(RETRO_LOG_ERROR, "(context_destroy) Failed to get GS freeze size\n");
 		return false;
@@ -2069,7 +2069,7 @@ static bool freeze(void)
 	fd_data = std::make_unique<u8[]>(fd.size);
 	fd.data = fd_data.get();
 
-	if (GSfreeze(FreezeAction::Save, &fd) != 0)
+	if (GSfreeze(FREEZE_SAVE, &fd) != 0)
 	{
 		log_cb(RETRO_LOG_ERROR, "(context_destroy) Failed to freeze GS\n");
 		return false;
@@ -2080,7 +2080,7 @@ static bool freeze(void)
 
 static void defrost(void)
 {
-	if (GSfreeze(FreezeAction::Load, &fd) != 0)
+	if (GSfreeze(FREEZE_LOAD, &fd) != 0)
 		log_cb(RETRO_LOG_ERROR, "(context_reset) Failed to defrost\n");
 }
 
@@ -2515,7 +2515,7 @@ static void get_first_track_from_cue(std::string &path)
  * return past CPUThreadInitialize() used to leave the whole VM-thread
  * allocation behind: SysMainMemory's EE/IOP/VU RAM and vtlb
  * reservations, the recompiler caches from InitializeCPUProviders, plus
- * GSinit/SPU2::Initialize/USBinit.  The core stayed resident holding
+ * GSinit/SPU2_Initialize/USBinit.  The core stayed resident holding
  * all of it, which is what a failed load looked like from the outside -
  * RetroArch still running, memory never coming back.
  *
@@ -3025,11 +3025,11 @@ size_t retro_serialize_size(void)
 	size         += VU1_MEMSIZE;
 	size         += VU0_PROGSIZE;
 	size         += VU1_PROGSIZE;
-	SPU2freeze(FreezeAction::Size, &fP);
+	SPU2freeze(FREEZE_SIZE, &fP);
 	size         += fP.size;
-	PADfreeze(FreezeAction::Size, &fP);
+	PADfreeze(FREEZE_SIZE, &fP);
 	size         += fP.size;
-	GSfreeze(FreezeAction::Size, &fP);
+	GSfreeze(FREEZE_SIZE, &fP);
 	size         += fP.size;
 
 	return size;
@@ -3074,26 +3074,26 @@ bool retro_serialize(void* data, size_t size)
 
 	fP.size = 0;
 	fP.data = nullptr;
-	SPU2freeze(FreezeAction::Size, &fP);
+	SPU2freeze(FREEZE_SIZE, &fP);
 	saveme.PrepBlock(fP.size);
 	fP.data = saveme.GetBlockPtr();
-	SPU2freeze(FreezeAction::Save, &fP);
+	SPU2freeze(FREEZE_SAVE, &fP);
 	saveme.CommitBlock(fP.size);
 
 	fP.size = 0;
 	fP.data = nullptr;
-	PADfreeze(FreezeAction::Size, &fP);
+	PADfreeze(FREEZE_SIZE, &fP);
 	saveme.PrepBlock(fP.size);
 	fP.data = saveme.GetBlockPtr();
-	PADfreeze(FreezeAction::Save, &fP);
+	PADfreeze(FREEZE_SAVE, &fP);
 	saveme.CommitBlock(fP.size);
 
 	fP.size = 0;
 	fP.data = nullptr;
-	GSfreeze(FreezeAction::Size, &fP);
+	GSfreeze(FREEZE_SIZE, &fP);
 	saveme.PrepBlock(fP.size);
 	fP.data = saveme.GetBlockPtr();
-	GSfreeze(FreezeAction::Save, &fP);
+	GSfreeze(FREEZE_SAVE, &fP);
 	saveme.CommitBlock(fP.size);
 
 	/* Bound the copy by the frontend-provided buffer size: if the
@@ -3158,18 +3158,18 @@ bool retro_unserialize(const void* data, size_t size)
 
 	fP.size = 0;
 	fP.data = nullptr;
-	SPU2freeze(FreezeAction::Size, &fP);
+	SPU2freeze(FREEZE_SIZE, &fP);
 	loadme.PrepBlock(fP.size);
 	fP.data = loadme.GetBlockPtr();
-	SPU2freeze(FreezeAction::Load, &fP);
+	SPU2freeze(FREEZE_LOAD, &fP);
 	loadme.CommitBlock(fP.size);
 
 	fP.size = 0;
 	fP.data = nullptr;
-	PADfreeze(FreezeAction::Size, &fP);
+	PADfreeze(FREEZE_SIZE, &fP);
 	loadme.PrepBlock(fP.size);
 	fP.data = loadme.GetBlockPtr();
-	PADfreeze(FreezeAction::Load, &fP);
+	PADfreeze(FREEZE_LOAD, &fP);
 	loadme.CommitBlock(fP.size);
 
 	/* GS is the final block: hand Defrost the actual remaining payload
@@ -3190,7 +3190,7 @@ bool retro_unserialize(const void* data, size_t size)
 		return false;
 	}
 	fP.data = loadme.GetBlockPtr();
-	if (GSfreeze(FreezeAction::Load, &fP) != 0)
+	if (GSfreeze(FREEZE_LOAD, &fP) != 0)
 	{
 		cpu_thread_resume();
 		log_cb(RETRO_LOG_ERROR, "retro_unserialize: GS state rejected "

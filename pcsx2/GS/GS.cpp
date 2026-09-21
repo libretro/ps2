@@ -237,11 +237,11 @@ static void gsdx_op_vsync(u32 field, bool registers_written)
 
 static int gsdx_op_freeze(int mode, freezeData* data)
 {
-	if (mode == static_cast<int>(FreezeAction::Save))
+	if (mode == static_cast<int>(FREEZE_SAVE))
 		return g_gs_renderer->Freeze(data, false);
-	if (mode == static_cast<int>(FreezeAction::Size))
+	if (mode == static_cast<int>(FREEZE_SIZE))
 		return g_gs_renderer->Freeze(data, true);
-	if (mode == static_cast<int>(FreezeAction::Load))
+	if (mode == static_cast<int>(FREEZE_LOAD))
 	{
 		// Since Defrost doesn't do a hardware reset (since it would be clearing
 		// local memory just before it's overwritten), we have to manually wipe
@@ -341,7 +341,7 @@ bool GSreopen(bool recreate_device, bool recreate_renderer, const Pcsx2Config::G
 	std::unique_ptr<u8[]> fd_data;
 	if (recreate_renderer)
 	{
-		if (s_gs_ops->freeze(static_cast<int>(FreezeAction::Size), &fd) != 0)
+		if (s_gs_ops->freeze(static_cast<int>(FREEZE_SIZE), &fd) != 0)
 		{
 			log_cb(RETRO_LOG_ERROR, "(GSreopen) Failed to get GS freeze size\n");
 			return false;
@@ -350,7 +350,7 @@ bool GSreopen(bool recreate_device, bool recreate_renderer, const Pcsx2Config::G
 		fd_data = std::make_unique<u8[]>(fd.size);
 		fd.data = fd_data.get();
 
-		if (s_gs_ops->freeze(static_cast<int>(FreezeAction::Save), &fd) != 0)
+		if (s_gs_ops->freeze(static_cast<int>(FREEZE_SAVE), &fd) != 0)
 		{
 			log_cb(RETRO_LOG_ERROR, "(GSreopen) Failed to freeze GS\n");
 			return false;
@@ -386,7 +386,7 @@ bool GSreopen(bool recreate_device, bool recreate_renderer, const Pcsx2Config::G
 			return false;
 		}
 
-		if (s_gs_ops->freeze(static_cast<int>(FreezeAction::Load), &fd) != 0)
+		if (s_gs_ops->freeze(static_cast<int>(FREEZE_LOAD), &fd) != 0)
 		{
 			log_cb(RETRO_LOG_ERROR, "(GSreopen) Failed to defrost\n");
 			return false;

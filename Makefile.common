@@ -368,11 +368,11 @@ SOURCES_C += \
 	$(LRPS2_DIR)/SPU2/RegTable.c \
 	$(LRPS2_DIR)/SPU2/Reverb.c \
 	$(LRPS2_DIR)/SPU2/ReverbResample.c \
+	$(LRPS2_DIR)/SPU2/spu2.c \
 	$(LRPS2_DIR)/SPU2/spu2freeze.c \
 	$(LRPS2_DIR)/SPU2/spu2sys.c
 
 SOURCES_CXX += \
-	$(LRPS2_DIR)/SPU2/spu2.cpp
 
 # pcsx2 CPU recompilers. x86_64 uses the x86 dynarec; aarch64 uses the native
 # arm64 EE/IOP/VU recompilers + NEON VIF unpack transplanted from ARMSX2 (the

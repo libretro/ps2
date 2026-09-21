@@ -16,41 +16,28 @@
 #pragma once
 
 #include "../IopCounters.h"
-
-/* The savestate entry point and the SPU2 namespace are the emulator's
- * side of the boundary; the sources below this header build as C, so
- * they see only what C can read. SaveState.h is not included here --
- * forward declarations keep <deque> and friends out of every SPU2 unit. */
-#ifdef __cplusplus
-
-struct Pcsx2Config;
-enum class FreezeAction;
-struct freezeData;
-
-namespace SPU2
-{
-	/*/ Initialization/cleanup, call at process startup/shutdown. */
-	void Initialize(void);
-	void Shutdown(void);
-
-	/*/ Open/close, call at VM startup/shutdown. */
-	void Open(void);
-	void Close(void);
-
-	/*/ Reset, rebooting VM or going into PSX mode. */
-	void Reset(bool psxmode);
-
-	/*/ Returns true if we're currently running in PSX mode. */
-	bool IsRunningPSXMode(void);
-}
-
-s32 SPU2freeze(FreezeAction mode, freezeData* data);
-
-#endif
+#include "../FreezeTypes.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/* Process startup and shutdown. */
+void SPU2_Initialize(void);
+void SPU2_Shutdown(void);
+
+/* VM startup and shutdown. */
+void SPU2_Open(void);
+void SPU2_Close(void);
+
+/* Rebooting the VM, or entering PSX mode. */
+void SPU2_Reset(bool psxmode);
+
+/* Whether the core is in PSX mode. */
+bool SPU2_IsRunningPSXMode(void);
+
+/* The savestate entry point. */
+s32 SPU2freeze(FreezeAction mode, freezeData *data);
 
 void SPU2write(u32 mem, u16 value);
 u16 SPU2read(u32 mem);

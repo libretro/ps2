@@ -202,6 +202,7 @@ set(pcsx2Headers
 	R3000A.h
 	R5900.h
 	R5900OpcodeTables.h
+	FreezeTypes.h
 	SaveState.h
 	ShaderCacheVersion.h
 	Sif.h
@@ -266,11 +267,11 @@ set(pcsx2SPU2Sources
 	SPU2/ADSR.c
 	SPU2/Dma.c
 	SPU2/Mixer.c
-	SPU2/spu2.cpp
 	SPU2/ReadInput.c
 	SPU2/RegTable.c
 	SPU2/Reverb.c
 	SPU2/ReverbResample.c
+	SPU2/spu2.c
 	SPU2/spu2freeze.c
 	SPU2/spu2sys.c
 )

@@ -15,18 +15,11 @@
 
 #pragma once
 
-#include <deque>
 #include <memory>
 #include <vector>
 
+#include "FreezeTypes.h"
 #include "Memory.h"
-
-enum class FreezeAction
-{
-	Load,
-	Save,
-	Size,
-};
 
 // Savestate Versioning!
 
@@ -35,18 +28,6 @@ enum class FreezeAction
 
 static const u32 g_SaveVersion = (0x9A57 << 16) | 0x0000;
 
-
-// the freezing data between submodules and core
-// an interesting thing to note is that this dates back from before plugin
-// merges and was used to pass data between plugins and cores, although the
-// struct was system dependant as the size of int differs between systems, thus
-// subsystems making use of freezeData, like save states aren't
-// necessarily portable; we might want to investigate this in the future -- govanify
-struct freezeData
-{
-	int size;
-	u8* data;
-};
 
 // --------------------------------------------------------------------------------------
 //  SaveStateBase class
@@ -87,38 +68,8 @@ public:
 
 	void PrepBlock( int size );
 
-	template <typename T>
-	void FreezeDeque(std::deque<T>& q)
-	{
-		// overwritten when loading
-		u32 count = static_cast<u32>(q.size());
-		Freeze(count);
-
-		// have to use a temp array, because deque doesn't have a contiguous block of memory
-		std::unique_ptr<T[]> temp;
-		if (count > 0)
-		{
-			temp = std::make_unique<T[]>(count);
-			if (IsSaving())
-			{
-				u32 pos = 0;
-				for (const T& it : q)
-					temp[pos++] = it;
-			}
-
-			FreezeMem(temp.get(), static_cast<int>(sizeof(T) * count));
-		}
-
-		if (IsLoading())
-		{
-			q.clear();
-			for (u32 i = 0; i < count; i++)
-				q.push_back(temp[i]);
-		}
-	}
-
-	// Serializes a SioFifo identically to FreezeDeque (u32 count followed by
-	// the bytes in front-to-back order), so savestates remain compatible.
+	// A SioFifo goes in as a u32 count followed by the bytes in
+	// front-to-back order.
 	// Templated so the body only instantiates in TUs where the FIFO type is
 	// complete (SaveState.h does not include Sio.h).
 	template <typename FifoT>

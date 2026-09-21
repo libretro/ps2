@@ -26,9 +26,9 @@ DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 ROOT=$(CDPATH= cd -- "$DIR/../.." && pwd)
 INC="-I$ROOT -I$ROOT/pcsx2 -I$ROOT/pcsx2/SPU2 -I$ROOT/common"
 INC="$INC -I$ROOT/libretro/libretro-common/include -I$ROOT/3rdparty -I$ROOT/3rdparty/include"
-# The DSP builds as C; spu2 is the shim that faces the emulator's C++ API.
-UNITS_C="Mixer spu2sys ADSR Reverb ReverbResample RegTable ReadInput Dma spu2freeze"
-UNITS_CXX="spu2"
+# Every SPU2 unit builds as C, including the shim that faces the emulator.
+UNITS_C="Mixer spu2sys ADSR Reverb ReverbResample RegTable ReadInput Dma spu2freeze spu2"
+UNITS_CXX=""
 N=${N:-48000}
 ISAS=${ISAS:-"-msse2 -msse4.1 -mavx2"}
 
@@ -62,9 +62,6 @@ for CXX in g++ clang++; do
 			$CC -O2 -std=gnu89 -Wdeclaration-after-statement $ISA $INC \
 			    -c "$ROOT/pcsx2/SPU2/$u.c" -o "$TMP/$u.o"
 		done
-		for u in $UNITS_CXX; do
-			$CXX -O2 -std=c++17 $ISA $INC -c "$ROOT/pcsx2/SPU2/$u.cpp" -o "$TMP/$u.o"
-		done
 		$CXX -O2 -std=c++17 $ISA $INC -c "$DIR/spu2_pcm_hash.cpp" -o "$TMP/hash.o"
 		$CXX -O2 -std=c++17 "$TMP/hash.o" \
 		     $(for u in $UNITS_C $UNITS_CXX; do echo "$TMP/$u.o"; done) \
@@ -84,10 +81,6 @@ if command -v aarch64-linux-gnu-g++ >/dev/null 2>&1 &&
 	for u in $UNITS_C; do
 		aarch64-linux-gnu-gcc -O2 -std=gnu89 -Wdeclaration-after-statement \
 		    $INC -c "$ROOT/pcsx2/SPU2/$u.c" -o "$TMP/a_$u.o"
-	done
-	for u in $UNITS_CXX; do
-		aarch64-linux-gnu-g++ -O2 -std=c++17 $INC \
-		    -c "$ROOT/pcsx2/SPU2/$u.cpp" -o "$TMP/a_$u.o"
 	done
 	aarch64-linux-gnu-g++ -O2 -std=c++17 $INC -c "$DIR/spu2_pcm_hash.cpp" \
 	     -o "$TMP/a_hash.o"

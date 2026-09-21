@@ -788,9 +788,9 @@ static u8*  pgs_op_regs_mem(void)                        { return g_pgs_renderer
 
 static int pgs_op_freeze(int mode, freezeData* data)
 {
-	if (mode == static_cast<int>(FreezeAction::Save))
+	if (mode == static_cast<int>(FREEZE_SAVE))
 		return g_pgs_renderer->Freeze(data, false);
-	if (mode == static_cast<int>(FreezeAction::Size))
+	if (mode == static_cast<int>(FREEZE_SIZE))
 		return g_pgs_renderer->Freeze(data, true);
 	return g_pgs_renderer->Defrost(data);
 }

@@ -235,7 +235,7 @@ void VMManager::Internal::UpdateEmuFolders()
 void VMManager::Internal::CPUThreadInitialize(void)
 {
 	GSinit();
-	SPU2::Initialize();
+	SPU2_Initialize();
 	USBinit();
 
 	s_vm_memory = std::make_unique<SysMainMemory>();
@@ -273,7 +273,7 @@ void VMManager::Internal::CPUThreadShutdown(void)
 #endif
 
 	USBshutdown();
-	SPU2::Shutdown();
+	SPU2_Shutdown();
 	GSshutdown();
 }
 
@@ -678,11 +678,11 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 		return false;
 	}
 
-	SPU2::Open();
+	SPU2_Open();
 
 	if (PADinit() != 0 || PADopen() != 0)
 	{
-		SPU2::Close();
+		SPU2_Close();
 		DoCDVDclose();
 		CDVDsys_ClearFiles();
 		FileMcd_EmuClose();
@@ -695,7 +695,7 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 	{
 		PADclose();
 		PADshutdown();
-		SPU2::Close();
+		SPU2_Close();
 		DoCDVDclose();
 		CDVDsys_ClearFiles();
 		FileMcd_EmuClose();
@@ -710,7 +710,7 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 		DEV9shutdown();
 		PADclose();
 		PADshutdown();
-		SPU2::Close();
+		SPU2_Close();
 		DoCDVDclose();
 		CDVDsys_ClearFiles();
 		FileMcd_EmuClose();
@@ -791,7 +791,7 @@ void VMManager::Shutdown()
 	R3000A::ioman::reset();
 	vtlb_Shutdown();
 	USBclose();
-	SPU2::Close();
+	SPU2_Close();
 	PADclose();
 	DEV9close();
 

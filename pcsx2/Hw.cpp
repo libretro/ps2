@@ -45,7 +45,7 @@ void hwReset(void)
 
 	// Sets SPU2 sample rate to PS2 standard (48KHz) whenever emulator is reset.
 	// For PSX mode sample rate setting, see HwWrite.cpp
-	SPU2::Reset(false);
+	SPU2_Reset(false);
 
 	sifReset();
 
@@ -903,7 +903,7 @@ void hwWrite32( u32 mem, u32 value )
 						//pgifInit();
 						psxReset();
 						PSXCLK =  33868800;
-						SPU2::Reset(true);
+						SPU2_Reset(true);
 						setPs1CDVDSpeed(cdvd.Speed);
 						psxHu32(0x1f801450) = 0x8;
 						psxHu32(0x1f801078) = 1;

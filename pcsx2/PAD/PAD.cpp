@@ -640,9 +640,9 @@ s32 PADfreeze(FreezeAction mode, freezeData* data)
 	if (!data)
 		return -1;
 
-	if (mode == FreezeAction::Size)
+	if (mode == FREEZE_SIZE)
 		data->size = sizeof(PadFullFreezeData);
-	else if (mode == FreezeAction::Load)
+	else if (mode == FREEZE_LOAD)
 	{
 		PadFullFreezeData* pdata = (PadFullFreezeData*)(data->data);
 
@@ -673,7 +673,7 @@ s32 PADfreeze(FreezeAction mode, freezeData* data)
 				slots[port] = pdata->slot[port];
 		}
 	}
-	else if (mode == FreezeAction::Save)
+	else if (mode == FREEZE_SAVE)
 	{
 		if (data->size != sizeof(PadFullFreezeData))
 			return 0;
