@@ -81,6 +81,24 @@ static PCSX2_INLINE __m128i pair_const(int lo, int hi)
 {
 	return _mm_set1_epi32((int)((unsigned)(hi & 0xffff) << 16) | (unsigned)(lo & 0xffff));
 }
+#elif defined(_M_ARM64) || defined(__aarch64__)
+/* The same pair of 16-bit coefficients, replicated, for the widening
+ * multiplies below. */
+static PCSX2_INLINE int16x8_t pair_const(int lo, int hi)
+{
+	return vreinterpretq_s16_s32(vdupq_n_s32(
+		(int)(((unsigned)(hi & 0xffff) << 16) | (unsigned)(lo & 0xffff))));
+}
+
+/* pmaddwd: multiply the interleaved 16-bit pairs and add each pair into one
+ * 32-bit lane. NEON has no single instruction for it, so widen both halves
+ * and fold the adjacent products together. */
+static PCSX2_INLINE int32x4_t madd_s16(int16x8_t a, int16x8_t k)
+{
+	const int32x4_t lo = vmull_s16(vget_low_s16(a), vget_low_s16(k));
+	const int32x4_t hi = vmull_s16(vget_high_s16(a), vget_high_s16(k));
+	return vpaddq_s32(lo, hi);
+}
 #else
 /* Writes the pair t0, t1 from the product pair w0, w1 against d0, d1. A
  * macro rather than a function so the two results stay in registers without
@@ -251,6 +269,94 @@ static __fi void IDCT_Block(s16 *block)
 		}
 	}
 	}
+#elif defined(_M_ARM64) || defined(__aarch64__)
+	/* ---- column pass, NEON: the same eight columns at once.
+	 *
+	 * Written to match the SSE4.1 form step for step, so the two produce
+	 * the same block: the widening multiplies stand in for pmaddwd, and
+	 * the saturating narrow for packssdw. */
+	{
+	const int16x8_t r0 = vld1q_s16(block + 8 * 0);
+	const int16x8_t r1 = vld1q_s16(block + 8 * 1);
+	const int16x8_t r2 = vld1q_s16(block + 8 * 2);
+	const int16x8_t r3 = vld1q_s16(block + 8 * 3);
+	const int16x8_t r4 = vld1q_s16(block + 8 * 4);
+	const int16x8_t r5 = vld1q_s16(block + 8 * 5);
+	const int16x8_t r6 = vld1q_s16(block + 8 * 6);
+	const int16x8_t r7 = vld1q_s16(block + 8 * 7);
+
+	const int16x8_t k_w6w2 = pair_const(W6, W2);
+	const int16x8_t k_nw2w6 = pair_const(-W2, W6);
+	const int16x8_t k_w7w1 = pair_const(W7, W1);
+	const int16x8_t k_nw1w7 = pair_const(-W1, W7);
+	const int16x8_t k_w3w5 = pair_const(W3, W5);
+	const int16x8_t k_nw5w3 = pair_const(-W5, W3);
+	const int32x4_t k_round = vdupq_n_s32(65536);
+	const int32x4_t k_181 = vdupq_n_s32(181);
+
+	int32x4_t lo[8];
+	int h;
+	for (h = 0; h < 2; h++)
+	{
+		const int16x8_t i31 = h ? vzip2q_s16(r3, r1) : vzip1q_s16(r3, r1);
+		const int16x8_t i74 = h ? vzip2q_s16(r7, r4) : vzip1q_s16(r7, r4);
+		const int16x8_t i56 = h ? vzip2q_s16(r5, r6) : vzip1q_s16(r5, r6);
+
+		const int32x4_t e0 = h ? vmovl_s16(vget_high_s16(r0))
+		                       : vmovl_s16(vget_low_s16(r0));
+		const int32x4_t e2 = h ? vmovl_s16(vget_high_s16(r2))
+		                       : vmovl_s16(vget_low_s16(r2));
+
+		const int32x4_t d0 = vaddq_s32(vshlq_n_s32(e0, 11), k_round);
+		const int32x4_t d2 = vshlq_n_s32(e2, 11);
+		const int32x4_t t0 = vaddq_s32(d0, d2);
+		const int32x4_t t1 = vsubq_s32(d0, d2);
+		const int32x4_t t2 = madd_s16(i31, k_w6w2);
+		const int32x4_t t3 = madd_s16(i31, k_nw2w6);
+
+		const int32x4_t a0 = vaddq_s32(t0, t2);
+		const int32x4_t a1 = vaddq_s32(t1, t3);
+		const int32x4_t a2 = vsubq_s32(t1, t3);
+		const int32x4_t a3 = vsubq_s32(t0, t2);
+
+		const int32x4_t u0 = madd_s16(i74, k_w7w1);
+		const int32x4_t u1 = madd_s16(i74, k_nw1w7);
+		const int32x4_t u2 = madd_s16(i56, k_w3w5);
+		const int32x4_t u3 = madd_s16(i56, k_nw5w3);
+
+		const int32x4_t b0 = vaddq_s32(u0, u2);
+		const int32x4_t b3 = vaddq_s32(u1, u3);
+		const int32x4_t s0 = vshrq_n_s32(vsubq_s32(u0, u2), 8);
+		const int32x4_t s1 = vshrq_n_s32(vsubq_s32(u1, u3), 8);
+		const int32x4_t b1 = vmulq_s32(vaddq_s32(s0, s1), k_181);
+		const int32x4_t b2 = vmulq_s32(vsubq_s32(s0, s1), k_181);
+
+		const int32x4_t o0 = vshrq_n_s32(vaddq_s32(a0, b0), 17);
+		const int32x4_t o1 = vshrq_n_s32(vaddq_s32(a1, b1), 17);
+		const int32x4_t o2 = vshrq_n_s32(vaddq_s32(a2, b2), 17);
+		const int32x4_t o3 = vshrq_n_s32(vaddq_s32(a3, b3), 17);
+		const int32x4_t o4 = vshrq_n_s32(vsubq_s32(a3, b3), 17);
+		const int32x4_t o5 = vshrq_n_s32(vsubq_s32(a2, b2), 17);
+		const int32x4_t o6 = vshrq_n_s32(vsubq_s32(a1, b1), 17);
+		const int32x4_t o7 = vshrq_n_s32(vsubq_s32(a0, b0), 17);
+		if (h == 0)
+		{
+			lo[0] = o0; lo[1] = o1; lo[2] = o2; lo[3] = o3;
+			lo[4] = o4; lo[5] = o5; lo[6] = o6; lo[7] = o7;
+		}
+		else
+		{
+			vst1q_s16(block + 8 * 0, vcombine_s16(vqmovn_s32(lo[0]), vqmovn_s32(o0)));
+			vst1q_s16(block + 8 * 1, vcombine_s16(vqmovn_s32(lo[1]), vqmovn_s32(o1)));
+			vst1q_s16(block + 8 * 2, vcombine_s16(vqmovn_s32(lo[2]), vqmovn_s32(o2)));
+			vst1q_s16(block + 8 * 3, vcombine_s16(vqmovn_s32(lo[3]), vqmovn_s32(o3)));
+			vst1q_s16(block + 8 * 4, vcombine_s16(vqmovn_s32(lo[4]), vqmovn_s32(o4)));
+			vst1q_s16(block + 8 * 5, vcombine_s16(vqmovn_s32(lo[5]), vqmovn_s32(o5)));
+			vst1q_s16(block + 8 * 6, vcombine_s16(vqmovn_s32(lo[6]), vqmovn_s32(o6)));
+			vst1q_s16(block + 8 * 7, vcombine_s16(vqmovn_s32(lo[7]), vqmovn_s32(o7)));
+		}
+	}
+	}
 #else
 	for (i = 0; i < 8; i++)
 	{
@@ -320,6 +426,17 @@ void ipu_idct_copy(s16 *block, u8 *dest, const int stride)
 	{
 		const __m128i row = _mm_load_si128((const __m128i *)block);
 		_mm_storel_epi64((__m128i *)dest, _mm_packus_epi16(row, row));
+		QW_ZERO(block);
+
+		dest += stride;
+		block += 8;
+	}
+#elif defined(_M_ARM64) || defined(__aarch64__)
+	for (i = 0; i < 8; i++)
+	{
+		/* Unsigned saturating narrow is the same clamp: below zero to 0,
+		 * above 255 to 255, a row at a time. */
+		vst1_u8(dest, vqmovun_s16(vld1q_s16(block)));
 		QW_ZERO(block);
 
 		dest += stride;

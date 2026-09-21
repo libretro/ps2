@@ -38,12 +38,13 @@ for CXX in g++ clang++; do
 	done
 done
 
-# aarch64 takes the scalar column pass and the scalar byte clamp, so it is
-# the only place both fallbacks run at once. Same hashes or it is a finding.
+# aarch64 runs its own NEON column pass and byte clamp. Holding it to the
+# same hashes as the SSE4.1 build is what says the two vector spellings
+# agree; -msse2 above is where the scalar fallback still runs.
 if command -v aarch64-linux-gnu-g++ >/dev/null 2>&1 &&
    command -v qemu-aarch64 >/dev/null 2>&1; then
 	echo
-	echo "=== aarch64 (scalar column pass, scalar clamp) ==="
+	echo "=== aarch64 (NEON column pass and clamp) ==="
 	aarch64-linux-gnu-gcc -O2 -std=gnu89 -Wall $INC \
 	     -c "$ROOT/pcsx2/IPU/ipu_idct.c" -o "$TMP/idct64.o"
 	aarch64-linux-gnu-g++ -O2 -std=c++17 $INC -c "$DIR/idct_hash.cpp" \

@@ -1,13 +1,13 @@
 /* The IPU inverse DCT against a floating-point model and across tiers.
  *
  * ipu_idct_copy() and ipu_idct_add() share IDCT_Block, whose column pass
- * has two spellings: a pmaddwd version from SSE4.1 up, and scalar code
- * below it and on aarch64. Nothing in the tree checks that the two agree,
- * and the scalar one is dead code on any x86 build that has SSE4.1, so it
- * can drift unnoticed. Running every tier against one pinned hash is what
- * holds them together -- an -msse2 build takes the scalar column pass, an
- * -msse4.1 build takes the vector one, and a hash that differs between
- * them is the finding.
+ * has three spellings: pmaddwd from SSE4.1 up, widening multiplies on
+ * aarch64, and scalar code below both. Nothing in the tree checks that
+ * they agree, and the scalar one is dead on any build with SSE4.1 or
+ * NEON, so it can drift unnoticed. Running every tier against one pinned
+ * hash is what holds them together -- an -msse2 build takes the scalar
+ * column pass, -msse4.1 and aarch64 take a vector one each, and a hash
+ * that differs between them is the finding.
  *
  * A pinned hash only says the output did not move. To catch a mistake
  * that was always there, the blocks also go through a double-precision
@@ -180,6 +180,8 @@ int main(int argc, char **argv)
 	printf("sse4.1 (vector column pass)\n");
 #elif defined(__SSE2__) || defined(__x86_64__)
 	printf("sse2 (scalar column pass)\n");
+#elif defined(_M_ARM64) || defined(__aarch64__)
+	printf("aarch64 (NEON column pass)\n");
 #else
 	printf("scalar\n");
 #endif
