@@ -16,6 +16,7 @@
 #include "shaders/swizzle_utils.h"
 #include "muglm/muglm_impl.hpp"
 #include "gs_registers_debug.hpp"
+#include "pgs_vertex_kernels.h"
 
 namespace ParallelGS
 {
@@ -851,7 +852,6 @@ void GSInterface::handle_miptbl_gen(uint32_t ctx_index)
 
 void GSInterface::shift_vertex_queue()
 {
-	// Ring-buffer feels overkill. Should lower to some straight forward SIMD moves.
 	if (vertex_queue.count == 3)
 	{
 		vertex_queue.pos[0] = vertex_queue.pos[1];
@@ -862,22 +862,36 @@ void GSInterface::shift_vertex_queue()
 	}
 }
 
+/* The kernels address the two structs by byte offset, so the shared layout
+ * they assume is pinned here. */
+static_assert(sizeof(VertexAttribute) == PGS_ATTR_SIZE, "VertexAttribute size moved");
+static_assert(offsetof(VertexAttribute, st) == PGS_ATTR_ST_OFFSET, "attr.st moved");
+static_assert(offsetof(VertexAttribute, q) == PGS_ATTR_Q_OFFSET, "attr.q moved");
+static_assert(offsetof(VertexAttribute, fog) == PGS_ATTR_FOG_OFFSET, "attr.fog moved");
+static_assert(offsetof(VertexPosition, z) == 8, "pos.z moved");
+static_assert(sizeof(VertexPosition) == 16, "VertexPosition size moved");
+
+void GSInterface::gather_kick_regs(pgs_kick_regs &g) const
+{
+	g.st = registers.st.bits;
+	g.rgbaq = registers.rgbaq.bits;
+	g.uv = registers.uv.words[0];
+	g.fog = registers.fog.words[1] >> 24;
+	g.ofx = render_pass.ofx;
+	g.ofy = render_pass.ofy;
+}
+
 void GSInterface::vertex_kick_xyz(Reg64<XYZBits> xyz)
 {
+	pgs_kick_regs g;
+
 	shift_vertex_queue();
-	auto &pos = vertex_queue.pos[vertex_queue.count];
-	auto &attr = vertex_queue.attr[vertex_queue.count];
+	gather_kick_regs(g);
 
-	pos.pos.x = int(xyz.desc.X) - render_pass.ofx;
-	pos.pos.y = int(xyz.desc.Y) - render_pass.ofy;
-	pos.z = xyz.desc.Z;
-
-	attr.st.x = registers.st.desc.S;
-	attr.st.y = registers.st.desc.T;
-	attr.q = registers.rgbaq.desc.Q;
-	attr.rgba = registers.rgbaq.words[0];
-	attr.fog = float(registers.fog.desc.FOG);
-	attr.uv = u16vec2(registers.uv.desc.U, registers.uv.desc.V);
+	pgs_build_position(&g, xyz.words[0], xyz.words[1],
+	                   &vertex_queue.pos[vertex_queue.count]);
+	pgs_build_attribute(&g, float(g.fog),
+	                    &vertex_queue.attr[vertex_queue.count]);
 
 	vertex_queue.count++;
 	TRACE_INDEXED("VERT", vertex_queue.count, xyz);
@@ -885,21 +899,16 @@ void GSInterface::vertex_kick_xyz(Reg64<XYZBits> xyz)
 
 void GSInterface::vertex_kick_xyzf(Reg64<XYZFBits> xyzf)
 {
+	pgs_kick_regs g;
+
 	shift_vertex_queue();
+	gather_kick_regs(g);
 
-	auto &pos = vertex_queue.pos[vertex_queue.count];
-	auto &attr = vertex_queue.attr[vertex_queue.count];
-
-	pos.pos.x = int(xyzf.desc.X) - render_pass.ofx;
-	pos.pos.y = int(xyzf.desc.Y) - render_pass.ofy;
-	pos.z = xyzf.desc.Z;
-
-	attr.st.x = registers.st.desc.S;
-	attr.st.y = registers.st.desc.T;
-	attr.q = registers.rgbaq.desc.Q;
-	attr.rgba = registers.rgbaq.words[0];
-	attr.fog = float(xyzf.desc.F);
-	attr.uv = u16vec2(registers.uv.desc.U, registers.uv.desc.V);
+	/* XYZF2 carries Z in 24 bits and fog in the top byte of the same word. */
+	pgs_build_position(&g, xyzf.words[0], xyzf.words[1] & 0xffffffu,
+	                   &vertex_queue.pos[vertex_queue.count]);
+	pgs_build_attribute(&g, float(xyzf.words[1] >> 24),
+	                    &vertex_queue.attr[vertex_queue.count]);
 
 	vertex_queue.count++;
 	TRACE_INDEXED("VERT", vertex_queue.count, xyzf);

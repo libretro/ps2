@@ -15,6 +15,9 @@
 #include <vector>
 #include <type_traits>
 
+/* Vertex-kick kernels; plain C, so it goes in ahead of the namespace. */
+#include "pgs_vertex_kernels.h"
+
 namespace ParallelGS
 {
 struct ContextState
@@ -487,6 +490,7 @@ private:
 	template <int CTX> void a_d_TEX2(uint64_t payload);
 
 	void shift_vertex_queue();
+	void gather_kick_regs(::pgs_kick_regs &g) const;
 	void vertex_kick_xyz(Reg64<XYZBits> xyz);
 	void vertex_kick_xyzf(Reg64<XYZFBits> xyzf);
 	template <bool ADC> void packed_XYZF(const void *words);
