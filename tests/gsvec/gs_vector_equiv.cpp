@@ -161,6 +161,32 @@ int main(int argc, char **argv)
 		chk_int("alltrue",  gs_v4i_alltrue(a),  A.alltrue());
 		chk_int("allfalse", gs_v4i_allfalse(a), A.allfalse());
 
+		/* rect alignment and the high-half load, as GSDirtyRect uses them */
+		{
+			alignas(8) int32_t bs2[2];
+			bs2[0] = 1 << (1 + (k & 3));
+			bs2[1] = 1 << (1 + ((k >> 2) & 3));
+			GSVector2i BS(bs2[0], bs2[1]);
+			chk("ralign_outside", gs_v4i_ralign_outside(a, bs2[0], bs2[1]),
+			    A.ralign<Align_Outside>(BS));
+			chk("ralign_neginf",  gs_v4i_ralign_neginf(a, bs2[0], bs2[1]),
+			    A.ralign<Align_NegInf>(BS));
+			chk("loadh",          gs_v4i_loadh(bs2),            GSVector4i::loadh(BS));
+			chk("set4", gs_v4i_set4(bs2[0], bs2[1], bs2[0], bs2[1]),
+			    GSVector4i(bs2[0], bs2[1], bs2[0], bs2[1]));
+		}
+
+		/* the named view must see the same lanes the class does */
+		{
+			union gs_v4i_view vw;
+			vw.v = a;
+			chk_int("view.left",   vw.rect.left,   A.left);
+			chk_int("view.bottom", vw.rect.bottom, A.bottom);
+			chk_int("view.y",      vw.lane.y,      A.y);
+			chk_int("view.i16[5]", vw.i16[5],      A.I16[5]);
+			chk_int("view.u8[11]", vw.u8[11],      (int)(uint8_t)A.I8[11]);
+		}
+
 		/* load/store forms */
 		{
 			alignas(16) uint8_t o1[16], o2[16];

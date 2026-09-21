@@ -76,6 +76,30 @@ typedef int32x4_t gs_vec4i;
 #endif
 
 /* ------------------------------------------------------------------ */
+/* Named view.                                                          */
+/*                                                                      */
+/* Most of what the GS does with a vector is read or write one lane by  */
+/* name -- a rect's edges, a coordinate pair -- rather than operate on  */
+/* all four. A bare vector cannot spell that, so this union gives the   */
+/* same names the class carries while keeping the vector itself in v.   */
+/* Reading a lane through it costs nothing: both compilers keep the     */
+/* value in a register rather than round-tripping it through memory.    */
+/* ------------------------------------------------------------------ */
+
+union gs_v4i_view
+{
+   gs_vec4i v;
+   int32_t  i32[4];
+   uint32_t u32[4];
+   int16_t  i16[8];
+   uint16_t u16[8];
+   int8_t   i8[16];
+   uint8_t  u8[16];
+   struct { int32_t x, y, z, w; } lane;
+   struct { int32_t left, top, right, bottom; } rect;
+};
+
+/* ------------------------------------------------------------------ */
 /* Load and store.                                                      */
 /* ------------------------------------------------------------------ */
 
@@ -613,6 +637,31 @@ static GS_VEC_INLINE int gs_v4i_allfalse(gs_vec4i v)
 #endif
 }
 
+static GS_VEC_INLINE gs_vec4i gs_v4i_set4(int32_t x, int32_t y, int32_t z, int32_t w)
+{
+#if defined(GS_VEC_X86)
+   return _mm_set_epi32(w, z, y, x);
+#else
+   {
+      int32_t t[4];
+      t[0] = x; t[1] = y; t[2] = z; t[3] = w;
+      return vld1q_s32(t);
+   }
+#endif
+}
+
+/* Two 32-bit values into the high half, zero below -- how a size becomes
+ * the right/bottom edges of a rect. */
+static GS_VEC_INLINE gs_vec4i gs_v4i_loadh(const void *p)
+{
+#if defined(GS_VEC_X86)
+   return _mm_unpacklo_epi64(_mm_setzero_si128(),
+                             _mm_loadl_epi64((const __m128i *)p));
+#else
+   return vcombine_s32(vdup_n_s32(0), vld1_s32((const int32_t *)p));
+#endif
+}
+
 /* ------------------------------------------------------------------ */
 /* Rectangles. The GS keeps a rect as x,y,z,w = left,top,right,bottom,  */
 /* so intersect and union are one min/max pair with the halves swapped. */
@@ -636,6 +685,30 @@ static GS_VEC_INLINE gs_vec4i gs_v4i_runion(gs_vec4i a, gs_vec4i b)
    gs_vec4i hi = GS_V4I_SRL(gs_v4i_max_i32(a, b), 8);
 
    return gs_v4i_upl64v(lo, hi);
+}
+
+/* Align a rect to a block size, which is always a power of two.
+ *
+ * The mask is (bsx-1, bsy-1, 0, 0), so adding its halves swapped leaves the
+ * left and top edges alone and pushes the right and bottom ones up to the
+ * next boundary; the andnot then rounds every edge down, which for the two
+ * that were pushed is a round up. NegInf skips the addend and rounds all
+ * four down. */
+static GS_VEC_INLINE gs_vec4i gs_v4i_ralign_outside(
+      gs_vec4i r, int32_t bsx, int32_t bsy)
+{
+   gs_vec4i mask = gs_v4i_set4(bsx - 1, bsy - 1, 0, 0);
+
+   return gs_v4i_andnot(GS_V4I_SHUFFLE32(mask, 0x44),
+                        gs_v4i_add32(r, GS_V4I_SHUFFLE32(mask, 0x4e)));
+}
+
+static GS_VEC_INLINE gs_vec4i gs_v4i_ralign_neginf(
+      gs_vec4i r, int32_t bsx, int32_t bsy)
+{
+   gs_vec4i mask = gs_v4i_set4(bsx - 1, bsy - 1, 0, 0);
+
+   return gs_v4i_andnot(GS_V4I_SHUFFLE32(mask, 0x44), r);
 }
 
 #endif /* GS_VECTOR_H */
