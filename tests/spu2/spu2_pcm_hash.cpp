@@ -13,14 +13,27 @@
  * The scenarios are separate hashes rather than one, so a mismatch names
  * the area that moved instead of only saying something did.
  *
- * What it catches, measured by injecting faults into Mixer.cpp and checking
- * the hashes move: a clamp's upper bound changed by one, a master volume
- * shift, a dry gate reading the wrong channel. What it does not yet catch:
- * the lower bound of the per-voice wet clamp, and the input volume shift --
- * the first because the voice wet accumulator never reaches -0x8000 in
- * these scenarios, the second for a reason not yet run down. Both are gaps
- * in the scenarios rather than in the method, and a change to either of
- * those two lines needs checking by other means until they are closed.
+ * What it catches is measured, by injecting faults into Mixer.cpp and
+ * checking the hashes move. Seven of eight do: both saturation bounds, the
+ * core 0 and core 1 input volumes, the core 0 master volume, a dry gate
+ * reading the wrong channel, the DC filter coefficient and the final output
+ * clamp.
+ *
+ * The eighth does not, and the reason is worth stating so nobody assumes
+ * otherwise. Changing the per-voice wet clamp leaves every hash alone, even
+ * moved as far as -0x4000. The clamp is reached -- the accumulator runs to
+ * around -227000, thousands of samples past the bound -- but what it feeds
+ * is the reverb return, and that arrives at about a hundredth of the dry
+ * path: RV peaks near 383 against a dry signal at full scale. The
+ * difference does not survive into 16 bits. Closing it needs a scenario
+ * where the wet path carries the signal on its own, which needs reverb
+ * parameters that produce steady output rather than occasional bursts.
+ * Until then a change to those two lines wants checking another way.
+ *
+ * Note also what Init leaves shut: DryGate.ExtL and ExtR are zero on both
+ * cores, and core 0 reaches the output only as core 1's Ext input. A
+ * scenario that does not open that gate tests one core while appearing to
+ * test two, which is why open_ext_path() exists.
  */
 
 #include "Global.h"
@@ -120,6 +133,20 @@ static void reset_core(void)
 	PlayMode = 0;
 }
 
+/* Core 0's output arrives at the final mix as core 1's Ext input, and Init
+ * closes that gate on both cores. Left shut, nothing core 0 does -- its
+ * voices, its input, its master volume -- reaches the output at all, and a
+ * scenario silently tests one core instead of two. */
+static void open_ext_path(void)
+{
+	Cores[1].DryGate.ExtL = -1;
+	Cores[1].DryGate.ExtR = -1;
+	Cores[1].WetGate.ExtL = -1;
+	Cores[1].WetGate.ExtR = -1;
+	Cores[1].ExtVol.Left  = 0x7fff;
+	Cores[1].ExtVol.Right = 0x7fff;
+}
+
 /* Start a voice on a block of sample RAM with a given pitch and envelope. */
 static void start_voice(int core, int v, u32 addr, u16 pitch,
                         u16 adsr1, u16 adsr2, s16 vl, s16 vr)
@@ -207,6 +234,7 @@ static uint64_t scen_voices(int samples)
 	}
 	Cores[0].DryGate.SndL = Cores[0].DryGate.SndR = -1;
 	Cores[1].DryGate.SndL = Cores[1].DryGate.SndR = -1;
+	open_ext_path();
 	Cores[0].MasterVol.Left.Value = Cores[0].MasterVol.Right.Value = 0x3fff;
 	Cores[1].MasterVol.Left.Value = Cores[1].MasterVol.Right.Value = 0x3fff;
 	return run(samples);
@@ -253,6 +281,7 @@ static uint64_t scen_reverb(int samples)
 		Cores[c].FxVol.Left = Cores[c].FxVol.Right = 0x3fff;
 		Cores[c].MasterVol.Left.Value = Cores[c].MasterVol.Right.Value = 0x3fff;
 	}
+	open_ext_path();
 	return run(samples);
 }
 
@@ -294,6 +323,7 @@ static uint64_t scen_slides(int samples)
 		Cores[c].MasterVol.Right.Shift  = 11;
 		Cores[c].MasterVol.Right.Decr   = 1;
 	}
+	open_ext_path();
 	return run(samples);
 }
 
@@ -351,6 +381,7 @@ static uint64_t scen_input(int samples)
 		Cores[c].WetGate.InpR = -1;
 		Cores[c].MasterVol.Left.Value = Cores[c].MasterVol.Right.Value = 0x3fff;
 	}
+	open_ext_path();
 	return run(samples);
 }
 
@@ -406,6 +437,7 @@ static uint64_t scen_clipping(int samples)
 		Cores[c].Revb.APF1_L_DST = 0x2800; Cores[c].Revb.APF1_R_DST = 0x2a00;
 		Cores[c].Revb.APF2_L_DST = 0x2c00; Cores[c].Revb.APF2_R_DST = 0x2e00;
 	}
+	open_ext_path();
 	return run(samples);
 }
 
@@ -433,12 +465,12 @@ int main(int argc, char **argv)
 	 * of these alone. Re-pin with --print only when the output is meant to
 	 * change, and say in the commit why. */
 	static Scenario scen[] = {
-		{ "voices",      scen_voices,      0x1aefa4dcbb4e9ae7ull },
-		{ "reverb",      scen_reverb,      0xaab46c10c21da661ull },
-		{ "slides",      scen_slides,      0x1eef5de65ffbfcc9ull },
+		{ "voices",      scen_voices,      0xd0822e804df49fceull },
+		{ "reverb",      scen_reverb,      0x3a564d9e423bea93ull },
+		{ "slides",      scen_slides,      0x2681cc386a8e3c29ull },
 		{ "noise+gates", scen_noise_gates, 0xe9c06d20f41a8280ull },
-		{ "clipping",    scen_clipping,    0x967fab3499ba7cecull },
-		{ "input",       scen_input,       0x9703191a4230509eull },
+		{ "clipping",    scen_clipping,    0xa889e93e69cb254bull },
+		{ "input",       scen_input,       0xedc162f6bc1ee9f5ull },
 	};
 
 	fill_sample_ram();
