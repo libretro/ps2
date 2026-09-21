@@ -117,6 +117,9 @@ build*/
 /tests/gshash/gshash_test
 /tests/vkheap/vkheap_test
 /tests/gsalign/gsalign_test
+/tests/gs/gs_vertex_oracle
+/tests/gs/gs_vertex_bench
+/tests/gs/gs_fmm_bench
 /tests/spsc/spsc_test_tsan
 /tests/spsc/spsc_test.exe
 /tests/faultstress/fault_test
