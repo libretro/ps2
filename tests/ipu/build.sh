@@ -1,30 +1,66 @@
 #!/bin/sh
-# SANITIZER=... must match whatever the core objects were built with:
-# this harness LINKS pcsx2/IPU/*.o, so a plain build against sanitized
-# objects fails with undefined __asan_*/__ubsan_* references.
-#   make SANITIZER=address,undefined && SANITIZER=address,undefined sh tests/ipu/build.sh
-# IPU differential-oracle harness.  Links the repo's already-built IPU
-# objects (build the core first) against a small stub layer and drives
-# them through IPUCMD_WRITE / IPUProcessInterrupt / the real FIFOs.
-# Usage:  sh tests/ipu/build.sh   (from the repo root)
-#         ./tests/ipu/ipu_test out.txt && diff tests/ipu/golden_baseline.txt out.txt
+# IPU kernel harness.
+#
+# yuv2rgb and ipu_dither each have a SIMD path and a scalar path that are
+# meant to agree. This links the real kernels against a scalar model of
+# what they are supposed to compute -- written from the operation, not
+# lifted from either path -- and compares block for block.
+#
+# Every tier, both compilers: SSE2 and SSE4.1 go different ways through
+# the dither's pack, and AVX2 changes what the compiler emits under both.
+# A hash that moves between two of these builds is itself a finding.
+#
+#   ./build.sh            check against the pinned hashes
+#   ./build.sh --print    print hashes to re-pin, when output should change
 set -e
-SANFLAGS=""
-[ -n "$SANITIZER" ] && SANFLAGS="-fsanitize=$SANITIZER"
-INC="-I pcsx2 -I . -I common -I 3rdparty/include -I libretro/libretro-common/include -I libretro"
-g++ -O2 -msse4.1 -std=c++17 $SANFLAGS $INC -c tests/ipu/main.cpp  -o tests/ipu/main.o
-g++ -O2 -msse4.1 -std=c++17 $SANFLAGS $INC -c tests/ipu/stubs.cpp -o tests/ipu/stubs.o
-# MULTI_ISA_SELECT resolves through features_cpu, so the object carrying
-# cpu_features_get() has to be on the link line.
-CPUOBJS=libretro/libretro-common/features/features_cpu.o
-if [ ! -f "$CPUOBJS" ]; then
-  echo "missing $CPUOBJS - build the core first" >&2
-  exit 1
+DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+ROOT=$(CDPATH= cd -- "$DIR/../.." && pwd)
+INC="-I$ROOT -I$ROOT/pcsx2 -I$ROOT/common"
+INC="$INC -I$ROOT/libretro/libretro-common/include -I$ROOT/3rdparty -I$ROOT/3rdparty/include"
+UNITS="IPU/yuv2rgb IPU/IPUdither"
+N=${N:-20000}
+ISAS=${ISAS:-"-msse2 -msse4.1 -mavx2"}
+
+TMP=${TMPDIR:-/tmp}/ipu.$$
+mkdir -p "$TMP"
+trap 'rm -rf "$TMP"' EXIT
+
+for CXX in g++ clang++; do
+	command -v "$CXX" >/dev/null 2>&1 || { echo "skipping $CXX"; continue; }
+	for ISA in $ISAS; do
+		echo
+		echo "=== $CXX $ISA ==="
+		for u in $UNITS; do
+			$CXX -O2 -std=c++17 $ISA $INC -c "$ROOT/pcsx2/$u.cpp" \
+			     -o "$TMP/$(basename $u).o"
+		done
+		$CXX -O2 -std=c++17 $ISA $INC -c "$DIR/ipu_kernel_hash.cpp" \
+		     -o "$TMP/hash.o"
+		$CXX -O2 "$TMP/hash.o" "$TMP"/yuv2rgb.o "$TMP"/IPUdither.o \
+		     -o "$TMP/ipu_kernel_hash"
+		"$TMP/ipu_kernel_hash" "$N" "$1"
+	done
+done
+
+# The scalar branch of both kernels is dead code on x86 -- the #if takes the
+# SSE path always -- so it can drift from the SIMD path unnoticed. aarch64 is
+# where it is live (yuv2rgb has a NEON path, the dither does not), so run it
+# there too and hold it to the same hashes. That is what proves the two
+# spellings still agree.
+if command -v aarch64-linux-gnu-g++ >/dev/null 2>&1 &&
+   command -v qemu-aarch64 >/dev/null 2>&1; then
+	echo
+	echo "=== aarch64 (scalar dither, NEON yuv2rgb) ==="
+	for u in $UNITS; do
+		aarch64-linux-gnu-g++ -O2 -std=c++17 $INC -c "$ROOT/pcsx2/$u.cpp" \
+		     -o "$TMP/$(basename $u).o"
+	done
+	aarch64-linux-gnu-g++ -O2 -std=c++17 $INC -c "$DIR/ipu_kernel_hash.cpp" \
+	     -o "$TMP/hash.o"
+	aarch64-linux-gnu-g++ -O2 -static "$TMP/hash.o" "$TMP"/yuv2rgb.o \
+	     "$TMP"/IPUdither.o -o "$TMP/ipu_kernel_hash64"
+	qemu-aarch64 "$TMP/ipu_kernel_hash64" "$N" "$1"
+else
+	echo
+	echo "skipping aarch64 lane (no cross toolchain or qemu)"
 fi
-g++ $SANFLAGS -o tests/ipu/ipu_test tests/ipu/main.o tests/ipu/stubs.o \
-  pcsx2/IPU/IPU.o pcsx2/IPU/IPU_Fifo.o \
-  pcsx2/IPU/IPU_MultiISA.sse4.o pcsx2/IPU/IPU_MultiISA.avx.o pcsx2/IPU/IPU_MultiISA.avx2.o \
-  pcsx2/IPU/IPUdither.sse4.o pcsx2/IPU/IPUdither.avx.o pcsx2/IPU/IPUdither.avx2.o \
-  pcsx2/IPU/yuv2rgb.sse4.o pcsx2/IPU/yuv2rgb.avx.o pcsx2/IPU/yuv2rgb.avx2.o \
-  $CPUOBJS
-echo built: tests/ipu/ipu_test
