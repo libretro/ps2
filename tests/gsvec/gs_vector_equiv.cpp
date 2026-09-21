@@ -116,6 +116,11 @@ int main(int argc, char **argv)
 		chk("upl32",  gs_v4i_upl32(a),     A.upl32());
 		chk("uph32",  gs_v4i_uph32(a),     A.uph32());
 
+		/* the reverb FIR's three */
+		chk("adds16",   gs_v4i_adds16(a, b),   A.adds16(B));
+		chk("hadds16",  gs_v4i_hadds16(a, b),  A.hadds16(B));
+		chk("mul16hrs", gs_v4i_mul16hrs(a, b), A.mul16hrs(B));
+
 		/* pack */
 		chk("ps32", gs_v4i_ps32(a, b), A.ps32(B));
 		chk("pu32", gs_v4i_pu32(a, b), A.pu32(B));

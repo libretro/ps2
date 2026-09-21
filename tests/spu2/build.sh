@@ -15,8 +15,12 @@
 #
 # only when the output is meant to change, and say why in the commit.
 #
-# Run it under both compilers: the point is the PCM, and the two must agree
-# on it, so a hash that moves between them is itself a finding.
+# Run it under both compilers and every ISA tier: the point is the PCM, and
+# all of them must agree on it, so a hash that moves between two builds is
+# itself a finding. The reverb resampler carries a 128-bit and a 256-bit
+# path and they are meant to be bit-identical, which is what the -mavx2
+# lane checks; -msse2 checks the fallbacks gs_vector spells out for the
+# tier the GS classes cannot reach.
 set -e
 DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 ROOT=$(CDPATH= cd -- "$DIR/../.." && pwd)
@@ -24,6 +28,7 @@ INC="-I$ROOT -I$ROOT/pcsx2 -I$ROOT/pcsx2/SPU2 -I$ROOT/common"
 INC="$INC -I$ROOT/libretro/libretro-common/include -I$ROOT/3rdparty -I$ROOT/3rdparty/include"
 UNITS="Mixer spu2sys ADSR Reverb ReverbResample RegTable ReadInput Dma spu2 spu2freeze"
 N=${N:-48000}
+ISAS=${ISAS:-"-msse2 -msse4.1 -mavx2"}
 
 TMP=${TMPDIR:-/tmp}/spu2.$$
 mkdir -p "$TMP"
@@ -31,13 +36,14 @@ trap 'rm -rf "$TMP"' EXIT
 
 for CXX in g++ clang++; do
 	command -v "$CXX" >/dev/null 2>&1 || { echo "skipping $CXX"; continue; }
-	echo
-	echo "=== $CXX ==="
-	for u in $UNITS; do
-		$CXX -O2 -std=c++17 -msse4.1 $INC -c "$ROOT/pcsx2/SPU2/$u.cpp" -o "$TMP/$u.o"
-	done
-	$CXX -O2 -std=c++17 -msse4.1 $INC -c "$DIR/spu2_pcm_hash.cpp" -o "$TMP/hash.o"
-	$CXX -O2 -std=c++17 "$TMP/hash.o" "$TMP"/*.o -o "$TMP/spu2_pcm_hash" 2>/dev/null ||
+	for ISA in $ISAS; do
+		echo
+		echo "=== $CXX $ISA ==="
+		for u in $UNITS; do
+			$CXX -O2 -std=c++17 $ISA $INC -c "$ROOT/pcsx2/SPU2/$u.cpp" -o "$TMP/$u.o"
+		done
+		$CXX -O2 -std=c++17 $ISA $INC -c "$DIR/spu2_pcm_hash.cpp" -o "$TMP/hash.o"
 		$CXX -O2 -std=c++17 "$TMP/hash.o" $(for u in $UNITS; do echo "$TMP/$u.o"; done) -o "$TMP/spu2_pcm_hash"
-	"$TMP/spu2_pcm_hash" "$N" "$1"
+		"$TMP/spu2_pcm_hash" "$N" "$1"
+	done
 done

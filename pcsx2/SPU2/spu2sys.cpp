@@ -50,8 +50,8 @@ int PlayMode;
 bool has_to_call_irq[2]     = { false, false };
 bool has_to_call_irq_dma[2] = { false, false };
 bool has_irq_armed          = false;
-StereoOut32 (*ReverbUpsample)(V_Core& core);
-s32 (*ReverbDownsample)(V_Core& core, bool right);
+StereoOut32 (*ReverbUpsample)(V_Core *core);
+s32 (*ReverbDownsample)(V_Core *core, bool right);
 
 static bool psxmode = false;
 

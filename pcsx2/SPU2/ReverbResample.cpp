@@ -1,5 +1,14 @@
-#include "../GS/GSVector.h"
 #include "Global.h"
+
+extern "C" {
+#include "../GS/gs_vector.h"
+}
+
+/* The 256-bit paths stay on raw intrinsics: gs_vector is a 128-bit
+ * header, and AVX2 is the only place a 16-lane form exists at all. */
+#if _M_SSE >= 0x501
+#include <immintrin.h>
+#endif
 
 MULTI_ISA_UNSHARED_START
 
@@ -88,64 +97,56 @@ static void make_up_coefs(void)
  */
 
 #if _M_SSE >= 0x501
-s32 __forceinline ReverbDownsample_avx(V_Core& core, bool right)
+s32 __forceinline ReverbDownsample_avx(V_Core *core, bool right)
 {
-	int index = (core.RevbSampleBufPos - NUM_TAPS) & 63;
+	__m256i acc, c, s;
+	const s16 *buf = &core->RevbDownBuf[right][(core->RevbSampleBufPos - NUM_TAPS) & 63];
 
-	auto c = GSVector8i::load<true>(&filter_down_coefs[0]);
-	auto s = GSVector8i::load<false>(&core.RevbDownBuf[right][index]);
-	auto acc = s.mul16hrs(c);
+#define TAP(k) _mm256_mulhrs_epi16( \
+                  _mm256_loadu_si256((const __m256i *)&buf[k]), \
+                  _mm256_load_si256((const __m256i *)&filter_down_coefs[k]))
+	acc = TAP(0);
+	acc = _mm256_adds_epi16(acc, TAP(16));
+	acc = _mm256_adds_epi16(acc, TAP(32));
+#undef TAP
 
-	c = GSVector8i::load<true>(&filter_down_coefs[16]);
-	s = GSVector8i::load<false>(&core.RevbDownBuf[right][index + 16]);
-	acc = acc.adds16(s.mul16hrs(c));
+	/* fold the upper half onto the lower, then the lower onto itself */
+	acc = _mm256_adds_epi16(acc, _mm256_permute2x128_si256(acc, acc, 0x01));
+	acc = _mm256_hadds_epi16(acc, acc);
+	acc = _mm256_hadds_epi16(acc, acc);
+	acc = _mm256_hadds_epi16(acc, acc);
 
-	c = GSVector8i::load<true>(&filter_down_coefs[32]);
-	s = GSVector8i::load<false>(&core.RevbDownBuf[right][index + 32]);
-	acc = acc.adds16(s.mul16hrs(c));
-
-	acc = acc.adds16(acc.ba());
-
-	acc = acc.hadds16(acc);
-	acc = acc.hadds16(acc);
-	acc = acc.hadds16(acc);
-
-	return acc.I16[0];
+	return (s16)_mm_extract_epi16(_mm256_castsi256_si128(acc), 0);
 }
 #endif
 
-s32 __forceinline ReverbDownsample_sse(V_Core& core, bool right)
+s32 __forceinline ReverbDownsample_sse(V_Core *core, bool right)
 {
-	int index = (core.RevbSampleBufPos - NUM_TAPS) & 63;
+	union gs_v4i_view out;
+	gs_vec4i acc;
+	const s16 *buf = &core->RevbDownBuf[right][(core->RevbSampleBufPos - NUM_TAPS) & 63];
 
-	auto c = GSVector4i::load<true>(&filter_down_coefs[0]);
-	auto s = GSVector4i::load<false>(&core.RevbDownBuf[right][index]);
-	auto acc = s.mul16hrs(c);
+	/* Written out rather than looped: the accumulator chain saturates, so
+	 * the order has to stand, and a loop here costs the four multiplies
+	 * their overlap. */
+#define TAP(k) gs_v4i_mul16hrs(gs_v4i_loadu(&buf[k]), \
+                               gs_v4i_load(&filter_down_coefs[k]))
+	acc = TAP(0);
+	acc = gs_v4i_adds16(acc, TAP(8));
+	acc = gs_v4i_adds16(acc, TAP(16));
+	acc = gs_v4i_adds16(acc, TAP(24));
+	acc = gs_v4i_adds16(acc, TAP(32));
+#undef TAP
 
-	c = GSVector4i::load<true>(&filter_down_coefs[8]);
-	s = GSVector4i::load<false>(&core.RevbDownBuf[right][index + 8]);
-	acc = acc.adds16(s.mul16hrs(c));
+	acc = gs_v4i_hadds16(acc, acc);
+	acc = gs_v4i_hadds16(acc, acc);
+	acc = gs_v4i_hadds16(acc, acc);
 
-	c = GSVector4i::load<true>(&filter_down_coefs[16]);
-	s = GSVector4i::load<false>(&core.RevbDownBuf[right][index + 16]);
-	acc = acc.adds16(s.mul16hrs(c));
-
-	c = GSVector4i::load<true>(&filter_down_coefs[24]);
-	s = GSVector4i::load<false>(&core.RevbDownBuf[right][index + 24]);
-	acc = acc.adds16(s.mul16hrs(c));
-
-	c = GSVector4i::load<true>(&filter_down_coefs[32]);
-	s = GSVector4i::load<false>(&core.RevbDownBuf[right][index + 32]);
-	acc = acc.adds16(s.mul16hrs(c));
-
-	acc = acc.hadds16(acc);
-	acc = acc.hadds16(acc);
-	acc = acc.hadds16(acc);
-
-	return acc.I16[0];
+	out.v = acc;
+	return out.i16[0];
 }
 
-s32 ReverbDownsample(V_Core& core, bool right)
+s32 ReverbDownsample(V_Core *core, bool right)
 {
 #if _M_SSE >= 0x501
 	return ReverbDownsample_avx(core, right);
@@ -162,91 +163,81 @@ s32 ReverbDownsample(V_Core& core, bool right)
  */
 
 #if _M_SSE >= 0x501
-StereoOut32 __forceinline ReverbUpsample_avx(V_Core& core)
+StereoOut32 __forceinline ReverbUpsample_avx(V_Core *core)
 {
-	int index = (core.RevbSampleBufPos - NUM_TAPS) & 63;
+	__m256i lacc, racc;
+	StereoOut32 ret;
+	const int index = (core->RevbSampleBufPos - NUM_TAPS) & 63;
+	const s16 *lbuf = &core->RevbUpBuf[0][index];
+	const s16 *rbuf = &core->RevbUpBuf[1][index];
 
-	auto c = GSVector8i::load<true>(&filter_up_coefs[0]);
-	auto l = GSVector8i::load<false>(&core.RevbUpBuf[0][index]);
-	auto r = GSVector8i::load<false>(&core.RevbUpBuf[1][index]);
+#define TAP(b, k) _mm256_mulhrs_epi16( \
+                     _mm256_loadu_si256((const __m256i *)&(b)[k]), \
+                     _mm256_load_si256((const __m256i *)&filter_up_coefs[k]))
+	lacc = TAP(lbuf, 0);
+	racc = TAP(rbuf, 0);
+	lacc = _mm256_adds_epi16(lacc, TAP(lbuf, 16));
+	racc = _mm256_adds_epi16(racc, TAP(rbuf, 16));
+	lacc = _mm256_adds_epi16(lacc, TAP(lbuf, 32));
+	racc = _mm256_adds_epi16(racc, TAP(rbuf, 32));
+#undef TAP
 
-	auto lacc = l.mul16hrs(c);
-	auto racc = r.mul16hrs(c);
+	lacc = _mm256_adds_epi16(lacc, _mm256_permute2x128_si256(lacc, lacc, 0x01));
+	racc = _mm256_adds_epi16(racc, _mm256_permute2x128_si256(racc, racc, 0x01));
 
-	c = GSVector8i::load<true>(&filter_up_coefs[16]);
-	l = GSVector8i::load<false>(&core.RevbUpBuf[0][index + 16]);
-	r = GSVector8i::load<false>(&core.RevbUpBuf[1][index + 16]);
-	lacc = lacc.adds16(l.mul16hrs(c));
-	racc = racc.adds16(r.mul16hrs(c));
+	lacc = _mm256_hadds_epi16(lacc, lacc);
+	lacc = _mm256_hadds_epi16(lacc, lacc);
+	lacc = _mm256_hadds_epi16(lacc, lacc);
 
-	c = GSVector8i::load<true>(&filter_up_coefs[32]);
-	l = GSVector8i::load<false>(&core.RevbUpBuf[0][index + 32]);
-	r = GSVector8i::load<false>(&core.RevbUpBuf[1][index + 32]);
-	lacc = lacc.adds16(l.mul16hrs(c));
-	racc = racc.adds16(r.mul16hrs(c));
+	racc = _mm256_hadds_epi16(racc, racc);
+	racc = _mm256_hadds_epi16(racc, racc);
+	racc = _mm256_hadds_epi16(racc, racc);
 
-	lacc = lacc.adds16(lacc.ba());
-	racc = racc.adds16(racc.ba());
-
-	lacc = lacc.hadds16(lacc);
-	lacc = lacc.hadds16(lacc);
-	lacc = lacc.hadds16(lacc);
-
-	racc = racc.hadds16(racc);
-	racc = racc.hadds16(racc);
-	racc = racc.hadds16(racc);
-
-	return {lacc.I16[0], racc.I16[0]};
+	ret.Left  = (s16)_mm_extract_epi16(_mm256_castsi256_si128(lacc), 0);
+	ret.Right = (s16)_mm_extract_epi16(_mm256_castsi256_si128(racc), 0);
+	return ret;
 }
 #endif
 
-StereoOut32 __forceinline ReverbUpsample_sse(V_Core& core)
+StereoOut32 __forceinline ReverbUpsample_sse(V_Core *core)
 {
-	int index = (core.RevbSampleBufPos - NUM_TAPS) & 63;
+	union gs_v4i_view lo, ro;
+	gs_vec4i lacc, racc;
+	StereoOut32 ret;
+	const int index = (core->RevbSampleBufPos - NUM_TAPS) & 63;
+	const s16 *lbuf = &core->RevbUpBuf[0][index];
+	const s16 *rbuf = &core->RevbUpBuf[1][index];
 
-	auto c = GSVector4i::load<true>(&filter_up_coefs[0]);
-	auto l = GSVector4i::load<false>(&core.RevbUpBuf[0][index]);
-	auto r = GSVector4i::load<false>(&core.RevbUpBuf[1][index]);
+#define TAP(b, k) gs_v4i_mul16hrs(gs_v4i_loadu(&(b)[k]), \
+                                  gs_v4i_load(&filter_up_coefs[k]))
+	lacc = TAP(lbuf, 0);
+	racc = TAP(rbuf, 0);
+	lacc = gs_v4i_adds16(lacc, TAP(lbuf, 8));
+	racc = gs_v4i_adds16(racc, TAP(rbuf, 8));
+	lacc = gs_v4i_adds16(lacc, TAP(lbuf, 16));
+	racc = gs_v4i_adds16(racc, TAP(rbuf, 16));
+	lacc = gs_v4i_adds16(lacc, TAP(lbuf, 24));
+	racc = gs_v4i_adds16(racc, TAP(rbuf, 24));
+	lacc = gs_v4i_adds16(lacc, TAP(lbuf, 32));
+	racc = gs_v4i_adds16(racc, TAP(rbuf, 32));
+#undef TAP
 
-	auto lacc = l.mul16hrs(c);
-	auto racc = r.mul16hrs(c);
+	lacc = gs_v4i_hadds16(lacc, lacc);
+	lacc = gs_v4i_hadds16(lacc, lacc);
+	lacc = gs_v4i_hadds16(lacc, lacc);
 
-	c = GSVector4i::load<true>(&filter_up_coefs[8]);
-	l = GSVector4i::load<false>(&core.RevbUpBuf[0][index + 8]);
-	r = GSVector4i::load<false>(&core.RevbUpBuf[1][index + 8]);
-	lacc = lacc.adds16(l.mul16hrs(c));
-	racc = racc.adds16(r.mul16hrs(c));
+	racc = gs_v4i_hadds16(racc, racc);
+	racc = gs_v4i_hadds16(racc, racc);
+	racc = gs_v4i_hadds16(racc, racc);
 
-	c = GSVector4i::load<true>(&filter_up_coefs[16]);
-	l = GSVector4i::load<false>(&core.RevbUpBuf[0][index + 16]);
-	r = GSVector4i::load<false>(&core.RevbUpBuf[1][index + 16]);
-	lacc = lacc.adds16(l.mul16hrs(c));
-	racc = racc.adds16(r.mul16hrs(c));
-
-	c = GSVector4i::load<true>(&filter_up_coefs[24]);
-	l = GSVector4i::load<false>(&core.RevbUpBuf[0][index + 24]);
-	r = GSVector4i::load<false>(&core.RevbUpBuf[1][index + 24]);
-	lacc = lacc.adds16(l.mul16hrs(c));
-	racc = racc.adds16(r.mul16hrs(c));
-
-	c = GSVector4i::load<true>(&filter_up_coefs[32]);
-	l = GSVector4i::load<false>(&core.RevbUpBuf[0][index + 32]);
-	r = GSVector4i::load<false>(&core.RevbUpBuf[1][index + 32]);
-	lacc = lacc.adds16(l.mul16hrs(c));
-	racc = racc.adds16(r.mul16hrs(c));
-
-	lacc = lacc.hadds16(lacc);
-	lacc = lacc.hadds16(lacc);
-	lacc = lacc.hadds16(lacc);
-
-	racc = racc.hadds16(racc);
-	racc = racc.hadds16(racc);
-	racc = racc.hadds16(racc);
-
-	return {lacc.I16[0], racc.I16[0]};
+	lo.v = lacc;
+	ro.v = racc;
+	ret.Left  = lo.i16[0];
+	ret.Right = ro.i16[0];
+	return ret;
 }
 
-StereoOut32 ReverbUpsample(V_Core& core)
+StereoOut32 ReverbUpsample(V_Core *core)
 {
 	make_up_coefs();
 #if _M_SSE >= 0x501

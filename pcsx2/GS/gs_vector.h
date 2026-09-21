@@ -228,6 +228,90 @@ static GS_VEC_INLINE gs_vec4i gs_v4i_sub16(gs_vec4i a, gs_vec4i b)
 #endif
 }
 
+/* ------------------------------------------------------------------ */
+/* The three the reverb resampler's FIR is made of: saturating 16-bit    */
+/* add, saturating add of neighbouring lanes, and the rounded high half  */
+/* of a 16-bit product. The last two are SSSE3 instructions, so the      */
+/* SSE2 tier builds them from mullo/mulhi and a gather.                  */
+/* ------------------------------------------------------------------ */
+
+static GS_VEC_INLINE gs_vec4i gs_v4i_adds16(gs_vec4i a, gs_vec4i b)
+{
+#if defined(GS_VEC_X86)
+   return _mm_adds_epi16(a, b);
+#else
+   return vreinterpretq_s32_s16(vqaddq_s16(vreinterpretq_s16_s32(a),
+                                           vreinterpretq_s16_s32(b)));
+#endif
+}
+
+#if defined(GS_VEC_X86) && !defined(GS_VEC_CAN_SSE41)
+/* The low 16 bits of each 32-bit lane of a, then of b. _mm_packs_epi32
+ * would saturate, which is not what either caller wants, so gather the
+ * halves by shuffle instead. */
+static GS_VEC_INLINE gs_vec4i gs_v4i_pack_lo16(gs_vec4i a, gs_vec4i b)
+{
+   a = _mm_shufflelo_epi16(a, _MM_SHUFFLE(3, 1, 2, 0));
+   a = _mm_shufflehi_epi16(a, _MM_SHUFFLE(3, 1, 2, 0));
+   a = _mm_shuffle_epi32(a, _MM_SHUFFLE(3, 1, 2, 0));
+   b = _mm_shufflelo_epi16(b, _MM_SHUFFLE(3, 1, 2, 0));
+   b = _mm_shufflehi_epi16(b, _MM_SHUFFLE(3, 1, 2, 0));
+   b = _mm_shuffle_epi32(b, _MM_SHUFFLE(3, 1, 2, 0));
+   return _mm_unpacklo_epi64(a, b);
+}
+#endif
+
+/* Neighbouring 16-bit lanes added with saturation: a0+a1, a2+a3 ... then
+ * the same for b. */
+static GS_VEC_INLINE gs_vec4i gs_v4i_hadds16(gs_vec4i a, gs_vec4i b)
+{
+#if defined(GS_VEC_CAN_SSE41)
+   return _mm_hadds_epi16(a, b);
+#elif defined(GS_VEC_X86)
+   {
+      gs_vec4i even = gs_v4i_pack_lo16(a, b);
+      gs_vec4i odd  = gs_v4i_pack_lo16(_mm_srli_epi32(a, 16),
+                                       _mm_srli_epi32(b, 16));
+      return _mm_adds_epi16(even, odd);
+   }
+#else
+   {
+      int16x8_t x = vreinterpretq_s16_s32(a);
+      int16x8_t y = vreinterpretq_s16_s32(b);
+      return vreinterpretq_s32_s16(vqaddq_s16(vuzp1q_s16(x, y),
+                                              vuzp2q_s16(x, y)));
+   }
+#endif
+}
+
+/* (a * b + 0x4000) >> 15 per 16-bit lane, keeping the low 16 bits. */
+static GS_VEC_INLINE gs_vec4i gs_v4i_mul16hrs(gs_vec4i a, gs_vec4i b)
+{
+#if defined(GS_VEC_CAN_SSE41)
+   return _mm_mulhrs_epi16(a, b);
+#elif defined(GS_VEC_X86)
+   {
+      __m128i lo   = _mm_mullo_epi16(a, b);
+      __m128i hi   = _mm_mulhi_epi16(a, b);
+      __m128i half = _mm_set1_epi32(0x4000);
+      __m128i p0   = _mm_srai_epi32(
+                        _mm_add_epi32(_mm_unpacklo_epi16(lo, hi), half), 15);
+      __m128i p1   = _mm_srai_epi32(
+                        _mm_add_epi32(_mm_unpackhi_epi16(lo, hi), half), 15);
+      return gs_v4i_pack_lo16(p0, p1);
+   }
+#else
+   {
+      int16x8_t x = vreinterpretq_s16_s32(a);
+      int16x8_t y = vreinterpretq_s16_s32(b);
+      int32x4_t l = vmull_s16(vget_low_s16(x), vget_low_s16(y));
+      int32x4_t h = vmull_s16(vget_high_s16(x), vget_high_s16(y));
+      return vreinterpretq_s32_s16(vcombine_s16(vrshrn_n_s32(l, 15),
+                                                vrshrn_n_s32(h, 15)));
+   }
+#endif
+}
+
 static GS_VEC_INLINE gs_vec4i gs_v4i_andnot(gs_vec4i a, gs_vec4i b)
 {
    /* ~a & b, the andnps order: the x86 instruction negates its first

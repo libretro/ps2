@@ -47,6 +47,13 @@ static void seed(uint32_t *w, int k)
    }
 }
 
+static int32_t sat16(int32_t v)
+{
+   if (v >  32767) return  32767;
+   if (v < -32768) return -32768;
+   return v;
+}
+
 static void chk(const char *what, gs_vec4i got, const uint32_t *want)
 {
    uint32_t g[4];
@@ -146,6 +153,30 @@ int main(int argc, char **argv)
          for (j = 0; j < 8; j++) g[j] = (uint16_t)(pa[j] - pb[j]);
          memcpy(w, g, 16);
          chk("sub16", gs_v4i_sub16(a, b), w);
+
+         /* The three the reverb FIR is made of. */
+         for (j = 0; j < 8; j++)
+            g[j] = (uint16_t)sat16((int32_t)(int16_t)pa[j] + (int16_t)pb[j]);
+         memcpy(w, g, 16);
+         chk("adds16", gs_v4i_adds16(a, b), w);
+
+         for (j = 0; j < 4; j++)
+         {
+            g[j]     = (uint16_t)sat16((int32_t)(int16_t)pa[j * 2]
+                                     + (int16_t)pa[j * 2 + 1]);
+            g[j + 4] = (uint16_t)sat16((int32_t)(int16_t)pb[j * 2]
+                                     + (int16_t)pb[j * 2 + 1]);
+         }
+         memcpy(w, g, 16);
+         chk("hadds16", gs_v4i_hadds16(a, b), w);
+
+         for (j = 0; j < 8; j++)
+         {
+            int32_t p = (int32_t)(int16_t)pa[j] * (int16_t)pb[j];
+            g[j] = (uint16_t)((p + 0x4000) >> 15);
+         }
+         memcpy(w, g, 16);
+         chk("mul16hrs", gs_v4i_mul16hrs(a, b), w);
       }
 
       /* ---- min and max ---- */
