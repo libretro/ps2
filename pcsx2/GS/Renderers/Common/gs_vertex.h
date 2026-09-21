@@ -64,11 +64,26 @@
 #else
 #include <immintrin.h>
 #endif
-#if defined(__SSE4_1__) || defined(__AVX__) || defined(_MSC_VER)
+/* What this build may emit inline. Inside PCSX2 the project's own ladder
+ * decides, since that is what the rest of the GS is compiled against and it
+ * can be set on the command line; standalone, fall back to the predefined
+ * macros. Not keyed on the compiler: MSVC defines no SSE4.1 macro of its
+ * own, and treating "is MSVC" as "has SSE4.1" would emit pmovzx inline on a
+ * baseline x64 build, which is an SSE2 target. */
+#if defined(_M_SSE)
+#if _M_SSE >= 0x401
+#define GS_VERTEX_CAN_SSE41 1
+#endif
+#if _M_SSE >= 0x500
+#define GS_VERTEX_CAN_AVX 1
+#endif
+#else
+#if defined(__SSE4_1__) || defined(__AVX__)
 #define GS_VERTEX_CAN_SSE41 1
 #endif
 #if defined(__AVX__)
 #define GS_VERTEX_CAN_AVX 1
+#endif
 #endif
 typedef __m128i gs_vec4i;
 typedef __m128  gs_vec4f;
