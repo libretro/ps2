@@ -213,6 +213,17 @@
 // On every other toolchain they keep their historical meaning of
 // `__forceinline`, preserving the inlining and the perf characteristics
 // that working PCSX2 builds depend on.
+//
+// Note the absence of an `inline` keyword beside always_inline, and keep it
+// absent.  GCC wants the two together and says so -- `'always_inline'
+// function might not be inlinable` on every __fi function once NDEBUG is
+// set -- but it inlines them anyway at -O2 and above, so the attribute buys
+// the diagnostic and nothing else.  Adding `inline` would cost: __fi sits
+// on 385 definitions that are not static, among them cross-TU entry points
+// like dmacRead32 and COP0_UpdatePCCR, and an inline function defined in
+// one TU is not there to link against from another.  That is the same
+// undefined-reference failure the gnu_inline paragraph above describes,
+// reached by a different route.
 #ifdef NDEBUG
 #ifndef __forceinline
 #define __forceinline __attribute__((always_inline, unused))
