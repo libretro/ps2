@@ -514,9 +514,9 @@ endif()
 set(pcsx2IPUSources
 	IPU/IPU.cpp
 	IPU/IPU_Fifo.cpp
-	IPU/IPUdither.cpp
+	IPU/IPUdither.c
 	IPU/IPUdma.cpp
-	IPU/yuv2rgb.cpp
+	IPU/yuv2rgb.c
 )
 
 set(pcsx2IPUSourcesUnshared

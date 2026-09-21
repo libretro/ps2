@@ -35,31 +35,7 @@
 #define BigEndian64(in) __builtin_bswap64(in) // or we could use the asm function bswap...
 #endif
 
-struct macroblock_8{
-	u8 Y[16][16];		//0
-	u8 Cb[8][8];		//1
-	u8 Cr[8][8];		//2
-};
-
-struct macroblock_16{
-	s16 Y[16][16];			//0
-	s16 Cb[8][8];			//1
-	s16 Cr[8][8];			//2
-};
-
-struct macroblock_rgb32{
-	struct {
-		u8 r, g, b, a;
-	} c[16][16];
-};
-
-struct rgb16_t{
-	u16 r:5, g:5, b:5, a:1;
-};
-
-struct macroblock_rgb16{
-	rgb16_t	c[16][16];
-};
+#include "ipu_macroblock.h"
 
 struct decoder_t {
 	/* first, state that carries information from one macroblock to the */
@@ -164,7 +140,10 @@ alignas(16) extern tIPU_BP g_BP;
 
 /* One build: the SSE2 form this is written in measures the same at every
  * tier, so there is nothing for a per-ISA copy to pick up. */
-extern void ipu_dither(const macroblock_rgb32& rgb32, macroblock_rgb16& rgb16, const int dte);
+#ifdef __cplusplus
+extern "C"
+#endif
+void ipu_dither(const macroblock_rgb32 *rgb32, macroblock_rgb16 *rgb16, const int dte);
 
 MULTI_ISA_DEF(
 	void IPUWorker();

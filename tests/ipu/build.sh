@@ -17,6 +17,8 @@ DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 ROOT=$(CDPATH= cd -- "$DIR/../.." && pwd)
 INC="-I$ROOT -I$ROOT/pcsx2 -I$ROOT/common"
 INC="$INC -I$ROOT/libretro/libretro-common/include -I$ROOT/3rdparty -I$ROOT/3rdparty/include"
+# Both kernels build as C; the harness itself is C++, which is also what
+# the emulator links them from.
 UNITS="IPU/yuv2rgb IPU/IPUdither"
 N=${N:-20000}
 ISAS=${ISAS:-"-msse2 -msse4.1 -mavx2"}
@@ -27,12 +29,13 @@ trap 'rm -rf "$TMP"' EXIT
 
 for CXX in g++ clang++; do
 	command -v "$CXX" >/dev/null 2>&1 || { echo "skipping $CXX"; continue; }
+	case $CXX in g++) CC=gcc ;; clang++) CC=clang ;; esac
 	for ISA in $ISAS; do
 		echo
 		echo "=== $CXX $ISA ==="
 		for u in $UNITS; do
-			$CXX -O2 -std=c++17 $ISA $INC -c "$ROOT/pcsx2/$u.cpp" \
-			     -o "$TMP/$(basename $u).o"
+			$CC -O2 -std=gnu89 -Wdeclaration-after-statement $ISA $INC \
+			    -c "$ROOT/pcsx2/$u.c" -o "$TMP/$(basename $u).o"
 		done
 		$CXX -O2 -std=c++17 $ISA $INC -c "$DIR/ipu_kernel_hash.cpp" \
 		     -o "$TMP/hash.o"
@@ -52,7 +55,7 @@ if command -v aarch64-linux-gnu-g++ >/dev/null 2>&1 &&
 	echo
 	echo "=== aarch64 (scalar dither, NEON yuv2rgb) ==="
 	for u in $UNITS; do
-		aarch64-linux-gnu-g++ -O2 -std=c++17 $INC -c "$ROOT/pcsx2/$u.cpp" \
+		aarch64-linux-gnu-gcc -O2 -std=gnu89 $INC -c "$ROOT/pcsx2/$u.c" \
 		     -o "$TMP/$(basename $u).o"
 	done
 	aarch64-linux-gnu-g++ -O2 -std=c++17 $INC -c "$DIR/ipu_kernel_hash.cpp" \

@@ -18,7 +18,7 @@
 
 #include "../../common/VectorIntrin.h"
 
-#include "IPU_MultiISA.h"
+#include "ipu_macroblock.h"
 #include "yuv2rgb.h"
 
 #if (defined(_M_ARM64) || defined(__aarch64__))
@@ -42,63 +42,72 @@
 #define IPU_RCR_COEFF 0xcc	//  1.59375
 #define IPU_BCB_COEFF 0x102	//  2.015625
 
-void yuv2rgb(void)
+void yuv2rgb(const macroblock_8 *mb8_in, macroblock_rgb32 *rgb32_out)
 {
+	int n;
+	int m;
 #if _M_SSE >= 0x200 /* SSE2 codepath */
 	// An AVX2 version is only slightly faster than an SSE2 version (+2-3fps)
 	// (or I'm a poor optimiser), though it might be worth attempting again
 	// once we've ported to 64 bits (the extra registers should help).
-	const __m128i c_bias = _mm_set1_epi8(s8(IPU_C_BIAS));
+	const __m128i c_bias = _mm_set1_epi8((s8)(IPU_C_BIAS));
 	const __m128i y_bias = _mm_set1_epi8(IPU_Y_BIAS);
-	const __m128i y_mask = _mm_set1_epi16(s16(0xFF00));
+	const __m128i y_mask = _mm_set1_epi16((s16)(0xFF00));
 	// Specifying round off instead of round down as everywhere else
 	// implies that this is right
-	const __m128i round_1bit = _mm_set1_epi16(0x0001);;
+	const __m128i round_1bit = _mm_set1_epi16(0x0001);
 
-	const __m128i y_coefficient = _mm_set1_epi16(s16(IPU_Y_COEFF << 2));
-	const __m128i gcr_coefficient = _mm_set1_epi16(s16(u16(IPU_GCR_COEFF) << 2));
-	const __m128i gcb_coefficient = _mm_set1_epi16(s16(u16(IPU_GCB_COEFF) << 2));
-	const __m128i rcr_coefficient = _mm_set1_epi16(s16(IPU_RCR_COEFF << 2));
-	const __m128i bcb_coefficient = _mm_set1_epi16(s16(IPU_BCB_COEFF << 2));
+	const __m128i y_coefficient = _mm_set1_epi16((s16)(IPU_Y_COEFF << 2));
+	const __m128i gcr_coefficient = _mm_set1_epi16((s16)((u16)(IPU_GCR_COEFF) << 2));
+	const __m128i gcb_coefficient = _mm_set1_epi16((s16)((u16)(IPU_GCB_COEFF) << 2));
+	const __m128i rcr_coefficient = _mm_set1_epi16((s16)(IPU_RCR_COEFF << 2));
+	const __m128i bcb_coefficient = _mm_set1_epi16((s16)(IPU_BCB_COEFF << 2));
 
-	// Alpha set to 0x80 here. The threshold stuff is done later.
-	const __m128i& alpha = c_bias;
+	/* Alpha is set to 0x80 here, the same constant as the chroma bias;
+	 * the threshold stuff is done later. */
 
-	for (int n = 0; n < 8; ++n) {
-		// could skip the loadl_epi64 but most SSE instructions require 128-bit
-		// alignment so two versions would be needed.
-		__m128i cb = _mm_loadl_epi64(reinterpret_cast<__m128i*>(&decoder.mb8.Cb[n][0]));
-		__m128i cr = _mm_loadl_epi64(reinterpret_cast<__m128i*>(&decoder.mb8.Cr[n][0]));
+	for (n = 0; n < 8; ++n) {
+		/* could skip the loadl_epi64 but most SSE instructions require
+		 * 128-bit alignment so two versions would be needed. */
+		__m128i cb = _mm_loadl_epi64((const __m128i *)(&mb8_in->Cb[n][0]));
+		__m128i cr = _mm_loadl_epi64((const __m128i *)(&mb8_in->Cr[n][0]));
+		__m128i rc, gc, bc;
 
-		// (Cb - 128) << 8, (Cr - 128) << 8
+		/* (Cb - 128) << 8, (Cr - 128) << 8 */
 		cb = _mm_xor_si128(cb, c_bias);
 		cr = _mm_xor_si128(cr, c_bias);
 		cb = _mm_unpacklo_epi8(_mm_setzero_si128(), cb);
 		cr = _mm_unpacklo_epi8(_mm_setzero_si128(), cr);
 
-		__m128i rc = _mm_mulhi_epi16(cr, rcr_coefficient);
-		__m128i gc = _mm_adds_epi16(_mm_mulhi_epi16(cr, gcr_coefficient), _mm_mulhi_epi16(cb, gcb_coefficient));
-		__m128i bc = _mm_mulhi_epi16(cb, bcb_coefficient);
+		rc = _mm_mulhi_epi16(cr, rcr_coefficient);
+		gc = _mm_adds_epi16(_mm_mulhi_epi16(cr, gcr_coefficient), _mm_mulhi_epi16(cb, gcb_coefficient));
+		bc = _mm_mulhi_epi16(cb, bcb_coefficient);
 
-		for (int m = 0; m < 2; ++m) {
-			__m128i y = _mm_load_si128(reinterpret_cast<__m128i*>(&decoder.mb8.Y[n * 2 + m][0]));
+		for (m = 0; m < 2; ++m) {
+			__m128i y = _mm_load_si128((const __m128i *)(&mb8_in->Y[n * 2 + m][0]));
+			/* Y << 8 for pixels 0, 2, 4, 6, 8, 10, 12, 14, then for
+			 * pixels 1, 3, 5, 7, 9, 11, 13, 15 */
+			__m128i y_even, y_odd;
+			__m128i r_even, r_odd, g_even, g_odd, b_even, b_odd;
+			__m128i r, g, b;
+			__m128i rg_l, ba_l, rgba_ll, rgba_lh;
+			__m128i rg_h, ba_h, rgba_hl, rgba_hh;
+
 			y = _mm_subs_epu8(y, y_bias);
-			// Y << 8 for pixels 0, 2, 4, 6, 8, 10, 12, 14
-			__m128i y_even = _mm_slli_epi16(y, 8);
-			// Y << 8 for pixels 1, 3, 5, 7 ,9, 11, 13, 15
-			__m128i y_odd = _mm_and_si128(y, y_mask);
+			y_even = _mm_slli_epi16(y, 8);
+			y_odd = _mm_and_si128(y, y_mask);
 
 			y_even = _mm_mulhi_epu16(y_even, y_coefficient);
 			y_odd  = _mm_mulhi_epu16(y_odd,  y_coefficient);
 
-			__m128i r_even = _mm_adds_epi16(rc, y_even);
-			__m128i r_odd  = _mm_adds_epi16(rc, y_odd);
-			__m128i g_even = _mm_adds_epi16(gc, y_even);
-			__m128i g_odd  = _mm_adds_epi16(gc, y_odd);
-			__m128i b_even = _mm_adds_epi16(bc, y_even);
-			__m128i b_odd  = _mm_adds_epi16(bc, y_odd);
+			r_even = _mm_adds_epi16(rc, y_even);
+			r_odd  = _mm_adds_epi16(rc, y_odd);
+			g_even = _mm_adds_epi16(gc, y_even);
+			g_odd  = _mm_adds_epi16(gc, y_odd);
+			b_even = _mm_adds_epi16(bc, y_even);
+			b_odd  = _mm_adds_epi16(bc, y_odd);
 
-			// round
+			/* round */
 			r_even = _mm_srai_epi16(_mm_add_epi16(r_even, round_1bit), 1);
 			r_odd  = _mm_srai_epi16(_mm_add_epi16(r_odd,  round_1bit), 1);
 			g_even = _mm_srai_epi16(_mm_add_epi16(g_even, round_1bit), 1);
@@ -106,55 +115,54 @@ void yuv2rgb(void)
 			b_even = _mm_srai_epi16(_mm_add_epi16(b_even, round_1bit), 1);
 			b_odd  = _mm_srai_epi16(_mm_add_epi16(b_odd,  round_1bit), 1);
 
-			// combine even and odd bytes in original order
-			__m128i r = _mm_packus_epi16(r_even, r_odd);
-			__m128i g = _mm_packus_epi16(g_even, g_odd);
-			__m128i b = _mm_packus_epi16(b_even, b_odd);
+			/* combine even and odd bytes in original order */
+			r = _mm_packus_epi16(r_even, r_odd);
+			g = _mm_packus_epi16(g_even, g_odd);
+			b = _mm_packus_epi16(b_even, b_odd);
 
 			r = _mm_unpacklo_epi8(r, _mm_shuffle_epi32(r, _MM_SHUFFLE(3, 2, 3, 2)));
 			g = _mm_unpacklo_epi8(g, _mm_shuffle_epi32(g, _MM_SHUFFLE(3, 2, 3, 2)));
 			b = _mm_unpacklo_epi8(b, _mm_shuffle_epi32(b, _MM_SHUFFLE(3, 2, 3, 2)));
 
-			// Create RGBA (we could generate A here, but we don't) quads
-			__m128i rg_l = _mm_unpacklo_epi8(r, g);
-			__m128i ba_l = _mm_unpacklo_epi8(b, alpha);
-			__m128i rgba_ll = _mm_unpacklo_epi16(rg_l, ba_l);
-			__m128i rgba_lh = _mm_unpackhi_epi16(rg_l, ba_l);
+			/* Create RGBA (we could generate A here, but we do not) quads */
+			rg_l = _mm_unpacklo_epi8(r, g);
+			ba_l = _mm_unpacklo_epi8(b, c_bias);
+			rgba_ll = _mm_unpacklo_epi16(rg_l, ba_l);
+			rgba_lh = _mm_unpackhi_epi16(rg_l, ba_l);
 
-			__m128i rg_h = _mm_unpackhi_epi8(r, g);
-			__m128i ba_h = _mm_unpackhi_epi8(b, alpha);
-			__m128i rgba_hl = _mm_unpacklo_epi16(rg_h, ba_h);
-			__m128i rgba_hh = _mm_unpackhi_epi16(rg_h, ba_h);
+			rg_h = _mm_unpackhi_epi8(r, g);
+			ba_h = _mm_unpackhi_epi8(b, c_bias);
+			rgba_hl = _mm_unpacklo_epi16(rg_h, ba_h);
+			rgba_hh = _mm_unpackhi_epi16(rg_h, ba_h);
 
-			_mm_store_si128(reinterpret_cast<__m128i*>(&decoder.rgb32.c[n * 2 + m][0]), rgba_ll);
-			_mm_store_si128(reinterpret_cast<__m128i*>(&decoder.rgb32.c[n * 2 + m][4]), rgba_lh);
-			_mm_store_si128(reinterpret_cast<__m128i*>(&decoder.rgb32.c[n * 2 + m][8]), rgba_hl);
-			_mm_store_si128(reinterpret_cast<__m128i*>(&decoder.rgb32.c[n * 2 + m][12]), rgba_hh);
+			_mm_store_si128((__m128i *)(&rgb32_out->c[n * 2 + m][0]), rgba_ll);
+			_mm_store_si128((__m128i *)(&rgb32_out->c[n * 2 + m][4]), rgba_lh);
+			_mm_store_si128((__m128i *)(&rgb32_out->c[n * 2 + m][8]), rgba_hl);
+			_mm_store_si128((__m128i *)(&rgb32_out->c[n * 2 + m][12]), rgba_hh);
 		}
 	}
 #elif (defined(_M_ARM64) || defined(__aarch64__)) /* ARM64 codepath */
-	const int8x16_t c_bias = vdupq_n_s8(s8(IPU_C_BIAS));
+	const int8x16_t c_bias = vdupq_n_s8((s8)(IPU_C_BIAS));
 	const uint8x16_t y_bias = vdupq_n_u8(IPU_Y_BIAS);
-	const int16x8_t y_mask = vdupq_n_s16(s16(0xFF00));
+	const int16x8_t y_mask = vdupq_n_s16((s16)(0xFF00));
 	// Specifying round off instead of round down as everywhere else
 	// implies that this is right
 	const int16x8_t round_1bit = vdupq_n_s16(0x0001);
 
-	const int16x8_t y_coefficient = vdupq_n_s16(s16(IPU_Y_COEFF << 2));
-	const int16x8_t gcr_coefficient = vdupq_n_s16(s16(u16(IPU_GCR_COEFF) << 2));
-	const int16x8_t gcb_coefficient = vdupq_n_s16(s16(u16(IPU_GCB_COEFF) << 2));
-	const int16x8_t rcr_coefficient = vdupq_n_s16(s16(IPU_RCR_COEFF << 2));
-	const int16x8_t bcb_coefficient = vdupq_n_s16(s16(IPU_BCB_COEFF << 2));
+	const int16x8_t y_coefficient = vdupq_n_s16((s16)(IPU_Y_COEFF << 2));
+	const int16x8_t gcr_coefficient = vdupq_n_s16((s16)((u16)(IPU_GCR_COEFF) << 2));
+	const int16x8_t gcb_coefficient = vdupq_n_s16((s16)((u16)(IPU_GCB_COEFF) << 2));
+	const int16x8_t rcr_coefficient = vdupq_n_s16((s16)(IPU_RCR_COEFF << 2));
+	const int16x8_t bcb_coefficient = vdupq_n_s16((s16)(IPU_BCB_COEFF << 2));
 
-	// Alpha set to 0x80 here. The threshold stuff is done later.
 	const uint8x16_t alpha = vreinterpretq_u8_s8(c_bias);
 
-	for (int n = 0; n < 8; ++n)
+	for (n = 0; n < 8; ++n)
 	{
 		// could skip the loadl_epi64 but most SSE instructions require 128-bit
 		// alignment so two versions would be needed.
-		int8x16_t cb = vcombine_s8(vld1_s8(reinterpret_cast<s8*>(&decoder.mb8.Cb[n][0])), vdup_n_s8(0));
-		int8x16_t cr = vcombine_s8(vld1_s8(reinterpret_cast<s8*>(&decoder.mb8.Cr[n][0])), vdup_n_s8(0));
+		int8x16_t cb = vcombine_s8(vld1_s8((const s8 *)(&mb8_in->Cb[n][0])), vdup_n_s8(0));
+		int8x16_t cr = vcombine_s8(vld1_s8((const s8 *)(&mb8_in->Cr[n][0])), vdup_n_s8(0));
 
 		// (Cb - 128) << 8, (Cr - 128) << 8
 		cb = veorq_s8(cb, c_bias);
@@ -166,9 +174,9 @@ void yuv2rgb(void)
 		int16x8_t gc = vqaddq_s16(MULHI16(vreinterpretq_s16_s8(cr), gcr_coefficient), MULHI16(vreinterpretq_s16_s8(cb), gcb_coefficient));
 		int16x8_t bc = MULHI16(vreinterpretq_s16_s8(cb), bcb_coefficient);
 
-		for (int m = 0; m < 2; ++m)
+		for (m = 0; m < 2; ++m)
 		{
-			uint8x16_t y = vld1q_u8(&decoder.mb8.Y[n * 2 + m][0]);
+			uint8x16_t y = vld1q_u8(&mb8_in->Y[n * 2 + m][0]);
 			y = vqsubq_u8(y, y_bias);
 			// Y << 8 for pixels 0, 2, 4, 6, 8, 10, 12, 14
 			int16x8_t y_even = vshlq_n_s16(vreinterpretq_s16_u8(y), 8);
@@ -197,7 +205,7 @@ void yuv2rgb(void)
 			int16x8_t b_even = vqaddq_s16(bc, y_even);
 			int16x8_t b_odd = vqaddq_s16(bc, y_odd);
 
-			// round
+			/* round */
 			r_even = vshrq_n_s16(vaddq_s16(r_even, round_1bit), 1);
 			r_odd = vshrq_n_s16(vaddq_s16(r_odd, round_1bit), 1);
 			g_even = vshrq_n_s16(vaddq_s16(g_even, round_1bit), 1);
@@ -205,7 +213,7 @@ void yuv2rgb(void)
 			b_even = vshrq_n_s16(vaddq_s16(b_even, round_1bit), 1);
 			b_odd = vshrq_n_s16(vaddq_s16(b_odd, round_1bit), 1);
 
-			// combine even and odd bytes in original order
+			/* combine even and odd bytes in original order */
 			uint8x16_t r = vcombine_u8(vqmovun_s16(r_even), vqmovun_s16(r_odd));
 			uint8x16_t g = vcombine_u8(vqmovun_s16(g_even), vqmovun_s16(g_odd));
 			uint8x16_t b = vcombine_u8(vqmovun_s16(b_even), vqmovun_s16(b_odd));
@@ -214,7 +222,7 @@ void yuv2rgb(void)
 			g = vzip1q_u8(g, vreinterpretq_u8_u64(vdupq_laneq_u64(vreinterpretq_u64_u8(g), 1)));
 			b = vzip1q_u8(b, vreinterpretq_u8_u64(vdupq_laneq_u64(vreinterpretq_u64_u8(b), 1)));
 
-			// Create RGBA (we could generate A here, but we don't) quads
+			/* Create RGBA (we could generate A here, but we do not) quads */
 			uint8x16_t rg_l = vzip1q_u8(r, g);
 			uint8x16_t ba_l = vzip1q_u8(b, alpha);
 			uint16x8_t rgba_ll = vzip1q_u16(vreinterpretq_u16_u8(rg_l), vreinterpretq_u16_u8(ba_l));
@@ -225,29 +233,30 @@ void yuv2rgb(void)
 			uint16x8_t rgba_hl = vzip1q_u16(vreinterpretq_u16_u8(rg_h), vreinterpretq_u16_u8(ba_h));
 			uint16x8_t rgba_hh = vzip2q_u16(vreinterpretq_u16_u8(rg_h), vreinterpretq_u16_u8(ba_h));
 
-			vst1q_u8(reinterpret_cast<u8*>(&decoder.rgb32.c[n * 2 + m][0]), vreinterpretq_u8_u16(rgba_ll));
-			vst1q_u8(reinterpret_cast<u8*>(&decoder.rgb32.c[n * 2 + m][4]), vreinterpretq_u8_u16(rgba_lh));
-			vst1q_u8(reinterpret_cast<u8*>(&decoder.rgb32.c[n * 2 + m][8]), vreinterpretq_u8_u16(rgba_hl));
-			vst1q_u8(reinterpret_cast<u8*>(&decoder.rgb32.c[n * 2 + m][12]), vreinterpretq_u8_u16(rgba_hh));
+			vst1q_u8((u8 *)(&rgb32_out->c[n * 2 + m][0]), vreinterpretq_u8_u16(rgba_ll));
+			vst1q_u8((u8 *)(&rgb32_out->c[n * 2 + m][4]), vreinterpretq_u8_u16(rgba_lh));
+			vst1q_u8((u8 *)(&rgb32_out->c[n * 2 + m][8]), vreinterpretq_u8_u16(rgba_hl));
+			vst1q_u8((u8 *)(&rgb32_out->c[n * 2 + m][12]), vreinterpretq_u8_u16(rgba_hh));
 		}
 	}
 #else /* Reference C implementation */
-	const macroblock_8& mb8 = decoder.mb8;
-	macroblock_rgb32& rgb32 = decoder.rgb32;
+	int y, x;
+	const macroblock_8 *mb8 = mb8_in;
+	macroblock_rgb32 *rgb32 = rgb32_out;
 
-	for (int y = 0; y < 16; y++)
-		for (int x = 0; x < 16; x++)
+	for (y = 0; y < 16; y++)
+		for (x = 0; x < 16; x++)
 		{
-			s32 lum = (IPU_Y_COEFF * (pcsx2_max_i(0, (s32)mb8.Y[y][x] - IPU_Y_BIAS))) >> 6;
-			s32 rcr = (IPU_RCR_COEFF * ((s32)mb8.Cr[y>>1][x>>1] - 128)) >> 6;
-			s32 gcr = (IPU_GCR_COEFF * ((s32)mb8.Cr[y>>1][x>>1] - 128)) >> 6;
-			s32 gcb = (IPU_GCB_COEFF * ((s32)mb8.Cb[y>>1][x>>1] - 128)) >> 6;
-			s32 bcb = (IPU_BCB_COEFF * ((s32)mb8.Cb[y>>1][x>>1] - 128)) >> 6;
+			s32 lum = (IPU_Y_COEFF * (pcsx2_max_i(0, (s32)mb8->Y[y][x] - IPU_Y_BIAS))) >> 6;
+			s32 rcr = (IPU_RCR_COEFF * ((s32)mb8->Cr[y>>1][x>>1] - 128)) >> 6;
+			s32 gcr = (IPU_GCR_COEFF * ((s32)mb8->Cr[y>>1][x>>1] - 128)) >> 6;
+			s32 gcb = (IPU_GCB_COEFF * ((s32)mb8->Cb[y>>1][x>>1] - 128)) >> 6;
+			s32 bcb = (IPU_BCB_COEFF * ((s32)mb8->Cb[y>>1][x>>1] - 128)) >> 6;
 
-			rgb32.c[y][x].r = pcsx2_max_i(0, pcsx2_min_i(255, (lum + rcr + 1) >> 1));
-			rgb32.c[y][x].g = pcsx2_max_i(0, pcsx2_min_i(255, (lum + gcr + gcb + 1) >> 1));
-			rgb32.c[y][x].b = pcsx2_max_i(0, pcsx2_min_i(255, (lum + bcb + 1) >> 1));
-			rgb32.c[y][x].a = 0x80; // the norm to save doing this on the alpha pass
+			rgb32->c[y][x].r = pcsx2_max_i(0, pcsx2_min_i(255, (lum + rcr + 1) >> 1));
+			rgb32->c[y][x].g = pcsx2_max_i(0, pcsx2_min_i(255, (lum + gcr + gcb + 1) >> 1));
+			rgb32->c[y][x].b = pcsx2_max_i(0, pcsx2_min_i(255, (lum + bcb + 1) >> 1));
+			rgb32->c[y][x].a = 0x80; // the norm to save doing this on the alpha pass
 		}
 #endif
 }

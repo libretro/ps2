@@ -225,7 +225,7 @@ int main(int argc, char **argv)
 		/* colour conversion: the kernel reads and writes the decoder */
 		fill_mb8(&decoder.mb8, k);
 		memset(&decoder.rgb32, 0xcd, sizeof(decoder.rgb32));
-		yuv2rgb();
+		yuv2rgb(&decoder.mb8, &decoder.rgb32);
 		model_yuv2rgb(&decoder.mb8, &ref_rgb);
 		cmp("yuv2rgb", &decoder.rgb32, &ref_rgb, sizeof(ref_rgb), k);
 		hash_bytes(&h_rgb, &decoder.rgb32, sizeof(decoder.rgb32));
@@ -235,14 +235,14 @@ int main(int argc, char **argv)
 
 		memset(&got16, 0xcd, sizeof(got16));
 		memset(&ref16, 0xab, sizeof(ref16));
-		ipu_dither(src, got16, 1);
+		ipu_dither(&src, &got16, 1);
 		model_dither(&src, &ref16, 1);
 		cmp("dither dte=1", &got16, &ref16, sizeof(ref16), k);
 		hash_bytes(&h_d1, &got16, sizeof(got16));
 
 		memset(&got16, 0xcd, sizeof(got16));
 		memset(&ref16, 0xab, sizeof(ref16));
-		ipu_dither(src, got16, 0);
+		ipu_dither(&src, &got16, 0);
 		model_dither(&src, &ref16, 0);
 		cmp("dither dte=0", &got16, &ref16, sizeof(ref16), k);
 		hash_bytes(&h_d0, &got16, sizeof(got16));

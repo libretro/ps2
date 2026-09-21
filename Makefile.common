@@ -324,14 +324,16 @@ SOURCES_CXX += \
 # pcsx2/Frontend
 SOURCES_CXX += \
 
-# pcsx2/IPU
+# pcsx2/IPU. The two leaf kernels build as C; the decoder stays C++.
+SOURCES_C += \
+	$(LRPS2_DIR)/IPU/IPUdither.c \
+	$(LRPS2_DIR)/IPU/yuv2rgb.c
+
 SOURCES_CXX += \
 	$(LRPS2_DIR)/IPU/IPU.cpp \
 	$(LRPS2_DIR)/IPU/IPU_Fifo.cpp \
 	$(LRPS2_DIR)/IPU/IPU_MultiISA.cpp \
-	$(LRPS2_DIR)/IPU/IPUdither.cpp \
-	$(LRPS2_DIR)/IPU/IPUdma.cpp \
-	$(LRPS2_DIR)/IPU/yuv2rgb.cpp
+	$(LRPS2_DIR)/IPU/IPUdma.cpp
 
 # pcsx2/PAD
 SOURCES_CXX += $(LRPS2_DIR)/PAD/PAD.cpp
