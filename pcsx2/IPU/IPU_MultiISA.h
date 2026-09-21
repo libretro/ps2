@@ -148,6 +148,17 @@ struct decoder_t {
 	}
 };
 
+/* yuv2rgb and ipu_dither reach mb8.Y, rgb32 and rgb16 with aligned
+ * 16-byte loads and stores. The macroblock types themselves promise no
+ * alignment -- giving them one would grow decoder_t past the size the
+ * savestate writes -- so the guarantee comes from decoder being aligned
+ * and these three sitting at multiples of 16 inside it. Add a field
+ * ahead of one of them and this stops the build rather than faulting in
+ * the middle of an FMV. */
+static_assert(offsetof(decoder_t, mb8)   % 16 == 0, "mb8 must stay 16-byte aligned within decoder_t");
+static_assert(offsetof(decoder_t, rgb32) % 16 == 0, "rgb32 must stay 16-byte aligned within decoder_t");
+static_assert(offsetof(decoder_t, rgb16) % 16 == 0, "rgb16 must stay 16-byte aligned within decoder_t");
+
 alignas(16) extern decoder_t decoder;
 alignas(16) extern tIPU_BP g_BP;
 
