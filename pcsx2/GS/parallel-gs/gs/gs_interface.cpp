@@ -2612,9 +2612,9 @@ void GSInterface::drawing_kick_append()
 		// This helps avoid a lot of false positives when doing feedback rendering with two triangles which form a quad.
 		// Also speeds up raster / binning since we only have to consider one primitive.
 
-		ivec3 order;
+		PrimOrder order;
 		is_parallelogram_candidate = triangle_is_parallelogram_candidate(
-				pos, attr, pre_snap_lo, pre_snap_hi, prim.desc, order);
+				pos, attr, &pre_snap_lo.x, &pre_snap_hi.x, prim.desc, order);
 
 		// If no state changed, try to match the parallelogram.
 		if (state_tracker.dirty_flags == 0 && is_parallelogram_candidate &&

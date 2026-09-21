@@ -23,14 +23,21 @@ PageRect compute_page_rect(uint32_t base_256, uint32_t x, uint32_t y,
 
 uint32_t psm_word_write_mask(uint32_t psm);
 
+/* Which of a triangle's three vertices is the provoking corner, and which
+ * two span the diagonal. Three plain indices, no arithmetic. */
+struct PrimOrder
+{
+	int32_t x, y, z;
+};
+
 bool triangle_is_parallelogram_candidate(const VertexPosition *pos, const VertexAttribute *attr,
-                                         const muglm::ivec2 &lo, const muglm::ivec2 &hi, const PRIMBits &prim,
-                                         muglm::ivec3 &parallelogram_order);
+                                         const int32_t *lo, const int32_t *hi, const PRIMBits &prim,
+                                         PrimOrder &parallelogram_order);
 
 bool triangles_form_parallelogram(const VertexPosition *pos, const VertexAttribute *attr,
-                                  const muglm::ivec3 &order,
+                                  const PrimOrder &order,
                                   const VertexPosition *last_pos, const VertexAttribute *last_attr,
-                                  const muglm::ivec3 &last_order, const PRIMBits &prim);
+                                  const PrimOrder &last_order, const PRIMBits &prim);
 
 void compute_has_potential_feedback(const TEX0Bits &tex0, const CLAMPBits &clamp,
                                     const FRAMEBits &frame, const ZBUFBits &z,

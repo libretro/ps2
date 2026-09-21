@@ -8,6 +8,7 @@
 #include "shaders/data_structures.h"
 #include "shaders/swizzle_utils.h"
 #include "pgs_vertex_kernels.h"
+#include <cmath>
 
 namespace ParallelGS
 {
@@ -230,14 +231,10 @@ PageRect compute_page_rect(uint32_t base_256, uint32_t x, uint32_t y,
 	return rect;
 }
 
-using muglm::vec2;
-using muglm::ivec2;
-using muglm::ivec3;
-using muglm::u16vec2;
 
 bool triangle_is_parallelogram_candidate(const VertexPosition *pos, const VertexAttribute *attr,
-                                         const ivec2 &lo, const ivec2 &hi, const PRIMBits &prim,
-                                         ivec3 &out_parallelogram_order)
+                                         const int32_t *lo, const int32_t *hi, const PRIMBits &prim,
+                                         PrimOrder &out_parallelogram_order)
 {
 	if (prim.enables_aa1())
 		return false;
@@ -260,42 +257,45 @@ bool triangle_is_parallelogram_candidate(const VertexPosition *pos, const Vertex
 	if (attr[0].rgba != attr[1].rgba || attr[1].rgba != attr[2].rgba)
 		return false;
 
-	ivec2 ab = pos[1].pos - pos[0].pos;
-	ivec2 ac = pos[2].pos - pos[0].pos;
-	ivec2 bc = pos[2].pos - pos[1].pos;
-	int area = std::abs(ab.x * ac.y - ab.y * ac.x);
+	int32_t ab_x = pos[1].pos.x - pos[0].pos.x;
+	int32_t ab_y = pos[1].pos.y - pos[0].pos.y;
+	int32_t ac_x = pos[2].pos.x - pos[0].pos.x;
+	int32_t ac_y = pos[2].pos.y - pos[0].pos.y;
+	int32_t bc_x = pos[2].pos.x - pos[1].pos.x;
+	int32_t bc_y = pos[2].pos.y - pos[1].pos.y;
+	int area = std::abs(ab_x * ac_y - ab_y * ac_x);
 	// Only a 90-degree triangle will have an area that matches the BB area.
-	if (area != (hi.x - lo.x) * (hi.y - lo.y))
+	if (area != (hi[0] - lo[0]) * (hi[1] - lo[1]))
 		return false;
 
-	ivec3 parallelogram_order;
+	PrimOrder parallelogram_order;
 
-	if (ab.x != 0 && ab.y != 0)
+	if (ab_x != 0 && ab_y != 0)
 	{
 		// AB is the diagonal, C is provoking.
-		parallelogram_order = ivec3(2, 1, 0);
+		parallelogram_order.x = 2; parallelogram_order.y = 1; parallelogram_order.z = 0;
 
 		// Verify that the provoking corner is 90 degrees.
 		// The area check alone doesn't guarantee that.
-		int cos_angle = ac.x * bc.x + ac.y * bc.y;
+		int cos_angle = ac_x * bc_x + ac_y * bc_y;
 		if (cos_angle != 0)
 			return false;
 	}
-	else if (ac.x != 0 && ac.y != 0)
+	else if (ac_x != 0 && ac_y != 0)
 	{
 		// AC is the diagonal, B is provoking.
-		parallelogram_order = ivec3(1, 2, 0);
+		parallelogram_order.x = 1; parallelogram_order.y = 2; parallelogram_order.z = 0;
 
-		int cos_angle = ac.x * ab.x + ac.y * ab.y;
+		int cos_angle = ac_x * ab_x + ac_y * ab_y;
 		if (cos_angle != 0)
 			return false;
 	}
 	else
 	{
 		// We're not on the diagonal. A is provoking.
-		parallelogram_order = ivec3(0, 1, 2);
+		parallelogram_order.x = 0; parallelogram_order.y = 1; parallelogram_order.z = 2;
 
-		int cos_angle = ac.x * ab.x + ac.y * ab.y;
+		int cos_angle = ac_x * ab_x + ac_y * ab_y;
 		if (cos_angle != 0)
 			return false;
 	}
@@ -309,21 +309,23 @@ bool triangle_is_parallelogram_candidate(const VertexPosition *pos, const Vertex
 }
 
 bool triangles_form_parallelogram(const VertexPosition *pos, const VertexAttribute *attr,
-                                  const ivec3 &order,
+                                  const PrimOrder &order,
                                   const VertexPosition *last_pos, const VertexAttribute *last_attr,
-                                  const ivec3 &last_order,
+                                  const PrimOrder &last_order,
                                   const PRIMBits &prim)
 {
 	auto &pos0 = pos[order.x];
 	auto &pos1 = pos[order.y];
 	auto &pos2 = pos[order.z];
-	auto pos3 = pos1.pos + pos2.pos - pos0.pos;
+	VertexPosition pos3;
+	pos3.pos.x = pos1.pos.x + pos2.pos.x - pos0.pos.x;
+	pos3.pos.y = pos1.pos.y + pos2.pos.y - pos0.pos.y;
 
 	auto &last_pos0 = last_pos[last_order.x];
 	auto &last_pos1 = last_pos[last_order.y];
 	auto &last_pos2 = last_pos[last_order.z];
 
-	if (!pgs_ivec2_eq(&pos3, &last_pos0.pos) ||
+	if (!pgs_ivec2_eq(&pos3.pos, &last_pos0.pos) ||
 	    !pgs_ivec2_eq(&pos1.pos, &last_pos1.pos) ||
 	    !pgs_ivec2_eq(&pos2.pos, &last_pos2.pos))
 	{
@@ -351,8 +353,10 @@ bool triangles_form_parallelogram(const VertexPosition *pos, const VertexAttribu
 	{
 		if (prim.FST)
 		{
-			u16vec2 uv3 = attr1.uv + attr2.uv - attr0.uv;
-			if (!pgs_u16vec2_eq(&uv3, &last_attr0.uv) ||
+			uint16_t uv3[2];
+			uv3[0] = (uint16_t)(attr1.uv.x + attr2.uv.x - attr0.uv.x);
+			uv3[1] = (uint16_t)(attr1.uv.y + attr2.uv.y - attr0.uv.y);
+			if (!pgs_u16vec2_eq(uv3, &last_attr0.uv) ||
 			    !pgs_u16vec2_eq(&attr1.uv, &last_attr1.uv) ||
 			    !pgs_u16vec2_eq(&attr2.uv, &last_attr2.uv))
 			{
@@ -363,11 +367,14 @@ bool triangles_form_parallelogram(const VertexPosition *pos, const VertexAttribu
 		{
 			// Accept some very minor error in the computation.
 			// If the error is less than a subtexel at 1k x 1k resolution, we're definitely close enough.
-			vec2 st3_error = muglm::abs((attr2.st + attr1.st - attr0.st - last_attr0.st) / attr0.q);
+			/* Kept as float compares: a NaN has to stay unequal to
+			 * itself, which a bit compare would not give. */
+			float st3_error_x = std::fabs((attr2.st.x + attr1.st.x - attr0.st.x - last_attr0.st.x) / attr0.q);
+			float st3_error_y = std::fabs((attr2.st.y + attr1.st.y - attr0.st.y - last_attr0.st.y) / attr0.q);
 
-			if (any(notEqual(attr1.st, last_attr1.st)) ||
-			    any(notEqual(attr2.st, last_attr2.st)) ||
-			    any(greaterThan(st3_error, vec2(1e-4f))))
+			if (attr1.st.x != last_attr1.st.x || attr1.st.y != last_attr1.st.y ||
+			    attr2.st.x != last_attr2.st.x || attr2.st.y != last_attr2.st.y ||
+			    st3_error_x > 1e-4f || st3_error_y > 1e-4f)
 			{
 				return false;
 			}

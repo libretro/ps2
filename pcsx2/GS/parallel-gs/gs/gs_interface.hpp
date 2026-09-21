@@ -11,6 +11,7 @@
 #include "device.hpp"
 #include "intrusive_hash_map.hpp"
 #include "dynamic_array.hpp"
+#include "gs_util.hpp"
 #include <stddef.h>
 #include <vector>
 #include <type_traits>
@@ -449,7 +450,7 @@ private:
 		bool has_optimized_short_term_texture_caching = false;
 		bool field_aware_rendering = false;
 
-		ivec3 last_triangle_parallelogram_order;
+		PrimOrder last_triangle_parallelogram_order;
 
 		uint32_t feedback_psm = 0;
 		uint32_t feedback_cpsm = 0;
