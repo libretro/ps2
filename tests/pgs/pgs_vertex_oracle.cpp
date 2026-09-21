@@ -37,6 +37,68 @@ static pgs_kick_regs gather()
 static uint64_t S = 0x243F6A8885A308D3ull;
 static uint64_t rnd(){ S^=S<<13; S^=S>>7; S^=S<<17; return S; }
 
+
+/* ---- pair kernels: the vector paths must equal the scalar contract ---- */
+static int pair_oracle(void)
+{
+	long n = 0, f = 0;
+	uint64_t S2 = 0x9E3779B97F4A7C15ull;
+	int k;
+	for (k = 0; k < 4000000; k++)
+	{
+		int32_t a[2], b[2], c[2], lo[2], hi[2], rlo[2], rhi[2], sl[2], sh[2];
+		int use2;
+		S2 ^= S2 << 13; S2 ^= S2 >> 7; S2 ^= S2 << 17;
+		a[0] = (int32_t)S2; a[1] = (int32_t)(S2 >> 32);
+		S2 ^= S2 << 13; S2 ^= S2 >> 7; S2 ^= S2 << 17;
+		b[0] = (int32_t)S2; b[1] = (int32_t)(S2 >> 32);
+		S2 ^= S2 << 13; S2 ^= S2 >> 7; S2 ^= S2 << 17;
+		c[0] = (int32_t)S2; c[1] = (int32_t)(S2 >> 32);
+		S2 ^= S2 << 13; S2 ^= S2 >> 7; S2 ^= S2 << 17;
+		sl[0] = (int32_t)S2; sl[1] = (int32_t)(S2 >> 32);
+		S2 ^= S2 << 13; S2 ^= S2 >> 7; S2 ^= S2 << 17;
+		sh[0] = (int32_t)S2; sh[1] = (int32_t)(S2 >> 32);
+		if ((k & 15) == 0) { a[0] = INT32_MIN; b[1] = INT32_MAX; }
+		if ((k & 15) == 1) { c[0] = INT32_MAX; c[1] = INT32_MIN; }
+		use2 = k & 1;
+
+		pgs_pair_min_max3(a, b, c, use2, lo, hi);
+		/* scalar reference, written out */
+		rlo[0] = a[0] < b[0] ? a[0] : b[0]; rlo[1] = a[1] < b[1] ? a[1] : b[1];
+		rhi[0] = a[0] > b[0] ? a[0] : b[0]; rhi[1] = a[1] > b[1] ? a[1] : b[1];
+		if (use2) {
+			rlo[0] = rlo[0] < c[0] ? rlo[0] : c[0]; rlo[1] = rlo[1] < c[1] ? rlo[1] : c[1];
+			rhi[0] = rhi[0] > c[0] ? rhi[0] : c[0]; rhi[1] = rhi[1] > c[1] ? rhi[1] : c[1];
+		}
+		n++;
+		if (memcmp(lo, rlo, 8) || memcmp(hi, rhi, 8)) f++;
+
+		pgs_pair_clamp(sl, sh, lo, hi);
+		rlo[0] = rlo[0] > sl[0] ? rlo[0] : sl[0]; rlo[1] = rlo[1] > sl[1] ? rlo[1] : sl[1];
+		rhi[0] = rhi[0] < sh[0] ? rhi[0] : sh[0]; rhi[1] = rhi[1] < sh[1] ? rhi[1] : sh[1];
+		if (memcmp(lo, rlo, 8) || memcmp(hi, rhi, 8)) f++;
+
+		/* equality helpers against the muglm form they replace */
+		{
+			muglm::ivec2 ma(a[0], a[1]), mb(b[0], b[1]);
+			int ref = !(any(notEqual(ma, mb)));
+			if (pgs_ivec2_eq(a, b) != ref) f++;
+			if (pgs_ivec2_eq(a, a) != 1) f++;
+		}
+		{
+			uint16_t u0[2], u1[2];
+			u0[0] = (uint16_t)a[0]; u0[1] = (uint16_t)a[1];
+			u1[0] = (uint16_t)b[0]; u1[1] = (uint16_t)b[1];
+			muglm::u16vec2 mu0(u0[0], u0[1]), mu1(u1[0], u1[1]);
+			int ref = !(any(notEqual(mu0, mu1)));
+			if (pgs_u16vec2_eq(u0, u1) != ref) f++;
+			if (pgs_u16vec2_eq(u0, u0) != 1) f++;
+		}
+	}
+	printf("%s: pair kernels, %ld cases, %ld mismatches\n", f ? "FAIL" : "PASS", n, f);
+	return f != 0;
+}
+
 int main()
 {
 	long n = 0, f_pos = 0, f_attr = 0, f_pad = 0;
@@ -98,6 +160,7 @@ int main()
 			}
 		}
 	}
+	if (pair_oracle()) f_attr++;
 	printf("%s: %ld cases  pos_mismatch=%ld attr_mismatch=%ld pad_nonzero=%ld\n",
 	       (f_pos||f_attr||f_pad) ? "FAIL" : "PASS", n, f_pos, f_attr, f_pad);
 	return (f_pos||f_attr||f_pad) != 0;

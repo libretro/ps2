@@ -2538,17 +2538,12 @@ void GSInterface::drawing_kick_append()
 		}
 	}
 
-	ivec2 lo_pos = muglm::min(pos[0].pos, pos[1].pos);
-	ivec2 hi_pos = muglm::max(pos[0].pos, pos[1].pos);
-
 	// Take into account line expansion just to be safe.
 	constexpr bool is_line = !quad && num_vertices == 2;
 
-	if (!quad && !is_line)
-	{
-		lo_pos = muglm::min(pos[2].pos, lo_pos);
-		hi_pos = muglm::max(pos[2].pos, hi_pos);
-	}
+	ivec2 lo_pos, hi_pos;
+	pgs_pair_min_max3(&pos[0].pos, &pos[1].pos, &pos[2].pos,
+	                  (!quad && !is_line) ? 1 : 0, &lo_pos, &hi_pos);
 
 	auto pre_snap_lo = lo_pos;
 	auto pre_snap_hi = hi_pos;
@@ -2584,8 +2579,7 @@ void GSInterface::drawing_kick_append()
 		render_pass.can_fb_wraparound = ctx.frame.desc.FBW != 0 && render_pass.scissor_hi_x_fb < render_pass.scissor_hi.x;
 	}
 
-	lo_pos = muglm::max(lo_pos, render_pass.scissor_lo);
-	hi_pos = muglm::min(hi_pos, render_pass.scissor_hi);
+	pgs_pair_clamp(&render_pass.scissor_lo, &render_pass.scissor_hi, &lo_pos, &hi_pos);
 	ivec4 bb = ivec4(lo_pos, hi_pos);
 
 	// Check for degenerate BB. Can happen if primitive is clipped away completely by scissor.

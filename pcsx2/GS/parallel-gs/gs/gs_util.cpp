@@ -7,6 +7,7 @@
 #include "gs_renderer.hpp"
 #include "shaders/data_structures.h"
 #include "shaders/swizzle_utils.h"
+#include "pgs_vertex_kernels.h"
 
 namespace ParallelGS
 {
@@ -322,9 +323,9 @@ bool triangles_form_parallelogram(const VertexPosition *pos, const VertexAttribu
 	auto &last_pos1 = last_pos[last_order.y];
 	auto &last_pos2 = last_pos[last_order.z];
 
-	if (any(notEqual(pos3, last_pos0.pos)) ||
-	    any(notEqual(pos1.pos, last_pos1.pos)) ||
-	    any(notEqual(pos2.pos, last_pos2.pos)))
+	if (!pgs_ivec2_eq(&pos3, &last_pos0.pos) ||
+	    !pgs_ivec2_eq(&pos1.pos, &last_pos1.pos) ||
+	    !pgs_ivec2_eq(&pos2.pos, &last_pos2.pos))
 	{
 		return false;
 	}
@@ -351,9 +352,9 @@ bool triangles_form_parallelogram(const VertexPosition *pos, const VertexAttribu
 		if (prim.FST)
 		{
 			u16vec2 uv3 = attr1.uv + attr2.uv - attr0.uv;
-			if (any(notEqual(uv3, last_attr0.uv)) ||
-			    any(notEqual(attr1.uv, last_attr1.uv)) ||
-			    any(notEqual(attr2.uv, last_attr2.uv)))
+			if (!pgs_u16vec2_eq(&uv3, &last_attr0.uv) ||
+			    !pgs_u16vec2_eq(&attr1.uv, &last_attr1.uv) ||
+			    !pgs_u16vec2_eq(&attr2.uv, &last_attr2.uv))
 			{
 				return false;
 			}

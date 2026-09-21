@@ -109,4 +109,160 @@ static PGS_KICK_INLINE void pgs_build_attribute(
    memcpy(p + PGS_ATTR_FOG_OFFSET, &tail, 8);
 }
 
+
+/* ------------------------------------------------------------------
+ * Integer pair helpers.
+ *
+ * A screen position is two adjacent int32 and a UV pair is two adjacent
+ * uint16, so a pair compares in one machine compare and a min/max over
+ * three positions is three packed operations rather than twelve scalar
+ * ones. The vector form is used where the host has it; the scalar body
+ * below is the contract, and the two are pinned against each other by
+ * the oracle.
+ * ------------------------------------------------------------------ */
+
+#if defined(__SSE4_1__) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2) || defined(_M_X64) || defined(_M_AMD64)
+#include <smmintrin.h>
+#define PGS_PAIR_SSE4 1
+#elif defined(__aarch64__) || defined(_M_ARM64)
+#include <arm_neon.h>
+#define PGS_PAIR_NEON 1
+#endif
+
+/* Equality of an int32 pair: one 64-bit compare. */
+static PGS_KICK_INLINE int pgs_ivec2_eq(const void *a, const void *b)
+{
+   uint64_t x;
+   uint64_t y;
+
+   memcpy(&x, a, 8);
+   memcpy(&y, b, 8);
+
+   return x == y;
+}
+
+/* Equality of a uint16 pair: one 32-bit compare. */
+static PGS_KICK_INLINE int pgs_u16vec2_eq(const void *a, const void *b)
+{
+   uint32_t x;
+   uint32_t y;
+
+   memcpy(&x, a, 4);
+   memcpy(&y, b, 4);
+
+   return x == y;
+}
+
+/* Component-wise min and max over two or three int32 pairs.
+ *
+ * p2 is folded in only when use_p2 is set, which is how the caller
+ * distinguishes a triangle from a sprite or a line. lo and hi each
+ * receive one pair. */
+static PGS_KICK_INLINE void pgs_pair_min_max3(
+      const void *p0, const void *p1, const void *p2, int use_p2,
+      void *lo, void *hi)
+{
+#if defined(PGS_PAIR_SSE4)
+   __m128i a;
+   __m128i b;
+   __m128i c;
+   __m128i l;
+   __m128i h;
+
+   a = _mm_loadl_epi64((const __m128i *)p0);
+   b = _mm_loadl_epi64((const __m128i *)p1);
+   l = _mm_min_epi32(a, b);
+   h = _mm_max_epi32(a, b);
+
+   if (use_p2)
+   {
+      c = _mm_loadl_epi64((const __m128i *)p2);
+      l = _mm_min_epi32(l, c);
+      h = _mm_max_epi32(h, c);
+   }
+
+   _mm_storel_epi64((__m128i *)lo, l);
+   _mm_storel_epi64((__m128i *)hi, h);
+#elif defined(PGS_PAIR_NEON)
+   int32x2_t a;
+   int32x2_t b;
+   int32x2_t c;
+   int32x2_t l;
+   int32x2_t h;
+
+   a = vld1_s32((const int32_t *)p0);
+   b = vld1_s32((const int32_t *)p1);
+   l = vmin_s32(a, b);
+   h = vmax_s32(a, b);
+
+   if (use_p2)
+   {
+      c = vld1_s32((const int32_t *)p2);
+      l = vmin_s32(l, c);
+      h = vmax_s32(h, c);
+   }
+
+   vst1_s32((int32_t *)lo, l);
+   vst1_s32((int32_t *)hi, h);
+#else
+   int32_t a[2];
+   int32_t b[2];
+   int32_t c[2];
+   int32_t l[2];
+   int32_t h[2];
+
+   memcpy(a, p0, 8);
+   memcpy(b, p1, 8);
+
+   l[0] = a[0] < b[0] ? a[0] : b[0];
+   l[1] = a[1] < b[1] ? a[1] : b[1];
+   h[0] = a[0] > b[0] ? a[0] : b[0];
+   h[1] = a[1] > b[1] ? a[1] : b[1];
+
+   if (use_p2)
+   {
+      memcpy(c, p2, 8);
+      l[0] = l[0] < c[0] ? l[0] : c[0];
+      l[1] = l[1] < c[1] ? l[1] : c[1];
+      h[0] = h[0] > c[0] ? h[0] : c[0];
+      h[1] = h[1] > c[1] ? h[1] : c[1];
+   }
+
+   memcpy(lo, l, 8);
+   memcpy(hi, h, 8);
+#endif
+}
+
+/* Clamp an int32 pair into [lo_bound, hi_bound], component-wise. */
+static PGS_KICK_INLINE void pgs_pair_clamp(
+      const void *lo_bound, const void *hi_bound, void *lo, void *hi)
+{
+#if defined(PGS_PAIR_SSE4)
+   __m128i l;
+   __m128i h;
+
+   l = _mm_max_epi32(_mm_loadl_epi64((const __m128i *)lo),
+                     _mm_loadl_epi64((const __m128i *)lo_bound));
+   h = _mm_min_epi32(_mm_loadl_epi64((const __m128i *)hi),
+                     _mm_loadl_epi64((const __m128i *)hi_bound));
+   _mm_storel_epi64((__m128i *)lo, l);
+   _mm_storel_epi64((__m128i *)hi, h);
+#else
+   int32_t l[2];
+   int32_t h[2];
+   int32_t lb[2];
+   int32_t hb[2];
+
+   memcpy(l, lo, 8); memcpy(h, hi, 8);
+   memcpy(lb, lo_bound, 8); memcpy(hb, hi_bound, 8);
+
+   l[0] = l[0] > lb[0] ? l[0] : lb[0];
+   l[1] = l[1] > lb[1] ? l[1] : lb[1];
+   h[0] = h[0] < hb[0] ? h[0] : hb[0];
+   h[1] = h[1] < hb[1] ? h[1] : hb[1];
+
+   memcpy(lo, l, 8); memcpy(hi, h, 8);
+#endif
+}
+
 #endif
