@@ -20,6 +20,10 @@
 #include "../HW/GSVertexHW.h"
 #include "../SW/GSVertexSW.h"
 
+extern "C" {
+#include "gs_vertex.h"
+}
+
 struct alignas(32) GSVertex
 {
 	union
@@ -55,37 +59,53 @@ struct alignas(32) GSVertexPT1
 // Vertex field accessors (ported from upstream refactor 26bd916e3,
 // "GS: Add utility functions for vertices/quads"). Used by the texture-shuffle
 // detection refactor. m[0] holds ST/RGBAQ, m[1] holds XYZ/UV/FOG.
+/* The accessors below read a GSVertex through gs_vertex. Both describe the
+ * same 32 bytes, so pin that here rather than leaving it to the test: a
+ * field that moves in one and not the other is wrong geometry, not a
+ * compile error, and every renderer in the tree reads this record. */
+static_assert(sizeof(GSVertex) == sizeof(union gs_vertex), "gs_vertex size");
+static_assert(alignof(GSVertex) == alignof(union gs_vertex), "gs_vertex align");
+static_assert(offsetof(GSVertex, ST)    == offsetof(struct gs_vertex_fields, ST),    "ST");
+static_assert(offsetof(GSVertex, RGBAQ) == offsetof(struct gs_vertex_fields, RGBAQ), "RGBAQ");
+static_assert(offsetof(GSVertex, XYZ)   == offsetof(struct gs_vertex_fields, XYZ),   "XYZ");
+static_assert(offsetof(GSVertex, UV)    == offsetof(struct gs_vertex_fields, U),     "UV");
+static_assert(offsetof(GSVertex, FOG)   == offsetof(struct gs_vertex_fields, FOG),   "FOG");
+
+#define GSV(v) ((const union gs_vertex*)&(v))
+
 __forceinline_odr GSVector4i GetVertexXY(const GSVertex& v)
 {
-	return GSVector4i(v.m[1]).upl16().xyxy();
+	return GSVector4i(gs_vertex_xy(GSV(v)));
 }
 
 __forceinline_odr GSVector4i GetVertexZ(const GSVertex& v)
 {
-	return GSVector4i(v.m[1]).yyyy();
+	return GSVector4i(gs_vertex_z(GSV(v)));
 }
 
 __forceinline_odr GSVector4i GetVertexUV(const GSVertex& v)
 {
-	return GSVector4i(v.m[1]).uph16().xyxy();
+	return GSVector4i(gs_vertex_uv(GSV(v)));
 }
 
 __forceinline_odr GSVector4 GetVertexST(const GSVertex& v)
 {
-	return GSVector4::cast(GSVector4i(v.m[0])).xyxy();
+	return GSVector4(gs_vertex_st(GSV(v)));
 }
 
 __forceinline_odr GSVector4i GetVertexRGBA(const GSVertex& v)
 {
-	return GSVector4i(v.m[0]).uph8().upl16();
+	return GSVector4i(gs_vertex_rgba(GSV(v)));
 }
 
 __forceinline_odr GSVector4 GetVertexQ(const GSVertex& v)
 {
-	return GSVector4::cast(GSVector4i(v.m[0])).wwww();
+	return GSVector4(gs_vertex_q(GSV(v)));
 }
 
 __forceinline_odr GSVector4i GetVertexFOG(const GSVertex& v)
 {
-	return GSVector4i(v.m[1]).wwww();
+	return GSVector4i(gs_vertex_fog(GSV(v)));
 }
+
+#undef GSV

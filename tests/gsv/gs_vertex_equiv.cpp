@@ -1,0 +1,260 @@
+/* gs_vertex against GSVertex: layout, every accessor, every batch backend,
+ * then the numbers.
+ *
+ * The record is the one the whole GS agrees on, so layout is checked first
+ * and hardest -- a field moving here is not a compile error anywhere, it is
+ * wrong geometry.
+ */
+/* GSVertex has both an x86 and an arm64 backend (GSVector4i_arm64.h), so
+ * every lane here runs on both, and the NEON bodies are checked against
+ * GSVertex's own NEON accessors rather than only against scalar. */
+#define HAVE_GSVERTEX 1
+#include "GS/Renderers/Common/GSVertex.h"
+
+/* The reference the accessors are checked against.
+ *
+ * These are the GSVector forms GSVertex used before it delegated to
+ * gs_vertex, kept here deliberately: once the header delegates, comparing
+ * against GetVertex*() would compare gs_vertex with itself and prove
+ * nothing. Written against GSVector4i/GSVector4, so on arm64 they are that
+ * class's NEON backend and this stays a real two-implementation check. */
+static __forceinline_odr GSVector4i RefXY(const GSVertex& v)
+{ return GSVector4i(v.m[1]).upl16().xyxy(); }
+static __forceinline_odr GSVector4i RefZ(const GSVertex& v)
+{ return GSVector4i(v.m[1]).yyyy(); }
+static __forceinline_odr GSVector4i RefUV(const GSVertex& v)
+{ return GSVector4i(v.m[1]).uph16().xyxy(); }
+static __forceinline_odr GSVector4 RefST(const GSVertex& v)
+{ return GSVector4::cast(GSVector4i(v.m[0])).xyxy(); }
+static __forceinline_odr GSVector4i RefRGBA(const GSVertex& v)
+{ return GSVector4i(v.m[0]).uph8().upl16(); }
+static __forceinline_odr GSVector4 RefQ(const GSVertex& v)
+{ return GSVector4::cast(GSVector4i(v.m[0])).wwww(); }
+static __forceinline_odr GSVector4i RefFOG(const GSVertex& v)
+{ return GSVector4i(v.m[1]).wwww(); }
+extern "C" {
+#include "gs_vertex.h"
+}
+#include <cstdio>
+#include <cstring>
+#include <cstddef>
+#include <cstdlib>
+#include <vector>
+#include <ctime>
+#include <algorithm>
+
+/* ---------------- layout ---------------- */
+static int layout(void)
+{
+	int f = 0;
+#define PIN(cond, what) do { if (!(cond)) { printf("  LAYOUT %s\n", what); f++; } } while (0)
+	PIN(sizeof(union gs_vertex) == 32, "size is not 32");
+	PIN(alignof(union gs_vertex) == 32, "alignment is not 32");
+#if defined(HAVE_GSVERTEX)
+	PIN(sizeof(union gs_vertex) == sizeof(GSVertex), "size differs from GSVertex");
+	PIN(offsetof(struct gs_vertex_fields, ST)    == offsetof(GSVertex, ST),    "ST offset");
+	PIN(offsetof(struct gs_vertex_fields, RGBAQ) == offsetof(GSVertex, RGBAQ), "RGBAQ offset");
+	PIN(offsetof(struct gs_vertex_fields, XYZ)   == offsetof(GSVertex, XYZ),   "XYZ offset");
+	PIN(offsetof(struct gs_vertex_fields, U)     == offsetof(GSVertex, UV),    "UV offset");
+	PIN(offsetof(struct gs_vertex_fields, FOG)   == offsetof(GSVertex, FOG),   "FOG offset");
+#endif
+	PIN(offsetof(struct gs_vertex_fields, ST) == 0 && offsetof(struct gs_vertex_fields, RGBAQ) == 8 &&
+	    offsetof(struct gs_vertex_fields, XYZ) == 16 && offsetof(struct gs_vertex_fields, U) == 24 &&
+	    offsetof(struct gs_vertex_fields, FOG) == 28, "absolute offsets moved");
+#undef PIN
+	printf("%s: layout, %d failures\n", f ? "FAIL" : "PASS", f);
+	return f;
+}
+
+/* ---------------- accessors ---------------- */
+static uint64_t X = 0x243F6A8885A308D3ull;
+static uint32_t rnd(){ X ^= X<<13; X ^= X>>7; X ^= X<<17; return (uint32_t)(X>>16); }
+
+#if !defined(HAVE_GSVERTEX)
+static int accessors(void) { printf("SKIP: accessors, GSVertex is x86-only\n"); return 0; }
+#else
+static int accessors(void)
+{
+	long n = 0, f = 0;
+	int k;
+	for (k = 0; k < 2000000; k++) {
+		GS_VERTEX_ALIGN32 uint8_t raw[32];
+		uint32_t *w = (uint32_t *)raw;
+		int j;
+		for (j = 0; j < 8; j++) w[j] = rnd();
+		/* seed the edges of every field */
+		if ((k & 15) == 0) memset(raw, 0x00, 32);
+		if ((k & 15) == 1) memset(raw, 0xff, 32);
+		if ((k & 15) == 2) { w[4] = 0xffff0000u; w[6] = 0x0000ffffu; }
+
+		const GSVertex *a = (const GSVertex *)raw;
+		const union gs_vertex *b = (const union gs_vertex *)raw;
+		GS_VERTEX_ALIGN32 uint8_t r1[16], r2[16];
+
+#define CMP(expr_a, expr_b, what) do { \
+		{ auto va_ = (expr_a); memcpy(r1, &va_, 16); } \
+		{ auto vb_ = (expr_b); memcpy(r2, &vb_, 16); } \
+		n++; \
+		if (memcmp(r1, r2, 16)) { \
+			if (f < 4) printf("  MISMATCH %s at %d\n", what, k); \
+			f++; } } while (0)
+
+		CMP(RefXY(*a),   gs_vertex_xy(b),   "XY");
+		CMP(RefZ(*a),    gs_vertex_z(b),    "Z");
+		CMP(RefUV(*a),   gs_vertex_uv(b),   "UV");
+		CMP(RefRGBA(*a), gs_vertex_rgba(b), "RGBA");
+		CMP(RefFOG(*a),  gs_vertex_fog(b),  "FOG");
+		CMP(RefST(*a),   gs_vertex_st(b),   "ST");
+		CMP(RefQ(*a),    gs_vertex_q(b),    "Q");
+#undef CMP
+	}
+	printf("%s: accessors, %ld comparisons, %ld mismatches\n", f ? "FAIL" : "PASS", n, f);
+	return f != 0;
+}
+#endif /* HAVE_GSVERTEX */
+
+/* ---------------- batch backends vs the scalar contract ---------------- */
+extern "C" {
+	void gs_ref_gather_xy(int32_t *d, const union gs_vertex *s, size_t n)
+	{ size_t i; for (i=0;i<n;i++){ d[2*i]=(int32_t)s[i].f.XYZ.X; d[2*i+1]=(int32_t)s[i].f.XYZ.Y; } }
+	void gs_ref_gather_uv(int32_t *d, const union gs_vertex *s, size_t n)
+	{ size_t i; for (i=0;i<n;i++){ d[2*i]=(int32_t)s[i].f.U; d[2*i+1]=(int32_t)s[i].f.V; } }
+	void gs_ref_minmax(int32_t *lo, int32_t *hi, const union gs_vertex *s, size_t n)
+	{ size_t i; lo[0]=lo[1]=0x7fffffff; hi[0]=hi[1]=-0x7fffffff-1;
+	  for (i=0;i<n;i++){ int32_t x=(int32_t)s[i].f.XYZ.X, y=(int32_t)s[i].f.XYZ.Y;
+	    if(x<lo[0])lo[0]=x; if(y<lo[1])lo[1]=y; if(x>hi[0])hi[0]=x; if(y>hi[1])hi[1]=y; } }
+}
+
+static int batch(void)
+{
+	long f = 0;
+	int len;
+	std::vector<union gs_vertex> src(600);
+	std::vector<int32_t> a(1400), b(1400);
+	union gs_vertex *ca = (union gs_vertex *)aligned_alloc(32, 600 * 32);
+	union gs_vertex *cb = (union gs_vertex *)aligned_alloc(32, 600 * 32);
+
+	for (int t = 0; t < 400; t++) {
+		for (auto &v : src) { for (int j = 0; j < 8; j++) v.w[j] = rnd(); }
+		/* every odd length too, so the scalar tail of each body is exercised */
+		for (len = 0; len <= 33; len++) {
+			gs_vertex_op->gather_xy(a.data(), src.data(), len);
+			gs_ref_gather_xy(b.data(), src.data(), len);
+			if (memcmp(a.data(), b.data(), len * 8)) f++;
+
+			gs_vertex_op->gather_uv(a.data(), src.data(), len);
+			gs_ref_gather_uv(b.data(), src.data(), len);
+			if (memcmp(a.data(), b.data(), len * 8)) f++;
+
+			if (len > 0) {
+				int32_t lo1[2], hi1[2], lo2[2], hi2[2];
+				gs_vertex_op->minmax_xy(lo1, hi1, src.data(), len);
+				gs_ref_minmax(lo2, hi2, src.data(), len);
+				if (memcmp(lo1, lo2, 8) || memcmp(hi1, hi2, 8)) f++;
+			}
+
+			memset(ca, 0xA5, 600 * 32); memset(cb, 0x5A, 600 * 32);
+			gs_vertex_op->copy(ca, src.data(), len);
+			memcpy(cb, src.data(), len * 32);
+			if (memcmp(ca, cb, len * 32)) f++;
+		}
+	}
+	free(ca); free(cb);
+	printf("%s: batch backend '%s', %ld failures\n", f ? "FAIL" : "PASS", gs_vertex_op->name, f);
+	return f != 0;
+}
+
+/* ---------------- numbers ---------------- */
+static std::vector<union gs_vertex> SRC, DST;
+static double now(){ struct timespec t; clock_gettime(CLOCK_MONOTONIC,&t); return t.tv_sec+1e-9*t.tv_nsec; }
+
+#if defined(HAVE_GSVERTEX)
+static uint64_t b_store_old(int n){
+	for (int i=0;i<n;i++){ GSVector4i *RESTRICT d=(GSVector4i*)&DST[i&4095]; const GSVertex&s=*(const GSVertex*)&SRC[i&4095];
+		d[0]=GSVector4i(s.m[0]); d[1]=GSVector4i(s.m[1]); } return n; }
+static uint64_t b_acc_old(int n){
+	GSVector4i a=GSVector4i::zero(); GSVector4 c=GSVector4::zero();
+	for(int i=0;i<n;i++){ const GSVertex&v=*(const GSVertex*)&SRC[i&4095];
+		a=a+RefXY(v)+RefZ(v)+RefUV(v)+RefRGBA(v)+RefFOG(v);
+		c=c+RefST(v)+RefQ(v);} return (uint64_t)(uint32_t)a.extract32<0>()^(uint64_t)(int)c.x; }
+/* Same accumulate on both sides -- only the accessor differs. */
+static uint64_t b_acc_new(int n){
+	GSVector4i a=GSVector4i::zero(); GSVector4 c=GSVector4::zero();
+	for(int i=0;i<n;i++){ const union gs_vertex*v=&SRC[i&4095];
+		a=a+GSVector4i(gs_vertex_xy(v))+GSVector4i(gs_vertex_z(v))+GSVector4i(gs_vertex_uv(v))
+		   +GSVector4i(gs_vertex_rgba(v))+GSVector4i(gs_vertex_fog(v));
+		c=c+GSVector4(gs_vertex_st(v))+GSVector4(gs_vertex_q(v));}
+	return (uint64_t)(uint32_t)a.extract32<0>()^(uint64_t)(int)c.x; }
+#endif /* HAVE_GSVERTEX */
+static uint64_t b_store_portable(int n){
+	for (int i=0;i<n;i++) gs_vertex_store(&DST[i&4095],&SRC[i&4095]);
+	return n; }
+static uint64_t b_copy_batch(int n){
+	int done=0; while(done<n){ int c=4096; if(c>n-done)c=n-done;
+		gs_vertex_op->copy(DST.data(),SRC.data(),c); done+=c; }
+	return n; }
+static std::vector<int32_t> GXY;
+static uint64_t b_minmax(int n){
+	int done=0; int32_t lo[2],hi[2]; while(done<n){ int c=4096; if(c>n-done)c=n-done;
+		gs_vertex_op->minmax_xy(lo,hi,SRC.data(),c); done+=c; }
+	return (uint64_t)lo[0]^(uint64_t)hi[1]; }
+
+struct V { const char*n; uint64_t(*f)(int); std::vector<double> s; };
+
+int main(int argc, char **argv)
+{
+	int n = argc>1?atoi(argv[1]):4000000, rounds = argc>2?atoi(argv[2]):15;
+	int fails = 0;
+
+	gs_vertex_init();
+	printf("backend: %s\n\n", gs_vertex_op->name);
+
+	fails += layout();
+	fails += accessors();
+
+	/* Every body this build contains and this host can run, not just the one
+	 * dispatch would pick -- an untested backend is an untested backend even
+	 * when the default path is green. */
+	{
+		static const int all[] = { GS_VERTEX_BACKEND_SCALAR, GS_VERTEX_BACKEND_SSE2,
+		                           GS_VERTEX_BACKEND_SSE41,  GS_VERTEX_BACKEND_AVX,
+		                           GS_VERTEX_BACKEND_NEON };
+		static const char *nm[] = { "scalar", "sse2", "sse4.1", "avx", "neon" };
+		int i, ran = 0;
+		for (i = 0; i < 5; i++) {
+			if (gs_vertex_set_backend(all[i]) != 0) {
+				printf("SKIP: %s, not available here\n", nm[i]);
+				continue;
+			}
+			fails += batch();
+			ran++;
+		}
+		if (ran < 2) { printf("FAIL: only %d backend(s) exercised\n", ran); fails++; }
+		gs_vertex_init();
+		printf("dispatch picked: %s\n", gs_vertex_op->name);
+	}
+	printf("\n");
+
+	SRC.resize(4096); DST.resize(4096); GXY.resize(8192);
+	uint64_t s=0x9E3779B97F4A7C15ull;
+	for (auto &v : SRC){ uint32_t *w=(uint32_t*)&v; for(int k=0;k<8;k++){ s=s*6364136223846793005ull+1442695040888963407ull; w[k]=(uint32_t)(s>>20);} }
+
+	std::vector<V> vs;
+#if defined(HAVE_GSVERTEX)
+	vs.push_back({"store, 2 x 16 B (reference)", b_store_old, {}});
+	vs.push_back({"store, gs_vertex",           b_store_portable, {}});
+	vs.push_back({"7 accessors, reference",      b_acc_old, {}});
+	vs.push_back({"7 accessors, gs_vertex",     b_acc_new, {}});
+#else
+	vs.push_back({"store, gs_vertex",           b_store_portable, {}});
+#endif
+	vs.push_back({"batch copy, gs_vertex",      b_copy_batch, {}});
+	vs.push_back({"batch minmax_xy, gs_vertex", b_minmax, {}});
+	uint64_t sink=0;
+	for(auto&v:vs) sink+=v.f(4096);
+	for(int r=0;r<rounds;r++) for(auto&v:vs){ double a=now(); sink+=v.f(n); double b=now(); v.s.push_back((b-a)*1e9/n); }
+	printf("%-30s %10s\n","op","ns/vertex");
+	for(auto&v:vs){ std::sort(v.s.begin(),v.s.end()); printf("  %-28s %8.3f\n", v.n, v.s[v.s.size()/2]); }
+	if(sink==0x1234567ull)printf("x\n");
+	return fails != 0;
+}
