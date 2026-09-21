@@ -25,7 +25,12 @@
  * asking for more bits than the first one holds.
  *
  * base points at the window as bytes. Reads are big-endian: bit 0 of the
- * stream is the top bit of byte 0. */
+ * stream is the top bit of byte 0.
+ *
+ * The host is assumed little-endian, which every target this builds for is
+ * -- Pcsx2Defs.h accepts only x86 and arm64. The byteswap below is
+ * unconditional, so on a big-endian host these would return the bytes in
+ * the wrong order rather than reaching the same bits by doing nothing. */
 
 #include <string.h>
 

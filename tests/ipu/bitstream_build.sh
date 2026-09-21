@@ -42,22 +42,6 @@ for CXX in g++ clang++; do
 	done
 done
 
-# Big-endian is the interesting one here: the readers byteswap, so a host
-# that is already big-endian has to reach the same bits by doing nothing.
-# s390x is the cross target that is actually packaged.
-if command -v s390x-linux-gnu-g++ >/dev/null 2>&1 &&
-   command -v qemu-s390x >/dev/null 2>&1; then
-	echo
-	echo "=== s390x (big-endian host) ==="
-	s390x-linux-gnu-g++ -O2 -std=c++17 $INC -c "$DIR/bitstream_hash.cpp" \
-	     -o "$TMP/hash390.o"
-	s390x-linux-gnu-g++ -O2 -static "$TMP/hash390.o" -o "$TMP/bs_hash390"
-	qemu-s390x "$TMP/bs_hash390" "$N" "$1"
-else
-	echo
-	echo "skipping s390x lane (no cross toolchain or qemu)"
-fi
-
 if command -v aarch64-linux-gnu-g++ >/dev/null 2>&1 &&
    command -v qemu-aarch64 >/dev/null 2>&1; then
 	echo
