@@ -41,7 +41,7 @@ enum VUStatus
 	VU_Stop  = 2
 };
 
-union VECTOR
+typedef union VECTOR
 {
 	struct
 	{
@@ -64,9 +64,9 @@ union VECTOR
 	s16 SS[8];
 	u8 UC[16];
 	s8 SC[16];
-};
+} VECTOR;
 
-struct REG_VI
+typedef struct REG_VI
 {
 	union
 	{
@@ -80,29 +80,29 @@ struct REG_VI
 	};
 	u32 padding[3]; // needs padding to make them 128bit; VU0 maps VU1's VI regs as 128bits to addr 0x4xx0 in
 		// VU0 mem, with only lower 16 bits valid, and the upper 112bits are hardwired to 0 (cottonvibes)
-};
+} REG_VI;
 
 #define VUFLAG_MFLAGSET 0x00000002
 #define VUFLAG_INTCINTERRUPT 0x00000004
 
-struct fdivPipe
+typedef struct fdivPipe
 {
 	int enable;
 	REG_VI reg;
 	u64 sCycle;
 	u32 Cycle;
 	u32 statusflag;
-};
+} fdivPipe;
 
-struct efuPipe
+typedef struct efuPipe
 {
 	int enable;
 	REG_VI reg;
 	u64 sCycle;
 	u32 Cycle;
-};
+} efuPipe;
 
-struct fmacPipe
+typedef struct fmacPipe
 {
 	u32 regupper;
 	u32 reglower;
@@ -114,16 +114,16 @@ struct fmacPipe
 	u32 macflag;
 	u32 statusflag;
 	u32 clipflag;
-};
+} fmacPipe;
 
-struct ialuPipe
+typedef struct ialuPipe
 {
 	int reg;
 	u64 sCycle;
 	u32 Cycle;
-};
+} ialuPipe;
 
-struct alignas(16) VURegs
+typedef struct PCSX2_ALIGN(16) VURegs
 {
 	VECTOR VF[32]; // VF and VI need to be first in this struct for proper mapping
 	REG_VI VI[32]; // needs to be 128bit x 32 (cottonvibes)
@@ -154,9 +154,9 @@ struct alignas(16) VURegs
 	u32 pending_q;
 	u32 pending_p;
 
-	alignas(16) u32 micro_macflags[4];
-	alignas(16) u32 micro_clipflags[4];
-	alignas(16) u32 micro_statusflags[4];
+	PCSX2_ALIGN(16) u32 micro_macflags[4];
+	PCSX2_ALIGN(16) u32 micro_clipflags[4];
+	PCSX2_ALIGN(16) u32 micro_statusflags[4];
 	// MAC/Status flags -- these are used by interpreters but are kind of hacky
 	// and shouldn't be relied on for any useful/valid info.  Would like to move them out of
 	// this struct eventually.
@@ -191,7 +191,7 @@ struct alignas(16) VURegs
 	u32 ialureadpos;
 	u32 ialuwritepos;
 	u32 ialucount;
-};
+} VURegs;
 
 enum VUPipeState
 {

@@ -202,6 +202,7 @@ SOURCES_C += \
 SOURCES_C += \
 	$(LRPS2_DIR)/ps2float.c \
 	$(LRPS2_DIR)/IopGte.c \
+	$(LRPS2_DIR)/COP2.c \
 	$(LRPS2_DIR)/Sif.c \
 	$(LRPS2_DIR)/SaveStateBase.c \
 	$(LRPS2_DIR)/SaveStateFreeze.c
@@ -245,7 +246,6 @@ SOURCES_CXX += \
 	$(LRPS2_DIR)/StringView.cpp \
 	$(LRPS2_DIR)/Cache.cpp \
 	$(LRPS2_DIR)/COP0.cpp \
-	$(LRPS2_DIR)/COP2.cpp \
 	$(LRPS2_DIR)/Counters.cpp \
 	$(LRPS2_DIR)/Dmac.cpp \
 	$(LRPS2_DIR)/Elfheader.cpp \

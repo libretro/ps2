@@ -94,7 +94,7 @@ enum vif_stallreasons
 //
 // Bitfield Structure
 //
-union tVIF_STAT {
+typedef union tVIF_STAT {
 	struct {
 		u32 VPS : 2; // Vif(0/1) status; 00 - idle, 01 - waiting for data following vifcode, 10 - decoding vifcode, 11 - decompressing/trasferring data follwing vifcode.
 		u32 VEW : 1; // E-bit wait (1 - wait, 0 - don't wait)
@@ -113,9 +113,9 @@ union tVIF_STAT {
 		u32 FQC : 5; // Amount of data. Up to 8 qwords on Vif0, 16 on Vif1.
 	};
 	u32 _u32;
-};
+} tVIF_STAT;
 
-union tVIF_FBRST {
+typedef union tVIF_FBRST {
 	struct {
 		u32 RST : 1; // Resets Vif(0/1) when written.
 		u32 FBK : 1; // Causes a Forcebreak to Vif((0/1) when true. (Stall)
@@ -124,9 +124,9 @@ union tVIF_FBRST {
 		u32 _reserved : 28;
 	};
 	u32 _u32;
-};
+} tVIF_FBRST;
 
-union tVIF_ERR {
+typedef union tVIF_ERR {
 	struct {
 		u32 MII : 1; // Masks Stat INT.
 		u32 ME0 : 1; // Masks Stat Err0.
@@ -134,15 +134,15 @@ union tVIF_ERR {
 		u32 _reserved : 29;
 	};
 	u32 _u32;
-};
+} tVIF_ERR;
 
-struct vifCycle
+typedef struct vifCycle
 {
 	u8 cl, wl;
 	u8 pad[2];
-};
+} vifCycle;
 
-struct VIFregisters {
+typedef struct VIFregisters {
 	tVIF_STAT stat;
 	u32 _pad0[3];
 	u32 fbrst;
@@ -193,19 +193,19 @@ struct VIFregisters {
 	u32 _pad23[3];
 	u32 offset;    // internal UNPACK offset
 	u32 addr;
-};
+} VIFregisters;
 
-struct VIFregistersMTVU {
+typedef struct VIFregistersMTVU {
 	vifCycle cycle; //data write cycle
 	u32 mode;
 	u32 num;
 	u32 mask;
 	u32 itop;
 	u32 top;       // Not used in VIF0
-};
+} VIFregistersMTVU;
 
-static VIFregisters& vif0Regs = (VIFregisters&)eeHw[0x3800];
-static VIFregisters& vif1Regs = (VIFregisters&)eeHw[0x3C00];
+#define vif0Regs	(*(VIFregisters*)(eeHw + 0x3800))
+#define vif1Regs	(*(VIFregisters*)(eeHw + 0x3C00))
 
 #define _vifT		template <int idx>
 #define  GetVifX	(idx ? (vif1)     : (vif0))
@@ -220,6 +220,6 @@ static VIFregisters& vif1Regs = (VIFregisters&)eeHw[0x3C00];
 extern void dmaVIF0();
 extern void dmaVIF1();
 extern void mfifoVIF1transfer();
-extern bool VIF0transfer(u32 *data, int size, bool TTE=0);
-extern bool VIF1transfer(u32 *data, int size, bool TTE=0);
+extern bool VIF0transfer(u32 *data, int size, bool TTE);
+extern bool VIF1transfer(u32 *data, int size, bool TTE);
 extern void vifMFIFOInterrupt();

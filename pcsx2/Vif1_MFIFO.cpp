@@ -67,9 +67,9 @@ static __fi bool mfifoVIF1rbTransfer()
 			return false;
 
 		if (vif1.irqoffset.enabled)
-			ret = VIF1transfer(src + vif1.irqoffset.value, s1 - vif1.irqoffset.value);
+			ret = VIF1transfer(src + vif1.irqoffset.value, s1 - vif1.irqoffset.value, false);
 		else
-			ret = VIF1transfer(src, s1);
+			ret = VIF1transfer(src, s1, false);
 
 		if (ret)
 		{
@@ -80,7 +80,7 @@ static __fi bool mfifoVIF1rbTransfer()
 			src = (u32*)PSM(vif1ch.madr);
 			if (src == NULL)
 				return false;
-			VIF1transfer(src, ((mfifoqwc << 2) - s1));
+			VIF1transfer(src, ((mfifoqwc << 2) - s1), false);
 		}
 	}
 	else
@@ -91,9 +91,9 @@ static __fi bool mfifoVIF1rbTransfer()
 			return false;
 
 		if (vif1.irqoffset.enabled)
-			ret = VIF1transfer(src + vif1.irqoffset.value, mfifoqwc * 4 - vif1.irqoffset.value);
+			ret = VIF1transfer(src + vif1.irqoffset.value, mfifoqwc * 4 - vif1.irqoffset.value, false);
 		else
-			ret = VIF1transfer(src, mfifoqwc << 2);
+			ret = VIF1transfer(src, mfifoqwc << 2, false);
 	}
 	return ret;
 }
@@ -135,9 +135,9 @@ static __fi void mfifo_VIF1chain()
 			return;
 
 		if (vif1.irqoffset.enabled)
-			VIF1transfer((u32*)pMem + vif1.irqoffset.value, vif1ch.qwc * 4 - vif1.irqoffset.value);
+			VIF1transfer((u32*)pMem + vif1.irqoffset.value, vif1ch.qwc * 4 - vif1.irqoffset.value, false);
 		else
-			VIF1transfer((u32*)pMem, vif1ch.qwc << 2);
+			VIF1transfer((u32*)pMem, vif1ch.qwc << 2, false);
 	}
 }
 
@@ -192,7 +192,7 @@ void mfifoVIF1transfer()
 			if (vif1.irqoffset.enabled)
 			{
 				ret = VIF1transfer((u32*)&masked_tag + vif1.irqoffset.value, 4 - vif1.irqoffset.value, true); //Transfer Tag on stall
-				//ret = VIF1transfer((u32*)ptag + (2 + vif1.irqoffset), 2 - vif1.irqoffset);  //Transfer Tag on stall
+				//ret = VIF1transfer((u32*)ptag + (2 + vif1.irqoffset), 2 - vif1.irqoffset, false);  //Transfer Tag on stall
 			}
 			else
 			{

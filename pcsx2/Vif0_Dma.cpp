@@ -55,8 +55,8 @@ bool _VIF0chain(void)
 	}
 
 	if (vif0.irqoffset.enabled)
-		return VIF0transfer(pMem + vif0.irqoffset.value, vif0ch.qwc * 4 - vif0.irqoffset.value);
-	return VIF0transfer(pMem, vif0ch.qwc * 4);
+		return VIF0transfer(pMem + vif0.irqoffset.value, vif0ch.qwc * 4 - vif0.irqoffset.value, false);
+	return VIF0transfer(pMem, vif0ch.qwc * 4, false);
 }
 
 __fi void vif0SetupTransfer(void)

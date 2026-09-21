@@ -486,10 +486,19 @@ void QMFC2();
 void CFC2();
 void QMTC2();
 void CTC2();
-void BC2F();
-void BC2T();
-void BC2FL();
-void BC2TL();
+/* Defined in COP2.c, so they carry C linkage. */
+#ifdef __cplusplus
+extern "C" {
+#endif
+void BC2F(void);
+void BC2T(void);
+void BC2FL(void);
+void BC2TL(void);
+void VCALLMS(void);
+void VCALLMSR(void);
+#ifdef __cplusplus
+}
+#endif
 //*****************SPECIAL 1 VUO TABLE*******************************
 void VADDx();
 void VADDy();
@@ -544,8 +553,6 @@ void VISUB();
 void VIADDI();
 void VIAND();
 void VIOR();
-void VCALLMS();
-void VCALLMSR();
 //***********************************END OF SPECIAL1 VU0 TABLE*****************************
 //******************************SPECIAL2 VUO TABLE*****************************************
 void VADDAx();

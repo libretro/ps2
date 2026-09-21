@@ -57,7 +57,7 @@ static __fi float vu_itof_chop(s32 v)
 #define int12_to_float(x)	(vu_itof_chop(x) * 0.000244140625f)
 #define int15_to_float(x)	(vu_itof_chop(x) * 0.000030517578125f)
 
-struct _VURegsNum
+typedef struct _VURegsNum
 {
 	u8 pipe; // if 0xff, COP2
 	u8 VFwrite;
@@ -69,20 +69,20 @@ struct _VURegsNum
 	u32 VIwrite;
 	u32 VIread;
 	int cycles;
-};
+} _VURegsNum;
 
-using FnPtr_VuVoid = void (*)();
-using FnPtr_VuRegsN = void(*)(_VURegsNum *VUregsn);
+typedef void (*FnPtr_VuVoid)(void);
+typedef void (*FnPtr_VuRegsN)(_VURegsNum *VUregsn);
 
-alignas(16) extern const FnPtr_VuVoid VU0_LOWER_OPCODE[128];
-alignas(16) extern const FnPtr_VuVoid VU0_UPPER_OPCODE[64];
-alignas(16) extern const FnPtr_VuRegsN VU0regs_LOWER_OPCODE[128];
-alignas(16) extern const FnPtr_VuRegsN VU0regs_UPPER_OPCODE[64];
+PCSX2_ALIGN(16) extern const FnPtr_VuVoid VU0_LOWER_OPCODE[128];
+PCSX2_ALIGN(16) extern const FnPtr_VuVoid VU0_UPPER_OPCODE[64];
+PCSX2_ALIGN(16) extern const FnPtr_VuRegsN VU0regs_LOWER_OPCODE[128];
+PCSX2_ALIGN(16) extern const FnPtr_VuRegsN VU0regs_UPPER_OPCODE[64];
 
-alignas(16) extern const FnPtr_VuVoid VU1_LOWER_OPCODE[128];
-alignas(16) extern const FnPtr_VuVoid VU1_UPPER_OPCODE[64];
-alignas(16) extern const FnPtr_VuRegsN VU1regs_LOWER_OPCODE[128];
-alignas(16) extern const FnPtr_VuRegsN VU1regs_UPPER_OPCODE[64];
+PCSX2_ALIGN(16) extern const FnPtr_VuVoid VU1_LOWER_OPCODE[128];
+PCSX2_ALIGN(16) extern const FnPtr_VuVoid VU1_UPPER_OPCODE[64];
+PCSX2_ALIGN(16) extern const FnPtr_VuRegsN VU1regs_LOWER_OPCODE[128];
+PCSX2_ALIGN(16) extern const FnPtr_VuRegsN VU1regs_UPPER_OPCODE[64];
 extern void _vuClearFMAC(VURegs * VU);
 extern void _vuTestPipes(VURegs * VU);
 extern void _vuTestUpperStalls(VURegs * VU, _VURegsNum *VUregsn);

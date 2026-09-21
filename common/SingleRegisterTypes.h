@@ -52,17 +52,17 @@ typedef __m128i r128;
 #endif
 
 /* And since we can't stick them in structs, we get lots of static methods, yay! */
-__forceinline static r128 r128_load(const void* ptr)
+static __fi r128 r128_load(const void* ptr)
 {
 	return _mm_load_si128((const r128*)(ptr));
 }
 
-__forceinline static void r128_store(void* ptr, r128 val)
+static __fi void r128_store(void* ptr, r128 val)
 {
 	return _mm_store_si128((r128*)(ptr), val);
 }
 
-__forceinline static void r128_store_unaligned(void* ptr, r128 val)
+static __fi void r128_store_unaligned(void* ptr, r128 val)
 {
 	return _mm_storeu_si128((r128*)(ptr), val);
 }
@@ -79,12 +79,12 @@ __forceinline static void r128_store_unaligned(void* ptr, r128 val)
 #define CopyQWC(dest, src) _mm_store_ps((float*)(dest), _mm_load_ps((const float*)(src)))
 #define ZeroQWC(dest ) _mm_store_ps((float*)(dest), _mm_setzero_ps())
 
-__forceinline static r128 r128_from_u128(const u128 u)
+static __fi r128 r128_from_u128(const u128 u)
 {
 	return _mm_loadu_si128((const __m128i*)(&u));
 }
 
-__forceinline static u128 r128_to_u128(r128 val)
+static __fi u128 r128_to_u128(r128 val)
 {
 	PCSX2_ALIGN(16) u128 ret;
 	_mm_store_si128((r128*)(&ret), val);
@@ -98,33 +98,33 @@ typedef uint32x4_t r128;
 #define RETURNS_R128 r128 __vectorcall
 #define TAKES_R128 __vectorcall
 
-__forceinline static void CopyQWC(void* dest, const void* src)
+static __fi void CopyQWC(void* dest, const void* src)
 {
 	vst1q_u8(static_cast<u8*>(dest), vld1q_u8(static_cast<const u8*>(src)));
 }
 
-__forceinline static void ZeroQWC(void* dest)
+static __fi void ZeroQWC(void* dest)
 {
 	vst1q_u8(static_cast<u8*>(dest), vmovq_n_u8(0));
 }
 
-__forceinline static void ZeroQWC(u128& dest)
+static __fi void ZeroQWC(u128& dest)
 {
 	vst1q_u8(&dest._u8[0], vmovq_n_u8(0));
 }
 
 
-__forceinline static r128 r128_load(const void* ptr)
+static __fi r128 r128_load(const void* ptr)
 {
 	return vld1q_u32((const uint32_t*)(ptr));
 }
 
-__forceinline static void r128_store(void* ptr, r128 value)
+static __fi void r128_store(void* ptr, r128 value)
 {
 	return vst1q_u32((uint32_t*)(ptr), value);
 }
 
-__forceinline static void r128_store_unaligned(void* ptr, r128 value)
+static __fi void r128_store_unaligned(void* ptr, r128 value)
 {
 	return vst1q_u32((uint32_t*)(ptr), value);
 }
@@ -140,18 +140,18 @@ __forceinline static void r128_store_unaligned(void* ptr, r128 value)
 #define r128_from_u64_zext(val) vreinterpretq_u32_u64(vcombine_u64(vcreate_u64((val)), vcreate_u64(0)))
 #define r128_from_u32_dup(val) vdupq_n_u32((val))
 
-__forceinline static r128 r128_from_u32x4(u32 lo0, u32 lo1, u32 hi0, u32 hi1)
+static __fi r128 r128_from_u32x4(u32 lo0, u32 lo1, u32 hi0, u32 hi1)
 {
 	const u32 values[4] = {lo0, lo1, hi0, hi1};
 	return vld1q_u32(values);
 }
 
-__forceinline static r128 r128_from_u128(const u128 u)
+static __fi r128 r128_from_u128(const u128 u)
 {
 	return vld1q_u32((const uint32_t*)(u._u32));
 }
 
-__forceinline static u128 r128_to_u128(r128 val)
+static __fi u128 r128_to_u128(r128 val)
 {
 	PCSX2_ALIGN(16) u128 ret;
 	vst1q_u32(ret._u32, val);

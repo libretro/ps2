@@ -96,7 +96,6 @@ endif()
 set(pcsx2Sources
 	Cache.cpp
 	COP0.cpp
-	COP2.cpp
 	Counters.cpp
 	Dmac.cpp
 	GameDatabase.cpp
@@ -107,6 +106,7 @@ set(pcsx2Sources
 	FPU.cpp
 	ps2float.c
 	IopGte.c
+	COP2.c
 	Sif.c
 	SaveStateBase.c
 	SaveStateFreeze.c

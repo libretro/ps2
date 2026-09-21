@@ -18,15 +18,15 @@
 #include "Vif.h"
 #include "Vif_Unpack.h"
 
-struct vifCode {
+typedef struct vifCode {
    u32 addr;
    u32 size;
    u32 cmd;
    u16 wl;
    u16 cl;
-};
+} vifCode;
 
-union tBITBLTBUF {
+typedef union tBITBLTBUF {
 	u64 _u64;
 	struct {
 		u32 SBP : 14;
@@ -42,9 +42,9 @@ union tBITBLTBUF {
 		u32 DPSM : 6;
 		u32 _pad62 : 2;
 	};
-};
+} tBITBLTBUF;
 
-union tTRXPOS {
+typedef union tTRXPOS {
 	u64 _u64;
 	struct {
 		u32 SSAX : 11;
@@ -58,9 +58,9 @@ union tTRXPOS {
 		u32 DIRX : 1;
 		u32 _PAD4 : 3;
 	};
-};
+} tTRXPOS;
 
-union tTRXREG
+typedef union tTRXREG
 {
 	u64 _u64;
 	struct
@@ -70,17 +70,17 @@ union tTRXREG
 		u32 RRH : 12;
 		u32 _pad44 : 20;
 	};
-};
+} tTRXREG;
 
-struct tVIF_CTRL {
+typedef struct tVIF_CTRL {
    bool enabled;
    u32 value;
-};
+} tVIF_CTRL;
 
 // NOTE, if debugging vif stalls, use sega classics, spyro, gt4, and taito
-struct vifStruct {
-	alignas(16) u128 MaskRow;
-	alignas(16) u128 MaskCol;
+typedef struct vifStruct {
+	PCSX2_ALIGN(16) u128 MaskRow;
+	PCSX2_ALIGN(16) u128 MaskCol;
 
 	struct { // These must be together for MTVU
 		vifCode tag;
@@ -122,9 +122,9 @@ struct vifStruct {
 	bool queued_program;
 	u32 queued_pc;
 	bool queued_gif_wait;
-};
+} vifStruct;
 
-alignas(16) extern vifStruct  vif0, vif1;
+PCSX2_ALIGN(16) extern vifStruct  vif0, vif1;
 
 _vifT extern u32 vifRead32(u32 mem);
 _vifT extern bool vifWrite32(u32 mem, u32 value);
@@ -139,7 +139,7 @@ extern void vif1Reset();
 typedef int FnType_VifCmdHandler(int pass, const u32 *data);
 typedef FnType_VifCmdHandler* Fnptr_VifCmdHandler;
 
-alignas(16) extern const Fnptr_VifCmdHandler vifCmdHandler[2][128];
+PCSX2_ALIGN(16) extern const Fnptr_VifCmdHandler vifCmdHandler[2][128];
 
 enum VifModes
 {

@@ -15,7 +15,6 @@
 
 #include "Common.h"
 
-#include "R5900OpcodeTables.h"
 #include "VUmicro.h"
 
 #define CP2COND (((vuRegs[0].VI[REG_VPU_STAT].US[0] >> 8) & 1))

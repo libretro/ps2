@@ -56,7 +56,7 @@ void ReadFIFO_VIF1(mem128_t* out)
 void WriteFIFO_VIF0(const mem128_t* value)
 {
 	vif0ch.qwc += 1;
-	VIF0transfer((u32*)value, 4);
+	VIF0transfer((u32*)value, 4, false);
 
 	if (vif0.cmd)
 	{
@@ -70,7 +70,7 @@ void WriteFIFO_VIF0(const mem128_t* value)
 
 void WriteFIFO_VIF1(const mem128_t* value)
 {
-	VIF1transfer((u32*)value, 4);
+	VIF1transfer((u32*)value, 4, false);
 
 	if (vif1.cmd)
 	{
