@@ -35,25 +35,35 @@
 #include <string.h>
 
 #include "R3000A.h"
+#include "IopMem.h"
 #include "IopGte.h"
 
 alignas(16) psxRegisters psxRegs;
 
 /* LWC2 and SWC2 reach into IOP memory. This log drives the register file
  * directly and never issues either, but they still have to link, so the
- * lookup table is given one empty page and the slow paths are stubs. */
-static u8 s_dummy_page[0x10000];
+ * lookup table is given one empty page and the slow paths are stubs.
+ *
+ * psxMemRLUT is a pointer in IopMem.h, not an array: defining it as an
+ * array here would give iopMemRead32's inline fast path a different object
+ * than the one it was compiled against. */
+static u8   s_dummy_page[0x10000];
+static uptr s_rlut[0x10000];
 uptr* psxMemWLUT = NULL;
-uptr psxMemRLUT[0x10000];
+const uptr *psxMemRLUT = s_rlut;
+
 static struct rlut_init_t {
 	rlut_init_t()
 	{
 		for (unsigned i = 0; i < 0x10000; i++)
-			psxMemRLUT[i] = (uptr)s_dummy_page;
+			s_rlut[i] = (uptr)s_dummy_page;
 	}
 } s_rlut_init;
-u32 iopMemRead32_slow(u32 mem) { (void)mem; return 0; }
+
+extern "C" {
+u32  iopMemRead32_slow(u32 mem) { (void)mem; return 0; }
 void iopMemWrite32(u32 mem, u32 value) { (void)mem; (void)value; }
+}
 
 /* Build the instruction word the move functions decode, then call them.
  * GPR[1] carries the value; rt = 1, rd = the register number. */

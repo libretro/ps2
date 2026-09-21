@@ -106,6 +106,7 @@ set(pcsx2Sources
 	FiFo.cpp
 	FPU.cpp
 	ps2float.c
+	IopGte.c
 	SaveStateBase.c
 	SaveStateFreeze.c
 	Gif.cpp
@@ -117,7 +118,6 @@ set(pcsx2Sources
 	IopBios.cpp
 	IopCounters.cpp
 	IopDma.cpp
-	IopGte.cpp
 	IopHw.cpp
 	IopIrq.cpp
 	IopMem.cpp

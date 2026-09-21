@@ -43,6 +43,10 @@
 #define psxHu16(mem)	(*(u16*)&iopHw[(mem) & 0xffff])
 #define psxHu32(mem)	(*(u32*)&iopHw[(mem) & 0xffff])
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern const uptr *psxMemRLUT;
 extern u8   iopMemRead8_slow (u32 mem);
 extern u16  iopMemRead16_slow(u32 mem);
@@ -126,6 +130,10 @@ std::string iopMemReadString(u32 mem, int maxlen = 65536);
 #endif
 /* C89-callable variant: fills dst (NUL-terminated, cap includes the NUL). */
 void iopMemReadStringBuf(char* dst, int cap, u32 mem, int maxlen);
+
+#ifdef __cplusplus
+}
+#endif
 
 #ifdef __cplusplus
 namespace IopMemory

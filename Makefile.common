@@ -201,6 +201,7 @@ SOURCES_C += \
 
 SOURCES_C += \
 	$(LRPS2_DIR)/ps2float.c \
+	$(LRPS2_DIR)/IopGte.c \
 	$(LRPS2_DIR)/SaveStateBase.c \
 	$(LRPS2_DIR)/SaveStateFreeze.c
 
@@ -260,7 +261,6 @@ SOURCES_CXX += \
 	$(LRPS2_DIR)/IopBios.cpp \
 	$(LRPS2_DIR)/IopCounters.cpp \
 	$(LRPS2_DIR)/IopDma.cpp \
-	$(LRPS2_DIR)/IopGte.cpp \
 	$(LRPS2_DIR)/IopHw.cpp \
 	$(LRPS2_DIR)/IopIrq.cpp \
 	$(LRPS2_DIR)/IopMem.cpp \

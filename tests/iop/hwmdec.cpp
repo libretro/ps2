@@ -75,19 +75,25 @@
 #include <string.h>
 
 #include "R3000A.h"
+#include "IopMem.h"
 #include "Mdec.h"
 
 alignas(16) psxRegisters psxRegs;
 
 /* Mdec.cpp reaches into IOP memory for the DMA paths, which this trace
  * never uses; one page keeps the references resolvable. */
-static u8 s_dummy_page[0x10000];
+static u8   s_dummy_page[0x10000];
+static uptr s_rlut[0x10000];
 uptr psxMemWLUT[0x10000];
-uptr psxMemRLUT[0x10000];
+/* a pointer in IopMem.h, so a pointer here too */
+const uptr *psxMemRLUT = s_rlut;
 alignas(16) u8 iopHw[0x10000];
-u32 iopMemRead32_slow(u32 mem) { (void)mem; return 0; }
-void psxDmaInterrupt(int n) { (void)n; }
+
+extern "C" {
+u32  iopMemRead32_slow(u32 mem) { (void)mem; return 0; }
 void iopMemWrite32(u32 mem, u32 value) { (void)mem; (void)value; }
+}
+extern "C" void psxDmaInterrupt(int n) { (void)n; }
 
 int main(int argc, char** argv)
 {
@@ -103,7 +109,7 @@ int main(int argc, char** argv)
 
 	if (!f) { fprintf(stderr, "cannot open %s\n", path); return 2; }
 	for (i = 0; i < 0x10000; i++)
-	{ psxMemRLUT[i] = (uptr)s_dummy_page; psxMemWLUT[i] = (uptr)s_dummy_page; }
+	{ s_rlut[i] = (uptr)s_dummy_page; psxMemWLUT[i] = (uptr)s_dummy_page; }
 
 	mdecInit();
 
