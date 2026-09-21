@@ -17,22 +17,22 @@
 
 #include "../../common/Pcsx2Types.h"
 
-struct StereoOut32
+typedef struct StereoOut32
 {
 	s32 Left;
 	s32 Right;
-};
+} StereoOut32;
 
-struct StereoOut16
+typedef struct StereoOut16
 {
 	s16 Left;
 	s16 Right;
-};
+} StereoOut16;
 
 /* Carries the DC blocker's state, which is the emulator's own filter and
  * so is kept finer than an output step. */
-struct StereoOut64
+typedef struct StereoOut64
 {
 	s64 Left;
 	s64 Right;
-};
+} StereoOut64;

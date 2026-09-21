@@ -20,7 +20,16 @@
 #include "Global.h"
 #include "../../common/Pcsx2Defs.h"
 
-struct V_SPDIF
+/* alignas is C++11 and C11; these sources also build as C89 under MSVC. */
+#if defined(_MSC_VER)
+#define SPU2_ALIGN(n) __declspec(align(n))
+#elif defined(__GNUC__)
+#define SPU2_ALIGN(n) __attribute__((aligned(n)))
+#else
+#define SPU2_ALIGN(n)
+#endif
+
+typedef struct V_SPDIF
 {
 	u16 Out;
 	u16 Info;
@@ -29,9 +38,9 @@ struct V_SPDIF
 	u16 Media;
 	u16 Unknown2;
 	u16 Protection;
-};
+} V_SPDIF;
 
-struct V_CoreRegs
+typedef struct V_CoreRegs
 {
 	u32 PMON;
 	u32 NON;
@@ -45,17 +54,17 @@ struct V_CoreRegs
 	u16 STATX;
 	u16 ATTR;
 	u16 _1AC;
-};
+} V_CoreRegs;
 
-struct V_VoiceGates
+typedef struct V_VoiceGates
 {
 	s32 DryL; // 'AND Gate' for Direct Output to Left Channel
 	s32 DryR; // 'AND Gate' for Direct Output for Right Channel
 	s32 WetL; // 'AND Gate' for Effect Output for Left Channel
 	s32 WetR; // 'AND Gate' for Effect Output for Right Channel
-};
+} V_VoiceGates;
 
-struct V_CoreGates
+typedef struct V_CoreGates
 {
 	s32 InpL; // Sound Data Input to Direct Output (Left)
 	s32 InpR; // Sound Data Input to Direct Output (Right)
@@ -63,15 +72,16 @@ struct V_CoreGates
 	s32 SndR; // Voice Data to Direct Output (Right)
 	s32 ExtL; // External Input to Direct Output (Left)
 	s32 ExtR; // External Input to Direct Output (Right)
-};
+} V_CoreGates;
 
-struct VoiceMixSet
+typedef struct VoiceMixSet
 {
 	StereoOut32 Dry, Wet;
-};
+} VoiceMixSet;
 
 
-extern V_Core Cores[2];
+typedef struct V_Core V_Core;
+
 extern V_SPDIF Spdif;
 
 // Output Buffer Writing Position (the same for all data);
@@ -105,13 +115,13 @@ extern u16 * const regtable[0x401];
 
 extern void spu2M_Write(u32 addr, s16 value);
 
-struct V_VolumeLR
+typedef struct V_VolumeLR
 {
 	s32 Left;
 	s32 Right;
-};
+} V_VolumeLR;
 
-struct V_VolumeSlide
+typedef struct V_VolumeSlide
 {
 	// Holds the "original" value of the volume for this voice, prior to slides.
 	// (ie, the volume as written to the register)
@@ -133,24 +143,24 @@ struct V_VolumeSlide
 
 	u32 Counter;
 	s32 Value;
-};
+} V_VolumeSlide;
 
-struct V_VolumeSlideLR
+typedef struct V_VolumeSlideLR
 {
 	V_VolumeSlide Left;
 	V_VolumeSlide Right;
-};
+} V_VolumeSlideLR;
 
 #define ADSR_PHASES 5
 
-struct CachedADSR
+typedef struct CachedADSR
 {
 	bool Decr;
 	bool Exp;
 	u8 Shift;
 	s8 Step;
 	s32 Target;
-};
+} CachedADSR;
 
 #define PHASE_STOPPED 0
 #define PHASE_ATTACK 1
@@ -158,7 +168,7 @@ struct CachedADSR
 #define PHASE_SUSTAIN 3
 #define PHASE_RELEASE 4
 
-struct V_ADSR
+typedef struct V_ADSR
 {
 	union
 	{
@@ -192,7 +202,7 @@ struct V_ADSR
 	u32 Counter;
 	s32 Value; // Ranges from 0 to 0x7fff (signed values are clamped to 0) [Reg_ENVX]
 	u8 Phase; // monitors current phase of ADSR envelope
-};
+} V_ADSR;
 
 static __fi void ADSR_Release(V_ADSR *v)
 {
@@ -263,12 +273,12 @@ void ADSR_UpdateCache(V_ADSR *v);
 
 // V_Voice field layout is optimized for cache line access in the mixer 
 // hot path.
-// With alignas(64) on Voices[] and sizeof == 192 (3 x 64), each voice occupies
+// With SPU2_ALIGN(64) on Voices[] and sizeof == 192 (3 x 64), each voice occupies
 // exactly 3 cache lines:
 //   CL0 (0-63):   ADSR + SBuffer - ADSR_Calculate stays within one cache line
 //   CL1 (64-127): pitch, interpolation, volume - all remaining per-sample fields
 //   CL2 (128-191): cold - block boundary (every 28 samples) and KeyOn only
-struct V_Voice
+typedef struct V_Voice
 {
 	V_ADSR ADSR;        // 56 bytes: Phase(+52) checked first for stopped-voice early exit
 	s16* SBuffer;        // ADPCM cache entry pointer
@@ -298,9 +308,9 @@ struct V_Voice
 	s32 Prev1;           // Voice Decoding State (ADPCM predictor)
 	s32 Prev2;
 	u8 _pad1[48];
-};
+} V_Voice;
 
-struct V_Reverb
+typedef struct V_Reverb
 {
 	s16 IN_COEF_L;
 	s16 IN_COEF_R;
@@ -341,11 +351,11 @@ struct V_Reverb
 	u32 APF1_R_DST;
 	u32 APF2_L_DST;
 	u32 APF2_R_DST;
-};
+} V_Reverb;
 
 #define SPU2_NUM_VOICES 24
 
-struct V_Core
+typedef struct V_Core
 {
 	u32 Index; // Core index identifier.
 
@@ -361,7 +371,7 @@ struct V_Core
 	V_VolumeLR InpVol; // Volume for Sound Data Input
 	V_VolumeLR FxVol; // Volume for Output from Effects
 
-	alignas(64) V_Voice Voices[SPU2_NUM_VOICES];
+	SPU2_ALIGN(64) V_Voice Voices[SPU2_NUM_VOICES];
 
 	u32 IRQA; // Interrupt Address
 	u32 TSA; // DMA Transfer Start Address
@@ -419,7 +429,9 @@ struct V_Core
 	u16 psxSoundDataTransferControl;
 	u16 psxSPUSTAT;
 
-};
+} V_Core;
+
+extern V_Core Cores[2];
 
 void        V_Core_Init(V_Core *c, int index);
 
@@ -504,12 +516,12 @@ s32  SPU2Savestate_SizeIt(void);
 // 28 samples per decoded PCM block (as stored in our cache)
 #define pcm_DecodedSamplesPerBlock 28
 
-struct PcmCacheEntry
+typedef struct PcmCacheEntry
 {
 	bool Validated;
 	s16 Sampledata[pcm_DecodedSamplesPerBlock];
 	s32 Prev1;
 	s32 Prev2;
-};
+} PcmCacheEntry;
 
 extern PcmCacheEntry pcm_cache_data[pcm_BlockCount];

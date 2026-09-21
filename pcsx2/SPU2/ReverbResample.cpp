@@ -1,12 +1,16 @@
 #include "Global.h"
 
+#ifdef __cplusplus
 extern "C" {
+#endif
 #include "../GS/gs_vector.h"
+#ifdef __cplusplus
 }
+#endif
 
 #define NUM_TAPS 39
 // 39 tap filter, the 0's could be optimized out
-alignas(32) static const s16 filter_down_coefs[48] = {
+SPU2_ALIGN(32) static const s16 filter_down_coefs[48] = {
 	-1,
 	0,
 	2,
@@ -51,7 +55,7 @@ alignas(32) static const s16 filter_down_coefs[48] = {
 /* The up coefficients are the down coefficients doubled and clamped. This
  * was a constexpr std::array returned by value from make_up_coefs(); it is
  * filled once at startup instead, since a C array cannot be returned. */
-alignas(32) static s16 filter_up_coefs[48];
+SPU2_ALIGN(32) static s16 filter_up_coefs[48];
 
 static void make_up_coefs(void)
 {

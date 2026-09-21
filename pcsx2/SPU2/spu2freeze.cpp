@@ -154,7 +154,7 @@ static s32 ThawItImpl(struct SPU2Savestate_DataBlock *spud)
 
 /* The caller hands us a DataBlock reference formed by casting into the
  * frontend's savestate blob, which carries no alignment guarantee -
- * DataBlock embeds V_Core (alignas(64)), so accessing members through
+ * DataBlock embeds V_Core (64-byte aligned), so accessing members through
  * such a reference is UB (UBSan: 34 misaligned V_Core reports across
  * freeze/thaw).  When the blob happens to be aligned, run in place;
  * otherwise bounce through an aligned heap temp.  If the temp cannot
