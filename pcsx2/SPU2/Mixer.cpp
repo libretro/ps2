@@ -40,13 +40,13 @@ static void __forceinline XA_decode_block(s16* buffer, const s16* block, s32 *pr
 
 	for (; blockbytes <= blockend; ++blockbytes)
 	{
-		s32 data = ((*blockbytes) << 28) & 0xF0000000;
+		s32 data = (s32)(((u32)(u8)(*blockbytes) & 0x0fu) << 28);
 		s32 pcm = (data >> shift) + (((pred1 * (*prev1)) + (pred2 * (*prev2)) + 32) >> 6);
 
 		pcm = pcsx2_clamp_i(pcm, -0x8000, 0x7fff);
 		*(buffer++) = pcm;
 
-		data = ((*blockbytes) << 24) & 0xF0000000;
+		data = (s32)(((u32)(u8)(*blockbytes) >> 4) << 28);
 		s32 pcm2 = (data >> shift) + (((pred1 * pcm) + (pred2 * (*prev1)) + 32) >> 6);
 
 		pcm2 = pcsx2_clamp_i(pcm2, -0x8000, 0x7fff);
@@ -300,7 +300,8 @@ static void V_VolumeSlide_Update(V_VolumeSlide *vs)
 		step_size = ~step_size;
 
 	u32 counter_inc = 0x8000 >> pcsx2_max_i(0, vs->Shift - 11);
-	s32 level_inc = step_size << pcsx2_max_i(0, 11 - vs->Shift);
+	/* step_size can be negative; shift in the unsigned domain (same bits). */
+	s32 level_inc = (s32)((u32)step_size << pcsx2_max_i(0, 11 - vs->Shift));
 
 	if (vs->Exp)
 	{

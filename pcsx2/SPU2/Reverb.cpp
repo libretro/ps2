@@ -105,7 +105,13 @@ StereoOut32 V_Core_DoReverb(V_Core *c, StereoOut32 Input)
 
 	s32 apf2;
 
-#define MUL(x, y) ((x) * (y) >> 15)
+/* The product does not fit in 32 bits once the work area is driven near
+ * full scale with the coefficients wide open: the second operand travels
+ * to about +-0x18000 while the coefficient reaches +-0x7fff. Multiplying
+ * in the unsigned domain keeps the same bits without the signed overflow.
+ * Note the SPU2 itself saturates these intermediates to 16 bits, which
+ * this does not yet model. */
+#define MUL(x, y) ((s32)((u32)(x) * (u32)(y)) >> 15)
 	s32 in   = MUL(R ? c->Revb.IN_COEF_R : c->Revb.IN_COEF_L, ReverbDownsample(*c, R));
 
 	s32 same = MUL(c->Revb.IIR_VOL, in + MUL(c->Revb.WALL_VOL, _spu2mem[same_src]) - _spu2mem[same_prv]) + _spu2mem[same_prv];

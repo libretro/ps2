@@ -36,8 +36,8 @@
 
 		CoreParamsPair(0, REG_A_ESA),
 
-		CoreParamsPair(0, R_APF1_SIZE),   /*       0x02E4		/* Feedback Source A */
-		CoreParamsPair(0, R_APF2_SIZE),   /*       0x02E8		/* Feedback Source B */
+		CoreParamsPair(0, R_APF1_SIZE),   /*       0x02E4		  Feedback Source A */
+		CoreParamsPair(0, R_APF2_SIZE),   /*       0x02E8		  Feedback Source B */
 		CoreParamsPair(0, R_SAME_L_DST),  /*    0x02EC */
 		CoreParamsPair(0, R_SAME_R_DST),  /*    0x02F0 */
 		CoreParamsPair(0, R_COMB1_L_SRC), /*     0x02F4 */
@@ -61,8 +61,8 @@
 
 		RCORE(0, REG_A_EEA), RNULL,
 
-		CoreParamsPair(0, REG_S_ENDX), /*       0x0340	/* End Point passed flag */
-		RCORE(0, REG_P_STATX), /*      0x0344 	/* Status register? */
+		CoreParamsPair(0, REG_S_ENDX), /*       0x0340	  End Point passed flag */
+		RCORE(0, REG_P_STATX), /*      0x0344 	  Status register? */
 
 		/*0x346 here */
 		REGRAW(0x346),
@@ -126,8 +126,8 @@
 
 		CoreParamsPair(1, REG_A_ESA),
 
-		CoreParamsPair(1, R_APF1_SIZE),   /*       0x02E4		/* Feedback Source A */
-		CoreParamsPair(1, R_APF2_SIZE),   /*       0x02E8		/* Feedback Source B */
+		CoreParamsPair(1, R_APF1_SIZE),   /*       0x02E4		  Feedback Source A */
+		CoreParamsPair(1, R_APF2_SIZE),   /*       0x02E8		  Feedback Source B */
 		CoreParamsPair(1, R_SAME_L_DST),  /*    0x02EC */
 		CoreParamsPair(1, R_SAME_R_DST),  /*    0x02F0 */
 		CoreParamsPair(1, R_COMB1_L_SRC), /*     0x02F4 */
@@ -151,8 +151,8 @@
 
 		RCORE(1, REG_A_EEA), RNULL,
 
-		CoreParamsPair(1, REG_S_ENDX), /*       0x0340	/* End Point passed flag */
-		RCORE(1, REG_P_STATX), /*      0x0344 	/* Status register? */
+		CoreParamsPair(1, REG_S_ENDX), /*       0x0340	  End Point passed flag */
+		RCORE(1, REG_P_STATX), /*      0x0344 	  Status register? */
 
 		REGRAW(0x746),
 		REGRAW(0x748), REGRAW(0x74A), REGRAW(0x74C), REGRAW(0x74E),
@@ -161,49 +161,49 @@
 
 		/* ------ ------- */
 
-		RCEXT(0, REG_P_MVOLL),  /*     0x0760		/* Master Volume Left */
-		RCEXT(0, REG_P_MVOLR),  /*     0x0762		/* Master Volume Right */
-		RCEXT(0, REG_P_EVOLL),  /*     0x0764		/* Effect Volume Left */
-		RCEXT(0, REG_P_EVOLR),  /*     0x0766		/* Effect Volume Right */
-		RCEXT(0, REG_P_AVOLL),  /*     0x0768		/* Core External Input Volume Left  (Only Core 1) */
-		RCEXT(0, REG_P_AVOLR),  /*     0x076A		/* Core External Input Volume Right (Only Core 1) */
-		RCEXT(0, REG_P_BVOLL),  /*     0x076C 		/* Sound Data Volume Left */
-		RCEXT(0, REG_P_BVOLR),  /*     0x076E		/* Sound Data Volume Right */
-		RCEXT(0, REG_P_MVOLXL), /*     0x0770		/* Current Master Volume Left */
-		RCEXT(0, REG_P_MVOLXR), /*     0x0772		/* Current Master Volume Right */
+		RCEXT(0, REG_P_MVOLL),  /*     0x0760		  Master Volume Left */
+		RCEXT(0, REG_P_MVOLR),  /*     0x0762		  Master Volume Right */
+		RCEXT(0, REG_P_EVOLL),  /*     0x0764		  Effect Volume Left */
+		RCEXT(0, REG_P_EVOLR),  /*     0x0766		  Effect Volume Right */
+		RCEXT(0, REG_P_AVOLL),  /*     0x0768		  Core External Input Volume Left  (Only Core 1) */
+		RCEXT(0, REG_P_AVOLR),  /*     0x076A		  Core External Input Volume Right (Only Core 1) */
+		RCEXT(0, REG_P_BVOLL),  /*     0x076C 		  Sound Data Volume Left */
+		RCEXT(0, REG_P_BVOLR),  /*     0x076E		  Sound Data Volume Right */
+		RCEXT(0, REG_P_MVOLXL), /*     0x0770		  Current Master Volume Left */
+		RCEXT(0, REG_P_MVOLXR), /*     0x0772		  Current Master Volume Right */
 
-		RCEXT(0, R_IIR_VOL),   /*     0x0774		/*IIR alpha (% used) */
+		RCEXT(0, R_IIR_VOL),   /*     0x0774		 IIR alpha (% used) */
 		RCEXT(0, R_COMB1_VOL), /*     0x0776 */
 		RCEXT(0, R_COMB2_VOL), /*     0x0778 */
 		RCEXT(0, R_COMB3_VOL), /*     0x077A */
 		RCEXT(0, R_COMB4_VOL), /*     0x077C */
 		RCEXT(0, R_WALL_VOL),  /*     0x077E */
-		RCEXT(0, R_APF1_VOL),  /*     0x0780		/*feedback alpha (% used) */
-		RCEXT(0, R_APF2_VOL),  /*     0x0782		/*feedback */
+		RCEXT(0, R_APF1_VOL),  /*     0x0780		 feedback alpha (% used) */
+		RCEXT(0, R_APF2_VOL),  /*     0x0782		 feedback */
 		RCEXT(0, R_IN_COEF_L), /*     0x0784 */
 		RCEXT(0, R_IN_COEF_R), /*     0x0786 */
 
 		/* ------ ------- */
 
-		RCEXT(1, REG_P_MVOLL),  /*     0x0788		/* Master Volume Left */
-		RCEXT(1, REG_P_MVOLR),  /*     0x078A		/* Master Volume Right */
-		RCEXT(1, REG_P_EVOLL),  /*     0x0764		/* Effect Volume Left */
-		RCEXT(1, REG_P_EVOLR),  /*     0x0766		/* Effect Volume Right */
-		RCEXT(1, REG_P_AVOLL),  /*     0x0768		/* Core External Input Volume Left  (Only Core 1) */
-		RCEXT(1, REG_P_AVOLR),  /*     0x076A		/* Core External Input Volume Right (Only Core 1) */
-		RCEXT(1, REG_P_BVOLL),  /*     0x076C		/* Sound Data Volume Left */
-		RCEXT(1, REG_P_BVOLR),  /*     0x076E		/* Sound Data Volume Right */
-		RCEXT(1, REG_P_MVOLXL), /*     0x0770		/* Current Master Volume Left */
-		RCEXT(1, REG_P_MVOLXR), /*     0x0772		/* Current Master Volume Right */
+		RCEXT(1, REG_P_MVOLL),  /*     0x0788		  Master Volume Left */
+		RCEXT(1, REG_P_MVOLR),  /*     0x078A		  Master Volume Right */
+		RCEXT(1, REG_P_EVOLL),  /*     0x0764		  Effect Volume Left */
+		RCEXT(1, REG_P_EVOLR),  /*     0x0766		  Effect Volume Right */
+		RCEXT(1, REG_P_AVOLL),  /*     0x0768		  Core External Input Volume Left  (Only Core 1) */
+		RCEXT(1, REG_P_AVOLR),  /*     0x076A		  Core External Input Volume Right (Only Core 1) */
+		RCEXT(1, REG_P_BVOLL),  /*     0x076C		  Sound Data Volume Left */
+		RCEXT(1, REG_P_BVOLR),  /*     0x076E		  Sound Data Volume Right */
+		RCEXT(1, REG_P_MVOLXL), /*     0x0770		  Current Master Volume Left */
+		RCEXT(1, REG_P_MVOLXR), /*     0x0772		  Current Master Volume Right */
 
-		RCEXT(1, R_IIR_VOL),   /*     0x0774		/*IIR alpha (% used) */
+		RCEXT(1, R_IIR_VOL),   /*     0x0774		 IIR alpha (% used) */
 		RCEXT(1, R_COMB1_VOL), /*     0x0776 */
 		RCEXT(1, R_COMB2_VOL), /*     0x0778 */
 		RCEXT(1, R_COMB3_VOL), /*     0x077A */
 		RCEXT(1, R_COMB4_VOL), /*     0x077C */
 		RCEXT(1, R_WALL_VOL),  /*     0x077E */
-		RCEXT(1, R_APF1_VOL),  /*     0x0780		/*feedback alpha (% used) */
-		RCEXT(1, R_APF2_VOL),  /*     0x0782		/*feedback */
+		RCEXT(1, R_APF1_VOL),  /*     0x0780		 feedback alpha (% used) */
+		RCEXT(1, R_APF2_VOL),  /*     0x0782		 feedback */
 		RCEXT(1, R_IN_COEF_L), /*     0x0784 */
 		RCEXT(1, R_IN_COEF_R), /*     0x0786 */
 
@@ -212,13 +212,13 @@
 
 		/*  SPDIF interface */
 
-		RSPDIF(SPDIF_OUT),     /*    0x07C0		/* SPDIF Out: OFF/'PCM'/Bitstream/Bypass */
+		RSPDIF(SPDIF_OUT),     /*    0x07C0		  SPDIF Out: OFF/'PCM'/Bitstream/Bypass */
 		RSPDIF(SPDIF_IRQINFO), /*    0x07C2 */
 		REGRAW(0x7C4),
 		RSPDIF(SPDIF_MODE),  /*    0x07C6 */
-		RSPDIF(SPDIF_MEDIA), /*    0x07C8		/* SPDIF Media: 'CD'/DVD */
+		RSPDIF(SPDIF_MEDIA), /*    0x07C8		  SPDIF Media: 'CD'/DVD */
 		REGRAW(0x7CA),
-		RSPDIF(SPDIF_PROTECT), /*	 0x07CC		/* SPDIF Copy Protection */
+		RSPDIF(SPDIF_PROTECT), /*	 0x07CC		  SPDIF Copy Protection */
 
 		REGRAW(0x7CE),
 		REGRAW(0x7D0), REGRAW(0x7D2), REGRAW(0x7D4), REGRAW(0x7D6),
