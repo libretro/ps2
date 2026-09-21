@@ -538,6 +538,7 @@ set(pcsx2IPUHeaders
 	IPU/ipu_bitstream.h
 	IPU/ipu_bp.h
 	IPU/ipu_csc.h
+	IPU/ipu_decoder.h
 	IPU/ipu_status.h
 	IPU/ipu_idct.h
 	IPU/yuv2rgb.h

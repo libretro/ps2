@@ -712,11 +712,11 @@ __ri static bool mpeg2sliceIDEC(void)
 						ipu_csc(&mb8, &rgb32, decoder.sgn, g_ipu_thresh);
 
 						if (decoder.ofm == 0)
-							decoder.SetOutputTo(rgb32);
+							ipu_decoder_set_output(&decoder, &rgb32, sizeof(rgb32));
 						else
 						{
 							::ipu_dither(&rgb32, &rgb16, decoder.dte);
-							decoder.SetOutputTo(rgb16);
+							ipu_decoder_set_output(&decoder, &rgb16, sizeof(rgb16));
 						}
 						ipu_cmd.pos[1] = 2;
 
@@ -734,8 +734,8 @@ __ri static bool mpeg2sliceIDEC(void)
 								return false;
 							}
 
-							uint read = ipu_fifo.out.write((u32*)decoder.GetIpuDataPtr(), decoder.ipu0_data);
-							decoder.AdvanceIpuDataBy(read);
+							uint read = ipu_fifo.out.write((u32*)ipu_decoder_data_ptr(&decoder), decoder.ipu0_data);
+							ipu_decoder_advance(&decoder, read);
 
 							if (decoder.ipu0_data != 0)
 							{
@@ -1122,7 +1122,7 @@ __fi static bool mpeg2_slice(void)
 			ipuRegs.ctrl.SCD = 0;
 			coded_block_pattern = decoder.coded_block_pattern;
 
-			decoder.SetOutputTo(mb16);
+			ipu_decoder_set_output(&decoder, &mb16, sizeof(mb16));
 
 			/* fallthrough */
 
@@ -1138,8 +1138,8 @@ __fi static bool mpeg2_slice(void)
 					return false;
 				}
 
-				uint read = ipu_fifo.out.write((u32*)decoder.GetIpuDataPtr(), decoder.ipu0_data);
-				decoder.AdvanceIpuDataBy(read);
+				uint read = ipu_fifo.out.write((u32*)ipu_decoder_data_ptr(&decoder), decoder.ipu0_data);
+				ipu_decoder_advance(&decoder, read);
 
 				if (decoder.ipu0_data != 0)
 				{
