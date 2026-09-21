@@ -108,7 +108,7 @@ void SPU2write(u32 rmem, u16 value)
 	if (rmem >> 16 == 0x1f80)
 		V_Core_WriteRegPS1(&Cores[0], rmem, value);
 	else
-		tbl_reg_writes[(rmem & 0x7ff) / 2](value);
+		tbl_reg_writes[(rmem & 0x7ff) / 2](tbl_reg_args[(rmem & 0x7ff) / 2], value);
 }
 
 s32 SPU2freeze(FreezeAction mode, freezeData* data)

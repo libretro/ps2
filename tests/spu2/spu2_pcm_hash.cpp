@@ -61,7 +61,13 @@ alignas(16) psxRegisters psxRegs;
 psxCounter psxCounters[NUM_COUNTERS];
 s32 psxNextDeltaCounter;
 u32 psxNextStartCounter;
-u32 lClocks;
+/* lClocks lives in spu2.cpp, which the harness links for SPU2write. */
+
+/* Savestates are reached only through SPU2freeze, which no scenario calls. */
+extern "C" void *memalign_alloc(size_t a, size_t n);
+extern "C" void memalign_free(void *p);
+void *memalign_alloc(size_t a, size_t n) { (void)a; return malloc(n); }
+void memalign_free(void *p) { free(p); }
 
 void psxDmaInterrupt(int) {}
 void psxDmaInterrupt2(int) {}
@@ -84,6 +90,14 @@ static void hash_s16(uint64_t *h, s16 v)
 	uint16_t u = (uint16_t)v;
 	*h = (*h ^ (uint64_t)(u & 0xff))      * 1099511628211ull;
 	*h = (*h ^ (uint64_t)((u >> 8) & 0xff)) * 1099511628211ull;
+}
+
+static void hash_bytes(uint64_t *h, const void *p, size_t n)
+{
+	const unsigned char *b = (const unsigned char *)p;
+	size_t i;
+	for (i = 0; i < n; i++)
+		*h = (*h ^ (uint64_t)b[i]) * 1099511628211ull;
 }
 
 /* ------------------------------------------------------------------ */
@@ -385,6 +399,44 @@ static uint64_t scen_input(int samples)
 	return run(samples);
 }
 
+/* Every address in the register window, driven through the dispatch table
+ * four times with different values, hashing the whole of both cores and the
+ * register file after each pass. This is what holds the table's 0x400
+ * entries to their handlers: an entry pointed at the wrong handler, or a
+ * handler handed the wrong core or register, shows up here and nowhere
+ * else. The sweep is followed by an ordinary mix so the scenario still has
+ * to produce audio. */
+static uint64_t scen_regwrite(int samples)
+{
+	static const u16 vals[4] = { 0x0000, 0xffff, 0x5a5a, 0x1234 };
+	uint64_t h = hash_init();
+	int p, v;
+
+	memset(Cores, 0, sizeof(Cores));
+	reset_core();
+
+	for (p = 0; p < 4; p++)
+	{
+		u32 a;
+		for (a = 0; a < 0x800; a += 2)
+			SPU2write(0x1f900000u | a, vals[p]);
+		hash_bytes(&h, Cores, sizeof(Cores));
+		hash_bytes(&h, spu2regs, sizeof(spu2regs));
+		hash_bytes(&h, &Spdif, sizeof(Spdif));
+	}
+
+	fill_sample_ram();
+	reset_core();
+	for (v = 0; v < 8; v++)
+		start_voice(0, v, 0x1000 + (u32)v * 0x400, (u16)(0x400 + v * 0x90),
+		            0x00ff, 0x1fc0, 0x3000, 0x3000);
+	Cores[0].DryGate.SndL = Cores[0].DryGate.SndR = -1;
+	Cores[0].MasterVol.Left.Value = Cores[0].MasterVol.Right.Value = 0x3fff;
+	Cores[1].MasterVol.Left.Value = Cores[1].MasterVol.Right.Value = 0x3fff;
+	open_ext_path();
+	return h ^ run(samples);
+}
+
 /* Driven hard enough to sit on the saturation boundaries. Without this the
  * clamps are never reached -- the other scenarios peak at about half scale
  * -- and a change to how the result is saturated passes unnoticed, which is
@@ -471,6 +523,7 @@ int main(int argc, char **argv)
 		{ "noise+gates", scen_noise_gates, 0xe9c06d20f41a8280ull },
 		{ "clipping",    scen_clipping,    0xa889e93e69cb254bull },
 		{ "input",       scen_input,       0xedc162f6bc1ee9f5ull },
+		{ "regwrite",    scen_regwrite,    0x656824e163b874e9ull },
 	};
 
 	fill_sample_ram();

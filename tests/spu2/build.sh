@@ -22,7 +22,7 @@ DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 ROOT=$(CDPATH= cd -- "$DIR/../.." && pwd)
 INC="-I$ROOT -I$ROOT/pcsx2 -I$ROOT/pcsx2/SPU2 -I$ROOT/common"
 INC="$INC -I$ROOT/libretro/libretro-common/include -I$ROOT/3rdparty -I$ROOT/3rdparty/include"
-UNITS="Mixer spu2sys ADSR Reverb ReverbResample RegTable ReadInput Dma"
+UNITS="Mixer spu2sys ADSR Reverb ReverbResample RegTable ReadInput Dma spu2 spu2freeze"
 N=${N:-48000}
 
 TMP=${TMPDIR:-/tmp}/spu2.$$

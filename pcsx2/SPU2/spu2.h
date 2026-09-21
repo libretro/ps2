@@ -43,8 +43,9 @@ u16 SPU2read(u32 mem);
 s32 SPU2freeze(FreezeAction mode, freezeData* data);
 
 extern u32 lClocks;
-typedef void RegWriteHandler(u16 value);
+typedef void RegWriteHandler(u32 arg, u16 value);
 extern RegWriteHandler* const tbl_reg_writes[0x401];
+extern const u16 tbl_reg_args[0x401];
 
 extern void TimeUpdate(u64 cClocks);
 
