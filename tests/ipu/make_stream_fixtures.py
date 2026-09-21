@@ -133,7 +133,7 @@ def parse(data):
     return seq, pic, slices
 
 
-def emit(fh, name, seq, pic, slices, data, yuv):
+def emit(fh, name, seq, pic, slices, data, yuv, tight):
     w, h = seq["width"], seq["height"]
     mbw = (w + 15) // 16
     fh.write("/* ---- %s: %dx%d, %d slices ---- */\n" % (name, w, h, len(slices)))
@@ -175,18 +175,18 @@ def emit(fh, name, seq, pic, slices, data, yuv):
 \t"%s", %s_bytes, sizeof(%s_bytes), %s_slices,
 \t(int)(sizeof(%s_slices)/sizeof(%s_slices[0])),
 \t%s_intra_q, %s_non_intra_q, (const u8 *)%s_ref,
-\t%d, %d, %d, %d, %d, %d, %d, %d, %d
+\t%d, %d, %d, %d, %d, %d, %d, %d, %d, %d
 };
 
 """ % (name, name, name, name, name, name, name, name, name, name,
        mbw, w, h,
        pic["intra_dc_precision"], pic["picture_structure"],
        pic["frame_pred_frame_dct"], pic["q_scale_type"],
-       pic["intra_vlc_format"], pic["alternate_scan"]))
+       pic["intra_vlc_format"], pic["alternate_scan"], tight))
 
 
 def build(spec, out):
-    name, src, q, extra = spec
+    name, src, q, extra = spec[0], spec[1], spec[2], spec[3]
     m2v = os.path.join(out, name + ".m2v")
     raw = os.path.join(out, name + ".yuv")
     subprocess.run(["ffmpeg", "-loglevel", "error", "-f", "lavfi", "-i", src,
@@ -208,8 +208,39 @@ def main():
         ("test_q3", "testsrc2=size=64x64:rate=1:duration=1",   3,  []),
         ("test_q12", "testsrc2=size=64x64:rate=1:duration=1", 12,  []),
         ("noise",  "testsrc2=size=128x64:rate=1:duration=1",   6,  []),
-        ("flat_q31", "color=c=gray:size=64x64:rate=1:duration=1", 31, []),
-        ("smooth", "gradients=size=64x64:rate=1:duration=1",     8,  []),
+        ("flat_q31", "color=c=gray:size=64x64:rate=1:duration=1", 31, [], 1),
+        ("smooth", "gradients=size=64x64:rate=1:duration=1",     8,  [], 1),
+        # The four picture-level switches the decoder branches on. Without
+        # these, intra_vlc_format, the non-linear quantiser table, the
+        # alternate scan and the wider DC precisions are all dead paths
+        # under this harness.
+        ("altscan", "smptebars=size=64x64:rate=1:duration=1",    4,
+         ["-alternate_scan", "1"]),
+        # Flat and smooth under alternate scan too: if those come out
+        # bit-exact the scan order and the interlaced block layout are
+        # right, and what is left on detailed content is the IDCT gap.
+        ("altflat", "color=c=gray:size=64x64:rate=1:duration=1", 31,
+         ["-alternate_scan", "1"], 1),
+        ("altsmooth", "gradients=size=64x64:rate=1:duration=1",  8,
+         ["-alternate_scan", "1"], 1),
+        # Alternating lines carrying different gradients: each field is
+        # smooth while the frame is not, so the encoder picks field DCT and
+        # the interlaced block layout in mpeg2_slice finally runs.
+        ("fielddct",
+         "color=c=black:size=64x64:rate=1:duration=1,"
+         "geq=lum='if(mod(Y\\,2)\\,200-X\\,40+X)':cb=128:cr=128", 3,
+         ["-flags", "+ildct"]),
+        ("intravlc", "testsrc2=size=64x64:rate=1:duration=1",    5,
+         ["-intra_vlc", "1"]),
+        # ffmpeg refuses non-linear quant above qmax 28.
+        ("nonlinq", "testsrc2=size=64x64:rate=1:duration=1",     9,
+         ["-non_linear_quant", "1", "-qmax", "28"]),
+        ("dcprec9", "smptebars=size=64x64:rate=1:duration=1",    4,
+         ["-dc", "1"]),
+        ("dcprec10", "smptebars=size=64x64:rate=1:duration=1",   4,
+         ["-dc", "2"]),
+        ("dcprec11", "smptebars=size=64x64:rate=1:duration=1",   4,
+         ["-dc", "3"]),
     ]
 
     out = os.path.join(HERE, "_streams")
@@ -240,6 +271,13 @@ def main():
                  "\tint intra_dc_precision, picture_structure;\n"
                  "\tint frame_pred_frame_dct, q_scale_type;\n"
                  "\tint intra_vlc_format, alternate_scan;\n"
+                 "\t/* A stream whose content is flat or smooth carries almost\n"
+                 "\t * no high-frequency energy, so the IPU and ffmpeg land on\n"
+                 "\t * the same pixels or within a step of them. Those are the\n"
+                 "\t * streams that show the decode is right. Detailed streams\n"
+                 "\t * get a loose bound, because what separates them there is\n"
+                 "\t * the two inverse DCTs, not a defect. */\n"
+                 "\tint tight;\n"
                  "} ipu_stream;\n\n")
 
         names = []
@@ -248,7 +286,8 @@ def main():
             seq, pic, slices = parse(data)
             if not slices:
                 sys.exit("no slices found in %s" % spec[0])
-            emit(fh, spec[0], seq, pic, slices, data, yuv)
+            emit(fh, spec[0], seq, pic, slices, data, yuv,
+                 1 if len(spec) > 4 and spec[4] else 0)
             names.append(spec[0])
             print("%-10s %dx%d  %d slices  alt_scan=%d ivf=%d dcp=%d"
                   % (spec[0], seq["width"], seq["height"], len(slices),

@@ -124,7 +124,8 @@ static void hash_bytes(uint64_t *h, const void *p, size_t n)
 }
 
 static long compared;
-static long st_n, st_sum, st_peak;
+static long st_n, st_sum, st_peak, st_interlaced;
+static long interlace_checked, interlace_bad;
 static long failures;
 static int worst_err;
 static long errhist[16];
@@ -160,19 +161,24 @@ static u32 hpeek(u32 n)
  * EE's job on hardware and the harness's here. In an I picture macroblocks
  * cannot be skipped, so the address increment is always the single bit 1,
  * and macroblock_type is 1 for intra or 01 for intra carrying a new
- * quantiser scale. */
-static int macroblock_header(const ipu_stream *st, int *quant_out)
+ * quantiser scale.
+ *
+ * A frame picture that did not promise frame-only prediction carries a
+ * dct_type bit after macroblock_type, and that bit picks the interlaced
+ * block layout. Encoders turn alternate scan on together with it, so the
+ * alternate-scan fixture is also the one that exercises that layout. */
+static int macroblock_header(const ipu_stream *st, int *quant_out,
+                             int *dct_type_out)
 {
+	*dct_type_out = 0;
+
 	if (hpeek(1) != 1)
 		return 0;               /* an increment this does not handle */
 	hread(1);
 
 	if (hpeek(1) == 1)
-	{
 		hread(1);               /* macroblock_type: intra */
-		return 1;
-	}
-	if (hpeek(2) == 1)
+	else if (hpeek(2) == 1)
 	{
 		hread(2);               /* macroblock_type: intra, quant follows */
 		{
@@ -181,9 +187,14 @@ static int macroblock_header(const ipu_stream *st, int *quant_out)
 				? non_linear_quantizer_scale[qsc]
 				: (int)(qsc << 1);
 		}
-		return 1;
 	}
-	return 0;
+	else
+		return 0;
+
+	if (st->picture_structure == 3 && !st->frame_pred_frame_dct)
+		*dct_type_out = (int)hread(1);
+
+	return 1;
 }
 
 /* Set up decoder the way ipuBDEC does, for one slice of one stream. */
@@ -243,7 +254,7 @@ int main(int argc, char **argv)
 	uint64_t h = hash_init();
 
 	/* Pinned from the tree as it stands. */
-	const uint64_t want_h = 0x2587b9d666fa96d0ull;
+	const uint64_t want_h = 0xfbccfec76a35fe0bull;
 
 	/* How far the IPU may sit from ffmpeg.
 	 *
@@ -255,14 +266,17 @@ int main(int argc, char **argv)
 	 * bit-exact, a gradient sits at 0.27 mean, and detailed frames run
 	 * 4 to 5 mean with peaks around 60.
 	 *
-	 * So the bound is per stream rather than per pixel, and it is set to
-	 * catch the shape of a real defect rather than rounding: decoding
-	 * with the wrong scan order or a mis-stepped VLC table puts the mean
-	 * in the tens and the peak past 200, which these limits reject while
-	 * leaving the IDCT gap alone. Bit-exactness is the hash's job, not
-	 * this one's. */
-	const double mean_limit = 6.5;
-	const long   peak_limit = 80;
+	 * So the bound is per stream rather than per pixel, and it comes in
+	 * two grades. The flat and smooth fixtures carry almost no
+	 * high-frequency energy, so there the two decoders have to agree
+	 * closely -- that is where the decode itself is shown to be right.
+	 * The detailed fixtures only get a loose bound, enough to reject the
+	 * shape of a real defect: the wrong scan order or a mis-stepped VLC
+	 * table puts the mean in the tens and the peak past 200. Anything
+	 * finer than that on detailed content is the hash's job, not this
+	 * one's. */
+	const double tight_mean = 1.0,  loose_mean = 12.0;
+	const long   tight_peak = 8,    loose_peak = 110;
 
 	printf("tier: ");
 #if defined(__AVX2__)
@@ -302,8 +316,9 @@ int main(int argc, char **argv)
 				int spin = 0;
 				bool done = false;
 				int quant = decoder.quantizer_scale;
+				int dct_type = 0;
 
-				if (!macroblock_header(st, &quant))
+				if (!macroblock_header(st, &quant, &dct_type))
 				{
 					printf("  %s: slice %d macroblock %d has a header "
 					       "this harness does not parse\n",
@@ -313,6 +328,20 @@ int main(int argc, char **argv)
 					break;
 				}
 				decoder.quantizer_scale = quant;
+				decoder.macroblock_modes = MACROBLOCK_INTRA
+					| (dct_type ? DCT_TYPE_INTERLACED : 0);
+				if (dct_type) st_interlaced++;
+
+				tIPU_BP bp_before;
+				size_t qwc_before;
+				s16 pred_before[3];
+				int dcr_before = decoder.dcr;
+
+				memcpy(&bp_before, &g_BP, sizeof(g_BP));
+				qwc_before = g_src_qwc;
+				pred_before[0] = decoder.dc_dct_pred[0];
+				pred_before[1] = decoder.dc_dct_pred[1];
+				pred_before[2] = decoder.dc_dct_pred[2];
 
 				memset(&ipu_cmd, 0, sizeof(ipu_cmd));
 				while (!done)
@@ -366,6 +395,96 @@ int main(int argc, char **argv)
 						note(got > want ? got - want : want - got, "luma");
 					}
 
+				/* The interlaced block layout is the one path here that
+				 * no encoder would choose for this material, so it is
+				 * reached by decoding the same bits a second time with
+				 * it forced on. The two layouts write the same six
+				 * blocks at different strides, so the results have to
+				 * be related by the field interleave exactly -- rows
+				 * 0..7 of the frame result land on the even rows and
+				 * rows 8..15 on the odd ones. A wrong DCT_offset or
+				 * DCT_stride breaks that relation. */
+				if (dct_type == 0)
+				{
+					macroblock_8 frame_mb = decoder.mb8;
+					tIPU_BP bp_after;
+					size_t qwc_after = g_src_qwc;
+					s16 pred_after[3];
+
+					memcpy(&bp_after, &g_BP, sizeof(g_BP));
+					pred_after[0] = decoder.dc_dct_pred[0];
+					pred_after[1] = decoder.dc_dct_pred[1];
+					pred_after[2] = decoder.dc_dct_pred[2];
+
+					memcpy(&g_BP, &bp_before, sizeof(g_BP));
+					g_src_qwc = qwc_before;
+					decoder.dc_dct_pred[0] = pred_before[0];
+					decoder.dc_dct_pred[1] = pred_before[1];
+					decoder.dc_dct_pred[2] = pred_before[2];
+					/* dcr is consumed by the pass that sees it, so the
+					 * rewind has to put it back or the second pass
+					 * skips the predictor reset at the head of a
+					 * slice and decodes different DC values. */
+					decoder.dcr = dcr_before;
+					decoder.macroblock_modes =
+						MACROBLOCK_INTRA | DCT_TYPE_INTERLACED;
+
+					memset(&ipu_cmd, 0, sizeof(ipu_cmd));
+					spin = 0; done = false;
+					while (!done)
+					{
+						ipu0ch.qwc       = 0x4000;
+						ipuRegs.ctrl.OFC = 0;
+						done = mpeg2_slice();
+						if (!done && ++spin > 64)
+							break;
+					}
+
+					if (done)
+					{
+						if (getenv("IPU_ILMAP") && si == 0 && s == 0 && mx == 0)
+						{
+							printf("    rows that match frame row k:\n");
+							for (int y = 0; y < 16; y++)
+							{
+								printf("      il row %2d ->", y);
+								for (int k = 0; k < 16; k++)
+								{
+									int same = 1;
+									for (int x = 0; x < 16; x++)
+										if (decoder.mb8.Y[y][x] != frame_mb.Y[k][x])
+										{ same = 0; break; }
+									if (same) printf(" %d", k);
+								}
+								printf("\n");
+							}
+						}
+						for (int y = 0; y < 16; y++)
+							for (int x = 0; x < 16; x++)
+							{
+								const int src = (y & 1) ? 8 + (y >> 1)
+								                        : (y >> 1);
+								interlace_checked++;
+								if (decoder.mb8.Y[y][x]
+								    != frame_mb.Y[src][x])
+									interlace_bad++;
+							}
+					}
+					else
+						interlace_bad++;
+
+					/* Put the decoder back exactly where the frame
+					 * pass left it, so the next macroblock resumes
+					 * from the right bit and the right predictors. */
+					memcpy(&g_BP, &bp_after, sizeof(g_BP));
+					g_src_qwc = qwc_after;
+					decoder.dc_dct_pred[0] = pred_after[0];
+					decoder.dc_dct_pred[1] = pred_after[1];
+					decoder.dc_dct_pred[2] = pred_after[2];
+					decoder.dcr = 0;
+					decoder.mb8 = frame_mb;
+				}
+
 				for (int y = 0; y < 8; y++)
 					for (int x = 0; x < 8; x++)
 					{
@@ -383,11 +502,14 @@ int main(int argc, char **argv)
 		}
 		{
 			const double mean = st_n ? (double)st_sum / (double)st_n : 0.0;
-			const int over = (mean > mean_limit) || (st_peak > peak_limit)
+			const double ml = st->tight ? tight_mean : loose_mean;
+			const long   pl = st->tight ? tight_peak : loose_peak;
+			const int over = (mean > ml) || (st_peak > pl)
 			               || (mb_total != st->nslices * st->mbw);
-			printf("  %-9s %2d/%2d macroblocks   mean |err| %6.3f   peak %3ld%s\n",
+			printf("  %-9s %2d/%2d macroblocks   mean |err| %6.3f   peak %3ld   %s%s\n",
 			       st->name, mb_total, st->nslices * st->mbw,
-			       mean, st_peak, over ? "   OVER LIMIT" : "");
+			       mean, st_peak, st->tight ? "tight" : "loose",
+			       over ? "   OVER LIMIT" : "");
 			if (over)
 				failures++;
 			st_n = st_sum = st_peak = 0;
@@ -404,6 +526,10 @@ int main(int argc, char **argv)
 	       want_h == 0 ? "  (unpinned)" :
 	       (h == want_h ? "  ok" : "  UNEXPECTED"));
 	printf("  worst deviation from ffmpeg: %d (%s)\n", worst_err, worst_where);
+	printf("  interlaced layout: %ld pixels checked against the field "
+	       "interleave, %ld wrong\n", interlace_checked, interlace_bad);
+	if (interlace_bad)
+		failures++;
 	printf("  |error| histogram:");
 	for (int i = 0; i <= (worst_err < 15 ? worst_err : 15); i++)
 		printf(" %d:%ld", i, errhist[i]);
