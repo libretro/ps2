@@ -27,3 +27,23 @@ g++ -O2 -std=c++17 -msse4.1 -o "$DIR/gs_fmm_bench" "$DIR/gs_fmm_bench.cpp" \
     -I"$ROOT/3rdparty" -I"$ROOT/3rdparty/include" \
     -I"$ROOT/libretro/libretro-common/include"
 "$DIR/gs_fmm_bench"
+
+# aarch64: the parse and cull kernels go through GSVector, which has its own
+# NEON spelling there. Only the oracle runs -- the benchmarks above measure
+# this host, and a qemu figure would be the emulator's cost, not the
+# target's.
+if command -v aarch64-linux-gnu-g++ >/dev/null 2>&1 &&
+   command -v qemu-aarch64 >/dev/null 2>&1; then
+	echo
+	echo "=== aarch64 (NEON GSVector) ==="
+	aarch64-linux-gnu-g++ -O2 -std=c++17 -static \
+	    -o "$DIR/gs_vertex_oracle64" "$DIR/gs_vertex_oracle.cpp" \
+	    -I"$ROOT" -I"$ROOT/common" -I"$ROOT/common/include" -I"$ROOT/pcsx2" \
+	    -I"$ROOT/3rdparty" -I"$ROOT/3rdparty/include" \
+	    -I"$ROOT/libretro/libretro-common/include"
+	qemu-aarch64 "$DIR/gs_vertex_oracle64"
+	rm -f "$DIR/gs_vertex_oracle64"
+else
+	echo
+	echo "skipping aarch64 lane (no cross toolchain or qemu)"
+fi
