@@ -477,6 +477,15 @@ static __forceinline void MixCoreVoices(VoiceMixSet& dest, const uint coreidx)
 #include <arm_neon.h>
 #endif
 
+/* The four accumulators are read as one run of int32, so pin that: a
+ * reorder of VoiceMixSet or StereoOut32 would change which value is
+ * saturated into which slot, and nothing would fail to compile. */
+static_assert(sizeof(StereoOut32) == 8, "StereoOut32 is a packed pair");
+static_assert(offsetof(StereoOut32, Left) == 0, "Left is the low lane");
+static_assert(offsetof(StereoOut32, Right) == 4, "Right is the high lane");
+static_assert(offsetof(VoiceMixSet, Wet) == offsetof(VoiceMixSet, Dry) + 8,
+              "Dry and Wet are one contiguous run of four");
+
 static __forceinline void ClampMixSet(VoiceMixSet& dst, const VoiceMixSet& src)
 {
 #if defined(SPU2_MIX_SSE41)
