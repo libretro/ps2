@@ -70,14 +70,22 @@
  * macros. Not keyed on the compiler: MSVC defines no SSE4.1 macro of its
  * own, and treating "is MSVC" as "has SSE4.1" would emit pmovzx inline on a
  * baseline x64 build, which is an SSE2 target. */
-#if defined(_M_SSE)
-#if _M_SSE >= 0x401
+#if defined(_MSC_VER) && !defined(__clang__)
+/* cl.exe predefines no SSE4.1 macro and checks no target feature, so the
+ * project's ladder is both the only statement of intent available and one
+ * it will honour. */
+#if defined(_M_SSE) && _M_SSE >= 0x401
 #define GS_VERTEX_CAN_SSE41 1
 #endif
-#if _M_SSE >= 0x500
+#if defined(_M_SSE) && _M_SSE >= 0x500
 #define GS_VERTEX_CAN_AVX 1
 #endif
 #else
+/* Everywhere else the compiler's own macros are the ground truth for what
+ * this translation unit may emit, and refusing an intrinsic above them is
+ * an error rather than a slower build. VectorIntrin.h derives _M_SSE from
+ * these same macros, so in-tree the two agree; where a build forces _M_SSE
+ * by hand they need not, and the compiler wins. */
 #if defined(__SSE4_1__) || defined(__AVX__)
 #define GS_VERTEX_CAN_SSE41 1
 #endif
