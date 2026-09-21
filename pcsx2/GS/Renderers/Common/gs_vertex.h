@@ -178,19 +178,28 @@ void gs_vertex_init(void);
 int gs_vertex_set_backend(int backend);
 
 /* ------------------------------------------------------------------ */
-/* Per-vertex store.                                                    */
-/*                                                                      */
+/* Per-vertex store. dst must be 32-byte aligned, which any object of    */
+/* this union type is.                                                   */
+/*                                                                       */
 /* The hot one: VertexKick runs this for every vertex the GIF delivers.  */
-/* One 32-byte move where the build has AVX, two 16-byte ones otherwise. */
 /* Compile-time, deliberately: a call to reach a wider store costs more  */
 /* than the store saves at this size.                                    */
+/*                                                                       */
+/* On AVX this loads two halves and stores one 32-byte line. Never a     */
+/* 32-byte load: a caller typically fills half the record immediately    */
+/* before storing it -- the GIF handlers assign m_v.m[1] an instruction  */
+/* before VertexKick -- and a 32-byte load spanning a just-written half  */
+/* cannot be store-forwarded, so it stalls until that store reaches L1.  */
+/* Two narrow loads forward cleanly and still leave one store to retire. */
 /* ------------------------------------------------------------------ */
 
 static GS_VERTEX_INLINE void gs_vertex_store(
       union gs_vertex *dst, const union gs_vertex *src)
 {
 #if defined(GS_VERTEX_CAN_AVX)
-   _mm256_store_si256((__m256i *)dst, _mm256_load_si256((const __m256i *)src));
+   _mm256_store_si256((__m256i *)dst,
+         _mm256_set_m128i(_mm_load_si128(((const __m128i *)src) + 1),
+                          _mm_load_si128((const __m128i *)src)));
 #elif defined(GS_VERTEX_X86)
    _mm_store_si128((__m128i *)dst,       _mm_load_si128((const __m128i *)src));
    _mm_store_si128(((__m128i *)dst) + 1, _mm_load_si128(((const __m128i *)src) + 1));

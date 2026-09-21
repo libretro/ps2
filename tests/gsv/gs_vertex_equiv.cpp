@@ -113,6 +113,48 @@ static int accessors(void)
 }
 #endif /* HAVE_GSVERTEX */
 
+static gs_vec4i gs_vertex_make_half(int k)
+{
+	GS_VERTEX_ALIGN32 union gs_vertex t;
+	int j;
+	for (j = 4; j < 8; j++) t.w[j] = (uint32_t)(k * 2654435761u + j);
+	return t.m[1];
+}
+
+/* ---------------- the per-vertex store ---------------- */
+/* Its AVX form assembles the line from two halves rather than moving 32
+ * bytes in one go, so "it obviously copies" is not a safe assumption. */
+static int store_lane(void)
+{
+	long f = 0;
+	int k;
+	for (k = 0; k < 200000; k++) {
+		GS_VERTEX_ALIGN32 union gs_vertex src, dst;
+		int j;
+		for (j = 0; j < 8; j++) src.w[j] = rnd();
+		if ((k & 7) == 0) memset(&src, 0x00, 32);
+		if ((k & 7) == 1) memset(&src, 0xff, 32);
+		memset(&dst, 0xA5, 32);
+		gs_vertex_store(&dst, &src);
+		if (memcmp(&dst, &src, 32)) f++;
+	}
+	/* and with the source half written immediately before, which is how
+	 * VertexKick reaches it -- the shape a wide load would mishandle. */
+	{
+		GS_VERTEX_ALIGN32 union gs_vertex src, dst;
+		for (k = 0; k < 200000; k++) {
+			int j;
+			for (j = 0; j < 4; j++) src.w[j] = rnd();
+			src.m[1] = gs_vertex_make_half(k);
+			memset(&dst, 0x5A, 32);
+			gs_vertex_store(&dst, &src);
+			if (memcmp(&dst, &src, 32)) f++;
+		}
+	}
+	printf("%s: store, %ld failures\n", f ? "FAIL" : "PASS", f);
+	return f != 0;
+}
+
 /* ---------------- batch backends vs the scalar contract ---------------- */
 extern "C" {
 	void gs_ref_gather_xy(int32_t *d, const union gs_vertex *s, size_t n)
@@ -211,6 +253,7 @@ int main(int argc, char **argv)
 
 	fails += layout();
 	fails += accessors();
+	fails += store_lane();
 
 	/* Every body this build contains and this host can run, not just the one
 	 * dispatch would pick -- an untested backend is an untested backend even
