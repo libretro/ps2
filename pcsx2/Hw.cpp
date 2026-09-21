@@ -774,7 +774,7 @@ void hwWrite32( u32 mem, u32 value )
 	{
 		case 0x00:
 		case 0x01:
-			if (!rcntWrite32(mem, value))
+			if (!rcntWrite32(mem, &value))
 				return;
 			break;
 		case 0x02:

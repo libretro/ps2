@@ -201,7 +201,8 @@ SOURCES_C += \
 
 SOURCES_C += \
 	$(LRPS2_DIR)/ps2float.c \
-	$(LRPS2_DIR)/SaveStateBase.c
+	$(LRPS2_DIR)/SaveStateBase.c \
+	$(LRPS2_DIR)/SaveStateFreeze.c
 
 ifeq ($(HAVE_PCAP), 1)
 SOURCES_CXX += $(LRPS2_DIR)/DEV9/pcap_io.cpp
@@ -280,7 +281,6 @@ SOURCES_CXX += \
 	$(LRPS2_DIR)/R5900.cpp \
 	$(LRPS2_DIR)/R5900OpcodeImpl.cpp \
 	$(LRPS2_DIR)/R5900OpcodeTables.cpp \
-	$(LRPS2_DIR)/SaveState.cpp \
 	$(LRPS2_DIR)/Sif.cpp \
 	$(LRPS2_DIR)/Sif0.cpp \
 	$(LRPS2_DIR)/Sif1.cpp \

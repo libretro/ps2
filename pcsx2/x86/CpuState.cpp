@@ -8,7 +8,7 @@
 // an extra dependent load, because a reference at namespace scope is a
 // pointer in memory that has to be read before the member offset can be
 // applied. Defining them directly removes that load from ~2,900 access sites.
-alignas(16) cpuRegisters cpuRegs;
-alignas(16) fpuRegisters fpuRegs;
+PCSX2_ALIGN(16) cpuRegisters cpuRegs;
+PCSX2_ALIGN(16) fpuRegisters fpuRegs;
 alignas(16) psxRegisters psxRegs;
 int iopIsDelaySlot;

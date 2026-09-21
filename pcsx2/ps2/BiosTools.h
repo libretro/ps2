@@ -14,21 +14,15 @@
  */
 
 #pragma once
-#include <string>
 
-const u32 ThreadListInstructions[3] =
-{
-	0xac420000, // sw v0,0x0(v0)
-	0x00000000, // no-op
-	0x00000000, // no-op
-};
+#include "../MemoryTypes.h"
 
-struct BiosDebugInformation
+typedef struct BiosDebugInformation
 {
 	u32 eeThreadListAddr;
 	u32 iopThreadListAddr;
 	u32 iopModListAddr;
-};
+} BiosDebugInformation;
 
 extern BiosDebugInformation CurrentBiosInformation;
 extern u32 BiosVersion;		// Used by CDVD
@@ -43,8 +37,13 @@ extern u32 BiosChecksum;
 
 extern char BiosDescription[];
 extern char BiosSerial[];
+/* The BIOS path is still a std::string, so it is the one declaration here
+ * that C cannot see. Everything above it is reachable from both. */
+#ifdef __cplusplus
+#include <string>
 extern std::string BiosPath;
-extern bool LoadBIOS();
-extern bool IsBIOS(const char* filename, u32& version, char* description, size_t description_size, u32& region, char* zone, size_t zone_size);
+#endif
+extern bool LoadBIOS(void);
+extern bool IsBIOS(const char *filename, u32 *version, char *description, size_t description_size, u32 *region, char *zone, size_t zone_size);
 extern bool IsBIOSAvailable(const char* full_path);
 

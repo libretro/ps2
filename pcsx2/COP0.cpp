@@ -134,7 +134,7 @@ __fi void COP0_UpdatePCCR(void)
 //
 
 
-void MapTLB(const tlbs& t, int i)
+void MapTLB(const tlbs *t, int i)
 {
 	u32 mask, addr;
 	u32 saddr, eaddr;
@@ -144,39 +144,39 @@ void MapTLB(const tlbs& t, int i)
 	// SPR entry fell through to the normal path unless VPN2 happened to be the
 	// default 0x70000000, so an SPR entry mapped to any other address got both
 	// the scratchpad map and bogus normal page mappings. Map only the buffer.
-	if (t.S)
+	if (t->S)
 	{
-		vtlb_VMapBuffer(t.VPN2, eeMem->Scratch, Ps2MemSize::Scratch);
+		vtlb_VMapBuffer(t->VPN2, eeMem->Scratch, Ps2MemSize::Scratch);
 	}
 	else
 	{
-		if (t.EntryLo0 & 0x2)
+		if (t->EntryLo0 & 0x2)
 		{
-			mask = ((~t.Mask) << 1) & 0xfffff;
-			saddr = t.VPN2 >> 12;
-			eaddr = saddr + t.Mask + 1;
+			mask = ((~t->Mask) << 1) & 0xfffff;
+			saddr = t->VPN2 >> 12;
+			eaddr = saddr + t->Mask + 1;
 
 			for (addr = saddr; addr < eaddr; addr++)
 			{
-				if ((addr & mask) == ((t.VPN2 >> 12) & mask)) /* match */
+				if ((addr & mask) == ((t->VPN2 >> 12) & mask)) /* match */
 				{
-					vtlb_VMap(addr << 12, t.PFN0 + ((addr - saddr) << 12), 0x1000);
+					vtlb_VMap(addr << 12, t->PFN0 + ((addr - saddr) << 12), 0x1000);
 					Cpu->Clear(addr << 12, 0x400);
 				}
 			}
 		}
 
-		if (t.EntryLo1 & 0x2)
+		if (t->EntryLo1 & 0x2)
 		{
-			mask = ((~t.Mask) << 1) & 0xfffff;
-			saddr = (t.VPN2 >> 12) + t.Mask + 1;
-			eaddr = saddr + t.Mask + 1;
+			mask = ((~t->Mask) << 1) & 0xfffff;
+			saddr = (t->VPN2 >> 12) + t->Mask + 1;
+			eaddr = saddr + t->Mask + 1;
 
 			for (addr = saddr; addr < eaddr; addr++)
 			{
-				if ((addr & mask) == ((t.VPN2 >> 12) & mask)) /* match */
+				if ((addr & mask) == ((t->VPN2 >> 12) & mask)) /* match */
 				{
-					vtlb_VMap(addr << 12, t.PFN1 + ((addr - saddr) << 12), 0x1000);
+					vtlb_VMap(addr << 12, t->PFN1 + ((addr - saddr) << 12), 0x1000);
 					Cpu->Clear(addr << 12, 0x400);
 				}
 			}
@@ -184,25 +184,25 @@ void MapTLB(const tlbs& t, int i)
 	}
 }
 
-void UnmapTLB(const tlbs& t, int i)
+void UnmapTLB(const tlbs *t, int i)
 {
 	u32 mask, addr;
 	u32 saddr, eaddr;
 
-	if (t.S)
+	if (t->S)
 	{
-		vtlb_VMapUnmap(t.VPN2, 0x4000);
+		vtlb_VMapUnmap(t->VPN2, 0x4000);
 		return;
 	}
 
-	if (t.EntryLo0 & 0x2)
+	if (t->EntryLo0 & 0x2)
 	{
-		mask = ((~t.Mask) << 1) & 0xfffff;
-		saddr = t.VPN2 >> 12;
-		eaddr = saddr + t.Mask + 1;
+		mask = ((~t->Mask) << 1) & 0xfffff;
+		saddr = t->VPN2 >> 12;
+		eaddr = saddr + t->Mask + 1;
 		for (addr = saddr; addr < eaddr; addr++)
 		{
-			if ((addr & mask) == ((t.VPN2 >> 12) & mask)) /* match */
+			if ((addr & mask) == ((t->VPN2 >> 12) & mask)) /* match */
 			{
 				vtlb_VMapUnmap(addr << 12, 0x1000);
 				Cpu->Clear(addr << 12, 0x400);
@@ -210,14 +210,14 @@ void UnmapTLB(const tlbs& t, int i)
 		}
 	}
 
-	if (t.EntryLo1 & 0x2)
+	if (t->EntryLo1 & 0x2)
 	{
-		mask = ((~t.Mask) << 1) & 0xfffff;
-		saddr = (t.VPN2 >> 12) + t.Mask + 1;
-		eaddr = saddr + t.Mask + 1;
+		mask = ((~t->Mask) << 1) & 0xfffff;
+		saddr = (t->VPN2 >> 12) + t->Mask + 1;
+		eaddr = saddr + t->Mask + 1;
 		for (addr = saddr; addr < eaddr; addr++)
 		{
-			if ((addr & mask) == ((t.VPN2 >> 12) & mask)) /* match */
+			if ((addr & mask) == ((t->VPN2 >> 12) & mask)) /* match */
 			{
 				vtlb_VMapUnmap(addr << 12, 0x1000);
 				Cpu->Clear(addr << 12, 0x400);
@@ -242,7 +242,7 @@ void WriteTLB(int i)
 	tlb[i].PFN1 = (((cpuRegs.CP0.n.EntryLo1 >> 6) & 0xFFFFF) & (~tlb[i].Mask)) << 12;
 	tlb[i].S = cpuRegs.CP0.n.EntryLo0 & 0x80000000;
 
-	MapTLB(tlb[i], i);
+	MapTLB(&tlb[i], i);
 }
 
 namespace R5900 {
@@ -264,7 +264,7 @@ namespace COP0 {
 	{
 		int j = cpuRegs.CP0.n.Index & 0x3f;
 
-		UnmapTLB(tlb[j], j);
+		UnmapTLB(&tlb[j], j);
 		tlb[j].PageMask = cpuRegs.CP0.n.PageMask;
 		tlb[j].EntryHi = cpuRegs.CP0.n.EntryHi;
 		tlb[j].EntryLo0 = cpuRegs.CP0.n.EntryLo0;
@@ -276,7 +276,7 @@ namespace COP0 {
 	{
 		int j = cpuRegs.CP0.n.Random & 0x3f;
 
-		UnmapTLB(tlb[j], j);
+		UnmapTLB(&tlb[j], j);
 		tlb[j].PageMask = cpuRegs.CP0.n.PageMask;
 		tlb[j].EntryHi = cpuRegs.CP0.n.EntryHi;
 		tlb[j].EntryLo0 = cpuRegs.CP0.n.EntryLo0;

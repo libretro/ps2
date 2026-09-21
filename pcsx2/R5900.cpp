@@ -45,7 +45,7 @@
 s32 EEsCycle;		// used to sync the IOP to the EE
 u64 EEoCycle;
 
-alignas(16) tlbs tlb[48];
+PCSX2_ALIGN(16) tlbs tlb[48];
 R5900cpu *Cpu = NULL;
 
 bool g_SkipBiosHack; // set at boot if the skip bios hack is on, reset before the game has started

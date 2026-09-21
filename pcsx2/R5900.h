@@ -17,6 +17,8 @@
 
 #include <retro_atomic.h>
 
+#include "MemoryTypes.h"
+
 // --------------------------------------------------------------------------------------
 //  Recompiler Stuffs
 // --------------------------------------------------------------------------------------
@@ -31,7 +33,7 @@ extern bool g_GameLoading;
 extern s32 EEsCycle;
 extern u64 EEoCycle;
 
-union GPR_reg {   // Declare union type GPR register
+typedef union GPR_reg {   // Declare union type GPR register
 	u128 UQ;
 	s128 SQ;
 	u64 UD[2];      //128 bits
@@ -42,9 +44,9 @@ union GPR_reg {   // Declare union type GPR register
 	s16 SS[8];
 	u8  UC[16];
 	s8  SC[16];
-};
+} GPR_reg;
 
-union GPRregs {
+typedef union GPRregs {
 	struct {
 		GPR_reg r0, at, v0, v1, a0, a1, a2, a3,
 				t0, t1, t2, t3, t4, t5, t6, t7,
@@ -52,9 +54,9 @@ union GPRregs {
 				t8, t9, k0, k1, gp, sp, s8, ra;
 	} n;
 	GPR_reg r[32];
-};
+} GPRregs;
 
-union PERFregs {
+typedef union PERFregs {
 	struct
 	{
 		union
@@ -86,9 +88,9 @@ union PERFregs {
 		u32 pcr0, pcr1, pad;
 	} n;
 	u32 r[4];
-};
+} PERFregs;
 
-union CP0regs {
+typedef union CP0regs {
 	struct {
 		u32	Index,    Random,    EntryLo0,  EntryLo1,
 			Context,  PageMask,  Wired,     Reserved0,
@@ -121,9 +123,9 @@ union CP0regs {
 			TagLo,    TagHi,     ErrorEPC,  DESAVE;
 	} n;
 	u32 r[32];
-};
+} CP0regs;
 
-struct cpuRegisters {
+typedef struct cpuRegisters {
 	GPRregs GPR;		// GPR regs
 	// NOTE: don't change order since recompiler uses it
 	GPR_reg HI;
@@ -148,10 +150,10 @@ struct cpuRegisters {
 	u64 lastEventCycle;
 	u64 lastCOP0Cycle;
 	u64 lastPERFCycle[2];
-};
+} cpuRegisters;
 
 // used for optimization
-union GPR_reg64 {
+typedef union GPR_reg64 {
 	u64 UD[1];      //64 bits
 	s64 SD[1];
 	u32 UL[2];
@@ -160,22 +162,22 @@ union GPR_reg64 {
 	s16 SS[4];
 	u8  UC[8];
 	s8  SC[8];
-};
+} GPR_reg64;
 
-union FPRreg {
+typedef union FPRreg {
 	float f;
 	u32 UL;
 	s32 SL;				// signed 32bit used for sign extension in interpreters.
-};
+} FPRreg;
 
-struct fpuRegisters {
+typedef struct fpuRegisters {
 	FPRreg fpr[32];		// 32bit floating point registers
 	u32 fprc[32];		// 32bit floating point control registers
 	FPRreg ACC;			// 32 bit accumulator
 	u32 ACCflag;        // an internal accumulator overflow flag
-};
+} fpuRegisters;
 
-struct tlbs
+typedef struct tlbs
 {
 	u32 PageMask,EntryHi;
 	u32 EntryLo0,EntryLo1;
@@ -186,7 +188,7 @@ struct tlbs
 	u32 PFN0;
 	u32 PFN1;
 	u32 S;
-};
+} tlbs;
 
 #ifndef _PC_
 
@@ -217,9 +219,9 @@ struct tlbs
 
 #endif
 
-alignas(16) extern cpuRegisters cpuRegs;
-alignas(16) extern fpuRegisters fpuRegs;
-alignas(16) extern tlbs tlb[48];
+PCSX2_ALIGN(16) extern cpuRegisters cpuRegs;
+PCSX2_ALIGN(16) extern fpuRegisters fpuRegs;
+PCSX2_ALIGN(16) extern tlbs tlb[48];
 
 extern retro_atomic_int_t eeEventTestIsActive;
 
@@ -244,7 +246,7 @@ extern void eeloadHook2(void);
 // --------------------------------------------------------------------------------------
 //  R5900cpu
 // --------------------------------------------------------------------------------------
-struct R5900cpu
+typedef struct R5900cpu
 {
 	// Memory allocation function, for allocating virtual memory spaces needed by
 	// the virtual cpu provider.  Allocating additional heap memory from this method is
@@ -287,7 +289,7 @@ struct R5900cpu
 	// resets, since TLB remaps affect more than just the code they contain (code that
 	// may reference the remapped blocks via memory loads/stores, for example).
 	void (*Clear)(u32 Addr, u32 Size);
-};
+} R5900cpu;
 
 extern R5900cpu *Cpu;
 extern R5900cpu intCpu;
@@ -300,7 +302,7 @@ enum EE_intProcessStatus
 	INT_REQ_LOOP
 };
 
-enum EE_EventType
+typedef enum EE_EventType
 {
 	DMAC_VIF0	= 0,
 	DMAC_VIF1,
@@ -326,7 +328,7 @@ enum EE_EventType
 	VIF_VU1_FINISH,
 	IPU_PROCESS,
 	VU_MTVU_BUSY
-};
+} EE_EventType;
 
 extern void CPU_INT( EE_EventType n, s32 ecycle );
 extern uint intcInterrupt();

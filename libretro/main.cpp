@@ -2408,7 +2408,7 @@ void retro_init(void)
 				if (fd.Size < MIN_BIOS_SIZE || fd.Size > MAX_BIOS_SIZE)
 					continue;
 
-				if (IsBIOS(fd.FileName.c_str(), version, description, sizeof(description), region, zone, sizeof(zone)))
+				if (IsBIOS(fd.FileName.c_str(), &version, description, sizeof(description), &region, zone, sizeof(zone)))
 					bios_info.push_back({ std::string(path_basename(fd.FileName.c_str())), std::string(description) });
 			}
 

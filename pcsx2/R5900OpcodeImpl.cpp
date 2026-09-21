@@ -25,6 +25,15 @@
 #include "CDVD/CDVD.h"
 #include "ps2/BiosTools.h"
 
+/* The three instructions that mark the EE thread list, matched against the
+ * code stream to find where it lives. Only this scan uses them. */
+static const u32 ThreadListInstructions[3] =
+{
+	0xac420000, /* sw v0,0x0(v0) */
+	0x00000000, /* no-op */
+	0x00000000  /* no-op */
+};
+
 GS_VideoMode gsVideoMode = GS_VideoMode::Uninitialized;
 bool gsIsInterlaced = false;
 

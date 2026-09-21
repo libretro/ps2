@@ -60,7 +60,7 @@ char BiosSerial[BIOS_SERIAL_MAX];
 std::string BiosPath;
 BiosDebugInformation CurrentBiosInformation;
 
-static bool LoadBiosVersion(RFILE* fp, u32& version, char* description, size_t description_size, u32& region, char* zone, size_t zone_size, char* serial, size_t serial_size)
+static bool LoadBiosVersion(RFILE *fp, u32 *version, char *description, size_t description_size, u32 *region, char *zone, size_t zone_size, char *serial, size_t serial_size)
 {
 	romdir rd;
 	for (u32 i = 0; i < 512 * 1024; i++)
@@ -117,31 +117,31 @@ static bool LoadBiosVersion(RFILE* fp, u32& version, char* description, size_t d
 		switch (romver[4])
 		{
 			// clang-format off
-			case 'J': strlcpy(zone, "Japan", zone_size);  region = 0;  break;
-			case 'A': strlcpy(zone, "USA", zone_size);    region = 1;  break;
-			case 'E': strlcpy(zone, "Europe", zone_size); region = 2;  break;
-			// case 'E': strlcpy(zone, "Oceania", zone_size);region = 3;  break; // Not implemented
-			case 'H': strlcpy(zone, "Asia", zone_size);   region = 4;  break;
-			// case 'E': strlcpy(zone, "Russia", zone_size); region = 3;  break; // Not implemented
-			case 'C': strlcpy(zone, "China", zone_size);  region = 6;  break;
-			// case 'A': strlcpy(zone, "Mexico", zone_size); region = 7;  break; // Not implemented
-			case 'T': strlcpy(zone, (romver[5]=='Z') ? "COH-H" : "T10K", zone_size);   region = 8;  break;
-			case 'X': strlcpy(zone, "Test", zone_size);   region = 9;  break;
-			case 'P': strlcpy(zone, "Free", zone_size);   region = 10; break;
+			case 'J': strlcpy(zone, "Japan", zone_size);  (*region) = 0;  break;
+			case 'A': strlcpy(zone, "USA", zone_size);    (*region) = 1;  break;
+			case 'E': strlcpy(zone, "Europe", zone_size); (*region) = 2;  break;
+			// case 'E': strlcpy(zone, "Oceania", zone_size);(*region) = 3;  break; // Not implemented
+			case 'H': strlcpy(zone, "Asia", zone_size);   (*region) = 4;  break;
+			// case 'E': strlcpy(zone, "Russia", zone_size); (*region) = 3;  break; // Not implemented
+			case 'C': strlcpy(zone, "China", zone_size);  (*region) = 6;  break;
+			// case 'A': strlcpy(zone, "Mexico", zone_size); (*region) = 7;  break; // Not implemented
+			case 'T': strlcpy(zone, (romver[5]=='Z') ? "COH-H" : "T10K", zone_size);   (*region) = 8;  break;
+			case 'X': strlcpy(zone, "Test", zone_size);   (*region) = 9;  break;
+			case 'P': strlcpy(zone, "Free", zone_size);   (*region) = 10; break;
 			// clang-format on
 			default:
 				zone[0] = romver[4];
 				zone[1] = '\0';
-				region = 0;
+				(*region) = 0;
 				break;
 		}
 		// TODO: some regions can be detected only from rom1
 		/* switch (rom1:DVDID[4])
 		{
 			// clang-format off
-			case 'O': strlcpy(zone, "Oceania", zone_size);region = 3;  break;
-			case 'R': strlcpy(zone, "Russia", zone_size); region = 5;  break;
-			case 'M': strlcpy(zone, "Mexico", zone_size); region = 7;  break;
+			case 'O': strlcpy(zone, "Oceania", zone_size);(*region) = 3;  break;
+			case 'R': strlcpy(zone, "Russia", zone_size); (*region) = 5;  break;
+			case 'M': strlcpy(zone, "Mexico", zone_size); (*region) = 7;  break;
 			// clang-format on
 		} */
 
@@ -157,8 +157,8 @@ static bool LoadBiosVersion(RFILE* fp, u32& version, char* description, size_t d
 																  "",
 			serial);
 
-		version = strtol(vermaj, (char**)NULL, 0) << 8;
-		version |= strtol(vermin, (char**)NULL, 0);
+		(*version) = strtol(vermaj, (char**)NULL, 0) << 8;
+		(*version) |= strtol(vermin, (char**)NULL, 0);
 
 		log_cb(RETRO_LOG_INFO, "Bios Found: %s\n", description);
 	}
@@ -262,7 +262,7 @@ static std::string FindBiosImage(void)
 		if (fd.Size < MIN_BIOS_SIZE || fd.Size > MAX_BIOS_SIZE)
 			continue;
 
-		if (IsBIOS(fd.FileName.c_str(), version, description, sizeof(description), region, zone, sizeof(zone)))
+		if (IsBIOS(fd.FileName.c_str(), &version, description, sizeof(description), &region, zone, sizeof(zone)))
 		{
 			log_cb(RETRO_LOG_INFO, "Using BIOS '%s' (%s %s)\n", fd.FileName.c_str(), description, zone);
 			return std::move(fd.FileName);
@@ -315,8 +315,8 @@ bool LoadBIOS(void)
 
 	char zone[BIOS_ZONE_MAX];
 
-	LoadBiosVersion(fp, BiosVersion, BiosDescription, sizeof(BiosDescription),
-			BiosRegion, zone, sizeof(zone), BiosSerial, sizeof(BiosSerial));
+	LoadBiosVersion(fp, &BiosVersion, BiosDescription, sizeof(BiosDescription),
+			&BiosRegion, zone, sizeof(zone), BiosSerial, sizeof(BiosSerial));
 
 	if (filestream_seek(fp, 0, RETRO_VFS_SEEK_POSITION_START) ||
 		filestream_read(fp, eeMem->ROM, static_cast<size_t>(pcsx2_min_s64(Ps2MemSize::Rom, filesize))) != (int64_t)pcsx2_min_s64(Ps2MemSize::Rom, filesize))
@@ -347,7 +347,7 @@ bool LoadBIOS(void)
 	return true;
 }
 
-bool IsBIOS(const char* filename, u32& version, char* description, size_t description_size, u32& region, char* zone, size_t zone_size)
+bool IsBIOS(const char *filename, u32 *version, char *description, size_t description_size, u32 *region, char *zone, size_t zone_size)
 {
 	char serial[BIOS_SERIAL_MAX];
 	RFILE *fp = filestream_open(filename, RETRO_VFS_FILE_ACCESS_READ, RETRO_VFS_FILE_ACCESS_HINT_NONE);

@@ -959,7 +959,7 @@ __fi u16 rcntRead32(u32 mem)
 	return psHu16(mem);
 }
 
-__fi bool rcntWrite32(u32 mem, mem32_t& value)
+__fi bool rcntWrite32(u32 mem, mem32_t *value)
 {
 	// [TODO] : counters should actually just use the EE's hw register space for storing
 	// count, mode, target, and hold. This will allow for a simplified handler for register
@@ -968,36 +968,36 @@ __fi bool rcntWrite32(u32 mem, mem32_t& value)
 	switch(mem)
 	{
 		case(RCNT0_COUNT):
-			return rcntWcount(0, value), false;
+			return rcntWcount(0, *value), false;
 		case(RCNT0_MODE):
-			return rcntWmode(0, value), false;
+			return rcntWmode(0, *value), false;
 		case(RCNT0_TARGET):
-			return rcntWtarget(0, value), false;
+			return rcntWtarget(0, *value), false;
 		case(RCNT0_HOLD):
-			return rcntWhold(0, value), false;
+			return rcntWhold(0, *value), false;
 
 		case(RCNT1_COUNT):
-			return rcntWcount(1, value), false;
+			return rcntWcount(1, *value), false;
 		case(RCNT1_MODE):
-			return rcntWmode(1, value), false;
+			return rcntWmode(1, *value), false;
 		case(RCNT1_TARGET):
-			return rcntWtarget(1, value), false;
+			return rcntWtarget(1, *value), false;
 		case(RCNT1_HOLD):
-			return rcntWhold(1, value), false;
+			return rcntWhold(1, *value), false;
 
 		case(RCNT2_COUNT):
-			return rcntWcount(2, value), false;
+			return rcntWcount(2, *value), false;
 		case(RCNT2_MODE):
-			return rcntWmode(2, value), false;
+			return rcntWmode(2, *value), false;
 		case(RCNT2_TARGET):
-			return rcntWtarget(2, value), false;
+			return rcntWtarget(2, *value), false;
 
 		case(RCNT3_COUNT):
-			return rcntWcount(3, value), false;
+			return rcntWcount(3, *value), false;
 		case(RCNT3_MODE):
-			return rcntWmode(3, value), false;
+			return rcntWmode(3, *value), false;
 		case(RCNT3_TARGET):
-			return rcntWtarget(3, value), false;
+			return rcntWtarget(3, *value), false;
 	}
 
 	// unhandled .. do memory writeback.

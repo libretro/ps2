@@ -13,39 +13,35 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <cstring> /* memset, memcpy, strlen */
+/* What goes into a savestate and in what order. The block machinery this
+ * runs on is in SaveStateBase.c; the per-subsystem entry points called from
+ * here live with the subsystems themselves. */
+
+#include <string.h>
 
 #include "SaveState.h"
 
-#include "HostFS.h"
-
-#include "ps2/BiosTools.h"
-#include "COP0.h"
-#include "VUmicro.h"
-#include "MTVU.h"
-#include "Cache.h"
-#include "Config.h"
-#include "CDVD/CDVD.h"
+#include "MemoryTypes.h"
+#include "R5900.h"
 #include "R3000A.h"
-#include "Elfheader.h"
 #include "Counters.h"
-#include "Patch.h"
-#include "SPU2/spu2.h"
-#include "PAD/PAD.h"
-#include "USB/USB.h"
+#include "Elfheader.h"
+#include "ps2/BiosTools.h"
 
 bool SaveState_FreezeBios(SaveStateBase *s)
 {
 	char biosdesc[256];
+	u32  bioscheck;
+
 	if (!SaveState_FreezeTag(s, "BIOS"))
 		return false;
 
-	// Check the BIOS, and issue a warning if the bios for this state
-	// doesn't match the bios currently being used (chances are it'll still
-	// work fine, but some games are very picky).
-	u32 bioscheck = BiosChecksum;
+	/* The BIOS this state was made with. A mismatch against the one in use
+	 * usually still works, but some games are picky about it. */
+	bioscheck = BiosChecksum;
 	memset(biosdesc, 0, sizeof(biosdesc));
-	memcpy( biosdesc, BiosDescription, pcsx2_min_sz(sizeof(biosdesc), strlen(BiosDescription)) );
+	memcpy(biosdesc, BiosDescription,
+	       pcsx2_min_sz(sizeof(biosdesc), strlen(BiosDescription)));
 
 	SaveState_Freeze(s, bioscheck);
 	SaveState_Freeze(s, biosdesc);
@@ -55,25 +51,26 @@ bool SaveState_FreezeBios(SaveStateBase *s)
 
 bool SaveState_FreezeInternals(SaveStateBase *s)
 {
-	// Second Block - Various CPU Registers and States
-	// -----------------------------------------------
-	if (!SaveState_FreezeTag(s,  "cpuRegs" ))
+	bool okay;
+
+	/* Second Block - Various CPU Registers and States */
+	if (!SaveState_FreezeTag(s, "cpuRegs"))
 		return false;
 
-	SaveState_Freeze(s, cpuRegs);		// cpu regs + COP0
-	SaveState_Freeze(s, psxRegs);		// iop regs
+	SaveState_Freeze(s, cpuRegs);		/* cpu regs + COP0 */
+	SaveState_Freeze(s, psxRegs);		/* iop regs */
 	SaveState_Freeze(s, fpuRegs);
-	SaveState_Freeze(s, tlb);			// tlbs
-	SaveState_Freeze(s, AllowParams1);	//OSDConfig written (Fast Boot)
+	SaveState_Freeze(s, tlb);		/* tlbs */
+	SaveState_Freeze(s, AllowParams1);	/* OSDConfig written (Fast Boot) */
 	SaveState_Freeze(s, AllowParams2);
 	SaveState_Freeze(s, g_GameStarted);
 	SaveState_Freeze(s, g_GameLoading);
 	SaveState_Freeze(s, ElfCRC);
 
-	// Third Block - Cycle Timers and Events
-	// -------------------------------------
-	if (!(SaveState_FreezeTag(s,  "Cycles" )))
+	/* Third Block - Cycle Timers and Events */
+	if (!SaveState_FreezeTag(s, "Cycles"))
 		return false;
+
 	SaveState_Freeze(s, EEsCycle);
 	SaveState_Freeze(s, EEoCycle);
 	SaveState_Freeze(s, nextDeltaCounter);
@@ -81,16 +78,15 @@ bool SaveState_FreezeInternals(SaveStateBase *s)
 	SaveState_Freeze(s, psxNextStartCounter);
 	SaveState_Freeze(s, psxNextDeltaCounter);
 
-	// Fourth Block - EE-related systems
-	// ---------------------------------
-	if (!(SaveState_FreezeTag(s,  "EE-Subsystems" )))
+	/* Fourth Block - EE-related systems */
+	if (!SaveState_FreezeTag(s, "EE-Subsystems"))
 		return false;
 
-	bool okay = rcntFreeze(s);
+	okay = rcntFreeze(s);
 	okay = okay && gsFreeze(s);
 	okay = okay && vuMicroFreeze(s);
 #ifndef ARCH_ARM64
-	okay = okay && vuJITFreeze(s);	// no VU JIT state to (de)serialise on arm64
+	okay = okay && vuJITFreeze(s);	/* no VU JIT state to (de)serialise on arm64 */
 #endif
 	okay = okay && vif0Freeze(s);
 	okay = okay && vif1Freeze(s);
@@ -104,12 +100,12 @@ bool SaveState_FreezeInternals(SaveStateBase *s)
 	if (!okay)
 		return false;
 
-	// Fifth Block - iop-related systems
-	// ---------------------------------
-	if (!(SaveState_FreezeTag(s,  "IOP-Subsystems" )))
+	/* Fifth Block - iop-related systems */
+	if (!SaveState_FreezeTag(s, "IOP-Subsystems"))
 		return false;
 
-	SaveState_FreezeMem(s, iopMem->Sif, sizeof(iopMem->Sif));		// iop's sif memory (not really needed, but oh well)
+	/* iop's sif memory (not really needed, but oh well) */
+	SaveState_FreezeMem(s, iopMem->Sif, sizeof(iopMem->Sif));
 
 	okay = okay && psxRcntFreeze(s);
 	okay = okay && sioFreeze(s);
@@ -117,8 +113,8 @@ bool SaveState_FreezeInternals(SaveStateBase *s)
 	okay = okay && cdrFreeze(s);
 	okay = okay && cdvdFreeze(s);
 
-	// technically this is HLE BIOS territory, but we don't have enough such stuff
-	// to merit an HLE Bios sub-section... yet.
+	/* technically this is HLE BIOS territory, but we don't have enough
+	 * such stuff to merit an HLE Bios sub-section... yet. */
 	okay = okay && deci2Freeze(s);
 
 	return okay;
