@@ -121,7 +121,16 @@ static PGS_KICK_INLINE void pgs_build_attribute(
  * the oracle.
  * ------------------------------------------------------------------ */
 
-#if defined(__SSE4_1__) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2) || defined(_M_X64) || defined(_M_AMD64)
+/* pminsd/pmaxsd below are SSE4.1, so the gate has to mean SSE4.1. Inside
+ * PCSX2 the project's ladder says what the build targets; standalone, the
+ * predefined macro does. _M_X64 and _M_IX86_FP are not usable here: both
+ * describe an SSE2 baseline, and MSVC defines no SSE4.1 macro of its own.
+ * cl.exe emits whatever intrinsic it is given, so there the ladder alone
+ * decides; every other compiler checks the target feature, so there the
+ * predefined macro has to agree. Where neither says SSE4.1, the scalar
+ * bodies below are the contract and are what gets used. */
+#if defined(__SSE4_1__) || \
+    (defined(_MSC_VER) && !defined(__clang__) && defined(_M_SSE) && _M_SSE >= 0x401)
 #include <smmintrin.h>
 #define PGS_PAIR_SSE4 1
 #elif defined(__aarch64__) || defined(_M_ARM64)

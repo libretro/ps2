@@ -36,11 +36,15 @@ for CC in gcc clang; do
 done
 rm -f "$DIR/pgs_c89_check.o"
 
+# -msse2 selects the scalar pair bodies, which is the shape an MSVC build
+# below SSE4.1 takes; -msse4.1 selects the vector ones. Both have to be
+# built and run, or the fallback is only a claim.
 for CXX in g++ clang++; do
 	command -v "$CXX" >/dev/null 2>&1 || continue
-	echo "=== $CXX ==="
+	for ISA in "-msse2" "-msse4.1"; do
+	echo "=== $CXX $ISA ==="
 	for t in pgs_layout_check pgs_vertex_oracle pgs_queue_equiv pgs_prim_record_equiv pgs_parallelogram_equiv pgs_kick_bench; do
-		$CXX -O2 -std=c++17 -msse4.1 $INC -o "$DIR/$t" "$DIR/$t.cpp"
+		$CXX -O2 -std=c++17 $ISA $INC -o "$DIR/$t" "$DIR/$t.cpp"
 	done
 	"$DIR/pgs_layout_check"
 	"$DIR/pgs_vertex_oracle"
@@ -48,4 +52,5 @@ for CXX in g++ clang++; do
 	"$DIR/pgs_prim_record_equiv"
 	"$DIR/pgs_parallelogram_equiv"
 	"$DIR/pgs_kick_bench" 2500 25
+	done
 done

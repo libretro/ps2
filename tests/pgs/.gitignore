@@ -1,0 +1,9 @@
+# Harness binaries. build.sh puts them here so a single lane can be re-run
+# by hand, which also means they sit in the tree between runs.
+pgs_layout_check
+pgs_vertex_oracle
+pgs_queue_equiv
+pgs_prim_record_equiv
+pgs_parallelogram_equiv
+pgs_kick_bench
+*.o
