@@ -1,10 +1,9 @@
-/* Parallelogram-detection equivalence lane.
+/* Parallelogram-detection lane.
  *
- * The two gs_util predicates are being moved off muglm's vector operators
- * onto plain scalar C. The scalar form must agree with the muglm form for
- * every input, including the float path, where notEqual and greaterThan keep
- * IEEE semantics (a NaN compares unequal to itself, so a bit compare would
- * not do).
+ * Two independent statements of the same predicates: the shipped form, which
+ * works a lane at a time, and a reference that walks both lanes in a loop.
+ * They must agree for every input, the float path included -- a NaN has to
+ * keep comparing unequal to itself, so a bit compare would not do.
  */
 #include "common.h"
 #include <cstdio>
@@ -13,44 +12,66 @@
 #include <cstdlib>
 
 /* ---- the muglm forms, as they were ---- */
-static bool mg_pos3_match(const VertexPosition *pos, const muglm::ivec3 &order,
-                          const VertexPosition *last_pos, const muglm::ivec3 &last_order)
+static bool mg_pos3_match(const VertexPosition *pos, const int *order,
+                          const VertexPosition *last_pos, const int *last_order)
 {
-	auto &pos0 = pos[order.x]; auto &pos1 = pos[order.y]; auto &pos2 = pos[order.z];
-	auto pos3 = pos1.pos + pos2.pos - pos0.pos;
-	auto &lp0 = last_pos[last_order.x];
-	auto &lp1 = last_pos[last_order.y];
-	auto &lp2 = last_pos[last_order.z];
-	return !(any(notEqual(pos3, lp0.pos)) ||
-	         any(notEqual(pos1.pos, lp1.pos)) ||
-	         any(notEqual(pos2.pos, lp2.pos)));
+	int32_t cur[3][2], last[3][2], k;
+	for (k = 0; k < 3; k++) {
+		cur[k][0] = pos[order[k]].pos.x;  cur[k][1] = pos[order[k]].pos.y;
+		last[k][0] = last_pos[last_order[k]].pos.x;
+		last[k][1] = last_pos[last_order[k]].pos.y;
+	}
+	for (k = 0; k < 2; k++)
+		if (cur[1][k] + cur[2][k] - cur[0][k] != last[0][k]) return false;
+	for (k = 0; k < 2; k++) {
+		if (cur[1][k] != last[1][k]) return false;
+		if (cur[2][k] != last[2][k]) return false;
+	}
+	return true;
 }
 static bool mg_uv3_match(const VertexAttribute &a0, const VertexAttribute &a1,
                          const VertexAttribute &a2, const VertexAttribute &l0,
                          const VertexAttribute &l1, const VertexAttribute &l2)
 {
-	muglm::u16vec2 uv3 = a1.uv + a2.uv - a0.uv;
-	return !(any(notEqual(uv3, l0.uv)) ||
-	         any(notEqual(a1.uv, l1.uv)) ||
-	         any(notEqual(a2.uv, l2.uv)));
+	const uint16_t cur[3][2] = { { a0.uv.x, a0.uv.y }, { a1.uv.x, a1.uv.y }, { a2.uv.x, a2.uv.y } };
+	const uint16_t last[3][2] = { { l0.uv.x, l0.uv.y }, { l1.uv.x, l1.uv.y }, { l2.uv.x, l2.uv.y } };
+	int k;
+	for (k = 0; k < 2; k++)
+		if ((uint16_t)(cur[1][k] + cur[2][k] - cur[0][k]) != last[0][k]) return false;
+	for (k = 0; k < 2; k++) {
+		if (cur[1][k] != last[1][k]) return false;
+		if (cur[2][k] != last[2][k]) return false;
+	}
+	return true;
 }
 static bool mg_st_match(const VertexAttribute &a0, const VertexAttribute &a1,
                         const VertexAttribute &a2, const VertexAttribute &l0,
                         const VertexAttribute &l1, const VertexAttribute &l2)
 {
-	muglm::vec2 st3_error = muglm::abs((a2.st + a1.st - a0.st - l0.st) / a0.q);
-	return !(any(notEqual(a1.st, l1.st)) ||
-	         any(notEqual(a2.st, l2.st)) ||
-	         any(greaterThan(st3_error, muglm::vec2(1e-4f))));
+	const float cur[3][2] = { { a0.st.x, a0.st.y }, { a1.st.x, a1.st.y }, { a2.st.x, a2.st.y } };
+	const float last[3][2] = { { l0.st.x, l0.st.y }, { l1.st.x, l1.st.y }, { l2.st.x, l2.st.y } };
+	int k;
+	for (k = 0; k < 2; k++) {
+		if (cur[1][k] != last[1][k]) return false;
+		if (cur[2][k] != last[2][k]) return false;
+		if (std::fabs((cur[2][k] + cur[1][k] - cur[0][k] - last[0][k]) / a0.q) > 1e-4f)
+			return false;
+	}
+	return true;
 }
 static int mg_area(const VertexPosition *pos, int &abx, int &aby, int &acx, int &acy,
                    int &bcx, int &bcy)
 {
-	muglm::ivec2 ab = pos[1].pos - pos[0].pos;
-	muglm::ivec2 ac = pos[2].pos - pos[0].pos;
-	muglm::ivec2 bc = pos[2].pos - pos[1].pos;
-	abx = ab.x; aby = ab.y; acx = ac.x; acy = ac.y; bcx = bc.x; bcy = bc.y;
-	return std::abs(ab.x * ac.y - ab.y * ac.x);
+	int32_t d[3][2], k;
+	for (k = 0; k < 2; k++) {
+		const int32_t *p0 = k ? &pos[0].pos.y : &pos[0].pos.x;
+		const int32_t *p1 = k ? &pos[1].pos.y : &pos[1].pos.x;
+		const int32_t *p2 = k ? &pos[2].pos.y : &pos[2].pos.x;
+		d[0][k] = *p1 - *p0; d[1][k] = *p2 - *p0; d[2][k] = *p2 - *p1;
+	}
+	abx = d[0][0]; aby = d[0][1]; acx = d[1][0]; acy = d[1][1];
+	bcx = d[2][0]; bcy = d[2][1];
+	return std::abs(d[0][0] * d[1][1] - d[0][1] * d[1][0]);
 }
 
 /* ---- the scalar forms ---- */
@@ -136,11 +157,7 @@ int main(void)
 		if ((i & 3) == 0) { memcpy(lp, p, sizeof lp); memcpy(la, a, sizeof la); }
 		for (k = 0; k < 3; k++) { order[k] = (int)(rnd() % 3); lorder[k] = (int)(rnd() % 3); }
 
-		{
-			muglm::ivec3 mo(order[0], order[1], order[2]);
-			muglm::ivec3 mlo(lorder[0], lorder[1], lorder[2]);
-			if (mg_pos3_match(p, mo, lp, mlo) != sc_pos3_match(p, order, lp, lorder)) f++;
-		}
+		if (mg_pos3_match(p, order, lp, lorder) != sc_pos3_match(p, order, lp, lorder)) f++;
 		if (mg_uv3_match(a[0],a[1],a[2],la[0],la[1],la[2]) !=
 		    sc_uv3_match(a[0],a[1],a[2],la[0],la[1],la[2])) f++;
 		if (mg_st_match(a[0],a[1],a[2],la[0],la[1],la[2]) !=
@@ -153,7 +170,7 @@ int main(void)
 		}
 		n += 4;
 	}
-	printf("%s: parallelogram scalar-vs-muglm, %ld comparisons, %ld failures\n",
+	printf("%s: parallelogram predicates, %ld comparisons, %ld failures\n",
 	       f ? "FAIL" : "PASS", n, f);
 	return f != 0;
 }

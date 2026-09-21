@@ -13,7 +13,7 @@ add_library(parallel-gs STATIC
         page_tracker.cpp page_tracker.hpp
         gs_renderer.cpp gs_renderer.hpp)
 target_compile_options(parallel-gs PRIVATE ${PARALLEL_GS_CXX_FLAGS})
-target_link_libraries(parallel-gs PUBLIC granite-vulkan granite-math)
+target_link_libraries(parallel-gs PUBLIC granite-vulkan)
 target_include_directories(parallel-gs PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 # The profiler header lives in the emulator tree, not this vendored one. Only

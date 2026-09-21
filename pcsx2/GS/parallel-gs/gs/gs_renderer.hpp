@@ -7,7 +7,6 @@
 
 #include "thread_prims.hpp"
 #include "gs_registers.hpp"
-#include "muglm/muglm.hpp"
 #include "device.hpp"
 #include "image.hpp"
 #include "page_tracker.hpp"

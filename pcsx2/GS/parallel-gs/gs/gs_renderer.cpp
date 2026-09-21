@@ -6,6 +6,8 @@
 #include "thread_prims.hpp"
 #include <features/features_cpu.h>
 #include "gs_renderer.hpp"
+#include "pgs_vertex_kernels.h"
+#include <cstdlib>
 /* The profiler lives in the emulator tree, which this vendored library does
  * not otherwise include. Only reach for it when profiling is being built;
  * otherwise define the macro away so the library stays self-contained. */
@@ -124,7 +126,7 @@ static int compute_sample_points(
 		for (int i = 0; i < num_sample_points; i++)
 		{
 			constexpr int sparse_offsets[4] = {0, 2, 3, 1};
-			sample_points[i] = ivec2(i / 8, i % 8);
+			sample_points[i] = ivec2{ i / 8, i % 8 };
 			sample_points[i].x *= 4;
 			sample_points[i].x += sparse_offsets[i % 4];
 		}
@@ -151,9 +153,13 @@ static int compute_sample_points(
 	for (int i = 0; i < num_sample_points; i++)
 	{
 		int scale_factor = PhaseLUTGridSize >> sampling_rate_y_log2;
-		sample_points[i] *= scale_factor;
+		sample_points[i].x *= scale_factor;
+		sample_points[i].y *= scale_factor;
 		if (nearest)
-			sample_points[i] += (scale_factor - 1) >> 1;
+		{
+			sample_points[i].x += (scale_factor - 1) >> 1;
+			sample_points[i].y += (scale_factor - 1) >> 1;
+		}
 	}
 
 	return num_sample_points;
@@ -178,9 +184,9 @@ static int compute_phase_lut_samples(
 
 				auto &result = results[num_results++];
 				result.sample_id = i;
-				result.texel_offset = ivec2(texel_x, texel_y);
-				result.dist = muglm::abs(ivec2(dist_x, dist_y));
-				result.max_dist = muglm::max(result.dist.x, result.dist.y);
+				result.texel_offset = ivec2{ texel_x, texel_y };
+				result.dist = ivec2{ std::abs(dist_x), std::abs(dist_y) };
+				result.max_dist = std::max(result.dist.x, result.dist.y);
 			}
 		}
 	}
@@ -281,8 +287,9 @@ void GSRenderer::init_phase_lut(uint32_t sampling_rate_x_log2, uint32_t sampling
 				samples[y][x].x |= sample_id << (4 * i);
 				samples[y][x].x |= (texel_offset.x & 3u) << (4 * i + 16 + 0);
 				samples[y][x].x |= (texel_offset.y & 3u) << (4 * i + 16 + 2);
-				vec2 dist = vec2(results[i].dist) / vec2(falloff_dist);
-				weights[i] = muglm::max(0.0f, 1.0f - dist.x) * muglm::max(0.0f, 1.0f - dist.y);
+				vec2 dist = vec2{ float(results[i].dist.x) / float(falloff_dist),
+				                  float(results[i].dist.y) / float(falloff_dist) };
+				weights[i] = std::max(0.0f, 1.0f - dist.x) * std::max(0.0f, 1.0f - dist.y);
 				weight_sum += weights[i];
 			}
 
@@ -1435,8 +1442,8 @@ void GSRenderer::allocate_upload_indirection(TextureAnalysis &analysis, TextureU
 	upload.indirection.size = sizeof(uvec4) + num_blocks * sizeof(uvec2);
 	qword_clears.push_back(analysis.indirect_workgroups_va);
 
-	analysis.base = u16vec2(upload.desc.rect.x, upload.desc.rect.y);
-	analysis.size_minus_1 = uvec2(upload.desc.rect.width - 1, upload.desc.rect.height - 1);
+	analysis.base = u16vec2{ uint16_t(upload.desc.rect.x), uint16_t(upload.desc.rect.y) };
+	analysis.size_minus_1 = uvec2{ upload.desc.rect.width - 1u, upload.desc.rect.height - 1u };
 }
 
 void GSRenderer::commit_cached_texture(uint32_t tex_info_index, bool sampler_feedback)
@@ -1886,11 +1893,12 @@ bool GSRenderer::render_pass_instance_is_deduced_blur(const RenderPass &rp, uint
 		uint32_t tex_index = (buffers.prim[i].tex >> TEX_TEXTURE_INDEX_OFFSET) &
 		                     ((1 << TEX_TEXTURE_INDEX_BITS) - 1);
 
-		ivec2 phase = ivec2(buffers.attr[3 * i].uv) - buffers.pos[3 * i].pos;
+		ivec2 phase = ivec2{ int32_t(buffers.attr[3 * i].uv.x) - buffers.pos[3 * i].pos.x,
+		                     int32_t(buffers.attr[3 * i].uv.y) - buffers.pos[3 * i].pos.y };
 
 		if (last_tex_index == tex_index)
 		{
-			if (any(notEqual(phase_offset, phase)))
+			if (!pgs_ivec2_eq(&phase_offset, &phase))
 				return true;
 		}
 		else
@@ -2439,7 +2447,7 @@ void GSRenderer::dispatch_read_aliased_depth_passes(Vulkan::CommandBuffer &cmd, 
                                                     uint32_t base_primitive,
                                                     uint32_t next_lo_index, uint32_t num_primitives)
 {
-	auto bb = ivec4(INT_MAX, INT_MAX, INT_MIN, INT_MIN);
+	auto bb = ivec4{ INT_MAX, INT_MAX, INT_MIN, INT_MIN };
 
 	uint32_t half_gpu_size = buffers.gpu->get_create_info().size / 2;
 	if (get_bits_per_pixel(depth_psm) == 16)
@@ -2461,10 +2469,10 @@ void GSRenderer::dispatch_read_aliased_depth_passes(Vulkan::CommandBuffer &cmd, 
 
 		auto &prim_bb = buffers.prim[base_primitive + i].bb;
 
-		auto hazard_bb = ivec4(std::max<int>(bb.x, prim_bb.x),
+		auto hazard_bb = ivec4{std::max<int>(bb.x, prim_bb.x),
 		                       std::max<int>(bb.y, prim_bb.y),
 		                       std::min<int>(bb.z, prim_bb.z),
-		                       std::min<int>(bb.w, prim_bb.w));
+		                       std::min<int>(bb.w, prim_bb.w) };
 
 		bool overlap = hazard_bb.x <= hazard_bb.z && hazard_bb.y <= hazard_bb.w &&
 		               (state & ((1u << STATE_BIT_Z_TEST) | (1u << STATE_BIT_Z_WRITE))) != 0;
@@ -2481,15 +2489,15 @@ void GSRenderer::dispatch_read_aliased_depth_passes(Vulkan::CommandBuffer &cmd, 
 
 			next_lo_index = i;
 			overlap = false;
-			bb = ivec4(prim_bb);
+			bb = ivec4{ prim_bb.x, prim_bb.y, prim_bb.z, prim_bb.w };
 		}
 		else
 		{
 			// Expand the BB.
-			bb = ivec4(std::min<int>(bb.x, prim_bb.x),
+			bb = ivec4{std::min<int>(bb.x, prim_bb.x),
 			           std::min<int>(bb.y, prim_bb.y),
 			           std::max<int>(bb.z, prim_bb.z),
-			           std::max<int>(bb.w, prim_bb.w));
+			           std::max<int>(bb.w, prim_bb.w) };
 		}
 	}
 
@@ -2618,7 +2626,8 @@ void GSRenderer::dispatch_shading(Vulkan::CommandBuffer &cmd, const RenderPass &
 	assert(inst.sampling_rate_y_log2 <= 3);
 
 	cmd.set_program(shaders.ubershader[int(rp.feedback_color)][int(rp.feedback_depth)]);
-	auto snap_raster_mask = ivec2(-(1 << inst.sampling_rate_y_log2));
+	auto snap_raster_mask = ivec2{ -(1 << inst.sampling_rate_y_log2),
+	                               -(1 << inst.sampling_rate_y_log2) };
 	// Snap single-sampled raster to half-texel instead.
 	if (inst.sampling_rate_y_log2 && field_aware_super_sampling && render_pass_instance_might_field_render(rp, instance))
 		snap_raster_mask.y >>= 1;
@@ -2784,7 +2793,7 @@ void GSRenderer::emit_copy_vram(Vulkan::CommandBuffer &cmd,
 			num_wgs = 0;
 		}
 
-		work_items[num_wgs++] = uvec4(group_x, group_y, transfer_id, 0);
+		work_items[num_wgs++] = uvec4{ group_x, group_y, transfer_id, 0u };
 	};
 
 	for (uint32_t i = 0; i < num_dispatches; i++)
@@ -5084,7 +5093,8 @@ ScanoutResult GSRenderer::vsync(const PrivRegisterState &priv, const VSyncInfo &
 			tracker.mark_external_write(write_rect);
 
 			// TODO: Consider SX, SY.
-			push.uv_base = vec2(0.5f) / vec2(push.resolution);
+			push.uv_base = vec2{ 0.5f / float(push.resolution.x),
+			                     0.5f / float(push.resolution.y) };
 			push.uv_scale.x = float(priv.extdata.SMPH + 1) / float(scanout_width * clock_divider);
 			push.uv_scale.y = float(priv.extdata.SMPV + 1) / float(scanout_height);
 			cmd.push_constants(&push, 0, sizeof(push));

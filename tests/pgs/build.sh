@@ -1,6 +1,8 @@
 #!/bin/sh
 # paraLLEl-GS vertex-kick harness. Mirrors tests/gs/build.sh.
 #
+# pgs_layout_check  : the shared structs must keep the exact sizes and
+#                     offsets the precompiled shader bank was built against.
 # pgs_c89_check     : the kernel header must compile as strict C89.
 # pgs_vertex_oracle : the C89 kernels must write bytes identical to the
 #                     muglm field-by-field bodies they replace.
@@ -23,7 +25,7 @@ set -e
 DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 ROOT=$(CDPATH= cd -- "$DIR/../.." && pwd)
 PGS="$ROOT/pcsx2/GS/parallel-gs"
-INC="-I$DIR -I$PGS/Granite/math -I$PGS/gs"
+INC="-I$DIR -I$PGS/gs"
 
 for CC in gcc clang; do
 	command -v "$CC" >/dev/null 2>&1 || continue
@@ -37,9 +39,10 @@ rm -f "$DIR/pgs_c89_check.o"
 for CXX in g++ clang++; do
 	command -v "$CXX" >/dev/null 2>&1 || continue
 	echo "=== $CXX ==="
-	for t in pgs_vertex_oracle pgs_queue_equiv pgs_prim_record_equiv pgs_parallelogram_equiv pgs_kick_bench; do
+	for t in pgs_layout_check pgs_vertex_oracle pgs_queue_equiv pgs_prim_record_equiv pgs_parallelogram_equiv pgs_kick_bench; do
 		$CXX -O2 -std=c++17 -msse4.1 $INC -o "$DIR/$t" "$DIR/$t.cpp"
 	done
+	"$DIR/pgs_layout_check"
 	"$DIR/pgs_vertex_oracle"
 	"$DIR/pgs_queue_equiv"
 	"$DIR/pgs_prim_record_equiv"

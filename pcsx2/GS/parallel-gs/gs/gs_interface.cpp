@@ -14,7 +14,6 @@
 #include "gs_interface.hpp"
 #include "gs_util.hpp"
 #include "shaders/swizzle_utils.h"
-#include "muglm/muglm_impl.hpp"
 #include "gs_registers_debug.hpp"
 #include "pgs_vertex_kernels.h"
 
@@ -550,8 +549,8 @@ void GSInterface::rewrite_forwarded_clut_upload(
 
 		// We won't be needing these primitives later. Rendering 1k+ primitives on one tile
 		// is a serious performance drain.
-		prim_a.bb = i16vec4(0, 0, -1, -1);
-		prim_b.bb = i16vec4(0, 0, -1, -1);
+		prim_a.bb = i16vec4{ 0, 0, -1, -1 };
+		prim_b.bb = i16vec4{ 0, 0, -1, -1 };
 	}
 }
 
@@ -1389,11 +1388,11 @@ uint32_t GSInterface::drawing_kick_update_texture(FBFeedbackMode feedback_mode, 
 			{
 				// If the BB and UV_BB are very far part, over a page's worth, we are probably relying on proper feedback
 				// and not a simple warp effect.
-				ivec4 hazard_bb(
-						std::max<int>(uv_bb.x, bb.x),
+				ivec4 hazard_bb = {
+					std::max<int>(uv_bb.x, bb.x),
 						std::max<int>(uv_bb.y, bb.y),
 						std::min<int>(uv_bb.z, bb.z),
-						std::min<int>(uv_bb.w, bb.w));
+						std::min<int>(uv_bb.w, bb.w) };
 
 				long_term_cache_texture = (hazard_bb.z + 64 < hazard_bb.x) || (hazard_bb.w + 64 < hazard_bb.y);
 			}
@@ -1420,17 +1419,17 @@ uint32_t GSInterface::drawing_kick_update_texture(FBFeedbackMode feedback_mode, 
 		}
 		else if (desc.clamp.desc.WMS == CLAMPBits::REGION_CLAMP && desc.clamp.desc.WMT == CLAMPBits::REGION_CLAMP)
 		{
-			ivec4 clamped_uv_bb(
+			ivec4 clamped_uv_bb = {
 					int(desc.clamp.desc.MINU),
 					int(desc.clamp.desc.MINV),
 					int(desc.clamp.desc.MAXU),
-					int(desc.clamp.desc.MAXV));
+					int(desc.clamp.desc.MAXV) };
 
-			ivec4 hazard_bb(
+			ivec4 hazard_bb = {
 					std::max<int>(clamped_uv_bb.x, bb.x),
 					std::max<int>(clamped_uv_bb.y, bb.y),
 					std::min<int>(clamped_uv_bb.z, bb.z),
-					std::min<int>(clamped_uv_bb.w, bb.w));
+					std::min<int>(clamped_uv_bb.w, bb.w) };
 
 			long_term_cache_texture = hazard_bb.x > hazard_bb.z || hazard_bb.y > hazard_bb.w;
 		}
@@ -1439,11 +1438,11 @@ uint32_t GSInterface::drawing_kick_update_texture(FBFeedbackMode feedback_mode, 
 			if (render_pass.last_triangle_is_parallelogram_candidate)
 			{
 				// Questionable heuristic. If it looks like we're going to be rendering sprites, be a bit more aggressive.
-				ivec4 hazard_bb(
-						std::max<int>(uv_bb.x, bb.x),
+				ivec4 hazard_bb = {
+					std::max<int>(uv_bb.x, bb.x),
 						std::max<int>(uv_bb.y, bb.y),
 						std::min<int>(uv_bb.z, bb.z),
-						std::min<int>(uv_bb.w, bb.w));
+						std::min<int>(uv_bb.w, bb.w) };
 
 				long_term_cache_texture = hazard_bb.x > hazard_bb.z || hazard_bb.y > hazard_bb.w;
 			}
@@ -1768,9 +1767,9 @@ uint32_t GSInterface::drawing_kick_update_texture(FBFeedbackMode feedback_mode, 
 
 		TextureInfo info = {};
 		info.view = &image->get_view();
-		info.info.sizes = vec4(float(width), float(height),
-							   1.0f / float(info.view->get_view_width()),
-							   1.0f / float(info.view->get_view_height()));
+		info.info.sizes = vec4{ float(width), float(height),
+		                        1.0f / float(info.view->get_view_width()),
+		                        1.0f / float(info.view->get_view_height()) };
 
 		if (uint32_t(desc.clamp.desc.WMS) == CLAMPBits::CLAMP)
 		{
@@ -2015,7 +2014,10 @@ PageRect GSInterface::compute_fb_rect() const
 	// We know this BB is not degenerate already.
 	assert(inst.bb.x <= inst.bb.z);
 	assert(inst.bb.y <= inst.bb.w);
-	auto bb_page = inst.bb >> ivec2(inst.fb_page_width_log2, inst.fb_page_height_log2).xyxy();
+	ivec4 bb_page = { inst.bb.x >> int32_t(inst.fb_page_width_log2),
+	                  inst.bb.y >> int32_t(inst.fb_page_height_log2),
+	                  inst.bb.z >> int32_t(inst.fb_page_width_log2),
+	                  inst.bb.w >> int32_t(inst.fb_page_height_log2) };
 
 	PageRect page = {};
 
@@ -2048,7 +2050,10 @@ PageRect GSInterface::compute_z_rect() const
 	// We know this BB is not degenerate already.
 	assert(inst.bb.x <= inst.bb.z);
 	assert(inst.bb.y <= inst.bb.w);
-	auto bb_page = inst.bb >> ivec2(inst.z_page_width_log2, inst.z_page_height_log2).xyxy();
+	ivec4 bb_page = { inst.bb.x >> int32_t(inst.z_page_width_log2),
+	                  inst.bb.y >> int32_t(inst.z_page_height_log2),
+	                  inst.bb.z >> int32_t(inst.z_page_width_log2),
+	                  inst.bb.w >> int32_t(inst.z_page_height_log2) };
 
 	PageRect page = {};
 
@@ -2365,10 +2370,10 @@ static void compute_uv_bb(const VertexAttribute *attr, const ContextState &ctx, 
 
 	if (prim.FST)
 	{
-		uvs[0] = ivec2(attr[0].uv);
-		uvs[1] = ivec2(attr[1].uv);
+		uvs[0] = ivec2{ int32_t(attr[0].uv.x), int32_t(attr[0].uv.y) };
+		uvs[1] = ivec2{ int32_t(attr[1].uv.x), int32_t(attr[1].uv.y) };
 		if (!quad)
-			uvs[2] = ivec2(attr[2].uv);
+			uvs[2] = ivec2{ int32_t(attr[2].uv.x), int32_t(attr[2].uv.y) };
 	}
 	else
 	{
@@ -2380,22 +2385,26 @@ static void compute_uv_bb(const VertexAttribute *attr, const ContextState &ctx, 
 
 		float inv_q0 = 1.0f / attr[0].q;
 		float inv_q1 = 1.0f / attr[1].q;
-		uvs[0] = ivec2(vec2(fwidth, fheight) * (attr[0].st * inv_q0));
-		uvs[1] = ivec2(vec2(fwidth, fheight) * (attr[1].st * inv_q1));
+		uvs[0] = ivec2{ int32_t(fwidth * (attr[0].st.x * inv_q0)),
+		                int32_t(fheight * (attr[0].st.y * inv_q0)) };
+		uvs[1] = ivec2{ int32_t(fwidth * (attr[1].st.x * inv_q1)),
+		                int32_t(fheight * (attr[1].st.y * inv_q1)) };
 
 		if (!quad)
 		{
 			float inv_q2 = 1.0f / attr[2].q;
-			uvs[2] = ivec2(vec2(fwidth, fheight) * (attr[2].st * inv_q2));
+			uvs[2] = ivec2{ int32_t(fwidth * (attr[2].st.x * inv_q2)),
+			                int32_t(fheight * (attr[2].st.y * inv_q2)) };
 		}
 	}
 
-	ivec2 uv_min = min(uvs[0], uvs[1]);
-	ivec2 uv_max = max(uvs[0], uvs[1]);
+	ivec2 uv_min, uv_max;
+	pgs_pair_min2(&uvs[0], &uvs[1], &uv_min);
+	pgs_pair_max2(&uvs[0], &uvs[1], &uv_max);
 	if (!quad)
 	{
-		uv_min = min(uv_min, uvs[2]);
-		uv_max = max(uv_max, uvs[2]);
+		pgs_pair_min2(&uv_min, &uvs[2], &uv_min);
+		pgs_pair_max2(&uv_max, &uvs[2], &uv_max);
 	}
 
 	if (conservative)
@@ -2403,19 +2412,22 @@ static void compute_uv_bb(const VertexAttribute *attr, const ContextState &ctx, 
 		if (ctx.tex1.desc.MMAG != 0)
 		{
 			// Consider linear filtering if using that. Expand the BB appropriately.
-			uv_min -= ivec2(1 << (PGS_SUBPIXEL_BITS - 1));
-			uv_max += ivec2((1 << (PGS_SUBPIXEL_BITS - 1)) - 1);
+			uv_min.x -= 1 << (PGS_SUBPIXEL_BITS - 1);
+			uv_min.y -= 1 << (PGS_SUBPIXEL_BITS - 1);
+			uv_max.x += (1 << (PGS_SUBPIXEL_BITS - 1)) - 1;
+			uv_max.y += (1 << (PGS_SUBPIXEL_BITS - 1)) - 1;
 		}
 		else if (!prim.FST)
 		{
 			// Consider FP rounding errors.
-			uv_min -= ivec2(1);
-			uv_max += ivec2(1);
+			uv_min.x -= 1; uv_min.y -= 1;
+			uv_max.x += 1; uv_max.y += 1;
 		}
 	}
 
 	// This can safely become a REGION_CLAMP.
-	uv_bb = ivec4(uv_min, uv_max) >> PGS_SUBPIXEL_BITS;
+	uv_bb = ivec4{ uv_min.x >> PGS_SUBPIXEL_BITS, uv_min.y >> PGS_SUBPIXEL_BITS,
+	               uv_max.x >> PGS_SUBPIXEL_BITS, uv_max.y >> PGS_SUBPIXEL_BITS };
 
 	if (!conservative)
 	{
@@ -2478,20 +2490,21 @@ GSInterface::deduce_color_feedback_mode(const VertexPosition *pos, const VertexA
 	else if (bb.w >= height)
 		return FBFeedbackMode::Sliced;
 
-	ivec2 uv0_delta = uvs[0] - pos[0].pos;
-	ivec2 uv1_delta = uvs[1] - pos[1].pos;
-	ivec2 min_delta = min(uv0_delta, uv1_delta);
-	ivec2 max_delta = max(uv0_delta, uv1_delta);
+	ivec2 uv0_delta = { uvs[0].x - pos[0].pos.x, uvs[0].y - pos[0].pos.y };
+	ivec2 uv1_delta = { uvs[1].x - pos[1].pos.x, uvs[1].y - pos[1].pos.y };
+	ivec2 min_delta, max_delta;
+	pgs_pair_min2(&uv0_delta, &uv1_delta, &min_delta);
+	pgs_pair_max2(&uv0_delta, &uv1_delta, &max_delta);
 
 	if (!quad)
 	{
-		ivec2 uv2_delta = uvs[2] - pos[2].pos;
-		min_delta = min(min_delta, uv2_delta);
-		max_delta = max(max_delta, uv2_delta);
+		ivec2 uv2_delta = { uvs[2].x - pos[2].pos.x, uvs[2].y - pos[2].pos.y };
+		pgs_pair_min2(&min_delta, &uv2_delta, &min_delta);
+		pgs_pair_max2(&max_delta, &uv2_delta, &max_delta);
 	}
 
-	int min_delta2 = min(min_delta.x, min_delta.y);
-	int max_delta2 = max(max_delta.x, max_delta.y);
+	int min_delta2 = std::min(min_delta.x, min_delta.y);
+	int max_delta2 = std::max(max_delta.x, max_delta.y);
 
 	if (ctx.tex1.desc.MMAG == TEX1Bits::LINEAR)
 	{
@@ -2562,13 +2575,16 @@ void GSInterface::drawing_kick_append()
 	auto pre_snap_lo = lo_pos;
 	auto pre_snap_hi = hi_pos;
 
-	hi_pos -= 1;
+	hi_pos.x -= 1; hi_pos.y -= 1;
 	// Tighten the bounding box according to top-left raster rules.
 	if (!render_pass.field_aware_rendering)
-		lo_pos += (1 << int(PGS_SUBPIXEL_BITS - sampling_rate_y_log2)) - 1;
+	{
+		const int32_t snap = (1 << int(PGS_SUBPIXEL_BITS - sampling_rate_y_log2)) - 1;
+		lo_pos.x += snap; lo_pos.y += snap;
+	}
 
-	lo_pos >>= int(PGS_SUBPIXEL_BITS);
-	hi_pos >>= int(PGS_SUBPIXEL_BITS);
+	lo_pos.x >>= int(PGS_SUBPIXEL_BITS); lo_pos.y >>= int(PGS_SUBPIXEL_BITS);
+	hi_pos.x >>= int(PGS_SUBPIXEL_BITS); hi_pos.y >>= int(PGS_SUBPIXEL_BITS);
 
 	// We implement lines as a parallelogram which expand X or Y by +/- 0.5
 	// pixel or 1.0 pixel depending on AA1 mode.
@@ -2576,14 +2592,14 @@ void GSInterface::drawing_kick_append()
 	// creating some kind of "feathered" rasterization.
 	if (is_line || registers.prim.desc.enables_aa1())
 	{
-		lo_pos -= ivec2(1);
-		hi_pos += ivec2(1);
+		lo_pos.x -= 1; lo_pos.y -= 1;
+		hi_pos.x += 1; hi_pos.y += 1;
 	}
 
 	if (get_and_clear_dirty_flag(STATE_DIRTY_SCISSOR_BIT))
 	{
-		ivec2 sci_lo = ivec2(ctx.scissor.desc.SCAX0, ctx.scissor.desc.SCAY0);
-		ivec2 sci_hi = ivec2(ctx.scissor.desc.SCAX1, ctx.scissor.desc.SCAY1);
+		ivec2 sci_lo = { int32_t(ctx.scissor.desc.SCAX0), int32_t(ctx.scissor.desc.SCAY0) };
+		ivec2 sci_hi = { int32_t(ctx.scissor.desc.SCAX1), int32_t(ctx.scissor.desc.SCAY1) };
 		// This is somewhat dubious, but there's no logical reason to render outside one page's worth of width
 		// when using FBW = 0 for whatever reason. Duplicating page writes would wreak havoc.
 		render_pass.scissor_lo = sci_lo;
@@ -2594,7 +2610,7 @@ void GSInterface::drawing_kick_append()
 	}
 
 	pgs_pair_clamp(&render_pass.scissor_lo, &render_pass.scissor_hi, &lo_pos, &hi_pos);
-	ivec4 bb = ivec4(lo_pos, hi_pos);
+	ivec4 bb = { lo_pos.x, lo_pos.y, hi_pos.x, hi_pos.y };
 
 	// Check for degenerate BB. Can happen if primitive is clipped away completely by scissor.
 	if (bb.z < bb.x || bb.w < bb.y)
@@ -2844,7 +2860,7 @@ void GSInterface::drawing_kick_append()
 		}
 	}
 
-	prim_attr.bb = i16vec4(bb);
+	prim_attr.bb = i16vec4{ int16_t(bb.x), int16_t(bb.y), int16_t(bb.z), int16_t(bb.w) };
 
 	TRACE("Primitive", prim_attr);
 	TRACE("DRAW", render_pass.primitive_count);
@@ -4574,8 +4590,8 @@ void GSInterface::promote_render_pass_to_backbuffer(const RenderPass &rp)
 
 		promoted->img.reset();
 
-		ivec2 lo = ivec2(INT32_MAX);
-		ivec2 hi = ivec2(INT32_MIN);
+		ivec2 lo = { INT32_MAX, INT32_MAX };
+		ivec2 hi = { INT32_MIN, INT32_MIN };
 		bool is_valid_blit = true;
 		uint32_t promoted_tex_index = UINT32_MAX;
 
@@ -4637,19 +4653,24 @@ void GSInterface::promote_render_pass_to_backbuffer(const RenderPass &rp)
 				auto &attr0 = render_pass.attributes[3 * prim + 0];
 				auto &attr1 = render_pass.attributes[3 * prim + 1];
 				constexpr float rounding_epsilon = 1.0f / 1024.0f;
-				uv0 = ivec2((attr0.st / attr0.q) * rp.textures[tex_index].info.sizes.xy() + rounding_epsilon);
-				uv1 = ivec2((attr1.st / attr1.q) * rp.textures[tex_index].info.sizes.xy() + rounding_epsilon);
+				const vec4 &tsz = rp.textures[tex_index].info.sizes;
+				uv0 = ivec2{ int32_t((attr0.st.x / attr0.q) * tsz.x + rounding_epsilon),
+				             int32_t((attr0.st.y / attr0.q) * tsz.y + rounding_epsilon) };
+				uv1 = ivec2{ int32_t((attr1.st.x / attr1.q) * tsz.x + rounding_epsilon),
+				             int32_t((attr1.st.y / attr1.q) * tsz.y + rounding_epsilon) };
 			}
 			else
 			{
-				uv0 = ivec2(render_pass.attributes[3 * prim + 0].uv) >> PGS_SUBPIXEL_BITS;
-				uv1 = ivec2(render_pass.attributes[3 * prim + 1].uv) >> PGS_SUBPIXEL_BITS;
+				uv0 = ivec2{ int32_t(render_pass.attributes[3 * prim + 0].uv.x) >> PGS_SUBPIXEL_BITS,
+				             int32_t(render_pass.attributes[3 * prim + 0].uv.y) >> PGS_SUBPIXEL_BITS };
+				uv1 = ivec2{ int32_t(render_pass.attributes[3 * prim + 1].uv.x) >> PGS_SUBPIXEL_BITS,
+				             int32_t(render_pass.attributes[3 * prim + 1].uv.y) >> PGS_SUBPIXEL_BITS };
 			}
 
-			lo = muglm::min(lo, uv0);
-			lo = muglm::min(lo, uv1);
-			hi = muglm::max(hi, uv0);
-			hi = muglm::max(hi, uv1);
+			pgs_pair_min2(&lo, &uv0, &lo);
+			pgs_pair_min2(&lo, &uv1, &lo);
+			pgs_pair_max2(&hi, &uv0, &hi);
+			pgs_pair_max2(&hi, &uv1, &hi);
 		}
 
 		if (!is_valid_blit)
@@ -4678,13 +4699,17 @@ void GSInterface::promote_render_pass_to_backbuffer(const RenderPass &rp)
 			}
 		}
 
-		lo = muglm::clamp(lo, ivec2(0), ivec2(img.get_width(), img.get_height()));
-		hi = muglm::clamp(hi, ivec2(0), ivec2(img.get_width(), img.get_height()));
+		{
+			const ivec2 img_lo = { 0, 0 };
+			const ivec2 img_hi = { int32_t(img.get_width()), int32_t(img.get_height()) };
+			pgs_pair_clamp(&img_lo, &img_hi, &lo, &lo);
+			pgs_pair_clamp(&img_lo, &img_hi, &hi, &hi);
+		}
 
 		// Assume bottom-right rules leading to rounding down here.
 		// Missing a pixel is better than including too many pixels since it may contain garbage.
 
-		ivec2 extent = hi - lo;
+		ivec2 extent = { hi.x - lo.x, hi.y - lo.y };
 		if (extent.x > 0 && extent.y > 0)
 		{
 			// The cached texture has been recycled, so need to make a copy of it for later scanout.

@@ -217,10 +217,9 @@ endfunction()
 # Pruned: path threading compiler filesystem ecs event renderer ui scene-export
 # video application(audio/physics) - none are referenced by the libretro core
 # link closure (granite-vulkan -> granite-volk/granite-util/granite-volk-headers,
-# granite-util -> granite-application-global-interface, granite-math).
+# granite-util -> granite-application-global-interface).
 add_subdirectory(third_party)
 add_subdirectory(util)
-add_subdirectory(math)
 add_subdirectory(vulkan)
 add_subdirectory(application)
 

@@ -28,11 +28,11 @@ struct Q0 {
 		if (f) { Reg64<XYZFBits> x(v);
 			p.pos.x = int(x.desc.X)-OFX; p.pos.y = int(x.desc.Y)-OFY; p.z = x.desc.Z;
 			a.st.x=R.st.desc.S; a.st.y=R.st.desc.T; a.q=R.rgbaq.desc.Q; a.rgba=R.rgbaq.words[0];
-			a.fog=float(x.desc.F); a.uv=u16vec2(R.uv.desc.U,R.uv.desc.V);
+			a.fog=float(x.desc.F); a.uv.x = (uint16_t)R.uv.desc.U; a.uv.y = (uint16_t)R.uv.desc.V;
 		} else { Reg64<XYZBits> x(v);
 			p.pos.x = int(x.desc.X)-OFX; p.pos.y = int(x.desc.Y)-OFY; p.z = x.desc.Z;
 			a.st.x=R.st.desc.S; a.st.y=R.st.desc.T; a.q=R.rgbaq.desc.Q; a.rgba=R.rgbaq.words[0];
-			a.fog=float(R.fog.desc.FOG); a.uv=u16vec2(R.uv.desc.U,R.uv.desc.V);
+			a.fog=float(R.fog.desc.FOG); a.uv.x = (uint16_t)R.uv.desc.U; a.uv.y = (uint16_t)R.uv.desc.V;
 		}
 		count++;
 	}

@@ -406,7 +406,7 @@ private:
 		// Important optimization for some games which use FRAME register to do viewport shifts.
 		struct Instance
 		{
-			ivec4 bb = ivec4(INT32_MAX, INT32_MAX, INT32_MIN, INT32_MIN);
+			ivec4 bb = { INT32_MAX, INT32_MAX, INT32_MIN, INT32_MIN };
 			Reg64<FRAMEBits> frame = {};
 			Reg64<ZBUFBits> zbuf = {};
 			uint32_t color_write_mask = 0;

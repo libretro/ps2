@@ -65,7 +65,7 @@ if (GRANITE_VULKAN_SYSTEM_HANDLES)
 
     target_link_libraries(granite-vulkan
             PUBLIC granite-filesystem
-            PRIVATE granite-threading granite-rapidjson granite-stb granite-math)
+            PRIVATE granite-threading granite-rapidjson granite-stb)
 
     target_include_directories(granite-vulkan PUBLIC
             ${CMAKE_CURRENT_SOURCE_DIR}/managers

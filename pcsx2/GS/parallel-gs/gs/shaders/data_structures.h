@@ -9,9 +9,32 @@
 // Header which is shared between CPU and GPU.
 
 #ifdef __cplusplus
-using namespace muglm;
+#include <stdint.h>
 #define CONSTEXPR static constexpr
 namespace ParallelGS {
+
+/* GLSL's vector types as plain aggregates, for the half of this header that
+ * is compiled as C++. Same scalars in the same order, so every struct below
+ * keeps the layout the shader bank was compiled against -- the bank ships
+ * precompiled, so a field moving here would corrupt draws with no compile
+ * error anywhere. tests/pgs/pgs_layout_check.cpp pins the sizes and offsets.
+ *
+ * They carry no operators on purpose: anything arithmetic on a pair goes
+ * through the kernels in pgs_vertex_kernels.h, which say what they do to
+ * both halves. */
+/* GLSL spells the 32-bit unsigned scalar this way. */
+typedef uint32_t uint;
+
+struct ivec2 { int32_t x, y; };
+struct ivec3 { int32_t x, y, z; };
+struct ivec4 { int32_t x, y, z, w; };
+struct uvec2 { uint32_t x, y; };
+struct uvec4 { uint32_t x, y, z, w; };
+struct vec2 { float x, y; };
+struct vec4 { float x, y, z, w; };
+struct u16vec2 { uint16_t x, y; };
+struct i16vec4 { int16_t x, y, z, w; };
+
 #else
 #define CONSTEXPR const
 #define VkDeviceAddress uvec2

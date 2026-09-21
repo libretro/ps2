@@ -7,7 +7,6 @@
 
 #include "page_tracker.hpp"
 #include "gs_registers.hpp"
-#include "muglm/muglm_impl.hpp"
 #include <stdint.h>
 #include "shaders/data_structures.h"
 #include "shaders/swizzle_utils.h"

@@ -4,6 +4,7 @@
 #include "pgs_vertex_kernels.h"
 #include <cstdio>
 #include <cstring>
+#include <cstddef>
 
 static Regs R; static int OFX, OFY;
 
@@ -14,7 +15,7 @@ static void ref_xyz(uint64_t v, VertexPosition &p, VertexAttribute &a)
 	a.st.x = R.st.desc.S; a.st.y = R.st.desc.T;
 	a.q = R.rgbaq.desc.Q; a.rgba = R.rgbaq.words[0];
 	a.fog = float(R.fog.desc.FOG);
-	a.uv = u16vec2(R.uv.desc.U, R.uv.desc.V);
+	a.uv.x = (uint16_t)R.uv.desc.U; a.uv.y = (uint16_t)R.uv.desc.V;
 }
 static void ref_xyzf(uint64_t v, VertexPosition &p, VertexAttribute &a)
 {
@@ -23,7 +24,7 @@ static void ref_xyzf(uint64_t v, VertexPosition &p, VertexAttribute &a)
 	a.st.x = R.st.desc.S; a.st.y = R.st.desc.T;
 	a.q = R.rgbaq.desc.Q; a.rgba = R.rgbaq.words[0];
 	a.fog = float(x.desc.F);
-	a.uv = u16vec2(R.uv.desc.U, R.uv.desc.V);
+	a.uv.x = (uint16_t)R.uv.desc.U; a.uv.y = (uint16_t)R.uv.desc.V;
 }
 static pgs_kick_regs gather()
 {
@@ -80,8 +81,8 @@ static int pair_oracle(void)
 
 		/* equality helpers against the muglm form they replace */
 		{
-			muglm::ivec2 ma(a[0], a[1]), mb(b[0], b[1]);
-			int ref = !(any(notEqual(ma, mb)));
+			/* reference: compare the two lanes one at a time */
+			int ref = (a[0] == b[0] && a[1] == b[1]) ? 1 : 0;
 			if (pgs_ivec2_eq(a, b) != ref) f++;
 			if (pgs_ivec2_eq(a, a) != 1) f++;
 		}
@@ -89,8 +90,7 @@ static int pair_oracle(void)
 			uint16_t u0[2], u1[2];
 			u0[0] = (uint16_t)a[0]; u0[1] = (uint16_t)a[1];
 			u1[0] = (uint16_t)b[0]; u1[1] = (uint16_t)b[1];
-			muglm::u16vec2 mu0(u0[0], u0[1]), mu1(u1[0], u1[1]);
-			int ref = !(any(notEqual(mu0, mu1)));
+			int ref = (u0[0] == u1[0] && u0[1] == u1[1]) ? 1 : 0;
 			if (pgs_u16vec2_eq(u0, u1) != ref) f++;
 			if (pgs_u16vec2_eq(u0, u0) != 1) f++;
 		}

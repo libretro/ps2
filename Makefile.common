@@ -41,7 +41,6 @@ ifeq ($(HAVE_VULKAN), 1)
 		-I$(DEPS_DIR)/glslang/glslang \
 		-I$(DEPS_DIR)/glslang/include \
 		-I$(GRANITE_DIR)/util \
-		-I$(GRANITE_DIR)/math \
 		-I$(GRANITE_DIR)/vulkan \
 		-I$(GRANITE_DIR)/application/global \
 		-I$(GRANITE_DIR)/third_party/volk \
@@ -532,12 +531,10 @@ SOURCES_CXX += \
 	$(PGS_DIR)/gs/gs_util.cpp \
 	$(PGS_DIR)/gs/page_tracker.cpp
 
-# Granite math
-# Nothing here is compiled. aabb, frustum, interpolation, math and transforms
-# were already excluded as unreferenced; muglm.cpp joins them -- it defines
-# only matrix and quaternion helpers, and no matrix or quat type appears
-# anywhere in paraLLEl-GS or the Granite subset this core links. What the GS
-# code uses of muglm is the header-only vector types.
+# Granite math is gone entirely: nothing in paraLLEl-GS or the Granite subset
+# this core links uses it. The vector types the GS code needs are plain
+# aggregates in shaders/data_structures.h, and anything arithmetic on a pair
+# goes through gs/pgs_vertex_kernels.h.
 
 # Granite util
 # cli_parser, dynamic_library, message_queue are excluded: their consumers

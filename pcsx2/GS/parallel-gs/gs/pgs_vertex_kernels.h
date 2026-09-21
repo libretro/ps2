@@ -6,7 +6,7 @@
  * per-vertex sequences can be pinned by tests and read without the vector
  * template layer around them.
  *
- * The kernels take register words, not muglm types. Every field a kick
+ * The kernels take register words, not vector types. Every field a kick
  * writes already sits, in the GS register file, in the order and at the
  * width the shared VertexPosition / VertexAttribute layout wants it, so a
  * kick is a small number of whole-word moves rather than a field-by-field
@@ -262,6 +262,44 @@ static PGS_KICK_INLINE void pgs_pair_clamp(
    h[1] = h[1] < hb[1] ? h[1] : hb[1];
 
    memcpy(lo, l, 8); memcpy(hi, h, 8);
+#endif
+}
+
+
+/* Component-wise min and max of two int32 pairs. */
+static PGS_KICK_INLINE void pgs_pair_min2(const void *a, const void *b, void *out)
+{
+#if defined(PGS_PAIR_SSE4)
+   _mm_storel_epi64((__m128i *)out,
+                    _mm_min_epi32(_mm_loadl_epi64((const __m128i *)a),
+                                  _mm_loadl_epi64((const __m128i *)b)));
+#else
+   int32_t x[2];
+   int32_t y[2];
+
+   memcpy(x, a, 8);
+   memcpy(y, b, 8);
+   x[0] = x[0] < y[0] ? x[0] : y[0];
+   x[1] = x[1] < y[1] ? x[1] : y[1];
+   memcpy(out, x, 8);
+#endif
+}
+
+static PGS_KICK_INLINE void pgs_pair_max2(const void *a, const void *b, void *out)
+{
+#if defined(PGS_PAIR_SSE4)
+   _mm_storel_epi64((__m128i *)out,
+                    _mm_max_epi32(_mm_loadl_epi64((const __m128i *)a),
+                                  _mm_loadl_epi64((const __m128i *)b)));
+#else
+   int32_t x[2];
+   int32_t y[2];
+
+   memcpy(x, a, 8);
+   memcpy(y, b, 8);
+   x[0] = x[0] > y[0] ? x[0] : y[0];
+   x[1] = x[1] > y[1] ? x[1] : y[1];
+   memcpy(out, x, 8);
 #endif
 }
 

@@ -20,6 +20,8 @@ int pgs_c89_smoke(unsigned long xy, unsigned long z, void *p, void *a)
    pgs_pair_min_max3(g_a, g_b, g_c, 1, g_lo, g_hi);
    pgs_pair_min_max3(g_a, g_b, g_c, 0, g_lo, g_hi);
    pgs_pair_clamp(g_sl, g_sh, g_lo, g_hi);
+   pgs_pair_min2(g_a, g_b, g_lo);
+   pgs_pair_max2(g_a, g_b, g_hi);
 
    r  = pgs_ivec2_eq(g_a, g_b);
    r += pgs_u16vec2_eq(g_uv0, g_uv1);
