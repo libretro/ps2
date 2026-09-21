@@ -45,6 +45,7 @@
 #include "arm64/AsmHelpers.h"
 #include "arm64/aR5900Analysis.h"
 #include "VUmicro.h" // _vu0FinishMicro
+#include "../Config.h"
 // vu0Sync() lives in VU0.cpp with no header declaration (the interpreter ops call
 // it from the same TU); the C.58 COP2 transfers need it by address.
 extern void vu0Sync();

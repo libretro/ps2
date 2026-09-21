@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstdlib>
+#include <memory>
 
 /// A ring buffer pretending to be a heap (screams if you don't actually use it like a ring buffer)
 /// Meant for one producer thread creating data and sharing it with multiple consumer threads

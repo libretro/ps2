@@ -18,6 +18,7 @@
 
 #include <cstdlib>
 #include <sys/mman.h>
+#include "../Config.h"
 
 namespace a64 = vixl::aarch64;
 

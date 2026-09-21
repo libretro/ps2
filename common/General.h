@@ -15,9 +15,6 @@
 
 #pragma once
 
-#include <map>
-#include <memory>
-#include <string>
 #include "Pcsx2Defs.h"
 
 // --------------------------------------------------------------------------------------

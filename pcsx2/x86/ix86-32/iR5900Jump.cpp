@@ -17,6 +17,7 @@
 #include "R5900OpcodeTables.h"
 #include "x86/iR5900.h"
 #include "common/emitter/c89ops.h"
+#include "../../Config.h"
 /*********************************************************
 * Jump to target                                         *
 * Format:  OP target                                     *

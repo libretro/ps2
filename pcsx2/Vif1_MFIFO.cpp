@@ -216,7 +216,7 @@ void mfifoVIF1transfer()
 
 		vif1ch.madr = ptag[1]._u32;
 
-		vif1.done |= hwDmacSrcChainWithStack(vif1ch, ptag->ID);
+		vif1.done |= hwDmacSrcChainWithStack(&vif1ch, ptag->ID);
 
 		mfifoVifMaskMem(ptag->ID);
 

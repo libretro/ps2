@@ -48,7 +48,7 @@ static __fi int IPU1chain(void)
 		ipu1ch.qwc  -= qwc;
 
 		//Update TADR etc
-		hwDmacSrcTadrInc(ipu1ch);
+		hwDmacSrcTadrInc(&ipu1ch);
 
 		if (!ipu1ch.qwc)
 			IPU1Status.InProgress = false;
@@ -97,7 +97,7 @@ void IPU1dma(void)
 
 		tagcycles += 1; // Add 1 cycles from the QW read for the tag
 
-		IPU1Status.DMAFinished = hwDmacSrcChain(ipu1ch, ptag->ID);
+		IPU1Status.DMAFinished = hwDmacSrcChain(&ipu1ch, ptag->ID);
 
 		if (ipu1ch.chcr.TIE && ptag->IRQ) //Tag Interrupt is set, so schedule the end/interrupt
 			IPU1Status.DMAFinished = true;

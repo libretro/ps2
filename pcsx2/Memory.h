@@ -15,7 +15,6 @@
 
 #pragma once
 
-#include "Config.h"
 #include "VirtualMemory.h"
 #include "vtlb.h"
 
@@ -51,6 +50,11 @@
 // All of these areas should be reserved as soon as possible during program startup, and its
 // important that none of the areas overlap.  In all but superVU's case, failure due to overlap
 // or other conflict will result in the operating system picking a preferred address for the mapping.
+
+/* The host memory map and the VM memory owner. Both are C++: a namespace
+ * of constants and a class holding the reserves. C reaches the memory
+ * through the macros and vtlb entry points above and below. */
+#ifdef __cplusplus
 
 namespace HostMemoryMap
 {
@@ -137,11 +141,13 @@ public:
 
 extern SysMainMemory& GetVmMemory();
 
+#endif /* __cplusplus */
+
 extern void memBindConditionalHandlers(void);
 
 static __fi void memRead128(u32 mem, mem128_t* out)        { r128_store(out, vtlb_memRead128(mem)); }
 #if PCSX2_MINGW_R128_BY_PTR
-static __fi void memWrite128(u32 mem, const mem128_t* val) { vtlb_memWrite128(mem, reinterpret_cast<const r128*>(val)); }
+static __fi void memWrite128(u32 mem, const mem128_t* val) { vtlb_memWrite128(mem, (const r128*)(val)); }
 #else
 static __fi void memWrite128(u32 mem, const mem128_t* val) { vtlb_memWrite128(mem, r128_load(val)); }
 #endif

@@ -28,6 +28,7 @@
 #include "GSTexture.h"
 #include "GSShaderEnums.h"
 #include "GSVertex.h"
+#include <memory>
 
 enum class ShaderConvert
 {

@@ -1527,6 +1527,7 @@ static void  mVUcleanUpVU1() { mVUcleanUp<1>(); }
 // live in aVU_Branch.inl (included earlier, with forward decls of mVUcompile).
 // This replaces the former mVUblockFetch/mVUentryGet pxFailRel stubs.
 #include "arm64/aVU_Compile.inl"
+#include "../Config.h"
 
 //------------------------------------------------------------------
 // Build-time validation

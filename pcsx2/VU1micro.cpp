@@ -22,6 +22,7 @@
 #include <cmath>
 #include "VUmicro.h"
 #include "MTVU.h"
+#include "Config.h"
 
 // This is called by the COP2 as per the CTC instruction
 void vu1ResetRegs(void)

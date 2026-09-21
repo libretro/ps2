@@ -15,6 +15,11 @@
 
 #pragma once
 
+#include "MemoryTypes.h"
+
+/* Address-map constants, in a namespace. C reaches the hardware through
+ * the psHu macros in Memory.h. */
+#ifdef __cplusplus
 namespace EEMemoryMap
 {
 	static const uint RCNT0_Start		= 0x10000000;
@@ -93,6 +98,7 @@ namespace EEMemoryMap
 	static const uint DMACext_End		= 0x1000F600;
 
 };
+#endif /* __cplusplus */
 
 // HW defines
 enum EERegisterAddresses

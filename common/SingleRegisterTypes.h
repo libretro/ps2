@@ -25,12 +25,12 @@
 #include "Pcsx2Types.h"
 #include "VectorIntrin.h"
 
-#include <cstring>
+#include <string.h>
 
 #if defined(_M_X86) || defined(_M_X64) || defined(_M_AMD64) || defined(__amd64__) || defined(__x86_64__) || defined(__x86_64)
 
 /* Can't stick them in structs because it breaks calling convention things, yay */
-using r128 = __m128i;
+typedef __m128i r128;
 
 /* Calling convention setting, yay */
 #define RETURNS_R128 r128 __vectorcall
@@ -54,17 +54,17 @@ using r128 = __m128i;
 /* And since we can't stick them in structs, we get lots of static methods, yay! */
 __forceinline static r128 r128_load(const void* ptr)
 {
-	return _mm_load_si128(reinterpret_cast<const r128*>(ptr));
+	return _mm_load_si128((const r128*)(ptr));
 }
 
 __forceinline static void r128_store(void* ptr, r128 val)
 {
-	return _mm_store_si128(reinterpret_cast<r128*>(ptr), val);
+	return _mm_store_si128((r128*)(ptr), val);
 }
 
 __forceinline static void r128_store_unaligned(void* ptr, r128 val)
 {
-	return _mm_storeu_si128(reinterpret_cast<r128*>(ptr), val);
+	return _mm_storeu_si128((r128*)(ptr), val);
 }
 
 #define r128_zero() _mm_setzero_si128()
@@ -79,21 +79,21 @@ __forceinline static void r128_store_unaligned(void* ptr, r128 val)
 #define CopyQWC(dest, src) _mm_store_ps((float*)(dest), _mm_load_ps((const float*)(src)))
 #define ZeroQWC(dest ) _mm_store_ps((float*)(dest), _mm_setzero_ps())
 
-__forceinline static r128 r128_from_u128(const u128& u)
+__forceinline static r128 r128_from_u128(const u128 u)
 {
-	return _mm_loadu_si128(reinterpret_cast<const __m128i*>(&u));
+	return _mm_loadu_si128((const __m128i*)(&u));
 }
 
 __forceinline static u128 r128_to_u128(r128 val)
 {
-	alignas(16) u128 ret;
-	_mm_store_si128(reinterpret_cast<r128*>(&ret), val);
+	PCSX2_ALIGN(16) u128 ret;
+	_mm_store_si128((r128*)(&ret), val);
 	return ret;
 }
 
 #elif (defined(_M_ARM64) || defined(__aarch64__))
 
-using r128 = uint32x4_t;
+typedef uint32x4_t r128;
 
 #define RETURNS_R128 r128 __vectorcall
 #define TAKES_R128 __vectorcall
@@ -116,17 +116,17 @@ __forceinline static void ZeroQWC(u128& dest)
 
 __forceinline static r128 r128_load(const void* ptr)
 {
-	return vld1q_u32(reinterpret_cast<const uint32_t*>(ptr));
+	return vld1q_u32((const uint32_t*)(ptr));
 }
 
 __forceinline static void r128_store(void* ptr, r128 value)
 {
-	return vst1q_u32(reinterpret_cast<uint32_t*>(ptr), value);
+	return vst1q_u32((uint32_t*)(ptr), value);
 }
 
 __forceinline static void r128_store_unaligned(void* ptr, r128 value)
 {
-	return vst1q_u32(reinterpret_cast<uint32_t*>(ptr), value);
+	return vst1q_u32((uint32_t*)(ptr), value);
 }
 
 #define r128_zero() vmovq_n_u32(0)
@@ -146,14 +146,14 @@ __forceinline static r128 r128_from_u32x4(u32 lo0, u32 lo1, u32 hi0, u32 hi1)
 	return vld1q_u32(values);
 }
 
-__forceinline static r128 r128_from_u128(const u128& u)
+__forceinline static r128 r128_from_u128(const u128 u)
 {
-	return vld1q_u32(reinterpret_cast<const uint32_t*>(u._u32));
+	return vld1q_u32((const uint32_t*)(u._u32));
 }
 
 __forceinline static u128 r128_to_u128(r128 val)
 {
-	alignas(16) u128 ret;
+	PCSX2_ALIGN(16) u128 ret;
 	vst1q_u32(ret._u32, val);
 	return ret;
 }

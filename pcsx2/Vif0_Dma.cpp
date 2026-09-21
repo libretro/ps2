@@ -17,6 +17,7 @@
 #include "Vif_Dma.h"
 #include "VUmicro.h"
 #include "x86/newVif.h"
+#include "Config.h"
 
 u32 g_vif0Cycles = 0;
 
@@ -103,7 +104,7 @@ __fi void vif0SetupTransfer(void)
 
 	vif0.irqoffset.value = 0;
 	vif0.irqoffset.enabled = false;
-	vif0.done |= hwDmacSrcChainWithStack(vif0ch, ptag->ID);
+	vif0.done |= hwDmacSrcChainWithStack(&vif0ch, ptag->ID);
 
 	if(vif0ch.qwc > 0) vif0.inprogress = 1;
 	//Check TIE bit of CHCR and IRQ bit of tag

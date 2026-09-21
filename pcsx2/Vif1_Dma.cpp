@@ -187,7 +187,7 @@ __fi void vif1SetupTransfer(void)
 	vif1.irqoffset.value     = 0;
 	vif1.irqoffset.enabled   = false;
 
-	vif1.done               |= hwDmacSrcChainWithStack(vif1ch, ptag->ID);
+	vif1.done               |= hwDmacSrcChainWithStack(&vif1ch, ptag->ID);
 
 	if (vif1ch.qwc > 0)
 		vif1.inprogress |= 1;

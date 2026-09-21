@@ -19,6 +19,7 @@
 #include "VUmicro.h"
 
 #include <cfenv>
+#include "Config.h"
 
 extern void _vuFlushAll(VURegs* VU);
 

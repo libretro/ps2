@@ -26,6 +26,7 @@
 #include <fcntl.h>
 
 #include <file/file_path.h>
+#include "Config.h"
 
 #ifdef _WIN32
 #include <io.h>

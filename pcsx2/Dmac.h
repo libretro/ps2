@@ -15,6 +15,8 @@
 
 #pragma once
 
+#include "MemoryTypes.h"
+
 enum tag_id
 {
 	TAG_CNTS = 0,
@@ -68,7 +70,7 @@ enum LogicalTransferMode
 // Theoretically should probably both be in a u64 together, but with the way the
 // code is layed out, this is easier for the moment.
 
-union tDMA_TAG {
+typedef union tDMA_TAG {
 	struct {
 		u32 QWC : 16;
 		u32 _reserved2 : 10;
@@ -81,9 +83,9 @@ union tDMA_TAG {
 		u32 SPR : 1;
 	};
 	u32 _u32;
-};
+} tDMA_TAG;
 
-union tDMA_CHCR {
+typedef union tDMA_CHCR {
 	struct {
 		u32 DIR : 1;        // Direction: 0 - to memory, 1 - from memory. VIF1 & SIF2 only.
 		u32 _reserved1 : 1;
@@ -96,24 +98,24 @@ union tDMA_CHCR {
 		u32 TAG : 16;		// Maintains upper 16 bits of the most recently read DMAtag.
 	};
 	u32 _u32;
-};
+} tDMA_CHCR;
 
-union tDMA_SADR {
+typedef union tDMA_SADR {
 	struct {
 		u32 ADDR : 14;
 		u32 reserved2 : 18;
 	};
 	u32 _u32;
-};
+} tDMA_SADR;
 
-union tDMA_QWC {
+typedef union tDMA_QWC {
 	struct {
 		u32 QWC;
 	};
 	u32 _u32;
-};
+} tDMA_QWC;
 
-struct DMACh {
+typedef struct DMACh {
 	tDMA_CHCR chcr;
 	u32 _null0[3];
 	u32 madr;
@@ -128,11 +130,15 @@ struct DMACh {
 	u32 _null5[11];
 	u32 sadr;
 
+	/* Non-virtual, so the layout is the same either way and C sees the
+	 * registers without them. */
+#ifdef __cplusplus
 	bool transfer(tDMA_TAG* ptag);
 	void unsafeTransfer(tDMA_TAG* ptag);
 	tDMA_TAG *getAddr(u32 addr, u32 num, bool write);
 	tDMA_TAG *DMAtransfer(u32 addr, u32 num);
-};
+#endif
+} DMACh;
 
 enum INTCIrqs
 {
@@ -180,7 +186,7 @@ enum DMAInter
 	MEISintr = 0x40004000
 };
 
-union tDMAC_QUEUE
+typedef union tDMAC_QUEUE
 {
 	struct
 	{
@@ -199,9 +205,9 @@ union tDMAC_QUEUE
 	    u16 BEIS : 1;
 	};
 	u16 _u16;
-};
+} tDMAC_QUEUE;
 
-union tDMAC_CTRL {
+typedef union tDMAC_CTRL {
 	struct {
 		u32 DMAE : 1;       // 0/1 - disables/enables all DMAs
 		u32 RELE : 1;       // 0/1 - cycle stealing off/on
@@ -212,9 +218,9 @@ union tDMAC_CTRL {
 		u32 _reserved1 : 21;
 	};
 	u32 _u32;
-};
+} tDMAC_CTRL;
 
-union tDMAC_STAT {
+typedef union tDMAC_STAT {
 	struct {
 		u32 CIS : 10;
 		u32 _reserved1 : 3;
@@ -229,9 +235,9 @@ union tDMAC_STAT {
 	};
 	u32 _u32;
 	u16 _u16[2];
-};
+} tDMAC_STAT;
 
-union tDMAC_PCR {
+typedef union tDMAC_PCR {
 	struct {
 		u32 CPC : 10;
 		u32 _reserved1 : 6;
@@ -240,9 +246,9 @@ union tDMAC_PCR {
 		u32 PCE : 1;
 	};
 	u32 _u32;
-};
+} tDMAC_PCR;
 
-union tDMAC_SQWC {
+typedef union tDMAC_SQWC {
 	struct {
 		u32 SQWC : 8;
 		u32 _reserved1 : 8;
@@ -250,23 +256,23 @@ union tDMAC_SQWC {
 		u32 _reserved2 : 8;
 	};
 	u32 _u32;
-};
+} tDMAC_SQWC;
 
-union tDMAC_RBSR {
+typedef union tDMAC_RBSR {
 	struct {
 		u32 RMSK : 31;
 		u32 _reserved1 : 1;
 	};
 	u32 _u32;
-};
+} tDMAC_RBSR;
 
-union tDMAC_RBOR {
+typedef union tDMAC_RBOR {
 	struct {
 		u32 ADDR : 31;
 		u32 _reserved1 : 1;
 	};
 	u32 _u32;
-};
+} tDMAC_RBOR;
 
 // --------------------------------------------------------------------------------------
 //  tDMAC_ADDR
@@ -275,16 +281,16 @@ union tDMAC_RBOR {
 // effective SPR bit (the bit is ignored for all addresses that are not "allowed" to access
 // the scratchpad, including STADR, toSPR.MADR, fromSPR.MADR, etc.).
 //
-union tDMAC_ADDR
+typedef union tDMAC_ADDR
 {
 	struct {
 		u32 ADDR : 31;	// Transfer memory address
 		u32 SPR : 1;	// Memory/SPR Address (only effective for MADR and TADR of non-SPR DMAs)
 	};
 	u32 _u32;
-};
+} tDMAC_ADDR;
 
-struct DMACregisters
+typedef struct DMACregisters
 {
 	tDMAC_CTRL	ctrl;
 	u32 _padding[3];
@@ -301,48 +307,48 @@ struct DMACregisters
 	u32 _padding5[3];
 	tDMAC_ADDR	stadr;
 	u32 _padding6[3];
-};
+} DMACregisters;
 
 // Currently guesswork.
-union tINTC_STAT {
+typedef union tINTC_STAT {
 	struct {
 		u32 interrupts : 10;
 	    u32 _placeholder : 22;
 	};
 	u32 _u32;
-};
+} tINTC_STAT;
 
-union tINTC_MASK {
+typedef union tINTC_MASK {
 	struct {
 	    u32 int_mask : 10;
 	    u32 _placeholder:22;
 	};
 	u32 _u32;
-};
+} tINTC_MASK;
 
-struct INTCregisters
+typedef struct INTCregisters
 {
 	tINTC_STAT  stat;
 	u32 _padding1[3];
 	tINTC_MASK  mask;
 	u32 _padding2[3];
-};
+} INTCregisters;
 
 #define intcRegs ((INTCregisters*)(eeHw+0xF000))
 
-static DMACregisters& dmacRegs	= (DMACregisters&)eeHw[0xE000];
+#define dmacRegs	(*(DMACregisters*)(eeHw + 0xE000))
 
 // Various useful locations
-static DMACh& vif0ch	= (DMACh&)eeHw[0x8000];
-static DMACh& vif1ch	= (DMACh&)eeHw[0x9000];
-static DMACh& gifch	= (DMACh&)eeHw[0xA000];
-static DMACh& spr0ch	= (DMACh&)eeHw[0xD000];
-static DMACh& spr1ch	= (DMACh&)eeHw[0xD400];
-static DMACh& ipu0ch	= (DMACh&)eeHw[0xb000];
-static DMACh& ipu1ch	= (DMACh&)eeHw[0xb400];
-static DMACh& sif0ch	= (DMACh&)eeHw[0xc000];
-static DMACh& sif1ch	= (DMACh&)eeHw[0xc400];
-static DMACh& sif2dma	= (DMACh&)eeHw[0xc800];
+#define vif0ch	(*(DMACh*)(eeHw + 0x8000))
+#define vif1ch	(*(DMACh*)(eeHw + 0x9000))
+#define gifch	(*(DMACh*)(eeHw + 0xA000))
+#define spr0ch	(*(DMACh*)(eeHw + 0xD000))
+#define spr1ch	(*(DMACh*)(eeHw + 0xD400))
+#define ipu0ch	(*(DMACh*)(eeHw + 0xb000))
+#define ipu1ch	(*(DMACh*)(eeHw + 0xb400))
+#define sif0ch	(*(DMACh*)(eeHw + 0xc000))
+#define sif1ch	(*(DMACh*)(eeHw + 0xc400))
+#define sif2dma	(*(DMACh*)(eeHw + 0xc800))
 
 extern tDMA_TAG *dmaGetAddr(u32 addr, bool write);
 
@@ -352,9 +358,12 @@ extern void hwDmacIrq(int n);
 extern void FireMFIFOEmpty(void);
 extern bool hwMFIFOWrite(u32 addr, const u128* data, uint size_qwc);
 extern void hwMFIFOResume(u32 transferred);
-extern void hwDmacSrcTadrInc(DMACh& dma);
-extern bool hwDmacSrcChainWithStack(DMACh& dma, int id);
-extern bool hwDmacSrcChain(DMACh& dma, int id);
+extern void hwDmacSrcTadrInc(DMACh *dma);
+extern bool hwDmacSrcChainWithStack(DMACh *dma, int id);
+extern bool hwDmacSrcChain(DMACh *dma, int id);
 
+/* The paged hardware accessors are templates on the page index. */
+#ifdef __cplusplus
 template< uint page > u32 dmacRead32( u32 mem );
 template< uint page > extern bool dmacWrite32( u32 mem, mem32_t& value );
+#endif /* __cplusplus */

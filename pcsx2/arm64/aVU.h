@@ -5,6 +5,7 @@
 #pragma once
 #include "common/Pcsx2Defs.h"
 #include <memalign.h>
+#include "../Config.h"
 
 // ARM64 microVU recompiler — arch-neutral data structures (Phase 7, task 7.2a).
 //
@@ -48,6 +49,7 @@
 #include <deque>
 #include <memory>
 #include <vector>
+#include <cstdio>
 
 class microRegAlloc; // ARM64 host register allocator — see aVU_IR.h (task 7.2b)
 class microBlockManager;

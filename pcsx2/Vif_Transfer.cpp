@@ -16,6 +16,7 @@
 #include "Common.h"
 #include "Vif_Dma.h"
 #include "x86/newVif.h"
+#include "Config.h"
 
 //------------------------------------------------------------------
 // VifCode Transfer Interpreter (Vif0/Vif1)
@@ -84,7 +85,7 @@ _vifT static __fi bool vifTransfer(u32 *data, int size, bool TTE) {
 		vifXch.madr +=(transferred << 4);
 		vifXch.qwc  -= transferred;
 
-		hwDmacSrcTadrInc(vifXch);
+		hwDmacSrcTadrInc(&vifXch);
 
 		vifX.irqoffset.enabled = false;
 

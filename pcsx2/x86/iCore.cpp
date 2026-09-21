@@ -1,4 +1,5 @@
 #include "common/emitter/c89ops.h"
+#include "../Config.h"
 /*  PCSX2 - PS2 Emulator for PCs
  *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *

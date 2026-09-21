@@ -66,7 +66,7 @@ extern void vtlb_ReassignHandler( vtlbHandler rv,
 
 
 extern void vtlb_MapHandler(vtlbHandler handler,u32 start,u32 size);
-extern void vtlb_MapBlock(void* base,u32 start,u32 size,u32 blocksize=0);
+extern void vtlb_MapBlock(void* base,u32 start,u32 size,u32 blocksize);
 extern void* vtlb_GetPhyPtr(u32 paddr);
 extern u32  vtlb_V2P(u32 vaddr);
 extern void vtlb_DynV2P(void);
@@ -98,6 +98,12 @@ extern void vtlb_memWrite128(u32 mem, const r128* value);
 #else
 extern void TAKES_R128 vtlb_memWrite128(u32 mem, r128 value);
 #endif
+
+/* The recompiler entry points and the reserve classes. Both are C++: the
+ * dynarec declarations carry default arguments and an alias template, and
+ * the reserves derive from VirtualMemoryReserve. Nothing in C calls either.
+ */
+#ifdef __cplusplus
 
 // "Safe" variants of vtlb, designed for external tools.
 using vtlb_ReadRegAllocCallback = int(*)(void);
@@ -175,6 +181,8 @@ public:
 	void Reset() override;
 };
 
+#endif /* __cplusplus */
+
 /* vtlb constants and lookup machinery. C89-shaped: the wrapper classes
  * that used to live in namespace vtlb_private are plain integer typedefs
  * with inline accessor functions; the packed representation is unchanged.
@@ -224,7 +232,7 @@ typedef struct
 	uptr fastmem_base;
 } vtlb_map_t;
 
-alignas(64) extern vtlb_map_t vtlbdata;
+PCSX2_ALIGN(64) extern vtlb_map_t vtlbdata;
 
 static VTLB_INLINE vtlb_phys_t vtlb_phys_from_ptr(sptr ptr) { return ptr; }
 static VTLB_INLINE vtlb_phys_t vtlb_phys_from_handler(vtlbHandler handler) { return (vtlb_phys_t)(handler | POINTER_SIGN_BIT); }
@@ -248,13 +256,13 @@ static VTLB_INLINE void* vtlb_virt_handler_raw(vtlb_virt_t v, int index, int wri
 }
 
 
-enum vtlb_ProtectionMode
+typedef enum vtlb_ProtectionMode
 {
 	ProtMode_None = 0, 	// page is 'unaccounted' -- neither protected nor unprotected
 	ProtMode_Write, 	// page is under write protection (exception handler)
 	ProtMode_Manual, 	// page is under manual protection (self-checked at execution)
 	ProtMode_NotRequired 	// page doesn't require any protection
-};
+} vtlb_ProtectionMode;
 
 extern vtlb_ProtectionMode mmap_GetRamPageInfo(u32 paddr);
 extern void mmap_MarkCountedRamPage(u32 paddr);

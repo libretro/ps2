@@ -43,7 +43,7 @@ static __fi bool WriteEEtoFifo(void)
 		sif1.fifo.write((u32*)ptag, writeSize << 2);
 
 	sif1ch.madr += writeSize << 4;
-	hwDmacSrcTadrInc(sif1ch);
+	hwDmacSrcTadrInc(&sif1ch);
 	sif1.ee.cycles += writeSize;		// fixme : BIAS is factored in above
 	sif1ch.qwc -= writeSize;
 
@@ -79,7 +79,7 @@ static __fi bool ProcessEETag(void)
 
 	sif1ch.madr = ptag[1]._u32;
 
-	sif1.ee.end = hwDmacSrcChain(sif1ch, ptag->ID);
+	sif1.ee.end = hwDmacSrcChain(&sif1ch, ptag->ID);
 
 	if (sif1ch.chcr.TIE && ptag->IRQ)
 		sif1.ee.end = true;

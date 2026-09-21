@@ -145,7 +145,7 @@ static void incGifChAddr(u32 qwc)
 	{
 		gifch.madr += qwc * 16;
 		gifch.qwc -= qwc;
-		hwDmacSrcTadrInc(gifch);
+		hwDmacSrcTadrInc(&gifch);
 	}
 }
 
@@ -355,7 +355,7 @@ static __fi tDMA_TAG* ReadTag(void)
 	gifch.madr      = ptag[1]._u32; // MADR = ADDR field + SPR
 	gif.gscycles   += 2; // Add 1 cycles from the QW read for the tag
 
-	gif.gspath3done = hwDmacSrcChainWithStack(gifch, ptag->ID);
+	gif.gspath3done = hwDmacSrcChainWithStack(&gifch, ptag->ID);
 	return ptag;
 }
 
@@ -614,7 +614,7 @@ void mfifoGIFtransfer(void)
 
 		gif.mfifocycles += 2;
 
-		gif.gspath3done  = hwDmacSrcChainWithStack(gifch, ptag->ID);
+		gif.gspath3done  = hwDmacSrcChainWithStack(&gifch, ptag->ID);
 
 		mfifoGifMaskMem(ptag->ID);
 

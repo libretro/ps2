@@ -201,25 +201,25 @@ static void memMapVUmicro(void)
 	// support needs to be coded to reset the memMappings when MTVU is
 	// turned off/on. For now we just always use the vu data handlers...
 	if (1||THREAD_VU1) vtlb_MapHandler(vu1_data_mem,0x1100c000,0x00004000);
-	else               vtlb_MapBlock  (vuRegs[1].Mem,     0x1100c000,0x00004000);
+	else               vtlb_MapBlock  (vuRegs[1].Mem,     0x1100c000,0x00004000, 0);
 }
 
 static void memMapPhy(void)
 {
 	// Main memory
-	vtlb_MapBlock(eeMem->Main,	0x00000000,Ps2MemSize::MainRam);//mirrored on first 256 mb ?
+	vtlb_MapBlock(eeMem->Main,	0x00000000,Ps2MemSize::MainRam, 0);//mirrored on first 256 mb ?
 	// High memory, uninstalled on the configuration we emulate
 	vtlb_MapHandler(null_handler, Ps2MemSize::MainRam, 0x10000000 - Ps2MemSize::MainRam);
 
 	// Various ROMs (all read-only)
-	vtlb_MapBlock(eeMem->ROM,	0x1fc00000, Ps2MemSize::Rom);
-	vtlb_MapBlock(eeMem->ROM1,	0x1e000000, Ps2MemSize::Rom1);
-	vtlb_MapBlock(eeMem->ROM2,	0x1e400000, Ps2MemSize::Rom2);
+	vtlb_MapBlock(eeMem->ROM,	0x1fc00000, Ps2MemSize::Rom, 0);
+	vtlb_MapBlock(eeMem->ROM1,	0x1e000000, Ps2MemSize::Rom1, 0);
+	vtlb_MapBlock(eeMem->ROM2,	0x1e400000, Ps2MemSize::Rom2, 0);
 
 	// IOP memory
 	// (used by the EE Bios Kernel during initial hardware initialization, Apps/Games
 	//  are "supposed" to use the thread-safe SIF instead.)
-	vtlb_MapBlock(iopMem->Main,0x1c000000,0x00800000);
+	vtlb_MapBlock(iopMem->Main,0x1c000000,0x00800000, 0);
 
 	// Generic Handlers; These fallback to mem* stuff...
 	vtlb_MapHandler(tlb_fallback_7,0x14000000, _64kb);

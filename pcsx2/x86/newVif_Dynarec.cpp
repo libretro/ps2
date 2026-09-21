@@ -20,6 +20,7 @@
 #include "newVif_UnpackSSE.h"
 #include "common/emitter/c89ops.h"
 #include "../MTVU.h"
+#include "../Config.h"
 
 void dVifReserve(int idx)
 {

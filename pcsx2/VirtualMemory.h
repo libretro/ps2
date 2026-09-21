@@ -17,6 +17,17 @@
 
 #include <retro_atomic.h>
 #include "../common/General.h"
+
+/* The code reserve below holds a manager pointer without ever completing the
+ * type, so C needs a name for it and nothing more. */
+#ifdef __cplusplus
+class VirtualMemoryManager;
+#else
+typedef struct VirtualMemoryManager VirtualMemoryManager;
+#endif
+
+#ifdef __cplusplus
+
 #include <memory>
 
 // --------------------------------------------------------------------------------------
@@ -129,6 +140,8 @@ public:
 	}
 };
 
+#endif /* __cplusplus */
+
 /* --------------------------------------------------------------------------
  *  Code reserve
  * --------------------------------------------------------------------------
@@ -159,6 +172,7 @@ void code_reserve_forbid_modification(struct CodeReserve* r);
 
 /* The GS software JIT keeps the C++ reserve: GSCodeReserve derives from it and
  * the GS code map is not part of this conversion. */
+#ifdef __cplusplus
 class RecompiledCodeReserve : public VirtualMemoryReserve
 {
 	typedef VirtualMemoryReserve _parent;
@@ -176,3 +190,5 @@ public:
 	operator u8*() { return m_baseptr; }
 	operator const u8*() const { return m_baseptr; }
 };
+
+#endif /* __cplusplus */

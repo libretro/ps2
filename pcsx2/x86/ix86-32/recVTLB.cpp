@@ -19,6 +19,7 @@
 #include "../iCore.h"
 #include "../iR5900.h"
 #include "common/emitter/c89ops.h"
+#include "../../Config.h"
 
 // we need enough for a 32-bit jump forwards (5 bytes)
 static const u32 LOADSTORE_PADDING = 5;

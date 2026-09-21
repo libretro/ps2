@@ -48,8 +48,9 @@
 #include "IopMem.h"
 #include "Host.h"
 #include "R5900.h"
+#include "Config.h"
 
-alignas(64) vtlb_map_t vtlbdata;
+PCSX2_ALIGN(64) vtlb_map_t vtlbdata;
 
 static bool vtlb_PageFaultHandler(const retro_fault_info_t* info);
 

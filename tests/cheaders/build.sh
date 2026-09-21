@@ -19,6 +19,7 @@ DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 ROOT=$(CDPATH= cd -- "$DIR/../.." && pwd)
 INC="-I$ROOT -I$ROOT/pcsx2 -I$ROOT/common -I$ROOT/libretro/libretro-common/include"
 INC="$INC -I$ROOT/3rdparty -I$ROOT/3rdparty/include"
+INC="$INC -msse4.1"
 
 HEADERS="
 FreezeTypes.h
@@ -31,6 +32,12 @@ IopCounters.h
 COP0.h
 Elfheader.h
 ps2/BiosTools.h
+VirtualMemory.h
+vtlb.h
+Dmac.h
+Hw.h
+Memory.h
+Common.h
 "
 
 TMP=${TMPDIR:-/tmp}/cheaders.$$
