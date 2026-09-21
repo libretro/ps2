@@ -290,6 +290,8 @@ int main(int argc, char **argv)
 	printf("avx2\n");
 #elif defined(__SSE4_1__)
 	printf("sse4.1\n");
+#elif defined(_M_ARM64) || defined(__aarch64__)
+	printf("aarch64 (NEON kernels)\n");
 #else
 	printf("sse2\n");
 #endif

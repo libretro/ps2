@@ -48,3 +48,26 @@ for CXX in g++ clang++; do
 		"$TMP/slice_hash" "$1"
 	done
 done
+
+# aarch64 runs the NEON inverse DCT, colour conversion and dither against
+# the same streams. The synthetic IDCT harness checks that kernel on its
+# own; this is the one place the NEON spellings decode real macroblocks,
+# so the same hash here is what says the whole chain agrees.
+if command -v aarch64-linux-gnu-g++ >/dev/null 2>&1 &&
+   command -v qemu-aarch64 >/dev/null 2>&1; then
+	echo
+	echo "=== aarch64 (NEON kernels) ==="
+	for k in ipu_idct yuv2rgb IPUdither ipu_csc; do
+		aarch64-linux-gnu-gcc -O2 -std=gnu89 $INC \
+		    -c "$ROOT/pcsx2/IPU/$k.c" -o "$TMP/a_$k.o"
+	done
+	aarch64-linux-gnu-g++ -O2 -std=c++17 $INC -c "$DIR/slice_hash.cpp" \
+	     -o "$TMP/a_slice.o"
+	aarch64-linux-gnu-g++ -O2 -static "$TMP/a_slice.o" "$TMP/a_ipu_idct.o" \
+	     "$TMP/a_yuv2rgb.o" "$TMP/a_IPUdither.o" "$TMP/a_ipu_csc.o" \
+	     -o "$TMP/slice_hash64"
+	qemu-aarch64 "$TMP/slice_hash64" "$1"
+else
+	echo
+	echo "skipping aarch64 lane (no cross toolchain or qemu)"
+fi
