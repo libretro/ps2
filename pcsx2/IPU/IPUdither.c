@@ -121,6 +121,80 @@ __ri void ipu_dither(const macroblock_rgb32 *rgb32, macroblock_rgb16 *rgb16, con
 			}
 		}
 	}
+#elif defined(_M_ARM64) || defined(__aarch64__)
+	/* NEON deinterleaves the four channels in the load itself, so the
+	 * unpack chain the SSE2 path needs has no counterpart here. The dither
+	 * is still a saturating add and a saturating subtract, which is what
+	 * gives the clamp at both ends; the two are never both non-zero for a
+	 * pixel, so together they are one clamped signed add. */
+	const uint8x8_t alpha_test = vdup_n_u8(0x40);
+	if (dte)
+	{
+		/* Per-pixel, repeating every four across the row. Row class picks
+		 * the pair, and the same eight lanes serve both halves of the row
+		 * because the row is sixteen pixels. */
+		static const u8 dither_add[4][8] = {
+			{ 0, 0, 0, 1, 0, 0, 0, 1 },
+			{ 2, 0, 3, 0, 2, 0, 3, 0 },
+			{ 0, 1, 0, 0, 0, 1, 0, 0 },
+			{ 3, 0, 2, 0, 3, 0, 2, 0 }
+		};
+		static const u8 dither_sub[4][8] = {
+			{ 4, 0, 3, 0, 4, 0, 3, 0 },
+			{ 0, 2, 0, 1, 0, 2, 0, 1 },
+			{ 3, 0, 4, 0, 3, 0, 4, 0 },
+			{ 0, 1, 0, 2, 0, 1, 0, 2 }
+		};
+		for (i = 0; i < 16; ++i)
+		{
+			const uint8x8_t vadd = vld1_u8(dither_add[i & 3]);
+			const uint8x8_t vsub = vld1_u8(dither_sub[i & 3]);
+			for (n = 0; n < 2; ++n)
+			{
+				const uint8x8x4_t px =
+					vld4_u8((const u8 *)&rgb32->c[i][n * 8]);
+				const uint8x8_t r =
+					vqsub_u8(vqadd_u8(px.val[0], vadd), vsub);
+				const uint8x8_t g =
+					vqsub_u8(vqadd_u8(px.val[1], vadd), vsub);
+				const uint8x8_t b =
+					vqsub_u8(vqadd_u8(px.val[2], vadd), vsub);
+
+				const uint16x8_t R = vshrq_n_u16(vmovl_u8(r), 3);
+				const uint16x8_t G =
+					vshlq_n_u16(vshrq_n_u16(vmovl_u8(g), 3), 5);
+				const uint16x8_t B =
+					vshlq_n_u16(vshrq_n_u16(vmovl_u8(b), 3), 10);
+				const uint16x8_t A = vshlq_n_u16(
+					vmovl_u8(vceq_u8(px.val[3], alpha_test)), 15);
+
+				vst1q_u16((u16 *)&rgb16->c[i][n * 8],
+				          vorrq_u16(vorrq_u16(R, G), vorrq_u16(B, A)));
+			}
+		}
+	}
+	else
+	{
+		for (i = 0; i < 16; ++i)
+		{
+			for (n = 0; n < 2; ++n)
+			{
+				const uint8x8x4_t px =
+					vld4_u8((const u8 *)&rgb32->c[i][n * 8]);
+
+				const uint16x8_t R = vshrq_n_u16(vmovl_u8(px.val[0]), 3);
+				const uint16x8_t G =
+					vshlq_n_u16(vshrq_n_u16(vmovl_u8(px.val[1]), 3), 5);
+				const uint16x8_t B =
+					vshlq_n_u16(vshrq_n_u16(vmovl_u8(px.val[2]), 3), 10);
+				const uint16x8_t A = vshlq_n_u16(
+					vmovl_u8(vceq_u8(px.val[3], alpha_test)), 15);
+
+				vst1q_u16((u16 *)&rgb16->c[i][n * 8],
+				          vorrq_u16(vorrq_u16(R, G), vorrq_u16(B, A)));
+			}
+		}
+	}
 #else /* Reference C implementation */
 	int j;
 	if (dte)

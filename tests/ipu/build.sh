@@ -45,15 +45,14 @@ for CXX in g++ clang++; do
 	done
 done
 
-# The scalar branch of both kernels is dead code on x86 -- the #if takes the
-# SSE path always -- so it can drift from the SIMD path unnoticed. aarch64 is
-# where it is live (yuv2rgb has a NEON path, the dither does not), so run it
-# there too and hold it to the same hashes. That is what proves the two
-# spellings still agree.
+# All three kernels carry a NEON arm now, so aarch64 is a second vector
+# spelling rather than the scalar fallback. Holding it to the same hashes is
+# what says the two agree; the scalar branches are reached only on builds
+# below SSE2, which nothing here compiles.
 if command -v aarch64-linux-gnu-g++ >/dev/null 2>&1 &&
    command -v qemu-aarch64 >/dev/null 2>&1; then
 	echo
-	echo "=== aarch64 (scalar dither, NEON yuv2rgb) ==="
+	echo "=== aarch64 (NEON yuv2rgb, dither and csc) ==="
 	for u in $UNITS; do
 		aarch64-linux-gnu-gcc -O2 -std=gnu89 $INC -c "$ROOT/pcsx2/$u.c" \
 		     -o "$TMP/$(basename $u).o"

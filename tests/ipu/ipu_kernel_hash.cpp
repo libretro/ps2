@@ -1,12 +1,12 @@
 /* IPU colour-conversion and dither kernels against a scalar model.
  *
- * yuv2rgb() and ipu_dither() each carry a SIMD path and a scalar path that
+ * yuv2rgb() and ipu_dither() each carry SIMD paths and a scalar path that
  * are meant to agree, and nothing in the tree checks that they do. The
  * scalar model here is written out from what the operation means rather
- * than lifted from either path, so a shared mistake in both is still
- * caught. Every tier the build can reach is checked: SSE2 and SSE4.1 take
- * different routes through the dither, and AVX2 changes what the compiler
- * emits underneath both.
+ * than lifted from any of them, so a shared mistake is still caught. Every
+ * tier the build can reach is checked: SSE2 and SSE4.1 take different
+ * routes through the dither, AVX2 changes what the compiler emits
+ * underneath both, and aarch64 takes a NEON route of its own.
  *
  * The hashes are pinned so a change meant to be bit-exact can be shown to
  * be. Re-pin with --print only when the output is meant to change.
