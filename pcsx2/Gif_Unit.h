@@ -18,7 +18,6 @@
 #include <memalign.h>
 #include <retro_atomic.h>
 #include <retro_spsc.h>
-#include <deque>
 #include <cstring> /* memset */
 
 #include "../common/VectorIntrin.h"
