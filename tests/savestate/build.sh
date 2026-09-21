@@ -1,7 +1,7 @@
 #!/bin/sh
 # Savestate block reader/writer harness.
 #
-# SaveState.c is the whole of the savestate machinery that does not name the
+# SaveStateBase.c is the whole of the savestate machinery that does not name the
 # emulator: Init, PrepBlock, FreezeMem, FreezeTag. It was a C++ class over a
 # std::vector<u8>; it is now a C89 struct over its own realloc'd block, and
 # the growth policy is new code rather than a translation, so it is the part
@@ -33,7 +33,7 @@ if [ "$1" = "--codegen" ]; then
 	for CC in gcc clang; do
 		command -v "$CC" >/dev/null 2>&1 || continue
 		case $CC in gcc) CXX=g++ ;; clang) CXX=clang++ ;; esac
-		$CC  -O2 -std=gnu89 $INC -c "$ROOT/pcsx2/SaveState.c" -o "$TMP/n.o"
+		$CC  -O2 -std=gnu89 $INC -c "$ROOT/pcsx2/SaveStateBase.c" -o "$TMP/n.o"
 		$CXX -O2 -std=c++17 -DBENCH_OLD_NOINLINE $INC -c "$DIR/bench_old.cpp" -o "$TMP/o.o"
 		echo
 		echo "=== $CXX: the class ==="
@@ -53,7 +53,7 @@ if [ "$1" = "--bench" ]; then
 		case $CC in gcc) CXX=g++ ;; clang) CXX=clang++ ;; esac
 		echo
 		echo "=== $CC ==="
-		$CC  -O2 -std=gnu89 $INC -c "$ROOT/pcsx2/SaveState.c" -o "$TMP/ss.o"
+		$CC  -O2 -std=gnu89 $INC -c "$ROOT/pcsx2/SaveStateBase.c" -o "$TMP/ss.o"
 		$CC  -O2 -std=gnu89 $INC -c "$STRL"                   -o "$TMP/strl.o"
 		$CC  -O2 -std=gnu89 $INC -c "$DIR/bench.c"            -o "$TMP/bench.o"
 		$CXX -O2 -std=c++17 $INC -c "$DIR/bench_old.cpp"      -o "$TMP/old.o"
@@ -70,7 +70,7 @@ for CC in gcc clang; do
 	command -v "$CC" >/dev/null 2>&1 || continue
 	$CC -std=gnu89 -Wall -Wextra -Wno-comment \
 	    -Werror=declaration-after-statement \
-	    $INC -fsyntax-only "$ROOT/pcsx2/SaveState.c"
+	    $INC -fsyntax-only "$ROOT/pcsx2/SaveStateBase.c"
 	echo "  ok, $CC"
 done
 
@@ -82,7 +82,7 @@ echo
 echo "=== mingw C decoration ==="
 gcc -O2 -std=gnu89 -msse2 $INC -D__MINGW32__ \
     "-D__forceinline=$MINGW_FORCEINLINE" \
-    -fsyntax-only "$ROOT/pcsx2/SaveState.c"
+    -fsyntax-only "$ROOT/pcsx2/SaveStateBase.c"
 echo "  ok"
 
 for CC in gcc clang; do
@@ -90,7 +90,7 @@ for CC in gcc clang; do
 	case $CC in gcc) CXX=g++ ;; clang) CXX=clang++ ;; esac
 	echo
 	echo "=== $CC ==="
-	$CC  -O2 -std=gnu89 -Wall -Wextra $INC -c "$ROOT/pcsx2/SaveState.c" -o "$TMP/ss.o"
+	$CC  -O2 -std=gnu89 -Wall -Wextra $INC -c "$ROOT/pcsx2/SaveStateBase.c" -o "$TMP/ss.o"
 	$CC  -O2 -std=gnu89 $INC -c "$STRL" -o "$TMP/strl.o"
 	$CC  -O2 -std=gnu89 -Wall -Wextra $INC -c "$DIR/main.c" -o "$TMP/main.o"
 	$CC  -O2 "$TMP/main.o" "$TMP/ss.o" "$TMP/strl.o" -o "$TMP/savestate_test"
@@ -116,11 +116,11 @@ done
 for SAN in "-fsanitize=address,undefined -fno-sanitize-recover=all" "-fsanitize=thread"; do
 	echo
 	echo "=== ${SAN%% *} ==="
-	for f in "$ROOT/pcsx2/SaveState.c" "$STRL" "$DIR/main.c"; do
+	for f in "$ROOT/pcsx2/SaveStateBase.c" "$STRL" "$DIR/main.c"; do
 		gcc -O1 -g -std=gnu89 $SAN $INC -c "$f" \
 		    -o "$TMP/$(basename "$f" .c).san.o"
 	done
-	gcc -O1 -g $SAN "$TMP/main.san.o" "$TMP/SaveState.san.o" \
+	gcc -O1 -g $SAN "$TMP/main.san.o" "$TMP/SaveStateBase.san.o" \
 	    "$TMP/compat_strl.san.o" -o "$TMP/savestate_san"
 	ASAN_OPTIONS=detect_leaks=1 "$TMP/savestate_san"
 done
