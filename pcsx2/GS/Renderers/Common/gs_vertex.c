@@ -21,12 +21,31 @@
 #include <libretro.h>
 #endif
 
-#if defined(__GNUC__) && defined(GS_VERTEX_X86) && !defined(__clang__)
+#if defined(GS_VERTEX_X86) && (defined(__GNUC__) || defined(__clang__)) && \
+    !defined(_MSC_VER) && !defined(GS_VERTEX_NO_MULTIVERSION)
+/* GNU-mode GCC and clang attach target attributes to the intrinsic
+ * declarations themselves, so every one is available whatever the baseline
+ * is and a body can carry its own target. That is what lets one
+ * translation unit hold every tier. */
 #define GS_VERTEX_TARGET(x) __attribute__((target(x)))
-#elif defined(__clang__) && defined(GS_VERTEX_X86)
-#define GS_VERTEX_TARGET(x) __attribute__((target(x)))
+#define GS_VERTEX_MULTIVERSION 1
 #else
+/* Everywhere else a body may only use what the baseline already declares.
+ * cl.exe declares every intrinsic and has no target attribute; clang-cl
+ * gates the declarations on /arch. Compiling a tier above the baseline is
+ * therefore not portable, so the tiers below fall back to the widest one
+ * this build can name, and dispatch caps at the same place.
+ *
+ * Define GS_VERTEX_NO_MULTIVERSION to take this path deliberately, which
+ * is how the harness reaches it on a compiler that has the attributes. */
 #define GS_VERTEX_TARGET(x)
+#endif
+
+#if defined(GS_VERTEX_MULTIVERSION) || defined(GS_VERTEX_CAN_SSE41)
+#define GS_VERTEX_BUILD_SSE41 1
+#endif
+#if defined(GS_VERTEX_MULTIVERSION) || defined(GS_VERTEX_CAN_AVX)
+#define GS_VERTEX_BUILD_AVX 1
 #endif
 
 int gs_vertex_wide_store = 0;
@@ -217,6 +236,8 @@ static const struct gs_vertex_ops gs_ops_sse2 =
    "sse2", GS_VERTEX_BACKEND_SSE2
 };
 
+#if defined(GS_VERTEX_BUILD_SSE41)
+
 /* ------------------------------------------------------------------ */
 /* SSE4.1 -- pmovzx replaces the unpack, pminsd/pmaxsd the blend.       */
 /* ------------------------------------------------------------------ */
@@ -304,6 +325,10 @@ static const struct gs_vertex_ops gs_ops_sse41 =
    "sse4.1", GS_VERTEX_BACKEND_SSE41
 };
 
+#endif /* GS_VERTEX_BUILD_SSE41 */
+
+#if defined(GS_VERTEX_BUILD_AVX)
+
 /* ------------------------------------------------------------------ */
 /* AVX -- the whole record moves in one instruction.                    */
 /* ------------------------------------------------------------------ */
@@ -332,6 +357,8 @@ static const struct gs_vertex_ops gs_ops_avx =
    gs_copy_avx, gs_gather_xy_sse41, gs_gather_uv_sse41, gs_minmax_xy_sse41,
    "avx", GS_VERTEX_BACKEND_AVX
 };
+
+#endif /* GS_VERTEX_BUILD_AVX */
 
 #endif /* GS_VERTEX_X86 */
 
@@ -436,25 +463,16 @@ static const struct gs_vertex_ops gs_ops_neon =
 
 /* ------------------------------------------------------------------ */
 
-/* Best backend this host can actually execute. Everything below selects
- * against this, so no path can hand the CPU an instruction it lacks. */
-static int gs_vertex_host_backend(void)
+/* The widest tier this build actually contains. Dispatch caps here, so a
+ * build that could not name a tier never selects it. */
+static int gs_vertex_built_backend(void)
 {
 #if defined(GS_VERTEX_NEON)
    return GS_VERTEX_BACKEND_NEON;
-#elif defined(GS_VERTEX_X86) && !defined(GS_VERTEX_NO_LIBRETRO)
-   uint64_t cpu = cpu_features_get();
-
-   if ((cpu & RETRO_SIMD_AVX) != 0)
-      return GS_VERTEX_BACKEND_AVX;
-   if ((cpu & RETRO_SIMD_SSE4) != 0)
-      return GS_VERTEX_BACKEND_SSE41;
-   return GS_VERTEX_BACKEND_SSE2;
 #elif defined(GS_VERTEX_X86)
-   /* No CPU probe available, so take what this build was told it has. */
-#if defined(GS_VERTEX_CAN_AVX)
+#if defined(GS_VERTEX_BUILD_AVX)
    return GS_VERTEX_BACKEND_AVX;
-#elif defined(GS_VERTEX_CAN_SSE41)
+#elif defined(GS_VERTEX_BUILD_SSE41)
    return GS_VERTEX_BACKEND_SSE41;
 #else
    return GS_VERTEX_BACKEND_SSE2;
@@ -462,6 +480,43 @@ static int gs_vertex_host_backend(void)
 #else
    return GS_VERTEX_BACKEND_SCALAR;
 #endif
+}
+
+/* Best backend this host can actually execute, never wider than what this
+ * build contains. Everything below selects against this, so no path can
+ * hand the CPU an instruction it lacks or call a body that is not here. */
+static int gs_vertex_host_backend(void)
+{
+   int built = gs_vertex_built_backend();
+   int want;
+
+#if defined(GS_VERTEX_NEON)
+   want = GS_VERTEX_BACKEND_NEON;
+#elif defined(GS_VERTEX_X86) && !defined(GS_VERTEX_NO_LIBRETRO)
+   {
+      uint64_t cpu = cpu_features_get();
+
+      if ((cpu & RETRO_SIMD_AVX) != 0)
+         want = GS_VERTEX_BACKEND_AVX;
+      else if ((cpu & RETRO_SIMD_SSE4) != 0)
+         want = GS_VERTEX_BACKEND_SSE41;
+      else
+         want = GS_VERTEX_BACKEND_SSE2;
+   }
+#elif defined(GS_VERTEX_X86)
+   /* No CPU probe available, so take what this build was told it has. */
+#if defined(GS_VERTEX_CAN_AVX)
+   want = GS_VERTEX_BACKEND_AVX;
+#elif defined(GS_VERTEX_CAN_SSE41)
+   want = GS_VERTEX_BACKEND_SSE41;
+#else
+   want = GS_VERTEX_BACKEND_SSE2;
+#endif
+#else
+   want = GS_VERTEX_BACKEND_SCALAR;
+#endif
+
+   return want < built ? want : built;
 }
 
 /* Installs a backend without asking whether the host can run it. Private,
@@ -475,14 +530,18 @@ static void gs_vertex_install(int backend)
          gs_vertex_op = &gs_ops_sse2;
          gs_vertex_wide_store = 0;
          break;
+#if defined(GS_VERTEX_BUILD_SSE41)
       case GS_VERTEX_BACKEND_SSE41:
          gs_vertex_op = &gs_ops_sse41;
          gs_vertex_wide_store = 0;
          break;
+#endif
+#if defined(GS_VERTEX_BUILD_AVX)
       case GS_VERTEX_BACKEND_AVX:
          gs_vertex_op = &gs_ops_avx;
          gs_vertex_wide_store = 1;
          break;
+#endif
 #endif
 #if defined(GS_VERTEX_NEON)
       case GS_VERTEX_BACKEND_NEON:

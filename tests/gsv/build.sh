@@ -69,6 +69,20 @@ for CC in gcc clang; do
 	done
 done
 
+# The portable shape: no target attributes, so only the tiers the baseline
+# can name get compiled and dispatch has to cap there. This is what MSVC-mode
+# compilers take -- clang-cl gates intrinsic declarations on /arch -- and it
+# is reachable here on any compiler through the define.
+for ISA in "-msse2" "-msse4.1" "-mavx2"; do
+	echo
+	echo "=== g++ $ISA, GS_VERTEX_NO_MULTIVERSION ==="
+	gcc -O2 -std=c89 -pedantic -Wall -Wextra -DGS_VERTEX_NO_MULTIVERSION \
+	    $ISA $INC -c "$SRC" -o "$TMP/v.o"
+	g++ -O2 -std=c++17 $ISA $INC "$DIR/gs_vertex_equiv.cpp" \
+	    "$TMP/v.o" "$TMP/features_cpu.o" "$TMP/compat_strl.o" -o "$TMP/t"
+	"$TMP/t" "$N" 1
+done
+
 if [ "$1" = "--neon" ]; then
 	echo
 	echo "=== aarch64 / NEON ==="

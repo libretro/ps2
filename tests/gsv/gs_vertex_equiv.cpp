@@ -263,7 +263,7 @@ int main(int argc, char **argv)
 		                           GS_VERTEX_BACKEND_SSE41,  GS_VERTEX_BACKEND_AVX,
 		                           GS_VERTEX_BACKEND_NEON };
 		static const char *nm[] = { "scalar", "sse2", "sse4.1", "avx", "neon" };
-		int i, ran = 0;
+		int i, ran = 0, best = -1;
 		for (i = 0; i < 5; i++) {
 			if (gs_vertex_set_backend(all[i]) != 0) {
 				printf("SKIP: %s, not available here\n", nm[i]);
@@ -271,10 +271,25 @@ int main(int argc, char **argv)
 			}
 			fails += batch();
 			ran++;
+			best = all[i];
 		}
 		if (ran < 2) { printf("FAIL: only %d backend(s) exercised\n", ran); fails++; }
+
+		/* init must land on the widest tier that is actually usable here --
+		 * the widest this build compiled, capped by what the CPU has. Any
+		 * other answer means dispatch and the build guards disagree, which
+		 * costs speed silently rather than failing. */
 		gs_vertex_init();
-		printf("dispatch picked: %s\n", gs_vertex_op->name);
+		if (best < 0) {
+			printf("FAIL: no backend available at all\n");
+			fails++;
+		} else if (gs_vertex_op->backend != best) {
+			printf("FAIL: dispatch picked %s, best available is %s\n",
+			       gs_vertex_op->name, nm[best]);
+			fails++;
+		} else
+			printf("PASS: dispatch picked %s, the widest available\n",
+			       gs_vertex_op->name);
 	}
 	printf("\n");
 
