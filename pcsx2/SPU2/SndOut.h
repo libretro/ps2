@@ -28,3 +28,11 @@ struct StereoOut16
 	s16 Left;
 	s16 Right;
 };
+
+/* Carries the DC blocker's state, which is the emulator's own filter and
+ * so is kept finer than an output step. */
+struct StereoOut64
+{
+	s64 Left;
+	s64 Right;
+};

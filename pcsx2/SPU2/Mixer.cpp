@@ -674,17 +674,27 @@ void Mix(short *out_left, short *out_right)
 		Out.Right = (Out.Right * Cores[1].MasterVol.Right.Value) >> 15;
 	}
 
-	/* A simple DC blocking high-pass filter
+	/* A simple DC blocking high-pass filter, y[n] = x[n] - x[n-1] + a*y[n-1].
 	 * Implementation from http://peabody.sapp.org/class/dmp2/lab/dcblock/
-	 * The magic number 0x7f5c is ceil(INT16_MAX * 0.995) */
-	DCFilterOut.Left  = (Out.Left  - DCFilterIn.Left  + pcsx2_clamp_i((0x7f5c * DCFilterOut.Left)  >> 15, -0x8000, 0x7fff));
-	DCFilterOut.Right = (Out.Right - DCFilterIn.Right + pcsx2_clamp_i((0x7f5c * DCFilterOut.Right) >> 15, -0x8000, 0x7fff));
+	 * The magic number 0x7f5c is ceil(INT16_MAX * 0.995).
+	 *
+	 * This filter is the emulator's own -- the SPU2 has nothing like it --
+	 * so its precision is ours to pick, and it is carried at 1/65536 of an
+	 * output step. A pole at 0.995 has a loop gain of about 200, which is
+	 * what the state's own rounding error gets multiplied by before it
+	 * reaches the output, so the state has to be finer than the thing it
+	 * feeds. The 64-bit product also keeps the multiply in range across the
+	 * whole travel of the numerator. */
+	DCFilterOut.Left  = ((DCFilterOut.Left  * 0x7f5c) >> 15)
+	                  + (s64)(Out.Left  - DCFilterIn.Left)  * 65536;
+	DCFilterOut.Right = ((DCFilterOut.Right * 0x7f5c) >> 15)
+	                  + (s64)(Out.Right - DCFilterIn.Right) * 65536;
 	DCFilterIn.Left   = Out.Left;
 	DCFilterIn.Right  = Out.Right;
 
-	/* Final clamp, take care not to exceed 16 bits from here on */
-	*out_left         = (int16_t)(pcsx2_clamp_i(DCFilterOut.Left, -0x8000, 0x7fff));
-	*out_right        = (int16_t)(pcsx2_clamp_i(DCFilterOut.Right, -0x8000, 0x7fff));
+	/* Round back to an output step, then clamp: 16 bits from here on. */
+	*out_left         = (int16_t)pcsx2_clamp_i((s32)((DCFilterOut.Left  + 0x8000) >> 16), -0x8000, 0x7fff);
+	*out_right        = (int16_t)pcsx2_clamp_i((s32)((DCFilterOut.Right + 0x8000) >> 16), -0x8000, 0x7fff);
 
 	/* Update AutoDMA output positioning */
 	OutPos++;

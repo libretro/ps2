@@ -204,11 +204,12 @@ static int    g_peak;
 static double g_rms;
 static long   g_hi_rail;   /* samples at +0x7fff */
 static long   g_lo_rail;   /* samples at -0x8000 */
+static double g_dc;        /* mean output level, both channels */
 
 static uint64_t run(int samples)
 {
 	uint64_t h = hash_init();
-	double acc = 0.0;
+	double acc = 0.0, dc = 0.0;
 	int i;
 
 	g_nonzero = 0;
@@ -229,8 +230,10 @@ static uint64_t run(int samples)
 		a = l < 0 ? -(int)l : l; if (a > g_peak) g_peak = a;
 		a = r < 0 ? -(int)r : r; if (a > g_peak) g_peak = a;
 		acc += (double)l * l + (double)r * r;
+		dc  += (double)l + (double)r;
 	}
 	g_rms = samples ? sqrt(acc / (2.0 * samples)) : 0.0;
+	g_dc  = samples ? dc / (2.0 * samples) : 0.0;
 	return h;
 }
 
@@ -399,6 +402,41 @@ static uint64_t scen_input(int samples)
 	return run(samples);
 }
 
+/* A steady offset on the input, which the DC blocker at the end of Mix()
+ * exists to take back out. The input sits at +0x4000 for three quarters of
+ * each period and -0x4000 for the rest, so it carries a large positive
+ * offset while still moving enough to be audible. A filter that works
+ * leaves the output hovering around zero; one whose state is quantised at
+ * the output step feeds its own rounding error back through a pole of
+ * 0.995 and parks the output about a hundred steps off instead. Hence the
+ * mean-output guard below, which is what this scenario is really for. */
+static uint64_t scen_dcblock(int samples)
+{
+	int c, i;
+	reset_core();
+	for (i = 0; i < 0x400; i++)
+	{
+		s16 v = (s16)(((i & 0xff) < 0xc0) ? 0x2000 : -0x2000);
+		_spu2mem[0x2000 + i] = v;
+		_spu2mem[0x2200 + i] = v;
+		_spu2mem[0x2400 + i] = v;
+		_spu2mem[0x2600 + i] = v;
+	}
+	for (c = 0; c < 2; c++)
+	{
+		/* Kept well clear of the rails: the output clamp is asymmetric
+		 * and would put an offset back in that has nothing to do with
+		 * the filter. */
+		Cores[c].InpVol.Left  = 0x4000;
+		Cores[c].InpVol.Right = 0x4000;
+		Cores[c].DryGate.InpL = -1;
+		Cores[c].DryGate.InpR = -1;
+		Cores[c].MasterVol.Left.Value = Cores[c].MasterVol.Right.Value = 0x4000;
+	}
+	open_ext_path();
+	return run(samples);
+}
+
 /* Every address in the register window, driven through the dispatch table
  * four times with different values, hashing the whole of both cores and the
  * register file after each pass. This is what holds the table's 0x400
@@ -517,13 +555,14 @@ int main(int argc, char **argv)
 	 * of these alone. Re-pin with --print only when the output is meant to
 	 * change, and say in the commit why. */
 	static Scenario scen[] = {
-		{ "voices",      scen_voices,      0xd0822e804df49fceull },
-		{ "reverb",      scen_reverb,      0x3a564d9e423bea93ull },
-		{ "slides",      scen_slides,      0x2681cc386a8e3c29ull },
-		{ "noise+gates", scen_noise_gates, 0xe9c06d20f41a8280ull },
-		{ "clipping",    scen_clipping,    0xa889e93e69cb254bull },
-		{ "input",       scen_input,       0xedc162f6bc1ee9f5ull },
-		{ "regwrite",    scen_regwrite,    0x656824e163b874e9ull },
+		{ "voices",      scen_voices,      0x38f961780490c5b4ull },
+		{ "reverb",      scen_reverb,      0x9339279599345708ull },
+		{ "slides",      scen_slides,      0x9a97813bad76deb3ull },
+		{ "noise+gates", scen_noise_gates, 0x0703290860af6ecfull },
+		{ "clipping",    scen_clipping,    0x5519bccef104759eull },
+		{ "input",       scen_input,       0x5f01fc536a90f4b0ull },
+		{ "regwrite",    scen_regwrite,    0x15ab243a6adc9545ull },
+		{ "dcblock",     scen_dcblock,     0xa91c0091521349d7ull },
 	};
 
 	fill_sample_ram();
@@ -542,6 +581,13 @@ int main(int argc, char **argv)
 		{
 			printf("  %-12s NOT SATURATING: rails +%ld/-%ld -- the clamps are untested\n",
 			       scen[i].name, g_hi_rail, g_lo_rail);
+			bad++;
+			continue;
+		}
+		if (strcmp(scen[i].name, "dcblock") == 0 && fabs(g_dc) > 8.0)
+		{
+			printf("  %-12s DC %+.1f -- the blocker is leaving an offset behind\n",
+			       scen[i].name, g_dc);
 			bad++;
 			continue;
 		}
@@ -569,8 +615,8 @@ int main(int argc, char **argv)
 			       (unsigned long long)h);
 
 		if (!print && verbose)
-			printf("               %ld/%d non-zero, peak %d, rms %.0f, rails +%ld/-%ld\n",
-			       g_nonzero, samples, g_peak, g_rms, g_hi_rail, g_lo_rail);
+			printf("               %ld/%d non-zero, peak %d, rms %.0f, rails +%ld/-%ld, dc %+.1f\n",
+			       g_nonzero, samples, g_peak, g_rms, g_hi_rail, g_lo_rail, g_dc);
 	}
 
 	if (!print)
