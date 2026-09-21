@@ -17,14 +17,14 @@
 
 #include "common/Pcsx2Types.h"
 
-struct psxCounter
+typedef struct psxCounter
 {
 	u64 count, target;
 	u32 mode;
 	u32 rate, interrupt;
 	u32 startCycle;
 	s32 deltaCycles;
-};
+} psxCounter;
 
 #define NUM_COUNTERS 8
 

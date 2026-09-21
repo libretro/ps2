@@ -15,6 +15,7 @@
 
 #include "Global.h"
 #include "spu2.h"
+#include "../SaveState.h"
 #include "Dma.h"
 
 #include "../R3000A.h"

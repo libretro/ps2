@@ -81,6 +81,27 @@
 // address on ARM64 is a single instruction (adrp).
 #define __pagealignsize 0x1000
 
+/* A compile-time check both languages can make: C89 has no static_assert,
+ * so the C side declares an array whose size goes negative when the
+ * condition fails. */
+#ifdef __cplusplus
+#define PCSX2_STATIC_ASSERT(cond, msg) static_assert(cond, msg)
+#else
+#define PCSX2_SA_CAT_(a, b) a##b
+#define PCSX2_SA_CAT(a, b)  PCSX2_SA_CAT_(a, b)
+#define PCSX2_STATIC_ASSERT(cond, msg) \
+	typedef char PCSX2_SA_CAT(pcsx2_static_assert_, __LINE__)[(cond) ? 1 : -1]
+#endif
+
+/* alignas is C++11 and C11; these headers are also read by C sources. */
+#if defined(_MSC_VER)
+#define PCSX2_ALIGN(n) __declspec(align(n))
+#elif defined(__GNUC__)
+#define PCSX2_ALIGN(n) __attribute__((aligned(n)))
+#else
+#define PCSX2_ALIGN(n)
+#endif
+
 // --------------------------------------------------------------------------------------
 //  Microsoft Visual Studio
 // --------------------------------------------------------------------------------------

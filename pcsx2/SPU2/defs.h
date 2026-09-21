@@ -80,8 +80,6 @@ typedef struct VoiceMixSet
 } VoiceMixSet;
 
 
-typedef struct V_Core V_Core;
-
 extern V_SPDIF Spdif;
 
 // Output Buffer Writing Position (the same for all data);

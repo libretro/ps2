@@ -16,8 +16,9 @@
 #pragma once
 
 #include "common/Pcsx2Types.h"
+#include "common/Pcsx2Defs.h"
 
-union GPRRegs {
+typedef union GPRRegs {
 	struct {
 		u32 r0, at, v0, v1, a0, a1, a2, a3,
 			t0, t1, t2, t3, t4, t5, t6, t7,
@@ -25,9 +26,9 @@ union GPRRegs {
 			t8, t9, k0, k1, gp, sp, s8, ra, hi, lo; // hi needs to be at index 32! don't change
 	} n;
 	u32 r[34]; /* Lo, Hi in r[33] and r[32] */
-};
+} GPRRegs;
 
-union CP0Regs {
+typedef union CP0Regs {
 	struct {
 		u32 Index,     Random,    EntryLo0,  EntryLo1,
 			Context,   PageMask,  Wired,     Reserved0,
@@ -39,33 +40,33 @@ union CP0Regs {
 			TagLo,     TagHi,     ErrorEPC,  Reserved6;
 	} n;
 	u32 r[32];
-};
+} CP0Regs;
 
-struct SVector2D {
+typedef struct SVector2D {
 	short x, y;
-};
+} SVector2D;
 
-struct SVector2Dz {
+typedef struct SVector2Dz {
 	short z, pad;
-};
+} SVector2Dz;
 
-struct SVector3D {
+typedef struct SVector3D {
 	short x, y, z, pad;
-};
+} SVector3D;
 
-struct LVector3D {
+typedef struct LVector3D {
 	short x, y, z, pad;
-};
+} LVector3D;
 
-struct CBGR {
+typedef struct CBGR {
 	unsigned char r, g, b, c;
-};
+} CBGR;
 
-struct SMatrix3D {
+typedef struct SMatrix3D {
 	short m11, m12, m13, m21, m22, m23, m31, m32, m33, pad;
-};
+} SMatrix3D;
 
-union CP2Data {
+typedef union CP2Data {
 	struct {
 		SVector3D     v0, v1, v2;
 		CBGR          rgb;
@@ -80,9 +81,9 @@ union CP2Data {
 		s32          lzcs, lzcr;
 	} n;
 	u32 r[32];
-};
+} CP2Data;
 
-union CP2Ctrl {
+typedef union CP2Ctrl {
 	struct {
 		SMatrix3D rMatrix;
 		s32      trX, trY, trZ;
@@ -97,9 +98,9 @@ union CP2Ctrl {
 		s32      flag;
 	} n;
 	u32 r[32];
-};
+} CP2Ctrl;
 
-struct psxRegisters {
+typedef struct psxRegisters {
 	GPRRegs GPR;		/* General Purpose Registers */
 	CP0Regs CP0;		/* Coprocessor0 Registers */
 	CP2Data CP2D; 		/* Cop2 data registers */
@@ -125,9 +126,9 @@ struct psxRegisters {
 
 	u32 sCycle[32];		// start cycle for signaled ints
 	s32 eCycle[32];		// cycle delta for signaled ints (sCycle + eCycle == branch cycle)
-};
+} psxRegisters;
 
-alignas(16) extern psxRegisters psxRegs;
+PCSX2_ALIGN(16) extern psxRegisters psxRegs;
 
 #ifndef _PC_
 
@@ -186,13 +187,13 @@ extern int iopIsDelaySlot;
 //  R3000Acpu
 // --------------------------------------------------------------------------------------
 
-struct R3000Acpu {
+typedef struct R3000Acpu {
 	void (*Reserve)(void);
 	void (*Reset)(void);
 	s32 (*ExecuteBlock)( s32 eeCycles );		// executes the given number of EE cycles.
 	void (*Clear)(u32 Addr, u32 Size);
 	void (*Shutdown)(void);
-};
+} R3000Acpu;
 
 extern R3000Acpu *psxCpu;
 extern R3000Acpu psxInt;

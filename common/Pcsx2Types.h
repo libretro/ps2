@@ -47,7 +47,7 @@ typedef unsigned int uint;
 // uses of these types, that means we can't have constructors). Embedded functions for
 // performing explicit conversion from 64 and 32 bit values are provided instead.
 //
-union u128
+typedef union u128
 {
 	struct
 	{
@@ -59,10 +59,10 @@ union u128
 	u32 _u32[4];
 	u16 _u16[8];
 	u8 _u8[16];
-};
+} u128;
 
-struct s128
+typedef struct s128
 {
 	s64 lo;
 	s64 hi;
-};
+} s128;

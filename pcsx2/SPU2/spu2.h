@@ -15,10 +15,17 @@
 
 #pragma once
 
-#include "../SaveState.h"
 #include "../IopCounters.h"
 
+/* The savestate entry point and the SPU2 namespace are the emulator's
+ * side of the boundary; the sources below this header build as C, so
+ * they see only what C can read. SaveState.h is not included here --
+ * forward declarations keep <deque> and friends out of every SPU2 unit. */
+#ifdef __cplusplus
+
 struct Pcsx2Config;
+enum class FreezeAction;
+struct freezeData;
 
 namespace SPU2
 {
@@ -37,10 +44,12 @@ namespace SPU2
 	bool IsRunningPSXMode(void);
 }
 
+s32 SPU2freeze(FreezeAction mode, freezeData* data);
+
+#endif
+
 void SPU2write(u32 mem, u16 value);
 u16 SPU2read(u32 mem);
-
-s32 SPU2freeze(FreezeAction mode, freezeData* data);
 
 extern u32 lClocks;
 typedef void RegWriteHandler(u32 arg, u16 value);
