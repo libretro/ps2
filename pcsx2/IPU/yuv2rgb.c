@@ -157,12 +157,21 @@ void yuv2rgb(const macroblock_8 *mb8_in, macroblock_rgb32 *rgb32_out)
 
 	const uint8x16_t alpha = vreinterpretq_u8_s8(c_bias);
 
+	int8x16_t cb, cr;
+	int16x8_t rc, gc, bc;
+	uint8x16_t y, r, g, b, rg_l, ba_l, rg_h, ba_h;
+	int16x8_t y_even, y_odd;
+	uint16x4_t a3210, b3210;
+	uint32x4_t ab3210, ab7654;
+	int16x8_t r_even, r_odd, g_even, g_odd, b_even, b_odd;
+	uint16x8_t rgba_ll, rgba_lh, rgba_hl, rgba_hh;
+
 	for (n = 0; n < 8; ++n)
 	{
 		// could skip the loadl_epi64 but most SSE instructions require 128-bit
 		// alignment so two versions would be needed.
-		int8x16_t cb = vcombine_s8(vld1_s8((const s8 *)(&mb8_in->Cb[n][0])), vdup_n_s8(0));
-		int8x16_t cr = vcombine_s8(vld1_s8((const s8 *)(&mb8_in->Cr[n][0])), vdup_n_s8(0));
+		cb = vcombine_s8(vld1_s8((const s8 *)(&mb8_in->Cb[n][0])), vdup_n_s8(0));
+		cr = vcombine_s8(vld1_s8((const s8 *)(&mb8_in->Cr[n][0])), vdup_n_s8(0));
 
 		// (Cb - 128) << 8, (Cr - 128) << 8
 		cb = veorq_s8(cb, c_bias);
@@ -170,26 +179,26 @@ void yuv2rgb(const macroblock_8 *mb8_in, macroblock_rgb32 *rgb32_out)
 		cb = vzip1q_s8(vdupq_n_s8(0), cb);
 		cr = vzip1q_s8(vdupq_n_s8(0), cr);
 
-		int16x8_t rc = MULHI16(vreinterpretq_s16_s8(cr), rcr_coefficient);
-		int16x8_t gc = vqaddq_s16(MULHI16(vreinterpretq_s16_s8(cr), gcr_coefficient), MULHI16(vreinterpretq_s16_s8(cb), gcb_coefficient));
-		int16x8_t bc = MULHI16(vreinterpretq_s16_s8(cb), bcb_coefficient);
+		rc = MULHI16(vreinterpretq_s16_s8(cr), rcr_coefficient);
+		gc = vqaddq_s16(MULHI16(vreinterpretq_s16_s8(cr), gcr_coefficient), MULHI16(vreinterpretq_s16_s8(cb), gcb_coefficient));
+		bc = MULHI16(vreinterpretq_s16_s8(cb), bcb_coefficient);
 
 		for (m = 0; m < 2; ++m)
 		{
-			uint8x16_t y = vld1q_u8(&mb8_in->Y[n * 2 + m][0]);
+			y = vld1q_u8(&mb8_in->Y[n * 2 + m][0]);
 			y = vqsubq_u8(y, y_bias);
 			// Y << 8 for pixels 0, 2, 4, 6, 8, 10, 12, 14
-			int16x8_t y_even = vshlq_n_s16(vreinterpretq_s16_u8(y), 8);
+			y_even = vshlq_n_s16(vreinterpretq_s16_u8(y), 8);
 			// Y << 8 for pixels 1, 3, 5, 7 ,9, 11, 13, 15
-			int16x8_t y_odd = vandq_s16(vreinterpretq_s16_u8(y), y_mask);
+			y_odd = vandq_s16(vreinterpretq_s16_u8(y), y_mask);
 
 			// y_even = _mm_mulhi_epu16(y_even, y_coefficient);
 			// y_odd = _mm_mulhi_epu16(y_odd, y_coefficient);
 
-			uint16x4_t a3210 = vget_low_u16(vreinterpretq_u16_s16(y_even));
-			uint16x4_t b3210 = vget_low_u16(vreinterpretq_u16_s16(y_coefficient));
-			uint32x4_t ab3210 = vmull_u16(a3210, b3210);
-			uint32x4_t ab7654 = vmull_high_u16(vreinterpretq_u16_s16(y_even), vreinterpretq_u16_s16(y_coefficient));
+			a3210 = vget_low_u16(vreinterpretq_u16_s16(y_even));
+			b3210 = vget_low_u16(vreinterpretq_u16_s16(y_coefficient));
+			ab3210 = vmull_u16(a3210, b3210);
+			ab7654 = vmull_high_u16(vreinterpretq_u16_s16(y_even), vreinterpretq_u16_s16(y_coefficient));
 			y_even = vreinterpretq_s16_u16(vuzp2q_u16(vreinterpretq_u16_u32(ab3210), vreinterpretq_u16_u32(ab7654)));
 
 			a3210 = vget_low_u16(vreinterpretq_u16_s16(y_odd));
@@ -198,12 +207,12 @@ void yuv2rgb(const macroblock_8 *mb8_in, macroblock_rgb32 *rgb32_out)
 			ab7654 = vmull_high_u16(vreinterpretq_u16_s16(y_odd), vreinterpretq_u16_s16(y_coefficient));
 			y_odd = vreinterpretq_s16_u16(vuzp2q_u16(vreinterpretq_u16_u32(ab3210), vreinterpretq_u16_u32(ab7654)));
 
-			int16x8_t r_even = vqaddq_s16(rc, y_even);
-			int16x8_t r_odd = vqaddq_s16(rc, y_odd);
-			int16x8_t g_even = vqaddq_s16(gc, y_even);
-			int16x8_t g_odd = vqaddq_s16(gc, y_odd);
-			int16x8_t b_even = vqaddq_s16(bc, y_even);
-			int16x8_t b_odd = vqaddq_s16(bc, y_odd);
+			r_even = vqaddq_s16(rc, y_even);
+			r_odd = vqaddq_s16(rc, y_odd);
+			g_even = vqaddq_s16(gc, y_even);
+			g_odd = vqaddq_s16(gc, y_odd);
+			b_even = vqaddq_s16(bc, y_even);
+			b_odd = vqaddq_s16(bc, y_odd);
 
 			/* round */
 			r_even = vshrq_n_s16(vaddq_s16(r_even, round_1bit), 1);
@@ -214,24 +223,24 @@ void yuv2rgb(const macroblock_8 *mb8_in, macroblock_rgb32 *rgb32_out)
 			b_odd = vshrq_n_s16(vaddq_s16(b_odd, round_1bit), 1);
 
 			/* combine even and odd bytes in original order */
-			uint8x16_t r = vcombine_u8(vqmovun_s16(r_even), vqmovun_s16(r_odd));
-			uint8x16_t g = vcombine_u8(vqmovun_s16(g_even), vqmovun_s16(g_odd));
-			uint8x16_t b = vcombine_u8(vqmovun_s16(b_even), vqmovun_s16(b_odd));
+			r = vcombine_u8(vqmovun_s16(r_even), vqmovun_s16(r_odd));
+			g = vcombine_u8(vqmovun_s16(g_even), vqmovun_s16(g_odd));
+			b = vcombine_u8(vqmovun_s16(b_even), vqmovun_s16(b_odd));
 
 			r = vzip1q_u8(r, vreinterpretq_u8_u64(vdupq_laneq_u64(vreinterpretq_u64_u8(r), 1)));
 			g = vzip1q_u8(g, vreinterpretq_u8_u64(vdupq_laneq_u64(vreinterpretq_u64_u8(g), 1)));
 			b = vzip1q_u8(b, vreinterpretq_u8_u64(vdupq_laneq_u64(vreinterpretq_u64_u8(b), 1)));
 
 			/* Create RGBA (we could generate A here, but we do not) quads */
-			uint8x16_t rg_l = vzip1q_u8(r, g);
-			uint8x16_t ba_l = vzip1q_u8(b, alpha);
-			uint16x8_t rgba_ll = vzip1q_u16(vreinterpretq_u16_u8(rg_l), vreinterpretq_u16_u8(ba_l));
-			uint16x8_t rgba_lh = vzip2q_u16(vreinterpretq_u16_u8(rg_l), vreinterpretq_u16_u8(ba_l));
+			rg_l = vzip1q_u8(r, g);
+			ba_l = vzip1q_u8(b, alpha);
+			rgba_ll = vzip1q_u16(vreinterpretq_u16_u8(rg_l), vreinterpretq_u16_u8(ba_l));
+			rgba_lh = vzip2q_u16(vreinterpretq_u16_u8(rg_l), vreinterpretq_u16_u8(ba_l));
 
-			uint8x16_t rg_h = vzip2q_u8(r, g);
-			uint8x16_t ba_h = vzip2q_u8(b, alpha);
-			uint16x8_t rgba_hl = vzip1q_u16(vreinterpretq_u16_u8(rg_h), vreinterpretq_u16_u8(ba_h));
-			uint16x8_t rgba_hh = vzip2q_u16(vreinterpretq_u16_u8(rg_h), vreinterpretq_u16_u8(ba_h));
+			rg_h = vzip2q_u8(r, g);
+			ba_h = vzip2q_u8(b, alpha);
+			rgba_hl = vzip1q_u16(vreinterpretq_u16_u8(rg_h), vreinterpretq_u16_u8(ba_h));
+			rgba_hh = vzip2q_u16(vreinterpretq_u16_u8(rg_h), vreinterpretq_u16_u8(ba_h));
 
 			vst1q_u8((u8 *)(&rgb32_out->c[n * 2 + m][0]), vreinterpretq_u8_u16(rgba_ll));
 			vst1q_u8((u8 *)(&rgb32_out->c[n * 2 + m][4]), vreinterpretq_u8_u16(rgba_lh));
