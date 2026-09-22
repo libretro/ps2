@@ -132,6 +132,10 @@ static __fi s32 GetNextDataBuffered(V_Core *thiscore, V_Voice *vc, uint voiceidx
 				if (Cores[i].IRQEnable && Cores[i].IRQA == (vc->NextA & 0xFFFF8))
 					{ has_to_call_irq[i] = true; }
 
+		/* What this block will be decoded from, kept for a thaw. */
+		vc->BlockPrev1 = vc->Prev1;
+		vc->BlockPrev2 = vc->Prev2;
+
 		memptr = GetMemPtr(vc->NextA & 0xFFFF8);
 		vc->LoopFlags = *memptr >> 8; /* grab loop flags from the upper byte. */
 
@@ -165,6 +169,24 @@ static __fi s32 GetNextDataBuffered(V_Core *thiscore, V_Voice *vc, uint voiceidx
 	}
 
 	return vc->SBuffer[vc->SCurrent++];
+}
+
+/* Rebuild the decoded block a voice was in the middle of. The cache is
+ * not part of a savestate, so after a thaw SBuffer pointed into a zeroed
+ * entry and the remainder of the block came out as silence. NextA stays
+ * inside the block while it plays -- the header word is skipped on entry
+ * and the next block is only reached when SCurrent wraps -- so it names
+ * the block, and BlockPrev1/2 are the predictor state it was decoded
+ * from. The entry is left unvalidated: the cache's own Prev1/2 are not
+ * restored, so it is not offered to other voices as a hit. */
+void V_Voice_DecodeCurrentBlock(V_Voice *vc)
+{
+	const u32 block = vc->NextA & 0xFFFF8;
+	s32 p1 = vc->BlockPrev1;
+	s32 p2 = vc->BlockPrev2;
+
+	vc->SBuffer = pcm_cache_data[block / pcm_WordsPerBlock].Sampledata;
+	XA_decode_block(vc->SBuffer, GetMemPtr(block), &p1, &p2);
 }
 
 static __fi void GetNextDataDummy(V_Core *thiscore, V_Voice *vc, uint voiceidx)

@@ -23,8 +23,12 @@
 /* Arbitrary ID to identify SPU2 saves. */
 #define SPU2_SAVE_ID 0x1227521
 
-/* Incremented whenever the savestate layout changes. */
-#define SPU2_SAVE_VERSION 0x000f
+/* Incremented whenever the savestate layout changes. 0x0010 carries the
+ * per-voice BlockPrev1/2 in what was padding, so it is the same bytes as
+ * 0x000f and a 0x000f block still loads -- it just cannot rebuild the
+ * block each voice was playing, which is what those bytes are for. */
+#define SPU2_SAVE_VERSION       0x0010
+#define SPU2_SAVE_VERSION_OLDEST 0x000f
 
 /* What the block has to be aligned to for the members inside it. */
 #define SPU2_SAVE_ALIGN 64
@@ -97,7 +101,7 @@ static s32 ThawItImpl(struct SPU2Savestate_DataBlock *spud)
 	u32 i;
 	int c;
 	int v;
-	if (spud->spu2id != SPU2_SAVE_ID || spud->version < SPU2_SAVE_VERSION)
+	if (spud->spu2id != SPU2_SAVE_ID || spud->version < SPU2_SAVE_VERSION_OLDEST)
 	{
 		/* Do *not* reset the cores. */
 		/* We'll need some "hints" as to how the cores should be initialized, and the */
@@ -142,15 +146,21 @@ static s32 ThawItImpl(struct SPU2Savestate_DataBlock *spud)
 
 		memset(pcm_cache_data, 0, pcm_BlockCount * sizeof(PcmCacheEntry));
 
-		/* Go through the V_Voice structs and recalculate SBuffer pointer from */
-		/* the NextA setting. */
-
+		/* Point every voice back into the cache, and put back what it
+		 * was reading: the cache is not saved, and a voice reads its
+		 * current block straight from SBuffer until SCurrent wraps, so
+		 * a zeroed entry played the rest of that block as silence. A
+		 * block from before the predictor state was kept gets the
+		 * silence it always got. */
 		for (c = 0; c < 2; c++)
 		{
 			for (v = 0; v < 24; v++)
 			{
-				const int cacheIdx = Cores[c].Voices[v].NextA / pcm_WordsPerBlock;
-				Cores[c].Voices[v].SBuffer = pcm_cache_data[cacheIdx].Sampledata;
+				V_Voice *vc = &Cores[c].Voices[v];
+				if (spud->version >= 0x0010)
+					V_Voice_DecodeCurrentBlock(vc);
+				else
+					vc->SBuffer = pcm_cache_data[vc->NextA / pcm_WordsPerBlock].Sampledata;
 			}
 		}
 	}

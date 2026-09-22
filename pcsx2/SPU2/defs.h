@@ -309,7 +309,12 @@ typedef struct V_Voice
 	u32 StartA;          /* Sound Start address (also Reg_SSAH/L) */
 	s32 Prev1;           /* Voice Decoding State (ADPCM predictor) */
 	s32 Prev2;
-	u8 _pad1[48];
+	/* The predictor state the block SBuffer holds was decoded from. The
+	 * block cache is not saved, so a thaw decodes that block again from
+	 * these; without them the rest of the block played as silence. */
+	s32 BlockPrev1;
+	s32 BlockPrev2;
+	u8 _pad1[40];
 } V_Voice;
 
 typedef struct V_Reverb
@@ -442,6 +447,7 @@ u16         V_Core_ReadRegPS1(V_Core *c, u32 mem);
 
 /* Mixer */
 StereoOut32 V_Core_DoReverb(V_Core *c, StereoOut32 Input);
+void        V_Voice_DecodeCurrentBlock(V_Voice *vc);
 
 StereoOut32 V_Core_ReadInput(V_Core *c);
 StereoOut32 V_Core_ReadInput_HiFi(V_Core *c);
