@@ -312,6 +312,112 @@ int main(void)
 		}
 	}
 
+	/* readTexture against the per-pixel accessor.
+	 *
+	 * rtx is how the hardware renderer pulls a rectangle of local memory
+	 * into a texture, and it is the most-used routine in the file: a
+	 * block at a time, per format, hand-written, and in several cases
+	 * with a vector expansion of the whole block at once. The per-pixel
+	 * readers next to it compute one address at a time and are far
+	 * harder to get wrong.
+	 *
+	 * So the block routine is checked against the per-pixel one texel by
+	 * texel. A round-trip could not do this: it would only show that the
+	 * block path undoes itself, which it would even if both halves
+	 * disagreed with the rest of the emulator about where a pixel lives.
+	 *
+	 * Paletted formats go through rtxP, the variant that hands back the
+	 * raw index, because the palette itself is not part of this harness
+	 * -- rtx would expand through a CLUT that was never populated. */
+	printf("\n  readTexture against the per-pixel reader:\n");
+	{
+		GIFRegTEXA texa = {};
+		unsigned k;
+
+		texa.TA0 = 0x80;
+		texa.TA1 = 0x80;
+		texa.AEM = 0;
+
+		for (k = 0; k < sizeof(FORMATS) / sizeof(FORMATS[0]); k++)
+		{
+			const u32 psm = FORMATS[k].psm;
+			const GSLocalMemory::psm_t& p = GSLocalMemory::m_psm[psm];
+			const bool paletted = p.pal != 0;
+			const GSLocalMemory::readTexture rtx = paletted ? p.rtxP : p.rtx;
+			const int bytes = paletted ? 1 : 4;
+			static u8 dst[256 * 256 * 4];
+			GIFRegTEX0 tex0 = {};
+			const u32 bp = 0, bw = 4;
+			int w, h, x, y, bad = 0;
+
+			if (!rtx || !p.rp || (!paletted && !p.rt))
+			{
+				printf("    %-9s no reader pair\n", FORMATS[k].name);
+				continue;
+			}
+
+			/* Two blocks each way, so the walk crosses a block
+			 * boundary in both directions rather than staying inside
+			 * one and proving nothing about the stepping. */
+			w = p.bs.x * 2;
+			h = p.bs.y * 2;
+
+			tex0.TBP0 = bp; tex0.TBW = bw; tex0.PSM = psm;
+
+			/* Give every texel in the rectangle a different value, so
+			 * a routine that reads the right block but the wrong
+			 * position inside it still shows up. */
+			for (y = 0; y < h; y++)
+				for (x = 0; x < w; x++)
+					(mem.*p.wp)(x, y, (u32)(x * 31 + y * 17 + 1), bp, bw);
+
+			memset(dst, 0, (size_t)(w * h * bytes));
+			{
+				const GSOffset off = mem.GetOffset(bp, bw, psm);
+				const GSVector4i r = GSVector4i(0, 0, w, h);
+
+				rtx(mem, off, r, dst, w * bytes, texa);
+			}
+
+			for (y = 0; y < h && bad < 4; y++)
+			{
+				for (x = 0; x < w; x++)
+				{
+					u32 got, want;
+
+					if (paletted)
+					{
+						got  = dst[y * w + x];
+						want = (mem.*p.rp)(x, y, bp, bw);
+					}
+					else
+					{
+						memcpy(&got, &dst[(y * w + x) * 4], 4);
+						want = (mem.*p.rt)(x, y, tex0, texa);
+					}
+
+					if (got != want)
+					{
+						if (bad < 4)
+							printf("    %-9s (%d,%d): block 0x%08x, per-pixel 0x%08x\n",
+							       FORMATS[k].name, x, y, got, want);
+						bad++;
+						break;
+					}
+				}
+			}
+			checks++;
+			if (bad)
+			{
+				printf("    %-9s DIFFERS\n", FORMATS[k].name);
+				failures++;
+			}
+			else
+				printf("    %-9s %dx%d agrees texel for texel\n",
+				       FORMATS[k].name, w, h);
+		}
+	}
+
 	printf("\n%s: swizzle oracle, %ld transfers, %ld with differences\n",
 	       failures ? "FAIL" : "PASS", checks, failures);
 	return failures ? 1 : 0;
