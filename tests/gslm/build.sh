@@ -59,5 +59,15 @@ for CXX in g++ clang++; do
 
 	$CXX -O1 "$TMP"/*.o -o "$TMP/gs_swizzle_oracle"
 	"$TMP/gs_swizzle_oracle"
+	rm -f "$TMP/oracle.o"
+
+	# Reporting probe, not a pass/fail: how far the block range the texture
+	# cache derives from two corners is from the blocks a rectangle really
+	# covers. It prints a table and always succeeds -- the arithmetic is not
+	# in question, what to do about it is.
+	$CXX -O1 -std=c++17 -DNDEBUG -DPCSX2_CORE -msse4.1 -Wall \
+	     $INC -c "$DIR/gs_block_range.cpp" -o "$TMP/brange.o"
+	$CXX -O1 "$TMP"/*.o -o "$TMP/gs_block_range"
+	"$TMP/gs_block_range"
 	rm -f "$TMP"/*.o
 done
