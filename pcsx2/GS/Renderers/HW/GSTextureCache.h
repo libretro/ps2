@@ -596,7 +596,9 @@ public:
 	__fi u64 GetSourceMemoryUsage() const { return m_source_memory_usage; }
 	__fi u64 GetTargetMemoryUsage() const { return m_target_memory_usage; }
 
-	void Read(Target* t, const GSVector4i& r);
+	/// Writes the target back to local memory. Returns false when nothing was
+	/// written, so callers do not retire a region that still needs reading.
+	bool Read(Target* t, const GSVector4i& r);
 	void Read(Source* t, const GSVector4i& r);
 	void RemoveAll(bool sources, bool targets, bool hash_cache);
 	void ReadbackAll();

@@ -1354,9 +1354,11 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const bool is_color, const 
 							{
 								t->UnscaleRTAlpha();
 
-								Read(t, t->m_drawn_since_read);
-
-								t->m_drawn_since_read = GSVector4i::zero();
+								// Retire the region only once it has actually reached local
+								// memory; otherwise the drawn contents are lost and the
+								// indexed source is built from whatever was there before.
+								if (Read(t, t->m_drawn_since_read))
+									t->m_drawn_since_read = GSVector4i::zero();
 							}
 						}
 						else
@@ -3400,13 +3402,14 @@ void GSTextureCache::InvalidateLocalMem(const GSOffset& off, const GSVector4i& r
 					if (t->m_TEX0.TBP0 == bp && !dirty_rect.rintersect(targetr).rempty())
 						t->Update();
 
-					Read(t, draw_rect);
+					// Only retire what actually reached local memory.
+					const bool did_read = Read(t, draw_rect);
 
 					// Getaway (J) stores a Z texture at 0x2800 which it uses and the next frame it stores the reflection map in
 					// 0x2800, so this will misdetect. So if it's not expecting a Z, check for RT's too.
 					z_found = read_start >= t->m_TEX0.TBP0 && read_end <= t->m_end_block && GSLocalMemory::m_psm[psm].depth == GSLocalMemory::m_psm[t->m_TEX0.PSM].depth;
 
-					if (draw_rect.rintersect(t->m_drawn_since_read).eq(t->m_drawn_since_read))
+					if (did_read && draw_rect.rintersect(t->m_drawn_since_read).eq(t->m_drawn_since_read))
 						t->m_drawn_since_read = GSVector4i::zero();
 				}
 			}
@@ -3565,11 +3568,16 @@ void GSTextureCache::InvalidateLocalMem(const GSOffset& off, const GSVector4i& r
 				if (exact_bp && !dirty_rect.rintersect(targetr).rempty())
 					t->Update();
 
-				Read(t, targetr);
+				// Only retire what actually reached local memory.
+				const bool did_read = Read(t, targetr);
 
 				// Try to cut down how much we read next, if we can.
 				// Fatal Frame reads in vertical strips, SOCOM 2 does horizontal, so we can handle that below.
-				if (t->m_drawn_since_read.rintersect(targetr).eq(t->m_drawn_since_read))
+				if (!did_read)
+				{
+					// Nothing was written, so the region still needs reading.
+				}
+				else if (t->m_drawn_since_read.rintersect(targetr).eq(t->m_drawn_since_read))
 				{
 					t->m_drawn_since_read = GSVector4i::zero();
 				}
@@ -5373,7 +5381,7 @@ GSTexture* GSTextureCache::LookupPaletteObject(const u32* clut, u16 pal, bool ne
 	return tex;
 }
 
-void GSTextureCache::Read(Target* t, const GSVector4i& r)
+bool GSTextureCache::Read(Target* t, const GSVector4i& r)
 {
 	/* A target with no texture has nothing to read back. That used to be
 	 * impossible - every path that makes one checks the allocation and
@@ -5382,11 +5390,11 @@ void GSTextureCache::Read(Target* t, const GSVector4i& r)
 	 * failed. ReadbackAll walks every target at reset and this one
 	 * dereferenced it for GetSize. */
 	if (!t->m_texture)
-		return;
+		return false;
 
 	if ((!t->m_dirty.empty() && !t->m_dirty.GetTotalRect(t->m_TEX0, t->m_unscaled_size).rintersect(r).rempty())
 		|| r.width() == 0 || r.height() == 0)
-		return;
+		return false;
 
 	const GIFRegTEX0& TEX0 = t->m_TEX0;
 	const bool is_depth = (t->m_type == DepthStencil);
@@ -5449,14 +5457,14 @@ void GSTextureCache::Read(Target* t, const GSVector4i& r)
 		break;
 
 		default:
-			return;
+			return false;
 	}
 
 	// Don't overwrite bits which aren't used in the target's format.
 	// Stops Burnout 3's sky from breaking when flushing targets to local memory.
 	const u32 write_mask = (t->m_valid_rgb ? 0x00FFFFFFu : 0) | (t->m_valid_alpha_low ? 0x0F000000u : 0) | (t->m_valid_alpha_high ? 0xF0000000u : 0);
 	if (write_mask == 0)
-		return;
+		return false;
 
 	// Clamp the read to the target's allocated area. An out-of-range source box in
 	// CopyFromTexture is undefined behavior at the API level (D3D11 documents it as
@@ -5465,14 +5473,14 @@ void GSTextureCache::Read(Target* t, const GSVector4i& r)
 	// unclamped remainder keeps whatever local memory already holds.
 	const GSVector4i tr = r.rintersect(GSVector4i(0, 0, t->m_unscaled_size.x, t->m_unscaled_size.y));
 	if (tr.rempty())
-		return;
+		return false;
 
 	const GSVector4 src(GSVector4(tr) * GSVector4(t->m_scale) / GSVector4(t->m_texture->GetSize()).xyxy());
 	const GSVector4i drc(0, 0, tr.width(), tr.height());
 	const bool direct_read = t->m_type == RenderTarget && t->m_scale == 1.0f && ps_shader == ShaderConvert::COPY;
 
 	if (!PrepareDownloadTexture(drc.z, drc.w, fmt, dltex))
-		return;
+		return false;
 
 	if (direct_read)
 	{
@@ -5488,12 +5496,12 @@ void GSTextureCache::Read(Target* t, const GSVector4i& r)
 			g_gs_device->Recycle(tmp);
 		}
 		else
-			return;
+			return false;
 	}
 
 	dltex->get()->Flush();
 	if (!dltex->get()->Map(drc))
-		return;
+		return false;
 
 	// Why does WritePixelNN() not take a const pointer?
 	const GSOffset off = g_gs_renderer->m_mem.GetOffset(TEX0.TBP0, TEX0.TBW, TEX0.PSM);
@@ -5517,10 +5525,12 @@ void GSTextureCache::Read(Target* t, const GSVector4i& r)
 
 		default:
 			log_cb(RETRO_LOG_ERROR, "Unknown PSM %u on Read\n", TEX0.PSM);
-			break;
+			dltex->get()->Unmap();
+			return false;
 	}
 
 	dltex->get()->Unmap();
+	return true;
 }
 
 void GSTextureCache::Read(Source* t, const GSVector4i& r)
