@@ -312,6 +312,88 @@ int main(void)
 		}
 	}
 
+	/* The transfer write against the per-pixel reader.
+	 *
+	 * The round-trip above shows wi and ri agree with each other. It
+	 * cannot show they are right: an error they share passes it, since
+	 * the second half undoes whatever the first half did. That is how the
+	 * PSMT4 read came to be missing its destination increment for as long
+	 * as it was -- nothing compared either half against anything else.
+	 *
+	 * So the source bytes are decoded here, independently of both, and
+	 * every pixel of the rectangle is read back through the per-pixel
+	 * accessor and compared against what byte n of the source says pixel
+	 * n should hold. Only formats whose pixels start on byte boundaries:
+	 * at 4bpp a row is not a whole number of bytes and which half of the
+	 * byte a partial row ends on is the open question the odd-width
+	 * section below deliberately does not settle.
+	 */
+	printf("\n  the transfer write against the per-pixel reader:\n");
+	{
+		unsigned k;
+
+		for (k = 0; k < sizeof(FORMATS) / sizeof(FORMATS[0]); k++)
+		{
+			const u32 psm = FORMATS[k].psm;
+			const GSLocalMemory::psm_t& p = GSLocalMemory::m_psm[psm];
+			GIFRegBITBLTBUF blit = {};
+			GIFRegTRXPOS pos = {};
+			GIFRegTRXREG reg = {};
+			static u8 src[64 * 64 * 4];
+			const u32 bp = 0, bw = 4;
+			const int w = 32, h = 16;
+			int tx = 0, ty = 0, n, len, bad = 0;
+
+			if (!p.wi || !p.rp || p.trbpp < 8)
+			{
+				printf("    %-9s %s\n", FORMATS[k].name,
+				       p.trbpp < 8 ? "sub-byte pixels, not compared here"
+				                   : "no writer");
+				continue;
+			}
+
+			len = (w * h * p.trbpp) / 8;
+			for (n = 0; n < len; n++)
+				src[n] = (u8)(n * 37 + 11);
+
+			blit.DBP = bp; blit.DBW = bw; blit.DPSM = psm;
+			reg.RRW = w; reg.RRH = h;
+			p.wi(mem, tx, ty, src, len, blit, pos, reg);
+
+			for (n = 0; n < w * h; n++)
+			{
+				const int bytes = p.trbpp / 8;
+				const u8 *q = &src[n * bytes];
+				u32 want = 0, got;
+				int b;
+
+				for (b = 0; b < bytes; b++)
+					want |= (u32)q[b] << (b * 8);
+
+				got = (mem.*p.rp)(n % w, n / w, bp, bw);
+
+				if (got != want)
+				{
+					if (bad == 0)
+						printf("    %-9s pixel %d at (%d,%d): wrote 0x%08x, reads 0x%08x\n",
+						       FORMATS[k].name, n, n % w, n / w, want, got);
+					bad++;
+				}
+			}
+
+			checks++;
+			if (bad)
+			{
+				printf("    %-9s %d of %d pixels differ\n",
+				       FORMATS[k].name, bad, w * h);
+				failures++;
+			}
+			else
+				printf("    %-9s %d pixels land where the source put them\n",
+				       FORMATS[k].name, w * h);
+		}
+	}
+
 	/* readTexture against the per-pixel accessor.
 	 *
 	 * rtx is how the hardware renderer pulls a rectangle of local memory
