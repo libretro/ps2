@@ -90,8 +90,8 @@ alignas(16) u8 eeHw[0x10000];
 void gsSetVideoMode(GS_VideoMode) { }
 void cdvdReadLanguageParams(u8*) { }
 tDMA_TAG* dmaGetAddr(u32, bool) { return (tDMA_TAG*)s_mem; }
-void SaveStateBase::FreezeMem(void*, int) { }
-bool SaveStateBase::FreezeTag(const char*) { return true; }
+void SaveState_FreezeMem(SaveStateBase*, void*, int) { }
+bool SaveState_FreezeTag(SaveStateBase*, const char*) { return true; }
 
 /* ---- the harness ------------------------------------------------------ */
 

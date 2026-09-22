@@ -40,8 +40,8 @@ alignas(16) vifStruct vif1;
 
 void Gif_AddBlankGSPacket(u32, GIF_PATH) { }
 void hwIntcIrq(int) { }
-void SaveStateBase::FreezeMem(void*, int) { }
-bool SaveStateBase::FreezeTag(const char*) { return true; }
+void SaveState_FreezeMem(SaveStateBase*, void*, int) { }
+bool SaveState_FreezeTag(SaveStateBase*, const char*) { return true; }
 namespace MTGS { void WaitGS(bool) { } }
 namespace Threading { void Timeslice() { } }
 
