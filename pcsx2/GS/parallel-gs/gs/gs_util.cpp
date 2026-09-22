@@ -368,7 +368,18 @@ bool triangles_form_parallelogram(const VertexPosition *pos, const VertexAttribu
 			// Accept some very minor error in the computation.
 			// If the error is less than a subtexel at 1k x 1k resolution, we're definitely close enough.
 			/* Kept as float compares: a NaN has to stay unequal to
-			 * itself, which a bit compare would not give. */
+			 * itself, which a bit compare would not give.
+			 *
+			 * The divide by Q below needs no guard, unlike the two that
+			 * feed texel bounds. Nothing is converted to an integer, so
+			 * there is no undefined case, and both degenerate shapes
+			 * land the right way: a Q of zero with a nonzero numerator
+			 * gives an infinity, which fails the threshold and refuses
+			 * the merge, and a zero numerator gives a NaN, which passes
+			 * -- correctly, since a zero numerator IS the parallelogram
+			 * condition, just measured without the normalisation. A NaN
+			 * Q never reaches here; the flat-Q compares above reject it
+			 * first. */
 			float st3_error_x = std::fabs((attr2.st.x + attr1.st.x - attr0.st.x - last_attr0.st.x) / attr0.q);
 			float st3_error_y = std::fabs((attr2.st.y + attr1.st.y - attr0.st.y - last_attr0.st.y) / attr0.q);
 

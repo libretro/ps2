@@ -116,6 +116,57 @@ static PGS_KICK_INLINE void pgs_build_attribute(
 
 
 /* ------------------------------------------------------------------
+ * Degenerate floats.
+ *
+ * Nothing sanitises Q. The register reaches the vertex verbatim, which
+ * is deliberate: whatever a game wrote is what the shader sees, and the
+ * shading kernels carry their own NaN and infinity handling. But two of
+ * the CPU-side consumers divide S and T by Q and convert the result to
+ * int32, and both steps take whatever the game chose -- Q can be zero
+ * or NaN, and even a finite Q can leave S/Q past what an int32 holds.
+ *
+ * The C++ conversion is undefined for NaN and for anything outside the
+ * destination range, and the two architectures this core ships on do
+ * not agree on what they produce:
+ *
+ *                   int32_t(+inf)    int32_t(NaN)
+ *     x86-64         INT32_MIN        INT32_MIN
+ *     aarch64        INT32_MAX        0
+ *
+ * so the same draw would take a different path depending on the host.
+ * These two say what happens instead, in one place the oracle can pin,
+ * and the consumers below decide what to do with the answer rather than
+ * the register being rewritten to suit them.
+ * ------------------------------------------------------------------ */
+
+/* Whether a texel coordinate can be computed from this Q at all: zero
+ * of either sign gives an infinity, and an infinity or a NaN gives a
+ * NaN. None of the three is a coordinate. */
+static PGS_KICK_INLINE int pgs_q_is_usable(float q)
+{
+   uint32_t bits;
+
+   memcpy(&bits, &q, 4);
+
+   return (bits & 0x7fffffffu) != 0u &&
+          (bits & 0x7f800000u) != 0x7f800000u;
+}
+
+/* float to int32, saturating, NaN to zero. Truncates toward zero inside
+ * the range, exactly as the plain conversion does. */
+static PGS_KICK_INLINE int32_t pgs_f32_to_i32_sat(float v)
+{
+   if (v != v)
+      return 0;
+   if (v >= 2147483648.0f)
+      return 2147483647;
+   if (v < -2147483648.0f)
+      return -2147483647 - 1;
+   return (int32_t)v;
+}
+
+
+/* ------------------------------------------------------------------
  * Integer pair helpers.
  *
  * A screen position is two adjacent int32 and a UV pair is two adjacent

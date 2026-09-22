@@ -99,6 +99,95 @@ static int pair_oracle(void)
 	return f != 0;
 }
 
+/* The two rules the CPU-side consumers of Q rest on.
+ *
+ * Neither can be checked by comparing against the plain C++ spelling,
+ * because the plain spelling is what they exist to replace: int32_t(v)
+ * is undefined for NaN and outside the destination range, and the two
+ * architectures the core ships on disagree -- x86 answers INT32_MIN for
+ * both +inf and NaN, aarch64 answers INT32_MAX and 0. So the reference
+ * here is the rule itself, stated independently, and the lane runs on
+ * both architectures so the two have to produce the same numbers. */
+static long degenerate_oracle(void)
+{
+	static const float interesting[] = {
+		0.0f, -0.0f, 1.0f, -1.0f, 0.5f, 1e-30f, -1e-30f,
+		2147483520.0f, 2147483648.0f, 4294967296.0f, 1e30f,
+		-2147483648.0f, -2147483904.0f, -1e30f,
+		16777216.0f, -16777216.0f, 8388608.5f, 0.99999994f, -0.99999994f,
+	};
+	const int n = (int)(sizeof(interesting) / sizeof(interesting[0]));
+	long bad = 0;
+	int i;
+
+	/* pgs_q_is_usable: false for either zero, for either infinity and
+	 * for any NaN; true for every other float. */
+	for (i = 0; i < n; i++)
+	{
+		const float q = interesting[i];
+		const int want = !(q == 0.0f);
+		if (pgs_q_is_usable(q) != want)
+		{
+			printf("Q USABLE MISMATCH %.9g: got %d want %d\n",
+			       (double)q, pgs_q_is_usable(q), want);
+			bad++;
+		}
+	}
+	{
+		const float inf = 1.0f / 0.0f;
+		const float nan = 0.0f / 0.0f;
+		if (pgs_q_is_usable(inf) || pgs_q_is_usable(-inf) || pgs_q_is_usable(nan))
+			{ printf("Q USABLE accepted a non-finite\n"); bad++; }
+	}
+
+	/* pgs_f32_to_i32_sat: NaN is zero, anything at or above 2^31 is
+	 * INT32_MAX, anything below -2^31 is INT32_MIN, and inside the
+	 * range it truncates toward zero exactly as the cast does. */
+	for (i = 0; i < n; i++)
+	{
+		const float v = interesting[i];
+		int32_t want;
+		if (v >= 2147483648.0f)       want = 2147483647;
+		else if (v < -2147483648.0f)  want = -2147483647 - 1;
+		else                          want = (int32_t)v;
+		if (pgs_f32_to_i32_sat(v) != want)
+		{
+			printf("SAT MISMATCH %.9g: got %d want %d\n",
+			       (double)v, pgs_f32_to_i32_sat(v), want);
+			bad++;
+		}
+	}
+	{
+		const float inf = 1.0f / 0.0f;
+		const float nan = 0.0f / 0.0f;
+		if (pgs_f32_to_i32_sat(nan) != 0)          { printf("SAT NaN not 0\n"); bad++; }
+		if (pgs_f32_to_i32_sat(inf) != 2147483647) { printf("SAT +inf not INT32_MAX\n"); bad++; }
+		if (pgs_f32_to_i32_sat(-inf) != -2147483647 - 1) { printf("SAT -inf not INT32_MIN\n"); bad++; }
+	}
+
+	/* And the shape the consumers actually hit: S/Q with a Q that is
+	 * not usable must never reach the conversion at all, but if it did
+	 * the answer still has to be the same on every host. */
+	{
+		const float zero = 0.0f;
+		float st;
+		for (st = -2.0f; st <= 2.0f; st += 0.5f)
+		{
+			const int32_t got = pgs_f32_to_i32_sat((st / zero) * 1024.0f);
+			const int32_t want = st > 0.0f ? 2147483647 : (st < 0.0f ? -2147483647 - 1 : 0);
+			if (got != want)
+			{
+				printf("S/Q MISMATCH st=%.9g: got %d want %d\n",
+				       (double)st, got, want);
+				bad++;
+			}
+		}
+	}
+
+	printf("%s: degenerate Q rules\n", bad ? "FAIL" : "PASS");
+	return bad;
+}
+
 int main()
 {
 	long n = 0, f_pos = 0, f_attr = 0, f_pad = 0;
@@ -161,6 +250,7 @@ int main()
 		}
 	}
 	if (pair_oracle()) f_attr++;
+	if (degenerate_oracle()) f_attr++;
 	printf("%s: %ld cases  pos_mismatch=%ld attr_mismatch=%ld pad_nonzero=%ld\n",
 	       (f_pos||f_attr||f_pad) ? "FAIL" : "PASS", n, f_pos, f_attr, f_pad);
 	return (f_pos||f_attr||f_pad) != 0;

@@ -2383,18 +2383,35 @@ static void compute_uv_bb(const VertexAttribute *attr, const ContextState &ctx, 
 			if (attr[0].q != attr[1].q || attr[1].q != attr[2].q)
 				*needs_perspective = true;
 
+		// No texel bound can be computed from a Q of zero or NaN, so
+		// none is claimed. The widest box sends every consumer down its
+		// conservative branch -- REGION_CLAMP is not promoted and pixel
+		// feedback is refused -- which is the honest answer, and a
+		// vertex with a degenerate Q is certainly not the flat-Q 1:1
+		// mapping the feedback path is looking for.
+		if (!pgs_q_is_usable(attr[0].q) || !pgs_q_is_usable(attr[1].q) ||
+		    (!quad && !pgs_q_is_usable(attr[2].q)))
+		{
+			if (needs_perspective)
+				*needs_perspective = true;
+			uv_bb = ivec4{ INT32_MIN / 2, INT32_MIN / 2, INT32_MAX / 2, INT32_MAX / 2 };
+			return;
+		}
+
+		// A usable Q still leaves S/Q free to land past what an int32
+		// holds, so the conversions saturate rather than being undefined.
 		float inv_q0 = 1.0f / attr[0].q;
 		float inv_q1 = 1.0f / attr[1].q;
-		uvs[0] = ivec2{ int32_t(fwidth * (attr[0].st.x * inv_q0)),
-		                int32_t(fheight * (attr[0].st.y * inv_q0)) };
-		uvs[1] = ivec2{ int32_t(fwidth * (attr[1].st.x * inv_q1)),
-		                int32_t(fheight * (attr[1].st.y * inv_q1)) };
+		uvs[0] = ivec2{ pgs_f32_to_i32_sat(fwidth * (attr[0].st.x * inv_q0)),
+		                pgs_f32_to_i32_sat(fheight * (attr[0].st.y * inv_q0)) };
+		uvs[1] = ivec2{ pgs_f32_to_i32_sat(fwidth * (attr[1].st.x * inv_q1)),
+		                pgs_f32_to_i32_sat(fheight * (attr[1].st.y * inv_q1)) };
 
 		if (!quad)
 		{
 			float inv_q2 = 1.0f / attr[2].q;
-			uvs[2] = ivec2{ int32_t(fwidth * (attr[2].st.x * inv_q2)),
-			                int32_t(fheight * (attr[2].st.y * inv_q2)) };
+			uvs[2] = ivec2{ pgs_f32_to_i32_sat(fwidth * (attr[2].st.x * inv_q2)),
+			                pgs_f32_to_i32_sat(fheight * (attr[2].st.y * inv_q2)) };
 		}
 	}
 
@@ -4652,12 +4669,23 @@ void GSInterface::promote_render_pass_to_backbuffer(const RenderPass &rp)
 			{
 				auto &attr0 = render_pass.attributes[3 * prim + 0];
 				auto &attr1 = render_pass.attributes[3 * prim + 1];
+
+				// The region to promote is read off these coordinates,
+				// so a Q they cannot be computed from means there is no
+				// region to promote, not a region at whatever the host
+				// happens to make of an infinity.
+				if (!pgs_q_is_usable(attr0.q) || !pgs_q_is_usable(attr1.q))
+				{
+					is_valid_blit = false;
+					break;
+				}
+
 				constexpr float rounding_epsilon = 1.0f / 1024.0f;
 				const vec4 &tsz = rp.textures[tex_index].info.sizes;
-				uv0 = ivec2{ int32_t((attr0.st.x / attr0.q) * tsz.x + rounding_epsilon),
-				             int32_t((attr0.st.y / attr0.q) * tsz.y + rounding_epsilon) };
-				uv1 = ivec2{ int32_t((attr1.st.x / attr1.q) * tsz.x + rounding_epsilon),
-				             int32_t((attr1.st.y / attr1.q) * tsz.y + rounding_epsilon) };
+				uv0 = ivec2{ pgs_f32_to_i32_sat((attr0.st.x / attr0.q) * tsz.x + rounding_epsilon),
+				             pgs_f32_to_i32_sat((attr0.st.y / attr0.q) * tsz.y + rounding_epsilon) };
+				uv1 = ivec2{ pgs_f32_to_i32_sat((attr1.st.x / attr1.q) * tsz.x + rounding_epsilon),
+				             pgs_f32_to_i32_sat((attr1.st.y / attr1.q) * tsz.y + rounding_epsilon) };
 			}
 			else
 			{
