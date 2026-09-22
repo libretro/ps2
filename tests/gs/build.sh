@@ -21,6 +21,14 @@ g++ -O2 -std=c++17 -msse4.1 -o "$DIR/gs_float_convert" "$DIR/gs_float_convert.cp
     -I"$ROOT/libretro/libretro-common/include"
 "$DIR/gs_float_convert"
 
+# Divisors that come from GS register fields. Pins the arithmetic the
+# divide-by-zero guards rest on over each field's whole range -- in
+# particular that the 4HL/4HH source pitch still matches the one WriteImage
+# computes, since a guard that avoids the crash with the wrong pitch would
+# pass a smoke test and corrupt every odd-width transfer.
+g++ -O2 -std=c++17 -o "$DIR/gs_divisors" "$DIR/gs_divisors.cpp"
+"$DIR/gs_divisors"
+
 # The two benchmarks below build with the flags the core ships with. __fi is
 # always_inline only under NDEBUG, so at plain -O2 the kernels they time are
 # not the kernels the emulator runs.

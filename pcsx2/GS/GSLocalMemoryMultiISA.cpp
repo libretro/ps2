@@ -678,7 +678,11 @@ void GSLocalMemoryFunctions::WriteImage4HL(GSLocalMemory& mem, int& tx, int& ty,
 	u32 bp = BITBLTBUF.DBP;
 	u32 bw = BITBLTBUF.DBW;
 
-	int tw = TRXPOS.DSAX + TRXREG.RRW, srcpitch = TRXREG.RRW / 2;
+	// Round up to the nearest byte, as WriteImage does. These formats are
+	// 4bpp, so a row of RRW pixels occupies ceil(RRW / 2) bytes and an odd
+	// width needs the half byte as well -- truncating lost it for every odd
+	// RRW, and at RRW == 1 gave a pitch of zero for the division below.
+	int tw = TRXPOS.DSAX + TRXREG.RRW, srcpitch = (TRXREG.RRW + 1) / 2;
 	int th = len / srcpitch;
 
 	bool aligned = IsTopLeftAligned(TRXPOS.DSAX, tx, ty, 8, 8);
@@ -713,7 +717,8 @@ void GSLocalMemoryFunctions::WriteImage4HH(GSLocalMemory& mem, int& tx, int& ty,
 	u32 bp = BITBLTBUF.DBP;
 	u32 bw = BITBLTBUF.DBW;
 
-	int tw = TRXPOS.DSAX + TRXREG.RRW, srcpitch = TRXREG.RRW / 2;
+	// Round up to the nearest byte; see the note in WriteImage4HL.
+	int tw = TRXPOS.DSAX + TRXREG.RRW, srcpitch = (TRXREG.RRW + 1) / 2;
 	int th = len / srcpitch;
 
 	bool aligned = IsTopLeftAligned(TRXPOS.DSAX, tx, ty, 8, 8);

@@ -182,10 +182,20 @@ bool GSState::Merge(int field)
 		GSVector4 scale = GSVector4(tex_scale[2]);
 		GSVector4i feedback_rect;
 
+		// SMPH/SMPV and MAGH/MAGV are 4- and 2-bit fields, so they promote
+		// to int and the subtraction is signed: a game writing a
+		// magnification above the sampling rate makes the ratio -1 and the
+		// divisor zero. The ratio is a downsample factor and is never less
+		// than one on hardware.
+		const int downsample_h = pcsx2_max_i(1,
+			(int)(m_regs->EXTDATA.SMPH - m_regs->DISP[m_regs->EXTBUF.FBIN].DISPLAY.MAGH) + 1);
+		const int downsample_v = pcsx2_max_i(1,
+			(int)(m_regs->EXTDATA.SMPV - m_regs->DISP[m_regs->EXTBUF.FBIN].DISPLAY.MAGV) + 1);
+
 		feedback_rect.left = m_regs->EXTBUF.WDX;
-		feedback_rect.right = feedback_rect.left + ((m_regs->EXTDATA.WW + 1) / ((m_regs->EXTDATA.SMPH - m_regs->DISP[m_regs->EXTBUF.FBIN].DISPLAY.MAGH) + 1));
+		feedback_rect.right = feedback_rect.left + ((m_regs->EXTDATA.WW + 1) / downsample_h);
 		feedback_rect.top = m_regs->EXTBUF.WDY;
-		feedback_rect.bottom = ((m_regs->EXTDATA.WH + 1) * (2 - m_regs->EXTBUF.WFFMD)) / ((m_regs->EXTDATA.SMPV - m_regs->DISP[m_regs->EXTBUF.FBIN].DISPLAY.MAGV) + 1);
+		feedback_rect.bottom = ((m_regs->EXTDATA.WH + 1) * (2 - m_regs->EXTBUF.WFFMD)) / downsample_v;
 
 		dst[2] = GSVector4(scale * GSVector4(feedback_rect.rsize()));
 	}

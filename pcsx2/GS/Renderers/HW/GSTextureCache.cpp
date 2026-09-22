@@ -3985,6 +3985,12 @@ bool GSTextureCache::PageMove(u32 SBP, u32 DBP, u32 BW, u32 PSM, int sx, int sy,
 
 void GSTextureCache::CopyPages(Target* src, u32 sbw, u32 src_offset, Target* dst, u32 dbw, u32 dst_offset, u32 num_pages, ShaderConvert shader)
 {
+	// Both widths come from a target's TEX0.TBW, which is never clamped when
+	// the target is created, so use the same guard the rest of this file
+	// puts on a page width before dividing by it.
+	sbw = pcsx2_max_i(1U, sbw);
+	dbw = pcsx2_max_i(1U, dbw);
+
 	// Create rectangles for the pages.
 	const GSVector2i& pgs = GSLocalMemory::m_psm[dst->m_TEX0.PSM].pgs;
 	const GSVector4i page_rc = GSVector4i::loadh(pgs);

@@ -1101,6 +1101,16 @@ bool GSRendererHW::IsSplitTextureShuffle(GSTextureCache::Target* rt)
 	// Matrix Path of Neo draws 512x512 instead of 512x448, then scissors to 512x448.
 	aligned_rc = aligned_rc.rintersect(m_context->scissor.in);
 
+	// The guard above constrains x and z to multiples of 8 but never requires
+	// z > x, and the scissor can only narrow the rect further, so the width
+	// reaches zero for a degenerate draw and goes negative for an empty
+	// intersection. It is divided by twice below, where zero raises SIGFPE on
+	// x86 and yields nothing on aarch64, and a negative width converts to a
+	// huge unsigned and makes the heuristic match on garbage. A rect with no
+	// width is not a shuffle of anything.
+	if (aligned_rc.width() <= 0)
+		return false;
+
 	// We should have the same number of pages in both the position and UV.
 	const u32 pages_high = static_cast<u32>(aligned_rc.height()) / frame_psm.pgs.y;
 	const u32 num_pages = m_context->FRAME.FBW * pages_high;
@@ -1131,6 +1141,13 @@ bool GSRendererHW::IsSplitTextureShuffle(GSTextureCache::Target* rt)
 			m_split_texture_shuffle_fbw = rt->m_TEX0.TBW;
 		else
 			m_split_texture_shuffle_fbw = m_cached_ctx.FRAME.FBW;
+
+		// Both sources are raw register fields and zero is legal in both.
+		// This is the page width the shuffle is tracked in and it is used as
+		// a divisor here and again when the shuffle is drawn, so there is no
+		// shuffle to track if it is zero.
+		if (m_split_texture_shuffle_fbw == 0)
+			return false;
 	}
 
 	u32 vertical_pages = pages_high;
@@ -6924,7 +6941,9 @@ bool GSRendererHW::DetectDoubleHalfClear(bool& no_rt, bool& no_ds)
 	else
 	{
 		const int height = m_r.height();
-		m_r.w = ((half - base) / m_cached_ctx.FRAME.FBW) * frame_psm.pgs.y;
+		// FBW is a raw register field and zero is legal; the rest of this
+		// file reads it through the same clamp.
+		m_r.w = ((half - base) / pcsx2_max_i(m_cached_ctx.FRAME.FBW, 1U)) * frame_psm.pgs.y;
 		m_r.w += m_r.y + height;
 	}
 	ReplaceVerticesWithSprite(m_r, GSVector2i(1, 1));
