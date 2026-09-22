@@ -17,9 +17,12 @@
 # included first is not self-sufficient, and that is how R5900.h came to
 # depend on its includer for u32.
 #
-# Then the same for aarch64, when the cross compiler is installed. The
-# headers carry an arch-conditional half -- NEON in SingleRegisterTypes.h --
-# that an x86 pass never opens. The C units are cross-compiled whole as
+# Then the same for aarch64, under both front ends, when the cross tools
+# are installed. The headers carry an arch-conditional half -- NEON in
+# SingleRegisterTypes.h -- that an x86 pass never opens, and CI reaches it
+# with four different compilers: GNU on Linux and webOS aarch64, clang on
+# Android arm64 and Apple clang on macOS arm64. gcc and clang disagree
+# often enough to be worth both. The C units are cross-compiled whole as
 # well.
 #
 # Last, MSVC's C front end. It has a rule gcc and clang do not enforce even
@@ -28,9 +31,14 @@
 #
 #   static const uint VU0_MEMMASK = VU0_MEMSIZE - 1;
 #
-# is an error there and nowhere else. No flag here reproduces it, so the
-# preprocessed C view of each header is searched for that spelling. The C
-# spelling is a macro or an enum.
+# is an error there and nowhere else. No local compiler reproduces it:
+# clang's MSVC target would, but it needs a Windows SDK for even assert.h,
+# so there is none here. Instead the preprocessed C view of each header is
+# searched for that spelling. The C spelling is a macro or an enum.
+#
+# So MSVC is the one lane with no real front end behind it. That rule is
+# the only MSVC-specific breakage seen so far; anything else it rejects
+# still reaches CI unchecked.
 set -e
 DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 ROOT=$(CDPATH= cd -- "$DIR/../.." && pwd)
@@ -41,6 +49,8 @@ CFLAGS="-std=gnu89 -DNDEBUG -Wno-comment -Werror=declaration-after-statement"
 CXXFLAGS="-std=c++17 -DNDEBUG -DPCSX2_CORE"
 A64=aarch64-linux-gnu-gcc
 A64XX=aarch64-linux-gnu-g++
+A64_CLANG="clang --target=aarch64-linux-gnu"
+A64_CLANGXX="clang++ --target=aarch64-linux-gnu"
 
 TMP=${TMPDIR:-/tmp}/cheaders.$$
 mkdir -p "$TMP"
@@ -106,20 +116,37 @@ done
 
 echo
 if command -v "$A64" >/dev/null 2>&1; then
-	echo "=== each header on its own, C89 and C++, aarch64 ==="
+	# clang only if it can reach the cross sysroot; it borrows gcc's.
+	if clang --target=aarch64-linux-gnu -fsyntax-only -xc /dev/null 2>/dev/null; then
+		A64S="gcc clang"
+	else
+		A64S=gcc
+		echo "(aarch64 clang unavailable, gcc only)"
+	fi
+
+	echo "=== each header on its own, C89 and C++, aarch64: $A64S ==="
 	for h in $HEADERS; do
 		printf '%-40s' "$h"
 		printf '#include "%s"\nint main(void) { return 0; }\n' "$ROOT/$h" > "$TMP/t.c"
 		cp "$TMP/t.c" "$TMP/t.cpp"
-		check "aarch64 C"   $A64   $CFLAGS   $INC -fsyntax-only "$TMP/t.c"   || continue
-		check "aarch64 C++" $A64XX $CXXFLAGS $INC -fsyntax-only "$TMP/t.cpp" || continue
+		for cc in $A64S; do
+			case $cc in
+			gcc)   C=$A64;         CXX=$A64XX ;;
+			clang) C=$A64_CLANG;   CXX=$A64_CLANGXX ;;
+			esac
+			check "aarch64 $cc C"   $C   $CFLAGS   $INC -fsyntax-only "$TMP/t.c"   || continue 2
+			check "aarch64 $cc C++" $CXX $CXXFLAGS $INC -fsyntax-only "$TMP/t.cpp" || continue 2
+		done
 		printf ' ok\n'
 	done
 	echo
-	echo "=== every C unit, aarch64 ==="
+	echo "=== every C unit, aarch64: $A64S ==="
 	for f in $UNITS; do
 		printf '%-40s' "$(echo "$f" | sed "s|^$ROOT/||")"
-		check "aarch64" $A64 $CFLAGS -Wall -Wextra $INC -fsyntax-only "$f" || continue
+		for cc in $A64S; do
+			case $cc in gcc) C=$A64 ;; clang) C=$A64_CLANG ;; esac
+			check "aarch64 $cc" $C $CFLAGS -Wall -Wextra $INC -fsyntax-only "$f" || continue 2
+		done
 		printf ' ok\n'
 	done
 else
@@ -135,5 +162,5 @@ for f in $UNITS; do
 done
 
 echo
-[ "$fail" = 0 ] && echo "PASS: headers read as C89 and as C++, on x86 and aarch64, and as MSVC C" || echo "FAIL"
+[ "$fail" = 0 ] && echo "PASS: headers read as C89 and as C++, under gcc and clang on x86 and aarch64, and as MSVC C" || echo "FAIL"
 exit $fail
