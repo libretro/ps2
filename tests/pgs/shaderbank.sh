@@ -1,25 +1,36 @@
 #!/bin/sh
 # Read the paraLLEl-GS shader bank, and identify a module from its source.
 #
-# The GLSL sources are not in this tree. shaders/slangmosh.hpp is a
-# precompiled SPIR-V bank -- thirty modules in one uint32 array -- and it
-# ships name-stripped, so nothing in the repository says what the GPU does
-# with a given input. It is still readable: this splits the bank into one
-# .spv per module and disassembles them when spirv-dis is installed.
+# shaders/slangmosh.hpp is a precompiled SPIR-V bank -- thirty modules in
+# one uint32 array -- and it ships name-stripped, so it says nothing about
+# what the GPU does with a given input. This splits it into one .spv per
+# module and disassembles them when spirv-dis is installed.
+#
+# The GLSL beside it comes from upstream paraLLEl-GS,
+# https://github.com/Arntzen-Software/parallel-gs, at 3a66c19 (2026-09-02).
+# data_structures.h, swizzle_utils.h and sample_circuit.frag are the fork's
+# own and differ from upstream; the rest are upstream verbatim. Regenerating
+# the bank needs slangmosh, which is not vendored -- what is here is enough
+# to read the shaders and to check that a candidate source is the one that
+# shipped.
 #
 # Modules are NOT named. slangmosh does not emit them in the order
 # slangmosh_iface.hpp declares them, and the bank holds one more module than
 # that header declares, so numbering them off the declaration list produces
 # confident wrong answers -- it calls the module that is really
 # sample_circuit "ui_frag[1][1]". Identify a module by recompiling a
-# candidate source and matching the fingerprint instead:
+# candidate source and matching it against every module instead:
 #
 #   ./shaderbank.sh /tmp/bank ../../pcsx2/GS/parallel-gs/gs/shaders
 #
-# The id bound is what pins it. It is the compiler's result-id count, it
-# survives spirv-opt, and it is far too specific to collide by accident.
-# sample_circuit.frag is the only source still in the tree and it lands on
-# module 28 this way.
+# The match is on instruction mix, with debug info stripped from both
+# sides, and it reports how far off the nearest module is. An exact zero
+# needs slangmosh's own glslang and spirv-opt; anything else leaves a small
+# residue -- glslang 15.1 lands 1.1 % from the shipped ubershader, 1.7 %
+# from triangle_setup and 0.2 % from sample_circuit. Treat a few percent
+# as the same shader and a different one as a different shader; the id
+# bound alone is not enough to tell them apart, since two modules here
+# collide on it.
 #
 # What the shaders do with a degenerate Q was read out of the bank like
 # this; the note at the head of pgs_vertex_kernels.h says what was found.
@@ -105,26 +116,53 @@ if [ -n "$SRC" ] && [ -d "$SRC" ]; then
 			printf '  %-26s does not compile against these headers\n' "$b"
 			continue
 		fi
+		# Debug info off both sides: glslang keeps names that the bank
+		# was stripped of, and they would swamp the comparison.
 		command -v spirv-opt >/dev/null 2>&1 &&
-			spirv-opt -O "$OUT/re.spv" -o "$OUT/re.spv" >/dev/null 2>&1
+			spirv-opt --strip-debug -O "$OUT/re.spv" -o "$OUT/re.spv" >/dev/null 2>&1
 		python3 - "$OUT" "$b" <<'PY'
-import sys, os, glob
+import sys, os, glob, re, collections, subprocess
+
 out, name = sys.argv[1], sys.argv[2]
-d = open(os.path.join(out, "re.spv"), "rb").read()
-bound = int.from_bytes(d[12:16], "little")
-hit = []
+
+def mix(path):
+    """Instruction histogram, debug and decoration aside."""
+    try:
+        dis = subprocess.run(["spirv-dis", "--no-header", path],
+                             capture_output=True, text=True).stdout
+    except FileNotFoundError:
+        return None
+    c = collections.Counter()
+    for line in dis.splitlines():
+        m = re.search(r"= (Op\w+)|^\s+(Op\w+)", line)
+        if not m:
+            continue
+        op = m.group(1) or m.group(2)
+        if op.startswith(("OpName", "OpMemberName", "OpSource", "OpString")):
+            continue
+        c[op] += 1
+    return c
+
+want = mix(os.path.join(out, "re.spv"))
+if want is None:
+    print("  %-26s spirv-dis not installed; cannot match" % name)
+    sys.exit(0)
+total = sum(want.values())
+
+best = None
 for f in sorted(glob.glob(os.path.join(out, "[0-9][0-9].spv"))):
-    b = open(f, "rb").read()
-    if int.from_bytes(b[12:16], "little") == bound:
-        hit.append((os.path.basename(f)[:2], len(b)))
-if hit:
-    for idx, sz in hit:
-        print("  %-26s bound %-7d -> module %s  (%d vs %d bytes)"
-              % (name, bound, idx, len(d), sz))
-else:
-    print("  %-26s bound %-7d -> no module matches; this is not what shipped,"
-          % (name, bound))
-    print("  %-26s    or glslang/spirv-opt differ from slangmosh's" % "")
+    got = mix(f)
+    dist = sum(abs(want[o] - got[o]) for o in set(want) | set(got))
+    if best is None or dist < best[0]:
+        best = (dist, os.path.basename(f)[:2], sum(got.values()))
+
+dist, idx, got_total = best
+pct = 100.0 * dist / total if total else 0.0
+verdict = ("same shader, toolchain residue" if pct < 5.0
+           else "NOT this shader" if pct > 25.0
+           else "close -- check by hand")
+print("  %-26s -> module %s  %5.1f%% apart (%d vs %d instructions)  %s"
+      % (name, idx, pct, total, got_total, verdict))
 PY
 	done
 	rm -f "$OUT/re.spv" "$OUT/re.log"
