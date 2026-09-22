@@ -80,6 +80,13 @@ bool SaveState_FreezeInternals(SaveStateBase *s);
 #define SaveState_IsSaving(s)  ((s)->is_saving)
 #define SaveState_IsLoading(s) (!(s)->is_saving)
 #define SaveState_BlockPtr(s)  (&(s)->memory[(s)->idx])
+
+/* How much of the block is still ahead of the cursor. A freeze function
+ * that reads its own length out of the state it is loading has no other
+ * ceiling to check that length against: however large the count says the
+ * queue was, it cannot have held more bytes than are left to read. */
+#define SaveState_BytesLeft(s) \
+	((s)->idx < (s)->memory_size ? ((s)->memory_size - (s)->idx) : (size_t)0)
 #define SaveState_CommitBlock(s, n) ((s)->idx += (n))
 
 /* Load/Save for the various components of our glorious emulator. gsFreeze is

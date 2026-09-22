@@ -90,7 +90,10 @@ void SaveState_PrepBlock(SaveStateBase *s, int size)
  * past whatever went wrong. */
 void SaveState_FreezeMem(SaveStateBase *s, void *data, int size)
 {
-	if (!size)
+	/* A negative size reaches here when a freeze function takes its length
+	 * from the state it is loading and that length went past INT_MAX. Both
+	 * branches below would turn it into an enormous memcpy. */
+	if (size <= 0)
 		return;
 
 	if (s->is_saving)
@@ -111,6 +114,29 @@ void SaveState_FreezeMem(SaveStateBase *s, void *data, int size)
 	{
 		memset(data, 0, size);
 		return;
+	}
+
+	/* The saving side above grows the buffer to fit. The loading side has
+	 * no such freedom: the block is whatever the frontend handed us, and
+	 * reading past it is reading past someone else's allocation. Nothing
+	 * checked that until now, so a state that was truncated -- or that
+	 * simply came from a build whose structures were larger -- ran off the
+	 * end, and every freeze function that takes a length out of the state
+	 * it is loading could ask for as much as it liked. PrepBlock has had
+	 * this check all along; FreezeMem never called it.
+	 *
+	 * Failing the same way as any other error: the flag latches, so the
+	 * rest of the load zero-fills rather than reading on from a cursor
+	 * that is already past the end. */
+	{
+		const size_t end = (size_t)s->idx + (size_t)size;
+
+		if (end > s->memory_size)
+		{
+			s->error = true;
+			memset(data, 0, size);
+			return;
+		}
 	}
 
 	{

@@ -1024,9 +1024,42 @@ void cdrReset(void)
 
 bool cdrFreeze(SaveStateBase *s)
 {
+	u8 *saved_transfer = NULL;
+
 	if (!(SaveState_FreezeTag(s, "cdrom")))
 		return false;
 
+	/* cdr is frozen whole, and it carries a host pointer: pTransfer walks
+	 * cdr.Transfer as the drive hands bytes over. Writing the struct out
+	 * verbatim put that address into the file, and reading it back in took
+	 * the address from the file -- after which cdrRead2 does
+	 * *cdr.pTransfer++ and psxDma3 copies up to 256KB from it into IOP RAM.
+	 * The address was never meaningful outside the process that wrote it,
+	 * so even an honest state was restoring a stale pointer.
+	 *
+	 * The pointer is always an offset into Transfer, so carry it as one.
+	 * That keeps the block the same size, and a state written before this
+	 * lands somewhere far outside Transfer and is clamped to the start
+	 * rather than believed. */
+	if (SaveState_IsSaving(s))
+	{
+		saved_transfer = cdr.pTransfer;
+		cdr.pTransfer  = (u8 *)(uintptr_t)(saved_transfer
+			? (size_t)(saved_transfer - cdr.Transfer) : 0);
+	}
+
 	SaveState_Freeze(s, cdr);
+
+	if (SaveState_IsSaving(s))
+		cdr.pTransfer = saved_transfer;
+	else
+	{
+		size_t off = (size_t)(uintptr_t)cdr.pTransfer;
+
+		if (off > sizeof(cdr.Transfer))
+			off = 0;
+		cdr.pTransfer = cdr.Transfer + off;
+	}
+
 	return SaveState_IsOkay(s);
 }

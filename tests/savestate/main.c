@@ -116,6 +116,65 @@ int main(void)
 		checks++;
 	}
 
+	/* ---- a short block stops the reader even with no PrepBlock ahead of it
+	 *
+	 * The case above goes through PrepBlock, which has always checked. No
+	 * freeze function calls it: they call SaveState_Freeze, so the check
+	 * that matters is the one inside FreezeMem, and for a long time there
+	 * was not one -- a state that was truncated, or that came from a build
+	 * with smaller structures, read on past the end of the block the
+	 * frontend handed over.
+	 *
+	 * The block is its own exact-sized allocation so the read actually has
+	 * somewhere to go wrong; under -fsanitize=address the overread is
+	 * caught here rather than inferred from the flag. */
+	{
+		SaveStateBase l;
+		u8 *block = (u8 *)malloc(32);
+		u8 out[64];
+		int j2;
+
+		if (!block)
+			return 1;
+		memset(block, 0xa5, 32);
+
+		SaveState_Init(&l, block, 32, 32, false);
+		memset(out, 0xcd, sizeof(out));
+		SaveState_FreezeMem(&l, out, (int)sizeof(out));
+
+		expect(!SaveState_IsOkay(&l), "a load past the end raises the error");
+		for (j2 = 0; j2 < (int)sizeof(out); j2++)
+			if (out[j2] != 0)
+			{
+				fail("a load past the end did not zero its destination");
+				break;
+			}
+		checks++;
+
+		/* A block that fits still has to work, and leave the cursor where
+		 * it belongs, so the bound is not simply refusing everything. */
+		SaveState_Init(&l, block, 32, 32, false);
+		SaveState_FreezeMem(&l, out, 32);
+		expect(SaveState_IsOkay(&l), "a block that fits still loads");
+		expect(l.idx == 32, "a block that fits advances the cursor");
+		expect(out[0] == 0xa5 && out[31] == 0xa5, "a block that fits comes back");
+
+		/* One byte more than the block holds is the boundary. */
+		SaveState_Init(&l, block, 32, 32, false);
+		SaveState_FreezeMem(&l, out, 33);
+		expect(!SaveState_IsOkay(&l), "one byte past the end is caught");
+
+		/* A length that went negative -- which is what a state-supplied
+		 * count past INT_MAX becomes -- must not reach a memcpy. */
+		SaveState_Init(&l, block, 32, 32, false);
+		memset(out, 0xcd, sizeof(out));
+		SaveState_FreezeMem(&l, out, -16);
+		expect(l.idx == 0, "a negative length moves nothing");
+		expect(out[0] == 0xcd, "a negative length touches no memory");
+
+		free(block);
+	}
+
 	/* ---- the tag round-trips, and a wrong one is caught */
 	{
 		SaveStateBase w, l;

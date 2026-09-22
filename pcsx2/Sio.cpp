@@ -710,6 +710,19 @@ static void FreezeSioFifo(SaveStateBase *s, SioFifo &q)
 		return;
 	}
 
+	/* count came out of the state, and the loop below grows the fifo to
+	 * match it before anything reads the bytes it claims are there. The
+	 * fifo has no fixed capacity to check against, so check the only
+	 * ceiling there is: a queue cannot have held more bytes than the
+	 * block still has left. Without it, a four-billion count is four
+	 * billion push_backs before the read that would have failed. */
+	if ((size_t)count > SaveState_BytesLeft(s))
+	{
+		s->error = true;
+		q.clear();
+		return;
+	}
+
 	/* Size the fifo first, then read straight into it. A cleared fifo
 	 * starts at index 0 and push_back grows it geometrically, so after
 	 * count pushes the bytes are contiguous from data[0] -- which is
