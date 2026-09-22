@@ -59,7 +59,12 @@ struct pgs_kick_regs
 /* Position: X and Y are adjacent 16-bit fields in the low word of XYZ or
  * XYZF, so one word carries both. Only the 12 defined bytes are written;
  * the trailing pad keeps whatever it held, as the field-by-field form
- * left it. */
+ * left it.
+ *
+ * The kick paths use the padded form below instead: a queue slot is copied
+ * whole into the mapped vertex buffer, pad included. This one is kept for
+ * the oracle, which pins the 12 defined bytes of both against the
+ * field-by-field reference. */
 static PGS_KICK_INLINE void pgs_build_position(
       const struct pgs_kick_regs *r, uint32_t xy_word, uint32_t z, void *dst)
 {
@@ -275,7 +280,12 @@ static PGS_KICK_INLINE void pgs_pair_clamp(
 }
 
 
-/* Component-wise min and max of two int32 pairs. */
+/* Component-wise min and max of two int32 pairs.
+ *
+ * No NEON arm here, nor in the clamp above: both aarch64 compilers turn
+ * these scalar bodies into the same smin/smax pair the intrinsics would,
+ * instruction for instruction. min_max3 keeps its arm because its shape
+ * (a conditional third operand) is the one they do not. */
 static PGS_KICK_INLINE void pgs_pair_min2(const void *a, const void *b, void *out)
 {
 #if defined(PGS_PAIR_SSE4)

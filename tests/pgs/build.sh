@@ -17,6 +17,10 @@
 #                     NaN, +/-0 and infinity all appear in the inputs.
 # pgs_kick_bench    : ns/vertex per candidate.
 #
+# Everything above runs on x86 and again on aarch64 under qemu, because the
+# pair kernels branch on the host ISA and the NEON arm is the one the core's
+# main target takes.
+#
 # Everything runs under BOTH g++ and clang++. The two disagree about which
 # field they compile well -- gcc rebuilds the packed UV in six instructions
 # where clang uses two, clang splits the ST pair into two moves where gcc
@@ -54,3 +58,24 @@ for CXX in g++ clang++; do
 	"$DIR/pgs_kick_bench" 2500 25
 	done
 done
+
+# aarch64. The pair kernels have a NEON arm that no lane above can reach --
+# x86 takes the SSE4.1 or the scalar body -- so until this ran, the arm the
+# core's main target uses was only a claim. The bench is left out: a qemu
+# figure would time the emulator, not the target.
+if command -v aarch64-linux-gnu-g++ >/dev/null 2>&1 &&
+   command -v qemu-aarch64 >/dev/null 2>&1; then
+	echo "=== aarch64 (NEON pair kernels) ==="
+	command -v aarch64-linux-gnu-gcc >/dev/null 2>&1 &&
+		aarch64-linux-gnu-gcc -std=c89 -pedantic -Wall -Wextra -Wno-long-long -O2 $INC \
+		    -c "$DIR/pgs_c89_check.c" -o "$DIR/pgs_c89_check.o" &&
+		rm -f "$DIR/pgs_c89_check.o"
+	for t in pgs_layout_check pgs_vertex_oracle pgs_queue_equiv pgs_prim_record_equiv pgs_parallelogram_equiv; do
+		aarch64-linux-gnu-g++ -O2 -std=c++17 -static $INC -o "$DIR/a_$t" "$DIR/$t.cpp"
+		qemu-aarch64 "$DIR/a_$t"
+		rm -f "$DIR/a_$t"
+	done
+else
+	echo
+	echo "skipping aarch64 lane (no cross toolchain or qemu)"
+fi

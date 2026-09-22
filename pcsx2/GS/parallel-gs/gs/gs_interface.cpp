@@ -884,8 +884,8 @@ void GSInterface::vertex_kick_xyz(Reg64<XYZBits> xyz)
 	shift_vertex_queue();
 	gather_kick_regs(g);
 
-	pgs_build_position(&g, xyz.words[0], xyz.words[1],
-	                   &vertex_queue.pos[vertex_queue.slot(vertex_queue.count)]);
+	pgs_build_position_padded(&g, xyz.words[0], xyz.words[1],
+	                          &vertex_queue.pos[vertex_queue.slot(vertex_queue.count)]);
 	pgs_build_attribute(&g, float(g.fog),
 	                    &vertex_queue.attr[vertex_queue.slot(vertex_queue.count)]);
 
@@ -901,8 +901,8 @@ void GSInterface::vertex_kick_xyzf(Reg64<XYZFBits> xyzf)
 	gather_kick_regs(g);
 
 	/* XYZF2 carries Z in 24 bits and fog in the top byte of the same word. */
-	pgs_build_position(&g, xyzf.words[0], xyzf.words[1] & 0xffffffu,
-	                   &vertex_queue.pos[vertex_queue.slot(vertex_queue.count)]);
+	pgs_build_position_padded(&g, xyzf.words[0], xyzf.words[1] & 0xffffffu,
+	                          &vertex_queue.pos[vertex_queue.slot(vertex_queue.count)]);
 	pgs_build_attribute(&g, float(xyzf.words[1] >> 24),
 	                    &vertex_queue.attr[vertex_queue.slot(vertex_queue.count)]);
 
