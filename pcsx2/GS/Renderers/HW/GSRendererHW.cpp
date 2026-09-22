@@ -1976,8 +1976,21 @@ void GSRendererHW::HandleManualDeswizzle()
 		{
 			const u32 index_first = m_index.buff[i];
 			const u32 index_last = m_index.buff[i + 1];
-			const u32 x = abs(((v[index_last].ST.S / v[index_last].RGBAQ.Q) * (1 << m_context->TEX0.TW)) - ((v[index_first].ST.S / v[index_first].RGBAQ.Q) * (1 << m_context->TEX0.TW)));
-			const u32 y = abs(((v[index_last].ST.T / v[index_last].RGBAQ.Q) * (1 << m_context->TEX0.TH)) - ((v[index_first].ST.T / v[index_first].RGBAQ.Q) * (1 << m_context->TEX0.TH)));
+
+			// No texel delta can be computed from a Q of zero or NaN, so
+			// the quadrant cannot be confirmed and the deswizzle is not
+			// taken. The conversion below would otherwise be undefined on
+			// the infinity or NaN it would produce, and answer differently
+			// per host.
+			if (!q_is_usable(v[index_first].RGBAQ.Q) || !q_is_usable(v[index_last].RGBAQ.Q))
+				return;
+
+			// Saturating, because a usable Q still leaves S/Q free to land
+			// past what an s32 holds. abs() here is the C one and takes an
+			// int, so the conversion happens either way -- it is just
+			// spelled out now.
+			const u32 x = (u32)abs(f32_to_s32_sat(((v[index_last].ST.S / v[index_last].RGBAQ.Q) * (1 << m_context->TEX0.TW)) - ((v[index_first].ST.S / v[index_first].RGBAQ.Q) * (1 << m_context->TEX0.TW))));
+			const u32 y = (u32)abs(f32_to_s32_sat(((v[index_last].ST.T / v[index_last].RGBAQ.Q) * (1 << m_context->TEX0.TH)) - ((v[index_first].ST.T / v[index_first].RGBAQ.Q) * (1 << m_context->TEX0.TH))));
 
 			if (x != (u32)page_quadrant.x || y != (u32)page_quadrant.y)
 				return;
@@ -2897,9 +2910,16 @@ void GSRendererHW::Draw()
 				const GSVertex* v = &m_vertex.buff[0];
 
 				const int first_x = ((v[0].XYZ.X - m_context->XYOFFSET.OFX) + 8) >> 4;
-				const int first_u = PRIM->FST ? ((v[0].U + 8) >> 4) : static_cast<int>(((1 << m_cached_ctx.TEX0.TW) * (v[0].ST.S / v[1].RGBAQ.Q)) + 0.5f);
-				const int second_u = PRIM->FST ? ((v[1].U + 8) >> 4) : static_cast<int>(((1 << m_cached_ctx.TEX0.TW) * (v[1].ST.S / v[1].RGBAQ.Q)) + 0.5f);
-				const bool shuffle_coords = (first_x ^ first_u) & 8;
+				// Q comes from the second vertex on purpose: on a sprite only
+				// that one is valid, which is the same rule GSState follows
+				// when it walks the vertices for the texture bounds. Without
+				// a usable one there is no texel coordinate to compare the
+				// screen coordinate against, so this is not a shuffle -- and
+				// the conversion would be undefined rather than merely wrong.
+				const bool q_ok = PRIM->FST || q_is_usable(v[1].RGBAQ.Q);
+				const int first_u = PRIM->FST ? ((v[0].U + 8) >> 4) : f32_to_s32_sat(((1 << m_cached_ctx.TEX0.TW) * (v[0].ST.S / v[1].RGBAQ.Q)) + 0.5f);
+				const int second_u = PRIM->FST ? ((v[1].U + 8) >> 4) : f32_to_s32_sat(((1 << m_cached_ctx.TEX0.TW) * (v[1].ST.S / v[1].RGBAQ.Q)) + 0.5f);
+				const bool shuffle_coords = q_ok && ((first_x ^ first_u) & 8);
 				const int draw_width = abs(v[1].XYZ.X - v[0].XYZ.X) >> 4;
 				const int read_width = abs(second_u - first_u);
 
