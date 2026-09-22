@@ -137,6 +137,29 @@ static PGS_KICK_INLINE void pgs_build_attribute(
  * These two say what happens instead, in one place the oracle can pin,
  * and the consumers below decide what to do with the answer rather than
  * the register being rewritten to suit them.
+ *
+ * The GPU needs none of it, which is why the register is left alone. Read
+ * out of the shader bank -- the GLSL is not in this tree, see
+ * tests/pgs/shaderbank.sh -- the shading side is defined for every Q:
+ *
+ *   - triangle_setup truncates Q to an 8-bit mantissa and S and T by
+ *     their exponent distance from it, the same fixed-point precision
+ *     model GSdx carries in GSState.cpp. Its flat-Q fast path divides
+ *     through rcp_float, which branches on a zero or subnormal exponent
+ *     and returns an infinity rather than reaching the Newton iteration.
+ *
+ *   - the ubershader's perspective divide, S/Q for the texel coordinate,
+ *     is followed by NClamp to +/-2047, the coordinate range the GS has.
+ *     NClamp returns a bound when an operand is NaN, so an infinity and
+ *     a NaN both land inside the range.
+ *
+ * Which is what makes claiming no bound on the CPU the right answer
+ * rather than a cop-out: the GPU will clamp the coordinate to something
+ * no CPU-side arithmetic can predict from a degenerate Q, so a bbox
+ * derived from one could only contradict it. Before this, x86 derived a
+ * box anchored at INT32_MIN and aarch64 one anchored at INT32_MAX, and
+ * either could have promoted a REGION_CLAMP the shader then sampled
+ * outside of.
  * ------------------------------------------------------------------ */
 
 /* Whether a texel coordinate can be computed from this Q at all: zero
