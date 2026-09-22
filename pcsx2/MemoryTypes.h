@@ -81,8 +81,24 @@ typedef struct IopVM_MemoryAllocMess
 // compile-time references to registers instead of having to use instance variables).
 
 PCSX2_ALIGN(__pagealignsize) extern u8 eeHw[PS2MEM_HARDWARE];
-PCSX2_ALIGN(__pagealignsize) extern u8 iopHw[PS2MEM_IOP_HARDWARE];
+/* MSVC decorates C++ data symbols; the ELF ABI does not. A variable a C
+ * unit references therefore has to be declared -- and so, through this
+ * header, defined -- with C language linkage, or the Windows link fails
+ * on an undecorated reference while every other target is fine. */
+#ifdef __cplusplus
+extern "C" {
+#endif
+	PCSX2_ALIGN(__pagealignsize) extern u8 iopHw[PS2MEM_IOP_HARDWARE];
+#ifdef __cplusplus
+}
+#endif
 
 
 extern EEVM_MemoryAllocMess* eeMem;
-extern IopVM_MemoryAllocMess* iopMem;
+#ifdef __cplusplus
+extern "C" {
+#endif
+	extern IopVM_MemoryAllocMess* iopMem;
+#ifdef __cplusplus
+}
+#endif

@@ -128,7 +128,17 @@ typedef struct psxRegisters {
 	s32 eCycle[32];		// cycle delta for signaled ints (sCycle + eCycle == branch cycle)
 } psxRegisters;
 
-PCSX2_ALIGN(16) extern psxRegisters psxRegs;
+/* MSVC decorates C++ data symbols; the ELF ABI does not. A variable a C
+ * unit references therefore has to be declared -- and so, through this
+ * header, defined -- with C language linkage, or the Windows link fails
+ * on an undecorated reference while every other target is fine. */
+#ifdef __cplusplus
+extern "C" {
+#endif
+	PCSX2_ALIGN(16) extern psxRegisters psxRegs;
+#ifdef __cplusplus
+}
+#endif
 
 #ifndef _PC_
 
@@ -176,8 +186,14 @@ PCSX2_ALIGN(16) extern psxRegisters psxRegs;
 
 #endif
 
-extern s32 psxNextDeltaCounter;
-extern u32 psxNextStartCounter;
+#ifdef __cplusplus
+extern "C" {
+#endif
+	extern s32 psxNextDeltaCounter;
+	extern u32 psxNextStartCounter;
+#ifdef __cplusplus
+}
+#endif
 extern bool iopEventAction;
 
 // Branching status used when throwing exceptions.

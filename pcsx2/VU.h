@@ -204,4 +204,14 @@ enum VUPipeState
 	VUPIPE_XGKICK
 };
 
-extern VURegs vuRegs[2];
+/* MSVC decorates C++ data symbols; the ELF ABI does not. A variable a C
+ * unit references therefore has to be declared -- and so, through this
+ * header, defined -- with C language linkage, or the Windows link fails
+ * on an undecorated reference while every other target is fine. */
+#ifdef __cplusplus
+extern "C" {
+#endif
+	extern VURegs vuRegs[2];
+#ifdef __cplusplus
+}
+#endif

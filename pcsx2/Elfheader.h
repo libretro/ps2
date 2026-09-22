@@ -34,7 +34,17 @@ typedef struct ELF_HEADER {
 	u16	e_shstrndx;	 //Section header stringtable index
 } ELF_HEADER;
 
-extern u32 ElfCRC;
+/* MSVC decorates C++ data symbols; the ELF ABI does not. A variable a C
+ * unit references therefore has to be declared -- and so, through this
+ * header, defined -- with C language linkage, or the Windows link fails
+ * on an undecorated reference while every other target is fine. */
+#ifdef __cplusplus
+extern "C" {
+#endif
+	extern u32 ElfCRC;
+#ifdef __cplusplus
+}
+#endif
 extern u32 ElfEntry;
 
 /* The loader itself is C++: it owns a std::vector and reads through IsoFile.

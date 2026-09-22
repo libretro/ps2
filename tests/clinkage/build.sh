@@ -15,6 +15,17 @@
 #     again and the link fails on the duplicate. (EELOAD_START and its
 #     three neighbours, count_leading_zero.)
 #
+#   - a C unit references a VARIABLE whose declaration has C++ language
+#     linkage. This one is invisible here however hard you look at the
+#     symbols: the ELF ABI does not decorate data symbols, so `psxRegs`
+#     is spelled `psxRegs` either way and the link succeeds. MSVC
+#     decorates them -- ?psxRegs@@3UpsxRegisters@@A -- so the C unit's
+#     undecorated reference resolves to nothing and only the Windows lane
+#     fails. Twenty-one symbols did, at once. So that class is checked
+#     against the source instead: every data symbol a C object needs and
+#     a C++ object defines gets its declaration redeclared extern "C" in
+#     a probe TU, and C++ language linkage shows up as a conflict.
+#
 # Both are about symbols, so this compares symbols. Every .c in the tree is
 # built, then every .cpp that builds here, and then:
 #
@@ -92,6 +103,37 @@ while read -r sym; do
 	fi
 done < "$TMP/undef"
 [ "$bad" = 0 ] && echo "  ok"
+
+echo
+echo "== every variable the C units need is declared extern \"C\" =="
+# Data symbols only: $2 is D/B/G/R/V for objects, T/W for text. The text
+# half is covered by the mangled-name check above; this is the half ELF
+# cannot show us.
+nm "$TMP"/c/*.o   | awk '$2 ~ /^[TDBGRW]$/ { print $3 }' | sort -u > "$TMP/def_c_data"
+nm "$TMP"/cxx/*.o | awk '$2 ~ /^[DBGRVdbgrv]$/ { print $3 }' | sort -u > "$TMP/def_cxx_data"
+datab=0
+comm -12 "$TMP/undef" "$TMP/def_cxx_data" | grep -v '^_' |
+	comm -23 - "$TMP/def_c_data" > "$TMP/crossdata"
+while read -r sym; do
+	[ -n "$sym" ] || continue
+	# The declaration, wherever it is. Leading PCSX2_ALIGN/alignas comes
+	# off: an attribute cannot precede a linkage specification.
+	loc=$(grep -rn "^[[:space:]]*\(PCSX2_ALIGN([^)]*)[[:space:]]*\|alignas([^)]*)[[:space:]]*\)\?extern[^;]*\b$sym\b" \
+	      --include=*.h "$ROOT/pcsx2" "$ROOT/common" "$ROOT/libretro" 2>/dev/null | head -1)
+	if [ -z "$loc" ]; then
+		echo "  FAIL: $sym is defined in C++ and used from C, and no header declares it"
+		datab=1; continue
+	fi
+	hdr=${loc%%:*}
+	decl=$(echo "$loc" | cut -d: -f3- |
+	       sed 's/^[[:space:]]*//; s/^\(PCSX2_ALIGN([^)]*)\|alignas([^)]*)\)[[:space:]]*//; s#[[:space:]]*//.*##; s#[[:space:]]*/\*.*##')
+	printf '#include "%s"\nextern "C" {\n%s\n}\n' "$hdr" "$decl" > "$TMP/probe.cpp"
+	g++ -std=c++17 -DNDEBUG -DPCSX2_CORE $INC -fsyntax-only "$TMP/probe.cpp" 2>/dev/null && continue
+	echo "  FAIL: $sym has C++ language linkage in $(echo "$hdr" | sed "s|^$ROOT/||")"
+	echo "        MSVC decorates the definition; the C reference will not resolve."
+	datab=1
+done < "$TMP/crossdata"
+[ "$datab" = 0 ] && echo "  ok ($(grep -c . "$TMP/crossdata") crossing the boundary)" || bad=1
 
 echo
 [ "$bad" = 0 ] || exit 1

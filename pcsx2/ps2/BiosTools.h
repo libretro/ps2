@@ -28,14 +28,30 @@ extern BiosDebugInformation CurrentBiosInformation;
 extern u32 BiosVersion;		// Used by CDVD
 extern u32 BiosRegion;		// Used by CDVD
 extern bool NoOSD;			// Used for HLE OSD Config Params
-extern bool AllowParams1;
-extern bool AllowParams2;
-extern u32 BiosChecksum;
+/* MSVC decorates C++ data symbols; the ELF ABI does not. A variable a C
+ * unit references therefore has to be declared -- and so, through this
+ * header, defined -- with C language linkage, or the Windows link fails
+ * on an undecorated reference while every other target is fine. */
+#ifdef __cplusplus
+extern "C" {
+#endif
+	extern bool AllowParams1;
+	extern bool AllowParams2;
+	extern u32 BiosChecksum;
+#ifdef __cplusplus
+}
+#endif
 #define BIOS_DESCRIPTION_MAX 96
 #define BIOS_SERIAL_MAX      32
 #define BIOS_ZONE_MAX        16
 
-extern char BiosDescription[];
+#ifdef __cplusplus
+extern "C" {
+#endif
+	extern char BiosDescription[];
+#ifdef __cplusplus
+}
+#endif
 extern char BiosSerial[];
 /* The BIOS path is still a std::string, so it is the one declaration here
  * that C cannot see. Everything above it is reachable from both. */

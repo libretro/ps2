@@ -27,11 +27,21 @@
 // right now, so we're sticking them here for now until a better solution comes along.
 
 extern bool g_SkipBiosHack;
-extern bool g_GameStarted;
-extern bool g_GameLoading;
+/* MSVC decorates C++ data symbols; the ELF ABI does not. A variable a C
+ * unit references therefore has to be declared -- and so, through this
+ * header, defined -- with C language linkage, or the Windows link fails
+ * on an undecorated reference while every other target is fine. */
+#ifdef __cplusplus
+extern "C" {
+#endif
+	extern bool g_GameStarted;
+	extern bool g_GameLoading;
 
-extern s32 EEsCycle;
-extern u64 EEoCycle;
+	extern s32 EEsCycle;
+	extern u64 EEoCycle;
+#ifdef __cplusplus
+}
+#endif
 
 typedef union GPR_reg {   // Declare union type GPR register
 	u128 UQ;
@@ -219,9 +229,15 @@ typedef struct tlbs
 
 #endif
 
-PCSX2_ALIGN(16) extern cpuRegisters cpuRegs;
-PCSX2_ALIGN(16) extern fpuRegisters fpuRegs;
-PCSX2_ALIGN(16) extern tlbs tlb[48];
+#ifdef __cplusplus
+extern "C" {
+#endif
+	PCSX2_ALIGN(16) extern cpuRegisters cpuRegs;
+	PCSX2_ALIGN(16) extern fpuRegisters fpuRegs;
+	PCSX2_ALIGN(16) extern tlbs tlb[48];
+#ifdef __cplusplus
+}
+#endif
 
 extern retro_atomic_int_t eeEventTestIsActive;
 

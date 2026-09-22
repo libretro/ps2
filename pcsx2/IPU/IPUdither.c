@@ -19,7 +19,7 @@
 #include "yuv2rgb.h"
 #include "ipu_macroblock.h"
 
-__ri void ipu_dither(const macroblock_rgb32 *rgb32, macroblock_rgb16 *rgb16, const int dte)
+void ipu_dither(const macroblock_rgb32 *rgb32, macroblock_rgb16 *rgb16, const int dte)
 {
 	int i;
 	int n;

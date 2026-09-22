@@ -84,8 +84,18 @@ typedef struct SyncCounter
 
 extern Counter counters[4];
 
-extern s32 nextDeltaCounter;		// delta until the next counter event (must be signed)
-extern u64 nextStartCounter;
+/* MSVC decorates C++ data symbols; the ELF ABI does not. A variable a C
+ * unit references therefore has to be declared -- and so, through this
+ * header, defined -- with C language linkage, or the Windows link fails
+ * on an undecorated reference while every other target is fine. */
+#ifdef __cplusplus
+extern "C" {
+#endif
+	extern s32 nextDeltaCounter;		// delta until the next counter event (must be signed)
+	extern u64 nextStartCounter;
+#ifdef __cplusplus
+}
+#endif
 
 extern void rcntUpdate(void);
 
