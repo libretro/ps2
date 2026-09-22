@@ -537,7 +537,7 @@ static __fi void ClampMixSet(VoiceMixSet *dst, const VoiceMixSet *src)
 #endif
 }
 
-StereoOut32 V_Core_Mix(V_Core *c, const VoiceMixSet *inVoices, const StereoOut32 *Input, const StereoOut32 *Ext)
+static StereoOut32 V_Core_Mix(V_Core *c, const VoiceMixSet *inVoices, const StereoOut32 *Input, const StereoOut32 *Ext)
 {
 	StereoOut32 TD;
 	StereoOut32 TW;

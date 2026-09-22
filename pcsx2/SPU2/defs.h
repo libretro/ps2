@@ -441,8 +441,6 @@ void        V_Core_WriteRegPS1(V_Core *c, u32 mem, u16 value);
 u16         V_Core_ReadRegPS1(V_Core *c, u32 mem);
 
 /* Mixer */
-StereoOut32 V_Core_Mix(V_Core *c, const VoiceMixSet *inVoices,
-                       const StereoOut32 *Input, const StereoOut32 *Ext);
 StereoOut32 V_Core_DoReverb(V_Core *c, StereoOut32 Input);
 
 StereoOut32 V_Core_ReadInput(V_Core *c);

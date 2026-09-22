@@ -10,6 +10,12 @@
  * stereo sample Mix() emits is folded into a hash. Run it before a change
  * and after; the numbers match or the change altered what a game hears.
  *
+ * The mixer has a second output a game can hear: the SPU IRQ, raised when
+ * a voice or a mixer write crosses IRQA. That never reaches the PCM, so the
+ * three "irq" scenarios arm it and hash which core fired on which sample
+ * alongside the audio. A change to an IRQ check site moves that trace and
+ * nothing else.
+ *
  * The scenarios are separate hashes rather than one, so a mismatch names
  * the area that moved instead of only saying something did.
  *
@@ -143,6 +149,8 @@ static void reset_core(void)
 	memset(&DCFilterOut, 0, sizeof(DCFilterOut));
 	V_Core_Init(&Cores[0], 0);
 	V_Core_Init(&Cores[1], 1);
+	has_irq_armed = false;
+	has_to_call_irq[0] = has_to_call_irq[1] = false;
 	OutPos = 0;
 	InputPos = 0;
 	Cycles = 0;
@@ -204,6 +212,17 @@ static void start_voice(int core, int v, u32 addr, u16 pitch,
 static long   g_nonzero;
 static int    g_peak;
 static double g_rms;
+/* The mixer's other output. An IRQ check sits at four places in the sample
+ * path -- two voice-read sites, the dummy-advance site and every write
+ * through spu2M_WriteFast -- and all any of them does is set
+ * has_to_call_irq, which TimeUpdate consumes and which never reaches the
+ * PCM. Nothing here looked at it, so a change to any of those four sites
+ * passed every scenario. run() therefore folds the flags into a second
+ * hash, recording which core fired on which sample, and clears them as
+ * TimeUpdate does. */
+static uint64_t g_irq_hash;
+static long     g_irq_events;
+
 static long   g_hi_rail;   /* samples at +0x7fff */
 static long   g_lo_rail;   /* samples at -0x8000 */
 static double g_dc;        /* mean output level, both channels */
@@ -217,6 +236,8 @@ static uint64_t run(int samples)
 
 	g_nonzero = 0;
 	g_peak = 0;
+	g_irq_hash = hash_init();
+	g_irq_events = 0;
 	g_hi_rail = 0;
 	g_lo_rail = 0;
 
@@ -224,9 +245,19 @@ static uint64_t run(int samples)
 	{
 		s16 l = 0, r = 0;
 		int a;
+		int core;
 		Mix(&l, &r);
 		hash_s16(&h, l);
 		hash_s16(&h, r);
+		for (core = 0; core < 2; core++)
+		{
+			if (!has_to_call_irq[core])
+				continue;
+			has_to_call_irq[core] = false;
+			g_irq_events++;
+			hash_bytes(&g_irq_hash, &i, sizeof(i));
+			hash_bytes(&g_irq_hash, &core, sizeof(core));
+		}
 		if (l || r) g_nonzero++;
 		if (l ==  0x7fff || r ==  0x7fff) g_hi_rail++;
 		if (l == -0x8000 || r == -0x8000) g_lo_rail++;
@@ -589,6 +620,50 @@ static uint64_t scen_clipping(int samples)
 	return run(samples);
 }
 
+/* The same voices as scen_voices, with IRQA armed on one core or both.
+ * The addresses are picked to land in both windows the mixer checks: the
+ * voices sweep sample RAM from 0x1000 upward, and spu2M_WriteFast walks
+ * 0x400 + OutPos, 0x1000 + OutPos and their neighbours once per sample. So
+ * the read-side checks and the write-side one both fire, and the trace
+ * says which core, on which sample.
+ *
+ * has_irq_armed is what TimeUpdate computes at the top of a batch; the
+ * harness calls Mix() directly, so it sets it the same way. */
+enum { ARM_CORE0 = 1, ARM_CORE1 = 2 };
+
+static void arm_irq(unsigned mode, u32 irqa0, u32 irqa1)
+{
+	Cores[0].IRQEnable = (mode & ARM_CORE0) != 0;
+	Cores[1].IRQEnable = (mode & ARM_CORE1) != 0;
+	Cores[0].IRQA = irqa0;
+	Cores[1].IRQA = irqa1;
+	has_irq_armed = mode != 0;
+}
+
+static uint64_t scen_irq_with(int samples, unsigned mode)
+{
+	int v;
+	reset_core();
+	for (v = 0; v < 24; v++)
+	{
+		start_voice(0, v, 0x1000 + (u32)v * 0x400, (u16)(0x400 + v * 0x90),
+		            0x00ff, 0x1fc0, (s16)(0x3000 + v * 0x80), (s16)(0x3fff - v * 0x70));
+		start_voice(1, v, 0x20000 + (u32)v * 0x400, (u16)(0x300 + v * 0x77),
+		            0x40ff, 0x0fc0, (s16)(0x2000 + v * 0x40), (s16)(0x2fff - v * 0x30));
+	}
+	Cores[0].DryGate.SndL = Cores[0].DryGate.SndR = -1;
+	Cores[1].DryGate.SndL = Cores[1].DryGate.SndR = -1;
+	open_ext_path();
+	Cores[0].MasterVol.Left.Value = Cores[0].MasterVol.Right.Value = 0x3fff;
+	Cores[1].MasterVol.Left.Value = Cores[1].MasterVol.Right.Value = 0x3fff;
+	arm_irq(mode, 0x1080, 0x20c8);
+	return run(samples);
+}
+
+static uint64_t scen_irq_core0(int samples) { return scen_irq_with(samples, ARM_CORE0); }
+static uint64_t scen_irq_core1(int samples) { return scen_irq_with(samples, ARM_CORE1); }
+static uint64_t scen_irq_both(int samples)  { return scen_irq_with(samples, ARM_CORE0 | ARM_CORE1); }
+
 /* ------------------------------------------------------------------ */
 
 struct Scenario
@@ -596,6 +671,12 @@ struct Scenario
 	const char *name;
 	uint64_t (*fn)(int);
 	uint64_t expect;
+	/* Expected IRQ trace, and the least number of events per 48000
+	 * samples that makes the scenario worth anything. Zero means the
+	 * scenario arms nothing and must raise nothing -- if it starts
+	 * raising, it stopped being the scenario it was pinned as. */
+	uint64_t irq_expect;
+	long     irq_min;
 };
 
 int main(int argc, char **argv)
@@ -607,6 +688,7 @@ int main(int argc, char **argv)
 	int print   = (argc > 2 && strcmp(argv[2], "--print") == 0);
 	int verbose = (argc > 2 && strcmp(argv[2], "--verbose") == 0);
 	int i, bad = 0;
+	long want_irq;
 
 	/* Pinned from the tree as it stands, at the default 48000 samples.
 	 * A change to the mixer that is meant to be bit-exact leaves every one
@@ -622,6 +704,9 @@ int main(int argc, char **argv)
 		{ "regwrite",    scen_regwrite,    0x15ab243a6adc9545ull },
 		{ "freeze",      scen_freeze,      0xe535aab6afa7feb5ull },
 		{ "dcblock",     scen_dcblock,     0xa91c0091521349d7ull },
+		{ "irq core0",   scen_irq_core0,   0xd1cc2bff72a54041ull, 0x6af4e44cd4de5303ull, 64 },
+		{ "irq core1",   scen_irq_core1,   0xd1cc2bff72a54041ull, 0xebf3646609c9ad64ull, 64 },
+		{ "irq both",    scen_irq_both,    0xd1cc2bff72a54041ull, 0x94ff439f689ff454ull, 128 },
 	};
 
 	/* The DSP is compiled as C and this harness as C++; if the two
@@ -684,18 +769,54 @@ int main(int argc, char **argv)
 			bad++;
 			continue;
 		}
+		/* An IRQ scenario whose addresses stopped being crossed hashes
+		 * a clean trace of nothing, which would pass forever. */
+		want_irq = scen[i].irq_min * (long)samples / 48000;
+		if (scen[i].irq_min && want_irq < 1)
+			want_irq = 1;
+		if (g_irq_events < want_irq)
+		{
+			printf("  %-12s %ld IRQ events, wanted at least %ld -- "
+			       "the armed addresses are not being reached\n",
+			       scen[i].name, g_irq_events, want_irq);
+			bad++;
+			continue;
+		}
+		if (scen[i].irq_min == 0 && g_irq_events != 0)
+		{
+			printf("  %-12s raised %ld IRQs with nothing armed\n",
+			       scen[i].name, g_irq_events);
+			bad++;
+			continue;
+		}
 		if (print)
-			printf("  { \"%s\", %016llx },\n", scen[i].name,
-			       (unsigned long long)h);
+			printf("  { \"%s\", %016llx, %016llx },\n", scen[i].name,
+			       (unsigned long long)h,
+			       (unsigned long long)g_irq_hash);
 		else if (scen[i].expect == 0)
-			printf("  %-12s %016llx  (unpinned)\n", scen[i].name,
-			       (unsigned long long)h);
+			printf("  %-12s %016llx  (unpinned)%s%016llx\n", scen[i].name,
+			       (unsigned long long)h,
+			       scen[i].irq_min ? ", IRQ " : "",
+			       (unsigned long long)(scen[i].irq_min ? g_irq_hash : 0));
 		else if (h != scen[i].expect)
 		{
 			printf("  %-12s %016llx  EXPECTED %016llx\n", scen[i].name,
 			       (unsigned long long)h, (unsigned long long)scen[i].expect);
 			bad++;
 		}
+		else if (scen[i].irq_min && scen[i].irq_expect
+		      && g_irq_hash != scen[i].irq_expect)
+		{
+			printf("  %-12s %016llx  ok, but IRQ trace %016llx EXPECTED %016llx\n",
+			       scen[i].name, (unsigned long long)h,
+			       (unsigned long long)g_irq_hash,
+			       (unsigned long long)scen[i].irq_expect);
+			bad++;
+		}
+		else if (scen[i].irq_min)
+			printf("  %-12s %016llx  ok, %ld IRQs %016llx\n", scen[i].name,
+			       (unsigned long long)h, g_irq_events,
+			       (unsigned long long)g_irq_hash);
 		else
 			printf("  %-12s %016llx  ok\n", scen[i].name,
 			       (unsigned long long)h);
