@@ -3601,6 +3601,17 @@ GSState::TextureMinMaxResult GSState::GetTextureMinMax(GIFRegTEX0 TEX0, GIFRegCL
 				GSVector4 new_st = st;
 				// Check if the UV coords are going in a different direction to the verts, if they match direction, no need to swap.
 				// Use the FST integer UV directly, otherwise derive it from the STQ coords (divided by Q).
+				//
+				// The first-vs-second compare divides both sides by the FIRST
+				// vertex's Q while the first-vs-third one below gives each
+				// vertex its own. That asymmetry is upstream's -- it is in
+				// PCSX2 master and it survived 4e1975ec8, the commit that
+				// fixed the other copy/paste slip in this function -- so it is
+				// left as is. Sharing the divisor cancels it, making the pair
+				// compare raw S, which is what a sprite wants anyway: Q is
+				// flat across one, and only the second vertex's is even valid.
+				// For a triangle it means one leg of the OR is not
+				// perspective-corrected and the other is.
 				bool u_forward_check = PRIM->FST ? (vert_first->U < vert_second->U) : ((vert_first->ST.S / vert_first->RGBAQ.Q) < (vert_second->ST.S / vert_first->RGBAQ.Q));
 				bool x_forward_check = vert_first->XYZ.X < vert_second->XYZ.X;
 

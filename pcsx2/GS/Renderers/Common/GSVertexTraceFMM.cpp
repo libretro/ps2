@@ -252,8 +252,33 @@ void GSVertexTraceFMM::FindMinMax(GSVertexTrace& vt, const void* vertex, const u
 			s = GSVector4(1 << context->TEX0.TW, 1 << context->TEX0.TH, 1, 1);
 		}
 
-		vt.m_min.t = tmin * s;
-		vt.m_max.t = tmax * s;
+		/* The texture range leaves here as floats and every consumer
+		 * turns it back into integers -- GSVector4i(m_vt.m_min.t ...),
+		 * eleven sites. That conversion is a hardware instruction, so it
+		 * is not undefined, but the two architectures disagree about
+		 * every input outside the int32 range:
+		 *
+		 *                     x86 cvttps2dq   aarch64 vcvtq_s32_f32
+		 *     +inf             INT32_MIN       INT32_MAX
+		 *     NaN              INT32_MIN       0
+		 *     1e30             INT32_MIN       INT32_MAX
+		 *
+		 * Only -inf agrees. ST/Q reaches here with whatever Q the game
+		 * wrote, and the substitutions upstream of it do not cover every
+		 * path -- the fused packed handlers keep the zero-Q FLT_MIN swap
+		 * but not the NaN one, and FLT_MIN turns a zero Q into an
+		 * infinite quotient rather than a finite one. So the same draw
+		 * picked a different texture rect depending on the host.
+		 *
+		 * Bounding it once here, where the range is produced, is what
+		 * makes all eleven defined: a NaN becomes zero by the same blend
+		 * both architectures spell identically, and the rest saturate to
+		 * the largest float below 2^31, which converts exactly. Three
+		 * vector operations per draw, and nothing inside the range
+		 * moves. */
+		const GSVector4 t_lim = GSVector4::cxpr(2147483520.0f);
+		vt.m_min.t = (tmin * s).replace_nan(GSVector4::zero()).sat(-t_lim, t_lim);
+		vt.m_max.t = (tmax * s).replace_nan(GSVector4::zero()).sat(-t_lim, t_lim);
 	}
 	else
 	{
