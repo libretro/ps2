@@ -21,6 +21,8 @@
 #include <cfloat> /* FLT_MAX */
 #include <cmath>
 
+#include "common/MathUtils.h"
+
 #include <retro_atomic.h>
 
 
@@ -1709,8 +1711,12 @@ void GSState::CheckWriteOverlap(bool req_write, bool req_read)
 						const float s = pcsx2_min_f((v->ST.S / v->RGBAQ.Q), 1.0f);
 						const float t = pcsx2_min_f((v->ST.T / v->RGBAQ.Q), 1.0f);
 
-						tex_coord.x = static_cast<int>(std::round((1 << m_context->TEX0.TW) * s));
-						tex_coord.y = static_cast<int>(std::round((1 << m_context->TEX0.TH) * t));
+						/* pcsx2_min_f is (a < b) ? a : b, so it returns 1.0f
+						 * for a NaN and for an infinity and bounds s above.
+						 * Nothing bounds it below: a zero Q with a negative
+						 * S gives -inf, and the cast is undefined there. */
+						tex_coord.x = f32_to_s32_sat(std::round((1 << m_context->TEX0.TW) * s));
+						tex_coord.y = f32_to_s32_sat(std::round((1 << m_context->TEX0.TH) * t));
 					}
 
 					if (i == 0)
@@ -3017,8 +3023,8 @@ __noinline void GSState::HandleAutoFlush()
 			const float s = pcsx2_min_f((m_v.ST.S / m_v.RGBAQ.Q), 1.0f);
 			const float t = pcsx2_min_f((m_v.ST.T / m_v.RGBAQ.Q), 1.0f);
 
-			tex_coord.x = static_cast<int>((1 << m_context->TEX0.TW) * s);
-			tex_coord.y = static_cast<int>((1 << m_context->TEX0.TH) * t);
+			tex_coord.x = f32_to_s32_sat((1 << m_context->TEX0.TW) * s);
+			tex_coord.y = f32_to_s32_sat((1 << m_context->TEX0.TH) * t);
 		}
 
 		GSVector4i tex_rect = tex_coord.xyxy();
@@ -3040,8 +3046,8 @@ __noinline void GSState::HandleAutoFlush()
 				const float s = pcsx2_min_f((v->ST.S / v->RGBAQ.Q), 1.0f);
 				const float t = pcsx2_min_f((v->ST.T / v->RGBAQ.Q), 1.0f);
 
-				tex_coord.x = static_cast<int>(std::round((1 << m_context->TEX0.TW) * s));
-				tex_coord.y = static_cast<int>(std::round((1 << m_context->TEX0.TH) * t));
+				tex_coord.x = f32_to_s32_sat(std::round((1 << m_context->TEX0.TW) * s));
+				tex_coord.y = f32_to_s32_sat(std::round((1 << m_context->TEX0.TH) * t));
 			}
 
 			tex_rect.x = pcsx2_min_f(tex_rect.x, tex_coord.x);
@@ -3070,8 +3076,8 @@ __noinline void GSState::HandleAutoFlush()
 			const float s = pcsx2_min_f((v->ST.S / v->RGBAQ.Q), 1.0f);
 			const float t = pcsx2_min_f((v->ST.T / v->RGBAQ.Q), 1.0f);
 
-			tex_coord.x = static_cast<int>(std::round((1 << m_context->TEX0.TW) * s));
-			tex_coord.y = static_cast<int>(std::round((1 << m_context->TEX0.TH) * t));
+			tex_coord.x = f32_to_s32_sat(std::round((1 << m_context->TEX0.TW) * s));
+			tex_coord.y = f32_to_s32_sat(std::round((1 << m_context->TEX0.TH) * t));
 		}
 
 		const int clamp_minu = m_context->CLAMP.MINU;
