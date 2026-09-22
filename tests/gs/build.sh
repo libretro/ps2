@@ -29,6 +29,13 @@ g++ -O2 -std=c++17 -msse4.1 -o "$DIR/gs_float_convert" "$DIR/gs_float_convert.cp
 g++ -O2 -std=c++17 -o "$DIR/gs_divisors" "$DIR/gs_divisors.cpp"
 "$DIR/gs_divisors"
 
+# Table indices that come from GS register fields. Only the three where the
+# field's range does not already match the table; each check is paired with
+# one that the unguarded form really does escape, so a guard that stopped
+# guarding anything fails here rather than passing quietly.
+g++ -O2 -std=c++17 -o "$DIR/gs_reg_index" "$DIR/gs_reg_index.cpp"
+"$DIR/gs_reg_index"
+
 # The two benchmarks below build with the flags the core ships with. __fi is
 # always_inline only under NDEBUG, so at plain -O2 the kernels they time are
 # not the kernels the emulator runs.

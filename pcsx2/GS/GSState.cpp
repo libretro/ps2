@@ -2542,6 +2542,18 @@ int GSState::Defrost(const freezeData* fd)
 		m_env.CTXT[i].XYOFFSET.OFX &= 0xffff;
 		m_env.CTXT[i].XYOFFSET.OFY &= 0xffff;
 
+		// GIFRegHandlerALPHA clamps these four to 2 on the way in, and the
+		// blend index is built as ((A * 3 + B) * 3 + C) * 3 + D against an
+		// 81-entry table, so the clamp is what keeps it in range. Restoring
+		// the register raw skipped it: these are 2-bit fields, so a state
+		// holding 3 in each reaches 120 and reads thirty-nine entries past
+		// the end of the table, and a savestate is not something the
+		// emulator gets to trust.
+		m_env.CTXT[i].ALPHA.A = pcsx2_min_i(m_env.CTXT[i].ALPHA.A, 2U);
+		m_env.CTXT[i].ALPHA.B = pcsx2_min_i(m_env.CTXT[i].ALPHA.B, 2U);
+		m_env.CTXT[i].ALPHA.C = pcsx2_min_i(m_env.CTXT[i].ALPHA.C, 2U);
+		m_env.CTXT[i].ALPHA.D = pcsx2_min_i(m_env.CTXT[i].ALPHA.D, 2U);
+
 		if (version <= 4)
 			data += sizeof(u32) * 7; // skip
 	}
@@ -4225,12 +4237,12 @@ GSVector2i GSState::GSPCRTCRegs::NearestToZeroOffset()
 		}
 	}
 
-	if (abs(PCRTCDisplays[0].displayOffset.x - VideoModeOffsets[videomode].z) <
-		abs(PCRTCDisplays[1].displayOffset.x - VideoModeOffsets[videomode].z))
+	if (abs(PCRTCDisplays[0].displayOffset.x - VideoModeOffsets[VideoModeRow()].z) <
+		abs(PCRTCDisplays[1].displayOffset.x - VideoModeOffsets[VideoModeRow()].z))
 		returnValue.x = 0;
 
 	// When interlaced, the vertical base offset is doubled
-	const int verticalOffset = VideoModeOffsets[videomode].w * (1 << interlaced);
+	const int verticalOffset = VideoModeOffsets[VideoModeRow()].w * (1 << interlaced);
 
 	if (abs(PCRTCDisplays[0].displayOffset.y - verticalOffset) <
 		abs(PCRTCDisplays[1].displayOffset.y - verticalOffset))
@@ -4284,7 +4296,7 @@ GSVector2i GSState::GSPCRTCRegs::GetResolution()
 {
 	GSVector2i resolution;
 
-	const GSVector4i offsets = !GSConfig.PCRTCOverscan ? VideoModeOffsets[videomode] : VideoModeOffsetsOverscan[videomode];
+	const GSVector4i offsets = !GSConfig.PCRTCOverscan ? VideoModeOffsets[VideoModeRow()] : VideoModeOffsetsOverscan[VideoModeRow()];
 	const bool is_full_height = interlaced || (toggling_field && GSConfig.InterlaceMode != GSInterlaceMode::Off);
 
 	if (!GSConfig.PCRTCOffsets)
@@ -4586,7 +4598,7 @@ int GSState::GSPCRTCRegs::GetFramebufferBitDepth()
 
 GSVector2i GSState::GSPCRTCRegs::GetFramebufferSize(int display)
 {
-	int max_height = !GSConfig.PCRTCOverscan ? VideoModeOffsets[videomode].y : VideoModeOffsetsOverscan[videomode].y;
+	int max_height = !GSConfig.PCRTCOverscan ? VideoModeOffsets[VideoModeRow()].y : VideoModeOffsetsOverscan[VideoModeRow()].y;
 
 	if (!(FFMD && interlaced))
 		max_height *= 2;
@@ -4694,13 +4706,13 @@ void GSState::GSPCRTCRegs::SetRects(int display, GSRegDISPLAY displayReg, GSRegD
 	// When using screen offsets the screen gets squashed/resized in to the actual screen size.
 	if (GSConfig.PCRTCOffsets)
 	{
-		finalDisplayWidth = DW / (VideoModeDividers[videomode].x + 1);
-		finalDisplayHeight = DH / (VideoModeDividers[videomode].y + 1);
+		finalDisplayWidth = DW / (VideoModeDividers[VideoModeRow()].x + 1);
+		finalDisplayHeight = DH / (VideoModeDividers[VideoModeRow()].y + 1);
 	}
 	else
 	{
-		finalDisplayWidth = pcsx2_min_f(finalDisplayWidth, DW / (VideoModeDividers[videomode].x + 1));
-		finalDisplayHeight = pcsx2_min_f(finalDisplayHeight, DH / (VideoModeDividers[videomode].y + 1));
+		finalDisplayWidth = pcsx2_min_f(finalDisplayWidth, DW / (VideoModeDividers[VideoModeRow()].x + 1));
+		finalDisplayHeight = pcsx2_min_f(finalDisplayHeight, DH / (VideoModeDividers[VideoModeRow()].y + 1));
 	}
 
 	// Framebuffer size and offsets.
@@ -4860,7 +4872,7 @@ void GSState::GSPCRTCRegs::CalculateDisplayOffset(bool scanmask)
 	// Offsets are generally ignored, the "hacky" way of doing the displays, but direct to framebuffers.
 	if (!GSConfig.PCRTCOffsets)
 	{
-		const GSVector4i offsets = !GSConfig.PCRTCOverscan ? VideoModeOffsets[videomode] : VideoModeOffsetsOverscan[videomode];
+		const GSVector4i offsets = !GSConfig.PCRTCOverscan ? VideoModeOffsets[VideoModeRow()] : VideoModeOffsetsOverscan[VideoModeRow()];
 		int int_off[2]           = { 0, 0 };
 		GSVector2i zeroDisplay   = NearestToZeroOffset();
 		GSVector2i baseOffset    = PCRTCDisplays[zeroDisplay.y].displayOffset;
@@ -4884,7 +4896,7 @@ void GSState::GSPCRTCRegs::CalculateDisplayOffset(bool scanmask)
 				continue;
 
 			// Should this be MAGV/H in the DISPLAY register rather than the "default" magnification?
-			const int offset = (PCRTCDisplays[i].displayOffset.y - (offsets.w * (interlaced + 1))) / (VideoModeDividers[videomode].y + 1);
+			const int offset = (PCRTCDisplays[i].displayOffset.y - (offsets.w * (interlaced + 1))) / (VideoModeDividers[VideoModeRow()].y + 1);
 
 			if (offset > 4)
 				continue;
@@ -4902,8 +4914,8 @@ void GSState::GSPCRTCRegs::CalculateDisplayOffset(bool scanmask)
 		if (both_enabled)
 		{
 			GSVector2i offset = {
-				(PCRTCDisplays[1 - zeroDisplay.x].displayOffset.x - PCRTCDisplays[zeroDisplay.x].displayOffset.x) / (VideoModeDividers[videomode].x + 1),
-				(PCRTCDisplays[1 - zeroDisplay.y].displayOffset.y - PCRTCDisplays[zeroDisplay.y].displayOffset.y) / (VideoModeDividers[videomode].y + 1)
+				(PCRTCDisplays[1 - zeroDisplay.x].displayOffset.x - PCRTCDisplays[zeroDisplay.x].displayOffset.x) / (VideoModeDividers[VideoModeRow()].x + 1),
+				(PCRTCDisplays[1 - zeroDisplay.y].displayOffset.y - PCRTCDisplays[zeroDisplay.y].displayOffset.y) / (VideoModeDividers[VideoModeRow()].y + 1)
 			};
 
 			if (offset.x >= 4 || !GSConfig.PCRTCAntiBlur || scanmask)
@@ -4923,7 +4935,7 @@ void GSState::GSPCRTCRegs::CalculateDisplayOffset(bool scanmask)
 		// Handle any large vertical offset from the zero position on the screen.
 		// Example: Hokuto no Ken, does a rougly -14 offset to bring the screen up.
 		// Ignore the lowest bit, we've already accounted for this
-		int vOffset = ((static_cast<int>(baseOffset.y) - (offsets.w * (interlaced + 1))) / (VideoModeDividers[videomode].y + 1));
+		int vOffset = ((static_cast<int>(baseOffset.y) - (offsets.w * (interlaced + 1))) / (VideoModeDividers[VideoModeRow()].y + 1));
 
 		if(vOffset <= 4 && vOffset != 0)
 		{
@@ -4935,7 +4947,7 @@ void GSState::GSPCRTCRegs::CalculateDisplayOffset(bool scanmask)
 	}
 	else // We're using screen offsets, so just calculate the entire offset.
 	{
-		const GSVector4i offsets = !GSConfig.PCRTCOverscan ? VideoModeOffsets[videomode] : VideoModeOffsetsOverscan[videomode];
+		const GSVector4i offsets = !GSConfig.PCRTCOverscan ? VideoModeOffsets[VideoModeRow()] : VideoModeOffsetsOverscan[VideoModeRow()];
 		GSVector2i zeroDisplay = NearestToZeroOffset();
 
 		if (both_enabled)
@@ -4954,8 +4966,8 @@ void GSState::GSPCRTCRegs::CalculateDisplayOffset(bool scanmask)
 		{
 			// Should this be MAGV/H in the DISPLAY register rather than the "default" magnification?
 			const GSVector2i offset = {
-				(static_cast<int>(PCRTCDisplays[i].displayOffset.x) - offsets.z) / (VideoModeDividers[videomode].x + 1),
-				(static_cast<int>(PCRTCDisplays[i].displayOffset.y) - (offsets.w * (interlaced + 1))) / (VideoModeDividers[videomode].y + 1)
+				(static_cast<int>(PCRTCDisplays[i].displayOffset.x) - offsets.z) / (VideoModeDividers[VideoModeRow()].x + 1),
+				(static_cast<int>(PCRTCDisplays[i].displayOffset.y) - (offsets.w * (interlaced + 1))) / (VideoModeDividers[VideoModeRow()].y + 1)
 			};
 
 			PCRTCDisplays[i].displayRect.x += offset.x;

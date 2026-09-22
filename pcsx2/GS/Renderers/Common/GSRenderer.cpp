@@ -182,15 +182,20 @@ bool GSState::Merge(int field)
 		GSVector4 scale = GSVector4(tex_scale[2]);
 		GSVector4i feedback_rect;
 
+		// FBIN selects which of the two displays feeds the write-back, but
+		// it is a 2-bit field and DISP has two entries, so the two spare
+		// values index past the end and read the registers that follow as
+		// if they were a DISPLAY. GSRendererHW::GetFeedbackOutput masks it;
+		// these two did not.
+		const GSRegDISPLAY& feedback_disp = m_regs->DISP[m_regs->EXTBUF.FBIN & 1].DISPLAY;
+
 		// SMPH/SMPV and MAGH/MAGV are 4- and 2-bit fields, so they promote
 		// to int and the subtraction is signed: a game writing a
 		// magnification above the sampling rate makes the ratio -1 and the
 		// divisor zero. The ratio is a downsample factor and is never less
 		// than one on hardware.
-		const int downsample_h = pcsx2_max_i(1,
-			(int)(m_regs->EXTDATA.SMPH - m_regs->DISP[m_regs->EXTBUF.FBIN].DISPLAY.MAGH) + 1);
-		const int downsample_v = pcsx2_max_i(1,
-			(int)(m_regs->EXTDATA.SMPV - m_regs->DISP[m_regs->EXTBUF.FBIN].DISPLAY.MAGV) + 1);
+		const int downsample_h = pcsx2_max_i(1, (int)(m_regs->EXTDATA.SMPH - feedback_disp.MAGH) + 1);
+		const int downsample_v = pcsx2_max_i(1, (int)(m_regs->EXTDATA.SMPV - feedback_disp.MAGV) + 1);
 
 		feedback_rect.left = m_regs->EXTBUF.WDX;
 		feedback_rect.right = feedback_rect.left + ((m_regs->EXTDATA.WW + 1) / downsample_h);

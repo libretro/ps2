@@ -391,6 +391,10 @@ public:
 			__fi int Block() const { return FBP << 5; }
 		};
 
+		// One less than the GSVideoMode enumerator, so that the six named
+		// modes index the six-row VideoMode* tables directly. Unknown has
+		// no row and lands on -1; read it through VideoModeRow() rather
+		// than subscripting with it. IsAnalogue() wants the raw value.
 		int videomode = 0;
 		int interlaced = 0;
 		int FFMD = 0;
@@ -399,6 +403,14 @@ public:
 		PCRTCDisplay PCRTCDisplays[2] = {};
 
 		bool IsAnalogue();
+
+		// The row of the VideoMode* tables to read for the current mode.
+		// GetVideoMode() returns Unknown whenever SMODE1.CMOD holds a value
+		// identifying no colorburst -- a 2-bit field, so a game can write
+		// one -- and Unknown has no row of its own, so it reads as NTSC.
+		// Without this the subtraction above gave -1 and every one of the
+		// table reads went an element before the start.
+		__fi int VideoModeRow() const { return (videomode < 0) ? 0 : videomode; }
 
 		// Calculates which display is closest to matching zero offsets in either direction.
 		GSVector2i NearestToZeroOffset();

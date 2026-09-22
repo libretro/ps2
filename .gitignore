@@ -122,6 +122,7 @@ build*/
 /tests/gs/gs_fmm_bench
 /tests/gs/gs_float_convert
 /tests/gs/gs_divisors
+/tests/gs/gs_reg_index
 /tests/spsc/spsc_test_tsan
 /tests/spsc/spsc_test.exe
 /tests/faultstress/fault_test
