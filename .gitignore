@@ -148,3 +148,4 @@ pcsx2/GameDatabaseBuiltin.cpp
 /tests/mtgsown/mtgsown_tsan
 /.build-tag
 tests/ipu/_streams/
+tests/gsregion/gs_region_repeat

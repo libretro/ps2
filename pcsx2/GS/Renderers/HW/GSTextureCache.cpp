@@ -7002,8 +7002,14 @@ GSTextureCache::SourceRegion GSTextureCache::SourceRegion::Create(GIFRegTEX0 TEX
 		// Lupin the 3rd is really evil, it sets TW/TH to the texture size, but then uses region repeat
 		// to offset the actual texture data to elsewhere. So, we'll just force any cases like this down
 		// the region texture path.
+		// rw is the width of the window [MAXU, MINU|MAXU], and one past the mask bits that still vary
+		// with u once MAXU has been OR'd in. Cropping to that window and letting the sampler repeat
+		// across it reproduces (u & MINU) | MAXU only when those bits form a contiguous run, that is,
+		// when rw is a power of two. Otherwise the window covers texels the hardware never addresses,
+		// so leave the region unset and let EmulateTextureSampler keep the exact shader path.
 		const u32 rw = ((CLAMP.MINU | CLAMP.MAXU) - CLAMP.MAXU) + 1;
-		if (rw < (1u << TEX0.TW) || (CLAMP.MAXU != 0 && (rw <= (1u << TEX0.TW))))
+		if ((rw & (rw - 1)) == 0 &&
+			(rw < (1u << TEX0.TW) || (CLAMP.MAXU != 0 && (rw <= (1u << TEX0.TW)))))
 			region.SetX(CLAMP.MAXU, (CLAMP.MINU | CLAMP.MAXU) + 1);
 	}
 	if (CLAMP.WMT == CLAMP_REGION_CLAMP && CLAMP.MAXV >= CLAMP.MINV)
@@ -7015,7 +7021,8 @@ GSTextureCache::SourceRegion GSTextureCache::SourceRegion::Create(GIFRegTEX0 TEX
 	else if (CLAMP.WMT == CLAMP_REGION_REPEAT && CLAMP.MINV != 0)
 	{
 		const u32 rh = ((CLAMP.MINV | CLAMP.MAXV) - CLAMP.MAXV) + 1;
-		if (rh < (1u << TEX0.TH) || (CLAMP.MAXV != 0 && (rh <= (1u << TEX0.TH))))
+		if ((rh & (rh - 1)) == 0 &&
+			(rh < (1u << TEX0.TH) || (CLAMP.MAXV != 0 && (rh <= (1u << TEX0.TH)))))
 			region.SetY(CLAMP.MAXV, (CLAMP.MINV | CLAMP.MAXV) + 1);
 	}
 
