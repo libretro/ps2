@@ -171,5 +171,29 @@ bool vuMicroFreeze(SaveStateBase *s)
 	SaveState_Freeze(s, vuRegs[1].ialuwritepos);
 	SaveState_Freeze(s, vuRegs[1].ialucount);
 
+	/* The four pipeline positions index fmac[4] and ialu[4], and every
+	 * runtime step masks with & 3 -- but after the access, not before it,
+	 * and the loops that walk the pipelines take the unmasked value as
+	 * their starting index. So the first use after a load is of whatever
+	 * the state said, and _vuClearFMAC memsets a whole fmacPipe at it.
+	 * The counts are loop bounds over the same arrays. */
+	if (SaveState_IsLoading(s))
+	{
+		u32 i;
+
+		for (i = 0; i < 2; i++)
+		{
+			vuRegs[i].fmacreadpos  &= 3;
+			vuRegs[i].fmacwritepos &= 3;
+			vuRegs[i].ialureadpos  &= 3;
+			vuRegs[i].ialuwritepos &= 3;
+
+			if (vuRegs[i].fmaccount > 4)
+				vuRegs[i].fmaccount = 0;
+			if (vuRegs[i].ialucount > 4)
+				vuRegs[i].ialucount = 0;
+		}
+	}
+
 	return SaveState_IsOkay(s);
 }

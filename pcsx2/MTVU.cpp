@@ -71,10 +71,16 @@ bool mtvuFreeze(SaveStateBase *s)
 		vu1Thread.WriteVIRegs(&vuRegs[1].VI[0]);
 		vu1Thread.WriteVFRegs(&vuRegs[1].VF[0]);
 	}
+	/* The three fields below each load, freeze and then store back. This
+	 * one only loaded and froze, so on the way in the file's value went
+	 * into a local and was dropped, leaving vuCycles at the zeros Reset
+	 * had just written -- the cycle estimate reads zero for the first few
+	 * programs after every load. */
 	for (size_t i = 0; i < 4; ++i)
 	{
 		unsigned int v = (unsigned int)retro_atomic_load_acquire_int(&vu1Thread.vuCycles[i]);
 		SaveState_Freeze(s, v);
+		retro_atomic_store_release_int(&vu1Thread.vuCycles[i], (int)v);
 	}
 
 	u32 gsInterrupts = (u32)retro_atomic_load_acquire_int(&vu1Thread.mtvuInterrupts);
@@ -87,7 +93,13 @@ bool mtvuFreeze(SaveStateBase *s)
 	SaveState_Freeze(s, gsLabel);
 	retro_atomic_store_release_64(&vu1Thread.gsLabel, (int64_t)gsLabel);
 
+	/* Indexes vuCycles[4] on the VU thread, and the & 3 there happens after
+	 * the store rather than before it, so a restored value is used raw
+	 * once -- as the destination of a write, from a thread that is not
+	 * this one. */
 	SaveState_Freeze(s, vu1Thread.vuCycleIdx);
+	if (SaveState_IsLoading(s))
+		vu1Thread.vuCycleIdx &= 3;
 
 	return SaveState_IsOkay(s);
 }

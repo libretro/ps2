@@ -106,6 +106,14 @@ for CC in gcc clang; do
 	$CXX -O2 "$TMP/maincxx.o" "$TMP/ss.o" "$TMP/strl.o" -o "$TMP/savestate_test_cxx"
 	"$TMP/savestate_test_cxx"
 
+	# The bounds each freeze function re-establishes on the way in. Widths
+	# rather than the existence of a clamp: several consumers mask after the
+	# access, so a mask one bit too wide still runs off the end.
+	echo "--- $CC (restore bounds) ---"
+	$CC  -O2 -std=gnu89 -Wall -Wextra $INC -c "$DIR/restore_bounds.c" -o "$TMP/rb.o"
+	$CC  -O2 "$TMP/rb.o" "$TMP/ss.o" "$TMP/strl.o" -o "$TMP/restore_bounds_test"
+	"$TMP/restore_bounds_test"
+
 	# sio2Freeze's fifo serialisation, against the real SioFifo
 	echo "--- $CXX (sio fifo) ---"
 	$CXX -O2 -std=c++17 -Wall -Wextra $INC -I"$ROOT/3rdparty" \

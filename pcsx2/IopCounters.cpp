@@ -741,7 +741,22 @@ bool psxRcntFreeze(SaveStateBase *s)
 		return false;
 
 	if (SaveState_IsLoading(s))
+	{
+		int i;
+
+		/* rate divides the elapsed cycles in psxRcntUpdate, which is the
+		 * very next thing this function calls. The guards there are
+		 * against PSXHBLANK and against 1 -- the two values that mean
+		 * "do not divide" -- and never against zero, because the runtime
+		 * only ever assigns a rate it computed. 1 is the neutral one. */
+		for (i = 0; i < NUM_COUNTERS; i++)
+		{
+			if (!psxCounters[i].rate)
+				psxCounters[i].rate = 1;
+		}
+
 		psxRcntUpdate();
+	}
 
 	return true;
 }

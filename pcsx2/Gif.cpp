@@ -82,7 +82,10 @@ void GIF_Fifo::init()
 
 int GIF_Fifo::write_fifo(u32* pMem, int size)
 {
-	if (fifoSize == 16)
+	/* >= rather than ==: the difference only shows if fifoSize ever exceeds
+	 * 16, which the runtime does not do, but an equality test turns that
+	 * into a negative transfer size rather than a refusal. */
+	if (fifoSize >= 16)
 		return 0;
 
 	int transferSize = pcsx2_min_i(size, 16 - (int)fifoSize);
@@ -739,6 +742,13 @@ bool gifDmaFreeze(SaveStateBase *s)
 
 	SaveState_Freeze(s, gif);
 	SaveState_Freeze(s, gif_fifo);
+
+	/* fifoSize counts quadwords in a 16-entry fifo and the runtime never
+	 * lets it past 16, so write_fifo tests it for equality. A restored 17
+	 * walks straight through that test and makes the transfer size
+	 * negative. */
+	if (SaveState_IsLoading(s) && gif_fifo.fifoSize > 16)
+		gif_fifo.fifoSize = 0;
 
 	return SaveState_IsOkay(s);
 }

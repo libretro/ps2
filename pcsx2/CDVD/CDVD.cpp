@@ -886,6 +886,30 @@ bool cdvdFreeze(SaveStateBase *s)
 
 	if (SaveState_IsLoading(s))
 	{
+		/* mg_size and mg_maxsize bound each other in sceMgWriteData --
+		 * "if (mg_size + SCMDParamCnt > mg_maxsize)" -- so with both
+		 * taken from the state the check is self-consistent and decides
+		 * nothing. mg_size is also the length of the move in
+		 * sceMgReadData. Neither can exceed the buffer they describe. */
+		if (cdvd.mg_maxsize < 0 || cdvd.mg_maxsize > (int)sizeof(cdvd.mg_buffer))
+			cdvd.mg_maxsize = (int)sizeof(cdvd.mg_buffer);
+		if (cdvd.mg_size < 0 || cdvd.mg_size > cdvd.mg_maxsize)
+			cdvd.mg_size = 0;
+
+		/* The result cursor walks a 16-byte buffer. Every runtime
+		 * assignment to the count is a literal 1..16, so the bound holds
+		 * by construction and is never enforced -- and what follows
+		 * SCMDResultBuff in this struct is the CDVD key material, handed
+		 * back a byte at a time through the register read. */
+		if (cdvd.SCMDResultCnt > sizeof(cdvd.SCMDResultBuff))
+			cdvd.SCMDResultCnt = 0;
+		if (cdvd.SCMDResultPos > cdvd.SCMDResultCnt)
+			cdvd.SCMDResultPos = cdvd.SCMDResultCnt;
+		if (cdvd.SCMDParamCnt > sizeof(cdvd.SCMDParamBuff))
+			cdvd.SCMDParamCnt = 0;
+		if (cdvd.SCMDParamPos > cdvd.SCMDParamCnt)
+			cdvd.SCMDParamPos = cdvd.SCMDParamCnt;
+
 		// Make sure the Cdvd source has the expected track loaded into the buffer.
 		// If cdvd.SeekCompleted is cleared it means we need to load the SeekToSector (ie, a
 		// seek is in progress!)

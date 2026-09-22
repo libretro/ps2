@@ -1017,7 +1017,30 @@ bool rcntFreeze(SaveStateBase *s)
 	SaveState_Freeze(s, gates);
 
 	if (SaveState_IsLoading(s))
+	{
+		int i;
+
+		/* rate is a divisor -- rcntRcount and the update path all divide
+		 * the elapsed cycles by it -- and it is never written directly,
+		 * only derived from the mode register's clock source. Restoring
+		 * it raw allows a zero, which is a trap on x86 the moment the
+		 * counters next tick. Derive it again from the mode that came
+		 * back with it, exactly as rcntWmode does. */
+		for (i = 0; i < 4; i++)
+		{
+			switch (counters[i].mode.ClockSource)
+			{
+				case 0:  counters[i].rate = 2; break;
+				case 1:  counters[i].rate = 32; break;
+				case 2:  counters[i].rate = 512; break;
+				default: counters[i].rate = vSyncInfo.hBlank + vSyncInfo.hRender; break;
+			}
+			if (!counters[i].rate)
+				counters[i].rate = 2;
+		}
+
 		cpuRcntSet();
+	}
 
 	return SaveState_IsOkay(s);
 }

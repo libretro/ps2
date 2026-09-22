@@ -132,6 +132,60 @@ bool ipuFreeze(SaveStateBase *s)
 	SaveState_Freeze(s, ipu_cmd);
 	SaveState_Freeze(s, IPUCoreStatus);
 
+	/* Resuming a half-finished IPU command out of a state is the designed
+	 * behaviour, so all of the above is live state rather than a snapshot
+	 * of something idle -- and none of it is range-checked on the way in.
+	 * The runtime keeps every one of these in range by construction, which
+	 * is exactly why the code that consumes them does not check. */
+	if (SaveState_IsLoading(s))
+	{
+		/* The fifo positions index a 32-entry quadword buffer and are
+		 * masked only after each step, so the first use after a load is
+		 * of the restored value: the read takes 16 bytes from
+		 * &data[readpos], and the write derives its length from
+		 * 32 - writepos, which a negative position turns into a copy far
+		 * below the buffer. Both walk in quadwords, hence 28 rather
+		 * than 31 -- 31 would leave the last read straddling the end. */
+		ipu_fifo.in.readpos   &= 28;
+		ipu_fifo.in.writepos  &= 28;
+		ipu_fifo.out.readpos  &= 28;
+		ipu_fifo.out.writepos &= 28;
+
+		/* ipu_bp.h documents these ranges in the struct itself. FP
+		 * indexes internal_qwc[2] as the destination of a quadword copy,
+		 * and the loop that fills it is bounded by BP, so an oversized
+		 * pair walks FP off the end of a two-element array. IFC is what
+		 * stops that loop early. */
+		if (g_BP.FP > 2)
+			g_BP.FP = 0;
+		if (g_BP.IFC > 8)
+			g_BP.IFC = 0;
+		if (g_BP.BP >= 128)
+			g_BP.BP = 0;
+
+		/* ipu0_idx is a quadword offset from mb8 into the macroblock
+		 * buffers that follow it, and ipu_decoder_data_ptr turns it into
+		 * the source of a copy to the output fifo. The runtime only ever
+		 * sets it from the address of one of those buffers. */
+		{
+			const u32 span = (u32)((offsetof(decoder_t, rgb16)
+				+ sizeof(decoder.rgb16) - offsetof(decoder_t, mb8)) / 16);
+
+			if (decoder.ipu0_idx >= span || decoder.ipu0_data > span
+			    || decoder.ipu0_idx + decoder.ipu0_data > span)
+			{
+				decoder.ipu0_idx  = 0;
+				decoder.ipu0_data = 0;
+			}
+		}
+
+		/* index is the macroblock counter a resumed CSC picks up from,
+		 * and it is compared against a count with <, so a negative one
+		 * runs the loop billions of times. */
+		if (ipu_cmd.index < 0)
+			ipu_cmd.index = 0;
+	}
+
 	return SaveState_IsOkay(s);
 }
 
