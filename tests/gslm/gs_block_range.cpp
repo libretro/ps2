@@ -250,6 +250,70 @@ int main(void)
 		       "     a wrong no costs an allocation)\n");
 	}
 
+	/* The other side of both comparisons. A surface's own end block comes
+	 * from GSLocalMemory::GetEndBlockAddress, which takes the same
+	 * bottom-right corner and applies the same page-aligned repair -- so a
+	 * surface whose valid rectangle ends part way down a page gets the raw
+	 * swizzled corner, which for a Z format is below the blocks that page
+	 * holds.
+	 *
+	 * Its start needs no repair: a surface's base is TEX0.TBP0, a page
+	 * pointer rather than a swizzled block.
+	 *
+	 * Which direction is dangerous depends on who is asking, and the two
+	 * callers disagree. Too low an end hides part of the surface from
+	 * Overlaps, so a write that hits it reports as missing -- stale
+	 * pixels. But too high an end tells Inside the surface holds blocks it
+	 * may never have been drawn to. So this is reported, not repaired. */
+	printf("\n  A surface's own end block, against the blocks its rect covers:\n");
+	{
+		long low = 0, exact_n = 0, high = 0;
+
+		for (f = 0; f < sizeof(FORMATS) / sizeof(FORMATS[0]); f++)
+		{
+			const u32 psm = FORMATS[f].psm;
+			const GSLocalMemory::psm_t& p = GSLocalMemory::m_psm[psm];
+			const u32 bp = 0, bw = 4;
+			const GSOffset off = mem.GetOffset(bp, bw, psm);
+			long f_low = 0;
+
+			for (i = 0; i < sizeof(RECTS) / sizeof(RECTS[0]); i++)
+			{
+				const int left   = RECTS[i].px * p.pgs.x + RECTS[i].ox;
+				const int top    = RECTS[i].py * p.pgs.y + RECTS[i].oy;
+				const int right  = left + RECTS[i].pw * p.pgs.x;
+				const int bottom = top + RECTS[i].ph * p.pgs.y + RECTS[i].eh;
+				const GSVector4i vr = GSVector4i(left, top, right, bottom);
+				u32 hi = 0;
+				int x, y;
+				u32 got;
+
+				for (y = top & ~(p.bs.y - 1); y < bottom; y += p.bs.y)
+					for (x = left & ~(p.bs.x - 1); x < right; x += p.bs.x)
+					{
+						const u32 b = off.bnNoWrap(x, y);
+
+						if (b > hi) hi = b;
+					}
+
+				got = GSLocalMemory::GetEndBlockAddress(bp, bw, psm, vr);
+
+				if (got < hi)      { low++; f_low++; }
+				else if (got == hi) exact_n++;
+				else                high++;
+			}
+			if (f_low)
+				printf("    %-9s %ld of %u shapes end below the blocks covered\n",
+				       FORMATS[f].name, f_low,
+				       (unsigned)(sizeof(RECTS) / sizeof(RECTS[0])));
+		}
+
+		printf("    %ld below the true end, %ld exact, %ld above\n",
+		       low, exact_n, high);
+		printf("    (below hides part of a surface from Overlaps; above tells\n"
+		       "     Inside it holds blocks that may never have been drawn)\n");
+	}
+
 	/* No verdict on the count: this reports what the shortcut does, and
 	 * whether it is acceptable is a question about the callers, not about
 	 * the arithmetic. Failing here would only encode today's answer. */
