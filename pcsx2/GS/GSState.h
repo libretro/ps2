@@ -199,6 +199,11 @@ protected:
 	void UpdateContext();
 	void UpdateScissor();
 
+	// Re-applies what the GIFRegHandler* functions do to a register on the
+	// way in. Defrost restores registers with a raw copy, so none of it
+	// happens there; see the definition for why that matters.
+	void NormalizeRestoredRegs();
+
 	void UpdateVertexKick();
 
 	void GrowVertexBuffer();

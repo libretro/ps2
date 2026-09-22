@@ -36,6 +36,19 @@ g++ -O2 -std=c++17 -o "$DIR/gs_divisors" "$DIR/gs_divisors.cpp"
 g++ -O2 -std=c++17 -o "$DIR/gs_reg_index" "$DIR/gs_reg_index.cpp"
 "$DIR/gs_reg_index"
 
+# The savestate restore path re-applies what the register write handlers do.
+# The two Q scrubs are written with GSVector in GSState.cpp and re-done in
+# scalar code on the restore path, so this links the real GSVector.cpp and
+# runs the handler's own expression against the scalar one, bit pattern by
+# bit pattern -- negative zero being the case where a tidier scalar version
+# would silently disagree.
+g++ -O2 -std=c++17 -msse4.1 -o "$DIR/gs_restore_norm" "$DIR/gs_restore_norm.cpp" \
+    "$ROOT/pcsx2/GS/GSVector.cpp" \
+    -I"$ROOT" -I"$ROOT/common" -I"$ROOT/common/include" -I"$ROOT/pcsx2" \
+    -I"$ROOT/3rdparty" -I"$ROOT/3rdparty/include" \
+    -I"$ROOT/libretro/libretro-common/include"
+"$DIR/gs_restore_norm"
+
 # The two benchmarks below build with the flags the core ships with. __fi is
 # always_inline only under NDEBUG, so at plain -O2 the kernels they time are
 # not the kernels the emulator runs.

@@ -2539,21 +2539,6 @@ int GSState::Defrost(const freezeData* fd)
 		ReadState(&m_env.CTXT[i].FRAME, data);
 		ReadState(&m_env.CTXT[i].ZBUF, data);
 
-		m_env.CTXT[i].XYOFFSET.OFX &= 0xffff;
-		m_env.CTXT[i].XYOFFSET.OFY &= 0xffff;
-
-		// GIFRegHandlerALPHA clamps these four to 2 on the way in, and the
-		// blend index is built as ((A * 3 + B) * 3 + C) * 3 + D against an
-		// 81-entry table, so the clamp is what keeps it in range. Restoring
-		// the register raw skipped it: these are 2-bit fields, so a state
-		// holding 3 in each reaches 120 and reads thirty-nine entries past
-		// the end of the table, and a savestate is not something the
-		// emulator gets to trust.
-		m_env.CTXT[i].ALPHA.A = pcsx2_min_i(m_env.CTXT[i].ALPHA.A, 2U);
-		m_env.CTXT[i].ALPHA.B = pcsx2_min_i(m_env.CTXT[i].ALPHA.B, 2U);
-		m_env.CTXT[i].ALPHA.C = pcsx2_min_i(m_env.CTXT[i].ALPHA.C, 2U);
-		m_env.CTXT[i].ALPHA.D = pcsx2_min_i(m_env.CTXT[i].ALPHA.D, 2U);
-
 		if (version <= 4)
 			data += sizeof(u32) * 7; // skip
 	}
@@ -2580,6 +2565,11 @@ int GSState::Defrost(const freezeData* fd)
 
 	ReadState(&m_q, data);
 
+	// Before m_prev_env is taken, so the draw environment gets the
+	// normalised values too, and before the scissor and offset derivation
+	// below, which would otherwise be computed from raw ones.
+	NormalizeRestoredRegs();
+
 	m_prev_env = m_env;
 	PRIM = &m_env.PRIM;
 
@@ -2605,6 +2595,128 @@ int GSState::Defrost(const freezeData* fd)
 	ResetPCRTC();
 
 	return 0;
+}
+
+/* A Q that a restore brought back, made into one the handlers could have
+ * produced: a zero becomes the substitute that handler uses, and a NaN
+ * becomes FLT_MAX. The zero test is on the bit pattern, not the value,
+ * because that is what the handlers do -- so a negative zero is left alone
+ * here exactly as it is there. */
+static float ScrubRestoredQ(float q, float zero_substitute)
+{
+	u32 bits;
+	memcpy(&bits, &q, sizeof(bits));
+	if (bits == 0)
+		return zero_substitute;
+	if (q != q)
+		return FLT_MAX;
+	return q;
+}
+
+/* Every GS register a game writes goes through a GIFRegHandler, and a good
+ * many of those handlers do more than store the value: they mask a field to
+ * its real width, clamp it to a range the rest of the emulator relies on,
+ * substitute a value a particular game depends on, or maintain an invariant
+ * between two registers. Defrost restores registers with a raw copy, so none
+ * of that happens, and every one of those guarantees is silently void for the
+ * rest of the session.
+ *
+ * That is not a theoretical gap. The ALPHA clamp below is the only thing
+ * keeping a blend index inside an 81-entry table, and the two Q scrubs exist
+ * because named games emit a zero or a NaN there; a state file put all three
+ * straight back. Two registers were being re-normalised by hand here, which
+ * is how the ALPHA one came to be noticed and the other nine did not.
+ *
+ * So when a handler transforms a value, this has to transform it the same
+ * way, and a new handler that does needs a line here. What it deliberately
+ * does NOT do is improve on the handlers: the Q scrubs compare the bit
+ * pattern rather than the float, so a negative zero passes through both here
+ * and there, and that stays true until someone changes the handler. */
+void GSState::NormalizeRestoredRegs()
+{
+	for (u32 i = 0; i < 2; i++)
+	{
+		GSDrawingContext& ctx = m_env.CTXT[i];
+
+		// GIFRegHandlerXYOFFSET: OFX/OFY are declared u32, and the header
+		// states the handler is what keeps the pad bits clear.
+		ctx.XYOFFSET.OFX &= 0xffff;
+		ctx.XYOFFSET.OFY &= 0xffff;
+
+		// GIFRegHandlerALPHA: clamped to 2 because GSRendererHW builds a
+		// blend index as ((A * 3 + B) * 3 + C) * 3 + D against an 81-entry
+		// table. These are 2-bit fields, so a state holding 3 in each
+		// reaches 120 and reads thirty-nine entries past the end.
+		ctx.ALPHA.A = pcsx2_min_i(ctx.ALPHA.A, 2U);
+		ctx.ALPHA.B = pcsx2_min_i(ctx.ALPHA.B, 2U);
+		ctx.ALPHA.C = pcsx2_min_i(ctx.ALPHA.C, 2U);
+		ctx.ALPHA.D = pcsx2_min_i(ctx.ALPHA.D, 2U);
+
+		// GIFRegHandlerFRAME: FBW is clamped to 32. The field is 6 bits, so
+		// a state can ask for 63, and FRAME.FBW * 64 is a target width the
+		// texture cache allocates from.
+		ctx.FRAME.FBW = (32U < ctx.FRAME.FBW) ? 32U : ctx.FRAME.FBW;
+
+		// GIFRegHandlerFRAME: the three formats that address only part of a
+		// 32-bit pixel are rewritten to PSMCT32 with a mask that spares the
+		// rest. Berserk depends on the first of them. A saved FRAME should
+		// already hold the substituted value, so this is a no-op for any
+		// state the handler produced.
+		switch (ctx.FRAME.PSM)
+		{
+			case PSMT8H:
+				ctx.FRAME.PSM   = PSMCT32;
+				ctx.FRAME.FBMSK = 0x00FFFFFF;
+				break;
+			case PSMT4HH:
+				ctx.FRAME.PSM   = PSMCT32;
+				ctx.FRAME.FBMSK = 0x0FFFFFFF;
+				break;
+			case PSMT4HL:
+				ctx.FRAME.PSM   = PSMCT32;
+				ctx.FRAME.FBMSK = 0xF0FFFFFF;
+				break;
+			default:
+				break;
+		}
+
+		// GIFRegHandlerFRAME and GIFRegHandlerZBUF both maintain this: on
+		// hardware, a Z-format FRAME forces the Z buffer to colour
+		// swizzling. Powerdrome clears Z by relying on it. Each handler
+		// re-establishes it on every write to either register, so the pair
+		// is never seen uncoupled -- except after a restore, which brings
+		// them back independently and then derives offset.zb and
+		// offset.fzb4 from the mismatch.
+		if ((ctx.FRAME.PSM & 0x30) == 0x30)
+			ctx.ZBUF.PSM &= ~0x30;
+		else
+			ctx.ZBUF.PSM |= 0x30;
+
+		// ApplyTEX0: CPSM is restricted to 1010b. Defrost calls ApplyTEX0
+		// for the active context only, and after m_prev_env is taken, so
+		// neither copy of the other context was ever masked.
+		ctx.TEX0.CPSM &= 0xa;
+	}
+
+	// GIFPackedRegHandlerUV and GIFRegHandlerUV: UV is 10.4 fixed point in
+	// 14 bits. GSRegs.h states these handlers are what keeps the pad bits
+	// clear, and a raw restore falsifies that.
+	m_v.UV &= 0x3fff3fff;
+
+	// GIFRegHandlerRGBAQ and GIFPackedRegHandlerSTQ scrub Q on the way in,
+	// both for named games: Silent Hill emits a NaN, which breaks the
+	// min/max in GSVertexTrace, and Vexx emits a zero, which becomes a
+	// division by zero further down. A state file reintroduced both, past
+	// everything downstream that was written to assume they were gone.
+	// Substituting on the bit pattern rather than the value, as the two
+	// handlers do.
+	m_v.RGBAQ.Q = ScrubRestoredQ(m_v.RGBAQ.Q, 1.0f);
+	m_q         = ScrubRestoredQ(m_q, FLT_MIN);
+
+	// GIFRegHandlerSCANMSK latches this when the register arrives; Reset
+	// cleared it and the raw restore of SCANMSK does not set it again.
+	if (m_env.SCANMSK.MSK & 2)
+		m_scanmask_used = 2;
 }
 
 //
