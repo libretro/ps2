@@ -15,6 +15,7 @@
 
 #include "common/Align.h"
 #include "common/HashCombine.h"
+#include "common/MathUtils.h"
 
 #include "GSTextureCache.h"
 #include "GSObjectPool.h"
@@ -2889,12 +2890,17 @@ float GSTextureCache::ConvertColorToDepth(u32 c, ShaderConvert convert)
 
 u32 GSTextureCache::ConvertDepthToColor(float d, ShaderConvert convert)
 {
+	/* d is a normalised depth read back from a target, so d * 2^32 reaches
+	 * exactly 2^32 at the far plane -- one past UINT32_MAX. Converting that
+	 * with a plain cast is undefined, and the two hosts land at opposite
+	 * ends of the range: 0 on x86 and UINT32_MAX on aarch64, so the usual
+	 * far-plane clear came out black on one and white on the other. */
 	const float mult = std::exp2(g_gs_device->Features().clip_control ? 32.0f : 24.0f);
 	switch (convert)
 	{
 		case ShaderConvert::FLOAT16_TO_RGB5A1:
 		{
-			const u32 cc = static_cast<u32>(d * mult);
+			const u32 cc = f32_to_u32_sat(d * mult);
 
 			// Truely awful.
 			const GSVector4i vcc = GSVector4i(
@@ -2907,7 +2913,7 @@ u32 GSTextureCache::ConvertDepthToColor(float d, ShaderConvert convert)
 		default:
 			break;
 	}
-	return static_cast<u32>(d * mult);
+	return f32_to_u32_sat(d * mult);
 }
 
 bool GSTextureCache::CopyRGBFromDepthToColor(Target* dst, Target* depth_src)

@@ -454,6 +454,7 @@ bool GSRendererHWFunctions::SwPrimRender(GSRendererHW& hw, bool invalidate_tc, b
 		gd.sel.zpsm = GSLocalMemory::m_psm[context->ZBUF.PSM].fmt;
 		gd.sel.ztst = ztest ? context->TEST.ZTST : (int)ZTST_ALWAYS;
 		gd.sel.zequal = !!vt.m_eq.z;
+		/* Host-dependent on purpose; see the note in GSRendererSW.cpp. */
 		gd.sel.zoverflow = (u32)GSVector4i(vt.m_max.p).z == 0x80000000U;
 		gd.sel.zclamp = (u32)GSVector4i(vt.m_max.p).z > z_max;
 	}

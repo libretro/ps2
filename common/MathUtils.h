@@ -39,9 +39,10 @@
  * FLT_MIN swap but not the NaN one, and FLT_MIN turns a zero Q into an
  * infinite quotient rather than a finite one anyway.
  *
- * These two say what happens instead. The same pair exists on the
- * paraLLEl-GS side, in pgs_vertex_kernels.h, written in C89 for the
- * kernels there; keep the two in step.
+ * These say what happens instead. q_is_usable and f32_to_s32_sat are
+ * mirrored on the paraLLEl-GS side, in pgs_vertex_kernels.h, written in
+ * C89 for the kernels there; keep those two in step. f32_to_u32_sat has
+ * no counterpart there -- paraLLEl-GS converts nothing to u32 on the CPU.
  * ------------------------------------------------------------------ */
 
 /* Whether a texel coordinate can be computed from this Q at all: a zero
@@ -66,6 +67,32 @@ static PCSX2_INLINE s32 f32_to_s32_sat(float v)
 	if (v < -2147483648.0f)
 		return -2147483647 - 1;
 	return (s32)v;
+}
+
+/* float to u32, saturating, NaN to zero. The unsigned conversion is the
+ * worse of the two: it disagrees at both ends, and at values a signed
+ * conversion handles without trouble.
+ *
+ *                   x86-64      aarch64
+ *     2^32          0           UINT32_MAX
+ *     +inf          0           UINT32_MAX
+ *     NaN           0           0
+ *     -1.0          UINT32_MAX  0
+ *
+ * -1.0 is not an edge case in the sense the others are -- it is a small
+ * negative number, in range for a float and out of range only because the
+ * destination has no sign. 2^32 is what a normalised depth of exactly 1.0
+ * scales to, which is the usual far-plane clear, so it is reached by
+ * ordinary content rather than by a malformed draw. */
+static PCSX2_INLINE u32 f32_to_u32_sat(float v)
+{
+	if (v != v)
+		return 0u;
+	if (v >= 4294967296.0f)
+		return 4294967295u;
+	if (v <= 0.0f)
+		return 0u;
+	return (u32)v;
 }
 
 static PCSX2_INLINE u32 count_leading_zero(s32 n)

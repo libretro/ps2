@@ -2103,7 +2103,13 @@ void GSRendererHW::Move()
 u16 GSRendererHW::Interpolate_UV(float alpha, int t0, int t1)
 {
 	const float t = (1.0f - alpha) * t0 + alpha * t1;
-	return static_cast<u16>(t) & ~0xF; // cheap rounding
+	/* alpha comes from alpha0/alpha1, which divide by the sprite's width
+	 * or height; a degenerate sprite makes that zero and alpha infinite or
+	 * NaN. Narrowing straight to u16 is undefined then, and unsigned makes
+	 * it worse than the signed case -- the hosts disagree not only on an
+	 * infinity (0 against 0xffff) but on a small negative t, which a float
+	 * represents perfectly well and u16 cannot (0xffff against 0). */
+	return static_cast<u16>(f32_to_s32_sat(t)) & ~0xF; // cheap rounding
 }
 
 float GSRendererHW::alpha0(int L, int X0, int X1)
@@ -5948,8 +5954,15 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 	// Not gonna spend too much time with this, it's not likely to be used much, can't be less accurate than it was.
 	if (ds)
 	{
-		ds->m_alpha_max = pcsx2_max_i(ds->m_alpha_max, static_cast<int>(m_vt.m_max.p.z) >> 24);
-		ds->m_alpha_min = pcsx2_min_i(ds->m_alpha_min, static_cast<int>(m_vt.m_min.p.z) >> 24);
+		/* The trace holds Z as (float)(u32) -- GSVertexTraceFMM.cpp writes
+		 * the full unsigned 32-bit Z into this lane -- so the top half of
+		 * the Z range does not fit an int. A plain cast is undefined there
+		 * and the hosts disagree: x86 gives INT32_MIN, so this alpha came
+		 * out -128, while aarch64 saturates to INT32_MAX and it came out
+		 * 127. What is wanted is bits 31..24, which is what the unsigned
+		 * conversion gives for the whole range. */
+		ds->m_alpha_max = pcsx2_max_i(ds->m_alpha_max, static_cast<int>(f32_to_u32_sat(m_vt.m_max.p.z) >> 24));
+		ds->m_alpha_min = pcsx2_min_i(ds->m_alpha_min, static_cast<int>(f32_to_u32_sat(m_vt.m_min.p.z) >> 24));
 
 		if (GSLocalMemory::m_psm[ds->m_TEX0.PSM].bpp == 16)
 		{

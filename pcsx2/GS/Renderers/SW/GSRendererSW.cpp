@@ -1097,6 +1097,25 @@ bool GSRendererSW::GetScanlineGlobalData(SharedData* data)
 		gd.sel.zpsm = GSLocalMemory::m_psm[context->ZBUF.PSM].fmt;
 		gd.sel.ztst = ztest ? context->TEST.ZTST : (int)ZTST_ALWAYS;
 		gd.sel.zequal = !!m_vt.m_eq.z;
+		/* This reads like a portable "is Z >= 2^31" test and is not one.
+		 * It asks whether the host's float-to-int conversion saturated,
+		 * and the two hosts answer differently for the same draw: x86
+		 * gives INT32_MIN and sets the flag, aarch64 saturates to
+		 * INT32_MAX and never sets it.
+		 *
+		 * That is correct, because zoverflow selects a workaround only
+		 * x86 needs. The flag guards the unsigned-Z path in
+		 * GSDrawScanline.cpp, which exists because _mm_cvttpd_epi32 has
+		 * no unsigned form. aarch64's f64toi32 converts to int64 and
+		 * narrows by truncation, so it is exact over the whole unsigned
+		 * 32-bit range and wants the direct path -- which is also the
+		 * more accurate of the two, the workaround being an approximation
+		 * that rounds after subtracting 0.5 - ulp. The two divergences
+		 * cancel; do not "fix" either half alone.
+		 *
+		 * zclamp below diverges the same way and agrees anyway: z_max is
+		 * one of 0xffffffff, 0xffffff or 0xffff, and 0x80000000 and
+		 * 0x7fffffff compare the same against all three. */
 		gd.sel.zoverflow = (u32)GSVector4i(m_vt.m_max.p).z == 0x80000000U;
 		gd.sel.zclamp = (u32)GSVector4i(m_vt.m_max.p).z > z_max;
 	}

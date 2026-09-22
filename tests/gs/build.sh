@@ -10,6 +10,17 @@ g++ -O2 -std=c++17 -msse4.1 -o "$DIR/gs_vertex_oracle" "$DIR/gs_vertex_oracle.cp
     -I"$ROOT/libretro/libretro-common/include"
 "$DIR/gs_vertex_oracle"
 
+# The float-to-integer conversions GSdx makes on game-controlled values.
+# Checks the helpers in common/MathUtils.h are defined for every input, agree
+# between hosts, and are bit-identical to the plain cast wherever the plain
+# cast had an answer. Must run on both architectures to mean anything -- the
+# aarch64 lane below runs it again under qemu.
+g++ -O2 -std=c++17 -msse4.1 -o "$DIR/gs_float_convert" "$DIR/gs_float_convert.cpp" \
+    -I"$ROOT" -I"$ROOT/common" -I"$ROOT/common/include" -I"$ROOT/pcsx2" \
+    -I"$ROOT/3rdparty" -I"$ROOT/3rdparty/include" \
+    -I"$ROOT/libretro/libretro-common/include"
+"$DIR/gs_float_convert"
+
 # The two benchmarks below build with the flags the core ships with. __fi is
 # always_inline only under NDEBUG, so at plain -O2 the kernels they time are
 # not the kernels the emulator runs.
@@ -48,6 +59,14 @@ if command -v aarch64-linux-gnu-g++ >/dev/null 2>&1 &&
 	    -I"$ROOT/libretro/libretro-common/include"
 	qemu-aarch64 "$DIR/gs_vertex_oracle64"
 	rm -f "$DIR/gs_vertex_oracle64"
+
+	aarch64-linux-gnu-g++ -O2 -std=c++17 -static \
+	    -o "$DIR/gs_float_convert64" "$DIR/gs_float_convert.cpp" \
+	    -I"$ROOT" -I"$ROOT/common" -I"$ROOT/common/include" -I"$ROOT/pcsx2" \
+	    -I"$ROOT/3rdparty" -I"$ROOT/3rdparty/include" \
+	    -I"$ROOT/libretro/libretro-common/include"
+	qemu-aarch64 "$DIR/gs_float_convert64"
+	rm -f "$DIR/gs_float_convert64"
 else
 	echo
 	echo "skipping aarch64 lane (no cross toolchain or qemu)"
