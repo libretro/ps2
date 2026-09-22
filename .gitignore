@@ -149,3 +149,4 @@ pcsx2/GameDatabaseBuiltin.cpp
 /.build-tag
 tests/ipu/_streams/
 tests/gsregion/gs_region_repeat
+tests/gsclut/clut_bank_clamp

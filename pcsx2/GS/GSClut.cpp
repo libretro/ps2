@@ -360,51 +360,33 @@ void GSClut::Read32(const GIFRegTEX0& TEX0, const GIFRegTEXA& TEXA)
 		}
 
 		m_current_gpu_clut = nullptr;
-		if (GSConfig.UserHacks_GPUTargetCLUTMode != GSGPUTargetCLUTMode::Disabled)
+		// CSA counts sixteen-entry blocks into the 1KB CLUT buffer, so how far
+		// it can reach depends on the entry size: a 32-bit palette is 256
+		// entries and fills the buffer at CSA 15, while a 16-bit one is 512 and
+		// runs to CSA 31.
+		const u32 csa = TEX0.CSA & ((TEX0.CPSM == PSMCT16 || TEX0.CPSM == PSMCT16S) ? 31u : 15u);
+		// The GPU palette path carries CSM1 shaders only, and LookupPaletteSource
+		// locates the palette from CBP alone, so a CSM2 palette's COU/COV cannot
+		// reach the shader. Its source window is sixteen blocks square, so a CSA
+		// past block 15 has nothing to read either. Leave m_current_gpu_clut null
+		// for both and let the CPU palette built above stand; that is the one the
+		// software renderer uses.
+		if (GSConfig.UserHacks_GPUTargetCLUTMode != GSGPUTargetCLUTMode::Disabled && !TEX0.CSM && csa <= 15)
 		{
 			const bool is_4bit = (TEX0.PSM == PSMT4 || TEX0.PSM == PSMT4HL || TEX0.PSM == PSMT4HH);
 
-			u32 CBW;
-			GSVector2i offset;
+			GSVector2i offset = {};
 			GSVector2i size;
 			float scale;
-			if (!TEX0.CSM)
-			{
-				CBW = 0; // don't care
-				offset = {};
-				size.x = is_4bit ? 8 : 16;
-				size.y = is_4bit ? 2 : 16;
-			}
-			else
-			{
-				CBW = m_write.TEXCLUT.CBW;
-				offset.x = m_write.TEXCLUT.COU;
-				offset.y = m_write.TEXCLUT.COV;
-				size.x = is_4bit ? 16 : 256;
-				size.y = 1;
-			}
+			size.x = is_4bit ? 8 : 16;
+			size.y = is_4bit ? 2 : 16;
 
-			GSTexture* src = g_gs_renderer->LookupPaletteSource(TEX0.CBP, TEX0.CPSM, CBW, offset, &scale, size);
+			GSTexture* src = g_gs_renderer->LookupPaletteSource(TEX0.CBP, TEX0.CPSM, 0, offset, &scale, size);
 			if (src)
 			{
 				GSTexture* dst = is_4bit ? m_gpu_clut4 : m_gpu_clut8;
 				const u32 dst_size = is_4bit ? 16 : 256;
-				// CSA counts sixteen-entry blocks into the 1KB CLUT buffer, so
-				// how far it can reach depends on the entry size: a 32-bit
-				// palette is 256 entries and fills the buffer at CSA 15, while
-				// a 16-bit one is 512 and runs to CSA 31. The masks here were
-				// the wrong way round -- 16-bit clamped to half its range and
-				// 32-bit allowed past the end of its own.
-				//
-				// This is the offset the GPU palette path reads at, and every
-				// CPU path above reaches the same data with (CSA & 15) for
-				// 32-bit and an unmasked CSA for 16-bit. They agreed only
-				// while CSA stayed below 16; past that the two paths read
-				// different palettes for the same TEX0, so a game that packs
-				// several palettes into one buffer and selects between them
-				// with CSA gets different colours depending on whether the
-				// conversion ran on the GPU.
-				const u32 dOffset = (TEX0.CSA & ((TEX0.CPSM == PSMCT16 || TEX0.CPSM == PSMCT16S) ? 31u : 15u)) << 4;
+				const u32 dOffset = csa << 4;
 				if (!dst)
 				{
 					// allocate texture lazily
