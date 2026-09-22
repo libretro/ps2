@@ -142,15 +142,32 @@ static void fill_sample_ram(void)
 	}
 }
 
+/* Back to what a fresh boot looks like: zeroed storage, then Init.
+ *
+ * Two things made scenarios depend on the ones before them. V_Core_Init
+ * sets fields one by one, so anything it does not name -- and the
+ * emulator only ever runs it over a zeroed BSS -- carried over. And the
+ * emulator never writes sample RAM behind the PCM block cache: DMA and
+ * register writes invalidate the blocks they touch, so a refilled RAM
+ * with a warm cache is a state it can never be in, yet fill_sample_ram
+ * put the harness there before every scenario. The cache is cleared
+ * here, the way a savestate thaw clears it, after RAM has been filled.
+ * lClocks, Spdif and the DMA-side IRQ flags are the rest of what the
+ * SPU2 units keep at file scope. */
 static void reset_core(void)
 {
+	memset(Cores, 0, sizeof(Cores));
 	memset(spu2regs, 0, sizeof(spu2regs));
+	memset(&Spdif, 0, sizeof(Spdif));
 	memset(&DCFilterIn, 0, sizeof(DCFilterIn));
 	memset(&DCFilterOut, 0, sizeof(DCFilterOut));
+	memset(pcm_cache_data, 0, pcm_BlockCount * sizeof(PcmCacheEntry));
 	V_Core_Init(&Cores[0], 0);
 	V_Core_Init(&Cores[1], 1);
 	has_irq_armed = false;
 	has_to_call_irq[0] = has_to_call_irq[1] = false;
+	has_to_call_irq_dma[0] = has_to_call_irq_dma[1] = false;
+	lClocks = 0;
 	OutPos = 0;
 	InputPos = 0;
 	Cycles = 0;
@@ -687,26 +704,29 @@ int main(int argc, char **argv)
 	int samples = argc > 1 ? atoi(argv[1]) : 48000;
 	int print   = (argc > 2 && strcmp(argv[2], "--print") == 0);
 	int verbose = (argc > 2 && strcmp(argv[2], "--verbose") == 0);
+	int isolate = (argc > 2 && strcmp(argv[2], "--isolation") == 0);
 	int i, bad = 0;
 	long want_irq;
 
 	/* Pinned from the tree as it stands, at the default 48000 samples.
 	 * A change to the mixer that is meant to be bit-exact leaves every one
 	 * of these alone. Re-pin with --print only when the output is meant to
-	 * change, and say in the commit why. */
+	 * change, and say in the commit why. Each is the scenario's hash on
+	 * its own -- --isolation checks that the order they run in cannot
+	 * change any of them. */
 	static Scenario scen[] = {
 		{ "voices",      scen_voices,      0x38f961780490c5b4ull },
 		{ "reverb",      scen_reverb,      0x9339279599345708ull },
 		{ "slides",      scen_slides,      0x9a97813bad76deb3ull },
 		{ "noise+gates", scen_noise_gates, 0x0703290860af6ecfull },
-		{ "clipping",    scen_clipping,    0x5519bccef104759eull },
-		{ "input",       scen_input,       0x5f01fc536a90f4b0ull },
-		{ "regwrite",    scen_regwrite,    0x15ab243a6adc9545ull },
-		{ "freeze",      scen_freeze,      0xe535aab6afa7feb5ull },
+		{ "clipping",    scen_clipping,    0x425be0726858fb85ull },
+		{ "input",       scen_input,       0xe777b67d31162c20ull },
+		{ "regwrite",    scen_regwrite,    0x86cda105ef4d970dull },
+		{ "freeze",      scen_freeze,      0xa8a0426ca14c9f41ull },
 		{ "dcblock",     scen_dcblock,     0xa91c0091521349d7ull },
-		{ "irq core0",   scen_irq_core0,   0xd1cc2bff72a54041ull, 0x6af4e44cd4de5303ull, 64 },
-		{ "irq core1",   scen_irq_core1,   0xd1cc2bff72a54041ull, 0xebf3646609c9ad64ull, 64 },
-		{ "irq both",    scen_irq_both,    0xd1cc2bff72a54041ull, 0x94ff439f689ff454ull, 128 },
+		{ "irq core0",   scen_irq_core0,   0x38f961780490c5b4ull, 0xf0e4300c7c41c785ull, 64 },
+		{ "irq core1",   scen_irq_core1,   0x38f961780490c5b4ull, 0x9452aceb8e669e32ull, 64 },
+		{ "irq both",    scen_irq_both,    0x38f961780490c5b4ull, 0x5b85ae91eea842a0ull, 128 },
 	};
 
 	/* The DSP is compiled as C and this harness as C++; if the two
@@ -730,6 +750,47 @@ int main(int argc, char **argv)
 	}
 
 	fill_sample_ram();
+
+	/* A pin is only worth what the scenario behind it is worth, and a
+	 * scenario that reads state left by the one before it is a different
+	 * scenario in every order it is run in. So each one has to hash the
+	 * same alone, and after every other one. Three of the twelve did not,
+	 * until reset_core cleared the block cache; one of them then found a
+	 * savestate bug that the order it had been running in had hidden.
+	 * Quadratic in scenarios, so it is its own lane. */
+	if (isolate)
+	{
+		const int n = (int)(sizeof(scen) / sizeof(scen[0]));
+		int j;
+		for (i = 0; i < n; i++)
+		{
+			uint64_t alone, alone_irq, after, after_irq;
+			fill_sample_ram();
+			alone = scen[i].fn(samples);
+			alone_irq = g_irq_hash;
+			for (j = 0; j < n; j++)
+			{
+				if (j == i)
+					continue;
+				fill_sample_ram();
+				scen[j].fn(samples);
+				fill_sample_ram();
+				after = scen[i].fn(samples);
+				after_irq = g_irq_hash;
+				if (after != alone || after_irq != alone_irq)
+				{
+					printf("  %-12s after %-12s %016llx, alone %016llx\n",
+					       scen[i].name, scen[j].name,
+					       (unsigned long long)after,
+					       (unsigned long long)alone);
+					bad++;
+				}
+			}
+		}
+		printf("%s: SPU2 PCM, %d scenarios, %d order-dependent\n",
+		       bad ? "FAIL" : "PASS", n, bad);
+		return bad != 0;
+	}
 
 	for (i = 0; i < (int)(sizeof(scen) / sizeof(scen[0])); i++)
 	{

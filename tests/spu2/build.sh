@@ -70,6 +70,12 @@ for CXX in g++ clang++; do
 	done
 done
 
+# Every scenario must hash the same alone and after every other one, or
+# the pins above describe an order, not a scenario. Quadratic, so once.
+echo
+echo "=== scenario isolation ==="
+"$TMP/spu2_pcm_hash" "$N" --isolation
+
 # aarch64 runs the NEON spellings gs_vector carries for adds16, hadds16 and
 # mul16hrs, which the reverb resampler leans on for every tap. Nothing had
 # ever executed them -- the x86 lanes cannot reach them and a compile check
