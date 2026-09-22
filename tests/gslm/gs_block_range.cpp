@@ -54,17 +54,21 @@ int main(void)
 	GSLocalMemory mem;
 	unsigned f, i;
 
-	/* Shapes a draw or a transfer actually produces: a full page, a
-	 * single block, a tall sliver, a wide band, and two that sit off a
-	 * page boundary. */
-	static const struct { int x, y, w, h; const char *what; } RECTS[] = {
-		{   0,   0,  64,  32, "one page"        },
-		{   0,   0,   8,   8, "one block"       },
-		{   0,   0, 256, 256, "many pages"      },
-		{   0,   0,  64, 256, "tall"            },
-		{   0,   0, 256,  32, "wide"            },
-		{   8,   8,  64,  64, "off-page origin" },
-		{  32,  16, 100,  70, "unaligned"       },
+	/* In units of the format's own page, because a page is 64x32 at 32bpp
+	 * and 64x64 at 16bpp and 128x64 at 4bpp. A table of fixed pixel sizes
+	 * calls the same rectangle "one page" for one format and half a page
+	 * for another, and then the page-aligned repair fires for one and not
+	 * the other -- which reads as a difference between formats when it is
+	 * only a difference between the rectangles. Offsets are in pages too,
+	 * except the last, which is deliberately off both grids. */
+	static const struct { int px, py, pw, ph, ox, oy; const char *what; } RECTS[] = {
+		{ 0, 0, 1, 1, 0, 0, "one page"        },
+		{ 0, 0, 4, 4, 0, 0, "4x4 pages"       },
+		{ 0, 0, 1, 8, 0, 0, "tall"            },
+		{ 0, 0, 8, 1, 0, 0, "wide"            },
+		{ 1, 1, 1, 1, 0, 0, "page at (1,1)"   },
+		{ 0, 0, 1, 1, 8, 8, "off-page origin" },
+		{ 0, 0, 2, 2, 8, 16, "unaligned"      },
 	};
 
 	printf("gs block range from corners\n");
@@ -80,8 +84,10 @@ int main(void)
 
 		for (i = 0; i < sizeof(RECTS) / sizeof(RECTS[0]); i++)
 		{
-			const int left = RECTS[i].x, top = RECTS[i].y;
-			const int right = left + RECTS[i].w, bottom = top + RECTS[i].h;
+			const int left   = RECTS[i].px * p.pgs.x + RECTS[i].ox;
+			const int top    = RECTS[i].py * p.pgs.y + RECTS[i].oy;
+			const int right  = left + RECTS[i].pw * p.pgs.x;
+			const int bottom = top + RECTS[i].ph * p.pgs.y;
 			u32 lo = 0xffffffffu, hi = 0;
 			u32 c_start, c_end;
 			int x, y;
@@ -114,6 +120,7 @@ int main(void)
 				const u32 page_mask = (1u << 5) - 1;
 
 				c_end = (((c_end + page_mask) & ~page_mask)) - 1;
+				c_start &= ~page_mask;
 			}
 			else if (c_end < c_start && ((c_start - c_end) < (1u << 5)))
 			{

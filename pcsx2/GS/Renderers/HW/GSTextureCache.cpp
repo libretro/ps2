@@ -5580,6 +5580,18 @@ bool GSTextureCache::Surface::Overlaps(u32 bp, u32 bw, u32 psm, const GSVector4i
 	{
 		constexpr u32 page_mask = (1 << 5) - 1;
 		end_block = (((end_block + page_mask) & ~page_mask)) - 1;
+
+		// And the same at the other end. A rectangle that covers whole pages
+		// covers every block of them, so the range is those pages entire --
+		// which is what rounding the end up says, and the start needs saying
+		// too. For a colour format this changes nothing, the swizzle putting
+		// block 0 at the top-left corner already; for a Z format the top-left
+		// corner of a page is block 24, so without it the range began three
+		// quarters of the way through the first page and a write to the
+		// blocks before that reported as missing a surface it had hit.
+		// Rounding a start down only ever widens a range, so it cannot turn
+		// a hit into a miss.
+		start_block &= ~page_mask;
 	}
 	// Due to block ordering, end can be below start in a page, so if it's within a page, swap them.
 	else if (end_block < start_block && ((start_block - end_block) < (1 << 5)))
