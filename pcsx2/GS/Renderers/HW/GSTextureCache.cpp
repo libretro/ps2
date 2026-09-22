@@ -7111,11 +7111,10 @@ static void HashTextureLevel(const GIFRegTEX0& TEX0, const GIFRegTEXA& TEXA, GST
 		GSOffset::BNHelper bn = off.bnMulti(block_rect.left, block_rect.top);
 		const int right = block_rect.right >> off.blockShiftX();
 		const int bottom = block_rect.bottom >> off.blockShiftY();
-		const int xAdd = (1 << off.blockShiftX()) * (psm.bpp / 8);
 
 		for (; bn.blkY() < bottom; bn.nextBlockY())
 		{
-			for (int x = 0; bn.blkX() < right; bn.nextBlockX(), x += xAdd)
+			for (; bn.blkX() < right; bn.nextBlockX())
 			{
 				BlockHashAccumulate(hash_st, mem.BlockPtr(bn.value()));
 			}
