@@ -1016,6 +1016,7 @@ void GSLocalMemoryFunctions::ReadImageX(const GSLocalMemory& mem, int& tx, int& 
 				u8 low = mem.ReadPixel4(pa.value(x));
 				u8 high = mem.ReadPixel4(pa.value(x + 1));
 				*pb = low | (high << 4);
+				pb++;
 			});
 			break;
 

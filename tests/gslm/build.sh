@@ -1,0 +1,63 @@
+#!/bin/sh
+# GS local memory, with real data moved through it.
+#
+# GSLocalMemory is the swizzle: the PS2's 4MB of video memory addressed
+# through pages, blocks and columns, in a pattern that differs per format.
+# Two families of routine walk it -- per-pixel accessors, and transfer
+# routines that move a rectangle at a time because they are faster than
+# calling the per-pixel ones a million times.
+#
+# Nothing checked that the two agree. The transfer routines are written
+# per format with hand-computed pitches, and the read side of PSMT4 was
+# missing the increment of its destination pointer, so every local-to-host
+# transfer of 4-bit indexed data wrote one byte and left the rest of the
+# buffer alone. Reading found the 4HL/4HH pitch bug next door to it and
+# walked straight past this one, because this one is an absent line rather
+# than a wrong one. Upstream PCSX2 has it too.
+#
+# So the harness moves data and compares it. It links the real
+# GSLocalMemory, GSTables, GSBlock and the multi-ISA transfer routines,
+# which is nearly the whole of the swizzle and none of the renderer.
+#
+# Two things have to be stubbed. GSClut is held by value inside
+# GSLocalMemory, so its constructor must exist, but the real one reaches
+# the render device; the swizzle paths never touch the palette, so an
+# empty pair is honest. And the 4MB block is mapped four times over, as
+# the emulator maps it -- a plain allocation would turn the silent
+# wraparound the emulator relies on into a fault and answer a different
+# question.
+set -e
+DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+ROOT=$(CDPATH= cd -- "$DIR/../.." && pwd)
+INC="-I$ROOT -I$ROOT/pcsx2 -I$ROOT/common -I$ROOT/common/include"
+INC="$INC -I$ROOT/libretro/libretro-common/include -I$ROOT/3rdparty -I$ROOT/3rdparty/include"
+
+TMP=${TMPDIR:-/tmp}/gslm.$$
+mkdir -p "$TMP"
+trap 'rm -rf "$TMP"' EXIT
+
+LRC="$ROOT/libretro/libretro-common"
+
+for CXX in g++ clang++; do
+	command -v "$CXX" >/dev/null 2>&1 || { echo "skipping $CXX"; continue; }
+	case $CXX in g++) CC=gcc ;; clang++) CC=clang ;; esac
+
+	echo
+	echo "=== $CXX ==="
+
+	for u in GS/GSLocalMemory GS/GSTables GS/GSBlock GS/GSLocalMemoryMultiISA; do
+		$CXX -O1 -std=c++17 -DNDEBUG -DPCSX2_CORE -msse4.1 -w \
+		     $INC -c "$ROOT/pcsx2/$u.cpp" -o "$TMP/$(basename "$u").o"
+	done
+	$CXX -O1 -std=c++17 -DNDEBUG -DPCSX2_CORE -msse4.1 -w \
+	     $INC -c "$DIR/stubs.cpp" -o "$TMP/stubs.o"
+	$CXX -O1 -std=c++17 -DNDEBUG -DPCSX2_CORE -msse4.1 -Wall \
+	     $INC -c "$DIR/gs_swizzle_oracle.cpp" -o "$TMP/oracle.o"
+
+	$CC -O1 -w -I"$LRC/include" -c "$LRC/memmap/memalign.c"       -o "$TMP/memalign.o"
+	$CC -O1 -w -I"$LRC/include" -c "$LRC/features/features_cpu.c" -o "$TMP/cpu.o"
+
+	$CXX -O1 "$TMP"/*.o -o "$TMP/gs_swizzle_oracle"
+	"$TMP/gs_swizzle_oracle"
+	rm -f "$TMP"/*.o
+done
