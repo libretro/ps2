@@ -161,16 +161,102 @@ int main(void)
 		failures += fmt_bad;
 	}
 
-	/* Odd 4bpp widths. A round-trip is not the check here, because the
-	 * two sides disagree about what a partial row means and this harness
-	 * would only be asserting its own choice of the two. What is checked
-	 * is that the transfer completes and writes the pixels it was given:
-	 * a width of one used to compute a source pitch of zero and divide
-	 * by it, and the pitch it computes now has to stay usable for every
-	 * odd width, not just that one.
+	/* A transfer arrives in as many pieces as the DMA feels like. Each
+	 * call gets a slice and the cursors tx/ty say where the last one
+	 * stopped, so a write routine has to honour len and leave the cursors
+	 * where it finished. Odd-width 4bpp had its own hand-written path
+	 * that did neither: it wrote the whole rectangle from every slice and
+	 * never moved the cursors, so a split transfer rewrote the rectangle
+	 * once per piece and read past the end of the buffer it was given.
 	 *
-	 * Which of the two packings is right for a partial 4bpp row is a
-	 * question for its own look; nothing here depends on the answer. */
+	 * Half a rectangle's worth of data must therefore write half a
+	 * rectangle. The tail is left as a marker no transfer could have
+	 * produced, and finding it intact is what proves the routine stopped
+	 * where it was told. */
+	printf("\n  partial transfers honour len and move the cursor:\n");
+	{
+		static const u32 FOURBIT[] = { PSMT4, PSMT4HL, PSMT4HH };
+		static const char *FNAME[] = { "PSMT4", "PSMT4HL", "PSMT4HH" };
+		static const int WID[] = { 3, 7, 9, 31, 32, 64 };
+		unsigned q, o;
+
+		for (q = 0; q < sizeof(FOURBIT) / sizeof(FOURBIT[0]); q++)
+		{
+			int overran = 0, stuck = 0;
+
+			for (o = 0; o < sizeof(WID) / sizeof(WID[0]); o++)
+			{
+				const u32 psm = FOURBIT[q];
+				const GSLocalMemory::psm_t& p = GSLocalMemory::m_psm[psm];
+				GIFRegBITBLTBUF blit = {};
+				GIFRegTRXPOS pos = {};
+				GIFRegTRXREG reg = {};
+				static u8 src[4096];
+				const int w = WID[o], h = 8;
+				const int full = ((w * p.trbpp + 7) / 8) * h;
+				const int half = full / 2;
+				int tx = 0, ty = 0, x, y;
+
+				if (half <= 0)
+					continue;
+
+				/* Paint the whole rectangle with a marker first, then
+				 * hand over only the first half of the data. Through
+				 * this format's own accessor: 4HL and 4HH keep their
+				 * nibble elsewhere in the word, so marking with the
+				 * PSMT4 writer would leave a marker the transfer never
+				 * touches and the check would pass without meaning
+				 * anything. */
+				for (y = 0; y < h; y++)
+					for (x = 0; x < w; x++)
+						(mem.*p.wp)(x, y, 0xf, 0, 4);
+
+				for (x = 0; x < full; x++)
+					src[x] = 0x00;
+
+				blit.DBP = 0; blit.DBW = 4; blit.DPSM = psm;
+				reg.RRW = w; reg.RRH = h;
+				p.wi(mem, tx, ty, src, half, blit, pos, reg);
+
+				/* The back half of the rectangle must still be marker. */
+				{
+					const int wrote = half * 2;          /* pixels supplied */
+					int seen = 0;
+
+					for (y = 0; y < h && !overran; y++)
+					{
+						for (x = 0; x < w; x++, seen++)
+						{
+							if (seen < wrote)
+								continue;
+							if ((mem.*p.rp)(x, y, 0, 4) != 0xf)
+							{
+								overran = 1;
+								break;
+							}
+						}
+					}
+				}
+
+				/* And the cursor has to have moved, or the caller's
+				 * next slice starts from the wrong place. */
+				if (tx == 0 && ty == 0)
+					stuck = 1;
+
+				checks += 2;
+			}
+
+			printf("    %-8s %s, %s\n", FNAME[q],
+			       overran ? "WROTE PAST len" : "stopped at len",
+			       stuck ? "CURSOR STUCK" : "cursor advanced");
+			if (overran)
+				failures++;
+			if (stuck)
+				failures++;
+		}
+	}
+
+	/* And the widths that used to compute a zero source pitch. */
 	printf("\n  odd 4bpp widths -- transfer completes and lands:\n");
 	{
 		static const u32 FOURBIT[] = { PSMT4, PSMT4HL, PSMT4HH };

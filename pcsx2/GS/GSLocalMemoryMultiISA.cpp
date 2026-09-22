@@ -481,23 +481,49 @@ void GSLocalMemoryFunctions::WriteImage(GSLocalMemory& mem, int& tx, int& ty, co
 	const int srcpitch = (((r - l) * trbpp) + 7) >> 3;
 	int h = len / srcpitch;
 
-	// Slow path for odd width 4bpp, the fast path expects everything to be perfectly aligned and great,
-	// but things get hairy with 4bpp pixels and odd widths since the lowest size we can address is 8bits, it goes out of sync.
-	// Although I call this a slow path, it's probably faster than modifying the data alignment every other line.
-	// GT3 demo, Jak 2 Japanese subtitles, and the BG Dark Alliance minimap do this.
+	// Odd width 4bpp cannot use the block paths below: they step the source by
+	// a whole-byte pitch, and an odd 4bpp row is not a whole number of bytes,
+	// so the data goes out of sync every other line. GT3 demo, Jak 2 Japanese
+	// subtitles and the BG Dark Alliance minimap do this.
+	//
+	// This used to walk the rectangle by hand, and got three things wrong that
+	// the generic path already has right. A transfer does not arrive all at
+	// once: FlushWrite calls this once per piece with a slice of the buffer
+	// and advances its own cursor by what was consumed, so len is a length to
+	// honour and tx/ty are where to resume. The hand-written loop wrote
+	// RRW * RRH pixels whatever len said, always started at DSAX/DSAY, and
+	// left both cursors untouched -- so a split transfer rewrote the whole
+	// rectangle from each piece in turn, and the source walk ran off the end
+	// of the 4MB transfer buffer as soon as RRW * RRH / 2 exceeded it, which
+	// two 12-bit dimensions reach comfortably.
+	//
+	// Handing this to WriteImageX is not the answer either: its 4bpp cases
+	// step the row two pixels at a time, so an odd row leaves a dangling
+	// pixel and the pair that covers it writes one column past the right
+	// edge. The loop below keeps the original's per-pixel walk, which never
+	// leaves the rectangle, and adds the two things it was missing.
 	if (trbpp == 4 && (TRXREG.RRW & 0x1))
 	{
+		int pixels = len * 2; // two 4bpp pixels to the source byte
 		int count = 0;
-		const int t = TRXPOS.DSAY;
-		const int b = t + (int)TRXREG.RRH;
-		for (int y = t; y < b; y++)
+		int x = tx;
+		int y = ty;
+
+		while (pixels-- > 0)
 		{
-			for (int x = l; x < r; x++)
+			mem.WritePixel4(x, y, src[count >> 1] >> ((count & 1) << 2),
+			                BITBLTBUF.DBP, BITBLTBUF.DBW);
+			count++;
+
+			if (++x >= r)
 			{
-				mem.WritePixel4(x, y, src[count >> 1] >> ((count & 1) << 2), BITBLTBUF.DBP, BITBLTBUF.DBW);
-				count++;
+				x = l;
+				y++;
 			}
 		}
+
+		tx = x;
+		ty = y;
 		return;
 	}
 
@@ -685,6 +711,38 @@ void GSLocalMemoryFunctions::WriteImage4HL(GSLocalMemory& mem, int& tx, int& ty,
 	int tw = TRXPOS.DSAX + TRXREG.RRW, srcpitch = (TRXREG.RRW + 1) / 2;
 	int th = len / srcpitch;
 
+	// An odd row cannot go through WriteImageX: its 4bpp cases step the row
+	// two pixels at a time, so the pair covering the dangling pixel writes
+	// one column past the right edge. Walk it a pixel at a time instead,
+	// from wherever the last piece of the transfer stopped, for as many
+	// pixels as this piece actually carries. See the matching note in
+	// WriteImage.
+	if (TRXREG.RRW & 1)
+	{
+		const int l = (int)TRXPOS.DSAX;
+		const int r = l + (int)TRXREG.RRW;
+		int pixels = len * 2;
+		int count = 0;
+		int x = tx;
+		int y = ty;
+
+		while (pixels-- > 0)
+		{
+			mem.WritePixel4HL(x, y, src[count >> 1] >> ((count & 1) << 2), bp, bw);
+			count++;
+
+			if (++x >= r)
+			{
+				x = l;
+				y++;
+			}
+		}
+
+		tx = x;
+		ty = y;
+		return;
+	}
+
 	bool aligned = IsTopLeftAligned(TRXPOS.DSAX, tx, ty, 8, 8);
 
 	if (!aligned || (tw & 7) || (th & 7) || (len % srcpitch))
@@ -720,6 +778,33 @@ void GSLocalMemoryFunctions::WriteImage4HH(GSLocalMemory& mem, int& tx, int& ty,
 	// Round up to the nearest byte; see the note in WriteImage4HL.
 	int tw = TRXPOS.DSAX + TRXREG.RRW, srcpitch = (TRXREG.RRW + 1) / 2;
 	int th = len / srcpitch;
+
+	// Odd rows go a pixel at a time; see the note in WriteImage4HL.
+	if (TRXREG.RRW & 1)
+	{
+		const int l = (int)TRXPOS.DSAX;
+		const int r = l + (int)TRXREG.RRW;
+		int pixels = len * 2;
+		int count = 0;
+		int x = tx;
+		int y = ty;
+
+		while (pixels-- > 0)
+		{
+			mem.WritePixel4HH(x, y, src[count >> 1] >> ((count & 1) << 2), bp, bw);
+			count++;
+
+			if (++x >= r)
+			{
+				x = l;
+				y++;
+			}
+		}
+
+		tx = x;
+		ty = y;
+		return;
+	}
 
 	bool aligned = IsTopLeftAligned(TRXPOS.DSAX, tx, ty, 8, 8);
 
