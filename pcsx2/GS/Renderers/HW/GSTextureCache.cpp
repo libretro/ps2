@@ -5560,8 +5560,24 @@ bool GSTextureCache::Surface::Inside(u32 bp, u32 bw, u32 psm, const GSVector4i& 
 {
 	// Valid only for color formats.
 	const GSOffset off(GSLocalMemory::m_psm[psm].info, bp, bw, psm);
-	const u32 start_block = off.bnNoWrap(rect.x, rect.y);
-	const u32 end_block = off.bnNoWrap(rect.z - 1, rect.w - 1);
+
+	// The two corners are the blocks holding the rectangle's first and last
+	// pixels, not the lowest and highest blocks it covers: inside a page the
+	// swizzle scatters, so for a Z format the top-left corner of a page is
+	// block 24 and the bottom-right is block 7. Taken raw they describe a
+	// range narrower than the rectangle occupies, and this function answers
+	// yes to a range that fits -- so it claimed a rectangle was held by a
+	// surface that holds only part of it, and both callers answer a yes by
+	// reading the surface: one as a depth texture, one as the frame to show.
+	//
+	// Widen each corner to its whole page. That is enough, and provably so:
+	// the first pixel is in the lowest page the rectangle touches and the
+	// last is in the highest, so the pages between those bounds contain
+	// every block it covers. It can only make this function answer no more
+	// often, which costs an allocation rather than wrong pixels.
+	constexpr u32 page_mask = (1 << 5) - 1;
+	const u32 start_block = off.bnNoWrap(rect.x, rect.y) & ~page_mask;
+	const u32 end_block = off.bnNoWrap(rect.z - 1, rect.w - 1) | page_mask;
 	return start_block >= m_TEX0.TBP0 && end_block <= UnwrappedEndBlock();
 }
 
