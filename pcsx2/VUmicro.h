@@ -19,15 +19,17 @@
 #include "VUops.h"
 #include "R5900.h"
 
-static const uint VU0_MEMSIZE	= 0x1000;		// 4kb
-static const uint VU0_PROGSIZE	= 0x1000;		// 4kb
-static const uint VU1_MEMSIZE	= 0x4000;		// 16kb
-static const uint VU1_PROGSIZE	= 0x4000;		// 16kb
+/* Macros rather than static const: in C a const object is not a constant
+ * expression, so MSVC refuses the masks below as initializers. */
+#define VU0_MEMSIZE	0x1000u		/* 4kb */
+#define VU0_PROGSIZE	0x1000u		/* 4kb */
+#define VU1_MEMSIZE	0x4000u		/* 16kb */
+#define VU1_PROGSIZE	0x4000u		/* 16kb */
 
-static const uint VU0_MEMMASK	= VU0_MEMSIZE-1;
-static const uint VU0_PROGMASK	= VU0_PROGSIZE-1;
-static const uint VU1_MEMMASK	= VU1_MEMSIZE-1;
-static const uint VU1_PROGMASK	= VU1_PROGSIZE-1;
+#define VU0_MEMMASK	(VU0_MEMSIZE-1)
+#define VU0_PROGMASK	(VU0_PROGSIZE-1)
+#define VU1_MEMMASK	(VU1_MEMSIZE-1)
+#define VU1_PROGMASK	(VU1_PROGSIZE-1)
 
 #define vu1RunCycles (3000000) // mVU1 uses this for inf loop detection on dev builds
 

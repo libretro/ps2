@@ -59,12 +59,12 @@ static __fi r128 r128_load(const void* ptr)
 
 static __fi void r128_store(void* ptr, r128 val)
 {
-	return _mm_store_si128((r128*)(ptr), val);
+	_mm_store_si128((r128*)(ptr), val);
 }
 
 static __fi void r128_store_unaligned(void* ptr, r128 val)
 {
-	return _mm_storeu_si128((r128*)(ptr), val);
+	_mm_storeu_si128((r128*)(ptr), val);
 }
 
 #define r128_zero() _mm_setzero_si128()
@@ -98,21 +98,8 @@ typedef uint32x4_t r128;
 #define RETURNS_R128 r128 __vectorcall
 #define TAKES_R128 __vectorcall
 
-static __fi void CopyQWC(void* dest, const void* src)
-{
-	vst1q_u8(static_cast<u8*>(dest), vld1q_u8(static_cast<const u8*>(src)));
-}
-
-static __fi void ZeroQWC(void* dest)
-{
-	vst1q_u8(static_cast<u8*>(dest), vmovq_n_u8(0));
-}
-
-static __fi void ZeroQWC(u128& dest)
-{
-	vst1q_u8(&dest._u8[0], vmovq_n_u8(0));
-}
-
+#define CopyQWC(dest, src) vst1q_u8((u8*)(dest), vld1q_u8((const u8*)(src)))
+#define ZeroQWC(dest) vst1q_u8((u8*)(dest), vmovq_n_u8(0))
 
 static __fi r128 r128_load(const void* ptr)
 {
@@ -121,12 +108,12 @@ static __fi r128 r128_load(const void* ptr)
 
 static __fi void r128_store(void* ptr, r128 value)
 {
-	return vst1q_u32((uint32_t*)(ptr), value);
+	vst1q_u32((uint32_t*)(ptr), value);
 }
 
 static __fi void r128_store_unaligned(void* ptr, r128 value)
 {
-	return vst1q_u32((uint32_t*)(ptr), value);
+	vst1q_u32((uint32_t*)(ptr), value);
 }
 
 #define r128_zero() vmovq_n_u32(0)
