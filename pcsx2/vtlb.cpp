@@ -1625,7 +1625,9 @@ static bool vtlb_PageFaultHandler(const retro_fault_info_t* info)
 	{
 		uptr ptr = (uptr)PSM(vaddr);
 		uptr offset = (ptr - (uptr)eeMem->Main);
-		if (ptr && m_PageProtectInfo[offset >> __pageshift].Mode == ProtMode_Write)
+		/* Only main RAM has protection state; a direct-mapped pointer
+		 * elsewhere (ROM, scratchpad) would index past the table. */
+		if (ptr && offset < Ps2MemSize::MainRam && m_PageProtectInfo[offset >> __pageshift].Mode == ProtMode_Write)
 		{
 			mmap_ClearCpuBlock(offset);
 			return true;
