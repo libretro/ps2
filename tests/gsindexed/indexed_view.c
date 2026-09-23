@@ -21,10 +21,11 @@
  *      the coordinate at the first fragment of the native pixel), so a
  *      3:1 minifying sprite lands on the rows a native draw reads.
  *
- * Also pinned: the channel shuffle emulation is only used for draws that
- * really move one channel 1:1 (IsChannelShuffleIdentity), so Ridge Racer
- * V's block draws go through the exact conversion instead of a full-target
- * copy of a single channel.
+ * Also pinned: the channel shuffle emulation, which fetches by position,
+ * is only used for draws that put one channel of each texel on the pixel
+ * it aliases (IsChannelShuffleIdentity), or that copy a buffer page by
+ * page; Ridge Racer V's 3:1 block draws and its copies of a block to other
+ * pages go through the exact conversion instead.
  *
  * Build and run, from tests/gsindexed:
  *   cc -O2 -std=c89 -pedantic -Wall indexed_view.c -o indexed_view
@@ -299,8 +300,54 @@ static int check_sample_map(void)
 
 /* ---- 4. the channel shuffle gate --------------------------------------- */
 
-/* GSRendererHW::IsChannelShuffleIdentity over a sprite list. */
-static int shuffle_identity(const struct sprite* v, size_t n, int wms, int minu, int wmt, int minv)
+/* The pixel and byte a texel of the 8-bit view aliases, by the tables. */
+static void aliased_pixel(u32 u, u32 v, int* x, int* y, int* byte)
+{
+   const u32 a = addr8(u, v);
+   u32 px, py;
+   for (py = 0; py < 32; py++)
+      for (px = 0; px < 64; px++)
+         if (addr32(px, py) == (a & ~3u))
+         {
+            *x = (int)px;
+            *y = (int)py;
+            *byte = (int)(a & 3u);
+            return;
+         }
+   *x = *y = *byte = -1;
+}
+
+/* The same, as GSRendererHW::IsChannelShuffleIdentity computes it. */
+static void renderer_pixel(int u, int v, int* x, int* y)
+{
+   const int flip = (((v >> 1) ^ (v >> 2)) & 1) << 2;
+   *x = ((u & 7) ^ flip) | ((u >> 4) << 3);
+   *y = ((v >> 2) << 1) | (v & 1);
+}
+
+static int check_alias_formula(void)
+{
+   int fail = 0;
+   u32 u, v;
+   for (v = 0; v < 64; v++)
+      for (u = 0; u < 128; u++)
+      {
+         int tx, ty, tb, rx, ry;
+         aliased_pixel(u, v, &tx, &ty, &tb);
+         renderer_pixel((int)u, (int)v, &rx, &ry);
+         if (tx != rx || ty != ry)
+         {
+            if (fail++ < 8)
+               printf("  texel %u,%u: renderer says pixel %d,%d, tables say %d,%d\n", u, v, rx, ry, tx, ty);
+         }
+      }
+   printf("gate's texel-to-pixel formula matches the tables: %s\n", fail ? "FAIL" : "ok");
+   return fail;
+}
+
+/* GSRendererHW::IsChannelShuffleIdentity over a sprite list, with the
+ * position asked about or not (a page-by-page copy is not asked). */
+static int shuffle_identity(const struct sprite* v, size_t n, int wms, int minu, int maxu, int wmt, int minv, int maxv, int position)
 {
    const int u_masked = wms == 3 && (minu & 8) == 0;
    const int v_masked = wmt == 3 && (minv & 2) == 0;
@@ -314,17 +361,32 @@ static int shuffle_identity(const struct sprite* v, size_t n, int wms, int minu,
       const int vh = abs(v[i].v1 - v[i].v0) >> 4;
       const int umin = v[i].u0 < v[i].u1 ? v[i].u0 : v[i].u1;
       const int vmin = v[i].v0 < v[i].v1 ? v[i].v0 : v[i].v1;
-      int u_first, u_last, v_first, v_last;
+      const int x0 = (v[i].x0 < v[i].x1 ? v[i].x0 : v[i].x1) >> 4;
+      const int y0 = (v[i].y0 < v[i].y1 ? v[i].y0 : v[i].y1) >> 4;
+      int u_first, u_last, v_first, v_last, u, vv, sx, sy, byte;
 
       if (w == 0 || h == 0 || uw != w || vh != h)
          return 0;
-      u_first = (umin + 8) >> 4;
-      u_last = (umin + (w << 4) - 8) >> 4;
-      v_first = (vmin + 8) >> 4;
-      v_last = (vmin + (h << 4) - 8) >> 4;
+      /* the sprite's first coordinate is what its first pixel reads */
+      u_first = umin >> 4;
+      u_last = (umin + ((w - 1) << 4)) >> 4;
+      v_first = vmin >> 4;
+      v_last = (vmin + ((h - 1) << 4)) >> 4;
       if (!u_masked && (u_first >> 3) != (u_last >> 3))
          return 0;
       if (!v_masked && (v_first >> 1) != (v_last >> 1))
+         return 0;
+      if (!position)
+         continue;
+
+      u = u_first;
+      vv = v_first;
+      if (wms == 3)
+         u = (u & minu) | maxu;
+      if (wmt == 3)
+         vv = (vv & minv) | maxv;
+      aliased_pixel((u32)u, (u32)vv, &sx, &sy, &byte);
+      if (sx != x0 || sy != y0)
          return 0;
    }
    return 1;
@@ -337,38 +399,86 @@ static int check_shuffle_gate(void)
       { 0, 32, 128, 128, 72, 8, 200, 296 },
       { 128, 32, 256, 128, 328, 8, 456, 296 }
    };
-   /* draw B (WMS 3 MINU 1015, WMT 1): 1:1 but the U box crosses bit 3. */
-   static const struct sprite rr5_b[] = {
+   /* Ridge Racer V draw B (WMS 3 MINU 1015, WMT 1): 16x2 sprites, each
+    * on the pixels its texels alias, and Tomb Raider Legend's red copy,
+    * which is the same draw with rows of 8x2 sprites between (its two
+    * kinds of row, then a row that reads the flipped columns). */
+   static const struct sprite copy[] = {
       { 0, 0, 256, 32, 136, 8, 392, 40 },
-      { 256, 0, 512, 32, 648, 8, 904, 40 }
+      { 256, 0, 512, 32, 648, 8, 904, 40 },
+      { 0, 32, 128, 64, 72, 72, 200, 104 },
+      { 128, 32, 256, 64, 328, 72, 456, 104 },
+      { 0, 64, 256, 96, 136, 136, 392, 168 }
    };
-   /* A channel shuffle as MGS3 or Ape Escape draw it: 8x2 pixel sprites,
-    * each from its own 8x2 texel box on one channel. */
+   /* The same page put at x 64 of the frame (Ridge Racer V's second and
+    * third copies of a block): not where the texels alias. */
+   static const struct sprite moved[] = {
+      { 1024, 0, 1280, 32, 136, 8, 392, 40 }
+   };
+   /* Tomb Raider Legend's alpha pass: green texels copied 16 rows down. */
+   static const struct sprite shifted[] = {
+      { 512, 288, 768, 320, 136, 104, 392, 136 },
+      { 0, 288, 256, 320, 1160, 104, 1416, 136 }
+   };
+   /* A channel shuffle drawn as 8x2 pixel sprites, each from its own
+    * 8x2 texel box on one channel. Pixel rows 2-3 of a block hold their
+    * red bytes in the flipped column order, so the sprite there starts
+    * its box at texel 4 and needs bit 3 of U masked to stay on red. */
    static const struct sprite real[] = {
       { 0, 0, 128, 32, 0, 0, 128, 32 },
       { 128, 0, 256, 32, 256, 0, 384, 32 },
+      { 0, 32, 128, 64, 64, 64, 192, 96 }
+   };
+   /* The same box put on rows 2-3 unflipped reads red bytes of other
+    * pixels: what the game gets is not what the copy would give it. */
+   static const struct sprite unflipped[] = {
       { 0, 32, 128, 64, 0, 64, 128, 96 }
    };
    int fail = 0;
 
-   if (shuffle_identity(rr5_a, 2, 3, 1015, 3, 1017))
+   if (shuffle_identity(rr5_a, 2, 3, 1015, 0, 3, 1017, 0, 1))
    {
       printf("  Ridge Racer V draw A taken for a channel shuffle\n");
       fail++;
    }
-   if (shuffle_identity(rr5_b, 2, 3, 1015, 1, 0))
+   if (!shuffle_identity(copy, 5, 3, 1015, 0, 1, 0, 0, 1))
    {
-      printf("  Ridge Racer V draw B taken for a channel shuffle\n");
+      printf("  a block copy onto the pixels it aliases refused\n");
       fail++;
    }
-   if (!shuffle_identity(real, 3, 0, 0, 0, 0))
+   if (!shuffle_identity(copy, 5, 3, 1015, 0, 0, 0, 0, 1))
+   {
+      printf("  Tomb Raider Legend's red copy refused\n");
+      fail++;
+   }
+   if (shuffle_identity(moved, 1, 3, 1015, 0, 1, 0, 0, 1))
+   {
+      printf("  a block copied elsewhere taken for a channel shuffle\n");
+      fail++;
+   }
+   if (shuffle_identity(shifted, 2, 3, 1015, 0, 0, 0, 0, 1))
+   {
+      printf("  Tomb Raider Legend's shifted alpha pass taken for an identity\n");
+      fail++;
+   }
+   if (!shuffle_identity(shifted, 2, 3, 1015, 0, 0, 0, 0, 0))
+   {
+      printf("  Tomb Raider Legend's alpha pass refused as a page copy\n");
+      fail++;
+   }
+   if (!shuffle_identity(real, 2, 0, 0, 0, 0, 0, 0, 1))
    {
       printf("  a 1:1 single-channel read refused\n");
       fail++;
    }
-   if (!shuffle_identity(real, 3, 3, 1015, 3, 1017))
+   if (!shuffle_identity(real, 3, 3, 1015, 0, 3, 1021, 0, 1))
    {
       printf("  a masked single-channel read refused\n");
+      fail++;
+   }
+   if (shuffle_identity(unflipped, 1, 3, 1015, 0, 3, 1021, 0, 1))
+   {
+      printf("  a read of the flipped columns taken for an identity\n");
       fail++;
    }
    printf("channel shuffle gate: %s\n", fail ? "FAIL" : "ok");
@@ -381,6 +491,7 @@ int main(void)
    fail += check_swizzle();
    fail += check_scaled();
    fail += check_sample_map();
+   fail += check_alias_formula();
    fail += check_shuffle_gate();
    return fail ? 1 : 0;
 }

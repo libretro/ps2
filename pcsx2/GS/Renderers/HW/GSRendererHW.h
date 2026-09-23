@@ -131,7 +131,8 @@ private:
 	bool IsSinglePageDraw() const;
 	bool NextDrawColClip() const;
 	bool IsPossibleChannelShuffle() const;
-	bool IsChannelShuffleIdentity() const;
+	bool IsChannelShuffleIdentity(bool position) const;
+	bool IsPageCopy() const;
 	bool NextDrawMatchesShuffle() const;
 	bool IsSplitTextureShuffle(GSTextureCache::Target* rt);
 	GSVector4i GetSplitTextureShuffleDrawRect() const;
@@ -280,6 +281,10 @@ private:
 	u32 m_last_channel_shuffle_fbmsk = 0;
 	u32 m_last_channel_shuffle_fbp = 0;
 	u32 m_last_channel_shuffle_end_block = 0;
+	// The shuffle was drawn as the game's own sprites, so the draws after it are not repeats to skip.
+	bool m_channel_shuffle_partial = false;
+	// The shuffle copies a buffer page by page; the draws after it continue it whatever their sprites are.
+	bool m_channel_shuffle_page_copy = false;
 
 	GIFRegFRAME m_split_clear_start = {};
 	GIFRegZBUF m_split_clear_start_Z = {};

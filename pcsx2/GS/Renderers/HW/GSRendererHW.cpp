@@ -1043,6 +1043,25 @@ bool GSRendererHW::IsPossibleChannelShuffle() const
 	return false;
 }
 
+// The next draw reads the page after this one and writes the page after
+// this one: the game is copying a buffer page by page.
+bool GSRendererHW::IsPageCopy() const
+{
+	if (!PRIM->TME)
+		return false;
+
+	const int get_next_ctx = (m_state_flush_reason == CONTEXTCHANGE) ? m_env.PRIM.CTXT : m_backed_up_ctx;
+	const GSDrawingContext& next_ctx = m_env.CTXT[get_next_ctx];
+
+	if (next_ctx.TEX0.TBP0 != (m_cached_ctx.TEX0.TBP0 + 0x20))
+		return false;
+
+	if (next_ctx.FRAME.FBP != (m_cached_ctx.FRAME.FBP + 0x1))
+		return false;
+
+	return NextDrawMatchesShuffle();
+}
+
 bool GSRendererHW::NextDrawMatchesShuffle() const
 {
 	// Make sure nothing unexpected has changed.
@@ -2436,13 +2455,13 @@ void GSRendererHW::Draw()
 		return;
 
 	// Channel shuffles repeat lots of draws. Get out early if we can.
-	if (m_channel_shuffle)
+	if (m_channel_shuffle && !m_channel_shuffle_partial)
 	{
 		// NFSU2 does consecutive channel shuffles with blending, reducing the alpha channel over time.
 		// Fortunately, it seems to change the FBMSK along the way, so this check alone is sufficient.
 		// Tomb Raider: Underworld does similar, except with R, G, B in separate palettes, therefore
 		// we need to split on those too.
-		m_channel_shuffle = IsPossibleChannelShuffle() && m_last_channel_shuffle_fbmsk == m_context->FRAME.FBMSK &&
+		m_channel_shuffle = IsPossibleChannelShuffle() && IsChannelShuffleIdentity(!m_channel_shuffle_page_copy) && m_last_channel_shuffle_fbmsk == m_context->FRAME.FBMSK &&
 							m_last_channel_shuffle_fbp <= m_context->FRAME.Block() && m_last_channel_shuffle_end_block > m_context->FRAME.Block();
 
 		if (m_channel_shuffle)
@@ -2646,6 +2665,8 @@ void GSRendererHW::Draw()
 	{
 		// Special post-processing effect
 		m_channel_shuffle = true;
+		m_channel_shuffle_partial = false;
+		m_channel_shuffle_page_copy = false;
 		m_last_channel_shuffle_fbmsk = m_context->FRAME.FBMSK;
 	}
 	else if (IsSplitClearActive())
@@ -3213,6 +3234,8 @@ void GSRendererHW::Draw()
 			}
 
 			m_channel_shuffle = true;
+			m_channel_shuffle_partial = false;
+			m_channel_shuffle_page_copy = false;
 			m_last_channel_shuffle_fbmsk = m_context->FRAME.FBMSK;
 			if (rt)
 			{
@@ -4046,14 +4069,12 @@ void GSRendererHW::EmulateTextureShuffleAndFbmask(GSTextureCache::Target* rt, GS
 	}
 }
 
-// The channel shuffle emulation stands in for the whole draw with one
-// full-target sprite that copies a single channel across, so it is only
-// right when every sprite really does move one channel 1:1. An 8-bit view
-// of a 32-bit target picks the channel by bit 3 of U and bit 1 of V, so a
-// sprite whose texels cross either of those, or whose texel box is not the
-// size of its pixel box, reads a mix that the copy cannot reproduce; such
-// a draw is left to the indexed conversion, which is exact.
-bool GSRendererHW::IsChannelShuffleIdentity() const
+// A channel shuffle reads the pixel it is drawn on: the fetch is by
+// position, so a draw is one only when each sprite is 1:1, stays on one
+// channel and, unless the position is not asked about, puts its first
+// texel on the pixel it aliases. A draw that fails is left to the indexed
+// conversion, which is exact.
+bool GSRendererHW::IsChannelShuffleIdentity(bool position) const
 {
 	if (!PRIM->FST)
 		return true;
@@ -4073,17 +4094,36 @@ bool GSRendererHW::IsChannelShuffleIdentity() const
 		if (w == 0 || h == 0 || uw != w || vh != h)
 			return false;
 
-		// The texels a 1:1 sprite lands on: the first and last pixel centres.
+		// The texels a 1:1 sprite lands on: the sprite's first coordinate
+		// is what its first pixel reads, and each pixel after steps one.
 		const int umin = pcsx2_min_i(a.U, b.U);
 		const int vmin = pcsx2_min_i(a.V, b.V);
-		const int u_first = (umin + 8) >> 4;
-		const int u_last = (umin + (w << 4) - 8) >> 4;
-		const int v_first = (vmin + 8) >> 4;
-		const int v_last = (vmin + (h << 4) - 8) >> 4;
+		const int u_first = umin >> 4;
+		const int u_last = (umin + ((w - 1) << 4)) >> 4;
+		const int v_first = vmin >> 4;
+		const int v_last = (vmin + ((h - 1) << 4)) >> 4;
 
 		if (!u_masked && (u_first >> 3) != (u_last >> 3))
 			return false;
 		if (!v_masked && (v_first >> 1) != (v_last >> 1))
+			return false;
+
+		if (!position)
+			continue;
+
+		// The pixel the first texel aliases (the PSMT8 view of a PSMCT32
+		// page: ps_convert_rgba_8i in reverse), against where it is drawn.
+		int u = u_first, v = v_first;
+		if (m_cached_ctx.CLAMP.WMS == CLAMP_REGION_REPEAT)
+			u = (u & m_cached_ctx.CLAMP.MINU) | m_cached_ctx.CLAMP.MAXU;
+		if (m_cached_ctx.CLAMP.WMT == CLAMP_REGION_REPEAT)
+			v = (v & m_cached_ctx.CLAMP.MINV) | m_cached_ctx.CLAMP.MAXV;
+		const int flip = (((v >> 1) ^ (v >> 2)) & 1) << 2;
+		const int sx = ((u & 7) ^ flip) | ((u >> 4) << 3);
+		const int sy = ((v >> 2) << 1) | (v & 1);
+		const int x0 = (pcsx2_min_i(a.XYZ.X, b.XYZ.X) - m_context->XYOFFSET.OFX) >> 4;
+		const int y0 = (pcsx2_min_i(a.XYZ.Y, b.XYZ.Y) - m_context->XYOFFSET.OFY) >> 4;
+		if (sx != x0 || sy != y0)
 			return false;
 	}
 
@@ -4102,7 +4142,13 @@ bool GSRendererHW::TestChannelShuffle(GSTextureCache::Target* src)
 
 __ri bool GSRendererHW::EmulateChannelShuffle(GSTextureCache::Target* src, bool test_only)
 {
-	if (!IsChannelShuffleIdentity())
+	// A copy of a whole buffer page by page (Tomb Raider Legend) is done
+	// below as one sprite over the whole target, which lands each page on
+	// its own whatever the sprites did within a page; any other draw has
+	// to be an identity, and it has to read the target from its start, as
+	// the fetch by position does.
+	const bool page_copy = IsPageCopy();
+	if (!IsChannelShuffleIdentity(!page_copy) || m_cached_ctx.TEX0.TBP0 != src->m_TEX0.TBP0)
 	{
 		if (test_only)
 			return false;
@@ -4265,6 +4311,18 @@ __ri bool GSRendererHW::EmulateChannelShuffle(GSTextureCache::Target* src, bool 
 
 	// Effect is really a channel shuffle effect so let's cheat a little
 	m_conf.tex = src->m_texture;
+
+	// Sprites with gaps between them are drawn as they are: the fetch
+	// reads by position, so they land right, and what fills the gaps is
+	// some other draw's business (Ridge Racer V fills them with a
+	// minifying pass that is not a shuffle at all). A page-by-page copy
+	// is whole by construction, whatever shapes the sprites come in
+	// (Tomb Raider Legend mixes widths), and the one sprite below does
+	// every page of it at once, so the draws that follow are skipped.
+	m_channel_shuffle_page_copy = page_copy;
+	m_channel_shuffle_partial = m_primitive_covers_without_gaps == NoGapsType::GapsFound && !page_copy;
+	if (m_channel_shuffle_partial)
+		return true;
 
 	// Replace current draw with a fullscreen sprite
 	//
