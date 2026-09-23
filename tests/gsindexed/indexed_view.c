@@ -35,11 +35,12 @@
  * before a target but whose coordinates land on it.
  *
  * Build and run, from tests/gsindexed:
- *   cc -O2 -std=c89 -pedantic -Wall indexed_view.c -o indexed_view
+ *   cc -O2 -std=c89 -pedantic -Wall indexed_view.c -o indexed_view -lm
  *   ./indexed_view
  */
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 
 typedef unsigned int u32;
 
@@ -501,6 +502,65 @@ static int check_region_clamp(void)
    return fail;
 }
 
+/* ---- 3d. bilinear taps on a scaled target ------------------------------ */
+
+/* PS_NATIVE_TAPS, one axis: a fragment's coordinate u (native texels) and
+ * the coordinate u0 at its native pixel's first fragment give the two taps
+ * (scaled texels, S per native texel) and the weight of the second. */
+static void native_taps(double u, double u0, int S, double* tap0, double* tap1, double* w)
+{
+   const double g = u0 - 0.5;
+   const double gi = floor(g);
+   *w = g - gi;
+   *tap0 = (gi + (u - u0)) * S;
+   *tap1 = *tap0 + S;
+}
+
+static int check_native_taps(void)
+{
+   static const int scales[] = { 2, 4, 8 };
+   int fail = 0;
+   size_t si;
+
+   for (si = 0; si < sizeof(scales) / sizeof(scales[0]); si++)
+   {
+      const int S = scales[si];
+      int k;
+      for (k = 0; k < S; k++)
+      {
+         const int x = 37;
+         double t0, t1, w;
+         /* Tomb Raider Legend reads its buffers a quarter texel in: the
+          * native pixel blends texels x-1 and x, three to one; the
+          * fragment k of that pixel reads sample k of each. */
+         native_taps(x + 0.25 + (double)k / S, x + 0.25, S, &t0, &t1, &w);
+         if ((int)t0 != (x - 1) * S + k || (int)t1 != x * S + k || w < 0.75 - 1e-9 || w > 0.75 + 1e-9)
+         {
+            printf("  scale %d fragment %d: quarter-texel read taps %g,%g weight %g\n", S, k, t0, t1, w);
+            fail++;
+         }
+         /* A copy, half a texel in: the pixel reads texel x alone, and
+          * the fragment its own sample of it. */
+         native_taps(x + 0.5 + (double)k / S, x + 0.5, S, &t0, &t1, &w);
+         if ((int)t0 != x * S + k || w != 0.0)
+         {
+            printf("  scale %d fragment %d: copy taps %g,%g weight %g\n", S, k, t0, t1, w);
+            fail++;
+         }
+         /* Reading two texels per pixel, the fragment's samples advance
+          * twice as fast; the weight is still the pixel's. */
+         native_taps(2 * x + 0.25 + 2.0 * k / S, 2 * x + 0.25, S, &t0, &t1, &w);
+         if ((int)t0 != (2 * x - 1) * S + 2 * k || w < 0.75 - 1e-9 || w > 0.75 + 1e-9)
+         {
+            printf("  scale %d fragment %d: two-texel read taps %g,%g weight %g\n", S, k, t0, t1, w);
+            fail++;
+         }
+      }
+   }
+   printf("bilinear taps on a scaled target: %s\n", fail ? "FAIL" : "ok");
+   return fail;
+}
+
 /* ---- 4. a page's position in its target -------------------------------- */
 
 /* GS page addressing for a buffer of width bw pages: the page a pixel is
@@ -801,6 +861,7 @@ int main(void)
    fail += check_sample_map();
    fail += check_sprite_edges();
    fail += check_region_clamp();
+   fail += check_native_taps();
    fail += check_page_position();
    fail += check_alias_formula();
    fail += check_shuffle_gate();

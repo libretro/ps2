@@ -347,6 +347,8 @@ struct alignas(16) GSHWDrawConfig
 
 				// Indexed source drawn at scale: pick texels at native resolution
 				u32 sample_map : 1;
+				// Bilinear read of a scaled target: the two taps a native texel apart, weighed as the native pixel weighs them
+				u32 native_taps : 1;
 			};
 
 			struct

@@ -3573,6 +3573,7 @@ VkShaderModule GSDeviceVK::GetTFXFragmentShader(const GSHWDrawConfig::PSSelector
 	AddMacro(ss, "PS_PABE", sel.pabe);
 	AddMacro(ss, "PS_SCANMSK", sel.scanmsk);
 	AddMacro(ss, "PS_SAMPLE_MAP", sel.sample_map);
+	AddMacro(ss, "PS_NATIVE_TAPS", sel.native_taps);
 	AddMacro(ss, "PS_TEX_IS_FB", sel.tex_is_fb);
 	AddMacro(ss, "PS_NO_COLOR", sel.no_color);
 	AddMacro(ss, "PS_NO_COLOR1", sel.no_color1);

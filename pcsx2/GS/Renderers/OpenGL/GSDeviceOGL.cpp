@@ -1123,6 +1123,7 @@ std::string GSDeviceOGL::GetPSSource(const PSSelector& sel)
 	GSDeviceOGLAppendShaderMacro(macro, "PS_TCOFFSETHACK", sel.tcoffsethack);
 	GSDeviceOGLAppendShaderMacro(macro, "PS_REGION_RECT", sel.region_rect);
 	GSDeviceOGLAppendShaderMacro(macro, "PS_SAMPLE_MAP", sel.sample_map);
+	GSDeviceOGLAppendShaderMacro(macro, "PS_NATIVE_TAPS", sel.native_taps);
 	GSDeviceOGLAppendShaderMacro(macro, "PS_BLEND_A", sel.blend_a);
 	GSDeviceOGLAppendShaderMacro(macro, "PS_BLEND_B", sel.blend_b);
 	GSDeviceOGLAppendShaderMacro(macro, "PS_BLEND_C", sel.blend_c);

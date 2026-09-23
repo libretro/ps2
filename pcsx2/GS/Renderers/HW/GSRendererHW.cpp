@@ -5334,6 +5334,14 @@ __ri void GSRendererHW::EmulateTextureSampler(const GSTextureCache::Target* rt, 
 	const bool can_trilinear = !tex->m_palette && !tex->m_target && !m_conf.ps.shuffle;
 	bool trilinear_manual = need_mipmap && GSConfig.HWMipmapMode >= GSHWMipmapMode::Enabled;
 
+	/* A bilinear read of a scaled target keeps the native draw's filter: the
+	 * taps a native texel apart, with the weights of the native pixel, each
+	 * fragment reading its own samples of those texels. It runs in the
+	 * shader's own sampling. */
+	const bool native_taps = scale > 1.0f && m_vt.IsLinear() && tex->m_target && !tex->m_palette && cpsm.fmt == 0 &&
+		!psm.depth && !target_region && !need_mipmap && !m_conf.ps.shuffle;
+	const bool shader_sampler = shader_emulated_sampler || native_taps;
+
 	bool bilinear = m_vt.IsLinear();
 	int trilinear = 0;
 	bool trilinear_auto = false; // Generate mipmaps if needed (basic).
@@ -5379,6 +5387,7 @@ __ri void GSRendererHW::EmulateTextureSampler(const GSTextureCache::Target* rt, 
 	// 1 and 0 are equivalent
 	m_conf.ps.wms = (wms & 2 || target_region) ? wms : 0;
 	m_conf.ps.wmt = (wmt & 2 || target_region) ? wmt : 0;
+
 
 	// Depth + bilinear filtering isn't done yet. But if the game has just set a Z24 swizzle on a colour texture, we can
 	// just pretend it's not a depth format, since in the texture cache, it's not.
@@ -5495,7 +5504,8 @@ __ri void GSRendererHW::EmulateTextureSampler(const GSTextureCache::Target* rt, 
 
 	m_conf.ps.tcc = m_cached_ctx.TEX0.TCC;
 
-	m_conf.ps.ltf = bilinear && shader_emulated_sampler;
+	m_conf.ps.ltf = bilinear && shader_sampler;
+	m_conf.ps.native_taps = native_taps && bilinear;
 	m_conf.ps.sample_map = ((tex->m_scaled_indexed && tex->m_palette && !target_region) || IsSampleMapDraw(tex)) && !bilinear && !need_mipmap;
 	m_conf.ps.point_sampler = g_gs_device->Features().broken_point_sampler && GSConfig.GPUPaletteConversion && !target_region && (!bilinear || shader_emulated_sampler);
 
@@ -5588,7 +5598,7 @@ __ri void GSRendererHW::EmulateTextureSampler(const GSTextureCache::Target* rt, 
 	// Only enable clamping in CLAMP mode. REGION_CLAMP will be done manually in the shader
 	m_conf.sampler.tau = (wms == CLAMP_REPEAT && !target_region);
 	m_conf.sampler.tav = (wmt == CLAMP_REPEAT && !target_region);
-	if (shader_emulated_sampler)
+	if (shader_sampler)
 	{
 		m_conf.sampler.biln = 0;
 		m_conf.sampler.aniso = 0;
