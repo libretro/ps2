@@ -4175,7 +4175,6 @@ SCES-50000:
   clampModes:
     vuClampMode: 2 # Fixes texture rendering in the intro.
   gsHWFixes:
-    cpuFramebufferConversion: 1
     textureInsideRT: 1
     halfPixelOffset: 2 # Fixes title screen and some intro post processing alignment.
     roundSprite: 1 # Fixes ui and hud alignment.
@@ -32201,7 +32200,6 @@ SLPM-60109:
   clampModes:
     vuClampMode: 2 # Fixes texture rendering in the intro.
   gsHWFixes:
-    cpuFramebufferConversion: 1
     textureInsideRT: 1
     halfPixelOffset: 2 # Fixes title screen and some intro post processing alignment.
     roundSprite: 1 # Fixes ui and hud alignment.
@@ -45304,7 +45302,6 @@ SLPS-20001:
   clampModes:
     vuClampMode: 2 # Fixes texture rendering in the intro.
   gsHWFixes:
-    cpuFramebufferConversion: 1
     textureInsideRT: 1
     halfPixelOffset: 2 # Fixes title screen and some intro post processing alignment.
     roundSprite: 1 # Fixes ui and hud alignment.
@@ -51064,7 +51061,6 @@ SLPS-71502:
   name: "Ridge Racer V"
   region: "NTSC-J"
   gsHWFixes:
-    cpuFramebufferConversion: 1
     textureInsideRT: 1
     halfPixelOffset: 2 # Fixes title screen and some intro post processing alignment.
     roundSprite: 1 # Fixes ui and hud alignment.
@@ -51779,7 +51775,6 @@ SLUS-20002:
   clampModes:
     vuClampMode: 2 # Fixes texture rendering in the intro.
   gsHWFixes:
-    cpuFramebufferConversion: 1
     textureInsideRT: 1
     halfPixelOffset: 2 # Fixes title screen and some intro post processing alignment.
     roundSprite: 1 # Fixes ui and hud alignment.
