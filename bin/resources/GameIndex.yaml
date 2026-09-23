@@ -58017,7 +58017,6 @@ SLUS-21203:
     autoFlush: 1 # Fixes bloom intensity.
     minimumBlendingLevel: 4 # Fixes multiple lighting effects from lights, computers, cave walls and more.
     nativeScaling: 1 # Fixes post processing.
-    halfPixelOffset: 4 # Fixes offset post processing.
     mipmap: 2 # All Levels - Unclamped breaks LODs
 SLUS-21204:
   name: "Victorious Boxers 2 - Fighting Spirit"
