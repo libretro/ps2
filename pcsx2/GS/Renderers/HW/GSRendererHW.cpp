@@ -5512,8 +5512,9 @@ __ri void GSRendererHW::EmulateTextureSampler(const GSTextureCache::Target* rt, 
 
 	if (target_region)
 	{
-		// Use texelFetch() and clamp. Subtract one because the upper bound is exclusive.
-		m_conf.cb_ps.STRange = GSVector4(tex->GetRegionRect() - GSVector4i::cxpr(0, 0, 1, 1)) * GSVector4(scale);
+		// Use texelFetch() and clamp. The upper bound is exclusive, so the last
+		// sample is one before it, at the texture's scale.
+		m_conf.cb_ps.STRange = GSVector4(tex->GetRegionRect()) * GSVector4(scale) - GSVector4::cxpr(0.0f, 0.0f, 1.0f, 1.0f);
 		m_conf.ps.region_rect = true;
 	}
 	else if (!tex->m_target)
@@ -5539,20 +5540,17 @@ __ri void GSRendererHW::EmulateTextureSampler(const GSTextureCache::Target* rt, 
 	m_conf.cb_ps.HalfTexel = GSVector4(-0.5f, 0.5f).xxyy() / WH.zwzw();
 	if (complex_wms_wmt)
 	{
-		// Add 0.5 to the coordinates because the region clamp is inclusive, size is exclusive. We use 0.5 because we want to clamp
-		// to the last texel in the image, not halfway between it and wrapping around. We *should* be doing this when upscaling,
-		// but having it off-by-one masks some draw issues in VP2 and Xenosaga. TODO: Fix the underlying draw issues.
+		// The region clamp is inclusive: a coordinate past either end lands on
+		// the centre of the end texel's outermost sample, which is what the GS
+		// reads there with either filter; a scaled texture has its end texel's
+		// samples all the way to the texel's edge. The native half-pixel
+		// offset leaves a scaled target's first samples undrawn, so under it
+		// the low end lands on the texel's last sample instead.
 		const GSVector4i clamp(m_cached_ctx.CLAMP.MINU, m_cached_ctx.CLAMP.MINV, m_cached_ctx.CLAMP.MAXU, m_cached_ctx.CLAMP.MAXV);
 		const GSVector4 region_repeat = GSVector4::cast(clamp);
-
-		// Apply a small offset (based on upscale amount) for edges of textures to avoid reading garbage during a clamp+stscale down
-		// Bigger problem when WH is 1024x1024 and the target is only small.
-		// This "fixes" a lot of the rainbow garbage in games when upscaling (and xenosaga shadows + VP2 forest seem quite happy).
-		// Note that this is done on the original texture scale, during upscales it can mess up otherwise.
-		const GSVector4 region_clamp_offset = GSVector4::cxpr(0.5f, 0.5f, -0.1f, -0.1f) + (GSVector4::cxpr(0.1f, 0.1f, 0.0f, 0.0f) * tex->GetScale());
-
-
-		const GSVector4 region_clamp = (GSVector4(clamp) + region_clamp_offset) / WH.xyxy();
+		const float last_sample = 1.0f - 0.5f / tex->GetScale();
+		const float first_sample = (GSConfig.UserHacks_HalfPixelOffset == GSHalfPixelOffset::Native) ? last_sample : 1.0f - last_sample;
+		const GSVector4 region_clamp = (GSVector4(clamp) + GSVector4(first_sample, first_sample, last_sample, last_sample)) / WH.xyxy();
 		if (wms >= CLAMP_REGION_CLAMP)
 		{
 			m_conf.cb_ps.MinMax.x = (wms == CLAMP_REGION_CLAMP && !m_conf.ps.depth_fmt) ? region_clamp.x : region_repeat.x;

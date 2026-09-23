@@ -420,6 +420,87 @@ static int check_sprite_edges(void)
    return fail;
 }
 
+/* ---- 3c. the region clamp's ends ---------------------------------------- */
+
+/* GSRendererHW's REGION_CLAMP bounds, in texels: a coordinate past an end
+ * lands on the outermost sample of the end texel at the texture's scale S
+ * (under the native half-pixel offset, the low end on the texel's last
+ * sample, the first ones being undrawn). The sample map reads the ends as
+ * integer texels. */
+static void clamp_ends(int minu, int maxu, int S, int native_hpo, double* lo, double* hi)
+{
+   const double last = 1.0 - 0.5 / S;
+   const double first = native_hpo ? last : 1.0 - last;
+   *lo = minu + first;
+   *hi = maxu + last;
+}
+
+/* GSRendererHW: STRange.zw = rect end * scale - 1. */
+static int region_rect_end(int rect_end, int S)
+{
+   return rect_end * S - 1;
+}
+
+static int check_region_clamp(void)
+{
+   static const int scales[] = { 1, 2, 4, 8 };
+   int fail = 0;
+   size_t si;
+   int hpo;
+
+   for (hpo = 0; hpo < 2; hpo++)
+   {
+      for (si = 0; si < sizeof(scales) / sizeof(scales[0]); si++)
+      {
+         const int S = scales[si];
+         double lo, hi, u;
+         clamp_ends(0, 127, S, hpo, &lo, &hi);
+         /* The sample map's integer ends are the register's. */
+         if ((int)lo != 0 || (int)hi != 127)
+         {
+            printf("  scale %d hpo %d: integer ends %d..%d\n", S, hpo, (int)lo, (int)hi);
+            fail++;
+         }
+         /* Tomb Raider Legend's strip: pixel 127 reads texel 127.5, which
+          * must stay texel 127, and a coordinate past the end reads the
+          * texel's last sample. */
+         u = 127.5 < hi ? 127.5 : hi;
+         if ((int)u != 127)
+         {
+            printf("  scale %d hpo %d: texel 127.5 clamps to %g\n", S, hpo, u);
+            fail++;
+         }
+         u = 200.0 < hi ? 200.0 : hi;
+         if ((int)(u * S) != 127 * S + S - 1)
+         {
+            printf("  scale %d hpo %d: past the end reads sample %d, not %d\n", S, hpo, (int)(u * S), 127 * S + S - 1);
+            fail++;
+         }
+         /* Below the start: the first sample, or the last one under the
+          * native half-pixel offset, where the first S-1 are undrawn. */
+         u = -5.0 > lo ? -5.0 : lo;
+         if ((int)(u * S) != (hpo && S > 1 ? S - 1 : 0))
+         {
+            printf("  scale %d hpo %d: before the start reads sample %d\n", S, hpo, (int)(u * S));
+            fail++;
+         }
+      }
+   }
+   /* The region rect's bound for texelFetch, from its exclusive end at
+    * the texture's scale: the end texel's last sample is inside it. */
+   for (si = 0; si < sizeof(scales) / sizeof(scales[0]); si++)
+   {
+      const int S = scales[si];
+      if (127 * S + S - 1 > region_rect_end(128, S))
+      {
+         printf("  scale %d: region rect end %d leaves out the last sample\n", S, region_rect_end(128, S));
+         fail++;
+      }
+   }
+   printf("region clamp ends: %s\n", fail ? "FAIL" : "ok");
+   return fail;
+}
+
 /* ---- 4. a page's position in its target -------------------------------- */
 
 /* GS page addressing for a buffer of width bw pages: the page a pixel is
@@ -719,6 +800,7 @@ int main(void)
    fail += check_scaled();
    fail += check_sample_map();
    fail += check_sprite_edges();
+   fail += check_region_clamp();
    fail += check_page_position();
    fail += check_alias_formula();
    fail += check_shuffle_gate();
