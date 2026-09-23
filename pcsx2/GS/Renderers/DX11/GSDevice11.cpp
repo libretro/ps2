@@ -1015,10 +1015,10 @@ void GSDevice11::ConvertToIndexedTexture(GSTexture* sTex, float sScale, u32 offs
 	{
 		float scale;
 		float pad1[3];
-		u32 SBW, DBW, pad3;
+		u32 SBW, DBW, PageOffset;
 	};
 
-	const Uniforms cb = {sScale, {}, SBW, DBW};
+	const Uniforms cb = {sScale, {}, SBW, DBW, IndexedConversionPageOffset(offsetX, offsetY, SBW)};
 	m_ctx->UpdateSubresource(m_merge.cb.get(), 0, nullptr, &cb, 0, 0);
 
 	const GSVector4 dRect(0, 0, dTex->GetWidth(), dTex->GetHeight());
@@ -2035,6 +2035,7 @@ void GSDevice11::SetupPS(const PSSelector& sel, const GSHWDrawConfig::PSConstant
 		sm.AddMacro("PS_DITHER_ADJUST", sel.dither_adjust);
 		sm.AddMacro("PS_ZCLAMP", sel.zclamp);
 		sm.AddMacro("PS_SCANMSK", sel.scanmsk);
+		sm.AddMacro("PS_SAMPLE_MAP", sel.sample_map);
 		sm.AddMacro("PS_AUTOMATIC_LOD", sel.automatic_lod);
 		sm.AddMacro("PS_MANUAL_LOD", sel.manual_lod);
 		sm.AddMacro("PS_TEX_IS_FB", sel.tex_is_fb);

@@ -152,3 +152,4 @@ tests/gsregion/gs_region_repeat
 tests/gsclut/clut_bank_clamp
 tests/gstc/readback_retire
 tests/gsstq/stq_saturate
+tests/gsindexed/indexed_view

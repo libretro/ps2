@@ -1385,10 +1385,10 @@ void GSDevice12::ConvertToIndexedTexture(GSTexture* sTex, float sScale, u32 offs
 	{
 		float scale;
 		float pad1[3];
-		u32 SBW, DBW, pad2;
+		u32 SBW, DBW, PageOffset;
 	};
 
-	const Uniforms cb = {sScale, {}, SBW, DBW};
+	const Uniforms cb = {sScale, {}, SBW, DBW, IndexedConversionPageOffset(offsetX, offsetY, SBW)};
 	SetUtilityRootSignature();
 	SetUtilityPushConstants(&cb, sizeof(cb));
 
@@ -2485,6 +2485,7 @@ const ID3DBlob* GSDevice12::GetTFXPixelShader(const GSHWDrawConfig::PSSelector& 
 	sm.AddMacro("PS_DITHER_ADJUST", sel.dither_adjust);
 	sm.AddMacro("PS_ZCLAMP", sel.zclamp);
 	sm.AddMacro("PS_SCANMSK", sel.scanmsk);
+	sm.AddMacro("PS_SAMPLE_MAP", sel.sample_map);
 	sm.AddMacro("PS_AUTOMATIC_LOD", sel.automatic_lod);
 	sm.AddMacro("PS_MANUAL_LOD", sel.manual_lod);
 	sm.AddMacro("PS_TEX_IS_FB", sel.tex_is_fb);

@@ -344,6 +344,9 @@ struct alignas(16) GSHWDrawConfig
 
 				// Scan mask
 				u32 scanmsk : 2;
+
+				// Indexed source drawn at scale: pick texels at native resolution
+				u32 sample_map : 1;
 			};
 
 			struct
@@ -954,8 +957,15 @@ public:
 	/// Updates a GPU CLUT texture from a source texture.
 	void UpdateCLUTTexture(GSTexture* sTex, float sScale, u32 offsetX, u32 offsetY, GSTexture* dTex, u32 dOffset, u32 dSize);
 
-	/// Converts a colour format to an indexed format texture.
+	/// Converts a colour format to an indexed format texture. offsetX/offsetY
+	/// are page-aligned, unscaled pixel offsets into the source target.
 	void ConvertToIndexedTexture(GSTexture* sTex, float sScale, u32 offsetX, u32 offsetY, u32 SBW, u32 SPSM, GSTexture* dTex, u32 DBW, u32 DPSM);
+
+	/// The page of a 32-bit source that a page-aligned pixel offset lands on.
+	static u32 IndexedConversionPageOffset(u32 offsetX, u32 offsetY, u32 SBW)
+	{
+		return (offsetY / 32) * (pcsx2_max_u(SBW, 64u) / 64) + (offsetX / 64);
+	}
 
 	/// Uses box downsampling to resize a texture.
 	void FilteredDownsampleTexture(GSTexture* sTex, GSTexture* dTex, u32 downsample_factor, const GSVector2i& clamp_min, const GSVector4& dRect);

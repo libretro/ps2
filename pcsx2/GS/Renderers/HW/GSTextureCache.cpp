@@ -1590,6 +1590,32 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const bool is_color, const 
 						}
 					}
 				}
+				// An 8-bit read of a page inside a 32-bit target: the indexed
+				// conversion works in page addresses, so it only needs to know
+				// which page of the target the texture starts on.
+				else if (!GSConfig.UserHacks_CPUFBConversion && psm == PSMT8 &&
+					GSLocalMemory::m_psm[t->m_TEX0.PSM].bpp == 32 && bp > t->m_TEX0.TBP0 && bp < t->UnwrappedEndBlock() &&
+					((bp - t->m_TEX0.TBP0) & (GS_BLOCKS_PER_PAGE - 1)) == 0 &&
+					t->m_age <= 1 && (!found_t || t->m_last_draw > dst->m_last_draw))
+				{
+					if (!t->HasValidBitsForFormat(psm, req_color, req_alpha))
+						continue;
+
+					const u32 pgw = pcsx2_max_u(t->m_TEX0.TBW, 1u);
+					const u32 first_page = (bp - t->m_TEX0.TBP0) >> 5;
+					const u32 last_page = (pcsx2_min_u(GSLocalMemory::GetUnwrappedEndBlockAddress(bp, bw, psm, req_rect), t->UnwrappedEndBlock()) - t->m_TEX0.TBP0) >> 5;
+					const GSVector4i pages_rect(0, static_cast<int>((first_page / pgw) * 32), static_cast<int>(pgw * 64), static_cast<int>((last_page / pgw + 1) * 32));
+
+					if (!t->m_dirty.empty() && !t->m_dirty.GetTotalRect(t->m_TEX0, t->m_unscaled_size).rintersect(pages_rect).rempty())
+						continue;
+
+					x_offset = static_cast<int>((first_page % pgw) * 64);
+					y_offset = static_cast<int>((first_page / pgw) * 32);
+					dst = t;
+					tex_merge_rt = false;
+					found_t = true;
+					continue;
+				}
 			}
 		}
 
@@ -4355,7 +4381,11 @@ GSTextureCache::Source* GSTextureCache::CreateSource(const GIFRegTEX0& TEX0, con
 	bool hack = false;
 	bool channel_shuffle = false;
 
-	if (dst && (x_offset != 0 || y_offset != 0))
+	// An indexed read of a target is converted below, offset and all; only
+	// a colour read (or a channel shuffle) can sample the target in place.
+	const bool indexed_from_target = dst && TEX0.PSM == PSMT8 && !GSRendererHW::GetInstance()->TestChannelShuffle(dst);
+
+	if (dst && (x_offset != 0 || y_offset != 0) && !indexed_from_target)
 	{
 		const float scale = dst->m_scale;
 		const int x = static_cast<int>(scale * x_offset);
@@ -4511,13 +4541,15 @@ GSTextureCache::Source* GSTextureCache::CreateSource(const GIFRegTEX0& TEX0, con
 			pcsx2_min_i(static_cast<int>(std::ceil(static_cast<float>(src->m_unscaled_size.x) * dst->m_scale)), dst->m_texture->GetWidth()),
 			pcsx2_min_i(static_cast<int>(std::ceil(static_cast<float>(src->m_unscaled_size.y) * dst->m_scale)), dst->m_texture->GetHeight()));
 
+		// The indexed conversion can carry an integer scale through, since a
+		// texel of the 8-bit view is a fixed part of one target pixel.
+		const bool scaled_8bits = is_8bits && dst->m_scale > 1.0f && std::floor(dst->m_scale) == dst->m_scale;
 		if (is_8bits)
 		{
-			// Unscale 8 bits textures, quality won't be nice but format is really awful
 			src->m_unscaled_size.x = tw;
 			src->m_unscaled_size.y = th;
-			new_size.x = tw;
-			new_size.y = th;
+			new_size.x = scaled_8bits ? static_cast<int>(tw * dst->m_scale) : tw;
+			new_size.y = scaled_8bits ? static_cast<int>(th * dst->m_scale) : th;
 		}
 
 		// pitch conversion
@@ -4527,8 +4559,9 @@ GSTextureCache::Source* GSTextureCache::CreateSource(const GIFRegTEX0& TEX0, con
 			hack = true;
 		// width/height conversion
 
-		const float scale = is_8bits ? 1.0f : dst->m_scale;
+		const float scale = (is_8bits && !scaled_8bits) ? 1.0f : dst->m_scale;
 		src->m_scale = scale;
+		src->m_scaled_indexed = scaled_8bits;
 
 		GSVector4i sRect = GSVector4i::loadh(new_size);
 		int destX = 0;

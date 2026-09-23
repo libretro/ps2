@@ -436,6 +436,7 @@ bool GSDeviceOGL::Create()
 				m_convert.ps[i].RegisterUniform("SBW");
 				m_convert.ps[i].RegisterUniform("DBW");
 				m_convert.ps[i].RegisterUniform("ScaleFactor");
+				m_convert.ps[i].RegisterUniform("PageOffset");
 			}
 			else if (static_cast<ShaderConvert>(i) == ShaderConvert::YUV)
 			{
@@ -1121,6 +1122,7 @@ std::string GSDeviceOGL::GetPSSource(const PSSelector& sel)
 	GSDeviceOGLAppendShaderMacro(macro, "PS_DATE", sel.date);
 	GSDeviceOGLAppendShaderMacro(macro, "PS_TCOFFSETHACK", sel.tcoffsethack);
 	GSDeviceOGLAppendShaderMacro(macro, "PS_REGION_RECT", sel.region_rect);
+	GSDeviceOGLAppendShaderMacro(macro, "PS_SAMPLE_MAP", sel.sample_map);
 	GSDeviceOGLAppendShaderMacro(macro, "PS_BLEND_A", sel.blend_a);
 	GSDeviceOGLAppendShaderMacro(macro, "PS_BLEND_B", sel.blend_b);
 	GSDeviceOGLAppendShaderMacro(macro, "PS_BLEND_C", sel.blend_c);
@@ -1336,6 +1338,7 @@ void GSDeviceOGL::ConvertToIndexedTexture(GSTexture* sTex, float sScale, u32 off
 	prog.Uniform1ui(0, SBW);
 	prog.Uniform1ui(1, DBW);
 	prog.Uniform1f(2, sScale);
+	prog.Uniform1ui(3, IndexedConversionPageOffset(offsetX, offsetY, SBW));
 
 	OMSetDepthStencilState(m_convert.dss);
 	OMSetBlendState(false);

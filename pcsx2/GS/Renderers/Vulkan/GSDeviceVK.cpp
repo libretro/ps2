@@ -2312,12 +2312,13 @@ void GSDeviceVK::ConvertToIndexedTexture(GSTexture* sTex, float sScale, u32 offs
 	{
 		u32 SBW;
 		u32 DBW;
-		u32 pad1[2];
+		u32 PageOffset;
+		u32 pad1;
 		float ScaleFactor;
 		float pad2[3];
 	};
 
-	const Uniforms uniforms = {SBW, DBW, {}, sScale, {}};
+	const Uniforms uniforms = {SBW, DBW, IndexedConversionPageOffset(offsetX, offsetY, SBW), 0, sScale, {}};
 	SetUtilityPushConstants(&uniforms, sizeof(uniforms));
 
 	const ShaderConvert shader = ShaderConvert::RGBA_TO_8I;
@@ -3571,6 +3572,7 @@ VkShaderModule GSDeviceVK::GetTFXFragmentShader(const GSHWDrawConfig::PSSelector
 	AddMacro(ss, "PS_ZCLAMP", sel.zclamp);
 	AddMacro(ss, "PS_PABE", sel.pabe);
 	AddMacro(ss, "PS_SCANMSK", sel.scanmsk);
+	AddMacro(ss, "PS_SAMPLE_MAP", sel.sample_map);
 	AddMacro(ss, "PS_TEX_IS_FB", sel.tex_is_fb);
 	AddMacro(ss, "PS_NO_COLOR", sel.no_color);
 	AddMacro(ss, "PS_NO_COLOR1", sel.no_color1);

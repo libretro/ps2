@@ -3603,8 +3603,9 @@ void GSRendererHW::Draw()
 			}
 		}
 
-		// Noting to do if no texture is sampled
-		if (PRIM->FST && draw_sprite_tex)
+		// Noting to do if no texture is sampled. A scaled indexed source picks
+		// its texels from the coordinates as the game gave them, so it is left alone.
+		if (PRIM->FST && draw_sprite_tex && !(src && src->m_scaled_indexed))
 		{
 			if ((GSConfig.UserHacks_RoundSprite > 1) || (GSConfig.UserHacks_RoundSprite == 1 && !m_vt.IsLinear()))
 			{
@@ -5302,6 +5303,7 @@ __ri void GSRendererHW::EmulateTextureSampler(const GSTextureCache::Target* rt, 
 	m_conf.ps.tcc = m_cached_ctx.TEX0.TCC;
 
 	m_conf.ps.ltf = bilinear && shader_emulated_sampler;
+	m_conf.ps.sample_map = tex->m_scaled_indexed && tex->m_palette && !bilinear && !target_region && !need_mipmap;
 	m_conf.ps.point_sampler = g_gs_device->Features().broken_point_sampler && GSConfig.GPUPaletteConversion && !target_region && (!bilinear || shader_emulated_sampler);
 
 	const int tw = static_cast<int>(1 << m_cached_ctx.TEX0.TW);

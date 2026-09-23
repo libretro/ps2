@@ -373,6 +373,8 @@ public:
 		u8 m_complete_layers = 0;
 		bool m_target = false;
 		bool m_target_direct = false;
+		// Indexed view of a target, converted at the target's scale.
+		bool m_scaled_indexed = false;
 		bool m_repeating = false;
 		bool m_valid_alpha_minmax = false;
 		std::pair<u8, u8> m_alpha_minmax = {0u, 255u};
