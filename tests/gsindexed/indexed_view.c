@@ -28,7 +28,8 @@
  * pages go through the exact conversion instead. The fetch starts at the
  * page the texture begins on, and a draw addressed at a page of a target
  * lands on that page: both use the page's position in the target, which is
- * checked against the GS page addressing.
+ * checked against the GS page addressing, as is a read whose base lies
+ * before a target but whose coordinates land on it.
  *
  * Build and run, from tests/gsindexed:
  *   cc -O2 -std=c89 -pedantic -Wall indexed_view.c -o indexed_view
@@ -346,6 +347,33 @@ static int check_page_position(void)
                   if (fail++ < 8)
                      printf("  width %u page %u: pixel %u,%u is page %u\n", bw, page, px, py, page_of_pixel(px, py, bw));
                }
+      }
+   }
+   /* A texture whose base is before a target but whose coordinates land
+    * on it (Ridge Racer V reads its lamp glows from a scratch buffer at
+    * 0x1a40 through the display buffer's address 0x9a0, texel 733,478,
+    * both 10 pages wide): the texel's page is a page of the target, and
+    * the offset puts the texel on the target pixel with the same place in
+    * its page. GSTextureCache::LookupSource, the read-before-target case. */
+   {
+      const u32 bp = 0x9a0, tbp = 0x1a40, bw = 10, u = 733, v = 478;
+      const u32 page_x = u & ~63u, page_y = v & ~31u;
+      const u32 rect_bp = bp + page_of_pixel(page_x, page_y, bw) * 32u;
+      u32 x, y;
+      int tx, ty;
+      if (rect_bp < tbp || (rect_bp - tbp) % 32u)
+      {
+         printf("  read-before-target: texel %u,%u of 0x%x is block 0x%x, not a page of 0x%x\n", u, v, bp, rect_bp, tbp);
+         fail++;
+      }
+      page_position((rect_bp - tbp) / 32u, bw, &x, &y);
+      tx = (int)x - (int)page_x;
+      ty = (int)y - (int)page_y;
+      if (tx != -192 || ty != -416 || (int)u + tx != 541 || (int)v + ty != 62 ||
+          tbp + page_of_pixel((u32)((int)u + tx), (u32)((int)v + ty), bw) * 32u != rect_bp)
+      {
+         printf("  read-before-target: offset %d,%d puts texel %u,%u at %d,%d\n", tx, ty, u, v, (int)u + tx, (int)v + ty);
+         fail++;
       }
    }
    /* Tomb Raider Legend's strips: the display is 8 pages wide, a strip

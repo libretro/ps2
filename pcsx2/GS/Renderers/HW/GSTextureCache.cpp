@@ -1406,6 +1406,43 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const bool is_color, const 
 					y_offset = 0;
 					break;
 				}
+				// A read that starts before the target but lands on it: the
+				// texture's base is low and its coordinates high, so what is
+				// read is pages of the target, at the same layout. Ridge Racer V
+				// draws its lamp glows into a scratch buffer at the lamp's screen
+				// position and reads them back through the display buffer's
+				// address, several page rows down. The rect's first page is a
+				// page of the target; the offset takes the texel there.
+				else if (bp < t->m_TEX0.TBP0 && psm == t->m_TEX0.PSM && bw == t->m_TEX0.TBW && bw > 0 &&
+					GSLocalMemory::m_psm[psm].bpp == 32 && !region.HasEither() &&
+					t->m_age <= 1 && (!found_t || t->m_last_draw > dst->m_last_draw))
+				{
+					const GSVector2i& pgs = GSLocalMemory::m_psm[psm].pgs;
+					const GSOffset offset(GSLocalMemory::m_psm[psm].info, bp, bw, psm);
+					const int page_x = r.x & ~(pgs.x - 1);
+					const int page_y = r.y & ~(pgs.y - 1);
+					const u32 rect_bp = page_y >= 0 && page_x >= 0 ? offset.bn(page_x, page_y) : 0;
+					if (rect_bp < t->m_TEX0.TBP0 || rect_bp >= t->UnwrappedEndBlock() || ((rect_bp - t->m_TEX0.TBP0) & (GS_BLOCKS_PER_PAGE - 1)))
+						continue;
+					if (!t->HasValidBitsForFormat(psm, req_color, req_alpha))
+						continue;
+
+					const u32 page = (rect_bp - t->m_TEX0.TBP0) >> 5;
+					const int tx = static_cast<int>((page % bw) * pgs.x) - page_x;
+					const int ty = static_cast<int>((page / bw) * pgs.y) - page_y;
+					const GSVector4i in_target = r + GSVector4i(tx, ty).xyxy();
+					if (in_target.z > t->m_unscaled_size.x || in_target.w > t->m_unscaled_size.y)
+						continue;
+					if (!t->m_dirty.empty() && !t->m_dirty.GetTotalRect(t->m_TEX0, t->m_unscaled_size).rintersect(in_target).rempty())
+						continue;
+
+					x_offset = tx;
+					y_offset = ty;
+					dst = t;
+					tex_merge_rt = false;
+					found_t = true;
+					continue;
+				}
 				// Make sure the texture actually is INSIDE the RT, it's possibly not valid if it isn't.
 				// Also check BP >= TBP, create source isn't equpped to expand it backwards and all data comes from the target. (GH3)
 				else if (GSConfig.UserHacks_TextureInsideRt >= GSTextureInRtMode::InsideTargets &&
@@ -4494,11 +4531,11 @@ GSTextureCache::Source* GSTextureCache::CreateSource(const GIFRegTEX0& TEX0, con
 		}
 		else
 		{
-			if (x_offset < 0)
+			if (x_offset < 0 && region.HasX())
 				src->m_region.SetX(x_offset, region.GetMaxX() + x_offset);
 			else
 				src->m_region.SetX(x_offset, x_offset + tw);
-			if (y_offset < 0)
+			if (y_offset < 0 && region.HasY())
 				src->m_region.SetY(y_offset, region.GetMaxY() + y_offset);
 			else
 				src->m_region.SetY(y_offset, y_offset + th);
