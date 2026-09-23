@@ -2468,12 +2468,14 @@ void GSRendererHW::RoundSpriteOffset()
 	}
 }
 
-// A sprite edge covers a native pixel from the pixel the rasterizer's
-// ceil() lands it on, so its edges move onto those pixels: every fragment
-// of a native pixel then belongs to the sprite that draws the pixel at
-// native size, at any scale. The texture coordinate keeps the value it has
-// at each pixel, carried as floats since a sixteenth of a texel would not
-// hold the shifted value.
+/* A sprite covers the native pixels whose positions its edges enclose
+ * (rows ceil(y0) to ceil(y1) - 1), with its texture coordinates taken at
+ * those positions; drawn scaled, its fragments would cover from the
+ * scaled edges instead, leaving part of a native pixel out or in at each
+ * edge. The edges move to the native pixel boundary the GS covers from,
+ * the coordinates along the sprite's own line (carried as floats, since a
+ * sixteenth of a texel would not hold the shifted value), so every
+ * fragment samples where the GS does and the draw's extent is the GS's. */
 void GSRendererHW::SnapSpriteEdges()
 {
 	const u32 count = m_vertex.next & ~1u;
@@ -2482,53 +2484,113 @@ void GSRendererHW::SnapSpriteEdges()
 	const int oy = m_context->XYOFFSET.OFY;
 	const float tw = (float)(16 << m_cached_ctx.TEX0.TW);
 	const float th = (float)(16 << m_cached_ctx.TEX0.TH);
+	const int tme = PRIM->TME;
+	const int fst = PRIM->FST;
+	GSVector4i lo = GSVector4i(INT_MAX);
+	GSVector4i hi = GSVector4i(INT_MIN);
 	u32 i;
 
 	for (i = 0; i < count; i += 2)
 	{
 		GSVertex* a = &v[i];
 		GSVertex* b = &v[i + 1];
-		float u0 = (float)a->U;
-		float u1 = (float)b->U;
-		float v0 = (float)a->V;
-		float v1 = (float)b->V;
+		float s0, s1, t0, t1, q0, q1;
 		const int x0 = (int)a->XYZ.X - ox;
 		const int x1 = (int)b->XYZ.X - ox;
-		int y0, y1;
+		const int nx0 = -((-x0) & ~15);
+		const int nx1 = -((-x1) & ~15);
+		int y0, y1, ny0, ny1;
+
+		if (fst)
+		{
+			s0 = (float)a->U;
+			s1 = (float)b->U;
+			t0 = (float)a->V;
+			t1 = (float)b->V;
+			q0 = q1 = 1.0f;
+		}
+		else
+		{
+			s0 = a->ST.S;
+			s1 = b->ST.S;
+			t0 = a->ST.T;
+			t1 = b->ST.T;
+			q0 = a->RGBAQ.Q;
+			q1 = b->RGBAQ.Q;
+		}
 
 		if (x0 != x1)
 		{
-			const int nx0 = -((-x0) & ~15);
-			const int nx1 = -((-x1) & ~15);
-			const float du = (u1 - u0) / (float)(x1 - x0);
-			u0 += (float)(nx0 - x0) * du;
-			u1 += (float)(nx1 - x1) * du;
+			const float f0 = (float)(nx0 - x0) / (float)(x1 - x0);
+			const float f1 = (float)(nx1 - x1) / (float)(x1 - x0);
+			const float ds = s1 - s0;
+			const float dq = q1 - q0;
+			s0 += f0 * ds;
+			s1 += f1 * ds;
+			q0 += f0 * dq;
+			q1 += f1 * dq;
 			a->XYZ.X = (u16)(nx0 + ox);
 			b->XYZ.X = (u16)(nx1 + ox);
 		}
 
 		y0 = (int)a->XYZ.Y - oy;
 		y1 = (int)b->XYZ.Y - oy;
+		ny0 = -((-y0) & ~15);
+		ny1 = -((-y1) & ~15);
 		if (y0 != y1)
 		{
-			const int ny0 = -((-y0) & ~15);
-			const int ny1 = -((-y1) & ~15);
-			const float dv = (v1 - v0) / (float)(y1 - y0);
-			v0 += (float)(ny0 - y0) * dv;
-			v1 += (float)(ny1 - y1) * dv;
+			const float f0 = (float)(ny0 - y0) / (float)(y1 - y0);
+			const float f1 = (float)(ny1 - y1) / (float)(y1 - y0);
+			const float dt = t1 - t0;
+			const float dq = q1 - q0;
+			t0 += f0 * dt;
+			t1 += f1 * dt;
+			q0 += f0 * dq;
+			q1 += f1 * dq;
 			a->XYZ.Y = (u16)(ny0 + oy);
 			b->XYZ.Y = (u16)(ny1 + oy);
 		}
 
-		a->ST.S = u0 / tw;
-		a->ST.T = v0 / th;
-		a->RGBAQ.Q = 1.0f;
-		b->ST.S = u1 / tw;
-		b->ST.T = v1 / th;
-		b->RGBAQ.Q = 1.0f;
+		if (tme)
+		{
+			if (fst)
+			{
+				s0 /= tw;
+				s1 /= tw;
+				t0 /= th;
+				t1 /= th;
+			}
+			a->ST.S = s0;
+			a->ST.T = t0;
+			a->RGBAQ.Q = q0;
+			b->ST.S = s1;
+			b->ST.T = t1;
+			b->RGBAQ.Q = q1;
+		}
+
+		{
+			const GSVector4i p0 = GSVector4i(nx0, ny0, nx0, ny0);
+			const GSVector4i p1 = GSVector4i(nx1, ny1, nx1, ny1);
+			lo = lo.min_i32(p0).min_i32(p1);
+			hi = hi.max_i32(p0).max_i32(p1);
+		}
 	}
 
-	m_sprite_edges_snapped = true;
+	if (count == 0)
+		return;
+
+	/* The extent the draw now has: from the first native pixel to the one
+	 * before the far edge. */
+	{
+		const GSVector4i box = lo.upl64(hi);
+		m_vt.m_min.p.x = (float)box.x * (1.0f / 16.0f);
+		m_vt.m_min.p.y = (float)box.y * (1.0f / 16.0f);
+		m_vt.m_max.p.x = (float)box.z * (1.0f / 16.0f);
+		m_vt.m_max.p.y = (float)box.w * (1.0f / 16.0f);
+		m_r = box.sra32(4);
+		m_r = m_r.blend8(m_r + GSVector4i::cxpr(0, 0, 1, 1), (m_r.xyxy() == m_r.zwzw()));
+	}
+	m_sprite_edges_snapped = (tme != 0);
 }
 
 void GSRendererHW::Draw()
@@ -2697,6 +2759,15 @@ void GSRendererHW::Draw()
 	//                                --------------------------------------
 	m_r = GSVector4i(m_vt.m_min.p.upld(m_vt.m_max.p) + GSVector4::cxpr(0.5f));
 	m_r = m_r.blend8(m_r + GSVector4i::cxpr(0, 0, 1, 1), (m_r.xyxy() == m_r.zwzw()));
+
+	/* Scaled sprites cover what the GS covers (see SnapSpriteEdges). The
+	 * shuffles are told apart by their sprites' exact shape and keep it;
+	 * the half-pixel offset moves sprites its own way and keeps them too. */
+	m_sprite_edges_snapped = false;
+	if (m_vt.m_primclass == GS_SPRITE_CLASS && GetUpscaleMultiplier() > 1.0f && !GSConfig.UserHacks_MergePPSprite &&
+		GSConfig.UserHacks_HalfPixelOffset == GSHalfPixelOffset::Off && !IsPossibleChannelShuffle() &&
+		!(PRIM->TME && GSLocalMemory::m_psm[m_cached_ctx.FRAME.PSM].bpp == 16 && GSLocalMemory::m_psm[m_cached_ctx.TEX0.PSM].bpp == 16))
+		SnapSpriteEdges();
 	m_r_no_scissor = m_r;
 	m_r = m_r.rintersect(context->scissor.in);
 
@@ -5997,10 +6068,6 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 		EmulateChannelShuffle(tex->m_from_target, false);
 	else
 		m_conf.cb_ps.ChannelOffset = GSVector4::zero();
-
-	m_sprite_edges_snapped = false;
-	if (tex && !m_channel_shuffle && !m_texture_shuffle_info && !GSConfig.UserHacks_MergePPSprite && IsSampleMapDraw(tex))
-		SnapSpriteEdges();
 
 	// Upscaling hack to avoid various line/grid issues
 	MergeSprite(tex);

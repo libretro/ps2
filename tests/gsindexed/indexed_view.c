@@ -402,6 +402,41 @@ static int check_sprite_edges(void)
       fail++;
    }
 
+   /* Two bloom tiles magnified 4:1 from a 160x112 buffer, laid out by
+    * page with a half-pixel gap between them (rows -1/16 .. 503/16 and
+    * 511/16 .. 1015/16): natively the first covers rows 0..31 and the
+    * second 32..63, so no row is left without its bloom; scaled, the
+    * gap between the tiles' own edges would leave part of row 31 bare
+    * on every page boundary. */
+   {
+      static const struct sprite bloom[2] = {
+         { -1, -1, 1015, 503, 2, 2, 250, 122 },
+         { -1, 511, 1015, 1015, 2, 130, 250, 250 }
+      };
+      struct fsprite bs[2];
+      int bare = 0, gap = 0;
+      snap_sprite(&bloom[0], &bs[0]);
+      snap_sprite(&bloom[1], &bs[1]);
+      if (bs[0].y0 != 0.0 || bs[0].y1 != 32.0 || bs[1].y0 != 32.0 || bs[1].y1 != 64.0)
+      {
+         printf("  bloom tiles snap to %g..%g and %g..%g, not 0..32 and 32..64\n", bs[0].y0, bs[0].y1, bs[1].y0, bs[1].y1);
+         fail++;
+      }
+      for (I = 0; I < 64 * 8; I++)
+      {
+         if (!hw_covers(bs[0].y0, bs[0].y1, 8, I) && !hw_covers(bs[1].y0, bs[1].y1, 8, I))
+            bare++;
+         if (!hw_covers(bloom[0].y0 / 16.0, bloom[0].y1 / 16.0, 8, I) && !hw_covers(bloom[1].y0 / 16.0, bloom[1].y1 / 16.0, 8, I))
+            gap++;
+      }
+      /* their own edges: half a pixel at the seam, and below the second */
+      if (bare != 0 || gap != 8)
+      {
+         printf("  bloom tiles at 8x leave %d fragment rows bare (their own edges leave %d)\n", bare, gap);
+         fail++;
+      }
+   }
+
    /* The texel a row reads is the one the native draw reads. */
    for (t = 0; t < 2; t++)
    {
@@ -414,6 +449,28 @@ static int check_sprite_edges(void)
          {
             if (fail++ < 8)
                printf("  tile %u row %d: texel %.6f, native reads %d\n", (unsigned)t, Y, v, native);
+         }
+      }
+   }
+   /* A sprite with float coordinates and a perspective divide (FST off):
+    * S and Q both move along the sprite's line, so S/Q at every native
+    * pixel is what it was. Edges at 3/16 and 5+9/16 pixels. */
+   {
+      const double x0 = 3.0 / 16.0, x1 = 5.0 + 9.0 / 16.0, s0 = 0.25, s1 = 0.75, q0 = 1.0, q1 = 2.0;
+      const double nx0 = 1.0, nx1 = 6.0;
+      const double f0 = (nx0 - x0) / (x1 - x0), f1 = (nx1 - x1) / (x1 - x0);
+      const double ns0 = s0 + f0 * (s1 - s0), ns1 = s1 + f1 * (s1 - s0);
+      const double nq0 = q0 + f0 * (q1 - q0), nq1 = q1 + f1 * (q1 - q0);
+      int X;
+      for (X = 1; X < 6; X++)
+      {
+         const double a = (X - x0) / (x1 - x0), b = (X - nx0) / (nx1 - nx0);
+         const double before = (s0 + a * (s1 - s0)) / (q0 + a * (q1 - q0));
+         const double after = (ns0 + b * (ns1 - ns0)) / (nq0 + b * (nq1 - nq0));
+         if (fabs(before - after) > 1e-12)
+         {
+            if (fail++ < 8)
+               printf("  pixel %d: S/Q %.9f before the snap, %.9f after\n", X, before, after);
          }
       }
    }
