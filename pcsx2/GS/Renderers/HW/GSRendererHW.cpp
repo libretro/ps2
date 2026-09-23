@@ -5410,7 +5410,7 @@ __ri void GSRendererHW::EmulateTextureSampler(const GSTextureCache::Target* rt, 
 	 * fragment reading its own samples of those texels. It runs in the
 	 * shader's own sampling. */
 	const bool native_taps = scale > 1.0f && m_vt.IsLinear() && tex->m_target && !tex->m_palette && cpsm.fmt == 0 &&
-		!psm.depth && !target_region && !need_mipmap && !m_conf.ps.shuffle;
+		!psm.depth && !need_mipmap && !m_conf.ps.shuffle;
 	const bool shader_sampler = shader_emulated_sampler || native_taps;
 
 	bool bilinear = m_vt.IsLinear();
