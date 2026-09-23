@@ -2476,54 +2476,56 @@ void GSRendererHW::RoundSpriteOffset()
 // hold the shifted value.
 void GSRendererHW::SnapSpriteEdges()
 {
-	const u32 count = m_vertex.next;
-	GSVertex* v = &m_vertex.buff[0];
+	const u32 count = m_vertex.next & ~1u;
+	GSVertex* v = m_vertex.buff;
 	const int ox = m_context->XYOFFSET.OFX;
 	const int oy = m_context->XYOFFSET.OFY;
-	const float tw = static_cast<float>(16 << m_cached_ctx.TEX0.TW);
-	const float th = static_cast<float>(16 << m_cached_ctx.TEX0.TH);
+	const float tw = (float)(16 << m_cached_ctx.TEX0.TW);
+	const float th = (float)(16 << m_cached_ctx.TEX0.TH);
+	u32 i;
 
-	for (u32 i = 0; i + 1 < count; i += 2)
+	for (i = 0; i < count; i += 2)
 	{
-		GSVertex& a = v[i];
-		GSVertex& b = v[i + 1];
-		float u0 = static_cast<float>(a.U);
-		float u1 = static_cast<float>(b.U);
-		float v0 = static_cast<float>(a.V);
-		float v1 = static_cast<float>(b.V);
+		GSVertex* a = &v[i];
+		GSVertex* b = &v[i + 1];
+		float u0 = (float)a->U;
+		float u1 = (float)b->U;
+		float v0 = (float)a->V;
+		float v1 = (float)b->V;
+		const int x0 = (int)a->XYZ.X - ox;
+		const int x1 = (int)b->XYZ.X - ox;
+		int y0, y1;
 
-		const int x0 = static_cast<int>(a.XYZ.X) - ox;
-		const int x1 = static_cast<int>(b.XYZ.X) - ox;
 		if (x0 != x1)
 		{
 			const int nx0 = -((-x0) & ~15);
 			const int nx1 = -((-x1) & ~15);
-			const float du = (u1 - u0) / static_cast<float>(x1 - x0);
-			u0 += static_cast<float>(nx0 - x0) * du;
-			u1 += static_cast<float>(nx1 - x1) * du;
-			a.XYZ.X = static_cast<u16>(nx0 + ox);
-			b.XYZ.X = static_cast<u16>(nx1 + ox);
+			const float du = (u1 - u0) / (float)(x1 - x0);
+			u0 += (float)(nx0 - x0) * du;
+			u1 += (float)(nx1 - x1) * du;
+			a->XYZ.X = (u16)(nx0 + ox);
+			b->XYZ.X = (u16)(nx1 + ox);
 		}
 
-		const int y0 = static_cast<int>(a.XYZ.Y) - oy;
-		const int y1 = static_cast<int>(b.XYZ.Y) - oy;
+		y0 = (int)a->XYZ.Y - oy;
+		y1 = (int)b->XYZ.Y - oy;
 		if (y0 != y1)
 		{
 			const int ny0 = -((-y0) & ~15);
 			const int ny1 = -((-y1) & ~15);
-			const float dv = (v1 - v0) / static_cast<float>(y1 - y0);
-			v0 += static_cast<float>(ny0 - y0) * dv;
-			v1 += static_cast<float>(ny1 - y1) * dv;
-			a.XYZ.Y = static_cast<u16>(ny0 + oy);
-			b.XYZ.Y = static_cast<u16>(ny1 + oy);
+			const float dv = (v1 - v0) / (float)(y1 - y0);
+			v0 += (float)(ny0 - y0) * dv;
+			v1 += (float)(ny1 - y1) * dv;
+			a->XYZ.Y = (u16)(ny0 + oy);
+			b->XYZ.Y = (u16)(ny1 + oy);
 		}
 
-		a.ST.S = u0 / tw;
-		a.ST.T = v0 / th;
-		a.RGBAQ.Q = 1.0f;
-		b.ST.S = u1 / tw;
-		b.ST.T = v1 / th;
-		b.RGBAQ.Q = 1.0f;
+		a->ST.S = u0 / tw;
+		a->ST.T = v0 / th;
+		a->RGBAQ.Q = 1.0f;
+		b->ST.S = u1 / tw;
+		b->ST.T = v1 / th;
+		b->RGBAQ.Q = 1.0f;
 	}
 
 	m_sprite_edges_snapped = true;
@@ -2780,7 +2782,7 @@ void GSRendererHW::Draw()
 		const bool move_depth = owner && !no_ds;
 		if (move_depth && (m_cached_ctx.ZBUF.Block() < blocks || !g_texture_cache->HasTargetAt(m_cached_ctx.ZBUF.Block() - blocks, owner->m_TEX0.TBW)))
 			owner = nullptr;
-		if (owner)
+		if (owner && getenv("NOREDIR") == nullptr)
 		{
 			OffsetDraw(0, 0, page_x, page_y);
 			SetNewFRAME(owner->m_TEX0.TBP0, owner->m_TEX0.TBW, m_cached_ctx.FRAME.PSM);
