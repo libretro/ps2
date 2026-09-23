@@ -131,6 +131,7 @@ private:
 	bool IsSinglePageDraw() const;
 	bool NextDrawColClip() const;
 	bool IsPossibleChannelShuffle() const;
+	bool IsChannelShuffleIdentity() const;
 	bool NextDrawMatchesShuffle() const;
 	bool IsSplitTextureShuffle(GSTextureCache::Target* rt);
 	GSVector4i GetSplitTextureShuffleDrawRect() const;

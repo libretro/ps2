@@ -4045,6 +4045,50 @@ void GSRendererHW::EmulateTextureShuffleAndFbmask(GSTextureCache::Target* rt, GS
 	}
 }
 
+// The channel shuffle emulation stands in for the whole draw with one
+// full-target sprite that copies a single channel across, so it is only
+// right when every sprite really does move one channel 1:1. An 8-bit view
+// of a 32-bit target picks the channel by bit 3 of U and bit 1 of V, so a
+// sprite whose texels cross either of those, or whose texel box is not the
+// size of its pixel box, reads a mix that the copy cannot reproduce; such
+// a draw is left to the indexed conversion, which is exact.
+bool GSRendererHW::IsChannelShuffleIdentity() const
+{
+	if (!PRIM->FST)
+		return true;
+
+	const bool u_masked = m_cached_ctx.CLAMP.WMS == CLAMP_REGION_REPEAT && (m_cached_ctx.CLAMP.MINU & 8) == 0;
+	const bool v_masked = m_cached_ctx.CLAMP.WMT == CLAMP_REGION_REPEAT && (m_cached_ctx.CLAMP.MINV & 2) == 0;
+
+	for (u32 i = 0; i + 1 < m_index.tail; i += 2)
+	{
+		const GSVertex& a = m_vertex.buff[m_index.buff[i]];
+		const GSVertex& b = m_vertex.buff[m_index.buff[i + 1]];
+		const int w = std::abs(static_cast<int>(b.XYZ.X) - static_cast<int>(a.XYZ.X)) >> 4;
+		const int h = std::abs(static_cast<int>(b.XYZ.Y) - static_cast<int>(a.XYZ.Y)) >> 4;
+		const int uw = std::abs(static_cast<int>(b.U) - static_cast<int>(a.U)) >> 4;
+		const int vh = std::abs(static_cast<int>(b.V) - static_cast<int>(a.V)) >> 4;
+
+		if (w == 0 || h == 0 || uw != w || vh != h)
+			return false;
+
+		// The texels a 1:1 sprite lands on: the first and last pixel centres.
+		const int umin = pcsx2_min_i(a.U, b.U);
+		const int vmin = pcsx2_min_i(a.V, b.V);
+		const int u_first = (umin + 8) >> 4;
+		const int u_last = (umin + (w << 4) - 8) >> 4;
+		const int v_first = (vmin + 8) >> 4;
+		const int v_last = (vmin + (h << 4) - 8) >> 4;
+
+		if (!u_masked && (u_first >> 3) != (u_last >> 3))
+			return false;
+		if (!v_masked && (v_first >> 1) != (v_last >> 1))
+			return false;
+	}
+
+	return true;
+}
+
 bool GSRendererHW::TestChannelShuffle(GSTextureCache::Target* src)
 {
 	// We have to do the second test early here, because it might be a different source.
@@ -4057,6 +4101,15 @@ bool GSRendererHW::TestChannelShuffle(GSTextureCache::Target* src)
 
 __ri bool GSRendererHW::EmulateChannelShuffle(GSTextureCache::Target* src, bool test_only)
 {
+	if (!IsChannelShuffleIdentity())
+	{
+		if (test_only)
+			return false;
+
+		m_channel_shuffle = false;
+		return false;
+	}
+
 	if ((src->m_texture->GetType() == GSTexture::Type::DepthStencil) && !src->m_32_bits_fmt)
 	{
 		// So far 2 games hit this code path. Urban Chaos and Tales of Abyss
