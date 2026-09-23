@@ -936,7 +936,7 @@ public:
 	GSTexture* CreateDepthStencil(int w, int h, GSTexture::Format format, bool clear = true);
 	GSTexture* CreateTexture(int w, int h, int mipmap_levels, GSTexture::Format format, bool prefer_reuse = false);
 
-	std::unique_ptr<GSDownloadTexture> CreateDownloadTexture(u32 width, u32 height, GSTexture::Format format);
+	GSDownloadTexturePtr CreateDownloadTexture(u32 width, u32 height, GSTexture::Format format);
 
 	void CopyRect(GSTexture* sTex, GSTexture* dTex, const GSVector4i& r, u32 destX, u32 destY);
 	void StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, ShaderConvert shader = ShaderConvert::COPY, bool linear = true);
@@ -1069,8 +1069,8 @@ __forceinline_odr GSDevice::PresentResult GSDevice::BeginPresent(bool frame_skip
 __forceinline_odr void GSDevice::EndPresent()          { GS_DEVICE_CALL(end_present); }
 __forceinline_odr GSTexture* GSDevice::CreateSurface(GSTexture::Type type, int width, int height, int levels, GSTexture::Format format)
 { return GS_DEVICE_CALL(create_surface, type, width, height, levels, format); }
-__forceinline_odr std::unique_ptr<GSDownloadTexture> GSDevice::CreateDownloadTexture(u32 width, u32 height, GSTexture::Format format)
-{ return std::unique_ptr<GSDownloadTexture>(GS_DEVICE_CALL(create_download_texture, width, height, format)); }
+__forceinline_odr GSDownloadTexturePtr GSDevice::CreateDownloadTexture(u32 width, u32 height, GSTexture::Format format)
+{ return GSDownloadTexturePtr(GS_DEVICE_CALL(create_download_texture, width, height, format)); }
 __forceinline_odr void GSDevice::DoMerge(GSTexture* sTex[3], GSVector4* sRect, GSTexture* dTex, GSVector4* dRect, const GSRegPMODE& PMODE, const GSRegEXTBUF& EXTBUF, u32 c, const bool linear)
 { GS_DEVICE_CALL(do_merge, sTex, sRect, dTex, dRect, &PMODE, &EXTBUF, c, linear); }
 __forceinline_odr void GSDevice::DoInterlace(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, ShaderInterlace shader, bool linear, const InterlaceConstantBuffer& cb)

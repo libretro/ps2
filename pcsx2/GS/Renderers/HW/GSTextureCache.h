@@ -557,9 +557,9 @@ private:
 
 	Source* m_temporary_source = nullptr; // invalidated after the draw
 
-	std::unique_ptr<GSDownloadTexture> m_color_download_texture;
-	std::unique_ptr<GSDownloadTexture> m_uint16_download_texture;
-	std::unique_ptr<GSDownloadTexture> m_uint32_download_texture;
+	GSDownloadTexturePtr m_color_download_texture;
+	GSDownloadTexturePtr m_uint16_download_texture;
+	GSDownloadTexturePtr m_uint32_download_texture;
 
 	Source* CreateSource(const GIFRegTEX0& TEX0, const GIFRegTEXA& TEXA, Target* t, bool half_right, int x_offset, int y_offset, const GSVector2i* lod, const GSVector4i* src_range, GSTexture* gpu_clut, SourceRegion region);
 
@@ -574,7 +574,7 @@ private:
 	void ScaleTargetForDisplay(Target* t, const GIFRegTEX0& dispfb, int real_w, int real_h);
 
 	/// Resizes the download texture if needed.
-	bool PrepareDownloadTexture(u32 width, u32 height, GSTexture::Format format, std::unique_ptr<GSDownloadTexture>* tex);
+	bool PrepareDownloadTexture(u32 width, u32 height, GSTexture::Format format, GSDownloadTexturePtr* tex);
 
 	HashCacheEntry* LookupHashCache(const GIFRegTEX0& TEX0, const GIFRegTEXA& TEXA, bool& paltex, const u32* clut, const GSVector2i* lod, SourceRegion region);
 	void RemoveFromHashCache(HashCacheMap::iterator it);

@@ -1864,9 +1864,9 @@ GSTexture* GSDeviceVK::CreateSurface(GSTexture::Type type, int width, int height
 	return tex.release();
 }
 
-std::unique_ptr<GSDownloadTexture> GSDeviceVK::CreateDownloadTexture(u32 width, u32 height, GSTexture::Format format)
+GSDownloadTexturePtr GSDeviceVK::CreateDownloadTexture(u32 width, u32 height, GSTexture::Format format)
 {
-	return GSDownloadTextureVK::Create(width, height, format);
+	return GSDownloadTexturePtr(GSDownloadTextureVK::Create(width, height, format).release());
 }
 
 void GSDeviceVK::CopyRect(GSTexture* sTex, GSTexture* dTex, const GSVector4i& r, u32 destX, u32 destY)

@@ -895,9 +895,9 @@ void GSDeviceOGL::CommitClear(GSTexture* t, bool use_write_fbo)
 	}
 }
 
-std::unique_ptr<GSDownloadTexture> GSDeviceOGL::CreateDownloadTexture(u32 width, u32 height, GSTexture::Format format)
+GSDownloadTexturePtr GSDeviceOGL::CreateDownloadTexture(u32 width, u32 height, GSTexture::Format format)
 {
-	return GSDownloadTextureOGL::Create(width, height, format);
+	return GSDownloadTexturePtr(GSDownloadTextureOGL::Create(width, height, format).release());
 }
 
 GLuint GSDeviceOGL::CreateSampler(PSSamplerSelector sel)

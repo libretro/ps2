@@ -19,6 +19,7 @@
  * pitch -- a texture upload where the staging pitch is the API's, not
  * the image's. One memcpy when the three agree. */
 #include <string.h>
+#include <memory>
 #include "common/Pcsx2Defs.h"
 static inline void GSStrideMemCpy(void* dst, std::size_t dst_stride, const void* src, std::size_t src_stride,
 	std::size_t copy_size, std::size_t count)
@@ -304,6 +305,14 @@ __forceinline_odr bool GSTexture::Map(GSMap& m, const GSVector4i* r, int layer)
 { return m_ops->map(this, &m, r, layer); }
 __forceinline_odr void GSTexture::Unmap() { m_ops->unmap(this); }
 __forceinline_odr void GSTexture::GenerateMipmap() { if (m_ops->generate_mipmap) m_ops->generate_mipmap(this); }
+
+// A download texture, like a texture, is freed by its backend: the base
+// has no virtual destructor, so a plain delete would run the wrong one.
+struct GSDownloadTextureDeleter
+{
+	void operator()(GSDownloadTexture* t) const { if (t) t->Free(); }
+};
+using GSDownloadTexturePtr = std::unique_ptr<GSDownloadTexture, GSDownloadTextureDeleter>;
 
 __forceinline_odr void GSDownloadTexture::Free() { m_ops->free(this); }
 __forceinline_odr void GSDownloadTexture::CopyFromTexture(const GSVector4i& drc, GSTexture* stex, const GSVector4i& src, u32 src_level, bool use_transfer_pitch)

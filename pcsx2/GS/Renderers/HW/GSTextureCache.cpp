@@ -521,7 +521,7 @@ void GSTextureCache::DirtyRectByPage(u32 sbp, u32 spsm, u32 sbw, Target* t, GSVe
 		if (start_page < 0 && in_rect.x == 0 && in_rect.y == 0)
 			start_page -= vertical_offset;
 
-		sbp -= vertical_offset << 5;
+		sbp -= vertical_offset * GS_BLOCKS_PER_PAGE;
 		// Update the block offset.
 		block_offset = static_cast<int>(sbp) - static_cast<int>(target_bp);
 	}
@@ -3012,7 +3012,7 @@ bool GSTextureCache::CopyRGBFromDepthToColor(Target* dst, Target* depth_src)
 	return true;
 }
 
-bool GSTextureCache::PrepareDownloadTexture(u32 width, u32 height, GSTexture::Format format, std::unique_ptr<GSDownloadTexture>* tex)
+bool GSTextureCache::PrepareDownloadTexture(u32 width, u32 height, GSTexture::Format format, GSDownloadTexturePtr* tex)
 {
 	GSDownloadTexture* ctex = tex->get();
 	if (ctex && ctex->GetWidth() >= width && ctex->GetHeight() >= height)
@@ -3023,7 +3023,7 @@ bool GSTextureCache::PrepareDownloadTexture(u32 width, u32 height, GSTexture::Fo
 	const u32 new_height = ctex ? pcsx2_max_i(ctex->GetHeight(), height) : height;
 	tex->reset();
 	*tex = g_gs_device->CreateDownloadTexture(new_width, new_height, format);
-	if (!tex)
+	if (!*tex)
 	{
 		log_cb(RETRO_LOG_INFO, "Failed to create %ux%u download texture\n", new_width, new_height);
 		return false;
@@ -5434,7 +5434,7 @@ bool GSTextureCache::Read(Target* t, const GSVector4i& r)
 
 	GSTexture::Format fmt;
 	ShaderConvert ps_shader;
-	std::unique_ptr<GSDownloadTexture>* dltex;
+	GSDownloadTexturePtr* dltex;
 	switch (TEX0.PSM)
 	{
 		case PSMCT32:

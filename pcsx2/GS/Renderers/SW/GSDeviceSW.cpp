@@ -1125,9 +1125,9 @@ GSTexture* GSDeviceSW::CreateSurface(GSTexture::Type type, int width, int height
 	return new GSTextureSW(type, width, height, format);
 }
 
-std::unique_ptr<GSDownloadTexture> GSDeviceSW::CreateDownloadTexture(u32 width, u32 height, GSTexture::Format format)
+GSDownloadTexturePtr GSDeviceSW::CreateDownloadTexture(u32 width, u32 height, GSTexture::Format format)
 {
-	return std::make_unique<GSDownloadTextureSW>(width, height, format);
+	return GSDownloadTexturePtr(new GSDownloadTextureSW(width, height, format));
 }
 
 void GSDeviceSW::DoMerge(GSTexture* sTex[3], GSVector4* sRect, GSTexture* dTex, GSVector4* dRect,
