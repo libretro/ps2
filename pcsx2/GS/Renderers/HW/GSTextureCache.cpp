@@ -1414,7 +1414,7 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const bool is_color, const 
 				// address, several page rows down. The rect's first page is a
 				// page of the target; the offset takes the texel there.
 				else if (bp < t->m_TEX0.TBP0 && psm == t->m_TEX0.PSM && bw == t->m_TEX0.TBW && bw > 0 &&
-					GSLocalMemory::m_psm[psm].bpp == 32 && !region.HasEither() &&
+					GSLocalMemory::m_psm[psm].bpp == 32 &&
 					t->m_age <= 1 && (!found_t || t->m_last_draw > dst->m_last_draw))
 				{
 					const GSVector2i& pgs = GSLocalMemory::m_psm[psm].pgs;

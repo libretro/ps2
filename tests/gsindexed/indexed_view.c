@@ -494,6 +494,22 @@ static int check_page_position(void)
          fail++;
       }
    }
+   /* The same read through a region: Tomb Raider Legend blurs a 64x56
+    * buffer at 0x2f60 and reads it back through 0x2ec0, four pages wide,
+    * clamped to texels 64,32-128,88; those texels are page 2 of the
+    * 256x224 buffer at 0x2f20 that the draw went to, at 128,0. The clamp
+    * moves the rect, not the rule. */
+   {
+      const u32 bp = 0x2ec0, tbp = 0x2f20, bw = 4, u = 64, v = 32;
+      const u32 rect_bp = bp + page_of_pixel(u, v, bw) * 32u;
+      u32 x, y;
+      page_position((rect_bp - tbp) / 32u, bw, &x, &y);
+      if (rect_bp != 0x2f60 || (int)x - (int)u != 64 || (int)y - (int)v != -32 || x != 128 || y != 0)
+      {
+         printf("  read-before-target through a region: block 0x%x, offset %d,%d\n", rect_bp, (int)x - (int)u, (int)y - (int)v);
+         fail++;
+      }
+   }
    /* Tomb Raider Legend's strips: the display is 8 pages wide, a strip
     * starts two pages in, so 128 pixels across. */
    {
