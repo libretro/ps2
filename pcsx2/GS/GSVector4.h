@@ -586,14 +586,17 @@ public:
 		_mm_stream_ps((float*)p, v.m);
 	}
 
+	// Eight bytes to wherever they go, which need not be aligned for a
+	// double (GSVertexTrace stores its lod pair this way).
 	__forceinline static void storel(void* p, const GSVector4& v)
 	{
-		_mm_store_sd((double*)p, _mm_castps_pd(v.m));
+		memcpy(p, &v.m, 8);
 	}
 
 	__forceinline static void storeh(void* p, const GSVector4& v)
 	{
-		_mm_storeh_pd((double*)p, _mm_castps_pd(v.m));
+		const __m128 h = _mm_movehl_ps(v.m, v.m);
+		memcpy(p, &h, 8);
 	}
 
 	template <bool aligned>
