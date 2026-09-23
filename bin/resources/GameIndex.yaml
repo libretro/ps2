@@ -45303,8 +45303,6 @@ SLPS-20001:
     vuClampMode: 2 # Fixes texture rendering in the intro.
   gsHWFixes:
     textureInsideRT: 1
-    halfPixelOffset: 2 # Fixes title screen and some intro post processing alignment.
-    roundSprite: 1 # Fixes ui and hud alignment.
     gpuPaletteConversion: 2 # Lots of CLUTs in large textures.
     cpuSpriteRenderBW: 1 # Fixes car textures.
     cpuSpriteRenderLevel: 1 # Needed for above.

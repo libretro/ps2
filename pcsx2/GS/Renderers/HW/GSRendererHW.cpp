@@ -3658,9 +3658,13 @@ void GSRendererHW::Draw()
 			}
 		}
 
-		// Noting to do if no texture is sampled. A scaled indexed source picks
-		// its texels from the coordinates as the game gave them, so it is left alone.
-		if (PRIM->FST && draw_sprite_tex && !(src && src->m_scaled_indexed))
+		// Noting to do if no texture is sampled. A source that is sampled by
+		// the map (a scaled indexed view, or a point-sampled copy of a scaled
+		// target) picks its texels from the coordinates as the game gave
+		// them, so it is left alone.
+		const bool mapped_copy = src && src->m_target && !src->m_palette && src->GetScale() > 1.0f &&
+			std::floor(src->GetScale()) == src->GetScale() && !m_vt.IsLinear();
+		if (PRIM->FST && draw_sprite_tex && !(src && src->m_scaled_indexed) && !mapped_copy)
 		{
 			if ((GSConfig.UserHacks_RoundSprite > 1) || (GSConfig.UserHacks_RoundSprite == 1 && !m_vt.IsLinear()))
 			{
@@ -5405,7 +5409,12 @@ __ri void GSRendererHW::EmulateTextureSampler(const GSTextureCache::Target* rt, 
 	m_conf.ps.tcc = m_cached_ctx.TEX0.TCC;
 
 	m_conf.ps.ltf = bilinear && shader_emulated_sampler;
-	m_conf.ps.sample_map = tex->m_scaled_indexed && tex->m_palette && !bilinear && !target_region && !need_mipmap;
+	// A sprite copying a scaled target with point sampling picks its texels
+	// as a native draw would too, so a copy offset by the half texel the GS
+	// sample point asks for lands on the same texels at any scale.
+	const bool scaled_copy = tex->m_target && !tex->m_palette && tex->GetScale() > 1.0f && std::floor(tex->GetScale()) == tex->GetScale() &&
+		PRIM->FST && m_vt.m_primclass == GS_SPRITE_CLASS;
+	m_conf.ps.sample_map = ((tex->m_scaled_indexed && tex->m_palette && !target_region) || scaled_copy) && !bilinear && !need_mipmap;
 	m_conf.ps.point_sampler = g_gs_device->Features().broken_point_sampler && GSConfig.GPUPaletteConversion && !target_region && (!bilinear || shader_emulated_sampler);
 
 	const int tw = static_cast<int>(1 << m_cached_ctx.TEX0.TW);

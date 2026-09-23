@@ -19,7 +19,10 @@
  *   3. A draw that samples such a texture picks the same texels at any
  *      scale as it does at native resolution (the PS_SAMPLE_MAP path takes
  *      the coordinate at the first fragment of the native pixel), so a
- *      3:1 minifying sprite lands on the rows a native draw reads.
+ *      3:1 minifying sprite lands on the rows a native draw reads, and a
+ *      point-sampled 32-bit block copy offset by the half texel the GS
+ *      sample point asks for is a copy at every scale, not one shifted by
+ *      half a native texel.
  *
  * Also pinned: the channel shuffle emulation, which fetches by position,
  * is only used for draws that put one channel of each texel on the pixel
@@ -267,11 +270,14 @@ static void mapped_row(const struct sprite* s, int S, int Y, int* texel, int* su
 static int check_sample_map(void)
 {
    /* Ridge Racer V draw A: 8x6 pixel sprite from an 8x18 texel box (3:1),
-    * and draw B: 16x2 from 16x2, 0.5-texel offsets as the game sends. */
+    * draw B: 16x2 from 16x2, 0.5-texel offsets as the game sends, and the
+    * 32-bit block copy that sums the three tinted views back into the
+    * frame: 64x32 from 64x32 at 0.5,0.5 to 64.5,32.5, point sampled. */
    static const struct sprite sprites[] = {
       { 0 * 16, 2 * 16, 8 * 16, 8 * 16, 72, 8, 200, 296 },
       { 0 * 16, 0 * 16, 16 * 16, 2 * 16, 136, 8, 392, 40 },
-      { 8 * 16, 10 * 16, 16 * 16, 16 * 16, 328, 264, 456, 552 }
+      { 8 * 16, 10 * 16, 16 * 16, 16 * 16, 328, 264, 456, 552 },
+      { 0, 0, 64 * 16, 32 * 16, 8, 8, 1032, 520 }
    };
    static const int scales[] = { 2, 3, 4, 8 };
    int fail = 0;
