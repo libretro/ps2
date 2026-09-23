@@ -1,8 +1,8 @@
 /* An 8-bit view of a 32-bit render target, on the GPU and at scale.
  *
  * Games read a colour buffer back through PSMT8 to run every byte of every
- * pixel through a palette (Ridge Racer V's intro grades its picture that
- * way, one 64x32 block at a time, three channels summed). The hardware
+ * pixel through a palette (a colour grade that works one 64x32 block at
+ * a time, three channels summed, is one such use). The hardware
  * renderer builds that view with ps_convert_rgba_8i, which maps each texel
  * of the 8-bit page back to the pixel and byte it aliases. Three things
  * about that path are pinned here, each against the swizzle tables rather
@@ -27,8 +27,8 @@
  * Also pinned: the channel shuffle emulation, which fetches by position,
  * is only used for draws that put one channel of each texel on the pixel
  * it aliases (IsChannelShuffleIdentity), or that copy a buffer page by
- * page; Ridge Racer V's 3:1 block draws and its copies of a block to other
- * pages go through the exact conversion instead. The fetch starts at the
+ * page; a 3:1 block draw and a copy of a block to another page go through
+ * the exact conversion instead. The fetch starts at the
  * page the texture begins on, and a draw addressed at a page of a target
  * lands on that page: both use the page's position in the target, which is
  * checked against the GS page addressing, as is a read whose base lies
@@ -155,8 +155,8 @@ static u32 page_offset_of(u32 offset_x, u32 offset_y, u32 sbw)
 
 static int check_swizzle(void)
 {
-   /* Target: 640 wide (SBW 640), texture TBW 20 (DBW 1280) as Ridge Racer
-    * V sets it; the texture starts `page` pages into the target. */
+   /* Target: 640 wide (SBW 640), texture TBW 20 (DBW 1280), a common
+    * pairing; the texture starts `page` pages into the target. */
    static const u32 pages[] = { 0, 1, 2, 9, 10, 23, 69 };
    int fail = 0;
    size_t pi;
@@ -270,8 +270,8 @@ static void mapped_row(const struct sprite* s, int S, int Y, int* texel, int* su
 
 static int check_sample_map(void)
 {
-   /* Ridge Racer V draw A: 8x6 pixel sprite from an 8x18 texel box (3:1),
-    * draw B: 16x2 from 16x2, 0.5-texel offsets as the game sends, and the
+   /* Draw A: 8x6 pixel sprite from an 8x18 texel box (3:1), draw B: 16x2
+    * from 16x2, 0.5-texel offsets as a game sends them, and the
     * 32-bit block copy that sums the three tinted views back into the
     * frame: 64x32 from 64x32 at 0.5,0.5 to 64.5,32.5, point sampled; and
     * the night noise tile, 64x32 pixels from 65x65 texels of a native-size
@@ -356,8 +356,8 @@ static int hw_covers(double y0, double y1, int S, int I)
 
 static int check_sprite_edges(void)
 {
-   /* The night noise tiles of Ridge Racer V: 64x32 pixels from 65x65
-    * texels, one above the other, with their rows at half pixels. */
+   /* Two noise tiles of 64x32 pixels from 65x65 texels, one above the
+    * other, with their rows at half pixels. */
    static const struct sprite tiles[2] = {
       { 16, 2568, 1040, 3080, 4416, 4640, 5456, 5680 },
       { 16, 3080, 1040, 3592, 4416, 4640, 5456, 5680 }
@@ -462,8 +462,8 @@ static int check_region_clamp(void)
             printf("  scale %d hpo %d: integer ends %d..%d\n", S, hpo, (int)lo, (int)hi);
             fail++;
          }
-         /* Tomb Raider Legend's strip: pixel 127 reads texel 127.5, which
-          * must stay texel 127, and a coordinate past the end reads the
+         /* A 128-texel strip: pixel 127 reads texel 127.5, which must
+          * stay texel 127, and a coordinate past the end reads the
           * texel's last sample. */
          u = 127.5 < hi ? 127.5 : hi;
          if ((int)u != 127)
@@ -530,9 +530,9 @@ static int check_native_taps(void)
       {
          const int x = 37;
          double t0, t1, w;
-         /* Tomb Raider Legend reads its buffers a quarter texel in: the
-          * native pixel blends texels x-1 and x, three to one; the
-          * fragment k of that pixel reads sample k of each. */
+         /* A buffer read a quarter texel in: the native pixel blends
+          * texels x-1 and x, three to one; the fragment k of that pixel
+          * reads sample k of each. */
          native_taps(x + 0.25 + (double)k / S, x + 0.25, S, &t0, &t1, &w);
          if ((int)t0 != (x - 1) * S + k || (int)t1 != x * S + k || w < 0.75 - 1e-9 || w > 0.75 + 1e-9)
          {
@@ -609,9 +609,9 @@ static int check_page_position(void)
       }
    }
    /* A texture whose base is before a target but whose coordinates land
-    * on it (Ridge Racer V reads its lamp glows from a scratch buffer at
-    * 0x1a40 through the display buffer's address 0x9a0, texel 733,478,
-    * both 10 pages wide): the texel's page is a page of the target, and
+    * on it (a glow drawn into a scratch buffer at 0x1a40 and read back
+    * through the display buffer's address 0x9a0, texel 733,478, both 10
+    * pages wide): the texel's page is a page of the target, and
     * the offset puts the texel on the target pixel with the same place in
     * its page. GSTextureCache::LookupSource, the read-before-target case. */
    {
@@ -635,8 +635,8 @@ static int check_page_position(void)
          fail++;
       }
    }
-   /* The same read through a region: Tomb Raider Legend blurs a 64x56
-    * buffer at 0x2f60 and reads it back through 0x2ec0, four pages wide,
+   /* The same read through a region: a 64x56 buffer blurred at 0x2f60
+    * and read back through 0x2ec0, four pages wide,
     * clamped to texels 64,32-128,88; those texels are page 2 of the
     * 256x224 buffer at 0x2f20 that the draw went to, at 128,0. The clamp
     * moves the rect, not the rule. */
@@ -651,8 +651,8 @@ static int check_page_position(void)
          fail++;
       }
    }
-   /* Tomb Raider Legend's strips: the display is 8 pages wide, a strip
-    * starts two pages in, so 128 pixels across. */
+   /* A display 8 pages wide processed in strips: a strip starting two
+    * pages in sits 128 pixels across. */
    {
       u32 x, y;
       page_position(2, 8, &x, &y);
@@ -762,15 +762,15 @@ static int shuffle_identity(const struct sprite* v, size_t n, int wms, int minu,
 
 static int check_shuffle_gate(void)
 {
-   /* Ridge Racer V draw A (WMS 3 MINU 1015, WMT 3 MINV 1017): 3:1 in V. */
-   static const struct sprite rr5_a[] = {
+   /* Draw A (WMS 3 MINU 1015, WMT 3 MINV 1017): 3:1 in V. */
+   static const struct sprite draw_a[] = {
       { 0, 32, 128, 128, 72, 8, 200, 296 },
       { 128, 32, 256, 128, 328, 8, 456, 296 }
    };
-   /* Ridge Racer V draw B (WMS 3 MINU 1015, WMT 1): 16x2 sprites, each
-    * on the pixels its texels alias, and Tomb Raider Legend's red copy,
-    * which is the same draw with rows of 8x2 sprites between (its two
-    * kinds of row, then a row that reads the flipped columns). */
+   /* Draw B (WMS 3 MINU 1015, WMT 1): 16x2 sprites, each on the pixels
+    * its texels alias, and a single-channel copy, which is the same draw
+    * with rows of 8x2 sprites between (its two kinds of row, then a row
+    * that reads the flipped columns). */
    static const struct sprite copy[] = {
       { 0, 0, 256, 32, 136, 8, 392, 40 },
       { 256, 0, 512, 32, 648, 8, 904, 40 },
@@ -778,12 +778,12 @@ static int check_shuffle_gate(void)
       { 128, 32, 256, 64, 328, 72, 456, 104 },
       { 0, 64, 256, 96, 136, 136, 392, 168 }
    };
-   /* The same page put at x 64 of the frame (Ridge Racer V's second and
-    * third copies of a block): not where the texels alias. */
+   /* The same page put at x 64 of the frame (a block's second and third
+    * copies): not where the texels alias. */
    static const struct sprite moved[] = {
       { 1024, 0, 1280, 32, 136, 8, 392, 40 }
    };
-   /* Tomb Raider Legend's alpha pass: green texels copied 16 rows down. */
+   /* An alpha pass: green texels copied 16 rows down. */
    static const struct sprite shifted[] = {
       { 512, 288, 768, 320, 136, 104, 392, 136 },
       { 0, 288, 256, 320, 1160, 104, 1416, 136 }
@@ -804,9 +804,9 @@ static int check_shuffle_gate(void)
    };
    int fail = 0;
 
-   if (shuffle_identity(rr5_a, 2, 3, 1015, 0, 3, 1017, 0, 1))
+   if (shuffle_identity(draw_a, 2, 3, 1015, 0, 3, 1017, 0, 1))
    {
-      printf("  Ridge Racer V draw A taken for a channel shuffle\n");
+      printf("  draw A taken for a channel shuffle\n");
       fail++;
    }
    if (!shuffle_identity(copy, 5, 3, 1015, 0, 1, 0, 0, 1))
@@ -816,7 +816,7 @@ static int check_shuffle_gate(void)
    }
    if (!shuffle_identity(copy, 5, 3, 1015, 0, 0, 0, 0, 1))
    {
-      printf("  Tomb Raider Legend's red copy refused\n");
+      printf("  the single-channel copy refused\n");
       fail++;
    }
    if (shuffle_identity(moved, 1, 3, 1015, 0, 1, 0, 0, 1))
@@ -826,12 +826,12 @@ static int check_shuffle_gate(void)
    }
    if (shuffle_identity(shifted, 2, 3, 1015, 0, 0, 0, 0, 1))
    {
-      printf("  Tomb Raider Legend's shifted alpha pass taken for an identity\n");
+      printf("  the shifted alpha pass taken for an identity\n");
       fail++;
    }
    if (!shuffle_identity(shifted, 2, 3, 1015, 0, 0, 0, 0, 0))
    {
-      printf("  Tomb Raider Legend's alpha pass refused as a page copy\n");
+      printf("  the shifted alpha pass refused as a page copy\n");
       fail++;
    }
    if (!shuffle_identity(real, 2, 0, 0, 0, 0, 0, 0, 1))

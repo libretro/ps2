@@ -7,8 +7,8 @@
  * 2047 << TW has no low bits. parallel-gs models the same clamp
  * (ubershader.comp, before sample_texture).
  *
- * Ridge Racer V draws its car reflection with an environment map whose
- * back-facing vertices project to S/Q of several thousand. Real hardware
+ * An environment-mapped reflection has back-facing vertices that project
+ * to S/Q of several thousand. Real hardware
  * and the software renderer both leave those triangles at texel 0 -- the
  * software renderer because its 16.16 conversion overflows to INT_MIN --
  * while the GPU shaders wrapped the raw value and sprayed the lower body
