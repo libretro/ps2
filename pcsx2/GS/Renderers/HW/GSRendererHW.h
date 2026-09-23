@@ -337,6 +337,7 @@ public:
 	TextureShuffleInfo DetectTextureShuffleImpl();
 	void DetectTextureShuffle();
 	void DetectTextureShuffleSecondPass(GSTextureCache::Target* rt, GSTextureCache::Source* tex);
+	bool IsSampleMapDraw(const GSTextureCache::Source* tex);
 	GSVector4 RealignTargetTextureCoordinate(const GSTextureCache::Source* tex);
 	GSVector4i ComputeBoundingBox(const GSVector2i& rtsize, float rtscale);
 	void MergeSprite(GSTextureCache::Source* tex);

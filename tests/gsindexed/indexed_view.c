@@ -272,12 +272,15 @@ static int check_sample_map(void)
    /* Ridge Racer V draw A: 8x6 pixel sprite from an 8x18 texel box (3:1),
     * draw B: 16x2 from 16x2, 0.5-texel offsets as the game sends, and the
     * 32-bit block copy that sums the three tinted views back into the
-    * frame: 64x32 from 64x32 at 0.5,0.5 to 64.5,32.5, point sampled. */
+    * frame: 64x32 from 64x32 at 0.5,0.5 to 64.5,32.5, point sampled; and
+    * the night noise tile, 64x32 pixels from 65x65 texels of a native-size
+    * texture, whose 65th row and column no native pixel reads. */
    static const struct sprite sprites[] = {
       { 0 * 16, 2 * 16, 8 * 16, 8 * 16, 72, 8, 200, 296 },
       { 0 * 16, 0 * 16, 16 * 16, 2 * 16, 136, 8, 392, 40 },
       { 8 * 16, 10 * 16, 16 * 16, 16 * 16, 328, 264, 456, 552 },
-      { 0, 0, 64 * 16, 32 * 16, 8, 8, 1032, 520 }
+      { 0, 0, 64 * 16, 32 * 16, 8, 8, 1032, 520 },
+      { 16, 192 * 16, 1040, 224 * 16, 4416, 4640, 5456, 5680 }
    };
    static const int scales[] = { 2, 3, 4, 8 };
    int fail = 0;
