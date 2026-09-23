@@ -104,6 +104,7 @@ private:
 
 	template <bool linear>
 	void RoundSpriteOffset();
+	void SnapSpriteEdges();
 
 	void DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Target* ds, GSTextureCache::Source* tex, const TextureMinMaxResult& tmm);
 
@@ -287,6 +288,8 @@ private:
 	bool m_channel_shuffle_page_copy = false;
 	// The context whose scissor followed a draw onto another target's page.
 	GSDrawingContext* m_scissor_moved = nullptr;
+	// The sprites' edges sit on native pixels and their texture coordinates travel as ST.
+	bool m_sprite_edges_snapped = false;
 
 	GIFRegFRAME m_split_clear_start = {};
 	GIFRegZBUF m_split_clear_start_Z = {};

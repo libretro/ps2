@@ -311,6 +311,115 @@ static int check_sample_map(void)
    return fail;
 }
 
+/* ---- 3b. sprite edges at scale ----------------------------------------- */
+
+/* GSRendererHW::SnapSpriteEdges: an edge in 1/16 pixel moves up to the
+ * pixel the rasteriser's ceil() lands it on. */
+static int ceil16(int e)
+{
+   return -((-e) & ~15);
+}
+
+/* A sprite with its coordinates in pixels and texels, as the vertex
+ * carries them after the snap (the texture coordinate then travels as a
+ * float ST). */
+struct fsprite
+{
+   double y0, y1, v0, v1;
+};
+
+static void snap_sprite(const struct sprite* s, struct fsprite* f)
+{
+   const int ny0 = ceil16(s->y0);
+   const int ny1 = ceil16(s->y1);
+   const double dv = (double)(s->v1 - s->v0) / (double)(s->y1 - s->y0);
+   f->y0 = ny0 / 16.0;
+   f->y1 = ny1 / 16.0;
+   f->v0 = (s->v0 + (ny0 - s->y0) * dv) / 16.0;
+   f->v1 = (s->v1 + (ny1 - s->y1) * dv) / 16.0;
+}
+
+/* The software rasteriser: pixel row Y belongs to the sprite when
+ * ceil(y0) <= Y < ceil(y1). */
+static int sw_covers(const struct sprite* s, int Y)
+{
+   return Y >= (s->y0 + 15) / 16 && Y < (s->y1 + 15) / 16;
+}
+
+/* The hardware renderer at scale S: fragment row I belongs to the sprite
+ * when its edges, scaled, enclose it: y0 * S <= I < y1 * S. */
+static int hw_covers(double y0, double y1, int S, int I)
+{
+   return (double)I >= y0 * S && (double)I < y1 * S;
+}
+
+static int check_sprite_edges(void)
+{
+   /* The night noise tiles of Ridge Racer V: 64x32 pixels from 65x65
+    * texels, one above the other, with their rows at half pixels. */
+   static const struct sprite tiles[2] = {
+      { 16, 2568, 1040, 3080, 4416, 4640, 5456, 5680 },
+      { 16, 3080, 1040, 3592, 4416, 4640, 5456, 5680 }
+   };
+   static const int scales[] = { 1, 2, 4, 8 };
+   struct fsprite snapped[2];
+   int fail = 0, split = 0;
+   size_t si, t;
+   int Y, I;
+
+   if (ceil16(8) != 16 || ceil16(16) != 16 || ceil16(0) != 0 || ceil16(-8) != 0 || ceil16(-17) != -16 || ceil16(3080) != 3088)
+   {
+      printf("  ceil16 is not the rasteriser's ceil\n");
+      fail++;
+   }
+
+   snap_sprite(&tiles[0], &snapped[0]);
+   snap_sprite(&tiles[1], &snapped[1]);
+
+   for (si = 0; si < sizeof(scales) / sizeof(scales[0]); si++)
+   {
+      const int S = scales[si];
+      for (I = 150 * S; I < 240 * S; I++)
+      {
+         for (t = 0; t < 2; t++)
+         {
+            const int sw = sw_covers(&tiles[t], I / S);
+            const int hw = hw_covers(snapped[t].y0, snapped[t].y1, S, I);
+            if (hw != sw)
+            {
+               if (fail++ < 8)
+                  printf("  tile %u scale %d fragment row %d: drawn %d, native row %d drawn %d\n", (unsigned)t, S, I, hw, I / S, sw);
+            }
+            if (hw_covers(tiles[t].y0 / 16.0, tiles[t].y1 / 16.0, S, I) != sw)
+               split++;
+         }
+      }
+   }
+   if (!split)
+   {
+      printf("  the tiles' own edges never split a pixel between them\n");
+      fail++;
+   }
+
+   /* The texel a row reads is the one the native draw reads. */
+   for (t = 0; t < 2; t++)
+   {
+      for (Y = (tiles[t].y0 + 15) / 16; Y < (tiles[t].y1 + 15) / 16; Y++)
+      {
+         const double dv = (snapped[t].v1 - snapped[t].v0) / (snapped[t].y1 - snapped[t].y0);
+         const double v = snapped[t].v0 + dv * (Y - snapped[t].y0);
+         const int native = native_row_texel(&tiles[t], Y);
+         if ((int)v != native || v - (double)native < 1e-9)
+         {
+            if (fail++ < 8)
+               printf("  tile %u row %d: texel %.6f, native reads %d\n", (unsigned)t, Y, v, native);
+         }
+      }
+   }
+   printf("sprite edges land on native pixels: %s\n", fail ? "FAIL" : "ok");
+   return fail;
+}
+
 /* ---- 4. a page's position in its target -------------------------------- */
 
 /* GS page addressing for a buffer of width bw pages: the page a pixel is
@@ -593,6 +702,7 @@ int main(void)
    fail += check_swizzle();
    fail += check_scaled();
    fail += check_sample_map();
+   fail += check_sprite_edges();
    fail += check_page_position();
    fail += check_alias_formula();
    fail += check_shuffle_gate();

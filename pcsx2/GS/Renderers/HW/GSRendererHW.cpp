@@ -2468,6 +2468,67 @@ void GSRendererHW::RoundSpriteOffset()
 	}
 }
 
+// A sprite edge covers a native pixel from the pixel the rasterizer's
+// ceil() lands it on, so its edges move onto those pixels: every fragment
+// of a native pixel then belongs to the sprite that draws the pixel at
+// native size, at any scale. The texture coordinate keeps the value it has
+// at each pixel, carried as floats since a sixteenth of a texel would not
+// hold the shifted value.
+void GSRendererHW::SnapSpriteEdges()
+{
+	const u32 count = m_vertex.next;
+	GSVertex* v = &m_vertex.buff[0];
+	const int ox = m_context->XYOFFSET.OFX;
+	const int oy = m_context->XYOFFSET.OFY;
+	const float tw = static_cast<float>(16 << m_cached_ctx.TEX0.TW);
+	const float th = static_cast<float>(16 << m_cached_ctx.TEX0.TH);
+
+	for (u32 i = 0; i + 1 < count; i += 2)
+	{
+		GSVertex& a = v[i];
+		GSVertex& b = v[i + 1];
+		float u0 = static_cast<float>(a.U);
+		float u1 = static_cast<float>(b.U);
+		float v0 = static_cast<float>(a.V);
+		float v1 = static_cast<float>(b.V);
+
+		const int x0 = static_cast<int>(a.XYZ.X) - ox;
+		const int x1 = static_cast<int>(b.XYZ.X) - ox;
+		if (x0 != x1)
+		{
+			const int nx0 = -((-x0) & ~15);
+			const int nx1 = -((-x1) & ~15);
+			const float du = (u1 - u0) / static_cast<float>(x1 - x0);
+			u0 += static_cast<float>(nx0 - x0) * du;
+			u1 += static_cast<float>(nx1 - x1) * du;
+			a.XYZ.X = static_cast<u16>(nx0 + ox);
+			b.XYZ.X = static_cast<u16>(nx1 + ox);
+		}
+
+		const int y0 = static_cast<int>(a.XYZ.Y) - oy;
+		const int y1 = static_cast<int>(b.XYZ.Y) - oy;
+		if (y0 != y1)
+		{
+			const int ny0 = -((-y0) & ~15);
+			const int ny1 = -((-y1) & ~15);
+			const float dv = (v1 - v0) / static_cast<float>(y1 - y0);
+			v0 += static_cast<float>(ny0 - y0) * dv;
+			v1 += static_cast<float>(ny1 - y1) * dv;
+			a.XYZ.Y = static_cast<u16>(ny0 + oy);
+			b.XYZ.Y = static_cast<u16>(ny1 + oy);
+		}
+
+		a.ST.S = u0 / tw;
+		a.ST.T = v0 / th;
+		a.RGBAQ.Q = 1.0f;
+		b.ST.S = u1 / tw;
+		b.ST.T = v1 / th;
+		b.RGBAQ.Q = 1.0f;
+	}
+
+	m_sprite_edges_snapped = true;
+}
+
 void GSRendererHW::Draw()
 {
 	// We mess with this state as an optimization, so take a copy and use that instead.
@@ -5470,7 +5531,7 @@ __ri void GSRendererHW::EmulateTextureSampler(const GSTextureCache::Target* rt, 
 		}
 	}
 
-	m_conf.ps.fst = !!PRIM->FST;
+	m_conf.ps.fst = PRIM->FST && !m_sprite_edges_snapped;
 
 	m_conf.cb_ps.WH = WH;
 	m_conf.cb_ps.HalfTexel = GSVector4(-0.5f, 0.5f).xxyy() / WH.zwzw();
@@ -5926,6 +5987,10 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 		EmulateChannelShuffle(tex->m_from_target, false);
 	else
 		m_conf.cb_ps.ChannelOffset = GSVector4::zero();
+
+	m_sprite_edges_snapped = false;
+	if (tex && !m_channel_shuffle && !m_texture_shuffle_info && !GSConfig.UserHacks_MergePPSprite && IsSampleMapDraw(tex))
+		SnapSpriteEdges();
 
 	// Upscaling hack to avoid various line/grid issues
 	MergeSprite(tex);
@@ -6398,7 +6463,7 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 	// vs
 
 	m_conf.vs.tme = m_process_texture;
-	m_conf.vs.fst = PRIM->FST;
+	m_conf.vs.fst = PRIM->FST && !m_sprite_edges_snapped;
 
 	// FIXME D3D11 and GL support half pixel center. Code could be easier!!!
 	const GSTextureCache::Target* rt_or_ds = rt ? rt : ds;
