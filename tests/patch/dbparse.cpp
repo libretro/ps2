@@ -57,12 +57,12 @@ void vtlb_memWrite64(u32 a, u64 v) { memcpy(s_mem + clamp(a), &v, 8); }
 void* vtlb_GetPhyPtr(u32 a) { return s_mem + clamp(a); }
 RETURNS_R128 vtlb_memRead128(u32) { r128 v; memset(&v, 0, sizeof(v)); return v; }
 void vtlb_memWrite128(u32, r128) { }
-void iopMemWrite8 (u32 a, u8  v) { s_mem[clamp(a)] = v; }
-void iopMemWrite16(u32, u16) { }
-void iopMemWrite32(u32, u32) { }
-u8  iopMemRead8_slow (u32) { return 0; }
-u16 iopMemRead16_slow(u32) { return 0; }
-u32 iopMemRead32_slow(u32) { return 0; }
+extern "C" void iopMemWrite8 (u32 a, u8  v) { s_mem[clamp(a)] = v; }
+extern "C" void iopMemWrite16(u32, u16) { }
+extern "C" void iopMemWrite32(u32, u32) { }
+extern "C" u8  iopMemRead8_slow (u32) { return 0; }
+extern "C" u16 iopMemRead16_slow(u32) { return 0; }
+extern "C" u32 iopMemRead32_slow(u32) { return 0; }
 static uptr s_rlut[0x10000];
 const uptr* psxMemRLUT = s_rlut;
 
