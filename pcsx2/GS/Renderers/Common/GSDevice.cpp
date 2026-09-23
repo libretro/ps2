@@ -204,6 +204,14 @@ void GSDevice::PrewarmPool()
 void GSDevice::DestroyBase()
 {
 	ClearCurrent();
+
+	/* Nothing presents after this, so the retired textures go too. */
+	for (u32 i = 0; i < NUM_RETIRED_PRESENT_TEXTURES; i++)
+	{
+		gs_texture_free(m_retired_present[i]);
+		m_retired_present[i] = nullptr;
+	}
+
 	PurgePool();
 }
 
@@ -517,16 +525,14 @@ void GSDevice::ClearCurrent()
 	gs_texture_free(m_colclip_rt);
 	m_colclip_rt = nullptr;
 
-	for (u32 i = 0; i < NUM_RETIRED_PRESENT_TEXTURES; i++)
-	{
-		gs_texture_free(m_retired_present[i]);
-		m_retired_present[i] = nullptr;
-	}
-
-	gs_texture_free(m_merge);
-	gs_texture_free(m_weavebob);
-	gs_texture_free(m_blend);
-	gs_texture_free(m_mad);
+	/* The frontend may still be showing one of these: it replays the
+	 * last frame it was handed while the core is paused, and a savestate
+	 * load or a reset lands in the middle of that. They are retired like
+	 * any other present texture and freed once the frontend has moved on. */
+	RetirePresentTexture(m_merge);
+	RetirePresentTexture(m_weavebob);
+	RetirePresentTexture(m_blend);
+	RetirePresentTexture(m_mad);
 	gs_texture_free(m_target_tmp);
 
 	m_merge = nullptr;
