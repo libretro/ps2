@@ -4070,6 +4070,69 @@ GSTextureCache::Target* GSTextureCache::GetExactTarget(u32 BP, u32 BW, int type,
 	return nullptr;
 }
 
+// The target that holds page BP as one of its own: BP is a page boundary
+// inside it, and the format and width agree, so its rows are the target's
+// rows and the page is at (x, y) of it. Games address part of a buffer
+// through its own base pointer (Tomb Raider Legend runs its night vision
+// over the display 128 pixels at a time, each strip by the pointer to its
+// first page); a target of its own at BP is a leftover of drawing such a
+// strip apart from its buffer, and goes once the buffer has been drawn
+// over since.
+GSTextureCache::Target* GSTextureCache::FindPageOwner(u32 BP, u32 BW, u32 PSM, int& x, int& y)
+{
+	auto& rts = m_dst[RenderTarget];
+	Target* owner = nullptr;
+	for (auto it = rts.begin(); it != rts.end(); ++it)
+	{
+		Target* t = *it;
+		if (t->m_TEX0.PSM != PSM || t->m_TEX0.TBW != BW || BW == 0 || BP <= t->m_TEX0.TBP0 || BP >= t->UnwrappedEndBlock())
+			continue;
+		if ((BP - t->m_TEX0.TBP0) & (GS_BLOCKS_PER_PAGE - 1))
+			continue;
+
+		const u32 page = (BP - t->m_TEX0.TBP0) >> 5;
+		const GSVector2i& pgs = GSLocalMemory::m_psm[PSM].pgs;
+		x = static_cast<int>((page % BW) * pgs.x);
+		y = static_cast<int>((page / BW) * pgs.y);
+		if (x + pgs.x > t->m_unscaled_size.x || y + pgs.y > t->m_unscaled_size.y)
+			continue;
+		owner = t;
+		break;
+	}
+
+	if (!owner)
+		return nullptr;
+
+	for (auto it = rts.begin(); it != rts.end(); ++it)
+	{
+		Target* t = *it;
+		if (t->m_TEX0.TBP0 != BP)
+			continue;
+		if (t->m_TEX0.PSM != PSM || t->m_TEX0.TBW != BW || t->m_last_draw >= owner->m_last_draw)
+			return nullptr;
+
+		InvalidateSourcesFromTarget(t);
+		rts.erase(it);
+		delete t;
+		break;
+	}
+
+	return owner;
+}
+
+bool GSTextureCache::HasTargetAt(u32 BP, u32 BW) const
+{
+	for (int type = 0; type < 2; type++)
+	{
+		for (const Target* t : m_dst[type])
+		{
+			if (t->m_TEX0.TBP0 == BP && t->m_TEX0.TBW == BW)
+				return true;
+		}
+	}
+	return false;
+}
+
 GSTextureCache::Target* GSTextureCache::GetTargetWithSharedBits(u32 BP, u32 PSM) const
 {
 	auto& rts = m_dst[GSLocalMemory::m_psm[PSM].depth ? DepthStencil : RenderTarget];

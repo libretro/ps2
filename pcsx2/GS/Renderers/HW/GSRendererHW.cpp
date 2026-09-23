@@ -2451,6 +2451,8 @@ void GSRendererHW::Draw()
 	m_cached_ctx.FRAME = context->FRAME;
 	m_cached_ctx.ZBUF = context->ZBUF;
 
+	RestoreScissor();
+
 	if (IsBadFrame())
 		return;
 
@@ -2674,6 +2676,36 @@ void GSRendererHW::Draw()
 		if (ContinueSplitClear())
 			return;
 		FinishSplitClear();
+	}
+
+	// A draw addressed at a page inside a target of the same width is a
+	// draw on that target's rows: it goes there, at the page's position,
+	// rather than into a target of its own that the buffer never sees. A
+	// depth buffer goes along when it is a page of a target the same way.
+	if (!no_rt)
+	{
+		int page_x = 0, page_y = 0;
+		GSTextureCache::Target* owner = g_texture_cache->FindPageOwner(m_cached_ctx.FRAME.Block(), m_cached_ctx.FRAME.FBW, m_cached_ctx.FRAME.PSM, page_x, page_y);
+		if (owner && (m_r.x < 0 || m_r.y < 0 || page_x + m_r.z > owner->m_unscaled_size.x || page_y + m_r.w > owner->m_unscaled_size.y))
+			owner = nullptr;
+		const u32 blocks = owner ? (m_cached_ctx.FRAME.Block() - owner->m_TEX0.TBP0) : 0;
+		const bool move_depth = owner && !no_ds;
+		if (move_depth && (m_cached_ctx.ZBUF.Block() < blocks || !g_texture_cache->HasTargetAt(m_cached_ctx.ZBUF.Block() - blocks, owner->m_TEX0.TBW)))
+			owner = nullptr;
+		if (owner)
+		{
+			OffsetDraw(0, 0, page_x, page_y);
+			SetNewFRAME(owner->m_TEX0.TBP0, owner->m_TEX0.TBW, m_cached_ctx.FRAME.PSM);
+			if (move_depth)
+				SetNewZBUF(m_cached_ctx.ZBUF.Block() - blocks, m_cached_ctx.ZBUF.PSM);
+			const GSVector4i offset = GSVector4i(page_x, page_y).xyxy();
+			m_r += offset;
+			m_r_no_scissor += offset;
+			m_context->scissor.in += offset;
+			m_vt.m_min.p += GSVector4(offset.x, offset.y, 0, 0);
+			m_vt.m_max.p += GSVector4(offset.x, offset.y, 0, 0);
+			m_scissor_moved = m_context;
+		}
 	}
 
 	m_texture_shuffle_info.Disable();
@@ -4145,10 +4177,9 @@ __ri bool GSRendererHW::EmulateChannelShuffle(GSTextureCache::Target* src, bool 
 	// A copy of a whole buffer page by page (Tomb Raider Legend) is done
 	// below as one sprite over the whole target, which lands each page on
 	// its own whatever the sprites did within a page; any other draw has
-	// to be an identity, and it has to read the target from its start, as
-	// the fetch by position does.
+	// to be an identity.
 	const bool page_copy = IsPageCopy();
-	if (!IsChannelShuffleIdentity(!page_copy) || m_cached_ctx.TEX0.TBP0 != src->m_TEX0.TBP0)
+	if (!IsChannelShuffleIdentity(!page_copy))
 	{
 		if (test_only)
 			return false;
@@ -4311,6 +4342,19 @@ __ri bool GSRendererHW::EmulateChannelShuffle(GSTextureCache::Target* src, bool 
 
 	// Effect is really a channel shuffle effect so let's cheat a little
 	m_conf.tex = src->m_texture;
+
+	// The fetch is by position in the source target; a texture that
+	// starts on a later page of it (Tomb Raider Legend's night vision
+	// reads the display a 128-pixel strip at a time, Ridge Racer V its
+	// blocks one page at a time) has that page's position to add.
+	GSVector4 offset = GSVector4::zero();
+	if (m_cached_ctx.TEX0.TBP0 > src->m_TEX0.TBP0 && src->m_TEX0.TBW > 0)
+	{
+		const u32 page = (m_cached_ctx.TEX0.TBP0 - src->m_TEX0.TBP0) >> 5;
+		const GSVector2i& pgs = GSLocalMemory::m_psm[src->m_TEX0.PSM].pgs;
+		offset = GSVector4(static_cast<float>((page % src->m_TEX0.TBW) * pgs.x), static_cast<float>((page / src->m_TEX0.TBW) * pgs.y), 0.0f, 0.0f) * src->m_scale;
+	}
+	m_conf.cb_ps.ChannelOffset = offset;
 
 	// Sprites with gaps between them are drawn as they are: the fetch
 	// reads by position, so they land right, and what fills the gaps is
@@ -5805,6 +5849,7 @@ void GSRendererHW::EmulateATST(float& AREF, GSHWDrawConfig::PSSelector& ps, bool
 
 void GSRendererHW::CleanupDraw(bool invalidate_temp_src)
 {
+	RestoreScissor();
 	// Remove any RT source.
 	if (invalidate_temp_src)
 		g_texture_cache->InvalidateTemporarySource();
@@ -5851,6 +5896,8 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 	// blending)
 	if (m_channel_shuffle && tex && tex->m_from_target)
 		EmulateChannelShuffle(tex->m_from_target, false);
+	else
+		m_conf.cb_ps.ChannelOffset = GSVector4::zero();
 
 	// Upscaling hack to avoid various line/grid issues
 	MergeSprite(tex);
@@ -7674,6 +7721,17 @@ void GSRendererHW::ReplaceVerticesWithSprite(const GSVector4i& unscaled_rect, co
 void GSRendererHW::ReplaceVerticesWithSprite(const GSVector4i& unscaled_rect, const GSVector2i& unscaled_size)
 {
 	ReplaceVerticesWithSprite(unscaled_rect, unscaled_rect, unscaled_size, unscaled_rect);
+}
+
+// The scissor of a draw moved onto another target's page went with it;
+// the register is what the next draw wants.
+void GSRendererHW::RestoreScissor()
+{
+	if (!m_scissor_moved)
+		return;
+
+	m_scissor_moved->UpdateScissor();
+	m_scissor_moved = nullptr;
 }
 
 void GSRendererHW::OffsetDraw(s32 fbp_offset, s32 zbp_offset, s32 xoffset, s32 yoffset)

@@ -285,6 +285,8 @@ private:
 	bool m_channel_shuffle_partial = false;
 	// The shuffle copies a buffer page by page; the draws after it continue it whatever their sprites are.
 	bool m_channel_shuffle_page_copy = false;
+	// The context whose scissor followed a draw onto another target's page.
+	GSDrawingContext* m_scissor_moved = nullptr;
 
 	GIFRegFRAME m_split_clear_start = {};
 	GIFRegZBUF m_split_clear_start_Z = {};
@@ -369,6 +371,8 @@ public:
 	/// Returns true if the draws appear to be a manual deswizzle.
 	void HandleManualDeswizzle();
 
+	/// Puts the scissor back after a draw moved onto another target's page.
+	void RestoreScissor();
 	/// Offsets the current draw, used for RT-in-RT. Offsets are relative to the *current* FBP, not the new FBP.
 	void OffsetDraw(s32 fbp_offset, s32 zbp_offset, s32 xoffset, s32 yoffset);
 

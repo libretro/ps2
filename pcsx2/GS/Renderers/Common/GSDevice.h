@@ -549,6 +549,8 @@ struct alignas(16) GSHWDrawConfig
 		GSVector4i ChannelShuffle;
 		GSVector2 TCOffsetHack;
 		GSVector2 STScale;
+		// Where a channel shuffle's fetch by position starts in its source: the page the texture begins on, scaled.
+		GSVector4 ChannelOffset;
 
 		GSVector4 DitherMatrix[4];
 

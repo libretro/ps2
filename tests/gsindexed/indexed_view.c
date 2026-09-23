@@ -25,7 +25,10 @@
  * is only used for draws that put one channel of each texel on the pixel
  * it aliases (IsChannelShuffleIdentity), or that copy a buffer page by
  * page; Ridge Racer V's 3:1 block draws and its copies of a block to other
- * pages go through the exact conversion instead.
+ * pages go through the exact conversion instead. The fetch starts at the
+ * page the texture begins on, and a draw addressed at a page of a target
+ * lands on that page: both use the page's position in the target, which is
+ * checked against the GS page addressing.
  *
  * Build and run, from tests/gsindexed:
  *   cc -O2 -std=c89 -pedantic -Wall indexed_view.c -o indexed_view
@@ -298,7 +301,69 @@ static int check_sample_map(void)
    return fail;
 }
 
-/* ---- 4. the channel shuffle gate --------------------------------------- */
+/* ---- 4. a page's position in its target -------------------------------- */
+
+/* GS page addressing for a buffer of width bw pages: the page a pixel is
+ * on, counted from the base pointer (GSOffset::bn, in pages). */
+static u32 page_of_pixel(u32 x, u32 y, u32 bw)
+{
+   return (y / 32u) * bw + x / 64u;
+}
+
+/* Where the channel shuffle fetch starts, and where a draw addressed at
+ * that page goes, as GSRendererHW computes it. */
+static void page_position(u32 page, u32 bw, u32* x, u32* y)
+{
+   *x = (page % bw) * 64u;
+   *y = (page / bw) * 32u;
+}
+
+static int check_page_position(void)
+{
+   static const u32 widths[] = { 1, 2, 4, 8, 10 };
+   int fail = 0;
+   size_t wi;
+
+   for (wi = 0; wi < sizeof(widths) / sizeof(widths[0]); wi++)
+   {
+      const u32 bw = widths[wi];
+      u32 page;
+      /* a 448-row buffer: 14 rows of pages */
+      for (page = 0; page < bw * 14u; page++)
+      {
+         u32 x, y, px, py;
+         page_position(page, bw, &x, &y);
+         if (page_of_pixel(x, y, bw) != page || (x % 64u) || (y % 32u))
+         {
+            if (fail++ < 8)
+               printf("  width %u page %u: position %u,%u is page %u\n", bw, page, x, y, page_of_pixel(x, y, bw));
+         }
+         /* every pixel of the page is on it */
+         for (py = y; py < y + 32u; py += 31u)
+            for (px = x; px < x + 64u; px += 63u)
+               if (page_of_pixel(px, py, bw) != page)
+               {
+                  if (fail++ < 8)
+                     printf("  width %u page %u: pixel %u,%u is page %u\n", bw, page, px, py, page_of_pixel(px, py, bw));
+               }
+      }
+   }
+   /* Tomb Raider Legend's strips: the display is 8 pages wide, a strip
+    * starts two pages in, so 128 pixels across. */
+   {
+      u32 x, y;
+      page_position(2, 8, &x, &y);
+      if (x != 128 || y != 0)
+      {
+         printf("  page 2 of an 8-wide buffer at %u,%u, not 128,0\n", x, y);
+         fail++;
+      }
+   }
+   printf("page position in a target: %s\n", fail ? "FAIL" : "ok");
+   return fail;
+}
+
+/* ---- 5. the channel shuffle gate --------------------------------------- */
 
 /* The pixel and byte a texel of the 8-bit view aliases, by the tables. */
 static void aliased_pixel(u32 u, u32 v, int* x, int* y, int* byte)
@@ -491,6 +556,7 @@ int main(void)
    fail += check_swizzle();
    fail += check_scaled();
    fail += check_sample_map();
+   fail += check_page_position();
    fail += check_alias_formula();
    fail += check_shuffle_gate();
    return fail ? 1 : 0;
