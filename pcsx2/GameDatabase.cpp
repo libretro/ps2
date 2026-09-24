@@ -861,7 +861,9 @@ u32 GameDatabaseSchema::GameEntry::applyGSHardwareFixes(Pcsx2Config::GSOptions& 
 				break;
 
 			case GSHWFixId::NativeScaling:
-				config.UserHacks_NativeScaling = static_cast<GSNativeScaling>(value);
+				/* The user's own setting of the option stands over the fix. */
+				if (!config.NativeScalingSet)
+					config.UserHacks_NativeScaling = static_cast<GSNativeScaling>(value);
 				break;
 
 			case GSHWFixId::TexturePreloading:

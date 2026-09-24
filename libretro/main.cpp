@@ -174,7 +174,7 @@ static std::string setting_bios;
 static std::string setting_renderer;
 static int setting_upscale_multiplier          = 1;
 static int setting_half_pixel_offset           = 0;
-static int setting_native_scaling              = 0;
+static int setting_native_scaling              = -1;
 static u8 setting_plugin_type                  = 0;
 static u8 setting_pgs_super_sampling           = 0;
 static u8 setting_pgs_high_res_scanout         = 0;
@@ -315,6 +315,8 @@ static bool update_option_visibility(void)
 		option_display.visible = setting_show_gsdx_hw_only_options;
 		option_display.key     = "pcsx2_upscale_multiplier";
 		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+		option_display.key     = "pcsx2_native_scaling";
+		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
 		option_display.key     = "pcsx2_trilinear_filtering";
 		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
 		option_display.key     = "pcsx2_anisotropic_filtering";
@@ -391,8 +393,6 @@ static bool update_option_visibility(void)
 		option_display.key     = "pcsx2_preload_frame_data";
 		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
 		option_display.key     = "pcsx2_half_pixel_offset";
-		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
-		option_display.key     = "pcsx2_native_scaling";
 		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
 		option_display.key     = "pcsx2_round_sprite";
 		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
@@ -719,6 +719,31 @@ static void check_variables(bool first_run)
 
 	if (setting_plugin_type == PLUGIN_GSDX_HW)
 	{
+		/* Native scaling is read with the resolution, not with the hacks:
+		 * a value the user sets applies whether or not the hacks are
+		 * enabled, over the game database's fix; 'Automatic' (-1) leaves
+		 * it to the database. */
+		var.key = "pcsx2_native_scaling";
+		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+		{
+			int native_scaling_prev = setting_native_scaling;
+			if (!strcmp(var.value, "disabled"))
+				setting_native_scaling = GSNativeScaling::NativeScaling_Off;
+			else if (!strcmp(var.value, "Normal"))
+				setting_native_scaling = GSNativeScaling::NativeScaling_Normal;
+			else if (!strcmp(var.value, "Aggressive"))
+				setting_native_scaling = GSNativeScaling::NativeScaling_Aggressive;
+			else
+				setting_native_scaling = -1;
+
+			if (first_run || setting_native_scaling != native_scaling_prev)
+			{
+				s_option_config.GS.NativeScalingSet = setting_native_scaling >= 0;
+				s_option_config.GS.UserHacks_NativeScaling = static_cast<decltype(s_option_config.GS.UserHacks_NativeScaling)>(setting_native_scaling >= 0 ? setting_native_scaling : (int)GSNativeScaling::NativeScaling_Normal);
+				updated = true;
+			}
+		}
+
 		var.key = "pcsx2_upscale_multiplier";
 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 		{
@@ -1037,24 +1062,6 @@ static void check_variables(bool first_run)
 				if (first_run || setting_half_pixel_offset != half_pixel_offset_prev)
 				{
 					s_option_config.GS.UserHacks_HalfPixelOffset = static_cast<decltype(s_option_config.GS.UserHacks_HalfPixelOffset)>(setting_half_pixel_offset);
-					updated = true;
-				}
-			}
-
-			var.key = "pcsx2_native_scaling";
-			if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-			{
-				int native_scaling_prev = setting_native_scaling;
-				if (!strcmp(var.value, "disabled"))
-					setting_native_scaling = GSNativeScaling::NativeScaling_Off;
-				else if (!strcmp(var.value, "Normal"))
-					setting_native_scaling = GSNativeScaling::NativeScaling_Normal;
-				else if (!strcmp(var.value, "Aggressive"))
-					setting_native_scaling = GSNativeScaling::NativeScaling_Aggressive;
-
-				if (first_run || setting_native_scaling != native_scaling_prev)
-				{
-					s_option_config.GS.UserHacks_NativeScaling = static_cast<decltype(s_option_config.GS.UserHacks_NativeScaling)>(setting_native_scaling);
 					updated = true;
 				}
 			}

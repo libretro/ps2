@@ -503,6 +503,10 @@ struct Pcsx2Config
 					PreloadFrameWithGSData : 1,
 					Mipmap : 1,
 					ManualUserHacks : 1,
+					/* The native scaling option is set by the user: it is not
+					 * masked with the hacks, and the game database's fix for it
+					 * does not apply. */
+					NativeScalingSet : 1,
 					UserHacks_AlignSpriteX : 1,
 					UserHacks_CPUFBConversion : 1,
 					UserHacks_ReadTCOnClose : 1,

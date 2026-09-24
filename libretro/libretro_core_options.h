@@ -285,6 +285,22 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       "1x Native (PS2)"
    },
    {
+      "pcsx2_native_scaling",
+      "Video > Native Scaling",
+      "Native Scaling",
+      "Render the buffers a game draws at a fraction of its frame, such as a bloom or blur pass, at native resolution instead of the internal resolution. Keeps a blur's radius and position as on the console, at the cost of the resolution of the blurred picture; 'Aggressive' also applies to the draws that scale those buffers back up. 'Automatic' uses the game database's setting for the game, or 'Normal' where it has none. Any other value is used regardless of the database and of 'Enable HW Hacks'.",
+      NULL,
+      "video",
+      {
+         { "Automatic", NULL },
+         { "disabled", NULL },
+         { "Normal", NULL },
+         { "Aggressive", NULL },
+         { NULL, NULL },
+      },
+      "Automatic"
+   },
+   {
       "pcsx2_pgs_ssaa",
       "Video > paraLLEl super sampling",
       "paraLLEl super sampling",
@@ -1029,21 +1045,6 @@ struct retro_core_option_v2_definition option_defs_us[] = {
          { "Special (Texture)", NULL },
          { "Special (Texture - Aggressive)", NULL },
          { "Align to Native", NULL },
-         { NULL, NULL },
-      },
-      "disabled"
-   },
-   {
-      "pcsx2_native_scaling",
-      "HW Hacks > Native Scaling",
-      "Native Scaling",
-      NULL,
-      NULL,
-      "hw_hacks",
-      {
-         { "disabled", NULL },
-         { "Normal", NULL },
-         { "Aggressive", NULL },
          { NULL, NULL },
       },
       "disabled"
