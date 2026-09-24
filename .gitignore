@@ -154,3 +154,4 @@ tests/gstc/readback_retire
 tests/gsstq/stq_saturate
 tests/gsindexed/indexed_view
 tests/gspresent/present_lifetime
+tests/gsinterlace/line_weave

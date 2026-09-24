@@ -1210,7 +1210,7 @@ void GSDeviceSW::DoInterlace(GSTexture* sTex, const GSVector4& /*sRect*/, GSText
 	 *   x = bufIdx (passed as `field` for weave/blend, 0 for bob)
 	 *   y = 1.0 / dst_height (UV stride per line; unused here)
 	 *   z = dst_height
-	 *   w = MAD_SENSITIVITY (0.08; unused without MAD)
+	 *   w = rows per frame line, the upscale (1 here; negative for full-height fields)
 	 * GSDevice::Interlace casts ZrH.x to int and uses (idx & 1) as
 	 * the field. */
 	const int field   = static_cast<int>(cb.ZrH.x) & 1;

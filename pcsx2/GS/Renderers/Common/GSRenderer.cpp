@@ -157,9 +157,9 @@ bool GSState::Merge(int field)
 		// src_gs_read is the size which we're really reading from GS memory.
 		src_gs_read[i] = ((GSVector4(curCircuit.framebufferRect) + GSVector4(0, y_offset[i], 0, y_offset[i])) * scale) / GSVector4(tex[i]->GetSize()).xyxy();
 		
+		/* A half-height field is not offset here for the weave: the
+		 * interlace takes each line's rows from the field that drew it. */
 		float interlace_offset = 0.0f;
-		if (isReallyInterlaced() && m_regs->SMODE2.FFMD && !is_bob && !GSConfig.DisableInterlaceOffset && GSConfig.InterlaceMode != GSInterlaceMode::Off)
-			interlace_offset = (scale.y) * static_cast<float>(field ^ field2);
 		// Scanmask frame offsets. It's gross, I'm sorry but it sucks.
 		if (m_scanmask_used)
 		{
@@ -227,7 +227,7 @@ bool GSState::Merge(int field)
 	{
 		const float offset = is_bob ? (tex[1] ? tex_scale[1] : tex_scale[0]) : 0.0f;
 
-		g_gs_device->Interlace(fs, field ^ field2, mode, offset);
+		g_gs_device->Interlace(fs, field ^ field2, mode, offset, static_cast<float>(fs.y) / static_cast<float>(resolution.y), m_regs->SMODE2.FFMD != 0);
 	}
 
 	if (m_scanmask_used)

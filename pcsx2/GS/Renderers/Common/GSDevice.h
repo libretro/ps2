@@ -781,7 +781,6 @@ private:
 
 protected:
 	static constexpr int NUM_INTERLACE_SHADERS = 5;
-	static constexpr float MAD_SENSITIVITY = 0.08f;
 	/* How many the pool may hold. The ages that used to sit beside these
 	 * are gone: a pooled texture is not freed for being old, only for
 	 * putting the pool over one of its two ceilings, so in steady state
@@ -986,7 +985,7 @@ public:
 
 	void ClearCurrent();
 	void Merge(GSTexture* sTex[3], GSVector4* sRect, GSVector4* dRect, const GSVector2i& fs, const GSRegPMODE& PMODE, const GSRegEXTBUF& EXTBUF, u32 c);
-	void Interlace(const GSVector2i& ds, int field, int mode, float yoffset);
+	void Interlace(const GSVector2i& ds, int field, int mode, float yoffset, float block, bool half_fields);
 
 	bool ResizeRenderTarget(GSTexture** t, int w, int h, bool preserve_contents, bool recycle, bool defer_destroy = false);
 	void RetirePresentTexture(GSTexture* t);

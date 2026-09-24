@@ -550,13 +550,19 @@ void GSDevice::Merge(GSTexture* sTex[3], GSVector4* sRect, GSVector4* dRect, con
 	m_current = m_merge;
 }
 
-void GSDevice::Interlace(const GSVector2i& ds, int field, int mode, float yoffset)
+/* block: the rows of one frame line in the output, the upscale. The fields
+ * weave by lines, each line the block of rows its field drew for it; a
+ * half-height field (FFMD) was stretched twice by the merge, and the shader
+ * takes the line's rows from its block there (block passed positive). */
+void GSDevice::Interlace(const GSVector2i& ds, int field, int mode, float yoffset, float block, bool half_fields)
 {
+	if (!half_fields)
+		block = -block;
 	static int bufIdx = 0;
 	float offset = yoffset * static_cast<float>(field);
 	offset = GSConfig.DisableInterlaceOffset ? 0.0f : offset;
 
-	auto do_interlace = [this](GSTexture* sTex, GSTexture* dTex, ShaderInterlace shader, bool linear, float yoffset, int bufIdx) {
+	auto do_interlace = [this, block](GSTexture* sTex, GSTexture* dTex, ShaderInterlace shader, bool linear, float yoffset, int bufIdx) {
 		const GSVector2i ds_i = dTex->GetSize();
 		const GSVector2 ds = GSVector2(static_cast<float>(ds_i.x), static_cast<float>(ds_i.y));
 
@@ -574,7 +580,7 @@ void GSDevice::Interlace(const GSVector2i& ds, int field, int mode, float yoffse
 		}
 
 		const InterlaceConstantBuffer cb = {
-			GSVector4(static_cast<float>(bufIdx), 1.0f / ds.y, ds.y, MAD_SENSITIVITY)
+			GSVector4(static_cast<float>(bufIdx), 1.0f / ds.y, ds.y, block)
 		};
 
 		DoInterlace(sTex, sRect, dTex, dRect, shader, linear, cb);
