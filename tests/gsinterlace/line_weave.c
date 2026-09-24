@@ -31,16 +31,23 @@ static int weave_field(double y, double w)
    return l & 1;
 }
 
-/* line_rows(): the source row an output row reads, as the row itself
- * for a full-height field and, for a half-height one, the row of the
- * first half of its line's block, each twice. y is the output row's
- * centre (gl_FragCoord.y), the source has the output's height. */
+/* line_rows(): the source coordinate an output row reads, as the row
+ * itself for a full-height field and, for a half-height one, the row of
+ * the first half of its line's block; the output rows between the
+ * field's read the edge between two source rows, where the linear
+ * sampler gives their mean (the source holds each field row twice). y
+ * is the output row's centre (gl_FragCoord.y), the source has the
+ * output's height. */
 static double source_row(double y, double w)
 {
    const double yb = y / fabs(w);
    const int l = (int)yb;
    if (w > 0.0)
-      return 2.0 * (floor((double)(l >> 1) * w) + floor((yb - (double)l) * w * 0.5)) + 0.5;
+   {
+      const double place = ((yb - (double)l) * w - 0.5) * 0.5;
+      const double row = floor((double)(l >> 1) * w) + floor(place);
+      return 2.0 * row + 0.5 + 3.0 * (place - floor(place));
+   }
    return y;
 }
 
@@ -49,8 +56,9 @@ static double source_row(double y, double w)
  * field's rows are half a frame line apart, so the block spans two frame
  * lines, and the second half of it samples the positions the other
  * field's line holds. The weave must place field f's line k at output
- * rows (2k+f)*s .. +s-1, from the first half of the block, each row
- * twice. */
+ * rows (2k+f)*s .. +s-1, from the first half of the block: each field
+ * row at its output row, and the output row between two field rows as
+ * their mean. */
 static int check_half(int s, int lines)
 {
    int fail = 0;
@@ -62,12 +70,16 @@ static int check_half(int s, int lines)
       const int f = line & 1;
       const int k = line >> 1;           /* the field's line */
       const int sub = y - line * s;      /* row within the line */
-      const int want_merge_row = 2 * (k * s + sub / 2);
-      const int got = (int)floor(source_row(yc, (double)s));
-      if (weave_field(yc, (double)s) != f || (got != want_merge_row && got != want_merge_row + 1))
+      /* even rows within the line read field row k*s + sub/2 alone: a
+       * merge row's centre; odd rows read the edge between that field
+       * row's second merge row and the next field row's first */
+      const int frow = k * s + sub / 2;
+      const double want = (sub & 1) ? 2.0 * frow + 2.0 : 2.0 * frow + 0.5;
+      const double got = source_row(yc, (double)s);
+      if (weave_field(yc, (double)s) != f || (s > 1 && fabs(got - want) > 1e-9) || (s == 1 && (got < 2.0 * frow + 0.5 || got > 2.0 * frow + 1.5)))
       {
-         printf("  scale %d row %d: field %d row %d, wanted field %d rows %d/%d\n",
-            s, y, weave_field(yc, (double)s), got, f, want_merge_row, want_merge_row + 1);
+         printf("  scale %d row %d: field %d coordinate %g, wanted field %d coordinate %g\n",
+            s, y, weave_field(yc, (double)s), got, f, want);
          fail++;
       }
    }
@@ -143,7 +155,7 @@ int main(void)
          const int f = weave_field(yc, (double)s);
          const int frow = (int)floor(source_row(yc, (double)s)) / 2;
          const int edge_row = f ? ((E - 1) / 2) * s + s / 2 : (E / 2) * s;
-         if (frow >= edge_row)
+         if ((y & 1) == 0 && frow >= edge_row)
          {
             if (f == 0 && first0 < 0) first0 = y;
             if (f == 1 && first1 < 0) first1 = y;
