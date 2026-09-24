@@ -766,6 +766,51 @@ static int check_page_position(void)
          fail++;
       }
    }
+   /* A read of a target's pages at another width (GSTextureCache::
+    * PagesInTarget and the gathered source): page n of the read, counted
+    * in the read's width, is the page at block bp + 32n, and it sits in
+    * the target where the target's width puts that block's page. A bloom
+    * pyramid drawn two pages wide at 0x2f20 (128x128) and read back one
+    * page wide through 0x2ee0, rows 64-128 of the read: its pages 2 and 3
+    * are the target's pages 0 and 1, side by side at 0,0 and 64,0, not
+    * stacked as the read has them. A read wider than its own width
+    * aliases: column 64 of row 64 is page 3 as well. A page past the
+    * target's end is not the target's. */
+   {
+      const u32 tbp = 0x2f20, tbw = 2, bp = 0x2ee0, bw = 1;
+      const u32 pages_in_target = 8; /* 128x128, 32-bit */
+      static const struct { u32 px, py; int inside; u32 x, y; } reads[] = {
+         { 0, 2, 1, 0, 0 },
+         { 0, 3, 1, 64, 0 },
+         { 1, 2, 1, 64, 0 },
+         { 0, 5, 1, 64, 32 },
+         { 0, 1, 0, 0, 0 },
+         { 0, 10, 0, 0, 0 }
+      };
+      size_t ri;
+      u32 x, y;
+      for (ri = 0; ri < sizeof(reads) / sizeof(reads[0]); ri++)
+      {
+         const u32 n = reads[ri].py * bw + reads[ri].px;
+         const u32 block = bp + n * 32u;
+         const int inside = block >= tbp && block < tbp + pages_in_target * 32u && ((block - tbp) % 32u) == 0;
+         x = y = 0;
+         if (inside)
+            page_position((block - tbp) / 32u, tbw, &x, &y);
+         if (inside != reads[ri].inside || x != reads[ri].x || y != reads[ri].y)
+         {
+            printf("  gather: read page %u,%u -> block 0x%x inside %d at %u,%u\n", reads[ri].px, reads[ri].py, block, inside, x, y);
+            fail++;
+         }
+      }
+      /* the same read at the target's own width is the identity offset */
+      page_position((0x2f40 - tbp) / 32u, tbw, &x, &y);
+      if (x != 64 || y != 0)
+      {
+         printf("  gather: a same-width page lands at %u,%u\n", x, y);
+         fail++;
+      }
+   }
    /* A display 8 pages wide processed in strips: a strip starting two
     * pages in sits 128 pixels across. */
    {

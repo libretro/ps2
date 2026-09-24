@@ -1162,6 +1162,7 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const bool is_color, const 
 	bool half_right = false;
 	int x_offset = 0;
 	int y_offset = 0;
+	int page_gather = 0;
 
 #ifdef DISABLE_HW_TEXTURE_CACHE
 	if (0)
@@ -1500,6 +1501,7 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const bool is_color, const 
 								found_t = true;
 								x_offset = 0;
 								y_offset = 0;
+								page_gather = 0;
 
 								if (GSConfig.UserHacks_TextureInsideRt >= GSTextureInRtMode::MergeTargets && GSLocalMemory::GetUnwrappedEndBlockAddress(bp, bw, psm, req_rect) > dst->m_end_block)
 									continue;
@@ -1563,6 +1565,29 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const bool is_color, const 
 
 					x_offset = tx;
 					y_offset = ty;
+					page_gather = 0;
+					dst = t;
+					tex_merge_rt = false;
+					found_t = true;
+					continue;
+				}
+				// A read of pages of the target at another width: page n of
+				// the read is a page of the target, at the place the target's
+				// width puts it, so the read is those pages gathered at the
+				// read's width. A bloom pyramid drawn two pages wide and read
+				// back one page wide, a level at a time, is one; read through
+				// the target's own layout it was a different picture.
+				else if (bp != t->m_TEX0.TBP0 && psm == t->m_TEX0.PSM && bw != t->m_TEX0.TBW && bw > 0 &&
+					GSLocalMemory::m_psm[psm].bpp == 32 && !possible_shuffle &&
+					t->m_age <= 1 && (!found_t || t->m_last_draw > dst->m_last_draw) &&
+					PagesInTarget(t, bp, bw, psm, r))
+				{
+					if (!t->HasValidBitsForFormat(psm, req_color, req_alpha))
+						continue;
+
+					x_offset = 0;
+					y_offset = 0;
+					page_gather = 1;
 					dst = t;
 					tex_merge_rt = false;
 					found_t = true;
@@ -1858,7 +1883,7 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const bool is_color, const 
 
 	if (!src)
 	{
-		src = CreateSource(TEX0, TEXA, dst, half_right, x_offset, y_offset, lod, &r, gpu_clut, region);
+		src = CreateSource(TEX0, TEXA, dst, half_right, x_offset, y_offset, lod, &r, gpu_clut, region, page_gather);
 		if (!src)
 			return nullptr;
 	}
@@ -4595,7 +4620,46 @@ void GSTextureCache::IncAge()
 }
 
 //Fixme: Several issues in here. Not handling depth stencil, pitch conversion doesnt work.
-GSTextureCache::Source* GSTextureCache::CreateSource(const GIFRegTEX0& TEX0, const GIFRegTEXA& TEXA, Target* dst, bool half_right, int x_offset, int y_offset, const GSVector2i* lod, const GSVector4i* src_range, GSTexture* gpu_clut, SourceRegion region)
+/* The pages a read covers, in its own layout: the page rows and columns
+ * of r, and the read's page index of each. Every one has to be a page of
+ * the target, whole, and clean. */
+int GSTextureCache::PagesInTarget(const Target* t, u32 bp, u32 bw, u32 psm, const GSVector4i& r)
+{
+	const GSVector2i& pgs = GSLocalMemory::m_psm[psm].pgs;
+	const u32 tbw = pcsx2_max_u(t->m_TEX0.TBW, 1u);
+	const int px0 = r.x / pgs.x, py0 = r.y / pgs.y;
+	const int px1 = (r.z - 1) / pgs.x, py1 = (r.w - 1) / pgs.y;
+	int px, py;
+
+	if (r.z <= r.x || r.w <= r.y || r.x < 0 || r.y < 0)
+		return 0;
+	if (bp < t->m_TEX0.TBP0 && ((t->m_TEX0.TBP0 - bp) & (GS_BLOCKS_PER_PAGE - 1)))
+		return 0;
+	if (bp >= t->m_TEX0.TBP0 && ((bp - t->m_TEX0.TBP0) & (GS_BLOCKS_PER_PAGE - 1)))
+		return 0;
+
+	for (py = py0; py <= py1; py++)
+	{
+		for (px = px0; px <= px1; px++)
+		{
+			const u32 block = bp + static_cast<u32>(py * static_cast<int>(bw) + px) * GS_BLOCKS_PER_PAGE;
+			u32 n;
+			int sx, sy;
+			if (block < t->m_TEX0.TBP0 || block >= t->UnwrappedEndBlock())
+				return 0;
+			n = (block - t->m_TEX0.TBP0) >> 5;
+			sx = static_cast<int>((n % tbw) * pgs.x);
+			sy = static_cast<int>((n / tbw) * pgs.y);
+			if (sx + pgs.x > t->m_unscaled_size.x || sy + pgs.y > t->m_unscaled_size.y)
+				return 0;
+			if (!t->m_dirty.empty() && !t->m_dirty.GetTotalRect(t->m_TEX0, t->m_unscaled_size).rintersect(GSVector4i(sx, sy, sx + pgs.x, sy + pgs.y)).rempty())
+				return 0;
+		}
+	}
+	return 1;
+}
+
+GSTextureCache::Source* GSTextureCache::CreateSource(const GIFRegTEX0& TEX0, const GIFRegTEXA& TEXA, Target* dst, bool half_right, int x_offset, int y_offset, const GSVector2i* lod, const GSVector4i* src_range, GSTexture* gpu_clut, SourceRegion region, int page_gather)
 {
 	const GSLocalMemory::psm_t& psm = GSLocalMemory::m_psm[TEX0.PSM];
 	Source* src = new Source(TEX0, TEXA);
@@ -4630,7 +4694,74 @@ GSTextureCache::Source* GSTextureCache::CreateSource(const GIFRegTEX0& TEX0, con
 	// a colour read (or a channel shuffle) can sample the target in place.
 	const bool indexed_from_target = dst && TEX0.PSM == PSMT8 && !GSRendererHW::GetInstance()->TestChannelShuffle(dst);
 
-	if (dst && (x_offset != 0 || y_offset != 0) && !indexed_from_target)
+	if (dst && page_gather)
+	{
+		/* The read's pages, each copied from its place in the target to
+		 * its place in the read. The texture runs from texel 0 to the end
+		 * of the pages read; what is not a page of the target stays clear. */
+		const GSVector2i& pgs = psm.pgs;
+		const float scale = dst->m_scale;
+		const GSVector4i& rr = *src_range;
+		const u32 bw = pcsx2_max_u(TEX0.TBW, 1u);
+		const u32 tbw = pcsx2_max_u(dst->m_TEX0.TBW, 1u);
+		const int px1 = (rr.z - 1) / pgs.x, py1 = (rr.w - 1) / pgs.y;
+		const int w = pcsx2_min_i((px1 + 1) * pgs.x, tw), h = pcsx2_min_i((py1 + 1) * pgs.y, th);
+		const int sw = static_cast<int>(std::ceil(scale * w)), sh = static_cast<int>(std::ceil(scale * h));
+		GSTexture* dTex = g_gs_device->CreateRenderTarget(sw, sh, GSTexture::Format::Color, true);
+		int px, py;
+		if (!dTex)
+		{
+			delete src;
+			return nullptr;
+		}
+		m_source_memory_usage += dTex->GetMemUsage();
+		dst->Update();
+		for (py = rr.y / pgs.y; py <= py1; py++)
+		{
+			for (px = rr.x / pgs.x; px <= px1; px++)
+			{
+				const u32 block = TEX0.TBP0 + static_cast<u32>(py * static_cast<int>(bw) + px) * GS_BLOCKS_PER_PAGE;
+				u32 n;
+				int sx, sy;
+				if (block < dst->m_TEX0.TBP0 || block >= dst->UnwrappedEndBlock() || px * pgs.x >= w || py * pgs.y >= h)
+					continue;
+				n = (block - dst->m_TEX0.TBP0) >> 5;
+				sx = static_cast<int>((n % tbw) * pgs.x);
+				sy = static_cast<int>((n / tbw) * pgs.y);
+				if (sx + pgs.x > dst->m_unscaled_size.x || sy + pgs.y > dst->m_unscaled_size.y)
+					continue;
+				if (dst->m_rt_alpha_scale)
+				{
+					const GSVector4 sRectF = GSVector4(sx, sy, sx + pgs.x, sy + pgs.y) * GSVector4(scale) / GSVector4(1, 1, dst->m_texture->GetWidth(), dst->m_texture->GetHeight());
+					const GSVector4 dRect = GSVector4(px * pgs.x, py * pgs.y, (px + 1) * pgs.x, (py + 1) * pgs.y) * GSVector4(scale);
+					g_gs_device->StretchRect(dst->m_texture, sRectF, dTex, dRect, ShaderConvert::RTA_DECORRECTION, false);
+				}
+				else
+					g_gs_device->CopyRect(dst->m_texture, dTex, GSVector4i(GSVector4(sx, sy, sx + pgs.x, sy + pgs.y) * GSVector4(scale)),
+						static_cast<int>(px * pgs.x * scale), static_cast<int>(py * pgs.y * scale));
+			}
+		}
+
+		src->m_texture = dTex;
+		src->m_unscaled_size = GSVector2i(w, h);
+		src->m_scale = scale;
+		src->m_end_block = dst->m_end_block;
+		src->m_target = true;
+		src->m_from_target = dst;
+		src->m_from_target_TEX0 = dst->m_TEX0;
+		src->m_32_bits_fmt = dst->m_32_bits_fmt;
+		src->m_valid_alpha_minmax = true;
+		src->m_alpha_minmax.first = dst->m_alpha_min;
+		src->m_alpha_minmax.second = dst->m_alpha_max;
+		if ((src->m_TEX0.PSM & 0xf) == PSMCT24)
+		{
+			src->m_alpha_minmax.first = TEXA.AEM ? 0 : TEXA.TA0;
+			src->m_alpha_minmax.second = TEXA.TA0;
+		}
+		if (GSRendererHW::GetInstance()->IsTBPFrameOrZ(dst->m_TEX0.TBP0))
+			m_temporary_source = src;
+	}
+	else if (dst && (x_offset != 0 || y_offset != 0) && !indexed_from_target)
 	{
 		const float scale = dst->m_scale;
 		const int x = static_cast<int>(scale * x_offset);
