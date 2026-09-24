@@ -251,7 +251,6 @@ bool GSTextureCache::RelayoutTarget(Target* t, u32 tbw)
 	const GSVector2i pgs = GSLocalMemory::m_psm[t->m_TEX0.PSM].pgs;
 	const int old_tbw = pcsx2_max_i(1, (int)t->m_TEX0.TBW);
 	const int new_tbw = pcsx2_max_i(1, (int)tbw);
-	const int old_cols = (t->m_unscaled_size.x + pgs.x - 1) / pgs.x;
 	const int rows = (t->m_unscaled_size.y + pgs.y - 1) / pgs.y;
 	int pages, new_rows, n;
 	GSVector2i new_unscaled, new_size, old_size;
@@ -260,12 +259,11 @@ bool GSTextureCache::RelayoutTarget(Target* t, u32 tbw)
 
 	if (old_tbw == new_tbw)
 		return true;
-	/* Drawn wider than its width: the pages have no order to keep. */
-	if (old_cols > old_tbw)
-		return false;
 	/* The pages the target stands for: up to its last block, within its
-	 * rows; the box around them at the new width can take in more, which
-	 * would grow it at every change of width otherwise. */
+	 * rows and its width (a texture fitted wider than its width holds
+	 * nothing the width can address beyond it); the box around them at the
+	 * new width can take in more, which would grow it at every change of
+	 * width otherwise. */
 	pages = (int)((t->UnwrappedEndBlock() - t->m_TEX0.TBP0) >> 5) + 1;
 	if (pages > old_tbw * rows)
 		pages = old_tbw * rows;
@@ -285,7 +283,15 @@ bool GSTextureCache::RelayoutTarget(Target* t, u32 tbw)
 		return false;
 
 	old_size = t->m_texture->GetSize();
-	if (t->m_texture->GetState() == GSTexture::State::Dirty)
+	/* A cleared target is the clear everywhere, so its pages need no move. */
+	if (t->m_texture->GetState() == GSTexture::State::Cleared)
+	{
+		if (t->m_type == DepthStencil)
+			g_gs_device->ClearDepth(tex, t->m_texture->GetClearDepth());
+		else
+			g_gs_device->ClearRenderTarget(tex, t->m_texture->GetClearColor());
+	}
+	else if (t->m_texture->GetState() == GSTexture::State::Dirty)
 	{
 		for (n = 0; n < pages; n++)
 		{
@@ -307,12 +313,15 @@ bool GSTextureCache::RelayoutTarget(Target* t, u32 tbw)
 		}
 	}
 
-	t->m_valid = relayout_rect(t->m_valid, pgs, old_tbw, new_tbw);
-	t->m_drawn_since_read = relayout_rect(t->m_drawn_since_read, pgs, old_tbw, new_tbw);
+	{
+		const GSVector4i in_layout(0, 0, old_tbw * pgs.x, rows * pgs.y);
+		t->m_valid = relayout_rect(t->m_valid.rintersect(in_layout), pgs, old_tbw, new_tbw);
+		t->m_drawn_since_read = relayout_rect(t->m_drawn_since_read.rintersect(in_layout), pgs, old_tbw, new_tbw);
+	}
 	for (i = 0; i < t->m_dirty.size(); i++)
 	{
 		GSDirtyRect* d = &t->m_dirty[i];
-		d->r = relayout_rect(d->GetDirtyRect(t->m_TEX0, false), pgs, old_tbw, new_tbw);
+		d->r = relayout_rect(d->GetDirtyRect(t->m_TEX0, false).rintersect(GSVector4i(0, 0, old_tbw * pgs.x, rows * pgs.y)), pgs, old_tbw, new_tbw);
 		d->psm = t->m_TEX0.PSM;
 		d->bw = tbw;
 	}
@@ -1983,6 +1992,14 @@ GSTextureCache::Target* GSTextureCache::LookupTarget(GIFRegTEX0 TEX0, const GSVe
 					dst = t;
 
 					dst->m_32_bits_fmt |= (psm_s.bpp != 16);
+					/* Drawn at another width: the pages move to that width's
+					 * places first, before the draw's size is fitted to the
+					 * target (fitted to the old layout, the texture would be
+					 * wider than a page column of the new). A shuffle fetches
+					 * by position in the layout there is, and keeps it, the
+					 * width it comes at being a label on the target. */
+					if (!is_shuffle && !is_frame && TEX0.TBW != dst->m_TEX0.TBW && TEX0.PSM == dst->m_TEX0.PSM && dst->m_TEX0.TBW > 0 && TEX0.TBW > 0)
+						RelayoutTarget(dst, TEX0.TBW);
 					break;
 				}
 				else

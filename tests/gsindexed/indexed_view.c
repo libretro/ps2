@@ -579,6 +579,14 @@ static void native_taps(double u, double u0, int S, double* tap0, double* tap1, 
    *tap1 = *tap0 + S;
 }
 
+/* GSRendererHW::MagnifiesTexture: the taps are for a read that keeps or
+ * shrinks the texture (a copy, a blur); a read that spreads fewer texels
+ * over more pixels is left to the scaled texture's own filter. */
+static int magnifies(double px_w, double px_h, double tx_w, double tx_h)
+{
+   return tx_w + 0.5 < px_w || tx_h + 0.5 < px_h;
+}
+
 static int check_native_taps(void)
 {
    static const int scales[] = { 2, 4, 8 };
@@ -619,6 +627,13 @@ static int check_native_taps(void)
             fail++;
          }
       }
+   }
+   /* a 1:1 copy and a 2:1 blur keep the taps; a bloom drawn 4:1 from a
+    * 160x112 buffer, and a logo drawn larger than its texture, do not */
+   if (magnifies(640, 448, 640, 448) || magnifies(320, 224, 640, 448) || !magnifies(640, 448, 160, 112) || !magnifies(256, 64, 128, 64))
+   {
+      printf("  the magnification rule is wrong\n");
+      fail++;
    }
    printf("bilinear taps on a scaled target: %s\n", fail ? "FAIL" : "ok");
    return fail;
@@ -819,6 +834,31 @@ static int check_relayout(void)
       if (out[0] != 64 || out[1] != 64 || out[2] != 128 || out[3] != 96)
       {
          printf("  page 7 at width 3: %u,%u-%u,%u, not 64,64-128,96\n", out[0], out[1], out[2], out[3]);
+         fail++;
+      }
+   }
+   /* A target fitted wider than its width (a 28-page buffer, 4 pages
+    * wide, moved to 1 wide and then fitted to 256 pixels across by a
+    * draw's size) still stands for its 28 pages: what lies beyond the
+    * width's one page column is nothing the width can address, so it is
+    * left out of the count, the moves and the valid rect, and the buffer
+    * comes back 4 wide as 7 rows of 4, not 28 rows of 4 (which would
+    * grow it fourfold at every change of width until it wrapped around
+    * memory and over the display buffer). */
+   {
+      const u32 pages = 28, old_tbw = 1, fitted_cols = 4, rows = 28;
+      const u32 counted = pages < old_tbw * rows ? pages : old_tbw * rows;
+      const u32 rows4 = (counted + 3) / 4;
+      static const u32 valid_wide[4] = { 0, 0, 256, 896 };
+      u32 clipped[4], out[4];
+      (void)fitted_cols;
+      clipped[0] = valid_wide[0]; clipped[1] = valid_wide[1];
+      clipped[2] = valid_wide[2] < old_tbw * 64u ? valid_wide[2] : old_tbw * 64u;
+      clipped[3] = valid_wide[3] < rows * 32u ? valid_wide[3] : rows * 32u;
+      relayout_rect(clipped, old_tbw, 4, out);
+      if (counted != 28 || rows4 != 7 || out[2] != 256 || out[3] != 224)
+      {
+         printf("  a 28-page buffer fitted 4 pages wide at width 1 comes back at width 4 as %u pages, %u rows, valid %u,%u-%u,%u\n", counted, rows4, out[0], out[1], out[2], out[3]);
          fail++;
       }
    }

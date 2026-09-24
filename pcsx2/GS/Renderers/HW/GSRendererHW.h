@@ -295,6 +295,7 @@ private:
 	bool ChannelShuffleCovered() const;
 	static GSVector4i JoinedRect(const GSVector4i& a, const GSVector4i& b);
 	bool DrawWithinPage(u32 psm) const;
+	bool MagnifiesTexture() const;
 	bool ShuffleKeepsLayout() const;
 	// The context whose scissor followed a draw onto another target's page.
 	GSDrawingContext* m_scissor_moved = nullptr;

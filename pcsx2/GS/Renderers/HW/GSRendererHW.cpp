@@ -2770,15 +2770,7 @@ void GSRendererHW::Draw()
 	//                                --------------------------------------
 	m_r = GSVector4i(m_vt.m_min.p.upld(m_vt.m_max.p) + GSVector4::cxpr(0.5f));
 	m_r = m_r.blend8(m_r + GSVector4i::cxpr(0, 0, 1, 1), (m_r.xyxy() == m_r.zwzw()));
-
-	/* Scaled sprites cover what the GS covers (see SnapSpriteEdges). The
-	 * shuffles are told apart by their sprites' exact shape and keep it;
-	 * the half-pixel offset moves sprites its own way and keeps them too. */
 	m_sprite_edges_snapped = false;
-	if (m_vt.m_primclass == GS_SPRITE_CLASS && GetUpscaleMultiplier() > 1.0f && !GSConfig.UserHacks_MergePPSprite &&
-		GSConfig.UserHacks_HalfPixelOffset == GSHalfPixelOffset::Off && !IsPossibleChannelShuffle() &&
-		!(PRIM->TME && GSLocalMemory::m_psm[m_cached_ctx.FRAME.PSM].bpp == 16 && GSLocalMemory::m_psm[m_cached_ctx.TEX0.PSM].bpp == 16))
-		SnapSpriteEdges();
 	m_r_no_scissor = m_r;
 	m_r = m_r.rintersect(context->scissor.in);
 
@@ -3247,6 +3239,23 @@ void GSRendererHW::Draw()
 		}
 	}
 
+	/* A scaled sprite that reads a render target is a pass over the
+	 * screen (a copy, a blur, a bloom laid out by page), where a fraction
+	 * of a native pixel at its edges is a seam: it covers what the GS
+	 * covers (see SnapSpriteEdges). A sprite of the game's own art keeps
+	 * its scaled place, which is what the scale is for. The shuffles are
+	 * told apart by their sprites' exact shape and keep it; the half-pixel
+	 * offset moves sprites its own way and keeps them too. */
+	if (src && src->m_target && m_vt.m_primclass == GS_SPRITE_CLASS && GetUpscaleMultiplier() > 1.0f &&
+		!GSConfig.UserHacks_MergePPSprite && GSConfig.UserHacks_HalfPixelOffset == GSHalfPixelOffset::Off &&
+		!IsPossibleChannelShuffle() &&
+		!(GSLocalMemory::m_psm[m_cached_ctx.FRAME.PSM].bpp == 16 && GSLocalMemory::m_psm[m_cached_ctx.TEX0.PSM].bpp == 16))
+	{
+		SnapSpriteEdges();
+		m_r_no_scissor = m_r;
+		m_r = m_r.rintersect(m_context->scissor.in);
+	}
+
 	// Urban Reign trolls by scissoring a draw to a target at 0x0-0x117F to 378x449 which ends up the size being rounded up to 640x480
 	// causing the buffer to expand to around 0x1400, which makes a later framebuffer at 0x1180 to fail to be created correctly.
 	// We can cheese this by checking if the Z is masked and the resultant colour is going to be black anyway.
@@ -3618,15 +3627,11 @@ void GSRendererHW::Draw()
 				if (m_cached_ctx.FRAME.FBMSK & 0xF0000000)
 					rt->m_valid_alpha_high = false;
 			}
-			if (rt->m_TEX0.TBW != FRAME_TEX0.TBW && rt->m_TEX0.PSM == FRAME_TEX0.PSM)
-				g_texture_cache->RelayoutTarget(rt, FRAME_TEX0.TBW);
 			rt->m_TEX0 = FRAME_TEX0;
 		}
 
 		if (ds && (!is_possible_mem_clear || ds->m_TEX0.PSM != ZBUF_TEX0.PSM || (rt && ds->m_TEX0.TBW != rt->m_TEX0.TBW)))
 		{
-			if (ds->m_TEX0.TBW != ZBUF_TEX0.TBW && ds->m_TEX0.PSM == ZBUF_TEX0.PSM)
-				g_texture_cache->RelayoutTarget(ds, ZBUF_TEX0.TBW);
 			ds->m_TEX0 = ZBUF_TEX0;
 		}
 	}
@@ -3637,8 +3642,6 @@ void GSRendererHW::Draw()
 		if (rt)
 		{
 			const bool update_fbw = (m_channel_shuffle && src->m_target) && (!PRIM->ABE || IsOpaque() || m_context->ALPHA.IsBlack()) && !ShuffleKeepsLayout();
-			if (update_fbw && rt->m_TEX0.TBW != FRAME_TEX0.TBW && rt->m_TEX0.PSM == FRAME_TEX0.PSM)
-				g_texture_cache->RelayoutTarget(rt, FRAME_TEX0.TBW);
 			rt->m_TEX0.TBW = update_fbw ? FRAME_TEX0.TBW : pcsx2_max_i(rt->m_TEX0.TBW, FRAME_TEX0.TBW);
 			rt->m_TEX0.PSM = FRAME_TEX0.PSM;
 		}
@@ -4608,6 +4611,15 @@ GSVector4i GSRendererHW::JoinedRect(const GSVector4i& a, const GSVector4i& b)
 	return b;
 }
 
+/* Whether the draw spreads its texels over more pixels than texels, on
+ * either axis: fewer texels than pixels across its extent. */
+bool GSRendererHW::MagnifiesTexture() const
+{
+	const GSVector4 px = m_vt.m_max.p - m_vt.m_min.p;
+	const GSVector4 tx = (m_vt.m_max.t - m_vt.m_min.t).abs();
+	return tx.x + 0.5f < px.x || tx.y + 0.5f < px.y;
+}
+
 /* Whether the draw stays within one page of a buffer of this format. */
 bool GSRendererHW::DrawWithinPage(u32 psm) const
 {
@@ -5500,9 +5512,12 @@ __ri void GSRendererHW::EmulateTextureSampler(const GSTextureCache::Target* rt, 
 	/* A bilinear read of a scaled target keeps the native draw's filter: the
 	 * taps a native texel apart, with the weights of the native pixel, each
 	 * fragment reading its own samples of those texels. It runs in the
-	 * shader's own sampling. */
+	 * shader's own sampling. A draw that magnifies the target is left to
+	 * the scaled texture's own filter, which is what the scale is for: the
+	 * native taps would step over the texels between, as a native draw
+	 * does, and the scaled picture would look point sampled. */
 	const bool native_taps = scale > 1.0f && m_vt.IsLinear() && tex->m_target && !tex->m_palette && cpsm.fmt == 0 &&
-		!psm.depth && !need_mipmap && !m_conf.ps.shuffle;
+		!psm.depth && !need_mipmap && !m_conf.ps.shuffle && !MagnifiesTexture();
 	const bool shader_sampler = shader_emulated_sampler || native_taps;
 
 	bool bilinear = m_vt.IsLinear();
