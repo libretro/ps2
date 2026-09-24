@@ -5523,9 +5523,18 @@ __ri void GSRendererHW::EmulateTextureSampler(const GSTextureCache::Target* rt, 
 	 * does, and the scaled picture would look point sampled. The taps
 	 * take the coordinate along a screen-space line, which a sprite's
 	 * is; a triangle's runs in perspective, and a sun glare's quad read
-	 * that way at 8x came out in stripes. */
-	const bool native_taps = scale > 1.0f && m_vt.IsLinear() && tex->m_target && !tex->m_palette && cpsm.fmt == 0 &&
-		!psm.depth && !need_mipmap && !m_conf.ps.shuffle && !MagnifiesTexture() && m_vt.m_primclass == GS_SPRITE_CLASS;
+	 * that way at 8x came out in stripes. An indexed read of a scaled
+	 * target (its alpha byte, or the scaled index view of it) goes
+	 * through its palette the same way: the taps pick the indices, a
+	 * native texel apart, and magnified too, since an index is a native
+	 * texel's and the filter runs on the colours looked up, so the scaled
+	 * texture's own filter over the indices between has no meaning. A
+	 * glare blurred by bouncing the frame's alpha through a palette, a
+	 * 2x2 box each pass, was otherwise blurred over a quarter texel at
+	 * 4x, and drawn back twice its size through the palette it came out
+	 * a square with lines through it. */
+	const bool native_taps = scale > 1.0f && m_vt.IsLinear() && tex->m_target && cpsm.fmt == 0 &&
+		!psm.depth && !need_mipmap && !m_conf.ps.shuffle && (!MagnifiesTexture() || tex->m_palette) && m_vt.m_primclass == GS_SPRITE_CLASS;
 	const bool shader_sampler = shader_emulated_sampler || native_taps;
 
 	bool bilinear = m_vt.IsLinear();

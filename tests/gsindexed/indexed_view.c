@@ -616,12 +616,34 @@ static void native_taps(double u, double u0, double du, int S, double* tap0, dou
    *tap1 = *tap0 + S;
 }
 
+/* The same taps through a palette (an indexed view of a scaled target,
+ * or its alpha byte): an index is a native texel's, one per texel, so
+ * every fragment reads the texel's first sample, the one a native draw
+ * writes; the palette colours are what the weights blend. The taps apply
+ * to a magnifying read as well, since the scaled texture's own filter
+ * over the indices between has no meaning. */
+static void palette_taps(double u0, int S, double* tap0, double* tap1, double* w)
+{
+   const double g = u0 - 0.5;
+   const double gi = floor(g);
+   *w = g - gi;
+   *tap0 = gi * S;
+   *tap1 = *tap0 + S;
+}
+
 /* GSRendererHW::MagnifiesTexture: the taps are for a read that keeps or
  * shrinks the texture (a copy, a blur); a read that spreads fewer texels
  * over more pixels is left to the scaled texture's own filter. */
 static int magnifies(double px_w, double px_h, double tx_w, double tx_h)
 {
    return tx_w + 0.5 < px_w || tx_h + 0.5 < px_h;
+}
+
+/* The taps for a read that magnifies: not for a colour read, which is
+ * left to the scaled texture's own filter, but for a palette read. */
+static int native_taps_allowed(int magnifying, int palette)
+{
+   return !magnifying || palette;
 }
 
 static int check_native_taps(void)
@@ -667,11 +689,46 @@ static int check_native_taps(void)
          }
       }
    }
+   /* A glare buffer's alpha read through a palette, blurred 1:1 and then
+    * drawn at twice its size: every fragment of a pixel reads the same
+    * two indices, the texels' first samples, with the pixel's weights;
+    * the fragment's own sample would be one of a magnified palette read's
+    * sixteen, and a pixel's box came out a square, brighter by the
+    * palette's curve. */
+   for (si = 0; si < sizeof(scales) / sizeof(scales[0]); si++)
+   {
+      const int S = scales[si];
+      int k;
+      for (k = 0; k < S; k++)
+      {
+         const int x = 12;
+         double t0, t1, w, m0, m1, mw;
+         palette_taps(x + 0.25, S, &t0, &t1, &w);
+         if ((int)t0 != (x - 1) * S || (int)t1 != x * S || w < 0.75 - 1e-9 || w > 0.75 + 1e-9)
+         {
+            printf("  scale %d fragment %d: palette taps %g,%g weight %g\n", S, k, t0, t1, w);
+            fail++;
+         }
+         /* magnified 2:1, the pixel's coordinate advances half a texel */
+         palette_taps(x + 0.25 + 0.5 * (k / S), S, &m0, &m1, &mw);
+         if (m0 != t0 || m1 != t1)
+         {
+            printf("  scale %d fragment %d: magnified palette taps %g,%g\n", S, k, m0, m1);
+            fail++;
+         }
+      }
+   }
    /* a 1:1 copy and a 2:1 blur keep the taps; a bloom drawn 4:1 from a
-    * 160x112 buffer, and a logo drawn larger than its texture, do not */
+    * 160x112 buffer, and a logo drawn larger than its texture, do not,
+    * unless read through a palette */
    if (magnifies(640, 448, 640, 448) || magnifies(320, 224, 640, 448) || !magnifies(640, 448, 160, 112) || !magnifies(256, 64, 128, 64))
    {
       printf("  the magnification rule is wrong\n");
+      fail++;
+   }
+   if (!(magnifies(62, 66, 31, 33) && native_taps_allowed(1, 1)) || native_taps_allowed(1, 0))
+   {
+      printf("  a magnified read keeps the taps only through a palette\n");
       fail++;
    }
    printf("bilinear taps on a scaled target: %s\n", fail ? "FAIL" : "ok");
