@@ -737,6 +737,35 @@ static int check_page_position(void)
          fail++;
       }
    }
+   /* The read-inside-target case, the same rule with the base after the
+    * target's: a glow blurred in a 256x448 buffer at 0x3380, four pages
+    * wide, whose lower half is read back by its own base 0x3700 as a
+    * 256x224 texture. Texel 0,0 of the read is page 28 of the target, at
+    * 0,224; the whole read lands on rows 224-448 of the target. And the
+    * buffer at 0x3380 is itself the lower half of one at 0x3000: read
+    * through 0x3380 while only 0x3000 is held, the rows are 224 down. */
+   {
+      const u32 bw = 4;
+      u32 x, y;
+      page_position((0x3700 - 0x3380) / 32u, bw, &x, &y);
+      if (x != 0 || y != 224 || y + 224 > 448)
+      {
+         printf("  read-inside-target: 0x3700 in 0x3380 at %u,%u, not 0,224\n", x, y);
+         fail++;
+      }
+      page_position((0x3380 - 0x3000) / 32u, bw, &x, &y);
+      if (x != 0 || y != 224)
+      {
+         printf("  read-inside-target: 0x3380 in 0x3000 at %u,%u, not 0,224\n", x, y);
+         fail++;
+      }
+      /* the same base read a page wider is not the same pages */
+      if ((0x3700 - 0x3380) / 32u % 5u == 0 || page_of_pixel(0, 224, 5) == (0x3700 - 0x3380) / 32u)
+      {
+         printf("  read-inside-target: a 5-wide read of 0x3700 must not be taken for rows of a 4-wide target\n");
+         fail++;
+      }
+   }
    /* A display 8 pages wide processed in strips: a strip starting two
     * pages in sits 128 pixels across. */
    {

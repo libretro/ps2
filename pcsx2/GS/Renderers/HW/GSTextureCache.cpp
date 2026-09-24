@@ -1528,14 +1528,17 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const bool is_color, const 
 					y_offset = 0;
 					break;
 				}
-				// A read that starts before the target but lands on it: the
-				// texture's base is low and its coordinates high, so what is
-				// read is pages of the target, at the same layout. Ridge Racer V
-				// draws its lamp glows into a scratch buffer at the lamp's screen
-				// position and reads them back through the display buffer's
-				// address, several page rows down. The rect's first page is a
-				// page of the target; the offset takes the texel there.
-				else if (bp < t->m_TEX0.TBP0 && psm == t->m_TEX0.PSM && bw == t->m_TEX0.TBW && bw > 0 &&
+				// A read of pages of the target at the target's own layout,
+				// through another base: what is read is those pages, wherever
+				// the base is. Ridge Racer V draws its lamp glows into a
+				// scratch buffer at the lamp's screen position and reads them
+				// back through the display buffer's address, several page rows
+				// down (the base before the target, the coordinates high).
+				// Haunting Ground blurs its glow in a half-height buffer whose
+				// two halves are also its own buffers, and reads each half by
+				// its own base (the base inside the target). The rect's first
+				// page is a page of the target; the offset takes the texel there.
+				else if (bp != t->m_TEX0.TBP0 && psm == t->m_TEX0.PSM && bw == t->m_TEX0.TBW && bw > 0 &&
 					GSLocalMemory::m_psm[psm].bpp == 32 &&
 					t->m_age <= 1 && (!found_t || t->m_last_draw > dst->m_last_draw))
 				{
