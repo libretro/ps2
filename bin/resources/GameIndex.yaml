@@ -1606,23 +1606,11 @@ SCAJ-20125:
   region: "NTSC-Unk"
   clampModes:
     eeClampMode: 2 # Fixes camera and stops constant coin noises on Pirates Cove.
-  gsHWFixes:
-    textureInsideRT: 1 # Fixes heat haze half screen problem.
-    alignSprite: 1
-    halfPixelOffset: 4 # Align post.
-    nativeScaling: 1 # Fixes depth of field effect.
-    getSkipCount: "GSC_Tekken5"
 SCAJ-20126:
   name: "Tekken 5"
   region: "NTSC-Unk"
   clampModes:
     eeClampMode: 2 # Fixes camera and stops constant coin noises on Pirates Cove.
-  gsHWFixes:
-    textureInsideRT: 1 # Fixes heat haze half screen problem.
-    alignSprite: 1
-    halfPixelOffset: 4 # Align post.
-    nativeScaling: 1 # Fixes depth of field effect.
-    getSkipCount: "GSC_Tekken5"
 SCAJ-20127:
   name: "EyeToy - Play 2 [with Camera]"
   region: "NTSC-Unk"
@@ -2088,12 +2076,6 @@ SCAJ-20199:
   region: "NTSC-Unk"
   clampModes:
     eeClampMode: 2 # Fixes camera and stops constant coin noises on Pirates Cove.
-  gsHWFixes:
-    textureInsideRT: 1 # Fixes heat haze half screen problem.
-    alignSprite: 1
-    halfPixelOffset: 4 # Align post.
-    nativeScaling: 1 # Fixes depth of field effect.
-    getSkipCount: "GSC_Tekken5"
 SCAJ-25002:
   name: "Shinobi"
   region: "NTSC-Unk"
@@ -3760,12 +3742,6 @@ SCED-53538:
   region: "PAL-M5"
   clampModes:
     eeClampMode: 2 # Fixes camera and stops constant coin noises on Pirates Cove.
-  gsHWFixes:
-    textureInsideRT: 1 # Fixes heat haze half screen problem.
-    alignSprite: 1
-    halfPixelOffset: 4 # Align post.
-    nativeScaling: 1 # Fixes depth of field effect.
-    getSkipCount: "GSC_Tekken5"
 SCED-53611:
   name: "Official PlayStation 2 Magazine - German Kids Special"
   region: "PAL-G"
@@ -5399,12 +5375,6 @@ SCES-53202:
   compat: 5
   clampModes:
     eeClampMode: 2 # Fixes camera and stops constant coin noises on Pirates Cove.
-  gsHWFixes:
-    textureInsideRT: 1 # Fixes heat haze half screen problem.
-    alignSprite: 1
-    halfPixelOffset: 4 # Align post.
-    nativeScaling: 1 # Fixes depth of field effect.
-    getSkipCount: "GSC_Tekken5"
 SCES-53247:
   name: "WRC Rally Evolved"
   region: "PAL-M8"
@@ -6841,12 +6811,6 @@ SCKA-20049:
   region: "NTSC-K"
   clampModes:
     eeClampMode: 2 # Fixes camera and stops constant coin noises on Pirates Cove.
-  gsHWFixes:
-    textureInsideRT: 1 # Fixes heat haze half screen problem.
-    alignSprite: 1
-    halfPixelOffset: 4 # Align post.
-    nativeScaling: 1 # Fixes depth of field effect.
-    getSkipCount: "GSC_Tekken5"
 SCKA-20050:
   name: "Tales of Legendia"
   region: "NTSC-K"
@@ -7083,12 +7047,6 @@ SCKA-20081:
   region: "NTSC-K"
   clampModes:
     eeClampMode: 2 # Fixes camera and stops constant coin noises on Pirates Cove.
-  gsHWFixes:
-    textureInsideRT: 1 # Fixes heat haze half screen problem.
-    alignSprite: 1
-    halfPixelOffset: 4 # Align post.
-    nativeScaling: 1 # Fixes depth of field effect.
-    getSkipCount: "GSC_Tekken5"
 SCKA-20082:
   name: "Ace Combat 5 - The Unsung War [PlayStation 2 Big Hit Series]"
   region: "NTSC-K"
@@ -49030,12 +48988,6 @@ SLPS-25510:
   compat: 5
   clampModes:
     eeClampMode: 2 # Fixes camera and stops constant coin noises on Pirates Cove.
-  gsHWFixes:
-    textureInsideRT: 1 # Fixes heat haze half screen problem.
-    alignSprite: 1 # Fixes vertical lines.
-    halfPixelOffset: 4 # Align post.
-    nativeScaling: 1 # Fixes depth of field effect.
-    getSkipCount: "GSC_Tekken5"
 SLPS-25511:
   name: "Rasetsu Alternative"
   region: "NTSC-J"
@@ -51288,12 +51240,6 @@ SLPS-73223:
   region: "NTSC-J"
   clampModes:
     eeClampMode: 2 # Fixes camera and stops constant coin noises on Pirates Cove.
-  gsHWFixes:
-    textureInsideRT: 1 # Fixes heat haze half screen problem.
-    alignSprite: 1 # Fixes vertical lines.
-    halfPixelOffset: 4 # Align post.
-    nativeScaling: 1 # Fixes depth of field effect.
-    getSkipCount: "GSC_Tekken5"
 SLPS-73224:
   name: "Xenosaga Episode II - Jenseits von Gut und Bose [PlayStation 2 the Best] [Disc 1 of 2]"
   region: "NTSC-J"
@@ -57209,12 +57155,6 @@ SLUS-21059:
   compat: 5
   clampModes:
     eeClampMode: 2 # Fixes camera and stops constant coin noises on Pirates Cove.
-  gsHWFixes:
-    textureInsideRT: 1 # Fixes heat haze half screen problem.
-    alignSprite: 1 # Fixes vertical lines.
-    halfPixelOffset: 4 # Align post.
-    nativeScaling: 1 # Fixes depth of field effect.
-    getSkipCount: "GSC_Tekken5"
 SLUS-21060:
   name: "WWE SmackDown! vs. RAW"
   region: "NTSC-U"
@@ -57762,12 +57702,6 @@ SLUS-21160:
   region: "NTSC-U"
   clampModes:
     eeClampMode: 2 # Fixes camera and stops constant coin noises on Pirates Cove.
-  gsHWFixes:
-    textureInsideRT: 1 # Fixes heat haze half screen problem.
-    alignSprite: 1 # Fixes vertical lines.
-    halfPixelOffset: 4 # Align post.
-    nativeScaling: 1 # Fixes depth of field effect.
-    getSkipCount: "GSC_Tekken5"
 SLUS-21161:
   name: "Fight Night - Round 2"
   region: "NTSC-U"

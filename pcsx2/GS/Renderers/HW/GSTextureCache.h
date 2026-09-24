@@ -606,6 +606,7 @@ public:
 	void ReadbackAll();
 	static void AddDirtyRectTarget(Target* target, GSVector4i rect, u32 psm, u32 bw, RGBAMask rgba, bool req_linear = false);
 	void ResizeTarget(Target* t, GSVector4i rect, u32 tbp, u32 psm, u32 tbw);
+	bool RelayoutTarget(Target* t, u32 tbw);
 	static bool FullRectDirty(Target* target, u32 rgba_mask);
 	static bool FullRectDirty(Target* target);
 	bool CanTranslate(u32 bp, u32 bw, u32 spsm, GSVector4i r, u32 dbp, u32 dpsm, u32 dbw);
@@ -636,7 +637,7 @@ public:
 
 	/// Looks up a target in the cache, and only returns it if the BP/BW match exactly.
 	Target* GetExactTarget(u32 BP, u32 BW, int type, u32 end_bp);
-	Target* FindPageOwner(u32 BP, u32 BW, u32 PSM, int& x, int& y);
+	Target* FindPageOwner(u32 BP, u32 BW, u32 PSM, int& x, int& y, int page_in_draw);
 	bool HasTargetAt(u32 BP, u32 BW) const;
 	Target* GetTargetWithSharedBits(u32 BP, u32 PSM) const;
 	Target* FindOverlappingTarget(GSTextureCache::Target* target) const;

@@ -32,7 +32,13 @@
  * page the texture begins on, and a draw addressed at a page of a target
  * lands on that page: both use the page's position in the target, which is
  * checked against the GS page addressing, as is a read whose base lies
- * before a target but whose coordinates land on it.
+ * before a target but whose coordinates land on it. A target drawn at
+ * another buffer width keeps its pages by moving each to where the new
+ * width puts it, a draw within one page goes to that page's place in
+ * the target whatever width it was drawn with, and a shuffle's draws are
+ * skipped as repeats only where they land on what was drawn already.
+ * Every scaled sprite covers the native pixels the rasteriser's ceil()
+ * gives it, its coordinates taken along its own line.
  *
  * Build and run, from tests/gsindexed:
  *   cc -O2 -std=c89 -pedantic -Wall indexed_view.c -o indexed_view -lm
@@ -723,6 +729,281 @@ static int check_page_position(void)
    return fail;
 }
 
+/* ---- 4b. a target drawn at another width ------------------------------- */
+
+/* GSTextureCache::RelayoutTarget: page n of a buffer sits at
+ * (n % bw, n / bw) in pages whatever bw the buffer is drawn with, so a
+ * target drawn at a new width moves each page to where the new width puts
+ * it; relayout_rect is the box around a rect's pages once moved. */
+static void relayout_page(u32 n, u32 old_bw, u32 new_bw, u32* sx, u32* sy, u32* dx, u32* dy)
+{
+   page_position(n, old_bw, sx, sy);
+   page_position(n, new_bw, dx, dy);
+}
+
+static void relayout_rect(const u32 r[4], u32 old_bw, u32 new_bw, u32 out[4])
+{
+   const u32 px0 = r[0] / 64u, py0 = r[1] / 32u, px1 = (r[2] - 1) / 64u, py1 = (r[3] - 1) / 32u;
+   u32 px, py, x, y;
+   out[0] = out[1] = 0xffffffffu;
+   out[2] = out[3] = 0;
+   for (py = py0; py <= py1; py++)
+      for (px = px0; px <= px1; px++)
+      {
+         page_position(py * old_bw + px, new_bw, &x, &y);
+         if (x < out[0]) out[0] = x;
+         if (y < out[1]) out[1] = y;
+         if (x + 64u > out[2]) out[2] = x + 64u;
+         if (y + 32u > out[3]) out[3] = y + 32u;
+      }
+}
+
+/* GSTextureCache::FindPageOwner for a draw within one page: the page's
+ * index in the draw's own layout, added to the page the draw is addressed
+ * at, is its index in the target; the draw goes to that page's place. */
+static void place_page(u32 fbp, u32 fbw, const u32 r[4], u32 tbp, u32 tbw, u32* x, u32* y)
+{
+   const u32 in_draw = page_of_pixel(r[0], r[1], fbw);
+   page_position((fbp - tbp) / 32u + in_draw, tbw, x, y);
+}
+
+static int check_relayout(void)
+{
+   /* A 320x224 blur buffer (5 pages wide, 35 pages) then drawn 1 and 3
+    * pages wide, as the colour grade and the ping-pong blur do. */
+   static const u32 widths[] = { 5, 1, 3, 5 };
+   int fail = 0;
+   u32 n, wi;
+
+   for (n = 0; n < 35u; n++)
+   {
+      u32 sx, sy, dx, dy, back_x, back_y;
+      for (wi = 0; wi + 1 < sizeof(widths) / sizeof(widths[0]); wi++)
+      {
+         relayout_page(n, widths[wi], widths[wi + 1], &sx, &sy, &dx, &dy);
+         if (page_of_pixel(sx, sy, widths[wi]) != n || page_of_pixel(dx, dy, widths[wi + 1]) != n)
+         {
+            if (fail++ < 8)
+               printf("  page %u: %u,%u at width %u -> %u,%u at width %u is not the page\n", n, sx, sy, widths[wi], dx, dy, widths[wi + 1]);
+         }
+      }
+      /* and it comes back where it started */
+      relayout_page(n, 5, 1, &sx, &sy, &dx, &dy);
+      relayout_page(n, 1, 5, &dx, &dy, &back_x, &back_y);
+      if (back_x != sx || back_y != sy)
+      {
+         if (fail++ < 8)
+            printf("  page %u: 5 -> 1 -> 5 lands at %u,%u, not %u,%u\n", n, back_x, back_y, sx, sy);
+      }
+   }
+   /* The valid rect of the whole buffer, 5 wide, is 64x1120 at 1 wide
+    * and 192x384 (12 rows of 3, the last one a page short) at 3. */
+   {
+      static const u32 whole[4] = { 0, 0, 320, 224 };
+      static const u32 page7[4] = { 128, 32, 192, 64 };
+      u32 out[4];
+      relayout_rect(whole, 5, 1, out);
+      if (out[0] != 0 || out[1] != 0 || out[2] != 64 || out[3] != 1120)
+      {
+         printf("  320x224 at width 1: %u,%u-%u,%u\n", out[0], out[1], out[2], out[3]);
+         fail++;
+      }
+      relayout_rect(whole, 5, 3, out);
+      if (out[0] != 0 || out[1] != 0 || out[2] != 192 || out[3] != 384)
+      {
+         printf("  320x224 at width 3: %u,%u-%u,%u\n", out[0], out[1], out[2], out[3]);
+         fail++;
+      }
+      /* one page (page 7 of the 5-wide layout) is one page after */
+      relayout_rect(page7, 5, 3, out);
+      if (out[0] != 64 || out[1] != 64 || out[2] != 128 || out[3] != 96)
+      {
+         printf("  page 7 at width 3: %u,%u-%u,%u, not 64,64-128,96\n", out[0], out[1], out[2], out[3]);
+         fail++;
+      }
+   }
+   /* The pages the box stands for cannot shrink under it: 35 pages 3
+    * wide fill 12 rows, so the box holds 36; a target keeps its own page
+    * count (from its end block) so the extra page does not become a
+    * 13th row at the next width. */
+   {
+      const u32 pages = 35, rows3 = (pages + 2) / 3, box3 = rows3 * 3, rows5 = (box3 + 4) / 5;
+      if (rows3 != 12 || box3 != 36 || rows5 != 8 || (pages + 4) / 5 != 7)
+      {
+         printf("  35 pages: %u rows of 3 (%u pages), %u rows of 5 from the box, %u from the count\n", rows3, box3, rows5, (pages + 4) / 5);
+         fail++;
+      }
+   }
+   /* A page copied from the scratch page to the k-th page of the 12-page
+    * 160x112 buffer at 0x34a0 (3 wide), drawn with FBW 1 at row 32k: it
+    * goes to page k's place in the 3-wide target, not to a 1-wide copy of
+    * it; the scratch page itself, page 0 of the 5-wide buffer, stays at
+    * 0,0 whatever width it is drawn with. */
+   {
+      u32 k, x, y;
+      for (k = 0; k < 12u; k++)
+      {
+         u32 r[4];
+         r[0] = 0; r[1] = 32u * k; r[2] = 64; r[3] = 32u * k + 32u;
+         place_page(0x34a0, 1, r, 0x34a0, 3, &x, &y);
+         if (x != (k % 3u) * 64u || y != (k / 3u) * 32u)
+         {
+            if (fail++ < 8)
+               printf("  page %u copied at width 1 lands at %u,%u in the 3-wide buffer\n", k, x, y);
+         }
+         /* the same page addressed at its own base, drawn at row 0 */
+         r[1] = 0; r[3] = 32;
+         place_page(0x34a0 + 0x20u * k, 1, r, 0x34a0, 3, &x, &y);
+         if (x != (k % 3u) * 64u || y != (k / 3u) * 32u)
+         {
+            if (fail++ < 8)
+               printf("  page %u addressed at its base lands at %u,%u in the 3-wide buffer\n", k, x, y);
+         }
+      }
+      {
+         static const u32 r0[4] = { 0, 2, 64, 32 };
+         place_page(0x3620, 1, r0, 0x3620, 5, &x, &y);
+         if (x != 0 || y != 0)
+         {
+            printf("  the scratch page lands at %u,%u\n", x, y);
+            fail++;
+         }
+         place_page(0x3620, 1, r0, 0x3620, 3, &x, &y);
+         if (x != 0 || y != 0)
+         {
+            printf("  the scratch page lands at %u,%u in the 3-wide layout\n", x, y);
+            fail++;
+         }
+      }
+   }
+   printf("target pages at another width: %s\n", fail ? "FAIL" : "ok");
+   return fail;
+}
+
+/* ---- 4c. the shuffle's repeated draws ----------------------------------- */
+
+/* GSRendererHW::ChannelShuffleCovered: a draw of the shuffle in progress
+ * is a repeat when its rect, placed by the page it is addressed at, lies
+ * within what the shuffle has drawn; otherwise it is drawn and joins
+ * (GSRendererHW::JoinedRect) when the two make a rect, else stands alone,
+ * so nothing is taken as drawn for lying in the box around draws that
+ * left it out. */
+struct written
+{
+   u32 x0, y0, x1, y1;
+   int any;
+};
+
+static int rect_within(const u32 r[4], const struct written* w)
+{
+   return w->any && r[0] >= w->x0 && r[1] >= w->y0 && r[2] <= w->x1 && r[3] <= w->y1;
+}
+
+static void rect_join(const u32 r[4], struct written* w)
+{
+   const int same_x = w->any && r[0] == w->x0 && r[2] == w->x1 && r[1] <= w->y1 && w->y0 <= r[3];
+   const int same_y = w->any && r[1] == w->y0 && r[3] == w->y1 && r[0] <= w->x1 && w->x0 <= r[2];
+   if (rect_within(r, w))
+      return;
+   if (!w->any || !(same_x || same_y))
+   {
+      w->x0 = r[0]; w->y0 = r[1]; w->x1 = r[2]; w->y1 = r[3];
+      w->any = 1;
+      return;
+   }
+   if (r[0] < w->x0) w->x0 = r[0];
+   if (r[1] < w->y0) w->y0 = r[1];
+   if (r[2] > w->x1) w->x1 = r[2];
+   if (r[3] > w->y1) w->y1 = r[3];
+}
+
+/* A draw of the shuffle: its rect placed in the target, and whether it
+ * was skipped as a repeat. */
+static int shuffle_draw(u32 fbp, u32 first_fbp, u32 tbw, const u32 r[4], struct written* w)
+{
+   u32 x, y, placed[4];
+   page_position((fbp - first_fbp) / 32u, tbw, &x, &y);
+   placed[0] = r[0] + x; placed[1] = r[1] + y; placed[2] = r[2] + x; placed[3] = r[3] + y;
+   if (rect_within(placed, w))
+      return 1;
+   rect_join(placed, w);
+   return 0;
+}
+
+static int check_shuffle_repeats(void)
+{
+   /* The colour grade: per channel, one pass over rows 2..32 of the
+    * scratch page and one over rows 0..30, both 64 wide. The second is
+    * not within the first, so both are drawn and the page is whole; a
+    * third pass over rows 0..30 again would be a repeat. */
+   static const u32 pass_a[4] = { 0, 2, 64, 32 };
+   static const u32 pass_b[4] = { 0, 0, 64, 30 };
+   struct written w;
+   int fail = 0;
+
+   w.any = 0;
+   if (shuffle_draw(0x3620, 0x3620, 5, pass_a, &w) || shuffle_draw(0x3620, 0x3620, 5, pass_b, &w))
+   {
+      printf("  the second pass over the page was skipped as a repeat\n");
+      fail++;
+   }
+   if (!w.any || w.x0 != 0 || w.y0 != 0 || w.x1 != 64 || w.y1 != 32)
+   {
+      printf("  the two passes cover %u,%u-%u,%u, not the page\n", w.x0, w.y0, w.x1, w.y1);
+      fail++;
+   }
+   if (!shuffle_draw(0x3620, 0x3620, 5, pass_b, &w))
+   {
+      printf("  a third pass over the page was drawn again\n");
+      fail++;
+   }
+   /* A shuffle that advances a page per draw over a 10-wide display:
+    * each page is new until drawn, then a repeat; page 12 of the second
+    * row sits at 128,32. */
+   {
+      static const u32 page[4] = { 0, 0, 64, 32 };
+      u32 k;
+      w.any = 0;
+      for (k = 0; k < 20u; k++)
+      {
+         if (shuffle_draw(0x20u * k, 0, 10, page, &w))
+         {
+            if (fail++ < 8)
+               printf("  page %u of the display was skipped before being drawn\n", k);
+         }
+      }
+      /* the second row's first page does not make a rect with the first
+       * row, so the first row is let go: its pages would be drawn again,
+       * which is safe; the second row, whole, stands as drawn */
+      if (!shuffle_draw(0x20u * 12u, 0, 10, page, &w) || w.y0 != 32 || w.x1 != 640)
+      {
+         printf("  page 12, drawn already, was drawn again (%u,%u-%u,%u)\n", w.x0, w.y0, w.x1, w.y1);
+         fail++;
+      }
+      if (shuffle_draw(0x20u * 3u, 0, 10, page, &w))
+      {
+         printf("  page 3 was taken as drawn from the box around the rows\n");
+         fail++;
+      }
+   }
+   /* Two whole rows of pages, one page at a time, do make a rect, and a
+    * page of either is then a repeat. */
+   {
+      static const u32 row[4] = { 0, 0, 640, 32 };
+      static const u32 page[4] = { 0, 0, 64, 32 };
+      w.any = 0;
+      shuffle_draw(0, 0, 10, row, &w);
+      shuffle_draw(0x20u * 10u, 0, 10, row, &w);
+      if (w.x1 != 640 || w.y1 != 64 || !shuffle_draw(0x20u * 12u, 0, 10, page, &w) || !shuffle_draw(0x20u * 3u, 0, 10, page, &w))
+      {
+         printf("  two rows of pages: %u,%u-%u,%u\n", w.x0, w.y0, w.x1, w.y1);
+         fail++;
+      }
+   }
+   printf("shuffle repeats: %s\n", fail ? "FAIL" : "ok");
+   return fail;
+}
+
 /* ---- 5. the channel shuffle gate --------------------------------------- */
 
 /* The pixel and byte a texel of the 8-bit view aliases, by the tables. */
@@ -920,6 +1201,8 @@ int main(void)
    fail += check_region_clamp();
    fail += check_native_taps();
    fail += check_page_position();
+   fail += check_relayout();
+   fail += check_shuffle_repeats();
    fail += check_alias_formula();
    fail += check_shuffle_gate();
    return fail ? 1 : 0;

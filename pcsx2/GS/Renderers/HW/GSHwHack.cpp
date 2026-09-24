@@ -255,69 +255,6 @@ bool GSHwHack::GSC_DTGames(GSRendererHW& r, int& skip)
 	return true;
 }
 
-bool GSHwHack::GSC_Tekken5(GSRendererHW& r, int& skip)
-{
-	if (skip == 0)
-	{
-		if (r.IsPossibleChannelShuffle())
-		{
-			GSVertex* v = &r.m_vertex.buff[0];
-
-			// Make sure we're detecting the right effect.
-			if (((v[1].XYZ.X - v[0].XYZ.X) >> 4) != 8 || ((v[1].XYZ.Y - v[0].XYZ.Y) >> 4) != 14)
-				return false;
-
-			GSTextureCache::Target* rt = g_texture_cache->LookupTarget(GIFRegTEX0::Create(RTBP0, RFBW, RFPSM),
-				GSVector2i(1, 1), r.GetTextureScaleFactor(), GSTextureCache::RenderTarget);
-			if (!rt)
-				return false;
-
-			// have to set up the palette ourselves too, since GSC executes before it does
-			r.m_mem.m_clut.Read32(RTEX0, r.m_draw_env->TEXA);
-			GSTexture* palette =
-				g_texture_cache->LookupPaletteObject(r.m_mem.m_clut, GSLocalMemory::m_psm[RTEX0.PSM].pal, true);
-			if (!palette)
-				return false;
-
-			GSHWDrawConfig& conf = r.BeginHLEHardwareDraw(
-				rt->GetTexture(), nullptr, rt->GetScale(), rt->GetTexture(), rt->GetScale(), rt->GetUnscaledRect());
-			conf.pal = palette;
-			conf.ps.channel = ChannelFetch_RGB;
-			conf.colormask.wa = false;
-			r.EndHLEHardwareDraw(false);
-
-			// 12 pages: 2 calls by channel, 3 channels, 1 blit
-			skip = 12 * (3 + 3 + 1);
-			return true;
-		}
-
-		if (!s_nativeres && r.PRIM->PRIM == GS_SPRITE && RTME && RTEX0.TFX == 1 && RFPSM == RTPSM && RTPSM == PSMCT32 && RFBMSK == 0xFF000000 && r.m_index.tail > 2)
-		{
-			// Don't enable hack on native res.
-			// Fixes ghosting/blur effect and white lines appearing in stages: Moonfit Wilderness, Acid Rain - caused by upscaling.
-			// Game copies the framebuffer as individual page rects with slight offsets (like 1/16 of a pixel etc) which doesn't wokr well with upscaling.
-			// This should catch all the scenarios, maybe overdoes it, but it's for 1 game and it's non-detrimental, it's better than squares all over the screen.
-			const GSVector4i draw_size(r.m_vt.m_min.p.x, r.m_vt.m_min.p.y, r.m_vt.m_max.p.x + 1.0f, r.m_vt.m_max.p.y + 1.0f);
-			const GSVector4i read_size(r.m_vt.m_min.t.x, r.m_vt.m_min.t.y, r.m_vt.m_max.t.x + 0.5f, r.m_vt.m_max.t.y + 0.5f);
-			r.ReplaceVerticesWithSprite(draw_size, read_size, GSVector2i(read_size.width(), read_size.height()), draw_size);
-		}
-		else if (RZTST == 1 && RTME && (RFBP == 0x02bc0 || RFBP == 0x02be0 || RFBP == 0x02d00 || RFBP == 0x03480 || RFBP == 0x034a0) && RFPSM == RTPSM && RTBP0 == 0x00000 && RTPSM == PSMCT32)
-		{
-			// The moving display effect (flames) on the Burning Temple stage is drawn as two
-			// halves whose alignment breaks under upscaling, producing black lines / half-screen
-			// bottom issues. Rather than drop the effect entirely (which removes the flames),
-			// realign the two halves by nudging every other vertex up by half a pixel (0x8 in
-			// 1/16 subpixel units), as upstream does for the same Namco-engine heat haze. This
-			// keeps the effect visible and correct instead of skipping it.
-			GSVertex* v = &r.m_vertex.buff[0];
-			for (u32 i = 0; i < r.m_index.tail; i += 2)
-				v[i].XYZ.Y -= 0x8;
-		}
-	}
-
-	return true;
-}
-
 bool GSHwHack::GSC_BurnoutGames(GSRendererHW& r, int& skip)
 {
 	// Burnout has a... creative way of achieving its bloom effect, to avoid horizontal page breaks.
@@ -1386,7 +1323,6 @@ const GSHwHack::Entry<GSRendererHW::GSC_Ptr> GSHwHack::s_get_skip_count_function
 	CRC_F(GSC_BurnoutGames),
 
 	// Half Screen bottom issue
-	CRC_F(GSC_Tekken5),
 
 	// Texture shuffle
 	CRC_F(GSC_BigMuthaTruckers),

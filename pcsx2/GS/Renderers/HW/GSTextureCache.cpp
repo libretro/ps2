@@ -213,6 +213,118 @@ void GSTextureCache::ResizeTarget(Target* t, GSVector4i rect, u32 tbp, u32 psm, 
 	}
 }
 
+/* The rect's pages, moved from where an old buffer width put them to where
+ * a new one does: the box around them. */
+static GSVector4i relayout_rect(GSVector4i r, GSVector2i pgs, int old_tbw, int tbw)
+{
+	int px0, py0, px1, py1, py, px, n, x, y;
+	int minx, miny, maxx, maxy;
+	if (r.rempty())
+		return GSVector4i::zero();
+	px0 = r.x / pgs.x;
+	py0 = r.y / pgs.y;
+	px1 = (r.z - 1) / pgs.x;
+	py1 = (r.w - 1) / pgs.y;
+	minx = INT_MAX; miny = INT_MAX; maxx = 0; maxy = 0;
+	for (py = py0; py <= py1; py++)
+	{
+		for (px = px0; px <= px1; px++)
+		{
+			n = py * old_tbw + px;
+			x = (n % tbw) * pgs.x;
+			y = (n / tbw) * pgs.y;
+			if (x < minx) minx = x;
+			if (y < miny) miny = y;
+			if (x + pgs.x > maxx) maxx = x + pgs.x;
+			if (y + pgs.y > maxy) maxy = y + pgs.y;
+		}
+	}
+	return GSVector4i(minx, miny, maxx, maxy);
+}
+
+/* A target's pages keep their addresses when the game draws it with another
+ * buffer width: each moves to where that width puts it, so the target stays
+ * the memory it stands for, and what is written into it at either width
+ * lands on the same pages. */
+bool GSTextureCache::RelayoutTarget(Target* t, u32 tbw)
+{
+	const GSVector2i pgs = GSLocalMemory::m_psm[t->m_TEX0.PSM].pgs;
+	const int old_tbw = pcsx2_max_i(1, (int)t->m_TEX0.TBW);
+	const int new_tbw = pcsx2_max_i(1, (int)tbw);
+	const int old_cols = (t->m_unscaled_size.x + pgs.x - 1) / pgs.x;
+	const int rows = (t->m_unscaled_size.y + pgs.y - 1) / pgs.y;
+	int pages, new_rows, n;
+	GSVector2i new_unscaled, new_size, old_size;
+	GSTexture* tex;
+	size_t i;
+
+	if (old_tbw == new_tbw)
+		return true;
+	/* Drawn wider than its width: the pages have no order to keep. */
+	if (old_cols > old_tbw)
+		return false;
+	/* The pages the target stands for: up to its last block, within its
+	 * rows; the box around them at the new width can take in more, which
+	 * would grow it at every change of width otherwise. */
+	pages = (int)((t->UnwrappedEndBlock() - t->m_TEX0.TBP0) >> 5) + 1;
+	if (pages > old_tbw * rows)
+		pages = old_tbw * rows;
+	if (pages < 1)
+		pages = 1;
+	new_rows = (pages + new_tbw - 1) / new_tbw;
+	new_unscaled.x = new_tbw * pgs.x;
+	new_unscaled.y = new_rows * pgs.y;
+	new_size = ScaleRenderTargetSize(new_unscaled, t->m_scale);
+	if (new_size.x > 16384 || new_size.y > 16384)
+		return false;
+
+	tex = (t->m_type == DepthStencil) ?
+		g_gs_device->CreateDepthStencil(new_size.x, new_size.y, t->m_texture->GetFormat(), true) :
+		g_gs_device->CreateRenderTarget(new_size.x, new_size.y, t->m_texture->GetFormat(), true);
+	if (!tex)
+		return false;
+
+	old_size = t->m_texture->GetSize();
+	if (t->m_texture->GetState() == GSTexture::State::Dirty)
+	{
+		for (n = 0; n < pages; n++)
+		{
+			GSVector4i sr, dr;
+			sr.x = (int)(((n % old_tbw) * pgs.x) * t->m_scale);
+			sr.y = (int)(((n / old_tbw) * pgs.y) * t->m_scale);
+			sr.z = pcsx2_min_i((int)(sr.x + pgs.x * t->m_scale), old_size.x);
+			sr.w = pcsx2_min_i((int)(sr.y + pgs.y * t->m_scale), old_size.y);
+			if (sr.z <= sr.x || sr.w <= sr.y)
+				continue;
+			dr.x = (int)(((n % new_tbw) * pgs.x) * t->m_scale);
+			dr.y = (int)(((n / new_tbw) * pgs.y) * t->m_scale);
+			dr.z = dr.x + (sr.z - sr.x);
+			dr.w = dr.y + (sr.w - sr.y);
+			if (t->m_type == DepthStencil)
+				g_gs_device->StretchRect(t->m_texture, GSVector4(sr) / GSVector4(old_size).xyxy(), tex, GSVector4(dr), ShaderConvert::DEPTH_COPY, false);
+			else
+				g_gs_device->CopyRect(t->m_texture, tex, sr, dr.x, dr.y);
+		}
+	}
+
+	t->m_valid = relayout_rect(t->m_valid, pgs, old_tbw, new_tbw);
+	t->m_drawn_since_read = relayout_rect(t->m_drawn_since_read, pgs, old_tbw, new_tbw);
+	for (i = 0; i < t->m_dirty.size(); i++)
+	{
+		GSDirtyRect* d = &t->m_dirty[i];
+		d->r = relayout_rect(d->GetDirtyRect(t->m_TEX0, false), pgs, old_tbw, new_tbw);
+		d->psm = t->m_TEX0.PSM;
+		d->bw = tbw;
+	}
+
+	InvalidateSourcesFromTarget(t);
+	m_target_memory_usage = (m_target_memory_usage - t->m_texture->GetMemUsage()) + tex->GetMemUsage();
+	g_gs_device->Recycle(t->m_texture);
+	t->m_texture = tex;
+	t->m_unscaled_size = new_unscaled;
+	t->m_TEX0.TBW = tbw;
+	return true;
+}
 
 bool GSTextureCache::CanTranslate(u32 bp, u32 bw, u32 spsm, GSVector4i r, u32 dbp, u32 dpsm, u32 dbw)
 {
@@ -1306,7 +1418,7 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const bool is_color, const 
 				const bool t_clean = ((t->m_dirty.GetDirtyChannels() & GSUtil::GetChannelMask(psm)) == 0) || rect_clean;
 				const u32 color_psm = ((psm & 0x30) == 0x30) ? (psm & ~0x30) : psm;
 				const u32 tex_color_psm = ((t->m_TEX0.PSM & 0x30) == 0x30) ? (t->m_TEX0.PSM & ~0x30) : t->m_TEX0.PSM;
-				const bool can_convert = (GSUtil::HasCompatibleBits(psm, t_psm) && ((bw == t->m_TEX0.TBW) || (bw <= 1 && req_rect.w < GSLocalMemory::m_psm[psm].pgs.y))) ||
+				const bool can_convert = (GSUtil::HasCompatibleBits(psm, t_psm) && ((bw == t->m_TEX0.TBW) || (bw <= 1 && req_rect.w <= GSLocalMemory::m_psm[psm].pgs.y))) ||
 										 (possible_shuffle && ((bw == t->m_TEX0.TBW) || (bw == (t->m_TEX0.TBW * 2) || bw <= 2)) && GSLocalMemory::m_psm[t->m_TEX0.PSM].bpp == 32);
 
 				if (t->m_was_dst_matched)
@@ -1370,7 +1482,8 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const bool is_color, const 
 								continue;
 
 							{
-								if (!t->HasValidBitsForFormat(psm, req_color, req_alpha) && !(possible_shuffle && GSLocalMemory::m_psm[psm].bpp == 16 && GSLocalMemory::m_psm[t->m_TEX0.PSM].bpp == 32))
+								if (!t->HasValidBitsForFormat(psm, req_color, req_alpha) && !(possible_shuffle && GSLocalMemory::m_psm[psm].bpp == 16 && GSLocalMemory::m_psm[t->m_TEX0.PSM].bpp == 32) &&
+									!(possible_shuffle && psm == PSMT8 && GSLocalMemory::m_psm[t->m_TEX0.PSM].bpp == 32 && t->m_valid_rgb))
 									continue;
 
 								dst = t;
@@ -1635,7 +1748,9 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const bool is_color, const 
 					((bp - t->m_TEX0.TBP0) & (GS_BLOCKS_PER_PAGE - 1)) == 0 &&
 					t->m_age <= 1 && (!found_t || t->m_last_draw > dst->m_last_draw))
 				{
-					if (!t->HasValidBitsForFormat(psm, req_color, req_alpha))
+					/* A shuffle fetches one colour channel of the page; the
+					 * page's alpha need not be there for it. */
+					if (possible_shuffle ? !t->m_valid_rgb : !t->HasValidBitsForFormat(psm, req_color, req_alpha))
 						continue;
 
 					const u32 pgw = pcsx2_max_u(t->m_TEX0.TBW, 1u);
@@ -4115,22 +4230,32 @@ GSTextureCache::Target* GSTextureCache::GetExactTarget(u32 BP, u32 BW, int type,
 // first page); a target of its own at BP is a leftover of drawing such a
 // strip apart from its buffer, and goes once the buffer has been drawn
 // over since.
-GSTextureCache::Target* GSTextureCache::FindPageOwner(u32 BP, u32 BW, u32 PSM, int& x, int& y)
+GSTextureCache::Target* GSTextureCache::FindPageOwner(u32 BP, u32 BW, u32 PSM, int& x, int& y, int page_in_draw)
 {
 	auto& rts = m_dst[RenderTarget];
 	Target* owner = nullptr;
 	for (auto it = rts.begin(); it != rts.end(); ++it)
 	{
 		Target* t = *it;
-		if (t->m_TEX0.PSM != PSM || t->m_TEX0.TBW != BW || BW == 0 || BP <= t->m_TEX0.TBP0 || BP >= t->UnwrappedEndBlock())
+		u32 page, tbw;
+		const GSVector2i& pgs = GSLocalMemory::m_psm[PSM].pgs;
+		/* A draw within one page has the same pixels in any layout, so it
+		 * goes to the page's place in the target's own; a wider draw has to
+		 * be laid out as the target is. */
+		const bool one_page = page_in_draw >= 0;
+		if (t->m_TEX0.PSM != PSM || BW == 0 || BP < t->m_TEX0.TBP0 || BP >= t->UnwrappedEndBlock())
+			continue;
+		if (!one_page && (t->m_TEX0.TBW != BW || BP == t->m_TEX0.TBP0))
 			continue;
 		if ((BP - t->m_TEX0.TBP0) & (GS_BLOCKS_PER_PAGE - 1))
 			continue;
 
-		const u32 page = (BP - t->m_TEX0.TBP0) >> 5;
-		const GSVector2i& pgs = GSLocalMemory::m_psm[PSM].pgs;
-		x = static_cast<int>((page % BW) * pgs.x);
-		y = static_cast<int>((page / BW) * pgs.y);
+		page = ((BP - t->m_TEX0.TBP0) >> 5) + (one_page ? (u32)page_in_draw : 0u);
+		if (one_page && t->m_TEX0.TBW == BW && page_in_draw == 0 && BP == t->m_TEX0.TBP0)
+			continue;
+		tbw = pcsx2_max_u(t->m_TEX0.TBW, 1u);
+		x = static_cast<int>((page % tbw) * pgs.x);
+		y = static_cast<int>((page / tbw) * pgs.y);
 		if (x + pgs.x > t->m_unscaled_size.x || y + pgs.y > t->m_unscaled_size.y)
 			continue;
 		owner = t;
@@ -4143,7 +4268,7 @@ GSTextureCache::Target* GSTextureCache::FindPageOwner(u32 BP, u32 BW, u32 PSM, i
 	for (auto it = rts.begin(); it != rts.end(); ++it)
 	{
 		Target* t = *it;
-		if (t->m_TEX0.TBP0 != BP)
+		if (t == owner || t->m_TEX0.TBP0 != BP)
 			continue;
 		if (t->m_TEX0.PSM != PSM || t->m_TEX0.TBW != BW || t->m_last_draw >= owner->m_last_draw)
 			return nullptr;

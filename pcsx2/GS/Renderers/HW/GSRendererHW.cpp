@@ -936,15 +936,17 @@ GSVector2i GSRendererHW::GetValidSize(const GSTextureCache::Source* tex)
 	int width = pcsx2_min_i(pcsx2_max_i(m_cached_ctx.FRAME.FBW, 1) * 64, m_context->scissor.in.z);
 
 	// If it's a channel shuffle, it'll likely be just a single page, so assume full screen.
-	if (m_channel_shuffle)
+	// A shuffle of one page goes to that page of the target it is in and
+	// asks nothing of the size; a wider one is laid out as its source target.
+	if (m_channel_shuffle && !ShuffleKeepsLayout())
 	{
 		const int page_x = frame_psm.pgs.x - 1;
 		const int page_y = frame_psm.pgs.y - 1;
 
 		// Round up the page as channel shuffles are generally done in pages at a time
 		// Keep in mind the source might be an 8bit texture
-		int src_width = tex->GetUnscaledWidth();
-		int src_height = tex->GetUnscaledHeight();
+		int src_width = tex->m_from_target ? tex->m_from_target->m_unscaled_size.x : tex->GetUnscaledWidth();
+		int src_height = tex->m_from_target ? tex->m_from_target->m_unscaled_size.y : tex->GetUnscaledHeight();
 
 		if (!tex->m_from_target && GSLocalMemory::m_psm[tex->m_TEX0.PSM].bpp == 8)
 		{
@@ -2615,12 +2617,21 @@ void GSRendererHW::Draw()
 		// Fortunately, it seems to change the FBMSK along the way, so this check alone is sufficient.
 		// Tomb Raider: Underworld does similar, except with R, G, B in separate palettes, therefore
 		// we need to split on those too.
-		m_channel_shuffle = IsPossibleChannelShuffle() && IsChannelShuffleIdentity(!m_channel_shuffle_page_copy) && m_last_channel_shuffle_fbmsk == m_context->FRAME.FBMSK &&
+		const bool same_shuffle = IsPossibleChannelShuffle() && IsChannelShuffleIdentity(!m_channel_shuffle_page_copy) && m_last_channel_shuffle_fbmsk == m_context->FRAME.FBMSK &&
 							m_last_channel_shuffle_fbp <= m_context->FRAME.Block() && m_last_channel_shuffle_end_block > m_context->FRAME.Block();
 
-		if (m_channel_shuffle)
+		// A draw of the same shuffle is a repeat only where it lands on
+		// what was drawn already; the rest of a page, or a later page, is
+		// drawn as it comes (the game's two passes over a page cover
+		// different rows of it).
+		if (same_shuffle && ChannelShuffleCovered())
 			return;
+		if (!same_shuffle)
+			m_channel_shuffle_written = GSVector4i::zero();
+		m_channel_shuffle = false;
 	}
+	else
+		m_channel_shuffle_written = GSVector4i::zero();
 
 	// When the format is 24bit (Z or C), DATE ceases to function.
 	// It was believed that in 24bit mode all pixels pass because alpha doesn't exist
@@ -2845,15 +2856,26 @@ void GSRendererHW::Draw()
 	// depth buffer goes along when it is a page of a target the same way.
 	if (!no_rt)
 	{
-		int page_x = 0, page_y = 0;
-		GSTextureCache::Target* owner = g_texture_cache->FindPageOwner(m_cached_ctx.FRAME.Block(), m_cached_ctx.FRAME.FBW, m_cached_ctx.FRAME.PSM, page_x, page_y);
+		int page_x = 0, page_y = 0, page_in_draw = -1;
+		const GSVector2i& fpgs = GSLocalMemory::m_psm[m_cached_ctx.FRAME.PSM].pgs;
+		/* The draw's page, when it stays within one: its index in the
+		 * draw's own layout, and where that page starts. A shuffle keeps
+		 * its addressing: it is told by it, and fetches by position. */
+		if (DrawWithinPage(m_cached_ctx.FRAME.PSM) && !IsPossibleChannelShuffle())
+			page_in_draw = (m_r.y / fpgs.y) * pcsx2_max_i(m_cached_ctx.FRAME.FBW, 1) + m_r.x / fpgs.x;
+		GSTextureCache::Target* owner = g_texture_cache->FindPageOwner(m_cached_ctx.FRAME.Block(), m_cached_ctx.FRAME.FBW, m_cached_ctx.FRAME.PSM, page_x, page_y, page_in_draw);
+		if (owner && page_in_draw >= 0)
+		{
+			page_x -= (m_r.x / fpgs.x) * fpgs.x;
+			page_y -= (m_r.y / fpgs.y) * fpgs.y;
+		}
 		if (owner && (m_r.x < 0 || m_r.y < 0 || page_x + m_r.z > owner->m_unscaled_size.x || page_y + m_r.w > owner->m_unscaled_size.y))
 			owner = nullptr;
 		const u32 blocks = owner ? (m_cached_ctx.FRAME.Block() - owner->m_TEX0.TBP0) : 0;
 		const bool move_depth = owner && !no_ds;
 		if (move_depth && (m_cached_ctx.ZBUF.Block() < blocks || !g_texture_cache->HasTargetAt(m_cached_ctx.ZBUF.Block() - blocks, owner->m_TEX0.TBW)))
 			owner = nullptr;
-		if (owner && getenv("NOREDIR") == nullptr)
+		if (owner && (page_x != 0 || page_y != 0 || owner->m_TEX0.TBW != m_cached_ctx.FRAME.FBW))
 		{
 			OffsetDraw(0, 0, page_x, page_y);
 			SetNewFRAME(owner->m_TEX0.TBP0, owner->m_TEX0.TBW, m_cached_ctx.FRAME.PSM);
@@ -3296,7 +3318,7 @@ void GSRendererHW::Draw()
 		// FBW is going to be wrong for channel shuffling into a new target, so take it from the source.
 		FRAME_TEX0.U64 = 0;
 		FRAME_TEX0.TBP0 = m_cached_ctx.FRAME.Block();
-		FRAME_TEX0.TBW = m_channel_shuffle ? src->m_from_target_TEX0.TBW : m_cached_ctx.FRAME.FBW;
+		FRAME_TEX0.TBW = (m_channel_shuffle && !ShuffleKeepsLayout()) ? src->m_from_target_TEX0.TBW : m_cached_ctx.FRAME.FBW;
 		FRAME_TEX0.PSM = m_cached_ctx.FRAME.PSM;
 
 		// Normally we would use 1024 here to match the clear above, but The Godfather does a 1023x1023 draw instead
@@ -3360,6 +3382,8 @@ void GSRendererHW::Draw()
 		if (m_channel_shuffle)
 		{
 			m_last_channel_shuffle_fbp = rt->m_TEX0.TBP0;
+			m_last_channel_shuffle_tbw = rt->m_TEX0.TBW;
+			m_last_channel_shuffle_pgs = GSLocalMemory::m_psm[rt->m_TEX0.PSM].pgs;
 
 			// If it's a new target, we don't know where the end is as it's starting on a shuffle, so just do every shuffle following.
 			m_last_channel_shuffle_end_block = (rt->m_last_draw >= s_n) ? (GS_MAX_BLOCKS - 1) : (rt->m_end_block < rt->m_TEX0.TBP0 ? (rt->m_end_block + GS_MAX_BLOCKS) : rt->m_end_block);
@@ -3372,7 +3396,7 @@ void GSRendererHW::Draw()
 	{
 		ZBUF_TEX0.U64 = 0;
 		ZBUF_TEX0.TBP0 = m_cached_ctx.ZBUF.Block();
-		ZBUF_TEX0.TBW = m_channel_shuffle ? src->m_from_target_TEX0.TBW : m_cached_ctx.FRAME.FBW;
+		ZBUF_TEX0.TBW = (m_channel_shuffle && !ShuffleKeepsLayout()) ? src->m_from_target_TEX0.TBW : m_cached_ctx.FRAME.FBW;
 		ZBUF_TEX0.PSM = m_cached_ctx.ZBUF.PSM;
 
 		ds = g_texture_cache->LookupTarget(ZBUF_TEX0, t_size, target_scale, GSTextureCache::DepthStencil,
@@ -3433,6 +3457,8 @@ void GSRendererHW::Draw()
 			if (rt)
 			{
 				m_last_channel_shuffle_fbp = rt->m_TEX0.TBP0;
+				m_last_channel_shuffle_tbw = rt->m_TEX0.TBW;
+				m_last_channel_shuffle_pgs = GSLocalMemory::m_psm[rt->m_TEX0.PSM].pgs;
 				// Urban Chaos goes from Z16 to C32, so let's just use the rt's original end block.
 				if (!src->m_from_target || GSLocalMemory::m_psm[src->m_from_target_TEX0.PSM].bpp != GSLocalMemory::m_psm[rt->m_TEX0.PSM].bpp)
 					m_last_channel_shuffle_end_block = rt->m_end_block;
@@ -3592,11 +3618,17 @@ void GSRendererHW::Draw()
 				if (m_cached_ctx.FRAME.FBMSK & 0xF0000000)
 					rt->m_valid_alpha_high = false;
 			}
+			if (rt->m_TEX0.TBW != FRAME_TEX0.TBW && rt->m_TEX0.PSM == FRAME_TEX0.PSM)
+				g_texture_cache->RelayoutTarget(rt, FRAME_TEX0.TBW);
 			rt->m_TEX0 = FRAME_TEX0;
 		}
 
 		if (ds && (!is_possible_mem_clear || ds->m_TEX0.PSM != ZBUF_TEX0.PSM || (rt && ds->m_TEX0.TBW != rt->m_TEX0.TBW)))
+		{
+			if (ds->m_TEX0.TBW != ZBUF_TEX0.TBW && ds->m_TEX0.PSM == ZBUF_TEX0.PSM)
+				g_texture_cache->RelayoutTarget(ds, ZBUF_TEX0.TBW);
 			ds->m_TEX0 = ZBUF_TEX0;
+		}
 	}
 	else if (!m_texture_shuffle_info)
 	{
@@ -3604,7 +3636,9 @@ void GSRendererHW::Draw()
 		// The FBW should also be okay, since it's coming from the source.
 		if (rt)
 		{
-			const bool update_fbw = (m_channel_shuffle && src->m_target) && (!PRIM->ABE || IsOpaque() || m_context->ALPHA.IsBlack());
+			const bool update_fbw = (m_channel_shuffle && src->m_target) && (!PRIM->ABE || IsOpaque() || m_context->ALPHA.IsBlack()) && !ShuffleKeepsLayout();
+			if (update_fbw && rt->m_TEX0.TBW != FRAME_TEX0.TBW && rt->m_TEX0.PSM == FRAME_TEX0.PSM)
+				g_texture_cache->RelayoutTarget(rt, FRAME_TEX0.TBW);
 			rt->m_TEX0.TBW = update_fbw ? FRAME_TEX0.TBW : pcsx2_max_i(rt->m_TEX0.TBW, FRAME_TEX0.TBW);
 			rt->m_TEX0.PSM = FRAME_TEX0.PSM;
 		}
@@ -4530,24 +4564,82 @@ __ri bool GSRendererHW::EmulateChannelShuffle(GSTextureCache::Target* src, bool 
 	if (m_channel_shuffle_partial)
 		return true;
 
-	// Replace current draw with a fullscreen sprite
-	//
-	// Performance GPU note: it could be wise to reduce the size to
-	// the rendered size of the framebuffer
-
-	GSVertex* s = &m_vertex.buff[0];
-	s[0].XYZ.X = static_cast<u16>(m_context->XYOFFSET.OFX + 0);
-	s[1].XYZ.X = static_cast<u16>(m_context->XYOFFSET.OFX + 16384);
-	s[0].XYZ.Y = static_cast<u16>(m_context->XYOFFSET.OFY + 0);
-	s[1].XYZ.Y = static_cast<u16>(m_context->XYOFFSET.OFY + 16384);
-
-	m_r = GSVector4i(0, 0, 1024, 1024);
+	// Replace the draw with one sprite over what it covers: the fetch is
+	// by position, so the sprites' own coordinates have nothing to add. A
+	// page copy is the whole target at once, for the draws it stands in for.
+	{
+		GSVertex* s = &m_vertex.buff[0];
+		GSVector4i r;
+		if (page_copy)
+			r = GSVector4i(0, 0, 1024, 1024);
+		else
+			r = m_r;
+		s[0].XYZ.X = static_cast<u16>(m_context->XYOFFSET.OFX + (r.x << 4));
+		s[1].XYZ.X = static_cast<u16>(m_context->XYOFFSET.OFX + (r.z << 4));
+		s[0].XYZ.Y = static_cast<u16>(m_context->XYOFFSET.OFY + (r.y << 4));
+		s[1].XYZ.Y = static_cast<u16>(m_context->XYOFFSET.OFY + (r.w << 4));
+		m_r = r;
+		m_channel_shuffle_written = JoinedRect(m_channel_shuffle_written, r);
+	}
 	m_vertex.head = m_vertex.tail = m_vertex.next = 2;
 	m_index.tail = 2;
 
 	m_primitive_covers_without_gaps = NoGapsType::FullCover;
 
 	return true;
+}
+
+/* What two rects drawn cover, when that is itself a rect: one within the
+ * other, or the two side by side along either axis. Otherwise only the
+ * later one is kept, so a draw is never taken as done for lying in the
+ * box around draws that left it out. */
+GSVector4i GSRendererHW::JoinedRect(const GSVector4i& a, const GSVector4i& b)
+{
+	if (a.rempty())
+		return b;
+	if (b.rintersect(a).eq(b))
+		return a;
+	if (a.rintersect(b).eq(a))
+		return b;
+	if (a.x == b.x && a.z == b.z && b.y <= a.w && a.y <= b.w)
+		return a.runion(b);
+	if (a.y == b.y && a.w == b.w && b.x <= a.z && a.x <= b.z)
+		return a.runion(b);
+	return b;
+}
+
+/* Whether the draw stays within one page of a buffer of this format. */
+bool GSRendererHW::DrawWithinPage(u32 psm) const
+{
+	const GSVector2i& pgs = GSLocalMemory::m_psm[psm].pgs;
+	return m_r.x >= 0 && m_r.y >= 0 && m_r.x / pgs.x == (m_r.z - 1) / pgs.x && m_r.y / pgs.y == (m_r.w - 1) / pgs.y;
+}
+
+/* A shuffle within one page goes to that page of the target it is in and
+ * leaves the target's layout alone; a wider one, or a copy that goes on
+ * page by page, lays the target out as its source. */
+bool GSRendererHW::ShuffleKeepsLayout() const
+{
+	return DrawWithinPage(m_cached_ctx.FRAME.PSM) && !IsPageCopy();
+}
+
+/* Whether the draw coming in lands within what the shuffle in progress has
+ * drawn: its rect, placed by the page it starts on in the shuffle's target. */
+bool GSRendererHW::ChannelShuffleCovered() const
+{
+	GSVector4i r;
+	int page, tbw;
+	r = GSVector4i(m_vt.m_min.p.upld(m_vt.m_max.p) + GSVector4::cxpr(0.5f));
+	r = r.blend8(r + GSVector4i::cxpr(0, 0, 1, 1), (r.xyxy() == r.zwzw()));
+	r = r.rintersect(m_context->scissor.in);
+	if (r.rempty())
+		return true;
+	page = (int)((m_context->FRAME.Block() - m_last_channel_shuffle_fbp) >> 5);
+	tbw = (int)m_last_channel_shuffle_tbw;
+	if (tbw < 1)
+		tbw = 1;
+	r += GSVector4i((page % tbw) * m_last_channel_shuffle_pgs.x, (page / tbw) * m_last_channel_shuffle_pgs.y).xyxy();
+	return r.rintersect(m_channel_shuffle_written).eq(r);
 }
 
 void GSRendererHW::EmulateBlending(int rt_alpha_min, int rt_alpha_max, const bool DATE, bool& DATE_PRIMID, bool& DATE_BARRIER,
@@ -6677,7 +6769,7 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 	}
 
 	// rs
-	const GSVector4i hacked_scissor = m_channel_shuffle ? GSVector4i::cxpr(0, 0, 1024, 1024) : m_context->scissor.in;
+	const GSVector4i hacked_scissor = (m_channel_shuffle && m_channel_shuffle_page_copy) ? GSVector4i::cxpr(0, 0, 1024, 1024) : m_context->scissor.in;
 	const GSVector4i scissor(GSVector4i(GSVector4(rtscale) * GSVector4(hacked_scissor)).rintersect(GSVector4i::loadh(rtsize)));
 
 	m_conf.drawarea = m_channel_shuffle ? scissor : scissor.rintersect(ComputeBoundingBox(rtsize, rtscale));
@@ -7909,8 +8001,9 @@ void GSRendererHW::OffsetDraw(s32 fbp_offset, s32 zbp_offset, s32 xoffset, s32 y
 	m_cached_ctx.FRAME.FBP += fbp_offset;
 	m_cached_ctx.ZBUF.ZBP += zbp_offset;
 
-	const s32 fp_xoffset = xoffset << 4;
-	const s32 fp_yoffset = yoffset << 4;
+	/* The offset may be negative (a page placed before the draw's own). */
+	const s32 fp_xoffset = xoffset * 16;
+	const s32 fp_yoffset = yoffset * 16;
 	for (u32 i = 0; i < m_vertex.next; i++)
 	{
 		m_vertex.buff[i].XYZ.X += fp_xoffset;

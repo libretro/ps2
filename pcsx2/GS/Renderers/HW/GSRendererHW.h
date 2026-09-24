@@ -286,6 +286,16 @@ private:
 	bool m_channel_shuffle_partial = false;
 	// The shuffle copies a buffer page by page; the draws after it continue it whatever their sprites are.
 	bool m_channel_shuffle_page_copy = false;
+	// What the shuffle's draws have written so far, in the target's pixels; a
+	// draw within it repeats one already done and is skipped.
+	GSVector4i m_channel_shuffle_written = GSVector4i::zero();
+	// The target's page layout, to place a draw that starts on a later page.
+	u32 m_last_channel_shuffle_tbw = 0;
+	GSVector2i m_last_channel_shuffle_pgs = GSVector2i(64, 32);
+	bool ChannelShuffleCovered() const;
+	static GSVector4i JoinedRect(const GSVector4i& a, const GSVector4i& b);
+	bool DrawWithinPage(u32 psm) const;
+	bool ShuffleKeepsLayout() const;
 	// The context whose scissor followed a draw onto another target's page.
 	GSDrawingContext* m_scissor_moved = nullptr;
 	// The sprites' edges sit on native pixels and their texture coordinates travel as ST.
