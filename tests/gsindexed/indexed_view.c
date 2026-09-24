@@ -567,15 +567,21 @@ static int check_region_clamp(void)
 
 /* ---- 3d. bilinear taps on a scaled target ------------------------------ */
 
-/* PS_NATIVE_TAPS, one axis: a fragment's coordinate u (native texels) and
- * the coordinate u0 at its native pixel's first fragment give the two taps
- * (scaled texels, S per native texel) and the weight of the second. */
-static void native_taps(double u, double u0, int S, double* tap0, double* tap1, double* w)
+/* PS_NATIVE_TAPS, one axis: a fragment's coordinate u (native texels), the
+ * coordinate u0 at its native pixel's first fragment and the texels the
+ * coordinate advances per fragment, du, give the two taps (scaled texels,
+ * S per native texel) and the weight of the second. The fragment reads its
+ * own sample of the pixel's texel, its place in the pixel: a read of more
+ * than one texel per pixel (a minifying blur) has the fragments' samples
+ * spread over one texel, not run into the next. The taps are for sprites,
+ * whose coordinates run in screen space; a triangle's run in perspective. */
+static void native_taps(double u, double u0, double du, int S, double* tap0, double* tap1, double* w)
 {
    const double g = u0 - 0.5;
    const double gi = floor(g);
+   const double rx = du * S > 1.0 ? du * S : 1.0;
    *w = g - gi;
-   *tap0 = (gi + (u - u0)) * S;
+   *tap0 = (gi + (u - u0) / rx) * S;
    *tap1 = *tap0 + S;
 }
 
@@ -604,7 +610,7 @@ static int check_native_taps(void)
          /* A buffer read a quarter texel in: the native pixel blends
           * texels x-1 and x, three to one; the fragment k of that pixel
           * reads sample k of each. */
-         native_taps(x + 0.25 + (double)k / S, x + 0.25, S, &t0, &t1, &w);
+         native_taps(x + 0.25 + (double)k / S, x + 0.25, 1.0 / S, S, &t0, &t1, &w);
          if ((int)t0 != (x - 1) * S + k || (int)t1 != x * S + k || w < 0.75 - 1e-9 || w > 0.75 + 1e-9)
          {
             printf("  scale %d fragment %d: quarter-texel read taps %g,%g weight %g\n", S, k, t0, t1, w);
@@ -612,16 +618,18 @@ static int check_native_taps(void)
          }
          /* A copy, half a texel in: the pixel reads texel x alone, and
           * the fragment its own sample of it. */
-         native_taps(x + 0.5 + (double)k / S, x + 0.5, S, &t0, &t1, &w);
+         native_taps(x + 0.5 + (double)k / S, x + 0.5, 1.0 / S, S, &t0, &t1, &w);
          if ((int)t0 != x * S + k || w != 0.0)
          {
             printf("  scale %d fragment %d: copy taps %g,%g weight %g\n", S, k, t0, t1, w);
             fail++;
          }
-         /* Reading two texels per pixel, the fragment's samples advance
-          * twice as fast; the weight is still the pixel's. */
-         native_taps(2 * x + 0.25 + 2.0 * k / S, 2 * x + 0.25, S, &t0, &t1, &w);
-         if ((int)t0 != (2 * x - 1) * S + 2 * k || w < 0.75 - 1e-9 || w > 0.75 + 1e-9)
+         /* Reading two texels per pixel, the coordinate advances twice
+          * as fast, but the fragment still reads sample k of the pixel's
+          * texel (2k would be the next texel's for k >= S/2); the weight
+          * is still the pixel's. */
+         native_taps(2 * x + 0.25 + 2.0 * k / S, 2 * x + 0.25, 2.0 / S, S, &t0, &t1, &w);
+         if ((int)t0 != (2 * x - 1) * S + k || w < 0.75 - 1e-9 || w > 0.75 + 1e-9)
          {
             printf("  scale %d fragment %d: two-texel read taps %g,%g weight %g\n", S, k, t0, t1, w);
             fail++;

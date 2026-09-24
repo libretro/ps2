@@ -5515,9 +5515,12 @@ __ri void GSRendererHW::EmulateTextureSampler(const GSTextureCache::Target* rt, 
 	 * shader's own sampling. A draw that magnifies the target is left to
 	 * the scaled texture's own filter, which is what the scale is for: the
 	 * native taps would step over the texels between, as a native draw
-	 * does, and the scaled picture would look point sampled. */
+	 * does, and the scaled picture would look point sampled. The taps
+	 * take the coordinate along a screen-space line, which a sprite's
+	 * is; a triangle's runs in perspective, and a sun glare's quad read
+	 * that way at 8x came out in stripes. */
 	const bool native_taps = scale > 1.0f && m_vt.IsLinear() && tex->m_target && !tex->m_palette && cpsm.fmt == 0 &&
-		!psm.depth && !need_mipmap && !m_conf.ps.shuffle && !MagnifiesTexture();
+		!psm.depth && !need_mipmap && !m_conf.ps.shuffle && !MagnifiesTexture() && m_vt.m_primclass == GS_SPRITE_CLASS;
 	const bool shader_sampler = shader_emulated_sampler || native_taps;
 
 	bool bilinear = m_vt.IsLinear();
