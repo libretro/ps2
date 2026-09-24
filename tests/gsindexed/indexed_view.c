@@ -314,6 +314,37 @@ static int check_sample_map(void)
          }
       }
    }
+   /* GSRendererHW::IsSampleMapDraw and the sample_map flag: the map is
+    * for a point-sampled sprite with pixel coordinates at an integer
+    * scale, and not for a shuffle, which moves bits between the halves of
+    * each pixel and fetches the pixel by its own rule, nor for a read of
+    * the target being drawn, which is fetched at the fragment's own place
+    * (the map's fetch went to a texture that was not bound, and a
+    * vignette's shuffled alpha came out zero at 2x and 4x, not at 1x). */
+   {
+      static const struct { int fst, sprite, linear, scale, tshuf, cshuf, tex_is_fb, map; } cases[] = {
+         { 1, 1, 0, 4, 0, 0, 0, 1 },
+         { 1, 1, 0, 1, 0, 0, 0, 0 },
+         { 0, 1, 0, 4, 0, 0, 0, 0 },
+         { 1, 0, 0, 4, 0, 0, 0, 0 },
+         { 1, 1, 1, 4, 0, 0, 0, 0 },
+         { 1, 1, 0, 4, 1, 0, 0, 0 },
+         { 1, 1, 0, 4, 0, 1, 0, 0 },
+         { 1, 1, 0, 2, 0, 0, 1, 0 },
+         { 1, 1, 0, 4, 1, 0, 1, 0 }
+      };
+      size_t ci;
+      for (ci = 0; ci < sizeof(cases) / sizeof(cases[0]); ci++)
+      {
+         const int map = cases[ci].fst && cases[ci].sprite && !cases[ci].linear && cases[ci].scale > 1 &&
+            !cases[ci].tshuf && !cases[ci].cshuf && !cases[ci].tex_is_fb;
+         if (map != cases[ci].map)
+         {
+            printf("  sample map case %u: %d, expected %d\n", (unsigned)ci, map, cases[ci].map);
+            fail++;
+         }
+      }
+   }
    printf("sample map picks the native draw's texels: %s\n", fail ? "FAIL" : "ok");
    return fail;
 }

@@ -771,6 +771,11 @@ bool GSRendererHW::IsSampleMapDraw(const GSTextureCache::Source* tex)
 	if (!tex || !PRIM->FST || m_vt.m_primclass != GS_SPRITE_CLASS || m_vt.IsLinear())
 		return false;
 
+	/* A shuffle moves bits between the halves of each pixel, and fetches
+	 * the pixel by its own rule; the map picks texels for a picture. */
+	if (m_texture_shuffle_info || m_channel_shuffle)
+		return false;
+
 	const float rt_scale = GetTextureScaleFactor();
 	if (rt_scale <= 1.0f || std::floor(rt_scale) != rt_scale)
 		return false;
@@ -5687,7 +5692,9 @@ __ri void GSRendererHW::EmulateTextureSampler(const GSTextureCache::Target* rt, 
 
 	m_conf.ps.ltf = bilinear && shader_sampler;
 	m_conf.ps.native_taps = native_taps && bilinear;
-	m_conf.ps.sample_map = ((tex->m_scaled_indexed && tex->m_palette && !target_region) || IsSampleMapDraw(tex)) && !bilinear && !need_mipmap;
+	/* A read of the target being drawn is fetched at the fragment's own
+	 * position, not through the map's texture. */
+	m_conf.ps.sample_map = ((tex->m_scaled_indexed && tex->m_palette && !target_region) || IsSampleMapDraw(tex)) && !bilinear && !need_mipmap && !m_conf.ps.tex_is_fb;
 	m_conf.ps.point_sampler = g_gs_device->Features().broken_point_sampler && GSConfig.GPUPaletteConversion && !target_region && (!bilinear || shader_emulated_sampler);
 
 	const int tw = static_cast<int>(1 << m_cached_ctx.TEX0.TW);
