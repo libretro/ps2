@@ -2139,7 +2139,14 @@ GSTextureCache::Target* GSTextureCache::LookupTarget(GIFRegTEX0 TEX0, const GSVe
 			if (!tex)
 				return nullptr;
 
-			g_gs_device->StretchRect(dst->m_texture, sRect, tex, dRect, (type == RenderTarget) ? ShaderConvert::COPY : ShaderConvert::DEPTH_COPY, dst->m_scale < scale);
+			/* A target drawn at one scale and rescaled to another keeps its
+			 * pixels: each becomes a block at the new scale, as it is at
+			 * native. A bilinear upscale blends what lies beyond the drawn
+			 * rows into the last of them; Tomb Raider Legend's underwater
+			 * blur, its 128x112 buffer rescaled from native, then blurred
+			 * and drawn to the screen bottom, dragged the stale rows below
+			 * into the last lines as coloured noise. */
+			g_gs_device->StretchRect(dst->m_texture, sRect, tex, dRect, (type == RenderTarget) ? ShaderConvert::COPY : ShaderConvert::DEPTH_COPY, false);
 			m_target_memory_usage = (m_target_memory_usage - dst->m_texture->GetMemUsage()) + tex->GetMemUsage();
 
 			// If we're changing resolution scale, just toss the texture, it's not going to get reused.
