@@ -22,7 +22,6 @@ public:
 	static bool GSC_Manhunt2(GSRendererHW& r, int& skip);
 	static bool GSC_SacredBlaze(GSRendererHW& r, int& skip);
 	static bool GSC_SandGrainGames(GSRendererHW& r, int& skip);
-	static bool GSC_SFEX3(GSRendererHW& r, int& skip);
 	static bool GSC_DTGames(GSRendererHW& r, int& skip);
 	static bool GSC_BurnoutGames(GSRendererHW& r, int& skip);
 	static bool GSC_BlackAndBurnoutSky(GSRendererHW& r, int& skip);
