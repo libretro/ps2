@@ -1766,10 +1766,17 @@ static void cdvdWrite04(u8 rt) /* NCOMMAND */
 			break;
 
 		case N_CD_SEEK: // CdSeek
+		{
+			u32 sector;
 			cdvd.Action = cdvdAction_Seek; // Have to do this first, the StartSeek relies on it
-			CDVD_INT(cdvdStartSeek(*reinterpret_cast<uint*>(cdvd.NCMDParamBuff + 0), static_cast<CDVD_MODE_TYPE>(cdvdIsDVD()), false));
+			/* The parameter buffer is bytes; the sector is read out of it as
+			 * the read commands do, not through a pointer that the buffer's
+			 * place in the struct need not align. */
+			memcpy(&sector, cdvd.NCMDParamBuff + 0, sizeof(u32));
+			CDVD_INT(cdvdStartSeek(sector, static_cast<CDVD_MODE_TYPE>(cdvdIsDVD()), false));
 			cdvdUpdateStatus(CDVD_STATUS_SEEK);
 			break;
+		}
 
 		case N_CD_READ: // CdRead
 		{
