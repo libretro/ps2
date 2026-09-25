@@ -515,6 +515,71 @@ static int check_sprite_edges(void)
    return fail;
 }
 
+/* A sprite read from local memory, minified 33:16 vertically, its top
+ * edge on a half line (an odd field drawn half a line down): natively
+ * its first row is 12 and reads texel row 161, so row 160 is never
+ * shown. Drawn scaled from its own edges, the fragments between 11.5 and
+ * 12 read row 160; snapped, every fragment row belongs to the native row
+ * the GS draws and reads between that row's texel and the next row's. */
+static int check_minified_edge(void)
+{
+   static const struct sprite s = { 8688, 184, 9200, 440, 0, 2560, 528, 3088 };
+   static const int scales[] = { 2, 3, 4, 5, 8 };
+   const double dv_own = (double)(s.v1 - s.v0) / (double)(s.y1 - s.y0);
+   struct fsprite f;
+   double dv;
+   int fail = 0, shown = 0;
+   size_t si;
+
+   snap_sprite(&s, &f);
+   dv = (f.v1 - f.v0) / (f.y1 - f.y0);
+   if (native_row_texel(&s, 12) != 161)
+   {
+      printf("  native first row reads texel %d, not 161\n", native_row_texel(&s, 12));
+      fail++;
+   }
+   for (si = 0; si < sizeof(scales) / sizeof(scales[0]); si++)
+   {
+      const int S = scales[si];
+      int I;
+      for (I = 8 * S; I < 32 * S; I++)
+      {
+         const double y = (double)I / S;
+         /* the sprite's own edges */
+         if (hw_covers(s.y0 / 16.0, s.y1 / 16.0, S, I) && (int)(s.v0 / 16.0 + dv_own * (y - s.y0 / 16.0)) == 160)
+            shown++;
+         /* snapped */
+         {
+            const int hw = hw_covers(f.y0, f.y1, S, I);
+            const int sw = sw_covers(&s, I / S);
+            if (hw != sw)
+            {
+               if (fail++ < 8)
+                  printf("  scale %d fragment row %d: drawn %d, native row %d drawn %d\n", S, I, hw, I / S, sw);
+            }
+            else if (hw)
+            {
+               const int t = (int)(f.v0 + dv * (y - f.y0));
+               const int lo = native_row_texel(&s, I / S);
+               const int hi = native_row_texel(&s, I / S + 1);
+               if (t < lo || t > hi)
+               {
+                  if (fail++ < 8)
+                     printf("  scale %d fragment row %d reads texel %d, native row %d reads %d, the next %d\n", S, I, t, I / S, lo, hi);
+               }
+            }
+         }
+      }
+   }
+   if (!shown)
+   {
+      printf("  the sprite's own edges never read texel row 160\n");
+      fail++;
+   }
+   printf("a minified sprite on a half line shows the native rows' texels: %s\n", fail ? "FAIL" : "ok");
+   return fail;
+}
+
 /* ---- 3c. the region clamp's ends ---------------------------------------- */
 
 /* GSRendererHW's REGION_CLAMP bounds, in texels: a coordinate past an end
@@ -1408,6 +1473,7 @@ int main(void)
    fail += check_scaled();
    fail += check_sample_map();
    fail += check_sprite_edges();
+   fail += check_minified_edge();
    fail += check_region_clamp();
    fail += check_native_taps();
    fail += check_page_position();

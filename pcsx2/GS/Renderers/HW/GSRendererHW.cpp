@@ -3244,17 +3244,19 @@ void GSRendererHW::Draw()
 		}
 	}
 
-	/* A scaled sprite that reads a render target is a pass over the
-	 * screen (a copy, a blur, a bloom laid out by page), where a fraction
-	 * of a native pixel at its edges is a seam: it covers what the GS
-	 * covers (see SnapSpriteEdges). A sprite of the game's own art keeps
-	 * its scaled place, which is what the scale is for. The shuffles are
-	 * told apart by their sprites' exact shape and keep it; the half-pixel
-	 * offset moves sprites its own way and keeps them too. */
-	if (src && src->m_target && m_vt.m_primclass == GS_SPRITE_CLASS && GetUpscaleMultiplier() > 1.0f &&
-		!GSConfig.UserHacks_MergePPSprite && GSConfig.UserHacks_HalfPixelOffset == GSHalfPixelOffset::Off &&
+	/* A scaled sprite covers the native pixels the GS covers (see
+	 * SnapSpriteEdges): a fraction of a native pixel at its edges is a
+	 * seam between passes over the screen, and on the game's own art it
+	 * shows texels the GS steps over (a sprite minified from its texture,
+	 * its edge at a field's half line). The shuffles are told apart by
+	 * their sprites' exact shape and keep it; a target the Special
+	 * half-pixel offsets realign keeps their texture offsets, and the
+	 * offsets that move the draw move its sprites their own way. */
+	if (m_vt.m_primclass == GS_SPRITE_CLASS && GetUpscaleMultiplier() > 1.0f && !GSConfig.UserHacks_MergePPSprite &&
+		(GSConfig.UserHacks_HalfPixelOffset == GSHalfPixelOffset::Off ||
+			((GSConfig.UserHacks_HalfPixelOffset == GSHalfPixelOffset::Special || GSConfig.UserHacks_HalfPixelOffset == GSHalfPixelOffset::SpecialAggressive) && !(src && src->m_target))) &&
 		!IsPossibleChannelShuffle() &&
-		!(GSLocalMemory::m_psm[m_cached_ctx.FRAME.PSM].bpp == 16 && GSLocalMemory::m_psm[m_cached_ctx.TEX0.PSM].bpp == 16))
+		!(src && GSLocalMemory::m_psm[m_cached_ctx.FRAME.PSM].bpp == 16 && GSLocalMemory::m_psm[m_cached_ctx.TEX0.PSM].bpp == 16))
 	{
 		SnapSpriteEdges();
 		m_r_no_scissor = m_r;
