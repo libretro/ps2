@@ -4,15 +4,15 @@
  * other row of the output from each field. At native a row is a frame
  * line, and that is the weave. Drawn at scale a frame line is several
  * rows, and taking rows in turn mixed the two fields inside every line:
- * a game that draws its two fields half a line apart (Ridge Racer V's
- * menus, with a font whose two fields hold alternate rows of the glyphs)
- * came out with a stripe through every row of text. The shaders now take
+ * a game that draws its two fields half a line apart (a menu font whose
+ * two fields hold alternate rows of the glyphs) came out with a stripe
+ * through every row of text. The shaders now take
  * each line's rows from the field that drew that line, and for a
  * half-height field, which the merge stretched twice into the source,
  * from that line's block of rows in it. At native nothing changes.
  *
  * This is the shaders' row arithmetic (interlace.glsl / interlace.fx:
- * ps_main0, ps_main3 and line_rows), checked against a model of the
+ * ps_main0 and line_rows), checked against a model of the
  * fields, at native and at scale, for both field layouts.
  *
  * Build and run, from tests/gsinterlace:

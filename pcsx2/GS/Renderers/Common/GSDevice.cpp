@@ -615,9 +615,27 @@ void GSDevice::Interlace(const GSVector2i& ds, int field, int mode, float yoffse
 			bufIdx |= field;
 			bufIdx &= 3;
 			ResizeRenderTarget(&m_mad, ds.x, ds.y * 2.0f, true, false, true);
-			do_interlace(m_merge, m_mad, ShaderInterlace::MAD_BUFFER, true, offset, bufIdx);
-			ResizeRenderTarget(&m_weavebob, ds.x, ds.y, true, false, true);
-			do_interlace(m_mad, m_weavebob, ShaderInterlace::MAD_RECONSTRUCT, false, 0, bufIdx);
+			if (half_fields)
+			{
+				/* The last four fields, each whole at its own height (the merge
+				 * drew it twice as tall): the reconstruction places each at its
+				 * own lines, and a line where the picture moves takes the current
+				 * field's own rows there. */
+				const GSVector2i mad_size = m_mad->GetSize();
+				const float slot_h = static_cast<float>(mad_size.y) * 0.25f;
+				const GSVector4 sRect = GSVector4(0.0f, 0.0f, 1.0f, 1.0f);
+				const GSVector4 dRect = GSVector4(0.0f, slot_h * static_cast<float>(bufIdx), static_cast<float>(mad_size.x), slot_h * static_cast<float>(bufIdx + 1));
+				const InterlaceConstantBuffer cb = {GSVector4(static_cast<float>(bufIdx), 0.0f, 0.0f, block)};
+				DoInterlace(m_merge, sRect, m_mad, dRect, ShaderInterlace::BOB, true, cb);
+				ResizeRenderTarget(&m_weavebob, ds.x, ds.y, true, false, true);
+				do_interlace(m_mad, m_weavebob, ShaderInterlace::MAD_RECONSTRUCT, true, 0, bufIdx);
+			}
+			else
+			{
+				do_interlace(m_merge, m_mad, ShaderInterlace::MAD_BUFFER, true, offset, bufIdx);
+				ResizeRenderTarget(&m_weavebob, ds.x, ds.y, true, false, true);
+				do_interlace(m_mad, m_weavebob, ShaderInterlace::MAD_RECONSTRUCT, false, 0, bufIdx);
+			}
 			m_current = m_weavebob;
 			break;
 		default:
