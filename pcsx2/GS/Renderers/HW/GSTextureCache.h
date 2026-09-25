@@ -289,7 +289,9 @@ public:
 		 * so its texture holds the pages where that width puts them; a
 		 * shuffle's emulation lays them out as the picture it moves. */
 		bool m_drawn_at_width = false;
-		float OffsetHack_modxy = 0.0f;
+		/* Read as a texture at its own width: under the Normal half-pixel
+		 * offset, a draw to it moves half a native pixel (see SetupIA). */
+		bool m_half_pixel_shift = false;
 		GSDirtyRectList m_dirty;
 		GSVector4i m_valid{};
 		GSVector4i m_drawn_since_read{};

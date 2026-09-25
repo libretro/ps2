@@ -17,6 +17,11 @@
  * reads outside the sprite at its first column; with no offset the two
  * are the same.
  *
+ * The Normal offset moves a draw by the same half native pixel (SetupIA:
+ * the scaled half-fragment offset times the scale), at every scale, with
+ * nothing added for any one of them: pinned against the native-aligned
+ * offset for scales 2 to 12 and target widths up to 2048.
+ *
  * Build and run, from tests/gssamplemap:
  *   cc -O2 -std=c89 -pedantic -Wall native_grid.c -o native_grid -lm
  *   ./native_grid
@@ -61,6 +66,27 @@ static int check(int s, double h, int *outside_unshifted)
    return bad;
 }
 
+/* SetupIA's clip-space offsets: the scaled one, -1 / (unscaled * scale),
+ * times the scale under the Normal offset; the native-aligned one,
+ * -1 / unscaled. Both are half a native pixel, in fragments scale / 2. */
+static int check_normal_offset(void)
+{
+   int s, w, bad = 0;
+   for (s = 2; s <= 12; s++)
+      for (w = 64; w <= 2048; w += 64)
+      {
+         const float scaled = (-1.0f / (float)(w * s)) * (float)s;
+         const float native = -1.0f / (float)w;
+         const double frags = -(double)scaled * (w * s) / 2.0;
+         if (fabs((double)scaled - (double)native) > 1e-6 * fabs((double)native) || fabs(frags - s / 2.0) > 1e-3)
+         {
+            if (bad++ < 4)
+               printf("  scale %d width %d: Normal offset %.9g, native %.9g\n", s, w, (double)scaled, (double)native);
+         }
+      }
+   return bad;
+}
+
 int main(void)
 {
    static const int scales[] = { 2, 3, 4, 8 };
@@ -93,6 +119,9 @@ int main(void)
          fail++;
       }
    }
+
+   if (check_normal_offset())
+      fail++;
 
    printf("native grid: %s\n", fail ? "FAIL" : "ok");
    return fail ? 1 : 0;

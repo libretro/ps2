@@ -2363,7 +2363,7 @@ GSTextureCache::Target* GSTextureCache::LookupTarget(GIFRegTEX0 TEX0, const GSVe
 				return nullptr;
 
 			dst->m_32_bits_fmt = dst_match->m_32_bits_fmt;
-			dst->OffsetHack_modxy = dst_match->OffsetHack_modxy;
+			dst->m_half_pixel_shift = dst_match->m_half_pixel_shift;
 			dst->m_end_block = dst_match->m_end_block; // If we're copying the size, we need to keep the end block.
 			dst->m_valid = dst_match->m_valid;
 			dst->m_valid_alpha_low = dst_match->m_valid_alpha_low; //&& psm_s.trbpp != 24;
@@ -3939,7 +3939,7 @@ bool GSTextureCache::Move(u32 SBP, u32 SBW, u32 SPSM, int sx, int sy, u32 DBP, u
 			return false;
 
 		dst->UpdateValidity(GSVector4i(dx, dy, dx + w, dy + h));
-		dst->OffsetHack_modxy = src->OffsetHack_modxy;
+		dst->m_half_pixel_shift = src->m_half_pixel_shift;
 	}
 
 	if (!src || !dst || src->m_scale != dst->m_scale)
@@ -5093,9 +5093,7 @@ GSTextureCache::Source* GSTextureCache::CreateSource(const GIFRegTEX0& TEX0, con
 			AttachPaletteToSource(src, psm.pal, true, true);
 		}
 
-		// Offset hack. Can be enabled via GS options.
-		// The offset will be used in Draw().
-		dst->OffsetHack_modxy = hack ? g_gs_renderer->GetModXYOffset() : 0.0f;
+		dst->m_half_pixel_shift = hack;
 	}
 	else
 	{

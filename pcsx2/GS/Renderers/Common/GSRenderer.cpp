@@ -236,39 +236,6 @@ bool GSState::Merge(int field)
 	return true;
 }
 
-float GSState::GetModXYOffset()
-{
-	// Scaled Bilinear HPO depending on the gradient.
-	if (GSConfig.UserHacks_HalfPixelOffset == 4)
-	{
-		const GSVector2 pos_range(m_vt.m_max.p.x - m_vt.m_min.p.x, m_vt.m_max.p.y - m_vt.m_min.p.y);
-		const GSVector2 uv_range(m_vt.m_max.t.x - m_vt.m_min.t.x, m_vt.m_max.t.y - m_vt.m_min.t.y);
-		const GSVector2 grad(uv_range / pos_range);
-		const float avg_grad = (grad.x + grad.y) / 2;
-
-		if (avg_grad >= 0.5f && m_draw_env->CTXT[m_draw_env->PRIM.CTXT].TEX1.MMIN == 1)
-		{
-			float mod_xy = GetUpscaleMultiplier();
-			return mod_xy += (mod_xy / 2.0f) * avg_grad;
-		}
-	}
-	else if (GSConfig.UserHacks_HalfPixelOffset == GSHalfPixelOffset::Normal)
-	{
-		float mod_xy = GetUpscaleMultiplier();
-		const int rounded_mod_xy = static_cast<int>(std::round(mod_xy));
-		if (rounded_mod_xy > 1)
-		{
-			if (!(rounded_mod_xy & 1))
-				return mod_xy += 0.2f;
-			else if (!(rounded_mod_xy & 2))
-				return mod_xy += 0.3f;
-			return mod_xy += 0.1f;
-		}
-	}
-
-	return 0.0f;
-}
-
 bool GSState::BeginPresentFrame(bool frame_skip)
 {
 	const GSDevice::PresentResult res = g_gs_device->BeginPresent(frame_skip);

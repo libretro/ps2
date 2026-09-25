@@ -6684,31 +6684,26 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 	float sx, sy, ox2, oy2;
 	const float ox = static_cast<float>(static_cast<int>(m_context->XYOFFSET.OFX));
 	const float oy = static_cast<float>(static_cast<int>(m_context->XYOFFSET.OFY));
+	/* A fragment at scale S is sample j of its native pixel n: with no
+	 * offset at n + j/S, from the point the GS samples at. Aligned to
+	 * native, the samples centre on it, n - 1/2 + (j + 1/2)/S, the draw
+	 * moved half a native pixel. The Normal offset moves only a draw to a
+	 * target the game reads back at its own width (a blend, a corona, a
+	 * blur over the picture), or to depth alone, by the same half pixel. */
 	if (GSConfig.UserHacks_HalfPixelOffset != GSHalfPixelOffset::Native && rtscale > 1.0f)
 	{
 		sx = 2.0f * rtscale / (rtsize.x << 4);
 		sy = 2.0f * rtscale / (rtsize.y << 4);
 		ox2 = -1.0f / rtsize.x;
 		oy2 = -1.0f / rtsize.y;
-		float mod_xy = 0.0f;
-		//This hack subtracts around half a pixel from OFX and OFY.
-		//
-		//The resulting shifted output aligns better with common blending / corona / blurring effects,
-		//but introduces a few bad pixels on the edges.
-		if (!rt)
-			mod_xy = GetModXYOffset();
-		else
-			mod_xy = rt->OffsetHack_modxy;
-
-		if (mod_xy > 1.0f)
+		if (GSConfig.UserHacks_HalfPixelOffset == GSHalfPixelOffset::Normal && (!rt || rt->m_half_pixel_shift))
 		{
-			ox2 *= mod_xy;
-			oy2 *= mod_xy;
+			ox2 *= rtscale;
+			oy2 *= rtscale;
 		}
 	}
 	else
 	{
-		// Align coordinates to native resolution framebuffer, hope for the best.
 		const int unscaled_x = rt_or_ds ? rt_or_ds->GetUnscaledWidth() : 0;
 		const int unscaled_y = rt_or_ds ? rt_or_ds->GetUnscaledHeight() : 0;
 		sx = 2.0f / (unscaled_x << 4);
