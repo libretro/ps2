@@ -2597,7 +2597,7 @@ void GSRendererHW::SnapSpriteEdges()
 		m_r = box.sra32(4);
 		m_r = m_r.blend8(m_r + GSVector4i::cxpr(0, 0, 1, 1), (m_r.xyxy() == m_r.zwzw()));
 	}
-	m_sprite_edges_snapped = (tme != 0);
+	m_sprite_edges_snapped = true;
 }
 
 void GSRendererHW::Draw()
@@ -3249,12 +3249,13 @@ void GSRendererHW::Draw()
 	 * seam between passes over the screen, and on the game's own art it
 	 * shows texels the GS steps over (a sprite minified from its texture,
 	 * its edge at a field's half line). The shuffles are told apart by
-	 * their sprites' exact shape and keep it; a target the Special
-	 * half-pixel offsets realign keeps their texture offsets, and the
-	 * offsets that move the draw move its sprites their own way. */
+	 * their sprites' exact shape and keep it. A read of a target keeps
+	 * what the Normal half-pixel offset (moving the draw) and the Special
+	 * ones (realigning its coordinates) do for it. A snapped sprite is
+	 * drawn without the offsets that move a draw (see SetupIA). */
 	if (m_vt.m_primclass == GS_SPRITE_CLASS && GetUpscaleMultiplier() > 1.0f && !GSConfig.UserHacks_MergePPSprite &&
-		(GSConfig.UserHacks_HalfPixelOffset == GSHalfPixelOffset::Off ||
-			((GSConfig.UserHacks_HalfPixelOffset == GSHalfPixelOffset::Special || GSConfig.UserHacks_HalfPixelOffset == GSHalfPixelOffset::SpecialAggressive) && !(src && src->m_target))) &&
+		!((GSConfig.UserHacks_HalfPixelOffset == GSHalfPixelOffset::Normal || GSConfig.UserHacks_HalfPixelOffset == GSHalfPixelOffset::Special ||
+			GSConfig.UserHacks_HalfPixelOffset == GSHalfPixelOffset::SpecialAggressive) && src && src->m_target) &&
 		!IsPossibleChannelShuffle() &&
 		!(src && GSLocalMemory::m_psm[m_cached_ctx.FRAME.PSM].bpp == 16 && GSLocalMemory::m_psm[m_cached_ctx.TEX0.PSM].bpp == 16))
 	{
@@ -5494,9 +5495,10 @@ __ri void GSRendererHW::EmulateTextureSampler(const GSTextureCache::Target* rt, 
 
 	/* w: where the draw's native pixel grid starts, in fragments. Aligned
 	 * to native, the draw sits half a native pixel on (see SetupIA's
-	 * offset), and a sample chosen by native pixel takes that grid. */
+	 * offset), and a sample chosen by native pixel takes that grid; a
+	 * snapped sprite is drawn on the fragment grid's own. */
 	m_conf.cb_ps.ScaleFactor = GSVector4(scale_factor * (1.0f / 16.0f), 1.0f / scale_factor, scale_rt,
-		(GSConfig.UserHacks_HalfPixelOffset == GSHalfPixelOffset::Native) ? 0.5f * scale_rt : 0.0f);
+		(GSConfig.UserHacks_HalfPixelOffset == GSHalfPixelOffset::Native && !m_sprite_edges_snapped) ? 0.5f * scale_rt : 0.0f);
 
 	if ((m_conf.ps.tex_is_fb && rt->m_rt_alpha_scale) || (tex->m_target && tex->m_from_target && tex->m_target_direct && tex->m_from_target->m_rt_alpha_scale))
 		m_conf.ps.rta_source_correction = 1;
@@ -5750,7 +5752,7 @@ __ri void GSRendererHW::EmulateTextureSampler(const GSTextureCache::Target* rt, 
 		}
 	}
 
-	m_conf.ps.fst = PRIM->FST && !m_sprite_edges_snapped;
+	m_conf.ps.fst = PRIM->FST && !(m_sprite_edges_snapped && PRIM->TME);
 
 	m_conf.cb_ps.WH = WH;
 	m_conf.cb_ps.HalfTexel = GSVector4(-0.5f, 0.5f).xxyy() / WH.zwzw();
@@ -6675,7 +6677,7 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 	// vs
 
 	m_conf.vs.tme = m_process_texture;
-	m_conf.vs.fst = PRIM->FST && !m_sprite_edges_snapped;
+	m_conf.vs.fst = PRIM->FST && !(m_sprite_edges_snapped && PRIM->TME);
 
 	// FIXME D3D11 and GL support half pixel center. Code could be easier!!!
 	const GSTextureCache::Target* rt_or_ds = rt ? rt : ds;
@@ -6689,14 +6691,16 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 	 * native, the samples centre on it, n - 1/2 + (j + 1/2)/S, the draw
 	 * moved half a native pixel. The Normal offset moves only a draw to a
 	 * target the game reads back at its own width (a blend, a corona, a
-	 * blur over the picture), or to depth alone, by the same half pixel. */
-	if (GSConfig.UserHacks_HalfPixelOffset != GSHalfPixelOffset::Native && rtscale > 1.0f)
+	 * blur over the picture), or to depth alone, by the same half pixel.
+	 * A snapped sprite already covers the native pixels the GS covers,
+	 * with its coordinates at their positions, and moves by neither. */
+	if ((GSConfig.UserHacks_HalfPixelOffset != GSHalfPixelOffset::Native || m_sprite_edges_snapped) && rtscale > 1.0f)
 	{
 		sx = 2.0f * rtscale / (rtsize.x << 4);
 		sy = 2.0f * rtscale / (rtsize.y << 4);
 		ox2 = -1.0f / rtsize.x;
 		oy2 = -1.0f / rtsize.y;
-		if (GSConfig.UserHacks_HalfPixelOffset == GSHalfPixelOffset::Normal && (!rt || rt->m_half_pixel_shift))
+		if (GSConfig.UserHacks_HalfPixelOffset == GSHalfPixelOffset::Normal && (!rt || rt->m_half_pixel_shift) && !m_sprite_edges_snapped)
 		{
 			ox2 *= rtscale;
 			oy2 *= rtscale;

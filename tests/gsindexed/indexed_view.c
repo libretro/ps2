@@ -520,7 +520,12 @@ static int check_sprite_edges(void)
  * its first row is 12 and reads texel row 161, so row 160 is never
  * shown. Drawn scaled from its own edges, the fragments between 11.5 and
  * 12 read row 160; snapped, every fragment row belongs to the native row
- * the GS draws and reads between that row's texel and the next row's. */
+ * the GS draws and reads between that row's texel and the next row's.
+ *
+ * The half-pixel offsets that centre a native pixel's samples on it put
+ * fragment row I at (I + 1/2) / S - 1/2: a snapped edge there would take
+ * only half of its first native row, so a snapped sprite is drawn without
+ * them (SetupIA). */
 static int check_minified_edge(void)
 {
    static const struct sprite s = { 8688, 184, 9200, 440, 0, 2560, 528, 3088 };
@@ -528,7 +533,7 @@ static int check_minified_edge(void)
    const double dv_own = (double)(s.v1 - s.v0) / (double)(s.y1 - s.y0);
    struct fsprite f;
    double dv;
-   int fail = 0, shown = 0;
+   int fail = 0, shown = 0, centred = 0;
    size_t si;
 
    snap_sprite(&s, &f);
@@ -548,6 +553,12 @@ static int check_minified_edge(void)
          /* the sprite's own edges */
          if (hw_covers(s.y0 / 16.0, s.y1 / 16.0, S, I) && (int)(s.v0 / 16.0 + dv_own * (y - s.y0 / 16.0)) == 160)
             shown++;
+         /* snapped, under a centring offset */
+         {
+            const double yc = ((double)I + 0.5) / S - 0.5;
+            if ((yc >= f.y0 && yc < f.y1) != sw_covers(&s, I / S))
+               centred++;
+         }
          /* snapped */
          {
             const int hw = hw_covers(f.y0, f.y1, S, I);
@@ -574,6 +585,11 @@ static int check_minified_edge(void)
    if (!shown)
    {
       printf("  the sprite's own edges never read texel row 160\n");
+      fail++;
+   }
+   if (!centred)
+   {
+      printf("  snapped edges under a centring offset cover the native rows\n");
       fail++;
    }
    printf("a minified sprite on a half line shows the native rows' texels: %s\n", fail ? "FAIL" : "ok");

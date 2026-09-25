@@ -299,7 +299,7 @@ private:
 	bool ShuffleKeepsLayout() const;
 	// The context whose scissor followed a draw onto another target's page.
 	GSDrawingContext* m_scissor_moved = nullptr;
-	// The sprites' edges sit on native pixels and their texture coordinates travel as ST.
+	// The sprites' edges sit on native pixels (textured, their coordinates travel as ST).
 	bool m_sprite_edges_snapped = false;
 
 	GIFRegFRAME m_split_clear_start = {};
