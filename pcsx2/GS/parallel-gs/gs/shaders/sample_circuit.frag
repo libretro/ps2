@@ -128,8 +128,8 @@ void main()
 {
     // The upper half of phase_stride carries the per-axis scanout scale
     // log2s (X in bits 16..19, Y in bits 20..23; 1 = 2x, 2 = 4x) so the
-    // push constant layout stays identical to the original. Field-aware
-    // scanout caps Y at 1 while X may still be 2.
+    // push constant layout stays identical to the original. A field-aware
+    // scanout counts Y over the field, one step above X on a square pixel.
     uint scale_x_log2 = (registers.phase_stride >> 16u) & 0xfu;
     uint scale_y_log2 = (registers.phase_stride >> 20u) & 0xfu;
     bool tent_filter = ((registers.phase_stride >> 24u) & 1u) != 0u;
@@ -197,19 +197,25 @@ void main()
         else
             FragColor = sample_vram(addr, 0);
     }
-    else if (SUPER_SAMPLES == 16 && scale_x_log2 == 2u && scale_y_log2 == 1u)
+    else if ((SUPER_SAMPLES == 8 || SUPER_SAMPLES == 16) && scale_x_log2 == 1u && scale_y_log2 == 2u)
     {
-        // Asymmetric 4x-wide scanout for field-aware rendering on the
-        // ordered 4x4 grid: X resolves both position bits (grid x from the
-        // two low output x bits), Y only its quadrant bit (the fine y bit
-        // went to field reconstruction), so average the two fine-y layers.
+        // A field scanned out at 4x over its lines, 2x across: each output
+        // row is one of the four sample rows of its field line. The 8x
+        // checkerboard has one sample in each row of each half pixel
+        // (layer: y bit 0, the half in bit 1, y bit 1 in bit 2); the
+        // ordered 4x4 grid two, which the row averages.
         if (super_sample_is_valid(addr))
         {
-            uint gx = super_sampled_coord.x & 3u;
-            uint gy = super_sampled_coord.y & 1u;
-            uint base = ((gx & 1u) << 1u) | (gy << 2u) | ((gx >> 1u) << 3u);
-            FragColor = 0.5 * (sample_vram(addr, BASE_SSAA_LAYER + base) +
-                               sample_vram(addr, BASE_SSAA_LAYER + base + 1u));
+            uint gx = super_sampled_coord.x & 1u;
+            uint gy = super_sampled_coord.y & 3u;
+            if (SUPER_SAMPLES == 8)
+                FragColor = sample_vram(addr, BASE_SSAA_LAYER + ((gy & 1u) | (gx << 1u) | ((gy >> 1u) << 2u)));
+            else
+            {
+                uint base = (gy & 1u) | ((gy >> 1u) << 2u) | (gx << 3u);
+                FragColor = 0.5 * (sample_vram(addr, BASE_SSAA_LAYER + base) +
+                                   sample_vram(addr, BASE_SSAA_LAYER + base + 2u));
+            }
         }
         else
             FragColor = sample_vram(addr, 0);

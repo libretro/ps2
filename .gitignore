@@ -159,3 +159,4 @@ tests/gsinterlace/field_mad
 tests/gsinterlace/fastmad_rule
 tests/gspagegather/page_gather
 tests/gssamplemap/native_grid
+tests/pgs/pgs_field_scanout

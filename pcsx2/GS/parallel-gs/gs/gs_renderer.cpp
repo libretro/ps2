@@ -4297,14 +4297,23 @@ ScanoutResult GSRenderer::vsync(const PrivRegisterState &priv, const VSyncInfo &
 	                             priv.smode2.INT &&
 	                             priv.smode1.CMOD != SMODE1Bits::CMOD_PROGRESSIVE;
 
-	// The field-aware path pairs lines against fields: the vertical axis
-	// spends its sample bit on field reconstruction, so cap Y at the 2x
-	// line pairing. The horizontal axis is untouched by field logic and
-	// keeps the full factor -- field-rendered games get 4x width with
-	// field-doubled height.
-	if (field_aware_rendering && scanout_scale_y_log2 > 1)
+	// The field-aware path scans out one field at the frame's height: a
+	// field line spans two frame lines, so the vertical factor over the
+	// field is one step above the frame's, and the field's own vertical
+	// samples fill it (field rendering lays them at half-line steps). It
+	// takes as many as the grid has, one to an output row: 2x over the
+	// field is the frame at native height, 4x is the frame at twice its
+	// height. The sparse grid's vertical samples are not rows and keep 2x.
+	if (field_aware_rendering)
 	{
-		scanout_scale_y_log2 = 1;
+		uint32_t field_y_log2 = scanout_scale_x_log2 + 1;
+		if (field_y_log2 > sampling_rate_y_log2)
+			field_y_log2 = sampling_rate_y_log2;
+		if (field_y_log2 > 2)
+			field_y_log2 = 2;
+		if (sampling_rate_y_log2 - sampling_rate_x_log2 == 2)
+			field_y_log2 = 1;
+		scanout_scale_y_log2 = field_y_log2;
 		high_resolution_scanout = scanout_scale_x_log2 > scanout_scale_y_log2 ?
 		                          scanout_scale_x_log2 : scanout_scale_y_log2;
 	}
@@ -4856,8 +4865,9 @@ ScanoutResult GSRenderer::vsync(const PrivRegisterState &priv, const VSyncInfo &
 
 	if (field_aware_rendering)
 	{
-		// Avoid a one line flicker due to field rendering.
-		image_info.height--;
+		// Avoid a one line flicker due to field rendering: half a field
+		// line, the offset between the two fields.
+		image_info.height -= 1u << (scanout_scale_y_log2 - 1);
 	}
 
 	PROFILE_SCOPE(ZONE_GS_VS_MERGE);
@@ -4941,7 +4951,7 @@ ScanoutResult GSRenderer::vsync(const PrivRegisterState &priv, const VSyncInfo &
 				vp.height *= hrs_scale_y;
 
 				if (field_aware_rendering && !info.phase)
-					vp.y -= 1.0f;
+					vp.y -= float(1u << (scanout_scale_y_log2 - 1));
 			}
 
 			cmd.set_viewport(vp);
@@ -4976,7 +4986,7 @@ ScanoutResult GSRenderer::vsync(const PrivRegisterState &priv, const VSyncInfo &
 				vp.height *= hrs_scale_y;
 
 				if (field_aware_rendering && !info.phase)
-					vp.y -= 1.0f;
+					vp.y -= float(1u << (scanout_scale_y_log2 - 1));
 			}
 
 			cmd.set_viewport(vp);

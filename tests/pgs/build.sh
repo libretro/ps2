@@ -4,6 +4,8 @@
 # pgs_layout_check  : the shared structs must keep the exact sizes and
 #                     offsets the precompiled shader bank was built against.
 # pgs_c89_check     : the kernel header must compile as strict C89.
+# pgs_field_scanout : the high-res scanout factors of field-rendered games
+#                     and the sample layers the circuit shader reads for them.
 # pgs_vertex_oracle : the C89 kernels must write bytes identical to the
 #                     muglm field-by-field bodies they replace.
 # pgs_queue_equiv   : a ring-buffer vertex queue must deliver the same
@@ -39,6 +41,13 @@ for CC in gcc clang; do
 	echo "    clean"
 done
 rm -f "$DIR/pgs_c89_check.o"
+
+for CC in gcc clang; do
+	command -v "$CC" >/dev/null 2>&1 || continue
+	echo "=== $CC pgs_field_scanout ==="
+	$CC -std=c89 -pedantic -Wall -Wextra -O2 $SANFLAGS -o "$DIR/pgs_field_scanout" "$DIR/pgs_field_scanout.c"
+	"$DIR/pgs_field_scanout"
+done
 
 # -msse2 selects the scalar pair bodies, which is the shape an MSVC build
 # below SSE4.1 takes; -msse4.1 selects the vector ones. Both have to be

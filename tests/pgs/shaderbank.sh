@@ -8,11 +8,13 @@
 #
 # The GLSL beside it comes from upstream paraLLEl-GS,
 # https://github.com/Arntzen-Software/parallel-gs, at 3a66c19 (2026-09-02).
-# data_structures.h, swizzle_utils.h and sample_circuit.frag are the fork's
-# own and differ from upstream; the rest are upstream verbatim. Regenerating
-# the bank needs slangmosh, which is not vendored -- what is here is enough
-# to read the shaders and to check that a candidate source is the one that
-# shipped.
+# data_structures.h, swizzle_utils.h, sample_circuit.frag and weave.frag are
+# the fork's own and differ from upstream; the rest are upstream verbatim.
+# Regenerating the whole bank needs slangmosh, which is not vendored. One
+# module is rebuilt byte for byte with glslangValidator -V --target-env
+# vulkan1.1 (GL_GOOGLE_include_directive enabled after #version, -I the
+# shader directory, -DPROMOTED=0/1 for sample_circuit) and spirv-opt -O;
+# weave was built with --strip-debug as well.
 #
 # Modules are NOT named. slangmosh does not emit them in the order
 # slangmosh_iface.hpp declares them, and the bank holds one more module than
@@ -24,10 +26,10 @@
 #   ./shaderbank.sh /tmp/bank ../../pcsx2/GS/parallel-gs/gs/shaders
 #
 # The match is on instruction mix, with debug info stripped from both
-# sides, and it reports how far off the nearest module is. An exact zero
-# needs slangmosh's own glslang and spirv-opt; anything else leaves a small
-# residue -- glslang 15.1 lands 1.1 % from the shipped ubershader, 1.7 %
-# from triangle_setup and 0.2 % from sample_circuit. Treat a few percent
+# sides, and it reports how far off the nearest module is. Built as above,
+# sample_circuit and weave match exactly; the others leave a small residue
+# -- glslang 15.1 lands 1.1 % from the shipped ubershader and 1.7 % from
+# triangle_setup. Treat a few percent
 # as the same shader and a different one as a different shader; the id
 # bound alone is not enough to tell them apart, since two modules here
 # collide on it.
