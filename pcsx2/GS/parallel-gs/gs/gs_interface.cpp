@@ -154,7 +154,15 @@ void GSInterface::flush_render_pass(FlushReason reason)
 
 		uint32_t binning_cost = 0;
 
-		for (uint32_t i = 0; i < render_pass.num_instances; i++)
+		// It's possible the last RP instance was added, but there are no primitives yet, since
+		// we ended up flushing before we could expand the BB: its BB is still the empty one,
+		// and no size is taken from it.
+		rp.num_instances = render_pass.num_instances;
+		if (render_pass.instances[rp.num_instances - 1].bb.z < 0)
+			rp.num_instances--;
+		assert(rp.num_instances);
+
+		for (uint32_t i = 0; i < rp.num_instances; i++)
 		{
 			auto &inst = render_pass.instances[i];
 			uint32_t tile_width = ((inst.bb.z - inst.bb.x) >> PGS_FB_SWIZZLE_WIDTH_LOG2) + 1;
@@ -175,7 +183,7 @@ void GSInterface::flush_render_pass(FlushReason reason)
 		if (sampling_rate_y_log2 != 0 && rp.coarse_tile_size_log2 > 3)
 			rp.coarse_tile_size_log2 -= 1;
 
-		for (uint32_t i = 0; i < render_pass.num_instances; i++)
+		for (uint32_t i = 0; i < rp.num_instances; i++)
 		{
 			auto &inst = render_pass.instances[i];
 			uint32_t coarse_tiles_width = ((inst.bb.z - inst.bb.x) >> rp.coarse_tile_size_log2) + 1;
@@ -193,13 +201,6 @@ void GSInterface::flush_render_pass(FlushReason reason)
 			}
 		}
 
-		rp.num_instances = render_pass.num_instances;
-
-		// It's possible the last RP instance was added, but there are no primitives yet, since
-		// we ended up flushing before we could expand the BB.
-		if (render_pass.instances[rp.num_instances - 1].bb.z < 0)
-			rp.num_instances--;
-		assert(rp.num_instances);
 
 		for (uint32_t i = 0; i < rp.num_instances; i++)
 		{
