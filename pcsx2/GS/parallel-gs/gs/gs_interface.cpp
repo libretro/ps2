@@ -121,7 +121,8 @@ void GSInterface::set_super_sampling_rate(SuperSampling super_sampling,
 		break;
 	}
 
-	renderer.invalidate_super_sampling_state(sampling_rate_x_log2, sampling_rate_y_log2);
+	super_sampled_copies = sampling_rate_y_log2 != 0 && !super_sampled_textures;
+	renderer.invalidate_super_sampling_state(sampling_rate_x_log2, sampling_rate_y_log2, super_sampled_copies);
 }
 
 static bool write_mask_is_16bit_channel_slice(uint32_t psm, uint32_t color_mask)
@@ -1607,7 +1608,7 @@ uint32_t GSInterface::drawing_kick_update_texture(FBFeedbackMode feedback_mode, 
 	// This is mostly only useful in:
 	// - Correctly resolving per-pixel effects which use some form of pixel testing.
 	// - Preserving per sample data during blit passes, etc.
-	if (desc.rect.levels == 1 && super_sampled_textures &&
+	if (desc.rect.levels == 1 && (super_sampled_textures || super_sampled_copies) &&
 	    get_bits_per_pixel(desc.tex0.desc.PSM) >= 8 &&
 	    PRIMType(prim.desc.PRIM) == PRIMType::Sprite &&
 	    tracker.texture_may_super_sample(state_tracker.tex.page_rects[0]))

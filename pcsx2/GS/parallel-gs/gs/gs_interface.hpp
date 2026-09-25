@@ -648,6 +648,10 @@ private:
 	uint32_t sampling_rate_x_log2 = 0;
 	uint32_t sampling_rate_y_log2 = 0;
 	bool super_sampled_textures = false;
+	/* Super-sampled textures read per sample only where a sprite copies
+	 * texel for pixel; the rest read single-sampled. On whenever super
+	 * sampling is and the full per-sample textures are not. */
+	bool super_sampled_copies = false;
 
 	void reset_context_state_registers();
 

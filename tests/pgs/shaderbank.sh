@@ -14,7 +14,11 @@
 # module is rebuilt byte for byte with glslangValidator -V --target-env
 # vulkan1.1 (GL_GOOGLE_include_directive enabled after #version, -I the
 # shader directory, -DPROMOTED=0/1 for sample_circuit) and spirv-opt -O;
-# weave was built with --strip-debug as well.
+# weave was built with --strip-debug as well. triangle_setup does not come
+# out byte for byte with either; it is built with glslc -O
+# --target-env=vulkan1.1 (shaderc 2023.8), which from the shipped source
+# rendered pixel for pixel what the shipped module does, and its
+# reflection's specialization mask covers constants 0 to 4.
 #
 # Modules are NOT named. slangmosh does not emit them in the order
 # slangmosh_iface.hpp declares them, and the bank holds one more module than

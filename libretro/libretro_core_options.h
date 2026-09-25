@@ -339,7 +339,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       "pcsx2_pgs_ss_tex",
       "Video > paraLLEl experimental SSAA texture",
       "paraLLEl experimental SSAA texture",
-      "Feedback higher resolution textures. May help high-res scanout image quality. Highly experimental and may cause rendering glitches.",
+      "Feedback higher resolution textures. With super sampling on, a copy of the picture (a post-processing pass that moves it texel for pixel) always keeps its super samples; enabling this also feeds them to blurs and other effects that read the picture back. May help high-res scanout image quality. Highly experimental and may cause rendering glitches.",
       NULL,
       "video",
       {

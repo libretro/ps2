@@ -35,6 +35,7 @@ layout(constant_id = 0) const int SAMPLING_RATE_X_LOG2 = 0;
 layout(constant_id = 1) const int SAMPLING_RATE_Y_LOG2 = 0;
 layout(constant_id = 2) const bool SUPER_SAMPLED_TEXTURES = false;
 layout(constant_id = 3) const bool FORCE_LINEAR_SUPER_SAMPLE = false;
+layout(constant_id = 4) const bool SUPER_SAMPLED_COPIES_ONLY = false;
 
 layout(push_constant) uniform Registers
 {
@@ -678,6 +679,24 @@ void main_inner(uint index)
     if (SAMPLING_RATE_Y_LOG2 != 0 && SUPER_SAMPLED_TEXTURES)
     {
         uint tex = primitive_attr.data[index].tex;
+
+        // Copies only: a sprite whose texture coordinates step with its
+        // position, texel for pixel in the same direction, with nearest
+        // filtering (a bilinear one sampling texel centres is nearest by
+        // now), is a copy, and sample k of its pixel is sample k of the
+        // texel. Anything else reads the texture single-sampled.
+        if (SUPER_SAMPLED_COPIES_ONLY && (tex & (TEX_PER_SAMPLE_BIT | TEX_SAMPLE_MAPPING_BIT)) == TEX_PER_SAMPLE_BIT)
+        {
+            ivec2 step_error = (ivec2(attr1.uv) - ivec2(attr0.uv)) - (d - a);
+            bool is_copy = sprite && (state & (1u << STATE_BIT_PERSPECTIVE)) == 0 &&
+                           (tex & TEX_SAMPLER_MAG_LINEAR_BIT) == 0 &&
+                           all(lessThanEqual(abs(step_error), ivec2(1)));
+            if (is_copy)
+                tex |= TEX_SAMPLE_MAPPING_BIT;
+            else
+                tex &= ~TEX_PER_SAMPLE_BIT;
+            primitive_attr.data[index].tex = tex;
+        }
 
         // If we have already decided on sample mapping, just do that.
         if ((tex & (TEX_PER_SAMPLE_BIT | TEX_SAMPLE_MAPPING_BIT)) == TEX_PER_SAMPLE_BIT)

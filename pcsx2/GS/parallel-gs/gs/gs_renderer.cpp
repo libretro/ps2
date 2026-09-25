@@ -330,8 +330,9 @@ void GSRenderer::init_phase_lut(uint32_t sampling_rate_x_log2, uint32_t sampling
 }
 
 void GSRenderer::invalidate_super_sampling_state(
-    uint32_t sampling_rate_x_log2, uint32_t sampling_rate_y_log2)
+    uint32_t sampling_rate_x_log2, uint32_t sampling_rate_y_log2, bool copies_only)
 {
+	super_sampled_copies_only = copies_only;
 	if (!device || !buffers.gpu)
 		return;
 
@@ -1983,12 +1984,13 @@ void GSRenderer::dispatch_triangle_setup(Vulkan::CommandBuffer &cmd, const Rende
 	cmd.push_constants(&push, 0, sizeof(push));
 
 	cmd.set_program(shaders.triangle_setup);
-	cmd.set_specialization_constant_mask(0xf);
+	cmd.set_specialization_constant_mask(0x1f);
 	cmd.set_specialization_constant(0, sampling_rate_x_log2);
 	cmd.set_specialization_constant(1, sampling_rate_y_log2);
 	cmd.set_specialization_constant(2, bound_texture_has_array);
 
 	cmd.set_specialization_constant(3, bound_texture_has_array && allow_field_render);
+	cmd.set_specialization_constant(4, bound_texture_has_array && super_sampled_copies_only);
 
 	Vulkan::QueryPoolHandle start_ts, end_ts;
 	if (enable_timestamps)

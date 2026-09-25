@@ -313,7 +313,7 @@ public:
 	double get_accumulated_timestamps(TimestampType type) const;
 	void set_enable_timestamps(bool enable);
 
-	void invalidate_super_sampling_state(uint32_t sampling_rate_x_log2, uint32_t sampling_rate_y_log2);
+	void invalidate_super_sampling_state(uint32_t sampling_rate_x_log2, uint32_t sampling_rate_y_log2, bool copies_only);
 
 	SuperSampling get_max_supported_super_sampling() const;
 
@@ -341,6 +341,7 @@ private:
 
 	bool last_clut_update_is_read = false;
 	bool field_aware_super_sampling = false;
+	bool super_sampled_copies_only = false;
 
 	std::vector<VkImageMemoryBarrier2> pre_image_barriers;
 	std::vector<VkImageMemoryBarrier2> post_image_barriers;
