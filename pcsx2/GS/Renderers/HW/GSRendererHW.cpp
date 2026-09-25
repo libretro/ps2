@@ -3924,7 +3924,10 @@ void GSRendererHW::Draw()
 	}
 
 	if (rt)
+	{
 		rt->m_last_draw = s_n;
+		rt->m_drawn_at_width = m_cached_ctx.FRAME.FBW == rt->m_TEX0.TBW && !m_texture_shuffle_info && !m_channel_shuffle;
+	}
 
 	if (ds)
 		ds->m_last_draw = s_n;

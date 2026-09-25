@@ -285,6 +285,10 @@ public:
 
 		bool m_is_frame = false;
 		bool m_used = false;
+		/* The last draw wrote the target at its own width, pixel for pixel,
+		 * so its texture holds the pages where that width puts them; a
+		 * shuffle's emulation lays them out as the picture it moves. */
+		bool m_drawn_at_width = false;
 		float OffsetHack_modxy = 0.0f;
 		GSDirtyRectList m_dirty;
 		GSVector4i m_valid{};
@@ -562,6 +566,7 @@ private:
 	GSDownloadTexturePtr m_uint32_download_texture;
 
 	Source* CreateSource(const GIFRegTEX0& TEX0, const GIFRegTEXA& TEXA, Target* t, bool half_right, int x_offset, int y_offset, const GSVector2i* lod, const GSVector4i* src_range, GSTexture* gpu_clut, SourceRegion region, int page_gather);
+	static int ReadEndX(u32 bw, u32 psm, const GSVector4i& r);
 	static int PagesInTarget(const Target* t, u32 bp, u32 bw, u32 psm, const GSVector4i& r);
 
 	bool PreloadTarget(GIFRegTEX0 TEX0, const GSVector2i& size, const GSVector2i& valid_size, bool is_frame,

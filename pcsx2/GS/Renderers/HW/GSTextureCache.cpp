@@ -1501,7 +1501,21 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const bool is_color, const 
 								found_t = true;
 								x_offset = 0;
 								y_offset = 0;
-								page_gather = 0;
+								/* A read at the target's base in the target's format but
+								 * another width takes its pages where the target's width put
+								 * them: the first page row, up to the target's width, is the
+								 * target's own; any page past it is gathered. A frame halved
+								 * into two page columns side by side and read back at half the
+								 * width, the second column under the first, is one. It needs the
+								 * target's last draw to have laid the pages out at the target's
+								 * width. A 16-bit target's pages read as 16-bit are its own
+								 * pixels whatever the draw, so a possible shuffle does not stop
+								 * it: a shuffle reads a 32-bit target. */
+								page_gather = (bp == t->m_TEX0.TBP0 && psm == t->m_TEX0.PSM && bw != t->m_TEX0.TBW && bw > 0 &&
+									t->m_drawn_at_width &&
+									GSLocalMemory::m_psm[psm].bpp >= 16 && (!possible_shuffle || !t->m_32_bits_fmt) &&
+									((r.w - 1) / GSLocalMemory::m_psm[psm].pgs.y > 0 || (ReadEndX(bw, psm, r) - 1) / GSLocalMemory::m_psm[psm].pgs.x >= static_cast<int>(t->m_TEX0.TBW)) &&
+									PagesInTarget(t, bp, bw, psm, r)) ? 1 : 0;
 
 								if (GSConfig.UserHacks_TextureInsideRt >= GSTextureInRtMode::MergeTargets && GSLocalMemory::GetUnwrappedEndBlockAddress(bp, bw, psm, req_rect) > dst->m_end_block)
 									continue;
@@ -1578,7 +1592,7 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const bool is_color, const 
 				// back one page wide, a level at a time, is one; read through
 				// the target's own layout it was a different picture.
 				else if (bp != t->m_TEX0.TBP0 && psm == t->m_TEX0.PSM && bw != t->m_TEX0.TBW && bw > 0 &&
-					GSLocalMemory::m_psm[psm].bpp == 32 && !possible_shuffle &&
+					GSLocalMemory::m_psm[psm].bpp >= 16 && (!possible_shuffle || !t->m_32_bits_fmt) &&
 					t->m_age <= 1 && (!found_t || t->m_last_draw > dst->m_last_draw) &&
 					PagesInTarget(t, bp, bw, psm, r))
 				{
@@ -4627,6 +4641,16 @@ void GSTextureCache::IncAge()
 }
 
 //Fixme: Several issues in here. Not handling depth stencil, pitch conversion doesnt work.
+/* The end of a read's rect, less a filter's one-texel reach past the
+ * read's width: a rect that runs up to the last column and one texel over
+ * reads that column's pages, not the first page of the next row. A rect
+ * that starts past the width addresses those pages on purpose. */
+int GSTextureCache::ReadEndX(u32 bw, u32 psm, const GSVector4i& r)
+{
+	const int w = static_cast<int>(bw) * GSLocalMemory::m_psm[psm].pgs.x;
+	return (r.x < w && r.z == w + 1) ? w : r.z;
+}
+
 /* The pages a read covers, in its own layout: the page rows and columns
  * of r, and the read's page index of each. Every one has to be a page of
  * the target, whole, and clean. */
@@ -4635,7 +4659,7 @@ int GSTextureCache::PagesInTarget(const Target* t, u32 bp, u32 bw, u32 psm, cons
 	const GSVector2i& pgs = GSLocalMemory::m_psm[psm].pgs;
 	const u32 tbw = pcsx2_max_u(t->m_TEX0.TBW, 1u);
 	const int px0 = r.x / pgs.x, py0 = r.y / pgs.y;
-	const int px1 = (r.z - 1) / pgs.x, py1 = (r.w - 1) / pgs.y;
+	const int px1 = (ReadEndX(bw, psm, r) - 1) / pgs.x, py1 = (r.w - 1) / pgs.y;
 	int px, py;
 
 	if (r.z <= r.x || r.w <= r.y || r.x < 0 || r.y < 0)
@@ -4711,7 +4735,7 @@ GSTextureCache::Source* GSTextureCache::CreateSource(const GIFRegTEX0& TEX0, con
 		const GSVector4i& rr = *src_range;
 		const u32 bw = pcsx2_max_u(TEX0.TBW, 1u);
 		const u32 tbw = pcsx2_max_u(dst->m_TEX0.TBW, 1u);
-		const int px1 = (rr.z - 1) / pgs.x, py1 = (rr.w - 1) / pgs.y;
+		const int px1 = (ReadEndX(bw, TEX0.PSM, rr) - 1) / pgs.x, py1 = (rr.w - 1) / pgs.y;
 		const int w = pcsx2_min_i((px1 + 1) * pgs.x, tw), h = pcsx2_min_i((py1 + 1) * pgs.y, th);
 		const int sw = static_cast<int>(std::ceil(scale * w)), sh = static_cast<int>(std::ceil(scale * h));
 		GSTexture* dTex = g_gs_device->CreateRenderTarget(sw, sh, GSTexture::Format::Color, true);
@@ -4739,7 +4763,7 @@ GSTextureCache::Source* GSTextureCache::CreateSource(const GIFRegTEX0& TEX0, con
 					continue;
 				if (dst->m_rt_alpha_scale)
 				{
-					const GSVector4 sRectF = GSVector4(sx, sy, sx + pgs.x, sy + pgs.y) * GSVector4(scale) / GSVector4(1, 1, dst->m_texture->GetWidth(), dst->m_texture->GetHeight());
+					const GSVector4 sRectF = GSVector4(sx, sy, sx + pgs.x, sy + pgs.y) * GSVector4(scale) / GSVector4(dst->m_texture->GetWidth(), dst->m_texture->GetHeight()).xyxy();
 					const GSVector4 dRect = GSVector4(px * pgs.x, py * pgs.y, (px + 1) * pgs.x, (py + 1) * pgs.y) * GSVector4(scale);
 					g_gs_device->StretchRect(dst->m_texture, sRectF, dTex, dRect, ShaderConvert::RTA_DECORRECTION, false);
 				}
@@ -4801,9 +4825,11 @@ GSTextureCache::Source* GSTextureCache::CreateSource(const GIFRegTEX0& TEX0, con
 			{
 				if (dst->m_rt_alpha_scale)
 				{
-					const GSVector4 sRectF = GSVector4(area) / GSVector4(1, 1, sTex->GetWidth(), sTex->GetHeight());
+					/* The copy below, with the alpha rescaled: the area at the
+					 * source's size, to the texture's origin. */
+					const GSVector4 sRectF = GSVector4(area) / GSVector4(sTex->GetWidth(), sTex->GetHeight()).xyxy();
 					g_gs_device->StretchRect(
-						sTex, sRectF, dTex, GSVector4(area), ShaderConvert::RTA_DECORRECTION, false);
+						sTex, sRectF, dTex, GSVector4(area) - GSVector4(area).xyxy(), ShaderConvert::RTA_DECORRECTION, false);
 				}
 				else
 					g_gs_device->CopyRect(sTex, dTex, area, 0, 0);
@@ -5024,9 +5050,10 @@ GSTextureCache::Source* GSTextureCache::CreateSource(const GIFRegTEX0& TEX0, con
 			{
 				if (dst->m_rt_alpha_scale)
 				{
-					const GSVector4 sRectF = GSVector4(sRect) / GSVector4(1, 1, sTex->GetWidth(), sTex->GetHeight());
+					/* The copy below, with the alpha rescaled: sRect to destX,destY. */
+					const GSVector4 sRectF = GSVector4(sRect) / GSVector4(sTex->GetWidth(), sTex->GetHeight()).xyxy();
 					g_gs_device->StretchRect(
-						sTex, sRectF, dTex, GSVector4(destX, destY, sRect.width(), sRect.height()), ShaderConvert::RTA_DECORRECTION, false);
+						sTex, sRectF, dTex, GSVector4(destX, destY, destX + sRect.width(), destY + sRect.height()), ShaderConvert::RTA_DECORRECTION, false);
 				}
 				else
 					g_gs_device->CopyRect(sTex, dTex, sRect, destX, destY);
