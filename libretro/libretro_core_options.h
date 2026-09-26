@@ -585,7 +585,6 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       },
       "enabled"
    },
-#if 0
    {
       "pcsx2_sw_renderer_threads",
       "Video > Software Renderer Threads",
@@ -608,7 +607,6 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       },
       "2"
    },
-#endif
    {
       "pcsx2_vu_accurate_addsub",
       "Emulation > VU Accurate Add/Sub",
