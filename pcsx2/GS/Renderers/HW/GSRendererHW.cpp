@@ -4633,7 +4633,7 @@ bool GSRendererHW::MagnifiesTexture() const
 {
 	const GSVector4 px = m_vt.m_max.p - m_vt.m_min.p;
 	const GSVector4 tx = (m_vt.m_max.t - m_vt.m_min.t).abs();
-	return tx.x + 0.5f < px.x || tx.y + 0.5f < px.y;
+	return tx.x * 1.5f < px.x || tx.y * 1.5f < px.y;
 }
 
 /* Whether the draw stays within one page of a buffer of this format. */

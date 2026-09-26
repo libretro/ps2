@@ -712,12 +712,34 @@ static void palette_taps(double u0, int S, double* tap0, double* tap1, double* w
    *tap1 = *tap0 + S;
 }
 
-/* GSRendererHW::MagnifiesTexture: the taps are for a read that keeps or
- * shrinks the texture (a copy, a blur); a read that spreads fewer texels
- * over more pixels is left to the scaled texture's own filter. */
+/* GSRendererHW::MagnifiesTexture: the taps are for a read that keeps,
+ * shrinks or barely stretches the texture (a copy, a blur, a zoom blur
+ * pass a texel or two larger); a read that enlarges it by half again or
+ * more is left to the scaled texture's own filter. */
 static int magnifies(double px_w, double px_h, double tx_w, double tx_h)
 {
+   return tx_w * 1.5 < px_w || tx_h * 1.5 < px_h;
+}
+
+/* The rule it replaces: any stretch past half a texel. */
+static int magnifies_old(double px_w, double px_h, double tx_w, double tx_h)
+{
    return tx_w + 0.5 < px_w || tx_h + 0.5 < px_h;
+}
+
+/* The weight a pixel's bilinear read gives the texel past the last one a
+ * zoom blur pass wrote, for the last pixel of a pass drawing tx texels over
+ * px pixels from u = 0.5. The GS samples at the pixel's corner; the taps
+ * keep that weight at any scale, and the scaled texture's own filter,
+ * sampling at each fragment of the pixel, takes up to the last
+ * fragment's. */
+static double edge_weight(double px, double tx, int S, int taps)
+{
+   const double n = px - 1.0;
+   const double f = taps ? 0.0 : (S - 0.5) / S;
+   const double g = 0.5 + (n + f) * tx / px - 0.5;
+   const double w = g - floor(g);
+   return (floor(g) + 1.0 >= tx - 0.5) ? w : 0.0;
 }
 
 /* The taps for a read that magnifies: not for a colour read, which is
@@ -810,6 +832,23 @@ static int check_native_taps(void)
    if (!(magnifies(62, 66, 31, 33) && native_taps_allowed(1, 1)) || native_taps_allowed(1, 0))
    {
       printf("  a magnified read keeps the taps only through a palette\n");
+      fail++;
+   }
+   /* A zoom blur bouncing between two 256x128 buffers draws each pass a
+    * texel or two larger, and never writes the last row and column; a
+    * brightening pass amplifies whatever the reads take from there. The
+    * GS takes next to nothing, the taps as little at 4x, and those passes
+    * keep the taps; the rule they replace left them to the scaled filter,
+    * which takes most of the stale texel into the last pixel. */
+   if (magnifies(256, 128, 255, 127) || magnifies(256, 128, 255.44, 126.94) ||
+      edge_weight(128, 126.94, 4, 1) > 0.01)
+   {
+      printf("  a zoom blur pass lost the taps, or they read past the edge\n");
+      fail++;
+   }
+   if (!magnifies_old(256, 128, 255.44, 126.94) || edge_weight(128, 126.94, 4, 0) < 0.25)
+   {
+      printf("  negative: the old rule kept the taps for a zoom blur pass\n");
       fail++;
    }
    printf("bilinear taps on a scaled target: %s\n", fail ? "FAIL" : "ok");
