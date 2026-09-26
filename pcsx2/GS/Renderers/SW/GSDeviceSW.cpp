@@ -930,6 +930,177 @@ namespace
 			}
 		}
 	}
+
+	/* ====================================================================
+	 * Half-height fields (FFMD), as interlace.glsl takes them at 1x: the
+	 * merge drew each field twice as tall, every field row on two rows.
+	 * ==================================================================== */
+
+	/* A row of the source read at vertical position r (in rows, 0.5 the
+	 * first row's centre) with the linear sampler, clamped to [lo, hi). */
+	void SampleRowLinear(const u8* src, int src_pitch, int lo, int hi, float r, u8* out_row, int w)
+	{
+		float fy;
+		int y0, y1, x;
+		u32 wt;
+		const u8* a;
+		const u8* b;
+
+		fy = r - 0.5f;
+		y0 = (int)floorf(fy);
+		wt = (u32)((fy - (float)y0) * 256.0f + 0.5f);
+		y1 = y0 + 1;
+		if (y0 < lo) y0 = lo;
+		if (y0 > hi - 1) y0 = hi - 1;
+		if (y1 < lo) y1 = lo;
+		if (y1 > hi - 1) y1 = hi - 1;
+		a = src + (size_t)y0 * src_pitch;
+		b = src + (size_t)y1 * src_pitch;
+		if (wt == 0 || y0 == y1)
+		{
+			memcpy(out_row, a, (size_t)w * 4);
+			return;
+		}
+		for (x = 0; x < w; x++)
+		{
+			const u32 pa = LoadPx(a, x);
+			const u32 pb = LoadPx(b, x);
+			u32 c = 0;
+			int k;
+			for (k = 0; k < 32; k += 8)
+			{
+				const u32 ca = (pa >> k) & 0xFFu;
+				const u32 cb = (pb >> k) & 0xFFu;
+				c |= (((ca * (256u - wt) + cb * wt + 128u) >> 8) & 0xFFu) << k;
+			}
+			StorePx(out_row, x, c);
+		}
+	}
+
+	/* BOB into a rect of its own height (a slot of the adaptive buffer):
+	 * the source resampled into rows [dy0, dy1) with the linear sampler,
+	 * the rest of the destination left as it is. */
+	void BobScaled(
+		const u8* src, int src_pitch, int src_w, int src_h,
+		u8* dst, int dst_pitch, int dst_w, int dst_h,
+		int dy0, int dy1)
+	{
+		const int w = pcsx2_min_i(src_w, dst_w);
+		const float ratio = (float)src_h / (float)(dy1 - dy0);
+		int y;
+		for (y = pcsx2_max_i(dy0, 0); y < pcsx2_min_i(dy1, dst_h); y++)
+			SampleRowLinear(src, src_pitch, 0, src_h, ((float)(y - dy0) + 0.5f) * ratio,
+				dst + (size_t)y * dst_pitch, w);
+	}
+
+	/* The weave of half-height fields: a line of the current field takes
+	 * its field row, which the merge drew at rows 2j and 2j + 1. */
+	void WeaveHalfFields(
+		const u8* src, int src_pitch, int src_w, int src_h,
+		u8* dst, int dst_pitch, int dst_w, int dst_h,
+		int field)
+	{
+		const int w = pcsx2_min_i(src_w, dst_w);
+		int y;
+		for (y = 0; y < dst_h; y++)
+		{
+			const int sy = 2 * (y >> 1);
+			if ((y & 1) != field || sy >= src_h)
+				continue;
+			memcpy(dst + (size_t)y * dst_pitch, src + (size_t)sy * src_pitch, (size_t)w * 4);
+		}
+	}
+
+	float PixelLuma(u32 p)
+	{
+		return ((float)(p & 0xFFu) * 0.299f + (float)((p >> 8) & 0xFFu) * 0.587f +
+				(float)((p >> 16) & 0xFFu) * 0.114f) * (1.0f / 255.0f);
+	}
+
+	/* The adaptive reconstruction of half-height fields (mad_fields): the
+	 * buffer holds the last four fields whole, one to a quarter, the
+	 * current in slot idx. A field of parity p holds frame line 2j + p at
+	 * its row j; the line between two of its rows reads their mean. The
+	 * current field's lines are taken as they are; between them, the
+	 * previous field's line where the picture holds still, the current
+	 * field's own picture where it moves, blended by the luma motion of
+	 * the lines around against the fields two back. */
+	void MadFields(
+		const u8* src, int src_pitch, int src_w, int src_h,
+		u8* dst, int dst_pitch, int dst_w, int dst_h,
+		int idx, u8* scratch)
+	{
+		const int w = pcsx2_min_i(src_w, dst_w);
+		const int slot_h = src_h / 4;
+		const int field = idx & 1;
+		u8* rows[6];
+		int y, x, k;
+
+		for (k = 0; k < 6; k++)
+			rows[k] = scratch + (size_t)k * w * 4;
+
+		for (y = 0; y < dst_h; y++)
+		{
+			/* mad_field(back, yy): slot (idx - back) & 3, parity (idx ^ back) & 1 */
+			const int want[6][2] = {{0, y}, {1, y}, {0, y - 1}, {2, y - 1}, {0, y + 1}, {2, y + 1}};
+			for (k = 0; k < 6; k++)
+			{
+				const int back = want[k][0], yy = want[k][1];
+				const int slot = (idx - back) & 3;
+				const int par = (idx ^ back) & 1;
+				float r = (float)(yy - par) * 0.5f + 0.5f;
+				if (r < 0.5f) r = 0.5f;
+				if (r > (float)slot_h - 0.5f) r = (float)slot_h - 0.5f;
+				SampleRowLinear(src, src_pitch, slot * slot_h, (slot + 1) * slot_h,
+					(float)(slot * slot_h) + r, rows[k], w);
+			}
+
+			if ((y & 1) == field)
+			{
+				memcpy(dst + (size_t)y * dst_pitch, rows[0], (size_t)w * 4);
+				continue;
+			}
+
+			for (x = 0; x < w; x++)
+			{
+				const u32 cur = LoadPx(rows[0], x);
+				const u32 prev = LoadPx(rows[1], x);
+				float mh, ml, mc, m, t, moving;
+				u32 out = 0;
+				int c;
+				u32 p1, p3;
+				/* mc: field 1 against field 3 on this line */
+				{
+					const int s1 = (idx - 1) & 3, s3 = (idx - 3) & 3;
+					const int par1 = (idx ^ 1) & 1;
+					float r = (float)(y - par1) * 0.5f + 0.5f;
+					int ry;
+					if (r < 0.5f) r = 0.5f;
+					if (r > (float)slot_h - 0.5f) r = (float)slot_h - 0.5f;
+					ry = (int)floorf(r);
+					if (ry > slot_h - 1) ry = slot_h - 1;
+					p1 = LoadPx(src + (size_t)(s1 * slot_h + ry) * src_pitch, x);
+					p3 = LoadPx(src + (size_t)(s3 * slot_h + ry) * src_pitch, x);
+				}
+				mh = fabsf(PixelLuma(LoadPx(rows[2], x)) - PixelLuma(LoadPx(rows[3], x)));
+				ml = fabsf(PixelLuma(LoadPx(rows[4], x)) - PixelLuma(LoadPx(rows[5], x)));
+				mc = fabsf(PixelLuma(p1) - PixelLuma(p3));
+				m = mh > ml ? mh : ml;
+				if (mc > m) m = mc;
+				t = (m - 0.01f) / 0.02f;
+				if (t < 0.0f) t = 0.0f;
+				if (t > 1.0f) t = 1.0f;
+				moving = t * t * (3.0f - 2.0f * t);
+				for (c = 0; c < 32; c += 8)
+				{
+					const float a = (float)((prev >> c) & 0xFFu);
+					const float b = (float)((cur >> c) & 0xFFu);
+					out |= ((u32)(a + (b - a) * moving + 0.5f) & 0xFFu) << c;
+				}
+				StorePx(dst + (size_t)y * dst_pitch, x, out);
+			}
+		}
+	}
 } // anonymous namespace
 
 /* CPU-backed GSDownloadTexture. The SW renderer doesn't actually
@@ -1211,11 +1382,14 @@ void GSDeviceSW::DoInterlace(GSTexture* sTex, const GSVector4& /*sRect*/, GSText
 	 *   x = bufIdx (passed as `field` for weave/blend, 0 for bob)
 	 *   y = 1.0 / dst_height (UV stride per line; unused here)
 	 *   z = dst_height
-	 *   w = rows per frame line, the upscale (1 here; negative for full-height fields)
+	 *   w = rows per frame line, the upscale (1 here), positive for
+	 *       half-height fields and negative for full-height ones
 	 * GSDevice::Interlace casts ZrH.x to int and uses (idx & 1) as
 	 * the field. */
 	const int field   = static_cast<int>(cb.ZrH.x) & 1;
 	const int y_shift = static_cast<int>(std::floor(dRect.y + 0.5f));
+	/* A half-height field (FFMD) passes its block positive. */
+	const bool half_fields = cb.ZrH.w > 0.0f;
 
 	const int src_w   = src->GetWidth();
 	const int src_h   = src->GetHeight();
@@ -1229,16 +1403,30 @@ void GSDeviceSW::DoInterlace(GSTexture* sTex, const GSVector4& /*sRect*/, GSText
 	switch (shader)
 	{
 		case ShaderInterlace::WEAVE:
-			WeaveCopy(src_buf, src_p, src_w, src_h,
-				dst_buf, dst_p, dst_w, dst_h,
-				y_shift, field);
+			if (half_fields)
+				WeaveHalfFields(src_buf, src_p, src_w, src_h,
+					dst_buf, dst_p, dst_w, dst_h, field);
+			else
+				WeaveCopy(src_buf, src_p, src_w, src_h,
+					dst_buf, dst_p, dst_w, dst_h,
+					y_shift, field);
 			break;
 
 		case ShaderInterlace::BOB:
-			BobCopy(src_buf, src_p, src_w, src_h,
-				dst_buf, dst_p, dst_w, dst_h,
-				y_shift);
+		{
+			/* A rect of another height than the source is a slot of the
+			 * adaptive buffer, which keeps the rest of it. */
+			const int dy0 = static_cast<int>(std::floor(dRect.y + 0.5f));
+			const int dy1 = static_cast<int>(std::floor(dRect.w + 0.5f));
+			if (dy1 - dy0 != src_h && dy1 > dy0)
+				BobScaled(src_buf, src_p, src_w, src_h,
+					dst_buf, dst_p, dst_w, dst_h, dy0, dy1);
+			else
+				BobCopy(src_buf, src_p, src_w, src_h,
+					dst_buf, dst_p, dst_w, dst_h,
+					y_shift);
 			break;
+		}
 
 		case ShaderInterlace::BLEND:
 			/* GSDevice::Interlace mode 2 runs WEAVE -> dst, then
@@ -1285,13 +1473,21 @@ void GSDeviceSW::DoInterlace(GSTexture* sTex, const GSVector4& /*sRect*/, GSText
 			 * we have) and linear vertical interpolation (high
 			 * motion -> average the two adjacent same-field
 			 * pixels of the current frame). */
-			const int idx_int       = static_cast<int>(cb.ZrH.x);
-			const int sensitivity_u8 =
-				static_cast<int>(cb.ZrH.w * 255.0f + 0.5f);
+			const int idx_int = static_cast<int>(cb.ZrH.x);
 
-			MadReconstruct(src_buf, src_p, src_w, src_h,
-				dst_buf, dst_p, dst_w, dst_h,
-				idx_int, sensitivity_u8);
+			if (half_fields)
+			{
+				std::vector<u8> scratch(static_cast<size_t>(pcsx2_min_i(src_w, dst_w)) * 4 * 6);
+				MadFields(src_buf, src_p, src_w, src_h,
+					dst_buf, dst_p, dst_w, dst_h, idx_int, scratch.data());
+			}
+			else
+			{
+				/* The shader's sensitivity, 0.08 of full scale. */
+				MadReconstruct(src_buf, src_p, src_w, src_h,
+					dst_buf, dst_p, dst_w, dst_h,
+					idx_int, 20);
+			}
 			break;
 		}
 
