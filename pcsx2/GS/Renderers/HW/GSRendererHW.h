@@ -42,7 +42,6 @@ class GSRendererHW : public GSRenderer
 
 	// Set by a move handler to request that the current transfer bypass the texture
 	// cache and run on local memory (with memory treated as authoritative).
-	bool m_force_cpu_move = false;
 
 public:
 	static constexpr int MAX_FRAMEBUFFER_HEIGHT = 1280;

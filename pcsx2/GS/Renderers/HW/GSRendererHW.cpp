@@ -2153,8 +2153,11 @@ void GSRendererHW::Move()
 	const int w = m_env.TRXREG.RRW;
 	const int h = m_env.TRXREG.RRH;
 
-	if (!m_force_cpu_move &&
-		g_texture_cache->Move(m_env.BITBLTBUF.SBP, m_env.BITBLTBUF.SBW, m_env.BITBLTBUF.SPSM, sx, sy,
+	/* A move between targets happens there: a copy within a format, or
+	 * element by element when it changes format or moves parts of words. */
+	if (g_texture_cache->Move(m_env.BITBLTBUF.SBP, m_env.BITBLTBUF.SBW, m_env.BITBLTBUF.SPSM, sx, sy,
+			m_env.BITBLTBUF.DBP, m_env.BITBLTBUF.DBW, m_env.BITBLTBUF.DPSM, dx, dy, w, h) ||
+		g_texture_cache->MoveInTargets(m_env.BITBLTBUF.SBP, m_env.BITBLTBUF.SBW, m_env.BITBLTBUF.SPSM, sx, sy,
 			m_env.BITBLTBUF.DBP, m_env.BITBLTBUF.DBW, m_env.BITBLTBUF.DPSM, dx, dy, w, h))
 	{
 		m_env.TRXDIR.XDIR = 3;
@@ -2162,12 +2165,7 @@ void GSRendererHW::Move()
 		return;
 	}
 
-	// A move handler that committed its source has made local memory authoritative for
-	// this transfer; a target readback over the source region would destroy the chain.
-	m_move_mem_authoritative = m_force_cpu_move;
-	m_force_cpu_move = false;
 	MoveBase();
-	m_move_mem_authoritative = false;
 }
 
 u16 GSRendererHW::Interpolate_UV(float alpha, int t0, int t1)

@@ -1958,8 +1958,7 @@ void GSState::MoveBase()
 	const int w = m_env.TRXREG.RRW;
 	const int h = m_env.TRXREG.RRH;
 
-	if (!m_move_mem_authoritative)
-		InvalidateLocalMem(m_env.BITBLTBUF, GSVector4i(sx, sy, sx + w, sy + h));
+	InvalidateLocalMem(m_env.BITBLTBUF, GSVector4i(sx, sy, sx + w, sy + h));
 	InvalidateVideoMem(m_env.BITBLTBUF, GSVector4i(dx, dy, dx + w, dy + h));
 
 	const bool overlaps = m_env.BITBLTBUF.SBP == m_env.BITBLTBUF.DBP;

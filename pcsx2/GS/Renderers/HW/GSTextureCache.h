@@ -552,6 +552,32 @@ private:
 	int m_expected_dst_bp = -1;
 	int m_remembered_dst_bp = -1;
 
+	/* The remaps MoveInTargets has built. A game moves the same regions
+	 * the same way every frame, so a remap is kept for the move and the
+	 * targets it was built for, and uploaded once. */
+	struct MoveRemap
+	{
+		GSVector4i dst_rect;         // destination target pixels it rebuilds
+		GSVector4i src_rect;         // source target pixels it reads
+		GSTexture* texture;          // one 32-bit entry per destination element, RGBA8
+		u32 move[12];                // SBP SBW SPSM sx sy DBP DBW DPSM dx dy w h
+		u32 src_tex0[3];             // the source target's TBP0 TBW PSM
+		u32 dst_tex0[3];             // the destination target's
+		u32 last_use;
+		u8 src_type;
+		u8 nibbles;                  // of a destination element
+		u8 entries;                  // destination elements per word
+		bool has_old;                // some words keep bits the move leaves
+		bool writes_rgb;
+		bool writes_alpha;
+	};
+	static constexpr size_t MAX_MOVE_REMAPS = 256;
+	std::vector<MoveRemap> m_move_remaps;
+	u32 m_move_remap_clock = 0;
+
+	void ClearMoveRemaps();
+	MoveRemap* BuildMoveRemap(const u32 move[12], Target* src, Target* dst);
+
 	/* When the cache passes this it is emptied outright. It was 65535,
 	 * and the constructor reserved that many buckets - half a megabyte of
 	 * pointers, touched at random by every lookup, for entries that are
@@ -679,7 +705,10 @@ public:
 	bool CopyRGBFromDepthToColor(Target* dst, Target* depth_src);
 
 	bool Move(u32 SBP, u32 SBW, u32 SPSM, int sx, int sy, u32 DBP, u32 DBW, u32 DPSM, int dx, int dy, int w, int h);
-	void CommitOverlappingTargets(u32 bp);
+	/// A local-memory move worked out on the targets holding its source and
+	/// destination, element by element and one sample at a time, as each
+	/// sample's own memory would see it (see MoveTexelsConstants).
+	bool MoveInTargets(u32 SBP, u32 SBW, u32 SPSM, int sx, int sy, u32 DBP, u32 DBW, u32 DPSM, int dx, int dy, int w, int h);
 	bool ShuffleMove(u32 BP, u32 BW, u32 PSM, int sx, int sy, int dx, int dy, int w, int h);
 	bool PageMove(u32 SBP, u32 DBP, u32 BW, u32 PSM, int sx, int sy, int dx, int dy, int w, int h);
 	void CopyPages(Target* src, u32 sbw, u32 src_offset, Target* dst, u32 dbw, u32 dst_offset, u32 num_pages,

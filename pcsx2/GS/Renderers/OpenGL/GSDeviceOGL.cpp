@@ -454,6 +454,11 @@ bool GSDeviceOGL::Create()
 				m_convert.ps[i].RegisterUniform("DownsampleFactor");
 				m_convert.ps[i].RegisterUniform("Weight");
 			}
+			else if (static_cast<ShaderConvert>(i) == ShaderConvert::MOVE_TEXELS)
+			{
+				m_convert.ps[i].RegisterUniform("MoveA");
+				m_convert.ps[i].RegisterUniform("MoveB");
+			}
 		}
 
 		const PSSamplerSelector point;
@@ -1365,6 +1370,27 @@ void GSDeviceOGL::FilteredDownsampleTexture(GSTexture* sTex, GSTexture* dTex, u3
 	prog.Uniform2iv(0, clamp_min.v);
 	prog.Uniform1i(1, downsample_factor);
 	prog.Uniform1f(2, static_cast<float>(downsample_factor * downsample_factor));
+
+	OMSetDepthStencilState(m_convert.dss);
+	OMSetBlendState(false);
+	OMSetColorMaskState();
+	OMSetRenderTargets(dTex, nullptr);
+
+	PSSetShaderResource(0, sTex);
+	PSSetSamplerState(m_convert.pt);
+
+	DrawStretchRect(GSVector4::zero(), dRect, dTex->GetSize());
+}
+
+void GSDeviceOGL::MoveTexels(GSTexture* sTex, GSTexture* dTex, const GSVector4& dRect, const MoveTexelsConstants& cb)
+{
+	CommitClear(sTex, false);
+
+	constexpr ShaderConvert shader = ShaderConvert::MOVE_TEXELS;
+	GLProgram& prog = m_convert.ps[static_cast<int>(shader)];
+	prog.Bind();
+	prog.Uniform4ui(0, cb.dst_origin, cb.old_base, cb.src_base, cb.remap_base);
+	prog.Uniform4ui(1, cb.flags, 0, 0, 0);
 
 	OMSetDepthStencilState(m_convert.dss);
 	OMSetBlendState(false);

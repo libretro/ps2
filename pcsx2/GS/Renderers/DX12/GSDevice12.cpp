@@ -1420,6 +1420,16 @@ void GSDevice12::FilteredDownsampleTexture(GSTexture* sTex, GSTexture* dTex, u32
 		m_convert[static_cast<int>(shader)].get(), false, true);
 }
 
+void GSDevice12::MoveTexels(GSTexture* sTex, GSTexture* dTex, const GSVector4& dRect, const MoveTexelsConstants& cb)
+{
+	SetUtilityRootSignature();
+	SetUtilityPushConstants(&cb, sizeof(cb));
+
+	const ShaderConvert shader = ShaderConvert::MOVE_TEXELS;
+	DoStretchRect(static_cast<GSTexture12*>(sTex), GSVector4::zero(), static_cast<GSTexture12*>(dTex), dRect,
+		m_convert[static_cast<int>(shader)].get(), false, true);
+}
+
 void GSDevice12::DrawMultiStretchRects(
 	const MultiStretchRect* rects, u32 num_rects, GSTexture* dTex, ShaderConvert shader)
 {

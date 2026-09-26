@@ -4,6 +4,7 @@
 #include <algorithm>
 #include "common/Pcsx2Defs.h"
 #include <memalign.h>
+#include <climits>
 #include <cmath>
 #include <cstring>
 #include <cinttypes>
@@ -88,6 +89,7 @@ void GSTextureCache::RemoveAll(bool sources, bool targets, bool hash_cache)
 		m_target_heights.clear();
 		m_surface_offset_cache.clear();
 		m_target_memory_usage = 0;
+		ClearMoveRemaps();
 	}
 
 	if (hash_cache)
@@ -3899,24 +3901,6 @@ void GSTextureCache::InvalidateLocalMem(const GSOffset& off, const GSVector4i& r
 	}
 }
 
-void GSTextureCache::CommitOverlappingTargets(u32 bp)
-{
-	// Flush any live target containing bp back to local memory, so CPU-side transfers
-	// reading this region observe current data.
-	for (int type = 0; type < 2; type++)
-	{
-		for (Target* t : m_dst[type])
-		{
-			if (t->m_TEX0.TBP0 <= bp && t->UnwrappedEndBlock() >= bp && !t->m_valid.rempty())
-			{
-				t->Update();
-				t->UnscaleRTAlpha();
-				Read(t, t->m_valid);
-			}
-		}
-	}
-}
-
 bool GSTextureCache::Move(u32 SBP, u32 SBW, u32 SPSM, int sx, int sy, u32 DBP, u32 DBW, u32 DPSM, int dx, int dy, int w, int h)
 {
 	if (SBP == DBP && SPSM == DPSM && !GSLocalMemory::m_psm[SPSM].depth && ShuffleMove(SBP, SBW, SPSM, sx, sy, dx, dy, w, h))
@@ -4164,6 +4148,435 @@ bool GSTextureCache::Move(u32 SBP, u32 SBW, u32 SPSM, int sx, int sy, u32 DBP, u
 		dst->m_rt_alpha_scale = src->m_rt_alpha_scale;
 
 	// Invalidate any sources that overlap with the target (since they're now stale).
+	InvalidateVideoMem(g_gs_renderer->m_mem.GetOffset(DBP, DBW, DPSM), GSVector4i(dx, dy, dx + w, dy + h), false);
+	return true;
+}
+
+/* --- moves worked out on the targets --------------------------------------
+ * A local-memory move copies pixels of its source format to pixels of its
+ * destination format, one at a time. Memory is 32-bit words, and every
+ * format's pixel is a run of nibbles in one: all eight of a 32-bit pixel,
+ * the low six of a 24-bit one, half a word, a byte, a nibble, or the top
+ * byte or nibbles for the H formats. A 32-bit target holds a word per
+ * pixel, at the pixel of its own format's layout, so a move between parts
+ * of such targets is a remap: each destination element names the target
+ * pixel and nibble its value comes from. Built at native resolution and
+ * applied to each sample of the target on its own, a sample moves as its
+ * own memory would, and what the move computes from a drawn buffer (bits
+ * of a depth buffer moved into a colour one, say) keeps the resolution the
+ * buffer was drawn at, agreeing sample for sample with anything else drawn
+ * from that buffer, its depth test included. */
+
+namespace
+{
+	struct MoveElementLayout
+	{
+		u8 nibbles;     // nibbles of a pixel
+		u8 addr_shift;  // pixel address to word address
+		s8 fixed;       // the pixel's first nibble, when its format fixes it
+	};
+
+	bool GetMoveElementLayout(u32 psm, MoveElementLayout& l)
+	{
+		switch (psm)
+		{
+			case PSMCT32: case PSMZ32:  l.nibbles = 8; l.addr_shift = 0; l.fixed = 0; return true;
+			case PSMCT24: case PSMZ24:  l.nibbles = 6; l.addr_shift = 0; l.fixed = 0; return true;
+			case PSMCT16: case PSMCT16S:
+			case PSMZ16: case PSMZ16S:  l.nibbles = 4; l.addr_shift = 1; l.fixed = -1; return true;
+			case PSMT8:                 l.nibbles = 2; l.addr_shift = 2; l.fixed = -1; return true;
+			case PSMT4:                 l.nibbles = 1; l.addr_shift = 3; l.fixed = -1; return true;
+			case PSMT8H:                l.nibbles = 2; l.addr_shift = 0; l.fixed = 6; return true;
+			case PSMT4HL:               l.nibbles = 1; l.addr_shift = 0; l.fixed = 6; return true;
+			case PSMT4HH:               l.nibbles = 1; l.addr_shift = 0; l.fixed = 7; return true;
+			default:                    return false;
+		}
+	}
+
+	/* The word and first nibble of pixel (x, y) of a buffer. */
+	__fi void MoveElementAt(const MoveElementLayout& l, u32 psm, u32 bp, u32 bw, int x, int y, u32& word, u32& nibble)
+	{
+		const u32 addr = GSLocalMemory::m_psm[psm].info.pa(x, y, bp, bw);
+		word = (addr >> l.addr_shift) & 0xFFFFFu;
+		nibble = (l.fixed >= 0) ? static_cast<u32>(l.fixed) : (addr & ((1u << l.addr_shift) - 1u)) * l.nibbles;
+	}
+
+	/* Where each word of a page sits in a 32-bit page: x | y << 6, for the
+	 * colour layout and for the depth one. */
+	const u16* MovePageInverse(bool depth)
+	{
+		static u16 s_inverse[2][2048];
+		static bool s_built = false;
+		if (!s_built)
+		{
+			for (int layout = 0; layout < 2; layout++)
+			{
+				const u32 psm = layout ? PSMZ32 : PSMCT32;
+				for (int y = 0; y < 32; y++)
+					for (int x = 0; x < 64; x++)
+						s_inverse[layout][GSLocalMemory::m_psm[psm].info.pa(x, y, 0, 1) & 2047u] = static_cast<u16>(x | (y << 6));
+			}
+			s_built = true;
+		}
+		return s_inverse[depth ? 1 : 0];
+	}
+
+	/* A target that holds a word per pixel, laid out from a page boundary. */
+	bool IsWordTarget(const GSTextureCache::Target* t)
+	{
+		const u32 psm = t->m_TEX0.PSM;
+		return (psm == PSMCT32 || psm == PSMCT24 || psm == PSMZ32 || psm == PSMZ24) && t->m_TEX0.TBW > 0 &&
+			   (t->m_TEX0.TBP0 & 31u) == 0 && t->m_texture && t->m_scale >= 1.0f && t->m_scale == std::floor(t->m_scale);
+	}
+
+	/* The target pixel holding a word, false when the target does not. */
+	__fi bool TargetPixelOfWord(const GSTextureCache::Target* t, const u16* inverse, u32 word, int& x, int& y)
+	{
+		const u32 tbw = t->m_TEX0.TBW;
+		const u32 page = ((word >> 11) - (t->m_TEX0.TBP0 >> 5)) & 511u;
+		const u32 in = inverse[word & 2047u];
+		x = static_cast<int>((page % tbw) * 64 + (in & 63u));
+		y = static_cast<int>((page / tbw) * 32 + (in >> 6));
+		return x < t->m_unscaled_size.x && y < t->m_unscaled_size.y;
+	}
+
+	struct MoveRecord
+	{
+		u16 dx, dy, sx, sy;
+		u8 slot, sn;
+	};
+}
+
+void GSTextureCache::ClearMoveRemaps()
+{
+	for (MoveRemap& r : m_move_remaps)
+		g_gs_device->Recycle(r.texture);
+	m_move_remaps.clear();
+}
+
+GSTextureCache::MoveRemap* GSTextureCache::BuildMoveRemap(const u32 move[12], Target* src, Target* dst)
+{
+	const u32 SBP = move[0], SBW = move[1], SPSM = move[2], DBP = move[5], DBW = move[6], DPSM = move[7];
+	const int sx = static_cast<int>(move[3]), sy = static_cast<int>(move[4]);
+	const int dx = static_cast<int>(move[8]), dy = static_cast<int>(move[9]);
+	const int w = static_cast<int>(move[10]), h = static_cast<int>(move[11]);
+	MoveElementLayout sl, dl;
+	if (!GetMoveElementLayout(SPSM, sl) || !GetMoveElementLayout(DPSM, dl))
+		return nullptr;
+
+	const u16* s_inv = MovePageInverse(GSLocalMemory::m_psm[src->m_TEX0.PSM].depth != 0);
+	const u16* d_inv = MovePageInverse(GSLocalMemory::m_psm[dst->m_TEX0.PSM].depth != 0);
+	const u32 entries = 8u / dl.nibbles;
+
+	std::vector<MoveRecord> recs;
+	recs.reserve(static_cast<size_t>(w) * static_cast<size_t>(h));
+	GSVector4i drect(INT_MAX, INT_MAX, INT_MIN, INT_MIN), srect(INT_MAX, INT_MAX, INT_MIN, INT_MIN);
+	u32 s_lo = 0xFFFFFFFFu, s_hi = 0, d_lo = 0xFFFFFFFFu, d_hi = 0;
+	for (int j = 0; j < h; j++)
+	{
+		for (int i = 0; i < w; i++)
+		{
+			u32 sw, sn, dw, dn;
+			int tsx, tsy, tdx, tdy;
+			MoveElementAt(sl, SPSM, SBP, SBW, sx + i, sy + j, sw, sn);
+			MoveElementAt(dl, DPSM, DBP, DBW, dx + i, dy + j, dw, dn);
+			if (!TargetPixelOfWord(src, s_inv, sw, tsx, tsy) || !TargetPixelOfWord(dst, d_inv, dw, tdx, tdy))
+				return nullptr;
+			/* The source must hold the element's data, the destination
+			 * pixel exist; a slot is a whole element of the destination. */
+			if (!src->m_valid.rintersect(GSVector4i(tsx, tsy, tsx + 1, tsy + 1)).eq(GSVector4i(tsx, tsy, tsx + 1, tsy + 1)) ||
+				(dn % dl.nibbles) != 0)
+				return nullptr;
+			MoveRecord r;
+			r.dx = static_cast<u16>(tdx);
+			r.dy = static_cast<u16>(tdy);
+			r.sx = static_cast<u16>(tsx);
+			r.sy = static_cast<u16>(tsy);
+			r.slot = static_cast<u8>(dn / dl.nibbles);
+			r.sn = static_cast<u8>(sn);
+			recs.push_back(r);
+			drect = drect.runion(GSVector4i(tdx, tdy, tdx + 1, tdy + 1));
+			srect = srect.runion(GSVector4i(tsx, tsy, tsx + 1, tsy + 1));
+			s_lo = pcsx2_min_u(s_lo, sw); s_hi = pcsx2_max_u(s_hi, sw);
+			d_lo = pcsx2_min_u(d_lo, dw); d_hi = pcsx2_max_u(d_hi, dw);
+		}
+	}
+	if (recs.empty())
+		return nullptr;
+
+	/* The GS moves one pixel after another, and a move whose destination
+	 * overwrites nibbles it has yet to read depends on that order; those
+	 * stay in local memory. */
+	if (s_lo <= d_hi && d_lo <= s_hi)
+	{
+		static std::vector<u64> s_marks;
+		if (s_marks.empty())
+			s_marks.resize((1u << 20) * 8u / 64u);
+		bool overlap = false;
+		for (int pass = 0; pass < 3 && !overlap; pass++)
+		{
+			for (int j = 0; j < h && !overlap; j++)
+			{
+				for (int i = 0; i < w; i++)
+				{
+					u32 word, nib;
+					if (pass == 1)
+						MoveElementAt(sl, SPSM, SBP, SBW, sx + i, sy + j, word, nib);
+					else
+						MoveElementAt(dl, DPSM, DBP, DBW, dx + i, dy + j, word, nib);
+					const u32 count = (pass == 1) ? sl.nibbles : dl.nibbles;
+					for (u32 k = 0; k < count; k++)
+					{
+						const u32 bit = word * 8u + nib + k;
+						u64& m = s_marks[bit >> 6];
+						const u64 b = 1ull << (bit & 63u);
+						if (pass == 0)
+							m |= b;
+						else if (pass == 2)
+							m &= ~b;
+						else if (m & b)
+							overlap = true;
+					}
+				}
+			}
+		}
+		if (overlap)
+		{
+			/* Clear what the marking pass left. */
+			for (int j = 0; j < h; j++)
+				for (int i = 0; i < w; i++)
+				{
+					u32 word, nib;
+					MoveElementAt(dl, DPSM, DBP, DBW, dx + i, dy + j, word, nib);
+					for (u32 k = 0; k < dl.nibbles; k++)
+						s_marks[(word * 8u + nib + k) >> 6] &= ~(1ull << ((word * 8u + nib + k) & 63u));
+				}
+			return nullptr;
+		}
+	}
+
+	const int rw = drect.width(), rh = drect.height();
+	if (srect.width() > 8191 || srect.height() > 8191 || rw * static_cast<int>(entries) > 16384)
+		return nullptr;
+
+	std::vector<u32> table(static_cast<size_t>(rw) * entries * static_cast<size_t>(rh), 0u);
+	std::vector<u8> covered(static_cast<size_t>(rw) * static_cast<size_t>(rh), 0u);
+	for (const MoveRecord& r : recs)
+	{
+		const int x = r.dx - drect.x, y = r.dy - drect.y;
+		table[static_cast<size_t>(y) * rw * entries + static_cast<size_t>(x) * entries + r.slot] =
+			0x80000000u | (static_cast<u32>(r.sn) << 26) | (static_cast<u32>(r.sy - srect.y) << 13) | static_cast<u32>(r.sx - srect.x);
+		covered[static_cast<size_t>(y) * rw + x] |= static_cast<u8>(((1u << dl.nibbles) - 1u) << (r.slot * dl.nibbles));
+	}
+	bool has_old = false;
+	u8 written = 0;
+	for (u8 c : covered)
+	{
+		has_old |= (c != 0xFF);
+		written |= c;
+	}
+	/* Bits the move leaves come from the target, which has to hold them. */
+	if (has_old && !dst->m_valid.rintersect(drect).eq(drect))
+		return nullptr;
+
+	GSTexture* tex = g_gs_device->CreateTexture(rw * static_cast<int>(entries), rh, 1, GSTexture::Format::Color);
+	if (!tex)
+		return nullptr;
+	tex->Update(GSVector4i(0, 0, rw * static_cast<int>(entries), rh), table.data(), rw * static_cast<int>(entries) * 4);
+
+	if (m_move_remaps.size() >= MAX_MOVE_REMAPS)
+	{
+		auto oldest = m_move_remaps.begin();
+		for (auto it = m_move_remaps.begin(); it != m_move_remaps.end(); ++it)
+			if (it->last_use < oldest->last_use)
+				oldest = it;
+		g_gs_device->Recycle(oldest->texture);
+		m_move_remaps.erase(oldest);
+	}
+
+	MoveRemap m;
+	m.texture = tex;
+	m.dst_rect = drect;
+	m.src_rect = srect;
+	memcpy(m.move, move, sizeof(m.move));
+	m.src_tex0[0] = src->m_TEX0.TBP0; m.src_tex0[1] = src->m_TEX0.TBW; m.src_tex0[2] = src->m_TEX0.PSM;
+	m.dst_tex0[0] = dst->m_TEX0.TBP0; m.dst_tex0[1] = dst->m_TEX0.TBW; m.dst_tex0[2] = dst->m_TEX0.PSM;
+	m.last_use = m_move_remap_clock;
+	m.src_type = static_cast<u8>(src->m_type);
+	m.nibbles = dl.nibbles;
+	m.entries = static_cast<u8>(entries);
+	m.has_old = has_old;
+	m.writes_rgb = (written & 0x3F) != 0;
+	m.writes_alpha = (written & 0xC0) != 0;
+	m_move_remaps.push_back(m);
+	return &m_move_remaps.back();
+}
+
+bool GSTextureCache::MoveInTargets(u32 SBP, u32 SBW, u32 SPSM, int sx, int sy, u32 DBP, u32 DBW, u32 DPSM, int dx, int dy, int w, int h)
+{
+	MoveElementLayout sl, dl;
+	if (w <= 0 || h <= 0 || sx < 0 || sy < 0 || dx < 0 || dy < 0 || !GetMoveElementLayout(SPSM, sl) ||
+		!GetMoveElementLayout(DPSM, dl) || dl.nibbles > sl.nibbles)
+		return false;
+
+	const u32 move[12] = {SBP, SBW, SPSM, static_cast<u32>(sx), static_cast<u32>(sy), DBP, DBW, DPSM,
+		static_cast<u32>(dx), static_cast<u32>(dy), static_cast<u32>(w), static_cast<u32>(h)};
+	m_move_remap_clock++;
+
+	const auto find_target = [this](int type, const u32 tex0[3]) -> Target* {
+		for (Target* t : m_dst[type])
+			if (t->m_TEX0.TBP0 == tex0[0] && t->m_TEX0.TBW == tex0[1] && t->m_TEX0.PSM == tex0[2] && IsWordTarget(t))
+				return t;
+		return nullptr;
+	};
+
+	MoveRemap* remap = nullptr;
+	Target* src = nullptr;
+	Target* dst = nullptr;
+	for (MoveRemap& r : m_move_remaps)
+	{
+		if (memcmp(r.move, move, sizeof(move)) != 0)
+			continue;
+		src = find_target(r.src_type, r.src_tex0);
+		dst = find_target(RenderTarget, r.dst_tex0);
+		if (src && dst && src->m_valid.rintersect(r.src_rect).eq(r.src_rect) &&
+			(!r.has_old || dst->m_valid.rintersect(r.dst_rect).eq(r.dst_rect)) &&
+			r.dst_rect.z <= dst->m_unscaled_size.x && r.dst_rect.w <= dst->m_unscaled_size.y)
+		{
+			remap = &r;
+			break;
+		}
+		src = dst = nullptr;
+	}
+
+	if (!remap)
+	{
+		/* The source: a word target holding every element read, depth
+		 * first for a depth format; the destination a colour one. */
+		const int first = GSLocalMemory::m_psm[SPSM].depth ? DepthStencil : RenderTarget;
+		const auto try_pair = [&](Target* d) -> bool {
+			for (int k = 0; k < 2 && !remap; k++)
+			{
+				const int type = k ? (1 - first) : first;
+				for (Target* t : m_dst[type])
+				{
+					if (!IsWordTarget(t) || t->m_scale != d->m_scale)
+						continue;
+					remap = BuildMoveRemap(move, t, d);
+					if (remap)
+					{
+						src = t;
+						dst = d;
+						break;
+					}
+				}
+			}
+			return remap != nullptr;
+		};
+		for (Target* d : m_dst[RenderTarget])
+		{
+			if (IsWordTarget(d) && d->m_TEX0.PSM == PSMCT32 && try_pair(d))
+				break;
+		}
+
+		/* A move to the start of a buffer no target holds yet makes one, as
+		 * Move does for a copy between targets. */
+		if (!remap && DPSM == PSMCT32 && dx == 0 && dy == 0 && ((static_cast<u32>(w) + 63) / 64) <= DBW)
+		{
+			Target* any_src = nullptr;
+			for (int type = 0; type < 2 && !any_src; type++)
+				for (Target* t : m_dst[type])
+					if (IsWordTarget(t) && t->Overlaps(SBP, SBW, SPSM, GSVector4i(sx, sy, sx + w, sy + h)))
+					{
+						any_src = t;
+						break;
+					}
+			if (any_src)
+			{
+				GIFRegTEX0 new_TEX0 = {};
+				new_TEX0.TBP0 = DBP;
+				new_TEX0.TBW = DBW;
+				new_TEX0.PSM = DPSM;
+				const GSVector2i size = GetTargetSize(DBP, DBW, DPSM, pcsx2_align_up_pow2_u32(w, 64), h);
+				Target* d = LookupTarget(new_TEX0, size, any_src->m_scale, RenderTarget);
+				if (!d)
+					d = CreateTarget(new_TEX0, size, size, any_src->m_scale, RenderTarget);
+				if (d && IsWordTarget(d) && d->m_TEX0.PSM == PSMCT32)
+				{
+					try_pair(d);
+				}
+			}
+		}
+		if (!remap)
+			return false;
+	}
+	remap->last_use = m_move_remap_clock;
+
+	const int scale = static_cast<int>(dst->m_scale);
+	const GSVector4i drect = remap->dst_rect, srect = remap->src_rect;
+	const GSVector4i d_scaled(drect.x * scale, drect.y * scale, drect.z * scale, drect.w * scale);
+	const GSVector4i s_scaled(srect.x * scale, srect.y * scale, srect.z * scale, srect.w * scale);
+	const int old_h = remap->has_old ? drect.height() * scale : 0;
+	const int src_h = srect.height() * scale;
+	const int remap_w = drect.width() * remap->entries;
+	const int stage_w = pcsx2_max_i(pcsx2_max_i(drect.width() * scale, srect.width() * scale), remap_w);
+	const int stage_h = old_h + src_h + drect.height();
+	if (stage_w > 16384 || stage_h > 16384)
+		return false;
+
+	/* Data the EE left in local memory goes in first, and alpha is read as
+	 * it is stored. */
+	src->UpdateIfDirtyIntersects(srect);
+	dst->Update();
+	if (src->m_type == RenderTarget)
+		src->UnscaleRTAlpha();
+	dst->UnscaleRTAlpha();
+
+	GSTexture* stage = g_gs_device->CreateRenderTarget(stage_w, stage_h, GSTexture::Format::Color, false);
+	if (!stage)
+		return false;
+	if (remap->has_old)
+		g_gs_device->CopyRect(dst->m_texture, stage, d_scaled, 0, 0);
+	if (src->m_type == DepthStencil)
+	{
+		const GSVector4 sr = GSVector4(s_scaled) / GSVector4(src->m_texture->GetSize()).xyxy();
+		g_gs_device->StretchRect(src->m_texture, sr, stage,
+			GSVector4(0.0f, static_cast<float>(old_h), static_cast<float>(s_scaled.width()), static_cast<float>(old_h + src_h)),
+			ShaderConvert::FLOAT32_TO_RGBA8, false);
+	}
+	else
+	{
+		g_gs_device->CopyRect(src->m_texture, stage, s_scaled, 0, old_h);
+	}
+	g_gs_device->CopyRect(remap->texture, stage, GSVector4i(0, 0, remap_w, drect.height()), 0, old_h + src_h);
+
+	MoveTexelsConstants cb = {};
+	const auto pair = [](int x, int y) { return static_cast<u32>(x) | (static_cast<u32>(y) << 16); };
+	cb.dst_origin = pair(drect.x, drect.y);
+	cb.old_base = pair(0, 0);
+	cb.src_base = pair(0, old_h);
+	cb.remap_base = pair(0, old_h + src_h);
+	cb.flags = static_cast<u32>(scale) | (static_cast<u32>(remap->nibbles) << 8) | (static_cast<u32>(remap->entries) << 16) |
+			   (remap->has_old ? (1u << 24) : 0u);
+	const bool done = g_gs_device->MoveTexels(stage, dst->m_texture, GSVector4(d_scaled), cb);
+	g_gs_device->Recycle(stage);
+	if (!done)
+		return false;
+
+	dst->UpdateValidity(drect);
+	dst->UpdateDrawn(drect);
+	dst->m_valid_rgb |= remap->writes_rgb;
+	dst->m_valid_alpha_low |= remap->writes_alpha;
+	dst->m_valid_alpha_high |= remap->writes_alpha;
+	/* What a move puts in the alpha byte can be anything. */
+	if (remap->writes_alpha)
+	{
+		dst->m_alpha_min = 0;
+		dst->m_alpha_max = 255;
+		dst->m_alpha_range = true;
+	}
+
+	/* Sources made from the destination's memory are stale now. */
 	InvalidateVideoMem(g_gs_renderer->m_mem.GetOffset(DBP, DBW, DPSM), GSVector4i(dx, dy, dx + w, dy + h), false);
 	return true;
 }

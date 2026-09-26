@@ -60,6 +60,7 @@ enum class ShaderConvert
 	DEPTH_COPY,
 	DOWNSAMPLE_COPY,
 	RGBA_TO_8I,
+	MOVE_TEXELS,
 	CLUT_4,
 	CLUT_8,
 	YUV,
@@ -186,6 +187,24 @@ struct alignas(16) MergeConstantBuffer
 	u32 EMODC;
 	u32 DOFFSET;
 	float ScaleFactor;
+};
+
+/* A local-memory move worked out on the targets (ps_move_texels), packed
+ * so that it fits every backend's utility constants, 32 bytes on D3D11.
+ * Pairs are x | y << 16, in texels of the staging texture the move reads:
+ * the old words of the destination block, the source block, and the
+ * remap, one 32-bit entry per destination element. flags is
+ * scale | nibbles << 8 | entries << 16 | has_old << 24: the integer
+ * scale, the nibbles of a destination element, the elements a word holds
+ * (8 / nibbles), and whether the words keep the bits the move leaves. */
+struct alignas(16) MoveTexelsConstants
+{
+	u32 dst_origin;
+	u32 old_base;
+	u32 src_base;
+	u32 remap_base;
+	u32 flags;
+	u32 pad[3];
 };
 
 struct alignas(16) InterlaceConstantBuffer
@@ -973,6 +992,10 @@ public:
 	/// Uses box downsampling to resize a texture.
 	void FilteredDownsampleTexture(GSTexture* sTex, GSTexture* dTex, u32 downsample_factor, const GSVector2i& clamp_min, const GSVector4& dRect);
 
+	/// Rebuilds the words of dTex in dRect from the staging texture sTex
+	/// (see MoveTexelsConstants). False when the device has no such pass.
+	bool MoveTexels(GSTexture* sTex, GSTexture* dTex, const GSVector4& dRect, const MoveTexelsConstants& cb);
+
 	void RenderHW(GSHWDrawConfig& config);
 
 	void ClearSamplerCache();
@@ -1053,6 +1076,7 @@ struct gs_device_ops
 	void       (*update_clut_texture)(GSDevice* dev, GSTexture* sTex, float sScale, u32 offsetX, u32 offsetY, GSTexture* dTex, u32 dOffset, u32 dSize, u32 samples);
 	void       (*convert_to_indexed_texture)(GSDevice* dev, GSTexture* sTex, float sScale, u32 offsetX, u32 offsetY, u32 SBW, u32 SPSM, GSTexture* dTex, u32 DBW, u32 DPSM);
 	void       (*filtered_downsample_texture)(GSDevice* dev, GSTexture* sTex, GSTexture* dTex, u32 downsample_factor, const GSVector2i* clamp_min, const GSVector4* dRect);
+	void       (*move_texels)(GSDevice* dev, GSTexture* sTex, GSTexture* dTex, const GSVector4* dRect, const MoveTexelsConstants* cb);
 	void       (*render_hw)(GSDevice* dev, GSHWDrawConfig* config);
 	void       (*clear_sampler_cache)(GSDevice* dev);
 };
@@ -1099,6 +1123,13 @@ __forceinline_odr void GSDevice::ConvertToIndexedTexture(GSTexture* sTex, float 
 { GS_DEVICE_CALL(convert_to_indexed_texture, sTex, sScale, offsetX, offsetY, SBW, SPSM, dTex, DBW, DPSM); }
 __forceinline_odr void GSDevice::FilteredDownsampleTexture(GSTexture* sTex, GSTexture* dTex, u32 downsample_factor, const GSVector2i& clamp_min, const GSVector4& dRect)
 { GS_DEVICE_CALL(filtered_downsample_texture, sTex, dTex, downsample_factor, &clamp_min, &dRect); }
+__forceinline_odr bool GSDevice::MoveTexels(GSTexture* sTex, GSTexture* dTex, const GSVector4& dRect, const MoveTexelsConstants& cb)
+{
+	if (!m_ops->move_texels)
+		return false;
+	GS_DEVICE_CALL(move_texels, sTex, dTex, &dRect, &cb);
+	return true;
+}
 __forceinline_odr void GSDevice::RenderHW(GSHWDrawConfig& config) { GS_DEVICE_CALL(render_hw, &config); }
 __forceinline_odr void GSDevice::ClearSamplerCache() { if (m_ops->clear_sampler_cache) GS_DEVICE_CALL(clear_sampler_cache); }
 
@@ -1130,6 +1161,7 @@ struct klass##_ops_access { \
 	static void       tag##_update_clut_texture(GSDevice* d, GSTexture* sTex, float sScale, u32 offsetX, u32 offsetY, GSTexture* dTex, u32 dOffset, u32 dSize, u32 samples) { static_cast<klass*>(d)->UpdateCLUTTexture(sTex, sScale, offsetX, offsetY, dTex, dOffset, dSize, samples); } \
 	static void       tag##_convert_to_indexed_texture(GSDevice* d, GSTexture* sTex, float sScale, u32 offsetX, u32 offsetY, u32 SBW, u32 SPSM, GSTexture* dTex, u32 DBW, u32 DPSM) { static_cast<klass*>(d)->ConvertToIndexedTexture(sTex, sScale, offsetX, offsetY, SBW, SPSM, dTex, DBW, DPSM); } \
 	static void       tag##_filtered_downsample_texture(GSDevice* d, GSTexture* sTex, GSTexture* dTex, u32 factor, const GSVector2i* clamp_min, const GSVector4* dRect) { static_cast<klass*>(d)->FilteredDownsampleTexture(sTex, dTex, factor, *clamp_min, *dRect); } \
+	static void       tag##_move_texels(GSDevice* d, GSTexture* sTex, GSTexture* dTex, const GSVector4* dRect, const MoveTexelsConstants* cb) { static_cast<klass*>(d)->MoveTexels(sTex, dTex, *dRect, *cb); } \
 	static void       tag##_render_hw(GSDevice* d, GSHWDrawConfig* config) { static_cast<klass*>(d)->RenderHW(*config); } \
 	static void       tag##_clear_sampler_cache(GSDevice* d) { static_cast<klass*>(d)->ClearSamplerCache(); } \
 };
@@ -1147,6 +1179,7 @@ struct klass##_ops_access { \
 		klass##_ops_access::tag##_draw_multi_stretch_rects, klass##_ops_access::tag##_update_clut_texture, \
 		klass##_ops_access::tag##_convert_to_indexed_texture, \
 		klass##_ops_access::tag##_filtered_downsample_texture, \
+		klass##_ops_access::tag##_move_texels, \
 		klass##_ops_access::tag##_render_hw, klass##_ops_access::tag##_clear_sampler_cache }
 
 #define GS_DEVICE_OPS_DEFINE(klass, tag) GS_DEVICE_OPS_THUNKS(klass, tag) GS_DEVICE_OPS_TABLE(klass, tag)

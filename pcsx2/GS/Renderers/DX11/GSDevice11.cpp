@@ -1046,6 +1046,17 @@ void GSDevice11::FilteredDownsampleTexture(GSTexture* sTex, GSTexture* dTex, u32
 	StretchRect(sTex, GSVector4::zero(), dTex, dRect, m_convert.ps[static_cast<int>(shader)].get(), m_merge.cb.get(), nullptr, false);
 }
 
+void GSDevice11::MoveTexels(GSTexture* sTex, GSTexture* dTex, const GSVector4& dRect, const MoveTexelsConstants& cb)
+{
+	// The merge layout carries it: BGColor the four pairs, EMODA the flags.
+	MergeConstantBuffer mcb;
+	memcpy(&mcb, &cb, sizeof(mcb));
+	m_ctx->UpdateSubresource(m_merge.cb.get(), 0, nullptr, &mcb, 0, 0);
+
+	const ShaderConvert shader = ShaderConvert::MOVE_TEXELS;
+	StretchRect(sTex, GSVector4::zero(), dTex, dRect, m_convert.ps[static_cast<int>(shader)].get(), m_merge.cb.get(), nullptr, false);
+}
+
 void GSDevice11::DrawMultiStretchRects(const MultiStretchRect* rects, u32 num_rects, GSTexture* dTex, ShaderConvert shader)
 {
 	IASetInputLayout(m_convert.il.get());

@@ -1057,35 +1057,6 @@ bool GSHwHack::MV_Growlanser(GSRendererHW& r)
 	return true;
 }
 
-bool GSHwHack::MV_Ico(GSRendererHW& r)
-{
-	// Ico unswizzles the depth buffer (usually) 0x1800 to (usually) 0x2800 with a Z32->C32 move,
-	// then runs a series of in-place P4 moves before sampling the result as a P8H fog LUT index
-	// field. The previous channel-shuffle HLE approximated this on the GPU, but the local memory
-	// it left behind diverged from real-GS evolution (measured against the software renderer),
-	// poisoning anything that later reads this region through CPU paths. Commit the live depth
-	// target instead and let the moves run exactly on local memory.
-
-	// Follow-up P4 shuffle moves of the same sequence: transform the committed memory directly.
-	if (r.s_n == s_last_hacked_move_n && RSPSM == PSMT4 && RDPSM == PSMT4)
-	{
-		r.m_force_cpu_move = true;
-		return false;
-	}
-
-	// 512x448 moves from Z32->C32.
-	if (RSPSM != PSMZ32 || RDPSM != PSMCT32 || RWIDTH < 512 || RHEIGHT < 448)
-		return false;
-
-	// The CPU move below reads local memory, but the depth source lives in a GPU target;
-	// flush it (and anything else overlapping) back first.
-	g_texture_cache->CommitOverlappingTargets(RSBP);
-
-	s_last_hacked_move_n = r.s_n;
-	r.m_force_cpu_move = true;
-	return false;
-}
-
 #undef RBITBLTBUF
 #undef RSBP
 #undef RSBW
@@ -1147,7 +1118,6 @@ const GSHwHack::Entry<GSRendererHW::OI_Ptr> GSHwHack::s_before_draw_functions[] 
 
 const GSHwHack::Entry<GSRendererHW::MV_Ptr> GSHwHack::s_move_handler_functions[] = {
 	CRC_F(MV_Growlanser),
-	CRC_F(MV_Ico),
 };
 
 #undef CRC_F

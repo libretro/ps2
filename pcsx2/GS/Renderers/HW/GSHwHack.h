@@ -46,7 +46,6 @@ public:
 	static bool OI_Battlefield2(GSRendererHW& r, GSTexture* rt, GSTexture* ds, GSTextureCache::Source* t);
 
 	static bool MV_Growlanser(GSRendererHW& r);
-	static bool MV_Ico(GSRendererHW& r);
 
 	template <typename F>
 	struct Entry

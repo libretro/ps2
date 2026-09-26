@@ -1072,6 +1072,7 @@ static const struct gs_device_ops s_sw_device_ops = {
 	GSDeviceSW_ops_access::sw_dev_update_clut_texture,
 	GSDeviceSW_ops_access::sw_dev_convert_to_indexed_texture,
 	GSDeviceSW_ops_access::sw_dev_filtered_downsample_texture,
+	NULL, /* move_texels: the software renderer moves in local memory */
 	GSDeviceSW_ops_access::sw_dev_render_hw,
 	NULL  /* clear_sampler_cache */
 };
