@@ -73,7 +73,7 @@ namespace
 	constexpr u32 kRamWords = kRamBytes >> 2;
 	BlockFn*      s_lut      = nullptr;
 	inline bool InRam(u32 np) { return np < kRamBytes; }
-	inline void LutClearAll() { if (s_lut) madvise(s_lut, (size_t)kRamWords * sizeof(BlockFn), MADV_DONTNEED); }
+	inline void LutClearAll() { if (s_lut) jit_zero_pages(s_lut, (size_t)kRamWords * sizeof(BlockFn)); }
 
 	// Word-granular "native code covers this RAM word" bitmap (64KB). Every IOP
 	// RAM store lands in recClearIOP, so the common case (word with no compiled

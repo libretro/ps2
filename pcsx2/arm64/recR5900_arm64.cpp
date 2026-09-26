@@ -191,7 +191,7 @@ namespace
 
 	inline u32  Norm(u32 a)  { return a & 0x1fffffff; }
 	inline bool InRam(u32 np) { return np < kRamBytes; }
-	inline void LutClearAll() { if (s_lut) madvise(s_lut, (size_t)kRamWords * sizeof(BlockFn), MADV_DONTNEED); }
+	inline void LutClearAll() { if (s_lut) jit_zero_pages(s_lut, (size_t)kRamWords * sizeof(BlockFn)); }
 
 	// C.46: the whole cpuRegisters struct sits within the ldr/str immediate
 	// window of the guest-reg base already pinned in x19, so reach its fields
