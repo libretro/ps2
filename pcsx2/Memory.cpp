@@ -47,6 +47,10 @@ BIOS
 #include "ps2/BiosTools.h"
 #include "SPU2/spu2.h"
 
+#if defined(_WIN32)
+#include "common/RedtapeWindows.h"
+#endif
+
 namespace HostMemoryMap
 {
 	extern "C" {
@@ -54,42 +58,122 @@ namespace HostMemoryMap
 	}
 } // namespace HostMemoryMap
 
-/// Attempts to find a spot near static variables for the main memory
-static VirtualMemoryManagerPtr AllocateVirtualMemory(const char* name, size_t size, size_t offset_from_base)
-{
-#if defined(_WIN32)
-	// Everything looks nicer when the start of all the sections is a nice round looking number.
-	// Also reduces the variation in the address due to small changes in code.
-	// Breaks ASLR but so does anything else that tries to make addresses constant for our debugging pleasure
-	uptr codeBase = (uptr)(void*)AllocateVirtualMemory / (1 << 28) * (1 << 28);
+/* The recompilers address this module's globals (cpuRegs, vuRegs, the
+ * constant tables) with RIP-relative or abs32 operands, so every code
+ * reservation has to sit within +-2GB of the module's data. When it does
+ * not, the C89 emitter cannot encode the operand and aborts at the first
+ * emission (FATAL_APP_EXIT on Windows, SIGABRT elsewhere); before the
+ * emitter grew that check the displacement was silently truncated instead.
+ *
+ * The old placement tried eleven fixed 256MB-aligned bases around the
+ * module and fell back to wherever the OS put it. Inside RetroArch, which
+ * has loaded dozens of DLLs, a GPU driver and its own heaps around the
+ * core, none of those eleven exact bases is free often enough that the
+ * fallback was hit at random from run to run (ASLR), and the core died the
+ * moment a game started using the VUs. macOS and Linux never attempted a
+ * near placement at all.
+ *
+ * Now: walk the free address space within a window of +-1.75GB around the
+ * module (the 0.25GB of slack covers the image itself) and take the first
+ * hole that fits. On Windows VirtualQuery enumerates the holes exactly; on
+ * the mman platforms the kernel only takes hints, so step candidate bases
+ * through the window and keep the first mapping the kernel honoured. */
 
-	// The allocation is ~640MB in size, slighly under 3*2^28.
-	// We'll hope that the code generated for the PCSX2 executable stays under 512MB (which is likely)
-	// On x86-64, code can reach 8*2^28 from its address [-6*2^28, 4*2^28] is the region that allows for code in the 640MB allocation 
-	// to reach 512MB of code that either starts at codeBase or 256MB before it.
-	// We start high and count down because on macOS code starts at the beginning of useable address space, so starting as far ahead 
-	// as possible reduces address variations due to code size.  Not sure about other platforms.  Obviously this only actually 
-	// affects what shows up in a debugger and won't affect performance or correctness of anything.
-	for (int offset = 4; offset >= -6; offset--)
+static const uptr NEAR_WINDOW = 0x70000000; /* 1.75GB */
+
+static inline uptr near_anchor(void)
+{
+	return (uptr)(void*)&near_anchor;
+}
+
+static VirtualMemoryManagerPtr TryAt(const char* name, uptr base, size_t size)
+{
+	/* VTLB will throw a fit if we try to put EE main memory here */
+	if ((sptr)base < 0 || (sptr)(base + size - 1) < 0)
+		return nullptr;
+	VirtualMemoryManagerPtr mgr = std::make_shared<VirtualMemoryManager>(name, base, size, /*upper_bounds=*/0, /*strict=*/true);
+	if (mgr->IsOk())
+		return mgr;
+	return nullptr;
+}
+
+#if defined(_WIN32)
+static VirtualMemoryManagerPtr AllocateNearModule(const char* name, size_t size)
+{
+	const uptr anchor = near_anchor();
+	const uptr lo     = (anchor > NEAR_WINDOW) ? (anchor - NEAR_WINDOW) : 0x10000;
+	const uptr hi     = anchor + NEAR_WINDOW;
+	uptr addr         = lo;
+	MEMORY_BASIC_INFORMATION mbi;
+
+	while (addr < hi && VirtualQuery((LPCVOID)addr, &mbi, sizeof(mbi)) == sizeof(mbi))
 	{
-		uptr base = codeBase + (offset << 28) + offset_from_base;
-		// VTLB will throw a fit if we try to put EE main memory here
-		if ((sptr)base < 0 || (sptr)(base + size - 1) < 0)
-			continue;
-		VirtualMemoryManagerPtr mgr = std::make_shared<VirtualMemoryManager>(name, base, size, /*upper_bounds=*/0, /*strict=*/true);
-		if (mgr->IsOk())
+		const uptr region_base = (uptr)mbi.BaseAddress;
+		const uptr region_end  = region_base + (uptr)mbi.RegionSize;
+		if (mbi.State == MEM_FREE)
+		{
+			/* Reservations land on the 64K allocation granularity. */
+			uptr cand = (region_base + 0xFFFF) & ~(uptr)0xFFFF;
+			if (cand < lo)
+				cand = (lo + 0xFFFF) & ~(uptr)0xFFFF;
+			if (cand + size <= region_end && cand + size <= hi)
+			{
+				VirtualMemoryManagerPtr mgr = TryAt(name, cand, size);
+				if (mgr)
+					return mgr;
+			}
+		}
+		if (region_end <= addr)
+			break;
+		addr = region_end;
+	}
+	return nullptr;
+}
+#else
+static VirtualMemoryManagerPtr AllocateNearModule(const char* name, size_t size)
+{
+	const uptr anchor = near_anchor();
+	const uptr step   = 0x04000000; /* 64MB */
+	/* Below the module first: on macOS the mmap area sits under the
+	 * image, on Linux above; try both directions alternately. */
+	for (uptr off = step; off + size <= NEAR_WINDOW; off += step)
+	{
+		if (anchor > off + size)
+		{
+			VirtualMemoryManagerPtr mgr = TryAt(name, (anchor - off - size) & ~(uptr)0xFFFF, size);
+			if (mgr)
+				return mgr;
+		}
+		VirtualMemoryManagerPtr mgr = TryAt(name, (anchor + off) & ~(uptr)0xFFFF, size);
+		if (mgr)
 			return mgr;
 	}
+	return nullptr;
+}
 #endif
-	return std::make_shared<VirtualMemoryManager>(name, 0, size);
+
+/// Attempts to find a spot near this module's globals for the memory maps
+static VirtualMemoryManagerPtr AllocateVirtualMemory(const char* name, size_t size, bool code)
+{
+	VirtualMemoryManagerPtr mgr = AllocateNearModule(name, size);
+	if (mgr)
+		return mgr;
+
+	mgr = std::make_shared<VirtualMemoryManager>(name, 0, size);
+	if (code && mgr->IsOk())
+		log_cb(RETRO_LOG_ERROR, "Could not place the %zu MB code reservation within 2GB of the core "
+		                        "(module at %p, reservation at %p). The recompilers cannot address "
+		                        "the core's globals from there.\n",
+		       size >> 20, (void*)near_anchor(), (void*)mgr->GetBase());
+	return mgr;
 }
 
 // --------------------------------------------------------------------------------------
 //  SysReserveVM  (implementations)
 // --------------------------------------------------------------------------------------
 SysMainMemory::SysMainMemory()
-	: m_mainMemory(AllocateVirtualMemory("pcsx2", HostMemoryMap::MainSize, 0))
-	, m_codeMemory(AllocateVirtualMemory(nullptr, HostMemoryMap::CodeSize, HostMemoryMap::MainSize))
+	: m_mainMemory(AllocateVirtualMemory("pcsx2", HostMemoryMap::MainSize, false))
+	, m_codeMemory(AllocateVirtualMemory(nullptr, HostMemoryMap::CodeSize, true))
 	, m_bumpAllocator(m_mainMemory, HostMemoryMap::bumpAllocatorOffset, HostMemoryMap::MainSize - HostMemoryMap::bumpAllocatorOffset)
 {
 	uptr main_base = (uptr)MainMemory()->GetBase();
