@@ -135,16 +135,19 @@ static size_t cpu_class_by_value(const char *leaf, unsigned pct,
 {
    unsigned long best = 0;
    size_t        i, n = 0;
-   unsigned long vals[CPU_CLASS_MAX_IDS];
+   /* 32-bit is plenty: kHz clocks top out below 10^7 and capacities
+    * at 1024; unsigned long would double the frame past the 2 KiB
+    * thread-stack budget (PSP, GX). */
+   unsigned      vals[CPU_CLASS_MAX_IDS];
 
    if (len > CPU_CLASS_MAX_IDS)
       len = CPU_CLASS_MAX_IDS;
    for (i = 0; i < len; i++)
    {
-      char path[512];
+      char path[256];
       snprintf(path, sizeof(path), CPU_CLASS_SYSFS "/cpu%u/%s",
             (unsigned)i, leaf);
-      vals[i] = cpu_class_sysfs_ulong(path);
+      vals[i] = (unsigned)cpu_class_sysfs_ulong(path);
       if (vals[i])
       {
          n = i + 1;
