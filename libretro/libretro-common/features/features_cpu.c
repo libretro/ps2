@@ -32,6 +32,13 @@
 #include <compat/strl.h>
 #include <libretro.h>
 #include <features/features_cpu.h>
+#include "cpu_class.h" /* per-processor class, shared with rthreads */
+#if defined(__linux__)
+#include <sys/syscall.h>
+/* The prototype every Linux libc uses; spelled out so a strict C89
+ * build, where glibc hides it, sees the same one. */
+extern long syscall(long number, ...);
+#endif
 #include <retro_atomic.h>
 #include <retro_timers.h>
 
@@ -587,7 +594,7 @@ static SYSTEM_LOGICAL_PROCESSOR_INFORMATION *cpu_win32_slpi(DWORD *count)
  * counts cores. */
 static unsigned linux_core_amount_physical(unsigned logical)
 {
-   char     path[64];
+   char     path[512];
    char     line[64];
    unsigned seen[128];
    unsigned n_seen = 0;
@@ -606,7 +613,7 @@ static unsigned linux_core_amount_physical(unsigned logical)
       unsigned j;
 
       snprintf(path, sizeof(path),
-            "/sys/devices/system/cpu/cpu%u/topology/thread_siblings_list", i);
+            CPU_CLASS_SYSFS "/cpu%u/topology/thread_siblings_list", i);
 
       if (!(fp = fopen(path, "r")))
          continue;
@@ -669,19 +676,25 @@ static unsigned sysfs_read_uint(const char *path, unsigned fallback)
 #if (defined(_WIN32) && !defined(_XBOX) && !defined(__WINRT__)) || defined(__linux__)
 struct cpu_proc_rank
 {
-   unsigned freq; /* kHz, higher is a stronger core */
+   unsigned cls;  /* performance class from cpu_class.h, higher is faster */
+   unsigned freq; /* kHz, higher is a stronger core within its class */
    unsigned id;   /* OS processor identifier */
    unsigned smt;  /* 0 for the first processor on its core, else 1 */
 };
 
-/* Strongest core first, a core ahead of its own SMT siblings, and the
+/* Fastest class first (the P-cores, the big cluster), the strongest
+ * core within it next, a core ahead of its own SMT siblings, and the
  * identifier as the tie-break so the result does not depend on the
- * order the entries were gathered in. */
+ * order the entries were gathered in. Class comes before clock so an
+ * E-core that happens to clock above a P-core sibling, or the
+ * frequency CCD of an X3D part, cannot outrank the fast silicon. */
 static int cpu_proc_rank_cmp(const void *a, const void *b)
 {
    const struct cpu_proc_rank *l = (const struct cpu_proc_rank *)a;
    const struct cpu_proc_rank *r = (const struct cpu_proc_rank *)b;
 
+   if (l->cls  != r->cls)
+      return (l->cls  > r->cls)  ? -1 : 1;
    if (l->freq != r->freq)
       return (l->freq > r->freq) ? -1 : 1;
    if (l->smt  != r->smt)
@@ -692,9 +705,21 @@ static int cpu_proc_rank_cmp(const void *a, const void *b)
 }
 #endif
 
-size_t cpu_features_get_processor_order(unsigned *s, size_t len)
+/* The order, restricted to processors whose bit is set in allowed
+ * (NULL: no restriction). Split from the public function so a test
+ * can rank a fixture topology under a synthetic affinity mask. */
+static size_t cpu_features_processor_order_masked(
+      const unsigned char *allowed, unsigned *s, size_t len)
 {
    size_t n = 0;
+#if (defined(_WIN32) && !defined(_XBOX) && !defined(__WINRT__)) || defined(__linux__)
+   unsigned char klass[CPU_CLASS_MAX_IDS];
+   size_t        n_class = cpu_class_read(klass, sizeof(klass));
+#define CPU_PROC_CLASS(id) \
+   (((size_t)(id) < n_class) ? klass[(id)] : 0)
+#define CPU_PROC_ALLOWED(id) \
+   (!allowed || ((size_t)(id) < CPU_CLASS_MAX_IDS && allowed[(id)]))
+#endif
 
    if (!s || !len)
       return 0;
@@ -733,6 +758,12 @@ size_t cpu_features_get_processor_order(unsigned *s, size_t len)
                {
                   if (!(mask & (((ULONG_PTR)1) << bit)))
                      continue;
+                  if (!CPU_PROC_ALLOWED(bit))
+                  {
+                     seen++;
+                     continue;
+                  }
+                  rank[n].cls  = CPU_PROC_CLASS(bit);
                   rank[n].freq = 0;
                   rank[n].id   = bit;
                   rank[n].smt  = seen ? 1 : 0;
@@ -763,18 +794,13 @@ size_t cpu_features_get_processor_order(unsigned *s, size_t len)
 #if defined(__linux__)
    {
       struct cpu_proc_rank *rank;
-      char     path[96];
+      char     path[512];
       unsigned i;
       /* Every processor is ranked before any is handed back: gathering
        * only the first @len of them would sort a set chosen by
        * identifier and hand back the weakest cores on a layout that
        * numbers the little cluster first. */
-      size_t   cap = (size_t)cpu_features_get_core_amount();
-
-      if (cap < 1)
-         cap = 1;
-      if (cap > 1024)
-         cap = 1024;
+      size_t   cap = 1024; /* every processor the kernel publishes; 16 KiB */
 
       if (!(rank = (struct cpu_proc_rank *)
                malloc(cap * sizeof(struct cpu_proc_rank))))
@@ -785,16 +811,19 @@ size_t cpu_features_get_processor_order(unsigned *s, size_t len)
          unsigned first;
 
          snprintf(path, sizeof(path),
-               "/sys/devices/system/cpu/cpu%u/topology/thread_siblings_list", i);
+               CPU_CLASS_SYSFS "/cpu%u/topology/thread_siblings_list", i);
          /* A processor with no sibling list is one the kernel is not
           * publishing, rather than one that shares no core. */
          first = sysfs_read_uint(path, (unsigned)-1);
          if (first == (unsigned)-1)
             continue;
+         if (!CPU_PROC_ALLOWED(i))
+            continue;
 
          snprintf(path, sizeof(path),
-               "/sys/devices/system/cpu/cpu%u/cpufreq/cpuinfo_max_freq", i);
+               CPU_CLASS_SYSFS "/cpu%u/cpufreq/cpuinfo_max_freq", i);
 
+         rank[n].cls  = CPU_PROC_CLASS(i);
          rank[n].freq = sysfs_read_uint(path, 0);
          rank[n].id   = i;
          rank[n].smt  = (i == first) ? 0 : 1;
@@ -820,11 +849,55 @@ size_t cpu_features_get_processor_order(unsigned *s, size_t len)
    /* No topology to rank by, so name each processor once in order. */
    {
       unsigned amount = cpu_features_get_core_amount();
-      for (n = 0; n < len && n < (size_t)amount; n++)
-         s[n] = (unsigned)n;
+      unsigned i;
+      for (i = 0; n < len && i < amount; i++)
+      {
+         if (allowed && (i >= CPU_CLASS_MAX_IDS || !allowed[i]))
+            continue;
+         s[n++] = i;
+      }
    }
-
+#if (defined(_WIN32) && !defined(_XBOX) && !defined(__WINRT__)) || defined(__linux__)
+#undef CPU_PROC_CLASS
+#undef CPU_PROC_ALLOWED
+#endif
    return n;
+}
+
+size_t cpu_features_get_processor_order(unsigned *s, size_t len)
+{
+   unsigned char allowed[CPU_CLASS_MAX_IDS];
+   const unsigned char *mask = NULL;
+#if defined(__linux__)
+   {
+      /* The processors this thread may run on: a pin from a parent
+       * process, a container or the user is a boundary, not something
+       * to hand back as a target. */
+      unsigned long bits[CPU_CLASS_MAX_IDS / (8 * sizeof(unsigned long))];
+      memset(bits, 0, sizeof(bits));
+      if (syscall(__NR_sched_getaffinity, 0, sizeof(bits), bits) > 0)
+      {
+         size_t i;
+         for (i = 0; i < CPU_CLASS_MAX_IDS; i++)
+            allowed[i] = (unsigned char)((bits[i / (8 * sizeof(unsigned long))]
+                  >> (i % (8 * sizeof(unsigned long)))) & 1ul);
+         mask = allowed;
+      }
+   }
+#elif defined(_WIN32) && !defined(_XBOX) && !defined(__WINRT__)
+   {
+      DWORD_PTR proc = 0, sys = 0;
+      if (GetProcessAffinityMask(GetCurrentProcess(), &proc, &sys) && proc)
+      {
+         size_t i;
+         memset(allowed, 0, sizeof(allowed));
+         for (i = 0; i < sizeof(DWORD_PTR) * 8; i++)
+            allowed[i] = (unsigned char)((proc >> i) & 1);
+         mask = allowed;
+      }
+   }
+#endif
+   return cpu_features_processor_order_masked(mask, s, len);
 }
 
 unsigned cpu_features_get_core_amount_physical(void)

@@ -1355,13 +1355,16 @@ static void SetMTVUAndAffinityControlDefault(Pcsx2Config& c) { (void)c; }
 #endif
 
 /* Single source of truth for the MTVU hardware gate.  The worker is only
- * worth spawning (and only spawned) with >= 3 hardware threads; every
- * writer of EmuCore/Speedhacks vuThread must apply this same predicate,
- * otherwise THREAD_VU1 can come up true with no worker alive and
- * MTGS::MainLoop waits on a handoff that never arrives (boot hang). */
+ * worth spawning (and only spawned) with >= 3 physical cores - EE, VU
+ * and GS each want a core of their own, and two SMT threads on one core
+ * are not that (a 2-core/4-thread part used to pass on its thread count
+ * and put the three on two cores); every writer of EmuCore/Speedhacks
+ * vuThread must apply this same predicate, otherwise THREAD_VU1 can come
+ * up true with no worker alive and MTGS::MainLoop waits on a handoff
+ * that never arrives (boot hang). */
 bool VMManager::MtvuHardwareAllowed()
 {
-	return cpu_features_get_core_amount() >= 3;
+	return cpu_features_get_core_amount_physical() >= 3;
 }
 
 void VMManager::EnsureCPUInfoInitialized()
