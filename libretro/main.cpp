@@ -1147,11 +1147,19 @@ static void check_variables(bool first_run)
 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 		{
 			int sw_renderer_threads_prev = setting_sw_renderer_threads;
-			setting_sw_renderer_threads = atoi(var.value);
+			int sw_renderer_threads      = atoi(var.value);
+
+			/* SWExtraThreads is a u16: clamp before the narrowing cast so
+			 * a stray negative value cannot wrap into thousands of threads. */
+			if (sw_renderer_threads < 0)
+				sw_renderer_threads = 0;
+			else if (sw_renderer_threads > 11)
+				sw_renderer_threads = 11;
+			setting_sw_renderer_threads = sw_renderer_threads;
 
 			if (first_run || setting_sw_renderer_threads != sw_renderer_threads_prev)
 			{
-				s_option_config.GS.SWExtraThreads = static_cast<decltype(s_option_config.GS.SWExtraThreads)>(setting_sw_renderer_threads);
+				s_option_config.GS.SWExtraThreads = (u16)setting_sw_renderer_threads;
 				updated = true;
 			}
 		}
