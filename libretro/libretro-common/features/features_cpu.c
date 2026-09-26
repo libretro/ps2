@@ -584,6 +584,27 @@ static SYSTEM_LOGICAL_PROCESSOR_INFORMATION *cpu_win32_slpi(DWORD *count)
    *count = _len / (DWORD)sizeof(*buf);
    return buf;
 }
+
+/* Size in KiB of the level-3 cache whose ProcessorMask covers the
+ * processor, from the same GetLogicalProcessorInformation records
+ * (RelationCache entries carry a level, a size and the mask of
+ * processors behind them); 0 where none does. */
+static unsigned cpu_win32_llc_kib(
+      const SYSTEM_LOGICAL_PROCESSOR_INFORMATION *buf, DWORD count,
+      unsigned bit)
+{
+   DWORD i;
+   for (i = 0; i < count; i++)
+   {
+      if (buf[i].Relationship != RelationCache)
+         continue;
+      if (buf[i].Cache.Level != 3)
+         continue;
+      if (buf[i].ProcessorMask & (((ULONG_PTR)1) << bit))
+         return (unsigned)(buf[i].Cache.Size / 1024);
+   }
+   return 0;
+}
 #endif
 
 #if defined(__linux__)
@@ -671,23 +692,55 @@ static unsigned sysfs_read_uint(const char *path, unsigned fallback)
       return fallback;
    return val;
 }
+
+/* Size of the last-level cache the processor sits behind, in KiB,
+ * from "<cpu>/cache/index3/size" (a figure with a K or M suffix); 0
+ * where the kernel publishes none. What separates the two CCDs of an
+ * X3D part, which are one class and near enough one clock. */
+static unsigned sysfs_read_llc_kib(unsigned cpu)
+{
+   char     path[512];
+   char     line[64];
+   unsigned val = 0;
+   char     unit = 0;
+   FILE    *fp;
+
+   snprintf(path, sizeof(path), CPU_CLASS_SYSFS "/cpu%u/cache/index3/size", cpu);
+   if (!(fp = fopen(path, "r")))
+      return 0;
+   line[0] = '\0';
+   if (!fgets(line, sizeof(line), fp))
+      line[0] = '\0';
+   fclose(fp);
+   if (sscanf(line, "%u%c", &val, &unit) < 1)
+      return 0;
+   if (unit == 'M' || unit == 'm')
+      return val * 1024;
+   if (unit == 'G' || unit == 'g')
+      return val * 1024 * 1024;
+   return val;
+}
 #endif
 
 #if (defined(_WIN32) && !defined(_XBOX) && !defined(__WINRT__)) || defined(__linux__)
 struct cpu_proc_rank
 {
    unsigned cls;  /* performance class from cpu_class.h, higher is faster */
+   unsigned llc;  /* last-level cache behind the core, KiB */
    unsigned freq; /* kHz, higher is a stronger core within its class */
    unsigned id;   /* OS processor identifier */
    unsigned smt;  /* 0 for the first processor on its core, else 1 */
 };
 
-/* Fastest class first (the P-cores, the big cluster), the strongest
- * core within it next, a core ahead of its own SMT siblings, and the
- * identifier as the tie-break so the result does not depend on the
- * order the entries were gathered in. Class comes before clock so an
- * E-core that happens to clock above a P-core sibling, or the
- * frequency CCD of an X3D part, cannot outrank the fast silicon. */
+/* Fastest class first (the P-cores, the big cluster); within a class
+ * the bigger last-level cache first, then the higher clock; a core
+ * ahead of its own SMT siblings; and the identifier as the tie-break
+ * so the result does not depend on the order the entries were
+ * gathered in. Class comes before everything so an E-core that
+ * happens to clock above a P-core sibling cannot outrank the fast
+ * silicon. Cache comes before clock for the X3D parts: the V-cache
+ * CCD boosts a few percent lower than the other and is the die an
+ * emulator wants to be on. */
 static int cpu_proc_rank_cmp(const void *a, const void *b)
 {
    const struct cpu_proc_rank *l = (const struct cpu_proc_rank *)a;
@@ -695,6 +748,8 @@ static int cpu_proc_rank_cmp(const void *a, const void *b)
 
    if (l->cls  != r->cls)
       return (l->cls  > r->cls)  ? -1 : 1;
+   if (l->llc  != r->llc)
+      return (l->llc  > r->llc)  ? -1 : 1;
    if (l->freq != r->freq)
       return (l->freq > r->freq) ? -1 : 1;
    if (l->smt  != r->smt)
@@ -764,6 +819,7 @@ static size_t cpu_features_processor_order_masked(
                      continue;
                   }
                   rank[n].cls  = CPU_PROC_CLASS(bit);
+                  rank[n].llc  = cpu_win32_llc_kib(buf, count, bit);
                   rank[n].freq = 0;
                   rank[n].id   = bit;
                   rank[n].smt  = seen ? 1 : 0;
@@ -824,6 +880,7 @@ static size_t cpu_features_processor_order_masked(
                CPU_CLASS_SYSFS "/cpu%u/cpufreq/cpuinfo_max_freq", i);
 
          rank[n].cls  = CPU_PROC_CLASS(i);
+         rank[n].llc  = sysfs_read_llc_kib(i);
          rank[n].freq = sysfs_read_uint(path, 0);
          rank[n].id   = i;
          rank[n].smt  = (i == first) ? 0 : 1;
