@@ -585,15 +585,16 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       },
       "enabled"
    },
-#if 0
    {
       "pcsx2_sw_renderer_threads",
-      "Video > Software Renderer Threads",
-      "Software Renderer Threads",
-      NULL,
+      "Video > Software Renderer Extra Threads",
+      "Software Renderer Extra Threads",
+      "Number of extra worker threads the software renderer rasterizes with, on top of the GS thread itself. 0 rasterizes on the GS thread alone (lowest latency, best on 2-4 core CPUs). More threads help scenes with many alpha effects on CPUs with spare cores. Only used by the software renderer.",
       NULL,
       "video",
       {
+         { "0", NULL },
+         { "1", NULL },
          { "2", NULL },
          { "3", NULL },
          { "4", NULL },
@@ -608,7 +609,6 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       },
       "2"
    },
-#endif
    {
       "pcsx2_vu_accurate_addsub",
       "Emulation > VU Accurate Add/Sub",

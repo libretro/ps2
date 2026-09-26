@@ -216,6 +216,7 @@ static bool setting_dev9_eth                   = false;
 static u32  setting_dev9_hdd_sectors           = 40u * (1024 * 1024 * 1024 / 512);
 static bool setting_enable_hw_hacks            = false;
 static bool setting_auto_flush_software        = true;
+static int setting_sw_renderer_threads         = 2;
 static bool setting_disable_depth_conversion   = false;
 static bool setting_framebuffer_conversion     = false;
 static bool setting_disable_partial_invalid    = false;
@@ -334,6 +335,8 @@ static bool update_option_visibility(void)
 	if (setting_show_gsdx_sw_only_options != show_gsdx_sw_only_options_prev)
 	{
 		option_display.visible = setting_show_gsdx_sw_only_options;
+		option_display.key     = "pcsx2_sw_renderer_threads";
+		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
 		option_display.key     = "pcsx2_auto_flush_software";
 		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
 
@@ -1119,6 +1122,27 @@ static void check_variables(bool first_run)
 
 	if (setting_plugin_type == PLUGIN_GSDX_SW)
 	{
+		var.key = "pcsx2_sw_renderer_threads";
+		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+		{
+			int sw_renderer_threads_prev = setting_sw_renderer_threads;
+			int sw_renderer_threads      = atoi(var.value);
+
+			/* SWExtraThreads is a u16: clamp before the narrowing cast so
+			 * a stray negative value cannot wrap into thousands of threads. */
+			if (sw_renderer_threads < 0)
+				sw_renderer_threads = 0;
+			else if (sw_renderer_threads > 11)
+				sw_renderer_threads = 11;
+			setting_sw_renderer_threads = sw_renderer_threads;
+
+			if (first_run || setting_sw_renderer_threads != sw_renderer_threads_prev)
+			{
+				s_option_config.GS.SWExtraThreads = (u16)setting_sw_renderer_threads;
+				updated = true;
+			}
+		}
+
 		var.key = "pcsx2_auto_flush_software";
 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 		{
