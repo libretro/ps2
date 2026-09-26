@@ -305,6 +305,8 @@ static bool update_option_visibility(void)
 		option_display.visible = setting_show_gsdx_options;
 		option_display.key     = "pcsx2_texture_filtering";
 		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+		option_display.key     = "pcsx2_upscale_multiplier";
+		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
 
 		updated                = true;
 	}
@@ -313,8 +315,6 @@ static bool update_option_visibility(void)
 	if (setting_show_gsdx_hw_only_options != show_gsdx_hw_only_options_prev)
 	{
 		option_display.visible = setting_show_gsdx_hw_only_options;
-		option_display.key     = "pcsx2_upscale_multiplier";
-		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
 		option_display.key     = "pcsx2_native_scaling";
 		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
 		option_display.key     = "pcsx2_trilinear_filtering";
@@ -717,33 +717,9 @@ static void check_variables(bool first_run)
 		}
 	}
 
-	if (setting_plugin_type == PLUGIN_GSDX_HW)
+	/* The software renderer draws at 2x for any of the larger scales. */
+	if (setting_plugin_type == PLUGIN_GSDX_HW || setting_plugin_type == PLUGIN_GSDX_SW)
 	{
-		/* Native scaling is read with the resolution, not with the hacks:
-		 * a value the user sets applies whether or not the hacks are
-		 * enabled, over the game database's fix; 'Automatic' (-1) leaves
-		 * it to the database. */
-		var.key = "pcsx2_native_scaling";
-		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-		{
-			int native_scaling_prev = setting_native_scaling;
-			if (!strcmp(var.value, "disabled"))
-				setting_native_scaling = GSNativeScaling::NativeScaling_Off;
-			else if (!strcmp(var.value, "Normal"))
-				setting_native_scaling = GSNativeScaling::NativeScaling_Normal;
-			else if (!strcmp(var.value, "Aggressive"))
-				setting_native_scaling = GSNativeScaling::NativeScaling_Aggressive;
-			else
-				setting_native_scaling = -1;
-
-			if (first_run || setting_native_scaling != native_scaling_prev)
-			{
-				s_option_config.GS.NativeScalingSet = setting_native_scaling >= 0;
-				s_option_config.GS.UserHacks_NativeScaling = static_cast<decltype(s_option_config.GS.UserHacks_NativeScaling)>(setting_native_scaling >= 0 ? setting_native_scaling : (int)GSNativeScaling::NativeScaling_Normal);
-				updated = true;
-			}
-		}
-
 		var.key = "pcsx2_upscale_multiplier";
 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 		{
@@ -778,6 +754,34 @@ static void check_variables(bool first_run)
 				updated = true;
 			}
 #endif
+		}
+	}
+
+	if (setting_plugin_type == PLUGIN_GSDX_HW)
+	{
+		/* Native scaling is read with the resolution, not with the hacks:
+		 * a value the user sets applies whether or not the hacks are
+		 * enabled, over the game database's fix; 'Automatic' (-1) leaves
+		 * it to the database. */
+		var.key = "pcsx2_native_scaling";
+		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+		{
+			int native_scaling_prev = setting_native_scaling;
+			if (!strcmp(var.value, "disabled"))
+				setting_native_scaling = GSNativeScaling::NativeScaling_Off;
+			else if (!strcmp(var.value, "Normal"))
+				setting_native_scaling = GSNativeScaling::NativeScaling_Normal;
+			else if (!strcmp(var.value, "Aggressive"))
+				setting_native_scaling = GSNativeScaling::NativeScaling_Aggressive;
+			else
+				setting_native_scaling = -1;
+
+			if (first_run || setting_native_scaling != native_scaling_prev)
+			{
+				s_option_config.GS.NativeScalingSet = setting_native_scaling >= 0;
+				s_option_config.GS.UserHacks_NativeScaling = static_cast<decltype(s_option_config.GS.UserHacks_NativeScaling)>(setting_native_scaling >= 0 ? setting_native_scaling : (int)GSNativeScaling::NativeScaling_Normal);
+				updated = true;
+			}
 		}
 
 		var.key = "pcsx2_trilinear_filtering";
@@ -2010,10 +2014,11 @@ void retro_get_system_av_info(retro_system_av_info* info)
 	info->geometry.base_width  = 640;
 	info->geometry.base_height = (retro_get_region() == RETRO_REGION_NTSC) ? 448 : 512;
 
-	if (               (  !is_software_setting(setting_renderer)
-			   && setting_renderer != "paraLLEl-GS")
-			|| (  setting_renderer == "paraLLEl-GS" 
-			   && setting_pgs_high_res_scanout))
+	/* The software renderer draws at 2x for any upscale of two or more. */
+	if (is_software_setting(setting_renderer) && upscale_mul > 2)
+		upscale_mul = 2;
+
+	if (setting_renderer != "paraLLEl-GS" || setting_pgs_high_res_scanout)
 	{
 		info->geometry.base_width  *= upscale_mul;
 		info->geometry.base_height *= upscale_mul;

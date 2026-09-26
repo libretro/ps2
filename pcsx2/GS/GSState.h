@@ -273,6 +273,8 @@ public:
 	const GSDrawingEnvironment* m_draw_env = &m_env;
 	GSDrawingContext* m_context = nullptr;
 	GSVector4i temp_draw_rect = {};
+	/* Counts the times a savestate replaced local memory as a whole. */
+	u32 m_mem_restores = 0;
 
 	// Vertex / quad utility functions (ported from upstream refactor 26bd916e3),
 	// used by the texture-shuffle detection refactor. The triangle-class path of

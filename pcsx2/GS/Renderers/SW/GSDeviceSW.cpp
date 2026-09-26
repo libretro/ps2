@@ -501,7 +501,8 @@ namespace
 	 * cheaply and the visual difference is one row of vertical jitter).
 	 * ==================================================================== */
 
-	/* WeaveCopy: take lines where (vpos & 1) == field from `src` and
+	/* WeaveCopy: take the rows of the lines where (line & 1) == field,
+	 * a line `block` rows, from `src` and
 	 * write them to `dst` at the corresponding position. Lines that
 	 * don't match are left UNTOUCHED (they hold the previous frame's
 	 * field, providing the woven full-frame image). dst must have
@@ -510,7 +511,7 @@ namespace
 	void WeaveCopy(
 		const u8* src, int src_pitch, int src_w, int src_h,
 		u8* dst, int dst_pitch, int dst_w, int dst_h,
-		int y_shift, int field)
+		int y_shift, int field, int block)
 	{
 		const int copy_w = pcsx2_min_i(src_w, dst_w);
 		const int copy_h = pcsx2_min_i(src_h, dst_h);
@@ -520,7 +521,7 @@ namespace
 			const int dy = y + y_shift;
 			if (dy < 0 || dy >= dst_h)
 				continue;
-			if ((dy & 1) != field)
+			if (((dy / block) & 1) != field)
 				continue;
 
 			memcpy(
@@ -564,22 +565,23 @@ namespace
 		}
 	}
 
-	/* BlendThree: each output row = (above + 2*center + below) / 4.
+	/* BlendThree: each output row = (above + 2*center + below) / 4,
+	 * above and below a line (`block` rows) away.
 	 * Source and destination are the same size; we read across rows
 	 * of `src` and write to corresponding rows of `dst`. Used as the
 	 * second pass of the Blend deinterlace mode, run on the output
 	 * of WeaveCopy. */
 	void BlendThree(
 		const u8* src, int src_pitch, int src_w, int src_h,
-		u8* dst, int dst_pitch, int dst_w, int dst_h)
+		u8* dst, int dst_pitch, int dst_w, int dst_h, int block)
 	{
 		const int copy_w = pcsx2_min_i(src_w, dst_w);
 		const int copy_h = pcsx2_min_i(src_h, dst_h);
 
 		for (int y = 0; y < copy_h; y++)
 		{
-			const int y_above = pcsx2_max_i(y - 1, 0);
-			const int y_below = pcsx2_min_i(y + 1, src_h - 1);
+			const int y_above = pcsx2_max_i(y - block, 0);
+			const int y_below = pcsx2_min_i(y + block, src_h - 1);
 
 			const u8* row_above = src + (size_t)y_above * src_pitch;
 			const u8* row_cent  = src + (size_t)y       * src_pitch;
@@ -686,7 +688,7 @@ namespace
 	void MadBuffer(
 		const u8* src, int src_pitch, int src_w, int src_h,
 		u8* dst, int dst_pitch, int dst_w, int dst_h,
-		int dy_begin, int dy_end, int field, int bank, int vres)
+		int dy_begin, int dy_end, int field, int bank, int vres, int block)
 	{
 		const int copy_w = pcsx2_min_i(src_w, dst_w);
 
@@ -704,7 +706,7 @@ namespace
 				continue;
 
 			const int vpos = dst_y + lofs;
-			if ((vpos & 1) != field)
+			if (((vpos / block) & 1) != field)
 				continue;
 
 			memcpy(
@@ -769,7 +771,7 @@ namespace
 	void MadReconstruct(
 		const u8* src, int src_pitch, int /*src_w*/, int /*src_h*/,
 		u8* dst, int dst_pitch, int dst_w, int dst_h,
-		int idx, int sensitivity_u8)
+		int idx, int sensitivity_u8, int block)
 	{
 		const int field    = idx & 1;
 		const int frame_h  = dst_h;       /* = src_h / 2, the bank height */
@@ -826,10 +828,10 @@ namespace
 			 * neighbors are only consulted for non-edge rows
 			 * (vpos in (0, frame_h-1)) the clamping is moot
 			 * there anyway. We clamp defensively. */
-			const int t0_up_row   = pcsx2_max_i(t0_base, p_t0_row - 1);
-			const int t0_down_row = pcsx2_min_i(t0_base + frame_h - 1, p_t0_row + 1);
-			const int t2_up_row   = pcsx2_max_i(t2_base, p_t2_row - 1);
-			const int t2_down_row = pcsx2_min_i(t2_base + frame_h - 1, p_t2_row + 1);
+			const int t0_up_row   = pcsx2_max_i(t0_base, p_t0_row - block);
+			const int t0_down_row = pcsx2_min_i(t0_base + frame_h - 1, p_t0_row + block);
+			const int t2_up_row   = pcsx2_max_i(t2_base, p_t2_row - block);
+			const int t2_down_row = pcsx2_min_i(t2_base + frame_h - 1, p_t2_row + block);
 
 			const u8* row_t0_up   = src + (size_t)t0_up_row   * src_pitch;
 			const u8* row_t0_down = src + (size_t)t0_down_row * src_pitch;
@@ -838,8 +840,8 @@ namespace
 
 			u8* dst_row = dst + (size_t)dst_y * dst_pitch;
 
-			const bool current_field_row = ((dst_y & 1) == field);
-			const bool edge_row          = (dst_y == 0 || dst_y >= dst_h - 1);
+			const bool current_field_row = (((dst_y / block) & 1) == field);
+			const bool edge_row          = (dst_y < block || dst_y >= dst_h - block);
 
 			if (current_field_row)
 			{
@@ -993,21 +995,28 @@ namespace
 				dst + (size_t)y * dst_pitch, w);
 	}
 
-	/* The weave of half-height fields: a line of the current field takes
-	 * its field row, which the merge drew at rows 2j and 2j + 1. */
+	/* The weave of half-height fields (line_rows): a line of the current
+	 * field takes its rows from its field's rows, which the merge drew
+	 * twice each. The first half of a line's `block` rows is its field's
+	 * own; the second half is the other field's positions, the mean of the
+	 * two rows around them. */
 	void WeaveHalfFields(
 		const u8* src, int src_pitch, int src_w, int src_h,
 		u8* dst, int dst_pitch, int dst_w, int dst_h,
-		int field)
+		int field, int block)
 	{
 		const int w = pcsx2_min_i(src_w, dst_w);
 		int y;
 		for (y = 0; y < dst_h; y++)
 		{
-			const int sy = 2 * (y >> 1);
-			if ((y & 1) != field || sy >= src_h)
+			const int   l     = y / block;
+			const float place = (float)(y - l * block) * 0.5f;
+			const float pf    = floorf(place);
+			const float row   = (float)((l >> 1) * block) + pf;
+			if ((l & 1) != field)
 				continue;
-			memcpy(dst + (size_t)y * dst_pitch, src + (size_t)sy * src_pitch, (size_t)w * 4);
+			SampleRowLinear(src, src_pitch, 0, src_h, 2.0f * row + 0.5f + 3.0f * (place - pf),
+				dst + (size_t)y * dst_pitch, w);
 		}
 	}
 
@@ -1017,87 +1026,121 @@ namespace
 				(float)((p >> 16) & 0xFFu) * 0.114f) * (1.0f / 255.0f);
 	}
 
+	/* mad_field: the row output row y reads from the field `back` fields
+	 * ago, with the linear sampler. At a scale of two or more a field's
+	 * rows each cover two output rows from its parity's first. */
+	void MadFieldRow(const u8* src, int src_pitch, int slot_h, int idx, int block,
+		int back, int y, u8* out, int w)
+	{
+		const int   slot = (idx - back) & 3;
+		const int   par  = (idx ^ back) & 1;
+		const float rel  = (float)(y - par * block) * 0.5f;
+		float r = ((block >= 2) ? floorf(rel) : rel) + 0.5f;
+		if (r < 0.5f)
+			r = 0.5f;
+		if (r > (float)slot_h - 0.5f)
+			r = (float)slot_h - 0.5f;
+		SampleRowLinear(src, src_pitch, slot * slot_h, (slot + 1) * slot_h,
+			(float)(slot * slot_h) + r, out, w);
+	}
+
 	/* The adaptive reconstruction of half-height fields (mad_fields): the
 	 * buffer holds the last four fields whole, one to a quarter, the
-	 * current in slot idx. A field of parity p holds frame line 2j + p at
-	 * its row j; the line between two of its rows reads their mean. The
-	 * current field's lines are taken as they are; between them, the
-	 * previous field's line where the picture holds still, the current
-	 * field's own picture where it moves, blended by the luma motion of
-	 * the lines around against the fields two back. */
+	 * current in slot idx. The current field's lines are taken as they
+	 * are; between them, the previous field's line where the picture
+	 * holds still, the current field's own picture where it moves, blended
+	 * by the luma motion, measured once per native pixel at its block's
+	 * centre (at an even scale the mean of the two pixels either side of
+	 * it), of the lines around against the field two back and of the line
+	 * against its field two back. scratch holds 8 rows and 7 floats a
+	 * pixel. */
 	void MadFields(
 		const u8* src, int src_pitch, int src_w, int src_h,
 		u8* dst, int dst_pitch, int dst_w, int dst_h,
-		int idx, u8* scratch)
+		int idx, int block, u8* scratch)
 	{
 		const int w = pcsx2_min_i(src_w, dst_w);
 		const int slot_h = src_h / 4;
 		const int field = idx & 1;
-		u8* rows[6];
-		int y, x, k;
+		u8* rows[8];
+		float* moving = (float*)(scratch + (size_t)8 * w * 4);
+		float* luma = moving + w; /* rows 2 to 7, w each */
+		int y, x, k, c;
+		int line = -1;
 
-		for (k = 0; k < 6; k++)
+		for (k = 0; k < 8; k++)
 			rows[k] = scratch + (size_t)k * w * 4;
 
 		for (y = 0; y < dst_h; y++)
 		{
-			/* mad_field(back, yy): slot (idx - back) & 3, parity (idx ^ back) & 1 */
-			const int want[6][2] = {{0, y}, {1, y}, {0, y - 1}, {2, y - 1}, {0, y + 1}, {2, y + 1}};
-			for (k = 0; k < 6; k++)
-			{
-				const int back = want[k][0], yy = want[k][1];
-				const int slot = (idx - back) & 3;
-				const int par = (idx ^ back) & 1;
-				float r = (float)(yy - par) * 0.5f + 0.5f;
-				if (r < 0.5f) r = 0.5f;
-				if (r > (float)slot_h - 0.5f) r = (float)slot_h - 0.5f;
-				SampleRowLinear(src, src_pitch, slot * slot_h, (slot + 1) * slot_h,
-					(float)(slot * slot_h) + r, rows[k], w);
-			}
+			const int l = y / block;
+			u8* d = dst + (size_t)y * dst_pitch;
 
-			if ((y & 1) == field)
+			MadFieldRow(src, src_pitch, slot_h, idx, block, 0, y, rows[0], w);
+			if ((l & 1) == field)
 			{
-				memcpy(dst + (size_t)y * dst_pitch, rows[0], (size_t)w * 4);
+				memcpy(d, rows[0], (size_t)w * 4);
 				continue;
 			}
 
+			if (l != line)
+			{
+				const int yl = l * block;
+				line = l;
+				MadFieldRow(src, src_pitch, slot_h, idx, block, 0, yl - block, rows[2], w);
+				MadFieldRow(src, src_pitch, slot_h, idx, block, 2, yl - block, rows[3], w);
+				MadFieldRow(src, src_pitch, slot_h, idx, block, 0, yl + block, rows[4], w);
+				MadFieldRow(src, src_pitch, slot_h, idx, block, 2, yl + block, rows[5], w);
+				MadFieldRow(src, src_pitch, slot_h, idx, block, 1, yl, rows[6], w);
+				MadFieldRow(src, src_pitch, slot_h, idx, block, 3, yl, rows[7], w);
+				for (k = 0; k < 6; k++)
+					for (x = 0; x < w; x++)
+						luma[k * w + x] = PixelLuma(LoadPx(rows[2 + k], x));
+				for (x = 0; x < w; x++)
+				{
+					float lm[6], m, t;
+					if (block == 1)
+					{
+						for (k = 0; k < 6; k++)
+							lm[k] = luma[k * w + x];
+					}
+					else
+					{
+						const int x0 = (x / block) * block;
+						const int xb = pcsx2_min_i(x0 + block / 2, w - 1);
+						const int xa = (block & 1) ? xb : pcsx2_max_i(xb - 1, 0);
+						for (k = 0; k < 6; k++)
+							lm[k] = 0.5f * (luma[k * w + xa] + luma[k * w + xb]);
+					}
+					m = fabsf(lm[0] - lm[1]);
+					t = fabsf(lm[2] - lm[3]);
+					if (t > m)
+						m = t;
+					t = fabsf(lm[4] - lm[5]);
+					if (t > m)
+						m = t;
+					t = (m - 0.01f) / 0.02f;
+					if (t < 0.0f)
+						t = 0.0f;
+					if (t > 1.0f)
+						t = 1.0f;
+					moving[x] = t * t * (3.0f - 2.0f * t);
+				}
+			}
+
+			MadFieldRow(src, src_pitch, slot_h, idx, block, 1, y, rows[1], w);
 			for (x = 0; x < w; x++)
 			{
 				const u32 cur = LoadPx(rows[0], x);
 				const u32 prev = LoadPx(rows[1], x);
-				float mh, ml, mc, m, t, moving;
 				u32 out = 0;
-				int c;
-				u32 p1, p3;
-				/* mc: field 1 against field 3 on this line */
-				{
-					const int s1 = (idx - 1) & 3, s3 = (idx - 3) & 3;
-					const int par1 = (idx ^ 1) & 1;
-					float r = (float)(y - par1) * 0.5f + 0.5f;
-					int ry;
-					if (r < 0.5f) r = 0.5f;
-					if (r > (float)slot_h - 0.5f) r = (float)slot_h - 0.5f;
-					ry = (int)floorf(r);
-					if (ry > slot_h - 1) ry = slot_h - 1;
-					p1 = LoadPx(src + (size_t)(s1 * slot_h + ry) * src_pitch, x);
-					p3 = LoadPx(src + (size_t)(s3 * slot_h + ry) * src_pitch, x);
-				}
-				mh = fabsf(PixelLuma(LoadPx(rows[2], x)) - PixelLuma(LoadPx(rows[3], x)));
-				ml = fabsf(PixelLuma(LoadPx(rows[4], x)) - PixelLuma(LoadPx(rows[5], x)));
-				mc = fabsf(PixelLuma(p1) - PixelLuma(p3));
-				m = mh > ml ? mh : ml;
-				if (mc > m) m = mc;
-				t = (m - 0.01f) / 0.02f;
-				if (t < 0.0f) t = 0.0f;
-				if (t > 1.0f) t = 1.0f;
-				moving = t * t * (3.0f - 2.0f * t);
 				for (c = 0; c < 32; c += 8)
 				{
 					const float a = (float)((prev >> c) & 0xFFu);
 					const float b = (float)((cur >> c) & 0xFFu);
-					out |= ((u32)(a + (b - a) * moving + 0.5f) & 0xFFu) << c;
+					out |= ((u32)(a + (b - a) * moving[x] + 0.5f) & 0xFFu) << c;
 				}
-				StorePx(dst + (size_t)y * dst_pitch, x, out);
+				StorePx(d, x, out);
 			}
 		}
 	}
@@ -1382,14 +1425,15 @@ void GSDeviceSW::DoInterlace(GSTexture* sTex, const GSVector4& /*sRect*/, GSText
 	 *   x = bufIdx (passed as `field` for weave/blend, 0 for bob)
 	 *   y = 1.0 / dst_height (UV stride per line; unused here)
 	 *   z = dst_height
-	 *   w = rows per frame line, the upscale (1 here), positive for
-	 *       half-height fields and negative for full-height ones
+	 *   w = rows per frame line, the upscale, positive for half-height
+	 *       fields and negative for full-height ones
 	 * GSDevice::Interlace casts ZrH.x to int and uses (idx & 1) as
 	 * the field. */
 	const int field   = static_cast<int>(cb.ZrH.x) & 1;
 	const int y_shift = static_cast<int>(std::floor(dRect.y + 0.5f));
 	/* A half-height field (FFMD) passes its block positive. */
 	const bool half_fields = cb.ZrH.w > 0.0f;
+	const int block = pcsx2_max_i(1, static_cast<int>(std::fabs(cb.ZrH.w) + 0.5f));
 
 	const int src_w   = src->GetWidth();
 	const int src_h   = src->GetHeight();
@@ -1405,11 +1449,11 @@ void GSDeviceSW::DoInterlace(GSTexture* sTex, const GSVector4& /*sRect*/, GSText
 		case ShaderInterlace::WEAVE:
 			if (half_fields)
 				WeaveHalfFields(src_buf, src_p, src_w, src_h,
-					dst_buf, dst_p, dst_w, dst_h, field);
+					dst_buf, dst_p, dst_w, dst_h, field, block);
 			else
 				WeaveCopy(src_buf, src_p, src_w, src_h,
 					dst_buf, dst_p, dst_w, dst_h,
-					y_shift, field);
+					y_shift, field, block);
 			break;
 
 		case ShaderInterlace::BOB:
@@ -1438,7 +1482,7 @@ void GSDeviceSW::DoInterlace(GSTexture* sTex, const GSVector4& /*sRect*/, GSText
 			 * m_blend), so source and destination are distinct.
 			 * BlendThree assumes this and reads only from src. */
 			BlendThree(src_buf, src_p, src_w, src_h,
-				dst_buf, dst_p, dst_w, dst_h);
+				dst_buf, dst_p, dst_w, dst_h, block);
 			break;
 
 		case ShaderInterlace::MAD_BUFFER:
@@ -1461,7 +1505,7 @@ void GSDeviceSW::DoInterlace(GSTexture* sTex, const GSVector4& /*sRect*/, GSText
 
 			MadBuffer(src_buf, src_p, src_w, src_h,
 				dst_buf, dst_p, dst_w, dst_h,
-				dy_begin, dy_end, field, bank, vres);
+				dy_begin, dy_end, field, bank, vres, block);
 			break;
 		}
 
@@ -1477,16 +1521,16 @@ void GSDeviceSW::DoInterlace(GSTexture* sTex, const GSVector4& /*sRect*/, GSText
 
 			if (half_fields)
 			{
-				std::vector<u8> scratch(static_cast<size_t>(pcsx2_min_i(src_w, dst_w)) * 4 * 6);
+				std::vector<u8> scratch(static_cast<size_t>(pcsx2_min_i(src_w, dst_w)) * (4 * 8 + sizeof(float) * 7));
 				MadFields(src_buf, src_p, src_w, src_h,
-					dst_buf, dst_p, dst_w, dst_h, idx_int, scratch.data());
+					dst_buf, dst_p, dst_w, dst_h, idx_int, block, scratch.data());
 			}
 			else
 			{
 				/* The shader's sensitivity, 0.08 of full scale. */
 				MadReconstruct(src_buf, src_p, src_w, src_h,
 					dst_buf, dst_p, dst_w, dst_h,
-					idx_int, 20);
+					idx_int, 20, block);
 			}
 			break;
 		}

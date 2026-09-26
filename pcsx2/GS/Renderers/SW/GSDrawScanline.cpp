@@ -608,7 +608,7 @@ __ri void GSDrawScanline::CDrawScanline(int pixels, int left, int top, const GSV
 
 			if (sel.zb)
 			{
-				za = (fza_base->y + fza_offset->y) % HALF_VM_SIZE;
+				za = (fza_base->y + fza_offset->y) % (sel.hires ? 4 * HALF_VM_SIZE : HALF_VM_SIZE);
 
 				if (sel.prim != GS_SPRITE_CLASS)
 				{
@@ -825,12 +825,12 @@ __ri void GSDrawScanline::CDrawScanline(int pixels, int left, int top, const GSV
 						uv1 = clamp.blend8(repeat, VectorI::broadcast128(global.t.mask));
 					}
 
-					VectorI y0 = uv0.uph16() << (sel.tw + 3);
+					VectorI y0 = uv0.uph16() << (sel.tw + (sel.tw_hi << 3) + 3);
 					VectorI x0 = uv0.upl16();
 
 					if (sel.ltf)
 					{
-						VectorI y1 = uv1.uph16() << (sel.tw + 3);
+						VectorI y1 = uv1.uph16() << (sel.tw + (sel.tw_hi << 3) + 3);
 						VectorI x1 = uv1.upl16();
 
 						addr00 = y0 + x0;
@@ -946,12 +946,12 @@ __ri void GSDrawScanline::CDrawScanline(int pixels, int left, int top, const GSV
 							uv1 = clamp.blend8(repeat, VectorI::broadcast128(global.t.mask));
 						}
 
-						VectorI y0 = uv0.uph16() << (sel.tw + 3);
+						VectorI y0 = uv0.uph16() << (sel.tw + (sel.tw_hi << 3) + 3);
 						VectorI x0 = uv0.upl16();
 
 						if (sel.ltf)
 						{
-							VectorI y1 = uv1.uph16() << (sel.tw + 3);
+							VectorI y1 = uv1.uph16() << (sel.tw + (sel.tw_hi << 3) + 3);
 							VectorI x1 = uv1.upl16();
 
 							addr00 = y0 + x0;
@@ -1087,12 +1087,12 @@ __ri void GSDrawScanline::CDrawScanline(int pixels, int left, int top, const GSV
 						uv1 = clamp.blend8(repeat, VectorI::broadcast128(global.t.mask));
 					}
 
-					VectorI y0 = uv0.uph16() << (sel.tw + 3);
+					VectorI y0 = uv0.uph16() << (sel.tw + (sel.tw_hi << 3) + 3);
 					VectorI x0 = uv0.upl16();
 
 					if (sel.ltf)
 					{
-						VectorI y1 = uv1.uph16() << (sel.tw + 3);
+						VectorI y1 = uv1.uph16() << (sel.tw + (sel.tw_hi << 3) + 3);
 						VectorI x1 = uv1.upl16();
 
 						addr00 = y0 + x0;
@@ -1276,7 +1276,7 @@ __ri void GSDrawScanline::CDrawScanline(int pixels, int left, int top, const GSV
 
 			if (sel.fb)
 			{
-				fa = (fza_base->x + fza_offset->x) % HALF_VM_SIZE;
+				fa = (fza_base->x + fza_offset->x) % (sel.hires ? 4 * HALF_VM_SIZE : HALF_VM_SIZE);
 
 				if (sel.rfb)
 				{

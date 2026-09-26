@@ -253,6 +253,8 @@ protected:
 	template <bool scissor_test>
 	void DrawPoint(const GSVertexSW* vertex, int vertex_count, const u16* index, int index_count);
 	void DrawLine(const GSVertexSW* vertex, const u16* index);
+	void DrawLineImpl(const GSVertexSW* vertex, const u16* index);
+	void DrawPoint2x(const GSVertexSW* vertex, const u16* index);
 	void DrawTriangle(const GSVertexSW* vertex, const u16* index);
 	void DrawSprite(const GSVertexSW* vertex, const u16* index);
 

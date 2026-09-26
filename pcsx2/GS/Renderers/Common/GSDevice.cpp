@@ -339,13 +339,13 @@ GSTexture* GSDevice::FetchSurface(GSTexture::Type type, int width, int height, i
 float GSDevice::PoolScale() const
 {
 	/* The scale the textures in this pool are actually at. The software
-	 * renderer draws at native whatever the upscale option says - it sets
-	 * m_nativeres and ignores it - and its textures are system memory, so
-	 * taking the option at face value there would reserve hundreds of
-	 * megabytes of RAM for textures that are never bigger than a PS2
-	 * frame buffer. */
+	 * renderer draws at native or at 2x, whatever larger scale the upscale
+	 * option asks for, and its textures are system memory, so taking the
+	 * option at face value there would reserve hundreds of megabytes of
+	 * RAM for textures that are never bigger than a PS2 frame buffer at
+	 * 2x. */
 	if (GetRenderAPI() == RenderAPI::None)
-		return 1.0f;
+		return GSConfig.UpscaleMultiplier >= 2.0f ? 2.0f : 1.0f;
 	return GSConfig.UpscaleMultiplier > 0.0f ? GSConfig.UpscaleMultiplier : 1.0f;
 }
 

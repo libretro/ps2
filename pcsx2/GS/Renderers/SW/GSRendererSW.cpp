@@ -42,6 +42,7 @@ static void       sw_invalidate_video_mem(GSState* gs, const GIFRegBITBLTBUF* b,
 static void       sw_invalidate_local_mem(GSState* gs, const GIFRegBITBLTBUF* b, const GSVector4i* r, bool clut) { SW(gs)->InvalidateLocalMem(*b, *r, clut); }
 static GSTexture* sw_get_output(GSState* gs, int i, float* scale, int* y_offset) { return SW(gs)->GetOutput(i, *scale, *y_offset); }
 static GSTexture* sw_get_feedback_output(GSState* gs, float* scale) { return SW(gs)->GetFeedbackOutput(*scale); }
+static float      sw_get_upscale_multiplier(GSState* gs) { return static_cast<float>(SW(gs)->m_hr_scale); }
 #undef SW
 
 static const struct gs_state_ops s_sw_ops = {
@@ -58,12 +59,21 @@ static const struct gs_state_ops s_sw_ops = {
 	sw_invalidate_video_mem,
 	sw_invalidate_local_mem,
 	NULL, /* can_upscale */
-	NULL, /* get_upscale_multiplier */
+	sw_get_upscale_multiplier,
 	NULL, /* get_texture_scale_factor */
 	NULL, /* lookup_palette_source */
 	sw_get_output,
 	sw_get_feedback_output
 };
+
+static void HiresTexRelease(GSRendererSW::HiresTex* t)
+{
+	if (t && retro_atomic_fetch_sub_int(&t->refs, 1) == 1)
+	{
+		memalign_free(t->texels);
+		memalign_free(t);
+	}
+}
 
 GSRendererSW::GSRendererSW(int threads)
 	: GSRenderer(), m_fzb(NULL)
@@ -75,6 +85,18 @@ GSRendererSW::GSRendererSW(int threads)
 	m_rl = GSRasterizerList::Create(threads);
 
 	m_output = (u8*)memalign_alloc(VECTOR_ALIGNMENT, 1024 * 1024 * sizeof(u32));
+
+	/* 2x at any upscale of two or more. */
+	if (GSConfig.UpscaleMultiplier >= 2.0f)
+	{
+		m_hr_vm = static_cast<u8*>(memalign_alloc(VECTOR_ALIGNMENT, 4 * VM_SIZE));
+		if (m_hr_vm)
+		{
+			memset(m_hr_vm, 0, 4 * VM_SIZE);
+			m_hr_scale = 2;
+		}
+	}
+	gs_hr_pages_reset(&m_hr_pages);
 
 	for (retro_atomic_int_t& p : m_fzb_pages)
 		retro_atomic_store_release_int(&p, 0);
@@ -114,6 +136,22 @@ void GSRendererSW::Destroy()
 
 	memalign_free(m_output);
 	m_output = nullptr;
+
+	for (auto& it : m_hr_offsets)
+		memalign_free(it.second);
+	m_hr_offsets.clear();
+	for (i = 0; i < 64; i++)
+	{
+		free(m_hr_layout[i]);
+		m_hr_layout[i] = nullptr;
+	}
+	memalign_free(m_hr_output);
+	m_hr_output = nullptr;
+	m_hr_output_size = 0;
+	HiresTexRelease(m_hr_tex);
+	m_hr_tex = nullptr;
+	memalign_free(m_hr_vm);
+	m_hr_vm = nullptr;
 }
 
 void GSRendererSW::VSync(u32 field, bool registers_written, bool idle_frame)
@@ -142,8 +180,11 @@ GSTexture* GSRendererSW::GetOutput(int i, float& scale, int& y_offset)
 
 	const int w = curFramebuffer.FBW * 64;
 	const int h = framebufferSize.y;
+	const int s = m_hr_vm ? m_hr_scale : 1;
 
-	if (g_gs_device->ResizeRenderTarget(&m_texture[index], w, h, false, false))
+	scale = static_cast<float>(s);
+
+	if (g_gs_device->ResizeRenderTarget(&m_texture[index], w * s, h * s, false, false))
 	{
 		const GSLocalMemory::psm_t& psm = GSLocalMemory::m_psm[curFramebuffer.PSM];
 		constexpr int pitch = 1024 * 4;
@@ -158,6 +199,16 @@ GSTexture* GSRendererSW::GetOutput(int i, float& scale, int& y_offset)
 		bool w_wrap = false;
 
 		PCRTCDisplays.RemoveFramebufferOffset(i);
+
+		// Display doesn't use texa, and instead uses the equivalent of this
+		GIFRegTEXA texa = {};
+		texa.AEM = 0;
+		texa.TA0 = (curFramebuffer.PSM == PSMCT24 || curFramebuffer.PSM == PSGPU24) ? 0x80 : 0;
+		texa.TA1 = 0x80;
+
+		if (s > 1 && HiresLayout(curFramebuffer.PSM))
+			return GetOutputHires(index, curFramebuffer, off_x, off_y, w, h, texa);
+
 		// Need to read it in 2 parts, since you can't do a split rect.
 		if (r.bottom >= 2048)
 		{
@@ -174,15 +225,6 @@ GSTexture* GSRendererSW::GetOutput(int i, float& scale, int& y_offset)
 			rw.left = 0;
 			w_wrap = true;
 		}
-
-		// Display doesn't use texa, and instead uses the equivalent of this
-		GIFRegTEXA texa = {};
-		texa.AEM = 0;
-		texa.TA0 = (curFramebuffer.PSM == PSMCT24 || curFramebuffer.PSM == PSGPU24) ? 0x80 : 0;
-		texa.TA1 = 0x80;
-
-		// Top left rect
-		psm.rtx(m_mem, m_mem.GetOffset(curFramebuffer.Block(), curFramebuffer.FBW, curFramebuffer.PSM), r.ralign<Align_Outside>(psm.bs), m_output, pitch, texa);
 
 		// Top left rect
 		psm.rtx(m_mem, m_mem.GetOffset(curFramebuffer.Block(), curFramebuffer.FBW, curFramebuffer.PSM), r.ralign<Align_Outside>(psm.bs), m_output, pitch, texa);
@@ -208,10 +250,77 @@ GSTexture* GSRendererSW::GetOutput(int i, float& scale, int& y_offset)
 			psm.rtx(m_mem, m_mem.GetOffset(curFramebuffer.Block(), curFramebuffer.FBW, curFramebuffer.PSM), rwh.ralign<Align_Outside>(psm.bs), &m_output[top + left], pitch, texa);
 		}
 
-		m_texture[index]->Update(out_r, m_output, pitch);
+		if (s > 1)
+		{
+			/* A format the 2x memory does not hold: native, each pixel on
+			 * its 2x2. */
+			const int W = w * 2, H = h * 2;
+			int x, y;
+
+			if (!HiresOutput(static_cast<size_t>(W) * H))
+				return m_texture[index];
+			for (y = 0; y < H; y++)
+			{
+				const u32* src = reinterpret_cast<const u32*>(m_output + (y >> 1) * pitch);
+				u32* dst = m_hr_output + static_cast<size_t>(y) * W;
+				for (x = 0; x < W; x++)
+					dst[x] = src[x >> 1];
+			}
+			m_texture[index]->Update(GSVector4i(0, 0, W, H), m_hr_output, W * 4);
+		}
+		else
+			m_texture[index]->Update(out_r, m_output, pitch);
 	}
 
-	scale = 1.0f;
+	return m_texture[index];
+}
+
+/* Room for the display's picture at 2x. */
+bool GSRendererSW::HiresOutput(size_t pixels)
+{
+	if (pixels <= m_hr_output_size)
+		return true;
+
+	memalign_free(m_hr_output);
+	m_hr_output = static_cast<u32*>(memalign_alloc(VECTOR_ALIGNMENT, pixels * sizeof(u32)));
+	m_hr_output_size = m_hr_output ? pixels : 0;
+	return m_hr_output != nullptr;
+}
+
+/* The display's picture from the 2x memory, the blocks it shows taken
+ * from local memory first where the 2x drawing does not hold them. */
+GSTexture* GSRendererSW::GetOutputHires(int index, const GSPCRTCRegs::PCRTCDisplay& fb, int off_x, int off_y, int w, int h, const GIFRegTEXA& texa)
+{
+	const gs_hr_layout_t* l = HiresLayout(fb.PSM);
+	const int W = w * 2, H = h * 2;
+	int kind;
+
+	switch (fb.PSM)
+	{
+		case PSMCT32:
+		case PSMZ32:
+			kind = GS_HR_READ_32;
+			break;
+		case PSMCT24:
+		case PSMZ24:
+			kind = GS_HR_READ_24;
+			break;
+		default:
+			kind = GS_HR_READ_16;
+			break;
+	}
+
+	if (!HiresOutput(static_cast<size_t>(W) * H))
+		return m_texture[index];
+
+	HiresRestored();
+	HiresRefresh(m_mem.GetOffset(fb.Block(), fb.FBW, fb.PSM), fb.PSM, GSVector4i(off_x, off_y, off_x + w, off_y + h));
+
+	m_hr_colbuf.resize(W);
+	gs_hr_read(l, m_hr_vm, fb.FBP, fb.FBW, off_x, off_y, W, H, kind, texa.TA0, texa.TA1, m_hr_output, W * 4, m_hr_colbuf.data());
+
+	m_texture[index]->Update(GSVector4i(0, 0, W, H), m_hr_output, W * 4);
+
 	return m_texture[index];
 }
 
@@ -394,9 +503,14 @@ void GSRendererSW::Draw()
 
 	sd->UsePages(fb_pages, m_context->offset.fb.psm(), zb_pages, m_context->offset.zb.psm());
 
-	//
+	/* Before the native draw changes local memory: the 2x memory takes
+	 * what it lacks of the draw's area from it. */
+	const bool hires = m_hr_vm && HiresPrepare(sd, r);
 
 	Queue(data);
+
+	if (hires)
+		DrawHires(sd);
 }
 
 void GSRendererSW::Queue(GSRingHeap::SharedPtr<GSRasterizerData>& item)
@@ -457,6 +571,9 @@ void GSRendererSW::InvalidateVideoMem(const GIFRegBITBLTBUF& BITBLTBUF, const GS
 	}
 
 	m_tc->InvalidatePages(pages, off.psm()); // if texture update runs on a thread and Sync(5) happens then this must come later
+
+	if (m_hr_vm && !r.rempty())
+		HiresStale(off, r);
 }
 
 void GSRendererSW::InvalidateLocalMem(const GIFRegBITBLTBUF& BITBLTBUF, const GSVector4i& r, bool clut)
@@ -703,6 +820,456 @@ bool GSRendererSW::CheckSourcePages(SharedData* sd)
 	return false;
 }
 
+/* The PSM whose page layout the 2x memory holds a page in for `psm`, or
+ * 0xff for a format it does not draw. */
+static u32 HiresKey(u32 psm)
+{
+	switch (psm)
+	{
+		case PSMCT32:
+		case PSMCT24:
+			return PSMCT32;
+		case PSMZ32:
+		case PSMZ24:
+			return PSMZ32;
+		case PSMCT16:
+		case PSMCT16S:
+		case PSMZ16:
+		case PSMZ16S:
+			return psm;
+		default:
+			return 0xff;
+	}
+}
+
+const gs_hr_layout_t* GSRendererSW::HiresLayout(u32 psm)
+{
+	const u32 key = HiresKey(psm);
+	gs_hr_layout_t* l;
+	int i;
+
+	if (key == 0xff)
+		return nullptr;
+	if (m_hr_layout[key])
+		return m_hr_layout[key];
+
+	l = static_cast<gs_hr_layout_t*>(calloc(1, sizeof(*l)));
+	if (!l)
+		return nullptr;
+
+	const GSLocalMemory::psm_t& p = GSLocalMemory::m_psm[key];
+	l->pw         = p.pgs.x;
+	l->ph         = p.pgs.y;
+	l->elem_bytes = p.bpp / 8;
+	l->page_elems = GS_PAGE_SIZE / l->elem_bytes;
+	for (i = 0; i < l->ph; i++)
+		l->swrow[i] = static_cast<int>(p.info.pa(0, i, 0, 1));
+	for (i = 0; i < l->pw; i++)
+		l->swcol[i] = static_cast<int>(p.info.pa(i, 0, 0, 1) - p.info.pa(0, 0, 0, 1));
+	gs_hr_layout_init(l);
+
+	m_hr_layout[key] = l;
+	return l;
+}
+
+/* The current frame and z buffer's tables in the 2x memory, in the
+ * sixteen-bit units the scanline code adds. */
+const GSRendererSW::HiresOffset* GSRendererSW::HiresOffsets()
+{
+	const GIFRegFRAME& FRAME = m_context->FRAME;
+	const GIFRegZBUF& ZBUF = m_context->ZBUF;
+	const u32 hash = m_context->offset.fzb4->hash;
+	const auto it = m_hr_offsets.find(hash);
+	const gs_hr_layout_t* fl;
+	const gs_hr_layout_t* zl;
+	HiresOffset* o;
+	int i;
+
+	if (it != m_hr_offsets.end())
+		return it->second;
+
+	o = static_cast<HiresOffset*>(memalign_alloc(VECTOR_ALIGNMENT, sizeof(HiresOffset)));
+	if (!o)
+		return nullptr;
+
+	fl = HiresLayout(FRAME.PSM);
+	zl = HiresLayout(ZBUF.PSM);
+	for (i = 0; i < 4096; i++)
+	{
+		o->row[i].x = fl ? static_cast<int>(gs_hr_row(fl, FRAME.FBP, FRAME.FBW, i) * (fl->elem_bytes / 2)) : 0;
+		o->row[i].y = zl ? static_cast<int>(gs_hr_row(zl, ZBUF.ZBP, FRAME.FBW, i) * (zl->elem_bytes / 2)) : 0;
+	}
+	for (i = 0; i < 1024; i++)
+	{
+		o->col[i].x = fl ? static_cast<int>(gs_hr_col(fl, i * 4) * (fl->elem_bytes / 2)) : 0;
+		o->col[i].y = zl ? static_cast<int>(gs_hr_col(zl, i * 4) * (zl->elem_bytes / 2)) : 0;
+	}
+
+	m_hr_offsets[hash] = o;
+	return o;
+}
+
+/* Calls fn on each block of `r`, native pixels of a buffer, wrapping at
+ * 2048 as the GS does. */
+template <typename Fn>
+static void LoopBlocksWrapped(const GSOffset& off, const GSVector4i& r, Fn&& fn)
+{
+	const int xs[2][2] = {{r.x, pcsx2_min_i(r.z, 2048)}, {0, r.z - 2048}};
+	const int ys[2][2] = {{r.y, pcsx2_min_i(r.w, 2048)}, {0, r.w - 2048}};
+	int i, j;
+
+	for (j = 0; j < 2; j++)
+		for (i = 0; i < 2; i++)
+		{
+			const GSVector4i rr(xs[i][0], ys[j][0], xs[i][1], ys[j][1]);
+			if (!rr.rempty())
+				off.loopBlocks(rr, fn);
+		}
+}
+
+/* After a savestate replaced local memory, the 2x memory holds none of
+ * it. */
+void GSRendererSW::HiresRestored()
+{
+	int i;
+
+	if (m_hr_restores == m_mem_restores)
+		return;
+	m_hr_restores = m_mem_restores;
+	gs_hr_pages_reset(&m_hr_pages);
+	for (i = 0; i < GS_HR_PAGES; i++)
+		m_hr_gen[i]++;
+}
+
+/* Makes the 2x memory hold the blocks of `r` of a buffer in `psm`. */
+void GSRendererSW::HiresRefresh(const GSOffset& off, u32 psm, const GSVector4i& r)
+{
+	const gs_hr_layout_t* l = HiresLayout(psm);
+	const u32 key = HiresKey(psm);
+	int count = 0;
+	int i;
+	bool synced = m_rl->IsSynced();
+
+	LoopBlocksWrapped(off, r, [this, &count](u32 bn)
+	{
+		const u32 page = (bn >> 5) & (GS_HR_PAGES - 1);
+		if (!m_hr_mask[page])
+			m_hr_touched[count++] = static_cast<u16>(page);
+		m_hr_mask[page] |= 1u << (bn & 31);
+	});
+
+	for (i = 0; i < count; i++)
+	{
+		const u32 page = m_hr_touched[i];
+		const u32 mask = m_hr_mask[page];
+
+		m_hr_mask[page] = 0;
+		if (!gs_hr_page_needs(&m_hr_pages, page, key, mask))
+			continue;
+
+		/* A page an earlier draw still writes is taken once it is done. */
+		if (!synced && retro_atomic_load_acquire_int(&m_fzb_pages[page]))
+		{
+			Sync(8);
+			synced = true;
+		}
+		gs_hr_page_refresh(&m_hr_pages, l, key, page, mask, m_mem.m_vm8, m_hr_vm);
+		m_hr_gen[page]++;
+	}
+}
+
+/* Blocks of `r` that local memory has and the 2x memory does not. */
+void GSRendererSW::HiresStale(const GSOffset& off, const GSVector4i& r)
+{
+	HiresRestored();
+	LoopBlocksWrapped(off, r, [this](u32 bn)
+	{
+		gs_hr_mark_block(&m_hr_pages, bn);
+		m_hr_gen[(bn >> 5) & (GS_HR_PAGES - 1)]++;
+	});
+}
+
+/* A draw computing a post effect at a fraction of the picture: into a
+ * buffer at most half the display's width, or scaling a picture the 2x
+ * memory holds down to three quarters of it or less with the bilinear
+ * filter. Such effects blur and offset by native pixels, and are drawn
+ * at native only; the draws after them read their result as native
+ * texels. */
+bool GSRendererSW::HiresEffectDraw(const SharedData* sd, const GSVector4i& r)
+{
+	const GSVector4i t = sd->m_tex[0].r;
+
+	if (static_cast<int>(m_context->FRAME.FBW) * 64 <= PCRTCDisplays.GetResolution().x / 2)
+		return true;
+	if (!sd->global.sel.ltf || !HiresTexture(sd))
+		return false;
+	return r.width() * 4 <= t.width() * 3 && r.height() * 4 <= t.height() * 3;
+}
+
+/* Whether the draw is also drawn at 2x. The 2x memory takes the draw's
+ * area of the buffers it uses first; a draw into a format it does not
+ * hold, or computing an effect at native (HiresEffectDraw), leaves the
+ * area it writes stale there. */
+bool GSRendererSW::HiresPrepare(SharedData* sd, const GSVector4i& r)
+{
+	const GSScanlineSelector sel = sd->global.sel;
+	const bool fb = sel.fb != 0, zb = sel.zb != 0;
+
+	HiresRestored();
+	if (r.rempty())
+		return false;
+
+	if ((fb && !HiresLayout(m_context->FRAME.PSM)) || (zb && !HiresLayout(m_context->ZBUF.PSM)) || !HiresOffsets() || HiresEffectDraw(sd, r))
+	{
+		if (sel.fwrite)
+			HiresStale(m_context->offset.fb, r);
+		if (sel.zwrite)
+			HiresStale(m_context->offset.zb, r);
+		return false;
+	}
+
+	if (fb)
+		HiresRefresh(m_context->offset.fb, m_context->FRAME.PSM, r);
+	if (zb)
+		HiresRefresh(m_context->offset.zb, m_context->ZBUF.PSM, r);
+	return true;
+}
+
+/* Whether a 2x draw samples a 2x texture: a texture of a format the 2x
+ * memory holds, without a palette or mip levels, some of whose blocks it
+ * holds as that format, clamped or repeated in a way that doubles. */
+bool GSRendererSW::HiresTexture(const SharedData* sd)
+{
+	const GSScanlineSelector sel = sd->global.sel;
+	const GIFRegTEX0& TEX0 = sd->m_tex0;
+	const u32 key = HiresKey(TEX0.PSM);
+	int held = 0;
+
+	if (sel.tfx == TFX_NONE || sel.tlu || sel.mmin || !sd->m_tex[0].t || sd->m_tex[1].t)
+		return false;
+	if (m_context->CLAMP.WMS == CLAMP_REGION_REPEAT || m_context->CLAMP.WMT == CLAMP_REGION_REPEAT)
+		return false;
+	if (!HiresLayout(TEX0.PSM) || sd->m_tex[0].r.rempty())
+		return false;
+
+	m_mem.GetOffset(TEX0.TBP0, TEX0.TBW, TEX0.PSM).loopBlocks(sd->m_tex[0].r, [this, key, &held](u32 bn)
+	{
+		const u32 page = (bn >> 5) & (GS_HR_PAGES - 1);
+		if (m_hr_pages.psm[page] == key && !(m_hr_pages.stale[page] & (1u << (bn & 31))))
+			held++;
+	});
+	return held != 0;
+}
+
+/* The texture's area at twice the size: a buffer `1 << tw` texels wide,
+ * holding the rows and columns of twice the area, each texel from the 2x
+ * memory where it holds the texel's block and the native texel twice
+ * elsewhere. The last one is kept for the draws that sample it again
+ * before any of its pages change. */
+GSRendererSW::HiresTex* GSRendererSW::HiresTextureRead(const SharedData* sd)
+{
+	const GIFRegTEX0& TEX0 = sd->m_tex0;
+	const GSVector4i r = sd->m_tex[0].r;
+	const GSTextureCacheSW::Texture* nt = sd->m_tex[0].t;
+	const gs_hr_layout_t* l = HiresLayout(TEX0.PSM);
+	const u32 key = HiresKey(TEX0.PSM);
+	const GIFRegTEXA& TEXA = m_draw_env->TEXA;
+	const GSOffset off = m_mem.GetOffset(TEX0.TBP0, TEX0.TBW, TEX0.PSM);
+	const int n = r.width();
+	u64 gens = 0;
+	HiresTex* t;
+	u32* addr;
+	int kind, x, y, tw;
+
+	off.pageLooperForRect(r).loopPages([this, &gens](u32 page)
+	{
+		gens += m_hr_gen[page];
+	});
+
+	if (m_hr_tex && m_hr_tex_key[0] == TEX0.U64 && m_hr_tex_key[1] == TEXA.U64 && m_hr_tex_key[2] == gens && m_hr_tex_r.eq(r))
+	{
+		retro_atomic_fetch_add_int(&m_hr_tex->refs, 1);
+		return m_hr_tex;
+	}
+
+	switch (TEX0.PSM)
+	{
+		case PSMCT32:
+		case PSMZ32:
+			kind = GS_HR_READ_32;
+			break;
+		case PSMCT24:
+		case PSMZ24:
+			kind = GS_HR_READ_24;
+			break;
+		default:
+			kind = GS_HR_READ_16;
+			break;
+	}
+
+	for (tw = 3; (1 << tw) < 2 * r.right; tw++)
+		;
+
+	t = static_cast<HiresTex*>(memalign_alloc(VECTOR_ALIGNMENT, sizeof(HiresTex)));
+	if (!t)
+		return nullptr;
+	t->texels = static_cast<u32*>(memalign_alloc(VECTOR_ALIGNMENT, sizeof(u32) * (static_cast<size_t>(2 * r.bottom) << tw)));
+	if (!t->texels)
+	{
+		memalign_free(t);
+		return nullptr;
+	}
+	t->tw = tw;
+	retro_atomic_store_release_int(&t->refs, 2); /* the draw's and the cache's */
+
+	m_hr_colbuf.resize(n);
+	addr = m_hr_colbuf.data();
+
+	for (y = r.top; y < r.bottom; y++)
+	{
+		GSOffset::PAHelper pa = off.paMulti(0, y);
+		const u32* native = static_cast<const u32*>(nt->m_buff) + (static_cast<size_t>(y) << nt->m_tw) + r.left;
+		for (x = 0; x < n; x++)
+			addr[x] = pa.value(r.left + x);
+		gs_hr_read_texels(l, &m_hr_pages, key, m_hr_vm, addr, native, n, 0, kind, TEXA.AEM, TEXA.TA0, TEXA.TA1, t->texels + (static_cast<size_t>(2 * y) << tw) + 2 * r.left);
+		gs_hr_read_texels(l, &m_hr_pages, key, m_hr_vm, addr, native, n, 1, kind, TEXA.AEM, TEXA.TA0, TEXA.TA1, t->texels + (static_cast<size_t>(2 * y + 1) << tw) + 2 * r.left);
+	}
+
+	HiresTexRelease(m_hr_tex);
+	m_hr_tex = t;
+	m_hr_tex_key[0] = TEX0.U64;
+	m_hr_tex_key[1] = TEXA.U64;
+	m_hr_tex_key[2] = gens;
+	m_hr_tex_r = r;
+	return t;
+}
+
+/* The sprites of a 2x draw: each axis snapped to the native pixels it
+ * covers and, sampled nearest, fitted to the texels it reads
+ * (GSHiresMem.h). */
+static void HiresSprites(GSVertexSW* v, const u16* index, int index_count, bool nearest)
+{
+	int i, k;
+
+	for (i = 0; i + 1 < index_count; i += 2)
+	{
+		GSVertexSW& a = v[index[i]];
+		GSVertexSW& b = v[index[i + 1]];
+
+		for (k = 0; k < 2; k++)
+		{
+			gs_hr_snap_sprite(&a.p.F32[k], &b.p.F32[k], &a.t.F32[k], &b.t.F32[k]);
+			if (nearest)
+				gs_hr_fit_nearest(a.p.F32[k], b.p.F32[k], &a.t.F32[k], &b.t.F32[k]);
+		}
+	}
+}
+
+/* A 2x texture's coordinate wrap (gs_hr_wrap_axis), with the modes the
+ * scanline code runs it with. */
+static void HiresWrap(GSScanlineGlobalData& gd, const GIFRegTEX0& TEX0, const GIFRegCLAMP& CLAMP, const GSVector4i& r)
+{
+	u16 mn, mx;
+	u32 mask;
+
+	gd.sel.wms = gs_hr_wrap_axis(CLAMP.WMS, 1u << TEX0.TW, CLAMP.MINU, CLAMP.MAXU, r.left, r.right, &mn, &mx, &mask);
+	gd.t.min.U16[0] = gd.t.minmax.U16[0] = mn;
+	gd.t.max.U16[0] = gd.t.minmax.U16[2] = mx;
+	gd.t.mask.U32[0] = mask;
+
+	gd.sel.wmt = gs_hr_wrap_axis(CLAMP.WMT, 1u << TEX0.TH, CLAMP.MINV, CLAMP.MAXV, r.top, r.bottom, &mn, &mx, &mask);
+	gd.t.min.U16[4] = gd.t.minmax.U16[1] = mn;
+	gd.t.max.U16[4] = gd.t.minmax.U16[3] = mx;
+	gd.t.mask.U32[2] = mask;
+
+	gd.t.min = gd.t.min.xxxxlh();
+	gd.t.max = gd.t.max.xxxxlh();
+	gd.t.mask = gd.t.mask.xxzz();
+	gd.t.invmask = ~gd.t.mask;
+}
+
+/* The draw again, at twice the size into the 2x memory. It samples the
+ * same textures as the native draw, or their 2x pictures where the 2x
+ * memory holds them, and uses the same pages. */
+void GSRendererSW::DrawHires(SharedData* sd)
+{
+	auto data = m_vertex_heap.make_shared<SharedData>().cast<GSRasterizerData>();
+	SharedData* hd = static_cast<SharedData*>(data.get());
+	const HiresOffset* o = HiresOffsets();
+	const size_t vsize = sizeof(GSVertexSW) * ((sd->vertex_count + 1) & ~1);
+	HiresTex* const ht = HiresTexture(sd) ? HiresTextureRead(sd) : nullptr;
+	const bool hires_tex = ht != nullptr;
+	/* The half texel the native draw's bilinear sampling moved its
+	 * coordinates by, at twice the size a half 2x texel. */
+	const float half = (hires_tex && sd->global.sel.ltf && sd->global.sel.fst) ? static_cast<float>(0x8000) : 0.0f;
+	const GSVector4 tscale = hires_tex ? GSVector4(2.0f) : GSVector4(1.0f);
+	int i;
+
+	hd->primclass = sd->primclass;
+	hd->buff = static_cast<u8*>(m_vertex_heap.alloc(vsize + sizeof(u32) * sd->index_count, 64));
+	hd->vertex = reinterpret_cast<GSVertexSW*>(hd->buff);
+	hd->vertex_count = sd->vertex_count;
+	hd->index = reinterpret_cast<u16*>(hd->buff + vsize);
+	hd->index_count = sd->index_count;
+	hd->scanmsk_value = sd->scanmsk_value;
+	hd->scissor = sd->scissor << 1;
+	hd->bbox = sd->bbox << 1;
+
+	memcpy(static_cast<void*>(hd->vertex), sd->vertex, sizeof(GSVertexSW) * sd->vertex_count);
+	memcpy(hd->index, sd->index, sizeof(u16) * sd->index_count);
+
+	if (hd->primclass == GS_SPRITE_CLASS)
+		HiresSprites(hd->vertex, hd->index, hd->index_count, sd->global.sel.tfx != TFX_NONE && !sd->global.sel.ltf);
+
+	for (i = 0; i < hd->vertex_count; i++)
+	{
+		GSVertexSW& v = hd->vertex[i];
+		v.p = (v.p + v.p).xyzw(v.p);
+		v.t = (v.t * tscale + GSVector4(half, half, 0.0f, 0.0f)).xyzw(v.t);
+	}
+
+	hd->global = sd->global;
+	hd->global.vm = m_hr_vm;
+	hd->global.fzbr = o->row;
+	hd->global.fzbc = o->col;
+	hd->global.sel.hires = 1;
+	hd->global.clut = nullptr;
+	hd->global.dimx = nullptr;
+	if (sd->global.clut)
+	{
+		hd->global.clut = static_cast<u32*>(m_vertex_heap.alloc(sizeof(u32) * 256, VECTOR_ALIGNMENT));
+		memcpy(hd->global.clut, sd->global.clut, sizeof(u32) * 256);
+	}
+	if (sd->global.dimx)
+	{
+		hd->global.dimx = static_cast<GSVector4i*>(m_vertex_heap.alloc(sizeof(m_dimx), VECTOR_ALIGNMENT));
+		memcpy(hd->global.dimx, sd->global.dimx, sizeof(m_dimx));
+	}
+
+	if (hires_tex)
+	{
+		const int tw = ht->tw;
+		hd->m_hr_tex = ht;
+		hd->global.tex[0] = hd->m_hr_tex->texels;
+		hd->global.sel.tw = (tw - 3) & 7;
+		hd->global.sel.tw_hi = (tw - 3) >> 3;
+		HiresWrap(hd->global, sd->m_tex0, m_context->CLAMP, sd->m_tex[0].r);
+	}
+
+	for (i = 0; sd->m_tex[i].t != NULL; i++)
+		hd->m_tex[i] = sd->m_tex[i];
+	hd->m_tex[i].t = NULL;
+
+	hd->UsePages(sd->global.sel.fb ? &sd->m_fb_pages : NULL, sd->m_fpsm, sd->global.sel.zb ? &sd->m_zb_pages : NULL, sd->m_zpsm);
+
+	if (sd->global.sel.fwrite)
+		sd->m_fb_pages.loopPages([this](u32 page) { m_hr_gen[page]++; });
+	if (sd->global.sel.zwrite)
+		sd->m_zb_pages.loopPages([this](u32 page) { m_hr_gen[page]++; });
+
+	m_rl->Queue(data);
+}
+
 bool GSRendererSW::GetScanlineGlobalData(SharedData* data)
 {
 	GSScanlineGlobalData& gd = data->global;
@@ -825,6 +1392,8 @@ bool GSRendererSW::GetScanlineGlobalData(SharedData* data)
 			bool mipmap = IsMipMapActive();
 
 			GIFRegTEX0 TEX0 = m_context->GetSizeFixedTEX0(m_vt.m_min.t.xyxy(m_vt.m_max.t), m_vt.IsLinear(), mipmap);
+
+			data->m_tex0 = TEX0;
 
 			GSVector4i r = GetTextureMinMax(TEX0, context->CLAMP, gd.sel.ltf, true).coverage;
 
@@ -1199,7 +1768,8 @@ bool GSRendererSW::GetScanlineGlobalData(SharedData* data)
 }
 
 GSRendererSW::SharedData::SharedData()
-	: m_fpsm(0)
+	: m_hr_tex(NULL)
+	, m_fpsm(0)
 	, m_zpsm(0)
 	, m_using_pages(false)
 	, m_syncpoint(SyncNone)
@@ -1220,6 +1790,7 @@ GSRendererSW::SharedData::~SharedData()
 		GSRingHeap::free(global.clut);
 	if (global.dimx)
 		GSRingHeap::free(global.dimx);
+	HiresTexRelease(m_hr_tex);
 }
 
 void GSRendererSW::SharedData::UsePages(const GSOffset::PageLooper* fb_pages, int fpsm, const GSOffset::PageLooper* zb_pages, int zpsm)

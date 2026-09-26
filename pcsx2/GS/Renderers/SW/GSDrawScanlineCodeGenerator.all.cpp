@@ -1024,7 +1024,7 @@ void GSDrawScanlineCodeGenerator2::TestZ(const XYm& temp1, const XYm& temp2)
 
 	mov(t2.cvt32(), dword[t1 + 4]);
 	add(t2.cvt32(), dword[t0 + 4]);
-	and_(t2.cvt32(), HALF_VM_SIZE - 1);
+	and_(t2.cvt32(), (m_sel.hires ? 4 * HALF_VM_SIZE : HALF_VM_SIZE) - 1);
 
 	// GSVector4i zs = zi;
 
@@ -1259,7 +1259,7 @@ void GSDrawScanlineCodeGenerator2::SampleTexture_TexelReadHelper(int mip_offset)
 
 	THREEARG(punpcklwd, xym5, xym2, xym0);
 	punpckhwd(xym2, xym0);
-	pslld(xym2, static_cast<u8>(m_sel.tw + 3));
+	pslld(xym2, static_cast<u8>(m_sel.tw + (m_sel.tw_hi << 3) + 3));
 
 	// xym0 = 0
 	// xym2 = y0
@@ -1276,7 +1276,7 @@ void GSDrawScanlineCodeGenerator2::SampleTexture_TexelReadHelper(int mip_offset)
 
 		THREEARG(punpcklwd, xym1, xym3, xym0);
 		punpckhwd(xym3, xym0);
-		pslld(xym3, static_cast<u8>(m_sel.tw + 3));
+		pslld(xym3, static_cast<u8>(m_sel.tw + (m_sel.tw_hi << 3) + 3));
 
 		// xym1 = x1
 		// xym2 = y0
@@ -2396,7 +2396,7 @@ void GSDrawScanlineCodeGenerator2::ReadFrame()
 
 	mov(ebx, dword[t1]);
 	add(ebx, dword[t0]);
-	and_(ebx, HALF_VM_SIZE - 1);
+	and_(ebx, (m_sel.hires ? 4 * HALF_VM_SIZE : HALF_VM_SIZE) - 1);
 
 	if (!m_sel.rfb)
 	{

@@ -2551,6 +2551,7 @@ int GSState::Defrost(const freezeData* fd)
 	ReadState(&m_tr.x, data);
 	ReadState(&m_tr.y, data);
 	ReadState(m_mem.m_vm8, data, m_mem.m_vmsize);
+	m_mem_restores++;
 
 	m_tr.total = 0; // TODO: restore transfer state
 

@@ -272,7 +272,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       "pcsx2_upscale_multiplier",
       "Video > Internal Resolution (Restart)",
       "Internal Resolution (Restart)",
-      NULL,
+      "Draw at a multiple of the PS2's resolution. The software renderers draw at 2x for 2x and above.",
       NULL,
       "video",
       {

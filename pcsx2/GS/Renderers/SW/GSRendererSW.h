@@ -20,12 +20,24 @@
 #include "GSRasterizer.h"
 #include "../../GSRingHeap.h"
 #include "../../MultiISA.h"
+#include "GSHiresMem.h"
+
+#include <unordered_map>
 
 MULTI_ISA_UNSHARED_START
 
 class GSRendererSW final : public GSRenderer
 {
 public:
+	/* A 2x texture, shared by the draws that sample it and the renderer's
+	 * cache of the last one; freed with its last reference. */
+	struct HiresTex
+	{
+		u32* texels;
+		retro_atomic_int_t refs;
+		int tw; // log2 of the width in texels
+	};
+
 	class SharedData : public GSRasterizerData
 	{
 		struct alignas(16) TextureLevel
@@ -37,6 +49,8 @@ public:
 	public:
 		GSOffset::PageLooper m_fb_pages;
 		GSOffset::PageLooper m_zb_pages;
+		HiresTex* m_hr_tex; // the 2x texture a 2x draw samples
+		GIFRegTEX0 m_tex0;  // the texture as sampled, its size fixed to the draw's coordinates
 		int m_fpsm;
 		int m_zpsm;
 		bool m_using_pages;
@@ -59,6 +73,14 @@ public:
 		void UpdateSource();
 	};
 
+	/* The row and column tables of a frame and z buffer in the 2x memory,
+	 * as GSPixelOffset4's are in local memory. */
+	struct HiresOffset
+	{
+		GSVector2i row[4096];
+		GSVector2i col[1024];
+	};
+
 public: /* called through gs_state_ops (GSRendererSW.cpp); these were protected virtuals */
 	std::unique_ptr<IRasterizer> m_rl;
 	std::unique_ptr<GSTextureCacheSW> m_tc;
@@ -72,6 +94,24 @@ public: /* called through gs_state_ops (GSRendererSW.cpp); these were protected 
 	retro_atomic_int_t m_tex_pages[512]; // widened u16 -> int: retro_atomic has no sub-word ops; 1 KB extra
 	GIFRegDIMX m_last_dimx = {};
 	GSVector4i m_dimx[8] = {};
+
+	/* 2x (GSHiresMem.h): the second memory, the layouts by PSM, the
+	 * tables by frame and z buffer, and the display's picture. */
+	GSVector4i m_hr_tex_r = {};   // the area of m_hr_tex
+	u8* m_hr_vm = nullptr;
+	u32* m_hr_output = nullptr;
+	HiresTex* m_hr_tex = nullptr; // the last 2x texture, for the draws after it
+	gs_hr_layout_t* m_hr_layout[64] = {};
+	u64 m_hr_tex_key[3] = {};     // its TEX0, TEXA and the sum of its pages' generations
+	std::unordered_map<u32, HiresOffset*> m_hr_offsets;
+	std::vector<u32> m_hr_colbuf;
+	size_t m_hr_output_size = 0;
+	gs_hr_pages_t m_hr_pages;
+	u32 m_hr_mask[GS_HR_PAGES] = {};    // blocks asked for by page, zero between calls
+	u32 m_hr_gen[GS_HR_PAGES] = {};     // counts the changes to each page's 2x picture
+	u32 m_hr_restores = 0;
+	int m_hr_scale = 1;
+	u16 m_hr_touched[GS_HR_PAGES] = {}; // the pages with blocks asked for
 
 	void Reset(bool hardware_reset);
 	void VSync(u32 field, bool registers_written, bool idle_frame);
@@ -91,6 +131,19 @@ public: /* called through gs_state_ops (GSRendererSW.cpp); these were protected 
 	bool CheckSourcePages(SharedData* sd);
 
 	bool GetScanlineGlobalData(SharedData* data);
+
+	const gs_hr_layout_t* HiresLayout(u32 psm);
+	const HiresOffset* HiresOffsets();
+	void HiresRestored();
+	void HiresRefresh(const GSOffset& off, u32 psm, const GSVector4i& r);
+	void HiresStale(const GSOffset& off, const GSVector4i& r);
+	bool HiresEffectDraw(const SharedData* sd, const GSVector4i& r);
+	bool HiresPrepare(SharedData* sd, const GSVector4i& r);
+	bool HiresTexture(const SharedData* sd);
+	HiresTex* HiresTextureRead(const SharedData* sd);
+	void DrawHires(SharedData* sd);
+	bool HiresOutput(size_t pixels);
+	GSTexture* GetOutputHires(int index, const GSPCRTCRegs::PCRTCDisplay& fb, int off_x, int off_y, int w, int h, const GIFRegTEXA& texa);
 
 public:
 	GSRendererSW(int threads);

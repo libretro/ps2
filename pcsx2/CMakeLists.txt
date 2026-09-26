@@ -362,6 +362,8 @@ set(pcsx2GSSources
 	GS/Renderers/HW/GSTextureReplacementLoaders.cpp
 	GS/Renderers/HW/GSTextureReplacements.cpp
 	GS/Renderers/SW/GSDeviceSW.cpp
+	GS/Renderers/SW/GSHiresMem.c
+	GS/Renderers/SW/GSHiresMem.h
 	GS/Renderers/SW/GSTextureCacheSW.cpp
 	GS/Renderers/SW/GSTextureSW.cpp
 	)

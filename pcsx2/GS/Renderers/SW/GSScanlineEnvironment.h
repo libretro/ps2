@@ -65,6 +65,8 @@ union GSScanlineSelector
 		u32 notest : 1; // 55 (no ztest, no atest, no date, no scissor test, and horizontally aligned to 4 pixels)
 		// TODO: 1D texture flag? could save 2 texture reads and 4 lerps with bilinear, and also the texture coordinate clamp/wrap code in one direction
 		u32 zequal : 1; // 56
+		u32 hires  : 1; // 57 (drawing into the 2x memory, four times the size of local memory)
+		u32 tw_hi  : 1; // 58 (tw + 8: a 2x texture 2048 or 4096 texels wide)
 	};
 
 	struct
