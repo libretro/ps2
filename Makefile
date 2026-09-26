@@ -757,6 +757,9 @@ endif
 
 OBJECTS := $(SOURCES_CXX:.cpp=.o) $(SOURCES_CC:.cc=.o) $(SOURCES_C:.c=.o) $(SOURCES_ASM:.S=.o) $(MULTI_ISA_OBJECTS)
 DEPS    := $(SOURCES_CXX:.cpp=.d) $(SOURCES_CC:.cc=.d) $(SOURCES_C:.c=.d)
+# Each per-tier object writes its own dependency file beside it (-MMD), and a
+# header it includes has to rebuild it like any other object.
+DEPS    += $(MULTI_ISA_OBJECTS:.o=.d)
 
 # VIXL (SOURCES_CC) is third-party; silence its warnings for those objects only
 # (matches cmake's -w on the vixl target) without loosening warnings elsewhere.
