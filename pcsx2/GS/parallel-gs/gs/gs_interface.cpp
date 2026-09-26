@@ -1803,8 +1803,12 @@ uint32_t GSInterface::drawing_kick_update_texture(FBFeedbackMode feedback_mode, 
 		if (info.info.arrayed)
 			render_pass.tex_infos_has_super_samples = true;
 
-		// Common pattern for esoteric channel re-mapping. Don't try to be clever here. Force sample mapping.
-		if (info.info.arrayed && is_palette_format(psm) && desc.clamp.desc.has_region_repeat())
+		// A palette texture's texels are indices, bytes of memory rather than
+		// colours: in an 8- or 4-bit view of what was drawn at 32 bits, the
+		// texel beside one is another channel or another pixel, so blending or
+		// resampling across texels mixes bytes that do not belong together.
+		// Sample k of the texel is sample k of the byte, so read that one.
+		if (info.info.arrayed && is_palette_format(psm))
 			info.info.flags |= TEX_INFO_FORCE_SAMPLE_MAPPING;
 
 		render_pass.tex_infos.push_back(info);

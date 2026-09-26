@@ -11,6 +11,9 @@
 #                     triangle_setup built with the switch that selects them.
 # pgs_empty_instance : a render pass flushed with an empty last instance
 #                     sizes only the instances with a bounding box.
+# pgs_palette_samples : a palette read of a super-sampled texture takes the
+#                     texel's own sample, as neighbouring texels of an 8-bit
+#                     view are other bytes.
 # pgs_vertex_oracle : the C89 kernels must write bytes identical to the
 #                     muglm field-by-field bodies they replace.
 # pgs_queue_equiv   : a ring-buffer vertex queue must deliver the same
@@ -49,13 +52,15 @@ rm -f "$DIR/pgs_c89_check.o"
 
 for CC in gcc clang; do
 	command -v "$CC" >/dev/null 2>&1 || continue
-	echo "=== $CC pgs_field_scanout, pgs_ss_copies, pgs_empty_instance ==="
+	echo "=== $CC pgs_field_scanout, pgs_ss_copies, pgs_empty_instance, pgs_palette_samples ==="
 	$CC -std=c89 -pedantic -Wall -Wextra -O2 $SANFLAGS -o "$DIR/pgs_field_scanout" "$DIR/pgs_field_scanout.c"
 	"$DIR/pgs_field_scanout"
 	$CC -std=c89 -pedantic -Wall -Wextra -O2 $SANFLAGS -o "$DIR/pgs_ss_copies" "$DIR/pgs_ss_copies.c"
 	"$DIR/pgs_ss_copies" "$PGS/gs/shaders/slangmosh.hpp"
 	$CC -std=c89 -pedantic -Wall -Wextra -O2 $SANFLAGS -o "$DIR/pgs_empty_instance" "$DIR/pgs_empty_instance.c"
 	"$DIR/pgs_empty_instance"
+	$CC -std=c89 -pedantic -Wall -Wextra -O2 $SANFLAGS -o "$DIR/pgs_palette_samples" "$DIR/pgs_palette_samples.c"
+	"$DIR/pgs_palette_samples"
 done
 
 # -msse2 selects the scalar pair bodies, which is the shape an MSVC build
