@@ -751,7 +751,8 @@ void GSRenderer::kick_compilation_tasks()
 
 		task_state->thread = PGS::thread([this, task_state, moved_tasks = std::move(deferred)]()
 		{
-			// Just shuts up warnings.
+			// Compiles pipelines only, never records a command buffer,
+			// so it can share index 0 rather than take a pool of its own.
 			Util::register_thread_index(0);
 			for (auto &task: moved_tasks)
 			{

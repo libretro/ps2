@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2026 Hans-Kristian Arntzen
+/* Copyright (c) 2017-2022 Hans-Kristian Arntzen
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,18 +22,43 @@
 
 #include "thread_id.hpp"
 #include "logging.hpp"
+#include "thread_prims.hpp"
+#include <rthreads/rthreads.h>
 
 namespace Util
 {
 static thread_local unsigned thread_id_to_index = ~0u;
+
+/* Index 0 belongs to the thread that set up the device (it registers
+ * itself); the counter hands out 1 upward. */
+static PGS::atomic_uint32_t next_thread_index(1);
+static unsigned thread_index_count = 1;
+
+void set_thread_index_count(unsigned count)
+{
+	thread_index_count = count ? count : 1;
+}
 
 unsigned get_current_thread_index()
 {
 	auto ret = thread_id_to_index;
 	if (ret == ~0u)
 	{
-		LOGE("Thread does not exist in thread manager or is not the main thread.\n");
-		return 0;
+		unsigned idx = next_thread_index.fetch_add(1, PGS::memory_order_relaxed);
+		if (idx >= thread_index_count)
+		{
+			/* More recording threads than the device has pools. Sharing
+			 * index 0 races the owning thread on one VkCommandPool; the
+			 * count in GSRendererPGS is what needs raising. */
+			LOGE("Thread %llu needs a command pool but the device has only %u; sharing pool 0.\n",
+			     (unsigned long long)sthread_get_current_thread_id(), thread_index_count);
+			idx = 0;
+		}
+		else
+			LOGI("Thread %llu takes command pool index %u.\n",
+			     (unsigned long long)sthread_get_current_thread_id(), idx);
+		thread_id_to_index = idx;
+		ret = idx;
 	}
 	return ret;
 }

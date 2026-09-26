@@ -1330,7 +1330,7 @@ static void SetMTVUAndAffinityControlDefault(Pcsx2Config& c)
 	// were interpreter-provider problems, and microVU1 is now the only VU1
 	// provider.
 	const bool mtvu = VMManager::MtvuHardwareAllowed() && VMManager::g_MtvuMenuDefault;
-	log_cb(RETRO_LOG_INFO, "%s\n", mtvu ? "  MTVU enabled (pcsx2_mtvu; requires >= 3 hardware threads)."
+	log_cb(RETRO_LOG_INFO, "%s\n", mtvu ? "  MTVU enabled (pcsx2_mtvu; requires >= 3 physical cores)."
 	                     : "  MTVU disabled.");
 	c.Speedhacks.vuThread = mtvu;
 	// Instant VU1 assumes the VU1 provider finishes a program quickly (x86

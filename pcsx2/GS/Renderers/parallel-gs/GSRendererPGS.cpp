@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0+
 
 #include "GSRendererPGS.h"
+#include "thread_id.hpp"
 #include "common/Pcsx2Defs.h"
 #include "GS/GSState.h"
 #include "GS.h"
@@ -15,6 +16,8 @@ using namespace Granite;
 
 static retro_hw_render_interface_vulkan *hw_render_iface;
 static std::unique_ptr<Vulkan::Context> vulkan_ctx;
+
+#define PGS_THREAD_INDEX_COUNT 4
 
 /* The images handed to the frontend, one per frontend sync index.
  *
@@ -120,7 +123,14 @@ VkInstance pgs_create_instance(PFN_vkGetInstanceProcAddr get_instance_proc_addr,
 	vulkan_ctx = std::make_unique<Context>();
 	Context::SystemHandles handles = {};
 	vulkan_ctx->set_system_handles(handles);
-	vulkan_ctx->set_num_thread_indices(1);
+	/* One command pool per recording thread per frame: the GS thread
+	 * (index 0, registered by Device::set_context) and whichever other
+	 * thread records - the EE/VM thread on a readback, say. The pools
+	 * are small, and a thread past this count would share pool 0 with
+	 * the GS thread, which Vulkan forbids. Compile threads register 0
+	 * themselves and never record. */
+	vulkan_ctx->set_num_thread_indices(PGS_THREAD_INDEX_COUNT);
+	Util::set_thread_index_count(PGS_THREAD_INDEX_COUNT);
 	vulkan_ctx->set_application_info(app);
 
 	struct Factory final : Vulkan::InstanceFactory

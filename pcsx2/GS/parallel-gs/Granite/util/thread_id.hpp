@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2026 Hans-Kristian Arntzen
+/* Copyright (c) 2017-2022 Hans-Kristian Arntzen
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -24,6 +24,22 @@
 
 namespace Util
 {
+/* The Vulkan device keeps one command pool per thread index per frame,
+ * because a VkCommandPool may only be used by one thread at a time.
+ * A thread's index is handed out on its first request, from a counter
+ * bounded by the count the device was created with
+ * (Context::set_num_thread_indices). A thread that only ever compiles
+ * pipelines and never records a command buffer may register index 0
+ * explicitly and share it. */
+
+/* This thread's index; assigned on first call. */
 unsigned get_current_thread_index();
+
+/* Pins the calling thread to an index, for the device-owning thread
+ * (index 0) and for threads that never record. */
 void register_thread_index(unsigned thread_index);
+
+/* The number of indices the device was built with; indices are handed
+ * out below it. Set once, before any thread asks. */
+void set_thread_index_count(unsigned count);
 }
