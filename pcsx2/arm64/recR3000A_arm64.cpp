@@ -327,6 +327,12 @@ namespace
 			{
 				LoadGpr(m, w0, gpr, rs); m.Add(w0, w0, simm);
 				LoadGpr(m, w1, gpr, rt);
+				// iopMemWrite8/16 take u8/u16. Apple's arm64 ABI makes the caller
+				// extend narrow arguments to 32 bits and the callee relies on it
+				// (AAPCS64 proper leaves the upper bits unspecified), so pass the
+				// value already truncated or the handlers see the whole register.
+				if (op == 0x28) m.Uxtb(w1, w1);
+				else if (op == 0x29) m.Uxth(w1, w1);
 				uint64_t fn = (op == 0x2b) ? reinterpret_cast<uint64_t>(&iopMemWrite32)
 				            : (op == 0x29) ? reinterpret_cast<uint64_t>(&iopMemWrite16)
 				            : reinterpret_cast<uint64_t>(&iopMemWrite8);
