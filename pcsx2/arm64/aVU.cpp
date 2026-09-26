@@ -33,6 +33,7 @@
 
 #include <algorithm>
 #include <sys/mman.h>
+#include "arm64/JitMem.h"
 #include <vector>
 #include <string>
 #include <cstdarg>
@@ -542,7 +543,7 @@ void mVUinit(microVU& mVU, uint vuIndex)
 	constexpr size_t kMvuRecSize = 0x4000000;
 	if (!s_mvu_cache[vuIndex])
 		s_mvu_cache[vuIndex] = (u8*)mmap(nullptr, kMvuRecSize, PROT_READ | PROT_WRITE | PROT_EXEC,
-			MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+			JIT_MMAP_FLAGS, -1, 0);
 	mVU.cache        = s_mvu_cache[vuIndex];
 	mVU.prog.codeReserveEnd = s_mvu_cache[vuIndex] + kMvuRecSize;
 	mVU.prog.codeEnd = mVU.prog.codeReserveEnd - (mVUcacheSafeZone * _1mb);
