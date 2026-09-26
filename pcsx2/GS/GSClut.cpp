@@ -365,13 +365,18 @@ void GSClut::Read32(const GIFRegTEX0& TEX0, const GIFRegTEXA& TEXA)
 		// entries and fills the buffer at CSA 15, while a 16-bit one is 512 and
 		// runs to CSA 31.
 		const u32 csa = TEX0.CSA & ((TEX0.CPSM == PSMCT16 || TEX0.CPSM == PSMCT16S) ? 31u : 15u);
-		// The GPU palette path carries CSM1 shaders only, and LookupPaletteSource
+		// A palette loaded from memory that a render target holds is read from
+		// the target: the GPU drew it, and local memory has not seen it. The
+		// palette is the one the last load put in the CLUT buffer, so that
+		// load's CBP and CPSM name it, whatever CBP the draw's TEX0 carries (a
+		// change of CBP alone does not refresh the draw's registers).
+		// The GPU palette path carries CSM1 shaders only, and the lookup
 		// locates the palette from CBP alone, so a CSM2 palette's COU/COV cannot
 		// reach the shader. Its source window is sixteen blocks square, so a CSA
 		// past block 15 has nothing to read either. Leave m_current_gpu_clut null
 		// for both and let the CPU palette built above stand; that is the one the
 		// software renderer uses.
-		if (GSConfig.UserHacks_GPUTargetCLUTMode != GSGPUTargetCLUTMode::Disabled && !TEX0.CSM && csa <= 15)
+		if (!TEX0.CSM && csa <= 15)
 		{
 			const bool is_4bit = (TEX0.PSM == PSMT4 || TEX0.PSM == PSMT4HL || TEX0.PSM == PSMT4HH);
 
@@ -381,24 +386,29 @@ void GSClut::Read32(const GIFRegTEX0& TEX0, const GIFRegTEXA& TEXA)
 			size.x = is_4bit ? 8 : 16;
 			size.y = is_4bit ? 2 : 16;
 
-			GSTexture* src = g_gs_renderer->LookupPaletteSource(TEX0.CBP, TEX0.CPSM, 0, offset, &scale, size);
-			if (src)
+			GSTexture* src = g_gs_renderer->LookupPaletteSource(m_write.TEX0.CBP, m_write.TEX0.CPSM, 0, offset, &scale, size);
+			if (src && g_gs_device)
 			{
-				GSTexture* dst = is_4bit ? m_gpu_clut4 : m_gpu_clut8;
+				// At an integer scale the palette keeps the target's samples:
+				// an entry is `samples` texels wide in a palette `samples` rows
+				// tall, and a draw at that scale reads the sample of the
+				// fragment's place in its native pixel.
+				const u32 samples = (scale > 1.0f && floorf(scale) == scale) ? static_cast<u32>(scale) : 1u;
+				GSTexture** slot = is_4bit ? &m_gpu_clut4 : &m_gpu_clut8;
 				const u32 dst_size = is_4bit ? 16 : 256;
 				const u32 dOffset = csa << 4;
-				if (!dst)
+				if (*slot && ((*slot)->GetWidth() != static_cast<int>(dst_size * samples) ||
+					(*slot)->GetHeight() != static_cast<int>(samples)))
 				{
-					// allocate texture lazily
-					if (g_gs_device)
-						dst = g_gs_device->CreateRenderTarget(dst_size, 1, GSTexture::Format::Color, false);
-					is_4bit ? (m_gpu_clut4 = dst) : (m_gpu_clut8 = dst);
+					g_gs_device->Recycle(*slot);
+					*slot = nullptr;
 				}
-				if (dst)
+				if (!*slot)
+					*slot = g_gs_device->CreateRenderTarget(dst_size * samples, samples, GSTexture::Format::Color, false);
+				if (*slot)
 				{
-					if (g_gs_device)
-						g_gs_device->UpdateCLUTTexture(src, scale, offset.x, offset.y, dst, dOffset, dst_size);
-					m_current_gpu_clut = dst;
+					g_gs_device->UpdateCLUTTexture(src, scale, offset.x, offset.y, *slot, dOffset, dst_size, samples);
+					m_current_gpu_clut = *slot;
 				}
 			}
 		}

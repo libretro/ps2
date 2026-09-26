@@ -534,6 +534,58 @@ void GSTextureCache::DirtyRectByPage(u32 sbp, u32 spsm, u32 sbw, Target* t, GSVe
 		return;
 	}
 
+	// A small colour upload at another buffer width, laid out as the target is:
+	// each of its blocks has one place in the target, its page on the target's
+	// page grid and its position in the page from its number, and its pixels
+	// keep their place inside the block. Exactly those pixels are dirty; the
+	// page re-layout below works in the upload's width and can put a block a
+	// row of blocks away.
+	{
+		const GSLocalMemory::psm_t& s_info = GSLocalMemory::m_psm[spsm];
+		const GSLocalMemory::psm_t& t_info = GSLocalMemory::m_psm[t->m_TEX0.PSM];
+		const GSVector4i blocks = src_r.ralign<Align_Outside>(s_info.bs);
+		const int nblocks = (blocks.width() / s_info.bs.x) * (blocks.height() / s_info.bs.y);
+		const u32 tbw = pcsx2_max_u(t->m_TEX0.TBW, 1u);
+		if (!s_info.depth && GSUtil::HasSameSwizzleBits(spsm, t->m_TEX0.PSM) && pcsx2_max_u(sbw, 1u) != tbw &&
+			nblocks > 0 && nblocks <= 64)
+		{
+			RGBAMask rgba;
+			rgba._u32 = GSUtil::GetChannelMask(spsm);
+			for (int by = blocks.y; by < blocks.w; by += s_info.bs.y)
+			{
+				for (int bx = blocks.x; bx < blocks.z; bx += s_info.bs.x)
+				{
+					const u32 rel = (s_info.info.bn(bx, by, sbp, sbw) - t->m_TEX0.TBP0) & (GS_MAX_BLOCKS - 1);
+					if (t->m_TEX0.TBP0 + rel > t->UnwrappedEndBlock())
+						continue;
+
+					const u32 page = rel >> 5;
+					int px = -1, py = 0;
+					for (int y = 0; y < t_info.pgs.y && px < 0; y += t_info.bs.y)
+					{
+						for (int x = 0; x < t_info.pgs.x; x += t_info.bs.x)
+						{
+							if ((t_info.info.bn(x, y, 0, 1) & 31) == (rel & 31))
+							{
+								px = x;
+								py = y;
+								break;
+							}
+						}
+					}
+					if (px < 0)
+						continue;
+
+					const GSVector4i part = GSVector4i(bx, by, bx + s_info.bs.x, by + s_info.bs.y).rintersect(src_r);
+					const int ox = static_cast<int>(page % tbw) * t_info.pgs.x + px - bx;
+					const int oy = static_cast<int>(page / tbw) * t_info.pgs.y + py - by;
+					AddDirtyRectTarget(t, part + GSVector4i(ox, oy, ox, oy), t->m_TEX0.PSM, t->m_TEX0.TBW, rgba);
+				}
+			}
+			return;
+		}
+	}
+
 	GSLocalMemory::psm_t* src_info = &GSLocalMemory::m_psm[spsm];
 	const GSLocalMemory::psm_t* dst_info = &GSLocalMemory::m_psm[t->m_TEX0.PSM];
 	const int dst_width = pcsx2_max_i(static_cast<int>(t->m_TEX0.TBW * 64), 64);
@@ -5746,44 +5798,48 @@ GSTextureCache::Target* GSTextureCache::Target::Create(GIFRegTEX0 TEX0, int w, i
 
 GSTexture* GSTextureCache::LookupPaletteSource(u32 CBP, u32 CPSM, u32 CBW, GSVector2i& offset, float* scale, const GSVector2i& size)
 {
-	for (auto t : m_dst[RenderTarget])
+	// The palette is read from the target holding its blocks: one starting at
+	// CBP first, then one containing it. The target must hold the palette's
+	// area (its valid rect) with nothing the EE wrote since (its dirty rects),
+	// and have drawn some of it since local memory last took its data: where
+	// it did not, local memory holds the palette exactly and the target only
+	// an upscaled copy, so the CPU palette stands.
+	for (int pass = 0; pass < 2; pass++)
 	{
-		if (!t->m_used)
-			continue;
-
-		GSVector2i this_offset;
-		if (t->m_TEX0.TBP0 == CBP)
+		for (auto t : m_dst[RenderTarget])
 		{
-			// Exact match, this one's likely fine, unless the format is different.
-			if (t->m_TEX0.PSM != CPSM || (CBW != 0 && t->m_TEX0.TBW != CBW))
+			if (!t->m_used)
 				continue;
 
-			this_offset.x = 0;
-			this_offset.y = 0;
-		}
-		else if (GSConfig.UserHacks_GPUTargetCLUTMode == GSGPUTargetCLUTMode::InsideTarget &&
-				 t->m_TEX0.TBP0 < CBP && t->m_end_block >= CBP)
-		{
-			// Somewhere within this target, can we find it?
-			const GSVector4i rc(0, 0, size.x, size.y);
-			SurfaceOffset so = ComputeSurfaceOffset(CBP, pcsx2_max_u(CBW, 0), CPSM, rc, t);
-			if (!so.is_valid)
-				continue;
+			GSVector2i this_offset;
+			if (pass == 0)
+			{
+				if (t->m_TEX0.TBP0 != CBP || t->m_TEX0.PSM != CPSM || (CBW != 0 && t->m_TEX0.TBW != CBW))
+					continue;
 
-			this_offset.x = so.b2a_offset.left;
-			this_offset.y = so.b2a_offset.top;
-		}
-		else
-		{
-			// Not inside this target, skip.
-			continue;
-		}
+				this_offset.x = 0;
+				this_offset.y = 0;
+			}
+			else
+			{
+				// Read through the target's texture, the palette has to be laid
+				// out as the target is.
+				if (!(t->m_TEX0.TBP0 < CBP && t->m_end_block >= CBP) || !GSUtil::HasSameSwizzleBits(CPSM, t->m_TEX0.PSM))
+					continue;
 
-		// Make sure the clut isn't in an area of the target where the EE has overwritten it.
-		// Otherwise, we'll be using stale data on the CPU.
-		if (!t->m_dirty.empty())
-		{
+				const GSVector4i rc(0, 0, size.x, size.y);
+				SurfaceOffset so = ComputeSurfaceOffset(CBP, pcsx2_max_u(CBW, 0), CPSM, rc, t);
+				if (!so.is_valid)
+					continue;
+
+				this_offset.x = so.b2a_offset.left;
+				this_offset.y = so.b2a_offset.top;
+			}
+
 			const GSVector4i clut_rc(this_offset.x, this_offset.y, this_offset.x + size.x, this_offset.y + size.y);
+			if (!t->m_valid.rintersect(clut_rc).eq(clut_rc) || t->m_drawn_since_read.rintersect(clut_rc).rempty())
+				continue;
+
 			bool is_dirty = false;
 			for (GSDirtyRect& dirty : t->m_dirty)
 			{
@@ -5795,14 +5851,14 @@ GSTexture* GSTextureCache::LookupPaletteSource(u32 CBP, u32 CPSM, u32 CBW, GSVec
 			}
 			if (is_dirty)
 				continue;
+
+			offset = this_offset;
+			*scale = t->m_scale;
+
+			t->UnscaleRTAlpha();
+
+			return t->m_texture;
 		}
-
-		offset = this_offset;
-		*scale = t->m_scale;
-
-		t->UnscaleRTAlpha();
-
-		return t->m_texture;
 	}
 
 	return nullptr;

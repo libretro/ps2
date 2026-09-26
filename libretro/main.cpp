@@ -190,7 +190,6 @@ static u8 setting_blending_accuracy            = 0;
 static u8 setting_cpu_sprite_size              = 0;
 static u8 setting_cpu_sprite_level             = 0;
 static u8 setting_software_clut_render         = 0;
-static u8 setting_gpu_target_clut              = 0;
 static u8 setting_auto_flush                   = 0;
 static u8 setting_round_sprite                 = 0;
 static u8 setting_texture_inside_rt            = 0;
@@ -375,8 +374,6 @@ static bool update_option_visibility(void)
 		option_display.key     = "pcsx2_cpu_sprite_level";
 		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
 		option_display.key     = "pcsx2_software_clut_render";
-		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
-		option_display.key     = "pcsx2_gpu_target_clut";
 		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
 		option_display.key     = "pcsx2_auto_flush";
 		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
@@ -917,24 +914,6 @@ static void check_variables(bool first_run)
 				if (first_run || setting_software_clut_render != software_clut_render_prev)
 				{
 					s_option_config.GS.UserHacks_CPUCLUTRender = setting_software_clut_render;
-					updated = true;
-				}
-			}
-
-			var.key = "pcsx2_gpu_target_clut";
-			if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-			{
-				u8 gpu_target_clut_prev = setting_gpu_target_clut;
-				if (!strcmp(var.value, "disabled"))
-					setting_gpu_target_clut = (u8)GSGPUTargetCLUTMode::Disabled;
-				else if (!strcmp(var.value, "Exact Match"))
-					setting_gpu_target_clut = (u8)GSGPUTargetCLUTMode::Enabled;
-				else if (!strcmp(var.value, "Check Inside Target"))
-					setting_gpu_target_clut = (u8)GSGPUTargetCLUTMode::InsideTarget;
-
-				if (first_run || setting_gpu_target_clut != gpu_target_clut_prev)
-				{
-					s_option_config.GS.UserHacks_GPUTargetCLUTMode = static_cast<decltype(s_option_config.GS.UserHacks_GPUTargetCLUTMode)>(setting_gpu_target_clut);
 					updated = true;
 				}
 			}

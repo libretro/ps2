@@ -1,9 +1,9 @@
 /* The GPU palette shaders against the CPU palette reader.
  *
  * GSClut builds the palette on the CPU into m_buff32, and the software
- * renderer consumes exactly that. With UserHacks_GPUTargetCLUTMode enabled the
- * hardware renderer instead rebuilds the palette on the GPU from a render
- * target, through ps_convert_clut_4 / ps_convert_clut_8. The two have to land
+ * renderer consumes exactly that. When a render target holds the palette's
+ * blocks the hardware renderer instead rebuilds the palette on the GPU from
+ * that target, through ps_convert_clut_4 / ps_convert_clut_8. The two have to land
  * on the same CLUT entry for every index, or the same TEX0 draws different
  * colours depending on which renderer ran.
  *

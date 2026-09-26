@@ -958,7 +958,7 @@ public:
 	static void SortMultiStretchRects(MultiStretchRect* rects, u32 num_rects);
 
 	/// Updates a GPU CLUT texture from a source texture.
-	void UpdateCLUTTexture(GSTexture* sTex, float sScale, u32 offsetX, u32 offsetY, GSTexture* dTex, u32 dOffset, u32 dSize);
+	void UpdateCLUTTexture(GSTexture* sTex, float sScale, u32 offsetX, u32 offsetY, GSTexture* dTex, u32 dOffset, u32 dSize, u32 samples);
 
 	/// Converts a colour format to an indexed format texture. offsetX/offsetY
 	/// are page-aligned, unscaled pixel offsets into the source target.
@@ -1050,7 +1050,7 @@ struct gs_device_ops
 	void       (*stretch_rect_mask)(GSDevice* dev, GSTexture* sTex, const GSVector4* sRect, GSTexture* dTex, const GSVector4* dRect, bool red, bool green, bool blue, bool alpha, ShaderConvert shader);
 	void       (*present_rect)(GSDevice* dev, GSTexture* sTex, const GSVector4* sRect, GSTexture* dTex, const GSVector4* dRect);
 	void       (*draw_multi_stretch_rects)(GSDevice* dev, const GSDevice::MultiStretchRect* rects, u32 num_rects, GSTexture* dTex, ShaderConvert shader);
-	void       (*update_clut_texture)(GSDevice* dev, GSTexture* sTex, float sScale, u32 offsetX, u32 offsetY, GSTexture* dTex, u32 dOffset, u32 dSize);
+	void       (*update_clut_texture)(GSDevice* dev, GSTexture* sTex, float sScale, u32 offsetX, u32 offsetY, GSTexture* dTex, u32 dOffset, u32 dSize, u32 samples);
 	void       (*convert_to_indexed_texture)(GSDevice* dev, GSTexture* sTex, float sScale, u32 offsetX, u32 offsetY, u32 SBW, u32 SPSM, GSTexture* dTex, u32 DBW, u32 DPSM);
 	void       (*filtered_downsample_texture)(GSDevice* dev, GSTexture* sTex, GSTexture* dTex, u32 downsample_factor, const GSVector2i* clamp_min, const GSVector4* dRect);
 	void       (*render_hw)(GSDevice* dev, GSHWDrawConfig* config);
@@ -1093,8 +1093,8 @@ __forceinline_odr void GSDevice::DrawMultiStretchRects(const MultiStretchRect* r
 	else
 		DrawMultiStretchRectsBase(rects, num_rects, dTex, shader);
 }
-__forceinline_odr void GSDevice::UpdateCLUTTexture(GSTexture* sTex, float sScale, u32 offsetX, u32 offsetY, GSTexture* dTex, u32 dOffset, u32 dSize)
-{ GS_DEVICE_CALL(update_clut_texture, sTex, sScale, offsetX, offsetY, dTex, dOffset, dSize); }
+__forceinline_odr void GSDevice::UpdateCLUTTexture(GSTexture* sTex, float sScale, u32 offsetX, u32 offsetY, GSTexture* dTex, u32 dOffset, u32 dSize, u32 samples)
+{ GS_DEVICE_CALL(update_clut_texture, sTex, sScale, offsetX, offsetY, dTex, dOffset, dSize, samples); }
 __forceinline_odr void GSDevice::ConvertToIndexedTexture(GSTexture* sTex, float sScale, u32 offsetX, u32 offsetY, u32 SBW, u32 SPSM, GSTexture* dTex, u32 DBW, u32 DPSM)
 { GS_DEVICE_CALL(convert_to_indexed_texture, sTex, sScale, offsetX, offsetY, SBW, SPSM, dTex, DBW, DPSM); }
 __forceinline_odr void GSDevice::FilteredDownsampleTexture(GSTexture* sTex, GSTexture* dTex, u32 downsample_factor, const GSVector2i& clamp_min, const GSVector4& dRect)
@@ -1127,7 +1127,7 @@ struct klass##_ops_access { \
 	static void       tag##_stretch_rect_mask(GSDevice* d, GSTexture* sTex, const GSVector4* sRect, GSTexture* dTex, const GSVector4* dRect, bool red, bool green, bool blue, bool alpha, ShaderConvert shader) { static_cast<klass*>(d)->StretchRect(sTex, *sRect, dTex, *dRect, red, green, blue, alpha, shader); } \
 	static void       tag##_present_rect(GSDevice* d, GSTexture* sTex, const GSVector4* sRect, GSTexture* dTex, const GSVector4* dRect) { static_cast<klass*>(d)->PresentRect(sTex, *sRect, dTex, *dRect); } \
 	static void       tag##_draw_multi_stretch_rects(GSDevice* d, const GSDevice::MultiStretchRect* rects, u32 num_rects, GSTexture* dTex, ShaderConvert shader) { static_cast<klass*>(d)->DrawMultiStretchRects(rects, num_rects, dTex, shader); } \
-	static void       tag##_update_clut_texture(GSDevice* d, GSTexture* sTex, float sScale, u32 offsetX, u32 offsetY, GSTexture* dTex, u32 dOffset, u32 dSize) { static_cast<klass*>(d)->UpdateCLUTTexture(sTex, sScale, offsetX, offsetY, dTex, dOffset, dSize); } \
+	static void       tag##_update_clut_texture(GSDevice* d, GSTexture* sTex, float sScale, u32 offsetX, u32 offsetY, GSTexture* dTex, u32 dOffset, u32 dSize, u32 samples) { static_cast<klass*>(d)->UpdateCLUTTexture(sTex, sScale, offsetX, offsetY, dTex, dOffset, dSize, samples); } \
 	static void       tag##_convert_to_indexed_texture(GSDevice* d, GSTexture* sTex, float sScale, u32 offsetX, u32 offsetY, u32 SBW, u32 SPSM, GSTexture* dTex, u32 DBW, u32 DPSM) { static_cast<klass*>(d)->ConvertToIndexedTexture(sTex, sScale, offsetX, offsetY, SBW, SPSM, dTex, DBW, DPSM); } \
 	static void       tag##_filtered_downsample_texture(GSDevice* d, GSTexture* sTex, GSTexture* dTex, u32 factor, const GSVector2i* clamp_min, const GSVector4* dRect) { static_cast<klass*>(d)->FilteredDownsampleTexture(sTex, dTex, factor, *clamp_min, *dRect); } \
 	static void       tag##_render_hw(GSDevice* d, GSHWDrawConfig* config) { static_cast<klass*>(d)->RenderHW(*config); } \

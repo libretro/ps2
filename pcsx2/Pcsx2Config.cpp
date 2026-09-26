@@ -403,7 +403,6 @@ bool Pcsx2Config::GSOptions::OptionsAreEqual(const GSOptions& right) const
 		OpEqu(UserHacks_CPUSpriteRenderBW) &&
 		OpEqu(UserHacks_CPUSpriteRenderLevel) &&
 		OpEqu(UserHacks_CPUCLUTRender) &&
-		OpEqu(UserHacks_GPUTargetCLUTMode) &&
 		OpEqu(UserHacks_TextureInsideRt) &&
 		OpEqu(UserHacks_BilinearHack) &&
 		OpEqu(UserHacks_Limit24BitDepth) &&
@@ -464,7 +463,6 @@ void Pcsx2Config::GSOptions::MaskUserHacks()
 	UserHacks_CPUSpriteRenderBW = 0;
 	UserHacks_CPUSpriteRenderLevel = 0;
 	UserHacks_CPUCLUTRender = 0;
-	UserHacks_GPUTargetCLUTMode = GSGPUTargetCLUTMode::Disabled;
 	UserHacks_BilinearHack = GSBilinearDirtyMode::Automatic;
 	SkipDrawStart = 0;
 	SkipDrawEnd = 0;

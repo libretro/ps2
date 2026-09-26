@@ -294,13 +294,6 @@ enum class GSHWAutoFlushLevel : u8
 	Enabled,
 };
 
-enum class GSGPUTargetCLUTMode : u8
-{
-	Disabled,
-	Enabled,
-	InsideTarget,
-};
-
 enum class GSTextureInRtMode : u8
 {
 	Disabled,
@@ -554,7 +547,6 @@ struct Pcsx2Config
 		u8 UserHacks_CPUSpriteRenderBW = 0;
 		u8 UserHacks_CPUSpriteRenderLevel = 0;
 		u8 UserHacks_CPUCLUTRender = 0;
-		GSGPUTargetCLUTMode UserHacks_GPUTargetCLUTMode = GSGPUTargetCLUTMode::Disabled;
 		GSTextureInRtMode UserHacks_TextureInsideRt = GSTextureInRtMode::Disabled;
 		GSBilinearDirtyMode UserHacks_BilinearHack = GSBilinearDirtyMode::Automatic;
 		GSLimit24BitDepth UserHacks_Limit24BitDepth = GSLimit24BitDepth::Disabled;

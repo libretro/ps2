@@ -446,6 +446,7 @@ bool GSDeviceOGL::Create()
 			{
 				m_convert.ps[i].RegisterUniform("offset");
 				m_convert.ps[i].RegisterUniform("scale");
+				m_convert.ps[i].RegisterUniform("samples");
 			}
 			else if (static_cast<ShaderConvert>(i) == ShaderConvert::DOWNSAMPLE_COPY)
 			{
@@ -1307,7 +1308,7 @@ void GSDeviceOGL::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture
 	DrawStretchRect(flip_sr, dRect, ds);
 }
 
-void GSDeviceOGL::UpdateCLUTTexture(GSTexture* sTex, float sScale, u32 offsetX, u32 offsetY, GSTexture* dTex, u32 dOffset, u32 dSize)
+void GSDeviceOGL::UpdateCLUTTexture(GSTexture* sTex, float sScale, u32 offsetX, u32 offsetY, GSTexture* dTex, u32 dOffset, u32 dSize, u32 samples)
 {
 	CommitClear(sTex, false);
 
@@ -1316,6 +1317,7 @@ void GSDeviceOGL::UpdateCLUTTexture(GSTexture* sTex, float sScale, u32 offsetX, 
 	prog.Bind();
 	prog.Uniform3ui(0, offsetX, offsetY, dOffset);
 	prog.Uniform1f(1, sScale);
+	prog.Uniform1ui(2, samples);
 
 	OMSetDepthStencilState(m_convert.dss);
 	OMSetBlendState(false);
@@ -1325,7 +1327,7 @@ void GSDeviceOGL::UpdateCLUTTexture(GSTexture* sTex, float sScale, u32 offsetX, 
 	PSSetShaderResource(0, sTex);
 	PSSetSamplerState(m_convert.pt);
 
-	const GSVector4 dRect(0, 0, dSize, 1);
+	const GSVector4 dRect(0, 0, dSize * samples, samples);
 	DrawStretchRect(GSVector4::zero(), dRect, dTex->GetSize());
 }
 

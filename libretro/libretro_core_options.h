@@ -904,21 +904,6 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       "disabled"
    },
    {
-      "pcsx2_gpu_target_clut",
-      "HW Hacks > GPU Target CLUT",
-      "GPU Target CLUT",
-      NULL,
-      NULL,
-      "hw_hacks",
-      {
-         { "disabled", NULL },
-         { "Exact Match", NULL },
-         { "Check Inside Target", NULL },
-         { NULL, NULL },
-      },
-      "disabled"
-   },
-   {
       "pcsx2_auto_flush",
       "HW Hacks > Auto Flush",
       "Auto Flush",

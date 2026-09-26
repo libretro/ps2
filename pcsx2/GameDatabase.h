@@ -74,7 +74,6 @@ namespace GameDatabaseSchema
 		CPUSpriteRenderBW,
 		CPUSpriteRenderLevel,
 		CPUCLUTRender,
-		GPUTargetCLUT,
 		GPUPaletteConversion,
 		MinimumBlendingLevel,
 		MaximumBlendingLevel,

@@ -2287,20 +2287,20 @@ void GSDeviceVK::DrawStretchRect(const GSVector4& sRect, const GSVector4& dRect,
 		DrawPrimitive();
 }
 
-void GSDeviceVK::UpdateCLUTTexture(GSTexture* sTex, float sScale, u32 offsetX, u32 offsetY, GSTexture* dTex, u32 dOffset, u32 dSize)
+void GSDeviceVK::UpdateCLUTTexture(GSTexture* sTex, float sScale, u32 offsetX, u32 offsetY, GSTexture* dTex, u32 dOffset, u32 dSize, u32 samples)
 {
 	// Super annoying, but apparently NVIDIA doesn't like floats/ints packed together in the same vec4?
 	struct Uniforms
 	{
-		u32 offsetX, offsetY, dOffset, pad1;
+		u32 offsetX, offsetY, dOffset, samples;
 		float scale;
 		float pad2[3];
 	};
 
-	const Uniforms uniforms = {offsetX, offsetY, dOffset, 0, sScale, {}};
+	const Uniforms uniforms = {offsetX, offsetY, dOffset, samples, sScale, {}};
 	SetUtilityPushConstants(&uniforms, sizeof(uniforms));
 
-	const GSVector4 dRect(0, 0, dSize, 1);
+	const GSVector4 dRect(0, 0, dSize * samples, samples);
 	const ShaderConvert shader = (dSize == 16) ? ShaderConvert::CLUT_4 : ShaderConvert::CLUT_8;
 	DoStretchRect(static_cast<GSTextureVK*>(sTex), GSVector4::zero(), static_cast<GSTextureVK*>(dTex), dRect,
 		m_convert[static_cast<int>(shader)], false, true);

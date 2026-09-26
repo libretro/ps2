@@ -2814,7 +2814,8 @@ void GSRendererHW::Draw()
 
 	// SW CLUT Render enable.
 	bool force_preload = GSConfig.PreloadFrameWithGSData;
-	if (GSConfig.UserHacks_CPUCLUTRender > 0 || GSConfig.UserHacks_GPUTargetCLUTMode != GSGPUTargetCLUTMode::Disabled)
+	// A draw that renders a palette keeps what it does not cover: the palette
+	// is read back from the target it lands in.
 	{
 		const CLUTDrawTestResult result = (GSConfig.UserHacks_CPUCLUTRender == 2) ? PossibleCLUTDrawAggressive() : PossibleCLUTDraw();
 		m_mem.m_clut.ClearDrawInvalidity();
@@ -5713,8 +5714,13 @@ __ri void GSRendererHW::EmulateTextureSampler(const GSTextureCache::Target* rt, 
 	m_conf.ps.ltf = bilinear && shader_sampler;
 	m_conf.ps.native_taps = native_taps && bilinear;
 	/* A read of the target being drawn is fetched at the fragment's own
-	 * position, not through the map's texture. */
-	m_conf.ps.sample_map = ((tex->m_scaled_indexed && tex->m_palette && !target_region) || IsSampleMapDraw(tex)) && !bilinear && !need_mipmap && !m_conf.ps.tex_is_fb;
+	 * position, not through the map's texture. A palette that keeps a
+	 * target's samples (GSClut::Read32, two rows or more) is read at the
+	 * fragment's sample, so its index is the native pixel's texel, not the
+	 * fragment's: a fragment past the texel's edge would take another entry. */
+	const bool sampled_palette = tex->m_palette && tex->m_palette->GetHeight() > 1;
+	m_conf.ps.sample_map = ((tex->m_scaled_indexed && tex->m_palette && !target_region) || sampled_palette || IsSampleMapDraw(tex)) &&
+		!bilinear && !need_mipmap && !m_conf.ps.tex_is_fb;
 	m_conf.ps.point_sampler = g_gs_device->Features().broken_point_sampler && GSConfig.GPUPaletteConversion && !target_region && (!bilinear || shader_emulated_sampler);
 
 	const int tw = static_cast<int>(1 << m_cached_ctx.TEX0.TW);
@@ -7008,42 +7014,40 @@ GSRendererHW::CLUTDrawTestResult GSRendererHW::PossibleCLUTDraw()
 		// If we're using a texture to draw our CLUT/whatever, we need the GPU to write back dirty data we need.
 		const GSVector4i r = GetTextureMinMax(m_cached_ctx.TEX0, m_cached_ctx.CLAMP, m_vt.IsLinear(), false).coverage;
 
-		// If we have GPU CLUT enabled, don't do a CPU draw when it would result in a download.
-		if (GSConfig.UserHacks_GPUTargetCLUTMode != GSGPUTargetCLUTMode::Disabled)
-		{
-			if (HasEEUpload(r))
-				return CLUTDrawTestResult::CLUTDrawOnCPU;
+		// A palette the GPU draws from a target is read back from the GPU, so
+		// the draw stays there rather than download the target to run on the CPU.
+		if (HasEEUpload(r))
+			return CLUTDrawTestResult::CLUTDrawOnCPU;
 
-			GSTextureCache::Target* tgt = g_texture_cache->FindOverlappingTarget(
-				m_cached_ctx.TEX0.TBP0, m_cached_ctx.TEX0.TBW, m_cached_ctx.TEX0.PSM, r);
-			if (tgt)
+		GSTextureCache::Target* tgt = g_texture_cache->FindOverlappingTarget(
+			m_cached_ctx.TEX0.TBP0, m_cached_ctx.TEX0.TBW, m_cached_ctx.TEX0.PSM, r);
+		if (tgt)
+		{
+			tgt->UnscaleRTAlpha();
+			bool is_dirty = false;
+			for (const GSDirtyRect& rc : tgt->m_dirty)
 			{
-				tgt->UnscaleRTAlpha();
-				bool is_dirty = false;
-				for (const GSDirtyRect& rc : tgt->m_dirty)
+				if (!rc.GetDirtyRect(m_cached_ctx.TEX0, false).rintersect(r).rempty())
 				{
-					if (!rc.GetDirtyRect(m_cached_ctx.TEX0, false).rintersect(r).rempty())
-					{
-						is_dirty = true;
-						break;
-					}
+					is_dirty = true;
+					break;
 				}
-				if (!is_dirty)
-					return CLUTDrawTestResult::CLUTDrawOnGPU;
 			}
+			if (!is_dirty)
+				return CLUTDrawTestResult::CLUTDrawOnGPU;
 		}
-		else
+
+		// Drawn on the CPU, the draw reads local memory, which needs the
+		// target's data first.
+		if (GSConfig.UserHacks_CPUCLUTRender > 0)
 		{
-			if (HasEEUpload(r))
-				return CLUTDrawTestResult::CLUTDrawOnCPU;
+			GIFRegBITBLTBUF BITBLTBUF = {};
+			BITBLTBUF.SBP = m_cached_ctx.TEX0.TBP0;
+			BITBLTBUF.SBW = m_cached_ctx.TEX0.TBW;
+			BITBLTBUF.SPSM = m_cached_ctx.TEX0.PSM;
+
+			InvalidateLocalMem(BITBLTBUF, r);
 		}
-
-		GIFRegBITBLTBUF BITBLTBUF = {};
-		BITBLTBUF.SBP = m_cached_ctx.TEX0.TBP0;
-		BITBLTBUF.SBW = m_cached_ctx.TEX0.TBW;
-		BITBLTBUF.SPSM = m_cached_ctx.TEX0.PSM;
-
-		InvalidateLocalMem(BITBLTBUF, r);
 	}
 
 	return CLUTDrawTestResult::CLUTDrawOnCPU;
