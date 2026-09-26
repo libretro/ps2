@@ -124,7 +124,6 @@ PAPX-90203:
   region: "NTSC-J"
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 PAPX-90204:
   name: "TVDJ"
   region: "NTSC-J"
@@ -141,19 +140,16 @@ PAPX-90207:
   region: "NTSC-J"
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 PAPX-90208:
   name: "Gran Turismo 3 - A-Spec - Replay Theater"
   region: "NTSC-J"
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 PAPX-90209:
   name: "Gran Turismo 3 - A-Spec - Netz Toyota - Replay Theater Disc"
   region: "NTSC-J"
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 PAPX-90210:
   name: "Yappa RPG desho."
   region: "NTSC-J"
@@ -270,7 +266,6 @@ PAPX-90504:
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
     halfPixelOffset: 4 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 PAPX-90505:
   name: "2002 Natsu no Osusume Soft Otameshi Disc"
   region: "NTSC-J"
@@ -293,7 +288,6 @@ PAPX-90508:
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
     halfPixelOffset: 4 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 PAPX-90511:
   name: "Siren [Trial]"
   region: "NTSC-J"
@@ -309,7 +303,6 @@ PAPX-90512:
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
     halfPixelOffset: 4 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 PAPX-90514:
   name: "Fuyu no Osusume Soft Otameshi Disc"
   region: "NTSC-J"
@@ -349,7 +342,6 @@ PAPX-90523:
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
     halfPixelOffset: 4 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 PAPX-90524:
   name: "Wild Arms - The Vth Vanguard"
   region: "NTSC-J"
@@ -464,13 +456,11 @@ PBPX-95502:
   region: "NTSC-J"
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 PBPX-95503:
   name: "Gran Turismo 3 - A-Spec [PS2 Bundle]"
   region: "NTSC-U"
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
   memcardFilters:
     - "PBPX-95503"
     - "SCUS-97102"
@@ -527,7 +517,6 @@ PBPX-95523:
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
     halfPixelOffset: 4 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
   # vuClampMode = 2  Text in GT mode works.
 PBPX-95524:
   name: "Gran Turismo 4 - Prologue [PlayStation 2 Racing Pack]"
@@ -536,7 +525,6 @@ PBPX-95524:
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
     halfPixelOffset: 4 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
   # vuClampMode = 2  Text in GT mode works.
 PBPX-95525:
   name: "Final Fantasy XII"
@@ -551,7 +539,6 @@ PBPX-95601:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
     halfPixelOffset: 4 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
     autoFlush: 1 # Helps lens flare and sun occlusion somewhat but doesn't full fix it.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
   memcardFilters:
     - "SCAJ-20066"
     - "SCAJ-30006"
@@ -584,8 +571,6 @@ PCPX-96306:
 PCPX-96309:
   name: "Gran Turismo 3 Netz Toyota Demo"
   region: "NTSC-J"
-  gsHWFixes:
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 PCPX-96310:
   name: "X-treme Racing SSX"
   region: "NTSC-J"
@@ -598,13 +583,11 @@ PCPX-96311:
   region: "NTSC-J"
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 PCPX-96312:
   name: "Gran Turismo 3 - A-Spec - Autobacs Tentou Shiyuu Disc"
   region: "NTSC-J"
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 PCPX-96314:
   name: "The Sky Odyssey"
   region: "NTSC-J"
@@ -693,8 +676,6 @@ PCPX-96608:
 PCPX-96609:
   name: "Gran Turismo 3 - A-Spec - Tentou Shiyuu Disc Vol. 2"
   region: "NTSC-J"
-  gsHWFixes:
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 PCPX-96610:
   name: "MiruMiru 2001-nen 2-gatsudo Juchuugou"
   region: "NTSC-J"
@@ -742,7 +723,6 @@ PCPX-96624:
   region: "NTSC-J"
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 PCPX-96625:
   name: "Play-Pre 2 Volume 4 - 2002 April"
   region: "NTSC-J"
@@ -776,7 +756,6 @@ PCPX-96634:
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
     halfPixelOffset: 4 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 PCPX-96635:
   name: "Play-Pre 2 Volume 8 - 2003 August"
   region: "NTSC-J"
@@ -804,7 +783,6 @@ PCPX-96649:
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
     halfPixelOffset: 4 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 PCPX-96653:
   name: "Ratchet & Clank 3"
   region: "NTSC-J"
@@ -835,8 +813,6 @@ PCPX-96660:
   region: "NTSC-J"
   clampModes:
     vuClampMode: 2 # Fixes SPS in TT Mode menu caused by the moving tooltips.
-  gsHWFixes:
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 PCPX-98017:
   name: "Ratchet & Clank - Giri Giri Ginga no Giga Battle [Demo]"
   region: "NTSC-J"
@@ -1225,7 +1201,6 @@ SCAJ-20066:
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
     halfPixelOffset: 4 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
   memcardFilters:
     - "SCAJ-20066"
     - "SCAJ-30006"
@@ -1898,8 +1873,6 @@ SCAJ-20170:
   compat: 5
   clampModes:
     vuClampMode: 2 # Fixes SPS in TT Mode menu caused by the moving tooltips.
-  gsHWFixes:
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCAJ-20171:
   name: "Zettai Zetsumei Toshi 2 - Itetsuita Kioku Tachi"
   region: "NTSC-J"
@@ -2159,7 +2132,6 @@ SCAJ-30006:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
     halfPixelOffset: 4 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
     autoFlush: 1 # Helps lens flare and sun occlusion somewhat but doesn't full fix it.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
   memcardFilters:
     - "SCAJ-20066"
     - "SCAJ-30006"
@@ -2182,7 +2154,6 @@ SCAJ-30007:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
     halfPixelOffset: 4 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
     autoFlush: 1 # Helps lens flare and sun occlusion somewhat but doesn't full fix it.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCAJ-30008:
   name: "Gran Turismo 4 [PlayStation 2 the Best]"
   region: "NTSC-C"
@@ -2193,7 +2164,6 @@ SCAJ-30008:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
     halfPixelOffset: 4 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
     autoFlush: 1 # Helps lens flare and sun occlusion somewhat but doesn't full fix it.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
   memcardFilters:
     - "SCAJ-20066"
     - "SCAJ-30006"
@@ -2319,7 +2289,6 @@ SCCS-60002:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
     halfPixelOffset: 4 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
     autoFlush: 1 # Helps lens flare and sun occlusion somewhat but doesn't full fix it.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCED-50041:
   name: "Tekken Tag Tournament [Demo]"
   region: "PAL-E"
@@ -2724,7 +2693,6 @@ SCED-51352:
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
     halfPixelOffset: 4 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCED-51359:
   name: "Official PlayStation 2 Magazine Demo 27"
   region: "PAL-M5"
@@ -3285,7 +3253,6 @@ SCED-52455:
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
     halfPixelOffset: 4 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
   # vuClampMode = 2  Text in GT mode works.
 SCED-52461:
   name: "SingStar [Press Kit]"
@@ -3307,7 +3274,6 @@ SCED-52578:
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
     halfPixelOffset: 4 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCED-52580:
   name: "Magazine Ufficiale PlayStation 2 Italia 06/04"
   region: "PAL-I"
@@ -3323,7 +3289,6 @@ SCED-52681:
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
     halfPixelOffset: 4 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCED-52687:
   name: "Formula One 04 [Demo]"
   region: "PAL-M11"
@@ -4247,7 +4212,6 @@ SCES-50294:
   compat: 5
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCES-50295:
   name: "Dark Cloud"
   region: "PAL-M5"
@@ -4489,8 +4453,6 @@ SCES-50858:
   name: "Gran Turismo - Concept 2002 Tokyo-Geneva"
   region: "PAL-M6"
   compat: 5
-  gsHWFixes:
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
   memcardFilters:
     - "SCES-50858"
     - "SCES-50294"
@@ -4902,7 +4864,6 @@ SCES-51719:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
     halfPixelOffset: 4 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
     autoFlush: 1 # Helps lens flare and sun occlusion somewhat but doesn't full fix it.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
   memcardFilters:
     - "SCES-51719"
     - "SCES-52438"
@@ -5159,7 +5120,6 @@ SCES-52438:
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
     halfPixelOffset: 4 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
   memcardFilters:
     - "SCES-51719"
     - "SCES-52438"
@@ -5499,8 +5459,6 @@ SCES-53372:
   compat: 5
   clampModes:
     vuClampMode: 2 # Fixes SPS in TT Mode menu caused by the moving tooltips.
-  gsHWFixes:
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCES-53397:
   name: "SingStar Pop - World Events Code"
   region: "PAL-Unk"
@@ -6618,7 +6576,6 @@ SCKA-20022:
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
     halfPixelOffset: 4 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
   # vuClampMode = 2  Text in GT mode works.
 SCKA-20023:
   name: "Fatal Frame II"
@@ -6668,8 +6625,6 @@ SCKA-20028:
 SCKA-20029:
   name: "Gran Turismo - Concept 2002 Tokyo-Seoul [PlayStation 2 Big Hit Series]"
   region: "NTSC-K"
-  gsHWFixes:
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCKA-20030:
   name: "Sly Cooper and the Thievius Raccoonus [PlayStation 2 Big Hit Series]"
   region: "NTSC-K"
@@ -7360,7 +7315,6 @@ SCKA-30001:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
     halfPixelOffset: 4 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
     autoFlush: 1 # Helps lens flare and sun occlusion somewhat but doesn't full fix it.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCKA-30002:
   name: "God of War"
   region: "NTSC-K"
@@ -7385,7 +7339,6 @@ SCKA-30004:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
     halfPixelOffset: 4 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
     autoFlush: 1 # Helps lens flare and sun occlusion somewhat but doesn't full fix it.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCKA-30005:
   name: "Rogue Galaxy"
   region: "NTSC-K"
@@ -7459,7 +7412,6 @@ SCPM-85301:
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
     halfPixelOffset: 4 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCPM-85302:
   name: "Minna no Golf Online"
   region: "NTSC-J"
@@ -7472,7 +7424,6 @@ SCPM-85304:
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
     halfPixelOffset: 4 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCPN-60101:
   name: "PlayStation BB Navigator - Version 0.10 [Prerelease] [Disc 1]"
   region: "NTSC-J"
@@ -7681,14 +7632,12 @@ SCPS-15009:
   region: "NTSC-J"
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCPS-15010:
   name: "Gran Turismo - Concept 2001 Tokyo"
   region: "NTSC-J"
   compat: 5
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCPS-15011:
   name: "Extermination"
   region: "NTSC-J"
@@ -7927,7 +7876,6 @@ SCPS-15055:
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
     halfPixelOffset: 4 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
   memcardFilters:
     - "SCAJ-20066"
     - "SCAJ-30006"
@@ -8289,8 +8237,6 @@ SCPS-15105:
   region: "NTSC-J"
   clampModes:
     vuClampMode: 2 # Fixes SPS in TT Mode menu caused by the moving tooltips.
-  gsHWFixes:
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCPS-15106:
   name: "Siren 2"
   region: "NTSC-J"
@@ -8420,7 +8366,6 @@ SCPS-17001:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
     halfPixelOffset: 4 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
     autoFlush: 1 # Helps lens flare and sun occlusion somewhat but doesn't full fix it.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
   memcardFilters:
     - "SCAJ-20066"
     - "SCAJ-30006"
@@ -8445,28 +8390,24 @@ SCPS-17008:
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
     halfPixelOffset: 4 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCPS-17009:
   name: "Nike - Gran Turismo [Limited Edition - 9 inch]"
   region: "NTSC-J"
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
     halfPixelOffset: 4 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCPS-17010:
   name: "Nike - Gran Turismo [Limited Edition - 10 inch]"
   region: "NTSC-J"
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
     halfPixelOffset: 4 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCPS-17011:
   name: "Nike - Gran Turismo [Limited Edition - 11 inch]"
   region: "NTSC-J"
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
     halfPixelOffset: 4 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCPS-17013:
   name: "Rogue Galaxy [Director's Cut]"
   region: "NTSC-J"
@@ -8582,7 +8523,6 @@ SCPS-19208:
   region: "NTSC-J"
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCPS-19209:
   name: "Boku no Summer Vacation 2 [PlayStation 2 the Best]"
   region: "NTSC-J"
@@ -8637,7 +8577,6 @@ SCPS-19252:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
     halfPixelOffset: 4 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
     autoFlush: 1 # Helps lens flare and sun occlusion somewhat but doesn't full fix it.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
   memcardFilters:
     - "SCAJ-20066"
     - "SCAJ-30006"
@@ -8690,7 +8629,6 @@ SCPS-19304:
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
     halfPixelOffset: 4 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
   memcardFilters:
     - "SCAJ-20066"
     - "SCAJ-30006"
@@ -8886,8 +8824,6 @@ SCPS-19324:
   region: "NTSC-J"
   clampModes:
     vuClampMode: 2 # Fixes SPS in TT Mode menu caused by the moving tooltips.
-  gsHWFixes:
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCPS-19325:
   name: "Ape Escape - Million Monkeys [PlayStation 2 the Best]"
   region: "NTSC-J"
@@ -9047,7 +8983,6 @@ SCPS-55005:
   region: "NTSC-J"
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCPS-55006:
   name: "Wild ARMs - Advanced 3rd"
   region: "NTSC-J"
@@ -9059,7 +8994,6 @@ SCPS-55007:
   region: "NTSC-J"
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCPS-55008:
   name: "Thunderstrike"
   region: "NTSC-J"
@@ -9291,13 +9225,9 @@ SCPS-55901:
 SCPS-55902:
   name: "Gran Turismo - Concept 2002 Tokyo-Geneva"
   region: "NTSC-J"
-  gsHWFixes:
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCPS-55903:
   name: "Gran Turismo - Concept 2002 Tokyo-Geneva"
   region: "NTSC-J"
-  gsHWFixes:
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCPS-56001:
   name: "Ico"
   region: "NTSC-K"
@@ -9330,8 +9260,6 @@ SCPS-56004:
 SCPS-56005:
   name: "Gran Turismo - Concept 2002 Tokyo-Seoul"
   region: "NTSC-K"
-  gsHWFixes:
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCPS-56006:
   name: "Tekken 4"
   region: "NTSC-K"
@@ -9401,7 +9329,6 @@ SCPS-72001:
   region: "NTSC-J"
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCPS-72002:
   name: "Minna no Golf 3"
   region: "NTSC-J"
@@ -9448,7 +9375,6 @@ SCUS-90682:
     vuClampMode: 2 # Text in GT mode works.
   gsHWFixes:
     halfPixelOffset: 4 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCUS-94346:
   name: "SingStar Latino"
   region: "NTSC-U"
@@ -9474,7 +9400,6 @@ SCUS-97102:
   compat: 5
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCUS-97104:
   name: "ATV Offroad Fury"
   region: "NTSC-U"
@@ -9535,7 +9460,6 @@ SCUS-97115:
   region: "NTSC-U"
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCUS-97116:
   name: "Kiosk Demo Disc 2.01"
   region: "NTSC-U"
@@ -9958,7 +9882,6 @@ SCUS-97219:
   region: "NTSC-U"
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
   memcardFilters:
     - "SCUS-97219"
     - "SCUS-97102"
@@ -10309,7 +10232,6 @@ SCUS-97328:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
     halfPixelOffset: 4 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
     autoFlush: 1 # Helps lens flare and sun occlusion somewhat but doesn't full fix it.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
   memcardFilters: # Allows car imports from GT3 or something.
     - "SCUS-97328"
     - "SCUS-97436"
@@ -10514,7 +10436,6 @@ SCUS-97384:
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
     halfPixelOffset: 4 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCUS-97392:
   name: "NBA '06 featuring The Life Vol.1 [Demo]"
   region: "NTSC-U"
@@ -10734,7 +10655,6 @@ SCUS-97436:
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
     halfPixelOffset: 4 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
   memcardFilters:
     - "SCUS-97328"
     - "SCUS-97436"
@@ -10958,7 +10878,6 @@ SCUS-97483:
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
     halfPixelOffset: 4 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCUS-97484:
   name: "Sly 3 - Honor Among Thieves [E3 Demo]"
   region: "NTSC-U"
@@ -11081,8 +11000,6 @@ SCUS-97502:
   compat: 5
   clampModes:
     vuClampMode: 2 # Fixes SPS in TT Mode menu caused by the moving tooltips.
-  gsHWFixes:
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCUS-97503:
   name: "MLB '06 - The Show [Demo]"
   region: "NTSC-U"
@@ -11137,7 +11054,6 @@ SCUS-97512:
     - "SCUS-97102"
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCUS-97513:
   name: "Ratchet & Clank 2 - Going Commando [Greatest Hits]"
   region: "NTSC-U"
@@ -11338,7 +11254,6 @@ SCUS-97563:
     vuClampMode: 2 # Text in GT mode works.
   gsHWFixes:
     halfPixelOffset: 4 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCUS-97564:
   name: "Jampack Demo Disc Vol.15 [T-Rated]"
   region: "NTSC-U"

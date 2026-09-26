@@ -520,124 +520,6 @@ bool GSHwHack::GSC_NFSUndercover(GSRendererHW& r, int& skip)
 	return false;
 }
 
-bool GSHwHack::GSC_PolyphonyDigitalGames(GSRendererHW& r, int& skip)
-{
-	// These games appear to grab red and write it to a new page-sized render target, then
-	// grab green and blue, with alpha blending turned on, to accumulate them to the temporary
-	// target, then copy the temporary target back to the main FB. The CLUT is set to an offset
-	// ramp texture, presumably this is for screen brightness.
-
-	// Unfortunately because we're HLE'ing split RGB shuffles into one, and the draws themselves
-	// vary a lot, we can't predetermine a skip number, and because the game changes the CBP,
-	// that's going to break us in the middle off the shuffle... So, just track it ourselves.
-
-	// Need to track the FBMSK as well. The transition at the start of the race does both an RGB
-	// and A shuffle, but obviously changes FBMSK mid-way, so we can restart then.
-
-	static bool shuffle_hle_active = false;
-	static u32 shuffle_fbmsk = 0;
-
-	const bool is_cs = r.IsPossibleChannelShuffle();
-	if (shuffle_hle_active && is_cs)
-	{
-		if (RFBMSK == shuffle_fbmsk)
-		{
-			skip = 1;
-			return true;
-		}
-	}
-	else if (!is_cs)
-	{
-		shuffle_hle_active = false;
-		return false;
-	}
-
-	GSTextureCache::Target* src = g_texture_cache->LookupTarget(RTEX0, GSVector2i(1, 1), r.GetTextureScaleFactor(),
-		GSTextureCache::RenderTarget, true, 0, false, false, true, true, GSVector4i::zero(), true);
-	if (!src)
-		return false;
-
-	// have to set up the palette ourselves too, since GSC executes before it does
-	r.m_mem.m_clut.Read32(RTEX0, r.m_draw_env->TEXA);
-	GSTexture* palette =
-		g_texture_cache->LookupPaletteObject(r.m_mem.m_clut, GSLocalMemory::m_psm[RTEX0.PSM].pal, true);
-	if (!palette)
-		return false;
-
-	// skip this draw, and until the end of the CS, ignoring fbmsk and cbp
-	shuffle_hle_active = true;
-	shuffle_fbmsk = RFBMSK;
-	skip = 1;
-
-	const u32 fbmsk = RFBMSK;
-	if (RFBMSK != 0x00FFFFFFu)
-	{
-		GSHWDrawConfig& config = r.BeginHLEHardwareDraw(
-			src->GetTexture(), nullptr, src->GetScale(), src->GetTexture(), src->GetScale(), src->GetUnscaledRect());
-		config.pal = palette;
-		config.ps.channel = ChannelFetch_RGB;
-		config.colormask.wrgba = 1 | 2 | 4;
-		r.EndHLEHardwareDraw(false);
-
-		return true;
-	}
-	else
-	{
-		// There's a second variant of this shuffle which gets used in the fade on some setups. See issue #10144.
-		// Instead of extracting the RGB channels, then immediately applying the brightness effect, it extracts
-		// each channel to a separate buffer, then applies them a few hundred draws later. So, we can replicate
-		// that in HLE by creating 3 targets, extracting the corresponding channel to each.
-
-		// Can't use the valid of src, because it gets converted from depth at some point..
-		// Drawn isn't correct, because the target might be from earlier, where it had a higher height.
-		// Instead, we use the resolution from the PCRTC, and halve it. Only thing that seems to work,
-		// otherwise we get the incorrect offset texture pointers. In NTSC, that's 0x0, 0xA00, 0x1400.
-
-		// Further complicating things, the Prologue version shuffles into FBP0 from a different TBP0, so we can't
-		// use that as an indicator. Luckily, all the alpha destination shuffles seem to write to FBP0, so we can
-		// get away with just hardcoding it.
-		const GSVector2i resolution = r.PCRTCDisplays.GetResolution();
-		const GSVector2i size = GSVector2i(resolution.x, resolution.y / 2);
-		const u32 page_offset = ((size.y + 31) / 32) * src->m_TEX0.TBW * GS_BLOCKS_PER_PAGE;
-		constexpr u32 base = 0;
-
-		for (u32 channel = 0; channel < 3; channel++)
-		{
-			const GIFRegTEX0 TEX0 = GIFRegTEX0::Create(base + channel * page_offset, RTEX0.TBW, PSMCT32);
-			GSTextureCache::Target* dst = g_texture_cache->LookupTarget(TEX0, src->GetUnscaledSize(), src->GetScale(), GSTextureCache::RenderTarget, true, fbmsk);
-			if (!dst)
-			{
-				dst = g_texture_cache->CreateTarget(TEX0, size, size, src->GetScale(), GSTextureCache::RenderTarget, true, fbmsk);
-				if (!dst)
-					continue;
-			}
-
-			// Need the alpha channel.
-			dst->m_TEX0.PSM = PSMCT32;
-
-			dst->m_rt_alpha_scale = false;
-			// Alpha is unknown, since it comes from RGB.
-			dst->m_alpha_min = 0;
-			dst->m_alpha_max = 255;
-
-			dst->m_alpha_range = true;
-			dst->UpdateValidChannels(PSMCT32, fbmsk);
-			dst->UpdateValidity(GSVector4i::loadh(size));
-
-			GSHWDrawConfig& config = r.BeginHLEHardwareDraw(
-				dst->GetTexture(), nullptr, dst->GetScale(), src->GetTexture(), src->GetScale(), src->GetUnscaledRect());
-			config.pal = palette;
-			config.ps.tfx = TFX_DECAL;
-			config.ps.tcc = true;
-			config.ps.channel = ChannelFetch_RED + channel;
-			config.colormask.wrgba = 8;
-			r.EndHLEHardwareDraw(false);
-		}
-
-		return true;
-	}
-}
-
 bool GSHwHack::GSC_BlueTongueGames(GSRendererHW& r, int& skip)
 {
 	GSDrawingContext* context = r.m_context;
@@ -1236,7 +1118,6 @@ const GSHwHack::Entry<GSRendererHW::GSC_Ptr> GSHwHack::s_get_skip_count_function
 	CRC_F(GSC_BlueTongueGames),
 	CRC_F(GSC_Battlefield2),
 	CRC_F(GSC_NFSUndercover),
-	CRC_F(GSC_PolyphonyDigitalGames),
 	CRC_F(GSC_MetalGearSolid3),
 
 	// Channel Effect

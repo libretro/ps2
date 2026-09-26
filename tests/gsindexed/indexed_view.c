@@ -1431,6 +1431,15 @@ static int check_shuffle_gate(void)
    static const struct sprite unflipped[] = {
       { 0, 32, 128, 64, 0, 64, 128, 96 }
    };
+   /* A colour grade through a palette: each 8x16 pixel sprite reads an
+    * 8x64 texel column, one texel row in four, the odd columns a row on --
+    * a byte of every pixel of the page, laid out as palettes. Eight wide,
+    * it passes the size test; drawn as a channel copy it would move one
+    * channel, not grade three. */
+   static const struct sprite grade[] = {
+      { 0, 0, 128, 256, 0, 0, 128, 1024 },
+      { 128, 0, 256, 256, 0, 16, 128, 1040 }
+   };
    int fail = 0;
 
    if (shuffle_identity(draw_a, 2, 3, 1015, 0, 3, 1017, 0, 1))
@@ -1476,6 +1485,17 @@ static int check_shuffle_gate(void)
    if (shuffle_identity(unflipped, 1, 3, 1015, 0, 3, 1021, 0, 1))
    {
       printf("  a read of the flipped columns taken for an identity\n");
+      fail++;
+   }
+   if (shuffle_identity(grade, 2, 0, 0, 0, 0, 0, 0, 1) || shuffle_identity(grade, 2, 0, 0, 0, 0, 0, 0, 0))
+   {
+      printf("  the palette grade taken for a channel shuffle\n");
+      fail++;
+   }
+   /* negative: IsPossibleChannelShuffle's size test, on its own, lets it by */
+   if ((abs(grade[0].x1 - grade[0].x0) >> 4) != 8)
+   {
+      printf("  negative: the grade fails the size test by itself\n");
       fail++;
    }
    printf("channel shuffle gate: %s\n", fail ? "FAIL" : "ok");

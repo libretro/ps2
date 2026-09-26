@@ -2832,8 +2832,11 @@ void GSRendererHW::Draw()
 		}
 	}
 
+	// A channel shuffle is drawn as a copy of the channel a sprite reads, so
+	// only a draw whose sprites read the texels under them (or a page copy's)
+	// is one; any other read of the target's bytes is drawn as the GS does.
 	if (!m_channel_shuffle && m_cached_ctx.FRAME.Block() == m_cached_ctx.TEX0.TBP0 &&
-		IsPossibleChannelShuffle())
+		IsPossibleChannelShuffle() && IsChannelShuffleIdentity(!IsPageCopy()))
 	{
 		// Special post-processing effect
 		m_channel_shuffle = true;
@@ -3454,7 +3457,8 @@ void GSRendererHW::Draw()
 			return;
 		}
 
-		if ((src->m_target || (m_cached_ctx.FRAME.Block() == m_cached_ctx.TEX0.TBP0)) && IsPossibleChannelShuffle())
+		if ((src->m_target || (m_cached_ctx.FRAME.Block() == m_cached_ctx.TEX0.TBP0)) && IsPossibleChannelShuffle() &&
+			IsChannelShuffleIdentity(!IsPageCopy()))
 		{
 			if (!src->m_target)
 			{
