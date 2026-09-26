@@ -5823,17 +5823,55 @@ GSTexture* GSTextureCache::LookupPaletteSource(u32 CBP, u32 CPSM, u32 CBW, GSVec
 			else
 			{
 				// Read through the target's texture, the palette has to be laid
-				// out as the target is.
-				if (!(t->m_TEX0.TBP0 < CBP && t->m_end_block >= CBP) || !GSUtil::HasSameSwizzleBits(CPSM, t->m_TEX0.PSM))
+				// out as the target is. A target running past the end of memory
+				// wraps, its end block below its base, so the palette is in it
+				// up to its unwrapped end.
+				if (!(t->m_TEX0.TBP0 < CBP && t->UnwrappedEndBlock() >= CBP) || !GSUtil::HasSameSwizzleBits(CPSM, t->m_TEX0.PSM))
 					continue;
 
-				const GSVector4i rc(0, 0, size.x, size.y);
-				SurfaceOffset so = ComputeSurfaceOffset(CBP, pcsx2_max_u(CBW, 0), CPSM, rc, t);
-				if (!so.is_valid)
+				// The palette starts at its first block: that block's page on
+				// the target's page grid, its place in the page by its number.
+				// Its blocks must be the ones covering the palette's area there,
+				// one after another, or the GPU copy would read other memory.
+				const GSLocalMemory::psm_t& info = GSLocalMemory::m_psm[t->m_TEX0.PSM];
+				const u32 rel = CBP - t->m_TEX0.TBP0;
+				const u32 page = rel >> 5;
+				const u32 tbw = pcsx2_max_u(t->m_TEX0.TBW, 1u);
+				int px = -1, py = 0;
+				for (int y = 0; y < info.pgs.y && px < 0; y += info.bs.y)
+				{
+					for (int x = 0; x < info.pgs.x; x += info.bs.x)
+					{
+						if ((info.info.bn(x, y, 0, 1) & 31) == (rel & 31))
+						{
+							px = x;
+							py = y;
+							break;
+						}
+					}
+				}
+				if (px < 0 || px + size.x > info.pgs.x || py + size.y > info.pgs.y)
 					continue;
 
-				this_offset.x = so.b2a_offset.left;
-				this_offset.y = so.b2a_offset.top;
+				const u32 nblocks = static_cast<u32>(((size.x + info.bs.x - 1) / info.bs.x) * ((size.y + info.bs.y - 1) / info.bs.y));
+				bool consecutive = true;
+				for (int y = py; y < py + size.y && consecutive; y += info.bs.y)
+				{
+					for (int x = px; x < px + size.x; x += info.bs.x)
+					{
+						const u32 blk = info.info.bn(x, y, 0, 1) & 31;
+						if (blk < (rel & 31) || blk >= (rel & 31) + nblocks)
+						{
+							consecutive = false;
+							break;
+						}
+					}
+				}
+				if (!consecutive)
+					continue;
+
+				this_offset.x = static_cast<int>(page % tbw) * info.pgs.x + px;
+				this_offset.y = static_cast<int>(page / tbw) * info.pgs.y + py;
 			}
 
 			const GSVector4i clut_rc(this_offset.x, this_offset.y, this_offset.x + size.x, this_offset.y + size.y);

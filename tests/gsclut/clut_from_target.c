@@ -29,6 +29,17 @@
  *     draw flushed from the saved register state carries an older CBP; the
  *     load's CBP names the palette. Modelled on GSState's snapshot rules.
  *
+ *  4. Where a containing target holds the palette: its first block's page on
+ *     the target's page grid, its place in the page by its block number, and
+ *     only when the palette's blocks cover that area of the page. A target
+ *     running past the end of memory wraps, its end block below its base;
+ *     it holds the palettes from its base to its unwrapped end. Checked
+ *     against the GS's PSMCT32 addressing: the rule places a palette exactly
+ *     where every one of its words sits in the target, and refuses it where
+ *     no such place exists. The end-block test refused every palette after
+ *     the base of a wrapped target (a scratch page at 0x3f00 in a 640-wide
+ *     buffer), and local memory's stale copy served them.
+ *
  * Build and run, from tests/gsclut:
  *   cc -O2 -std=c89 -pedantic -Wall clut_from_target.c -o clut_from_target
  *   ./clut_from_target
@@ -449,12 +460,143 @@ static int check_follows_load(void)
    return fail;
 }
 
+/* ---- 4. where a containing target holds the palette ----------------------- */
+
+static const unsigned char block_table[4][8] = {
+   { 0, 1, 4, 5, 16, 17, 20, 21 },
+   { 2, 3, 6, 7, 18, 19, 22, 23 },
+   { 8, 9, 12, 13, 24, 25, 28, 29 },
+   { 10, 11, 14, 15, 26, 27, 30, 31 }
+};
+
+static const unsigned char column_table32[8][8] = {
+   { 0, 1, 4, 5, 8, 9, 12, 13 },
+   { 2, 3, 6, 7, 10, 11, 14, 15 },
+   { 16, 17, 20, 21, 24, 25, 28, 29 },
+   { 18, 19, 22, 23, 26, 27, 30, 31 },
+   { 32, 33, 36, 37, 40, 41, 44, 45 },
+   { 34, 35, 38, 39, 42, 43, 46, 47 },
+   { 48, 49, 52, 53, 56, 57, 60, 61 },
+   { 50, 51, 54, 55, 58, 59, 62, 63 }
+};
+
+/* PSMCT32 word address of pixel (x, y) in a buffer at block bp, bw pages wide. */
+static u32 word32(u32 x, u32 y, u32 bp, u32 bw)
+{
+   const u32 block = bp + ((y / 32) * bw + x / 64) * 32 + block_table[(y % 32) / 8][(x % 64) / 8];
+   return (block & 16383u) * 64 + column_table32[y % 8][x % 8];
+}
+
+/* The rule: containment to the unwrapped end (or the wrapped end block, for
+ * the negative), then placement by the first block. */
+static int place(u32 tbp, u32 tbw, u32 th, u32 cbp, int sw, int sh, int unwrapped, int* ox, int* oy)
+{
+   const u32 end_unwrapped = tbp + ((th + 31) / 32) * tbw * 32 - 1;
+   const u32 end = unwrapped ? end_unwrapped : (end_unwrapped & 16383u);
+   const u32 rel = cbp - tbp, page = rel >> 5;
+   const u32 nblocks = (u32)(((sw + 7) / 8) * ((sh + 7) / 8));
+   int px = -1, py = 0, x, y;
+   if (!(tbp < cbp && end >= cbp))
+      return 0;
+   for (y = 0; y < 32 && px < 0; y += 8)
+      for (x = 0; x < 64; x += 8)
+         if (block_table[y / 8][x / 8] == (rel & 31))
+         {
+            px = x;
+            py = y;
+            break;
+         }
+   if (px < 0 || px + sw > 64 || py + sh > 32)
+      return 0;
+   for (y = py; y < py + sh; y += 8)
+      for (x = px; x < px + sw; x += 8)
+      {
+         const u32 blk = block_table[y / 8][x / 8];
+         if (blk < (rel & 31) || blk >= (rel & 31) + nblocks)
+            return 0;
+      }
+   *ox = (int)(page % tbw) * 64 + px;
+   *oy = (int)(page / tbw) * 32 + py;
+   return 1;
+}
+
+/* The oracle: the place in the target where every palette word sits, the
+ * palette laid out one page wide at cbp. */
+static int place_truth(u32 tbp, u32 tbw, u32 th, u32 cbp, int sw, int sh, int* ox, int* oy)
+{
+   const u32 first = word32(0, 0, cbp, 1);
+   u32 x, y;
+   for (y = 0; y < th; y++)
+      for (x = 0; x < tbw * 64; x++)
+         if (word32(x, y, tbp, tbw) == first)
+         {
+            int i, j;
+            if (x + (u32)sw > tbw * 64 || y + (u32)sh > th)
+               return 0;
+            for (j = 0; j < sh; j++)
+               for (i = 0; i < sw; i++)
+                  if (word32(x + (u32)i, y + (u32)j, tbp, tbw) != word32((u32)i, (u32)j, cbp, 1))
+                     return 0;
+            *ox = (int)x;
+            *oy = (int)y;
+            return 1;
+         }
+   return 0;
+}
+
+static int check_placement(void)
+{
+   static const struct
+   {
+      u32 tbp, tbw, th, cbp;
+      int sw, sh;
+   } cases[] = {
+      /* a 640x448 scratch buffer at 0x3f00: it wraps to block 0x0080 */
+      { 0x3f00, 10, 448, 0x3f04, 16, 16 },
+      { 0x3f00, 10, 448, 0x3f08, 16, 16 },
+      { 0x3f00, 10, 448, 0x3f0c, 16, 16 },
+      { 0x3f00, 10, 448, 0x3f10, 16, 16 },
+      { 0x3f00, 10, 448, 0x3f1c, 16, 16 },
+      { 0x3f00, 10, 448, 0x3f20, 16, 16 }, /* the next page */
+      { 0x3f00, 10, 448, 0x3f02, 16, 16 }, /* blocks 2-5: not one area */
+      { 0x3f00, 10, 448, 0x3f03, 8, 2 },   /* a 16-colour palette */
+      /* a target inside memory */
+      { 0x1a40, 10, 128, 0x1a44, 16, 16 },
+      { 0x1a40, 10, 128, 0x1a40 + 32 * 11 + 12, 16, 16 },
+      { 0x1a40, 10, 128, 0x1a40 + 32 * 3 + 30, 16, 16 }
+   };
+   int fail = 0, refused = 0;
+   size_t i;
+   for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++)
+   {
+      int ox = 0, oy = 0, tx = 0, ty = 0;
+      const int got = place(cases[i].tbp, cases[i].tbw, cases[i].th, cases[i].cbp, cases[i].sw, cases[i].sh, 1, &ox, &oy);
+      const int want = place_truth(cases[i].tbp, cases[i].tbw, cases[i].th, cases[i].cbp, cases[i].sw, cases[i].sh, &tx, &ty);
+      if (got != want || (got && (ox != tx || oy != ty)))
+      {
+         printf("  palette %x in target %x: placed %d at %d,%d, held %d at %d,%d\n", cases[i].cbp, cases[i].tbp,
+            got, ox, oy, want, tx, ty);
+         fail++;
+      }
+      if (want && !place(cases[i].tbp, cases[i].tbw, cases[i].th, cases[i].cbp, cases[i].sw, cases[i].sh, 0, &ox, &oy))
+         refused++;
+   }
+   /* negative: the end-block test refuses the wrapped target's palettes */
+   if (refused < 6)
+   {
+      printf("  negative: the end-block test took the wrapped target's palettes\n");
+      fail++;
+   }
+   return fail;
+}
+
 int main(void)
 {
    int fail = 0;
    fail += check_sampled_palette();
    fail += check_lookup();
    fail += check_follows_load();
+   fail += check_placement();
    printf("clut from target: %s\n", fail ? "FAIL" : "ok");
    return fail ? 1 : 0;
 }
