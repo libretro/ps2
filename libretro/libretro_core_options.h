@@ -276,13 +276,13 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       NULL,
       "video",
       {
-         { "1x Native (PS2)", NULL },
-         { "2x Native (~720p)", NULL },
-         { "4x Native (~1440p/2K)", NULL },
-         { "8x Native (~2880p/5K)", NULL },
+         { "1x (Native)", NULL },
+         { "2x", NULL },
+         { "4x", NULL },
+         { "8x", NULL },
          { NULL, NULL },
       },
-      "1x Native (PS2)"
+      "1x (Native)"
    },
    {
       "pcsx2_native_scaling",
