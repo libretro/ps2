@@ -111,6 +111,9 @@
 #include <mach/thread_info.h>
 #include <mach/thread_act.h>
 #include <mach/task.h>
+#if defined(__aarch64__)
+#include <mach/thread_state.h>
+#endif
 #endif
 
 /* ------------------------------------------------------------------ */
@@ -478,8 +481,23 @@ static void pb_signal_barrier(void)
        * already off was drained by the switch that took it off. */
       if (info.run_state != TH_STATE_RUNNING)
          continue;
+#if defined(__aarch64__)
+      /* On Apple Silicon, suspending every running thread from inside a
+       * wait loop can block for good in thread_suspend (seen with LRPS2's
+       * MTGS on macOS 26). Reading a thread's register pointer values
+       * forces the same context sync -- its store buffer is drained --
+       * without stopping it; this is what .NET's FlushProcessWriteBuffers
+       * does on macOS arm64. arm64 macOS is 11+, so the call exists. */
+      {
+         uintptr_t sp_val;
+         uintptr_t regs[128];
+         size_t    count = sizeof(regs) / sizeof(regs[0]);
+         thread_get_register_pointer_values(list[i], &sp_val, &count, regs);
+      }
+#else
       if (thread_suspend(list[i]) == KERN_SUCCESS)
          thread_resume(list[i]);
+#endif
    }
    for (i = 0; i < n; i++)
       mach_port_deallocate(mach_task_self(), list[i]);
