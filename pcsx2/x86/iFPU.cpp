@@ -16,6 +16,7 @@
 #include "../../common/VectorIntrin.h"
 
 #include "../Common.h"
+#include "../Config.h"
 #include "../R5900OpcodeTables.h"
 #include "iR5900.h"
 #include "common/emitter/c89ops.h"

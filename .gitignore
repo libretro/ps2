@@ -162,3 +162,4 @@ tests/gssamplemap/native_grid
 tests/pgs/pgs_field_scanout
 tests/pgs/pgs_empty_instance
 tests/pgs/pgs_ss_copies
+tests/recswitch/recswitch

@@ -14,6 +14,7 @@
  */
 
 #include "../Common.h"
+#include "../Config.h"
 #include "../R5900OpcodeTables.h"
 #include "../../common/emitter/x86emitter.h"
 
