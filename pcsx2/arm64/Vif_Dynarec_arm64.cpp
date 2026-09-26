@@ -18,6 +18,7 @@
 
 #include <cstdlib>
 #include <sys/mman.h>
+#include "arm64/JitMem.h"
 #include "../Config.h"
 
 namespace a64 = vixl::aarch64;
@@ -192,7 +193,7 @@ void dVifReserve(int idx)
 	if (s_vifCode[idx])
 		return;
 	s_vifCode[idx] = (u8*)mmap(nullptr, kVifCodeSize, PROT_READ | PROT_WRITE | PROT_EXEC,
-		MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+		JIT_MMAP_FLAGS, -1, 0);
 	if (s_vifCode[idx] == MAP_FAILED)
 	{
 		s_vifCode[idx] = nullptr;
