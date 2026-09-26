@@ -29,6 +29,7 @@
 #include <unordered_map>
 #include <vector>
 #include <sys/mman.h>
+#include "arm64/JitMem.h"
 
 #include "aarch64/macro-assembler-aarch64.h"
 
@@ -72,7 +73,7 @@ namespace
 	constexpr u32 kRamWords = kRamBytes >> 2;
 	BlockFn*      s_lut      = nullptr;
 	inline bool InRam(u32 np) { return np < kRamBytes; }
-	inline void LutClearAll() { if (s_lut) madvise(s_lut, (size_t)kRamWords * sizeof(BlockFn), MADV_DONTNEED); }
+	inline void LutClearAll() { if (s_lut) jit_zero_pages(s_lut, (size_t)kRamWords * sizeof(BlockFn)); }
 
 	// Word-granular "native code covers this RAM word" bitmap (64KB). Every IOP
 	// RAM store lands in recClearIOP, so the common case (word with no compiled
@@ -87,15 +88,23 @@ namespace
 
 	bool VixlEmitSelfTest()
 	{
-		MacroAssembler masm;
-		masm.Add(x0, x0, 1);
-		masm.Ret();
-		masm.FinalizeCode();
-		vixl::CodeBuffer* buf = masm.GetBuffer();
-		buf->SetExecutable();
-		auto fn = buf->GetStartAddress<int64_t (*)(int64_t)>();
-		const int64_t r = fn(41);
-		buf->SetWritable();
+		// Emit into a real code page: VIXL's own buffer is malloc'd on Darwin
+		// (VIXL_CODE_BUFFER_MALLOC), where SetExecutable() is a no-op.
+		constexpr size_t kPage = 16384;
+		u8* page = (u8*)mmap(nullptr, kPage, PROT_READ | PROT_WRITE | PROT_EXEC, JIT_MMAP_FLAGS, -1, 0);
+		if (page == MAP_FAILED)
+			return false;
+		memjit_write_begin();
+		{
+			MacroAssembler masm(page, kPage, PositionDependentCode);
+			masm.Add(x0, x0, 1);
+			masm.Ret();
+			masm.FinalizeCode();
+		}
+		memjit_write_end();
+		memsync(page, page + 8);
+		const int64_t r = reinterpret_cast<int64_t (*)(int64_t)>(page)(41);
+		munmap(page, kPage);
 		return r == 42;
 	}
 
@@ -318,6 +327,12 @@ namespace
 			{
 				LoadGpr(m, w0, gpr, rs); m.Add(w0, w0, simm);
 				LoadGpr(m, w1, gpr, rt);
+				// iopMemWrite8/16 take u8/u16. Apple's arm64 ABI makes the caller
+				// extend narrow arguments to 32 bits and the callee relies on it
+				// (AAPCS64 proper leaves the upper bits unspecified), so pass the
+				// value already truncated or the handlers see the whole register.
+				if (op == 0x28) m.Uxtb(w1, w1);
+				else if (op == 0x29) m.Uxth(w1, w1);
 				uint64_t fn = (op == 0x2b) ? reinterpret_cast<uint64_t>(&iopMemWrite32)
 				            : (op == 0x29) ? reinterpret_cast<uint64_t>(&iopMemWrite16)
 				            : reinterpret_cast<uint64_t>(&iopMemWrite8);
@@ -692,6 +707,7 @@ namespace
 		}
 
 		u8* start = s_code + s_code_pos;
+		memjit_write_begin(); // W^X: code cache writable on this thread until FinalizeCode
 		MacroAssembler masm(start, kCodeCacheSize - s_code_pos, PositionDependentCode);
 		s_irc.Reset(); // fresh per-block register-cache state (C.32)
 
@@ -757,6 +773,7 @@ namespace
 		}
 
 		masm.FinalizeCode();
+		memjit_write_end();
 		const size_t sz = masm.GetSizeOfCodeGenerated();
 		memsync(reinterpret_cast<void*>(start), (u8*)(reinterpret_cast<void*>(start)) + (sz));
 		s_code_pos += (sz + 15) & ~size_t(15);
@@ -805,7 +822,7 @@ static void recReserve(void)
 	if (!s_code)
 	{
 		s_code = (u8*)mmap(nullptr, kCodeCacheSize, PROT_READ | PROT_WRITE | PROT_EXEC,
-		                   MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+		                   JIT_MMAP_FLAGS, -1, 0);
 		if (s_code == MAP_FAILED) s_code = nullptr;
 	}
 	if (!s_lut)
