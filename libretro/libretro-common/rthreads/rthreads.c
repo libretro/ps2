@@ -138,6 +138,12 @@
 #else
 #include <pthread.h>
 #include <time.h>
+#if (defined(__FreeBSD__) && !defined(__ORBIS__) && !defined(ORBIS)) \
+      || defined(__OpenBSD__) || defined(__DragonFly__)
+/* pthread_set_name_np() lives here, not in pthread.h.  The PS4 toolchain
+ * defines __FreeBSD__ but Sony's libc ships no pthread_np.h. */
+#include <pthread_np.h>
+#endif
 #endif
 
 #if defined(USE_CTR_THREADS) && !defined(USE_CTRULIB_2)
