@@ -29,7 +29,6 @@
 #include <unordered_map>
 #include <vector>
 #include <sys/mman.h>
-#include "arm64/JitMem.h"
 
 #include "aarch64/macro-assembler-aarch64.h"
 
@@ -73,7 +72,7 @@ namespace
 	constexpr u32 kRamWords = kRamBytes >> 2;
 	BlockFn*      s_lut      = nullptr;
 	inline bool InRam(u32 np) { return np < kRamBytes; }
-	inline void LutClearAll() { if (s_lut) jit_zero_pages(s_lut, (size_t)kRamWords * sizeof(BlockFn)); }
+	inline void LutClearAll() { if (s_lut) memzero_pages(s_lut, (size_t)kRamWords * sizeof(BlockFn)); }
 
 	// Word-granular "native code covers this RAM word" bitmap (64KB). Every IOP
 	// RAM store lands in recClearIOP, so the common case (word with no compiled
@@ -91,8 +90,8 @@ namespace
 		// Emit into a real code page: VIXL's own buffer is malloc'd on Darwin
 		// (VIXL_CODE_BUFFER_MALLOC), where SetExecutable() is a no-op.
 		constexpr size_t kPage = 16384;
-		u8* page = (u8*)mmap(nullptr, kPage, PROT_READ | PROT_WRITE | PROT_EXEC, JIT_MMAP_FLAGS, -1, 0);
-		if (page == MAP_FAILED)
+		u8* page = (u8*)memjit_alloc(kPage);
+		if (!page)
 			return false;
 		memjit_write_begin();
 		{
@@ -104,7 +103,7 @@ namespace
 		memjit_write_end();
 		memsync(page, page + 8);
 		const int64_t r = reinterpret_cast<int64_t (*)(int64_t)>(page)(41);
-		munmap(page, kPage);
+		memjit_free(page, kPage);
 		return r == 42;
 	}
 
@@ -823,9 +822,7 @@ static void recReserve(void)
 	s_ok = VixlEmitSelfTest();
 	if (!s_code)
 	{
-		s_code = (u8*)mmap(nullptr, kCodeCacheSize, PROT_READ | PROT_WRITE | PROT_EXEC,
-		                   JIT_MMAP_FLAGS, -1, 0);
-		if (s_code == MAP_FAILED) s_code = nullptr;
+		s_code = (u8*)memjit_alloc(kCodeCacheSize);
 	}
 	if (!s_lut)
 	{
@@ -926,7 +923,7 @@ static void recShutdown(void)
 	s_blocks.clear();
 	s_page.clear();
 	memset(s_covered, 0, sizeof(s_covered));
-	if (s_code) { munmap(s_code, kCodeCacheSize); s_code = nullptr; }
+	if (s_code) { memjit_free(s_code, kCodeCacheSize); s_code = nullptr; }
 	s_code_pos = 0;
 }
 

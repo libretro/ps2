@@ -18,7 +18,7 @@
 
 #include <cstdlib>
 #include <sys/mman.h>
-#include "arm64/JitMem.h"
+#include <memmap.h>
 #include "../Config.h"
 
 namespace a64 = vixl::aarch64;
@@ -192,9 +192,8 @@ void dVifReserve(int idx)
 {
 	if (s_vifCode[idx])
 		return;
-	s_vifCode[idx] = (u8*)mmap(nullptr, kVifCodeSize, PROT_READ | PROT_WRITE | PROT_EXEC,
-		JIT_MMAP_FLAGS, -1, 0);
-	if (s_vifCode[idx] == MAP_FAILED)
+	s_vifCode[idx] = (u8*)memjit_alloc(kVifCodeSize);
+	if (!s_vifCode[idx])
 	{
 		s_vifCode[idx] = nullptr;
 		log_cb(RETRO_LOG_ERROR, "arm64 VIF%d dynarec: mmap failed; unpacks fall back to the C reference path.\n", idx);
@@ -219,7 +218,7 @@ void dVifRelease(int idx)
 	vif_hash_clear(&nVif[idx].vifBlocks);
 	if (s_vifCode[idx])
 	{
-		munmap(s_vifCode[idx], kVifCodeSize);
+		memjit_free(s_vifCode[idx], kVifCodeSize);
 		s_vifCode[idx] = nullptr;
 		nVif[idx].recWritePtr = nullptr;
 		nVif[idx].recEndPtr = nullptr;

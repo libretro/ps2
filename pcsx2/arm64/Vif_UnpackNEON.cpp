@@ -12,7 +12,7 @@
 
 #include <cstdlib>
 #include <sys/mman.h>
-#include "arm64/JitMem.h"
+#include <memmap.h>
 
 namespace a64 = vixl::aarch64;
 
@@ -423,9 +423,8 @@ void VifUnpackSSE_Init()
 {
 	if (!s_upkCode)
 	{
-		s_upkCode = (u8*)mmap(nullptr, kUpkCodeSize, PROT_READ | PROT_WRITE | PROT_EXEC,
-			JIT_MMAP_FLAGS, -1, 0);
-		if (s_upkCode == MAP_FAILED)
+		s_upkCode = (u8*)memjit_alloc(kUpkCodeSize);
+		if (!s_upkCode)
 		{
 			s_upkCode = nullptr;
 			log_cb(RETRO_LOG_ERROR, "arm64 VIF unpack dynarec: mmap failed; using the C reference path.\n");
@@ -447,7 +446,7 @@ void VifUnpackSSE_Destroy()
 {
 	if (s_upkCode)
 	{
-		munmap(s_upkCode, kUpkCodeSize);
+		memjit_free(s_upkCode, kUpkCodeSize);
 		s_upkCode = nullptr;
 	}
 	memset(nVifUpk, 0, sizeof(nVifUpk));
