@@ -5566,8 +5566,15 @@ __ri void GSRendererHW::EmulateTextureSampler(const GSTextureCache::Target* rt, 
 	 * glare blurred by bouncing the frame's alpha through a palette, a
 	 * 2x2 box each pass, was otherwise blurred over a quarter texel at
 	 * 4x, and drawn back twice its size through the palette it came out
-	 * a square with lines through it. */
-	const bool native_taps = scale > 1.0f && m_vt.IsLinear() && tex->m_target && cpsm.fmt == 0 &&
+	 * a square with lines through it. A texture at native size read by a
+	 * scaled draw is read the same way, each fragment taking the native
+	 * texels with the native pixel's weights: a screen composed for the
+	 * 2x2 average a read at texel edges makes, text and all, read by the
+	 * texture's own filter at scale showed the single texels the average
+	 * hides, dark lines through the letters, and a picture stretched a
+	 * hair short of a texel a pixel read, at its last fragments, the
+	 * texel past its edge the native draw weights by nothing. */
+	const bool native_taps = scale_rt > 1.0f && m_vt.IsLinear() && (tex->m_target || scale == 1.0f) && cpsm.fmt == 0 &&
 		!psm.depth && !need_mipmap && !m_conf.ps.shuffle && (!MagnifiesTexture() || tex->m_palette) && m_vt.m_primclass == GS_SPRITE_CLASS;
 	const bool shader_sampler = shader_emulated_sampler || native_taps;
 
