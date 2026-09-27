@@ -14,24 +14,31 @@
 #include <sys/mman.h>
 #include <string.h>
 
-#if defined(__APPLE__) && defined(__aarch64__)
+#if defined(__APPLE__)
+#include <TargetConditionals.h>
+#endif
+
+/* macOS only, the same test memjit_write_begin makes: iOS and tvOS are
+ * arm64 and __APPLE__ too, but there MAP_JIT needs an entitlement the
+ * app does not have, and the thread write toggle does not exist. */
+#if defined(__APPLE__) && defined(__aarch64__) && defined(TARGET_OS_OSX) && TARGET_OS_OSX
 #define JIT_MMAP_FLAGS (MAP_PRIVATE | MAP_ANONYMOUS | MAP_JIT)
 #else
 #define JIT_MMAP_FLAGS (MAP_PRIVATE | MAP_ANONYMOUS)
 #endif
 
 /* Zero a private anonymous mapping, cheaply, whatever the pages held.
- * madvise(MADV_DONTNEED) does that on Linux, but on Darwin it is only a hint
- * and the old contents stay -- a block LUT "cleared" that way keeps pointing
- * into code cache that is about to be reused. Mapping fresh zero pages over
- * the range is the same cost there. */
+ * madvise(MADV_DONTNEED) zero-fills private anonymous memory on Linux and
+ * Android only; everywhere else it is a hint and the old contents may stay,
+ * which would leave a block LUT pointing into code cache that is about to
+ * be reused. There, fresh zero pages are mapped over the range. */
 static inline void jit_zero_pages(void* p, size_t size)
 {
-#if defined(__APPLE__)
+#if defined(__linux__)
+	madvise(p, size, MADV_DONTNEED);
+#else
 	if (mmap(p, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0) == MAP_FAILED)
 		memset(p, 0, size);
-#else
-	madvise(p, size, MADV_DONTNEED);
 #endif
 }
 
