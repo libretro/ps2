@@ -35,6 +35,7 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 #include <sys/mman.h>
+#include "arm64/JitMem.h"
 
 
 #include "aarch64/macro-assembler-aarch64.h"
@@ -190,7 +191,7 @@ namespace
 
 	inline u32  Norm(u32 a)  { return a & 0x1fffffff; }
 	inline bool InRam(u32 np) { return np < kRamBytes; }
-	inline void LutClearAll() { if (s_lut) madvise(s_lut, (size_t)kRamWords * sizeof(BlockFn), MADV_DONTNEED); }
+	inline void LutClearAll() { if (s_lut) jit_zero_pages(s_lut, (size_t)kRamWords * sizeof(BlockFn)); }
 
 	// C.46: the whole cpuRegisters struct sits within the ldr/str immediate
 	// window of the guest-reg base already pinned in x19, so reach its fields
@@ -208,15 +209,23 @@ namespace
 
 	bool VixlEmitSelfTest()
 	{
-		MacroAssembler masm;
-		masm.Add(x0, x0, 1);
-		masm.Ret();
-		masm.FinalizeCode();
-		vixl::CodeBuffer* buf = masm.GetBuffer();
-		buf->SetExecutable();
-		auto fn = buf->GetStartAddress<int64_t (*)(int64_t)>();
-		const int64_t r = fn(41);
-		buf->SetWritable();
+		// Emit into a real code page: VIXL's own buffer is malloc'd on Darwin
+		// (VIXL_CODE_BUFFER_MALLOC), where SetExecutable() is a no-op.
+		constexpr size_t kPage = 16384;
+		u8* page = (u8*)mmap(nullptr, kPage, PROT_READ | PROT_WRITE | PROT_EXEC, JIT_MMAP_FLAGS, -1, 0);
+		if (page == MAP_FAILED)
+			return false;
+		memjit_write_begin();
+		{
+			MacroAssembler masm(page, kPage, PositionDependentCode);
+			masm.Add(x0, x0, 1);
+			masm.Ret();
+			masm.FinalizeCode();
+		}
+		memjit_write_end();
+		memsync(page, page + 8);
+		const int64_t r = reinterpret_cast<int64_t (*)(int64_t)>(page)(41);
+		munmap(page, kPage);
 		return r == 42;
 	}
 
@@ -4128,6 +4137,7 @@ namespace {
 		s_exit_labels.clear();
 		s_exit_labels.emplace_back();
 		s_blk_ret = &s_exit_labels.front(); // the block's one return tail
+		memjit_write_begin(); // W^X: code cache writable on this thread until FinalizeCode
 		MacroAssembler masm(start, kCodeCacheSize - s_code_pos, PositionDependentCode);
 		// The aVU macro emitters (C.30-2) hold RSCRATCHADDR (x17) and q31 across
 		// vixl macro expansions -- keep the assembler from synthesizing into them
@@ -4268,6 +4278,7 @@ namespace {
 		EmitMisalignStubs(masm, gpr); // C.53: same, for the misalign cancels
 		EmitExitStubs(masm);          // C.54: event-due tails + the block's single return path
 		masm.FinalizeCode();
+		memjit_write_end();
 
 		const size_t sz = masm.GetSizeOfCodeGenerated();
 		memsync(reinterpret_cast<void*>(start), (u8*)(reinterpret_cast<void*>(start)) + (sz));
@@ -4387,7 +4398,7 @@ void eeJitReserve_arm64(void)
 	if (!s_code)
 	{
 		s_code = (u8*)mmap(nullptr, kCodeCacheSize, PROT_READ | PROT_WRITE | PROT_EXEC,
-		                   MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+		                   JIT_MMAP_FLAGS, -1, 0);
 		if (s_code == MAP_FAILED) s_code = nullptr;
 	}
 	if (!s_lut)
@@ -4481,7 +4492,9 @@ extern "C" bool eeFastmemFault_arm64(uintptr_t code_address)
 		return false; // out of B range -- impossible within one block, but don't corrupt code
 
 	u32* const insn = reinterpret_cast<u32*>(site.code);
+	memjit_write_begin();
 	*insn = 0x14000000u | (static_cast<u32>(delta) & 0x03ffffffu); // B <stub>
+	memjit_write_end();
 	memsync(insn, (u8*)(insn) + (sizeof(u32)));
 
 	const auto it = std::lower_bound(s_fm_faulting.begin(), s_fm_faulting.end(), site.pc);
