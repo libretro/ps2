@@ -145,6 +145,10 @@ enum image_type_enum image_texture_get_type(const char *path);
 bool image_texture_load_buffer(struct texture_image *img,
    enum image_type_enum type, void *s, size_t len);
 
+/* ->pix10 is an ask on the way in and an answer on the way out: set
+ * it before the call to have a decoder that can emit XRGB2101010 do
+ * so, and read it after to find out whether it did. Clear on entry
+ * means the ordinary 8-bit image, as before. */
 bool image_texture_load(struct texture_image *img, const char *path);
 
 /* image_texture_load with an abort hook: both decode stages are
@@ -316,6 +320,19 @@ bool image_transfer_anim_stream_set_argb(void *stream,
  * and WEBP, whose frames are composed on a persistent canvas, where
  * the caller keeps copying. @out must stay valid until the next call
  * that decodes has returned. */
+/* Behind the clock: while @behind is set, pictures nothing references
+ * are consumed without being decoded and their presentation slots
+ * pass, so the stream catches up; what is shown is decoded exactly as
+ * before. Only the MP4 codecs (H.264, HEVC) have such pictures; for
+ * the rest this is a no-op. Clear it once caught up. */
+/* The stream's H.264 decoder (an rh264_video*), for a bench to ask
+ * what its pipeline did; NULL for any other type. */
+void *image_transfer_anim_stream_h264(void *stream, enum image_type_enum type);
+void *image_transfer_anim_stream_h265(void *stream, enum image_type_enum type);
+
+void image_transfer_anim_stream_set_catchup(void *stream,
+      enum image_type_enum type, int behind);
+
 bool image_transfer_anim_stream_set_output(void *stream,
       enum image_type_enum type, uint32_t *out);
 

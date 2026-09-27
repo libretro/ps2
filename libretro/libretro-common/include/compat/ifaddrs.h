@@ -53,10 +53,8 @@ struct ifaddrs
 
 #include <sys/cdefs.h>
 
-/* Local addition, not in RetroArch's copy: DEV9 includes this from C++, and
- * without a linkage specification the declarations below mangle and the
- * references never resolve against compat_ifaddrs.c. RetroArch only ever
- * includes it from net_ifinfo.c, so upstream has not needed it. */
+/* C linkage, since a C++ caller -- a core's network layer, say -- must
+ * resolve these against compat_ifaddrs.c. */
 #ifdef __cplusplus
 extern "C" {
 #endif
