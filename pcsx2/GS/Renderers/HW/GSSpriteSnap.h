@@ -23,6 +23,22 @@ extern "C" {
  * edge gives up are never drawn. */
 int gs_sprite_snap_edge(int v, int o);
 
+/* A sprite sampled nearest: natively each pixel reads the texel under
+ * its position, the pixel's top left corner. Drawn scaled, the fragments
+ * of a pixel sit across it, and a coordinate that puts a texel boundary
+ * inside the pixel has part of them read the next texel: a copy of a
+ * picture onto itself one pixel along, which the GS makes exactly, comes
+ * out half a pixel along, and the edge of a strip copied that way reads
+ * past the strip. When the sprite steps a whole number of texels a pixel,
+ * the texel boundaries are moved onto the pixel boundaries - the fragments
+ * of a pixel then read the texels from the one its position reads, across
+ * the texels it steps over, as a scaled texture's own do - and this gives
+ * the amount, in texels, to add to the coordinates along the axis. u_lo
+ * and u_hi are the coordinates, in texels, at the sprite's two edges along
+ * the axis, p_lo < p_hi, which sit on whole pixels (1/16 pixel units).
+ * Any other step, and a sprite covering no pixel, gives 0. */
+float gs_sprite_fit_nearest(float u_lo, float u_hi, int p_lo, int p_hi);
+
 #ifdef __cplusplus
 }
 #endif

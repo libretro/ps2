@@ -2492,6 +2492,7 @@ void GSRendererHW::SnapSpriteEdges()
 	const float th = (float)(16 << m_cached_ctx.TEX0.TH);
 	const int tme = PRIM->TME;
 	const int fst = PRIM->FST;
+	const int nearest = tme && !m_vt.IsLinear();
 	GSVector4i lo = GSVector4i(INT_MAX);
 	GSVector4i hi = GSVector4i(INT_MIN);
 	u32 i;
@@ -2555,6 +2556,22 @@ void GSRendererHW::SnapSpriteEdges()
 			q1 += f1 * dq;
 			a->XYZ.Y = (u16)(ny0 + oy);
 			b->XYZ.Y = (u16)(ny1 + oy);
+		}
+
+		/* Sampled nearest, the texel boundaries move onto the pixel
+		 * boundaries where the sprite steps whole texels (GSSpriteSnap.c). */
+		if (nearest && q0 == q1)
+		{
+			/* Texels a unit of the coordinate: 1/16 texel with UV, the
+			 * texture's size with ST over Q. */
+			const float ku = fst ? (1.0f / 16.0f) : (tw / 16.0f) / q0;
+			const float kv = fst ? (1.0f / 16.0f) : (th / 16.0f) / q0;
+			const float dx = (nx0 < nx1) ? gs_sprite_fit_nearest(s0 * ku, s1 * ku, nx0, nx1) : gs_sprite_fit_nearest(s1 * ku, s0 * ku, nx1, nx0);
+			const float dy = (ny0 < ny1) ? gs_sprite_fit_nearest(t0 * kv, t1 * kv, ny0, ny1) : gs_sprite_fit_nearest(t1 * kv, t0 * kv, ny1, ny0);
+			s0 += dx / ku;
+			s1 += dx / ku;
+			t0 += dy / kv;
+			t1 += dy / kv;
 		}
 
 		if (tme)
@@ -3252,14 +3269,16 @@ void GSRendererHW::Draw()
 	 * seam between passes over the screen, and on the game's own art it
 	 * shows texels the GS steps over (a sprite minified from its texture,
 	 * its edge at a field's half line). The shuffles are told apart by
-	 * their sprites' exact shape and keep it. A read of a target keeps
+	 * their sprites' exact shape and keep it; a shuffle reads a target or
+	 * the frame itself, so an 8-bit sprite reading the game's own art from
+	 * memory is not one, whatever its shape. A read of a target keeps
 	 * what the Normal half-pixel offset (moving the draw) and the Special
 	 * ones (realigning its coordinates) do for it. A snapped sprite is
 	 * drawn without the offsets that move a draw (see SetupIA). */
 	if (m_vt.m_primclass == GS_SPRITE_CLASS && GetUpscaleMultiplier() > 1.0f && !GSConfig.UserHacks_MergePPSprite &&
 		!((GSConfig.UserHacks_HalfPixelOffset == GSHalfPixelOffset::Normal || GSConfig.UserHacks_HalfPixelOffset == GSHalfPixelOffset::Special ||
 			GSConfig.UserHacks_HalfPixelOffset == GSHalfPixelOffset::SpecialAggressive) && src && src->m_target) &&
-		!IsPossibleChannelShuffle() &&
+		!(IsPossibleChannelShuffle() && (!src || src->m_target || m_cached_ctx.FRAME.Block() == m_cached_ctx.TEX0.TBP0)) &&
 		!(src && GSLocalMemory::m_psm[m_cached_ctx.FRAME.PSM].bpp == 16 && GSLocalMemory::m_psm[m_cached_ctx.TEX0.PSM].bpp == 16))
 	{
 		SnapSpriteEdges();
