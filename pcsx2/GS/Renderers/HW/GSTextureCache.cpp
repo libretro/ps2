@@ -19,6 +19,7 @@
 #include "common/MathUtils.h"
 
 #include "GSTextureCache.h"
+#include "GSTargetBudget.h"
 #include "GSObjectPool.h"
 #include "GSTextureReplacements.h"
 #include "GSRendererHW.h"
@@ -6074,35 +6075,72 @@ u64 GSTextureCache::TargetByteBudget() const
 void GSTextureCache::EnforceTargetBudget()
 {
 	const u64 budget = TargetByteBudget();
+	gs_target_info_t* info;
+	Target** tgt;
+	unsigned* order;
+	unsigned n = 0;
+	unsigned count;
+	unsigned i;
 	int type;
 
 	if (m_target_memory_usage <= budget)
 		return;
 
-	/* Over it. The lists are most recently used first, so the oldest are
-	 * at the back: drop from there until it fits. A target dropped while
-	 * the game still wants it is redrawn - the game writes it before it
-	 * reads it, that is what ageing them out at all relies on - whereas
-	 * the allocation that fails without this takes the draw with it. */
-	for (type = 1; type >= 0 && m_target_memory_usage > budget; type--)
+	/* Over it: GSTargetBudget.c picks which go, from what each holds. */
+	n = (unsigned)(m_dst[0].size() + m_dst[1].size());
+	info = (gs_target_info_t*)malloc(n * sizeof(*info));
+	tgt = (Target**)malloc(n * sizeof(*tgt));
+	order = (unsigned*)malloc(n * sizeof(*order));
+	if (info && tgt && order)
 	{
-		auto& list = m_dst[type];
-		while (!list.empty() && m_target_memory_usage > budget)
+		n = 0;
+		for (type = 0; type < 2; type++)
 		{
-			Target* t = list.back();
+			for (Target* t : m_dst[type])
+			{
+				const Target* over;
 
-			/* Not the one being drawn to right now. */
-			if (t->m_age == 0 && list.size() <= 2)
-				break;
+				info[n].bytes = t->m_texture ? t->m_texture->GetMemUsage() : 0;
+				info[n].age = t->m_age;
+				/* Every block of it written since by a transfer; or, one not
+				 * in use, drawn over by a newer target. A target in use that
+				 * a newer one overlaps in part still holds the rest. */
+				info[n].superseded = t->m_dirty.GetTotalRect(t->m_TEX0, GSVector2i(t->m_valid.width(), t->m_valid.height())).rintersect(t->m_valid).eq(t->m_valid);
+				if (!info[n].superseded && t->m_age > 1)
+				{
+					over = FindOverlappingTarget(t);
+					info[n].superseded = over && over->m_last_draw > t->m_last_draw;
+				}
+				tgt[n++] = t;
+			}
+		}
 
-			InvalidateSourcesFromTarget(t);
-			list.pop_back();
-			delete t;
+		count = gs_target_evict_order(info, n, m_target_memory_usage, budget, order);
+		for (i = 0; i < count; i++)
+		{
+			Target* t = tgt[order[i]];
+			auto& list = m_dst[t->m_type];
+
+			for (auto it = list.begin(); it != list.end(); ++it)
+			{
+				if (*it == t)
+				{
+					InvalidateSourcesFromTarget(t);
+					list.erase(it);
+					delete t;
+					break;
+				}
+			}
 		}
 	}
+	free(order);
+	free(tgt);
+	free(info);
 
-	if (m_target_memory_usage > budget)
+	/* Once for each size the live set settles at, not every frame. */
+	if (m_target_memory_usage > budget && (m_target_memory_usage >> 20) != m_budget_warned_mb)
 	{
+		m_budget_warned_mb = m_target_memory_usage >> 20;
 		log_cb(RETRO_LOG_WARN,
 			"GS: targets still over budget after dropping what could be dropped "
 			"(%llu MB against %llu MB).\n",

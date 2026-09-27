@@ -526,6 +526,8 @@ protected:
 	FastList<Target*> m_dst[2];
 	FastList<TargetHeightElem> m_target_heights;
 	u64 m_target_memory_usage = 0;
+	/* The usage, in MB, the over-budget warning last named. */
+	u64 m_budget_warned_mb = 0;
 
 	/* What the live targets may hold, from the console: every render
 	 * target and depth buffer a game has at once lives in the PS2's four
@@ -537,8 +539,9 @@ protected:
 	 * Ageing alone does not bound this: a target is kept for sixty
 	 * frames, and a game that makes large ones quickly - Tomb Raider
 	 * Legend's RAD camera at 4x asks for 4096x3584, 58 MB each - has
-	 * gigabytes of them live before the first one is a second old. The
-	 * counters for this were already kept; nothing read them. */
+	 * gigabytes of them live before the first one is a second old. Over
+	 * the budget, the targets that go are those GSTargetBudget.c picks:
+	 * never the ones in use, which hold what the game reads next. */
 	static constexpr u32 TARGET_LIVE_SETS = 2;
 	void EnforceTargetBudget();
 

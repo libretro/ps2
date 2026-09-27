@@ -4,6 +4,8 @@
 # readback_retire : a readback region is retired only once the readback ran.
 # upload_dirty    : an EE upload into a target at another buffer width marks
 #                   exactly the target pixels it wrote.
+# target_budget   : over the target budget, what goes is what the game can no
+#                   longer read, never the live set.
 set -e
 DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 ${CC:-cc} -std=c89 -pedantic -Wall -Wextra -O2 -g $SANFLAGS \
@@ -12,3 +14,6 @@ ${CC:-cc} -std=c89 -pedantic -Wall -Wextra -O2 -g $SANFLAGS \
 ${CC:-cc} -std=c89 -pedantic -Wall -Wextra -O2 -g $SANFLAGS \
 	-o "$DIR/upload_dirty" "$DIR/upload_dirty.c"
 "$DIR/upload_dirty"
+${CC:-cc} -std=c89 -pedantic -Wall -Wextra -O2 -g $SANFLAGS \
+	-o "$DIR/target_budget" "$DIR/target_budget.c"
+"$DIR/target_budget"
