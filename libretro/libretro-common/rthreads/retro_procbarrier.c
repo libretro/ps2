@@ -101,6 +101,11 @@
 #endif
 
 #if defined(PB_LINUX)
+#include <time.h>
+#include <sched.h>
+#if defined(__ANDROID__)
+#include <sys/system_properties.h>
+#endif
 #include <sys/syscall.h>
 #include <dirent.h>
 #include <fcntl.h>
@@ -198,9 +203,20 @@ static size_t             s_page_size;
 #endif
 
 #if defined(PB_LINUX)
-/* Target of the probe's acknowledgement. Static, so an acknowledgement
- * that arrives late -- the probing thread had the signal blocked -- still
- * lands in valid memory. */
+/* One target of a signal-tier walk. The queued signal carries the slot's
+ * address; the target's handler closes it, or the walker does on finding
+ * the thread gone, and whichever closes it counts it in *acks. */
+typedef struct pb_ack_slot
+{
+   retro_atomic_int_t *acks;
+   pid_t               tid;
+   retro_atomic_int_t  closed;
+} pb_ack_slot_t;
+
+/* The probe's slot and count. Static, so an acknowledgement that arrives
+ * late -- the probing thread had the signal blocked -- still lands in
+ * valid memory. */
+static pb_ack_slot_t      s_probe_slot;
 static retro_atomic_int_t s_probe_acks;
 #endif
 
@@ -245,12 +261,32 @@ static unsigned pb_num_cpus(void)
 #define PB_MEMBARRIER_CMD_PRIVATE_EXPEDITED            (1 << 3)
 #define PB_MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED   (1 << 4)
 
+#if defined(__ANDROID__)
+/* Android's seccomp filter answers a syscall outside its allowlist with
+ * SIGSYS, which ends the process, and membarrier joined that allowlist
+ * in Android 10 (API 29): on 8.0 through 9 even the query would be the
+ * end. The API level decides whether the probe is made at all; an
+ * unreadable one counts as too old. */
+static int pb_android_api_level(void)
+{
+   char v[PROP_VALUE_MAX];
+   if (__system_property_get("ro.build.version.sdk", v) <= 0)
+      return 0;
+   return atoi(v);
+}
+#endif
+
 static int pb_membarrier_try(void)
 {
 #if defined(PB_NO_MEMBARRIER)
    return 0;
 #else
-   long q = syscall(__NR_membarrier, PB_MEMBARRIER_CMD_QUERY, 0, 0);
+   long q;
+#if defined(__ANDROID__)
+   if (pb_android_api_level() < 29)
+      return 0;
+#endif
+   q = syscall(__NR_membarrier, PB_MEMBARRIER_CMD_QUERY, 0, 0);
    if (q < 0)
       return 0;   /* ENOSYS before 4.3, or filtered */
    if (!(q & PB_MEMBARRIER_CMD_PRIVATE_EXPEDITED))
@@ -450,6 +486,47 @@ static void pb_pageflip(void)
 #define PB_FUTEX_WAKE_PRIVATE 129
 #endif
 
+/* What orders the walker's writes to a slot before the handler reads it
+ * is the syscall that queues the signal, and ThreadSanitizer does not
+ * model a syscall as synchronisation. Under it the edge is stated
+ * explicitly; everywhere else these are nothing. */
+#if defined(__SANITIZE_THREAD__)
+#define PB_TSAN 1
+#elif defined(__has_feature)
+#if __has_feature(thread_sanitizer)
+#define PB_TSAN 1
+#endif
+#endif
+#if defined(PB_TSAN)
+void __tsan_acquire(void *addr);
+void __tsan_release(void *addr);
+#define PB_TSAN_ACQUIRE(p) __tsan_acquire((void*)(p))
+#define PB_TSAN_RELEASE(p) __tsan_release((void*)(p))
+/* ThreadSanitizer defers a signal into one slot per signal number per
+ * thread and drops a second of the same number that arrives before the
+ * first is handled (tsan_interceptors_posix.cpp, pending_signals), where
+ * the kernel would queue it. Two walks with a target in common would
+ * lose an acknowledgement to that, so under the tool walks run one at a
+ * time. The tool checks the slot handoff either way. */
+static pthread_mutex_t s_tsan_walk_lock = PTHREAD_MUTEX_INITIALIZER;
+/* Spun, not blocked on: the tool runs a deferred handler only once the
+ * thread is back in code it instruments, and a waiter asleep inside
+ * pthread_mutex_lock never is, so the walker holding the lock would wait
+ * on that waiter's acknowledgement forever. */
+static void pb_tsan_walk_lock(void)
+{
+   while (pthread_mutex_trylock(&s_tsan_walk_lock) != 0)
+      sched_yield();
+}
+#define PB_TSAN_WALK_LOCK()   pb_tsan_walk_lock()
+#define PB_TSAN_WALK_UNLOCK() pthread_mutex_unlock(&s_tsan_walk_lock)
+#else
+#define PB_TSAN_WALK_LOCK()   ((void)0)
+#define PB_TSAN_WALK_UNLOCK() ((void)0)
+#define PB_TSAN_ACQUIRE(p) ((void)0)
+#define PB_TSAN_RELEASE(p) ((void)0)
+#endif
+
 static void pb_ack_handler(int sig, siginfo_t *si, void *uc)
 {
    /* Async-signal-safe: getpid, one atomic increment and a futex wake,
@@ -464,18 +541,24 @@ static void pb_ack_handler(int sig, siginfo_t *si, void *uc)
    if (si && si->si_code == SI_QUEUE && si->si_pid == getpid()
          && si->si_value.sival_ptr)
    {
-      retro_atomic_int_t *acks = (retro_atomic_int_t*)si->si_value.sival_ptr;
-      retro_atomic_fetch_add_int(acks, 1);
+      pb_ack_slot_t      *slot = (pb_ack_slot_t*)si->si_value.sival_ptr;
+      retro_atomic_int_t *acks;
+      PB_TSAN_ACQUIRE(slot);
+      acks = slot->acks;
+      if (retro_atomic_cas_int(&slot->closed, 0, 1))
+      {
+         retro_atomic_fetch_add_int(acks, 1);
 #if defined(PB_FUTEX_WAKE_PRIVATE)
-      syscall(__NR_futex, (void*)acks, PB_FUTEX_WAKE_PRIVATE, 1,
-            NULL, NULL, 0);
+         syscall(__NR_futex, (void*)acks, PB_FUTEX_WAKE_PRIVATE, 1,
+               NULL, NULL, 0);
 #endif
+      }
    }
    errno = saved_errno;
 }
 
 /* 0 when queued; otherwise -1 with errno set. */
-static long pb_send_ack(pid_t pid, pid_t tid, retro_atomic_int_t *acks)
+static long pb_send_ack(pid_t pid, pid_t tid, pb_ack_slot_t *slot)
 {
 #if defined(PB_HAVE_TGSIGQUEUE)
    siginfo_t si;
@@ -484,12 +567,13 @@ static long pb_send_ack(pid_t pid, pid_t tid, retro_atomic_int_t *acks)
    si.si_code            = SI_QUEUE;
    si.si_pid             = pid;
    si.si_uid             = getuid();
-   si.si_value.sival_ptr = (void*)acks;
+   si.si_value.sival_ptr = (void*)slot;
+   PB_TSAN_RELEASE(slot);
    return syscall(__NR_rt_tgsigqueueinfo, pid, tid, s_signum, &si);
 #else
    (void)pid;
    (void)tid;
-   (void)acks;
+   (void)slot;
    errno = ENOSYS;
    return -1;
 #endif
@@ -547,8 +631,10 @@ static int pb_signal_try(int signum)
        * refusal (ENOSYS, EPERM) or a mask that blocks the signal here
        * shows up as no acknowledgement. */
       retro_atomic_store_relaxed_int(&s_probe_acks, 0);
-      if (pb_send_ack(getpid(), (pid_t)syscall(SYS_gettid),
-               &s_probe_acks) != 0)
+      retro_atomic_store_relaxed_int(&s_probe_slot.closed, 0);
+      s_probe_slot.acks = &s_probe_acks;
+      s_probe_slot.tid  = (pid_t)syscall(SYS_gettid);
+      if (pb_send_ack(getpid(), s_probe_slot.tid, &s_probe_slot) != 0)
          return 0;
       if (retro_atomic_load_acquire_int(&s_probe_acks) != 1)
          return 0;
@@ -558,26 +644,31 @@ static int pb_signal_try(int signum)
 }
 
 #if defined(PB_LINUX)
-static int pb_thread_running(pid_t tid)
+/* /proc/self/task/<tid><leaf>. Built by hand: snprintf is not C89, and
+ * a tid is a small decimal. path must hold 64 bytes. */
+static void pb_task_path(char *path, pid_t tid, const char *leaf)
 {
-   char path[64], buf[256], *p, *q;
-   int fd;
-   ssize_t n;
-   unsigned v;
-   /* /proc/self/task/<tid>/stat: field 3 is the state, after the comm
-    * in parentheses; the comm may itself contain spaces or parentheses,
-    * so scan back from the last ')' rather than forward. The path is
-    * built by hand: snprintf is not C89, and a tid is a small decimal. */
+   char    *q;
+   char     digits[16];
+   int      nd = 0;
+   unsigned v  = (unsigned)tid;
    strcpy(path, "/proc/self/task/");
    q = path + strlen(path);
-   {
-      char digits[16];
-      int  nd = 0;
-      v = (unsigned)tid;
-      do { digits[nd++] = (char)('0' + v % 10u); v /= 10u; } while (v);
-      while (nd) *q++ = digits[--nd];
-   }
-   strcpy(q, "/stat");
+   do { digits[nd++] = (char)('0' + v % 10u); v /= 10u; } while (v);
+   while (nd)
+      *q++ = digits[--nd];
+   strcpy(q, leaf);
+}
+
+static int pb_thread_running(pid_t tid)
+{
+   char path[64], buf[256], *p;
+   int fd;
+   ssize_t n;
+   /* /proc/self/task/<tid>/stat: field 3 is the state, after the comm
+    * in parentheses; the comm may itself contain spaces or parentheses,
+    * so scan back from the last ')' rather than forward. */
+   pb_task_path(path, tid, "/stat");
    fd = open(path, O_RDONLY);
    if (fd < 0)
       return 0;
@@ -590,62 +681,177 @@ static int pb_thread_running(pid_t tid)
    return p && p[1] == ' ' && p[2] == 'R';
 }
 
+/* Whether bit sig-1 is set in a /proc hex signal mask: most significant
+ * digit first, as many digits as the kernel has signals (16 for 64, 32
+ * on MIPS's 128), so it is read from the right without assuming a
+ * width. */
+static int pb_mask_has(const char *s, int sig)
+{
+   const char *end;
+   unsigned    bit, digit;
+   int         c;
+   while (*s == ' ' || *s == '\t')
+      s++;
+   end = s;
+   while ((*end >= '0' && *end <= '9') || (*end >= 'a' && *end <= 'f')
+         || (*end >= 'A' && *end <= 'F'))
+      end++;
+   bit = (unsigned)(sig - 1);
+   if (sig < 1 || (size_t)(bit / 4u) >= (size_t)(end - s))
+      return 0;
+   c     = end[-1 - (int)(bit / 4u)];
+   digit = (c <= '9') ? (unsigned)(c - '0')
+         : (unsigned)((c | 0x20) - 'a' + 10);
+   return (int)((digit >> (bit % 4u)) & 1u);
+}
+
+/* 1 when the thread has the barrier's signal blocked, or is gone. Its
+ * status file runs past a kilobyte and only the SigBlk line matters, so
+ * it is read in small pieces and every other line is dropped unseen. A
+ * kernel without the line -- none since 2.6 -- is taken as unblocked. */
+static int pb_thread_blocks_signal(pid_t tid)
+{
+   char    path[64], buf[128], line[48];
+   int     fd, len = 0, overlong = 0;
+   ssize_t n;
+   pb_task_path(path, tid, "/status");
+   fd = open(path, O_RDONLY);
+   if (fd < 0)
+      return 1;   /* exited, and fenced by exiting */
+   while ((n = read(fd, buf, sizeof(buf))) > 0)
+   {
+      ssize_t i;
+      for (i = 0; i < n; i++)
+      {
+         if (buf[i] != '\n')
+         {
+            if (len < (int)sizeof(line) - 1)
+               line[len++] = buf[i];
+            else
+               overlong = 1;
+            continue;
+         }
+         line[len] = '\0';
+         if (!overlong && !strncmp(line, "SigBlk:", 7))
+         {
+            close(fd);
+            return pb_mask_has(line + 7, s_signum);
+         }
+         len      = 0;
+         overlong = 0;
+      }
+   }
+   close(fd);
+   return 0;
+}
+
+/* Walks queue signals in batches of this many, each target with a slot
+ * of its own on the walker's stack. */
+#define PB_ACK_BATCH 32
+
+/* How long the walker sleeps before checking whether a target it is
+ * still owed has exited. A thread that exits with the signal queued never
+ * runs the handler, and nothing else would wake the walker; every other
+ * acknowledgement wakes it at once. */
+#define PB_ACK_RECHECK_NS 10000000L
+
+/* Wait until every slot in the batch is closed. A slot whose thread no
+ * longer exists is closed by the walker: an exited thread was fenced by
+ * exiting. */
+static void pb_ack_wait(pb_ack_slot_t *slots, int n, retro_atomic_int_t *acks,
+      pid_t pid)
+{
+   for (;;)
+   {
+      int got = retro_atomic_load_acquire_int(acks);
+      int i;
+      if (got >= n)
+         return;
+#if defined(PB_FUTEX_WAIT_PRIVATE)
+      {
+         struct timespec ts;
+         ts.tv_sec  = 0;
+         ts.tv_nsec = PB_ACK_RECHECK_NS;
+         /* Returns at once if an acknowledgement landed since the load. */
+         if (syscall(__NR_futex, (void*)acks, PB_FUTEX_WAIT_PRIVATE, got,
+                  &ts, NULL, 0) == 0 || errno != ETIMEDOUT)
+            continue;
+      }
+#endif
+      for (i = 0; i < n; i++)
+      {
+         if (retro_atomic_load_acquire_int(&slots[i].closed))
+            continue;
+         if (       syscall(SYS_tgkill, pid, slots[i].tid, 0) != 0
+               && errno == ESRCH
+               && retro_atomic_cas_int(&slots[i].closed, 0, 1))
+            retro_atomic_fetch_add_int(acks, 1);
+      }
+   }
+}
+
 static void pb_signal_barrier(void)
 {
    DIR *d;
    struct dirent *e;
-   /* This barrier's own: handlers reach it through the queued value, and
-    * this function does not return until every one it is owed has come
-    * in, so it outlives every signal that points at it. */
+   /* This walk's own, on its stack: handlers reach them through the
+    * queued value, and a batch is not left until every slot in it is
+    * closed, so they outlive every signal that points at them. */
+   pb_ack_slot_t      slots[PB_ACK_BATCH];
    retro_atomic_int_t acks;
    pid_t self = (pid_t)syscall(SYS_gettid);
    pid_t pid  = getpid();
-   int sent   = 0;
 
-   /* A store, not atomic_init: the handlers that increment it run on
-    * other threads, and the only edge between this and them is the
-    * syscall that queues their signal. */
-   retro_atomic_store_release_int(&acks, 0);
    d = opendir("/proc/self/task");
    if (!d)
       return;
-   while ((e = readdir(d)) != NULL)
+   PB_TSAN_WALK_LOCK();
+   do
    {
-      pid_t tid = (pid_t)atoi(e->d_name);
-      if (tid <= 0 || tid == self)
-         continue;
-      /* Only threads on a CPU need interrupting; a thread that was
-       * switched out was drained by the switch. 'R' is runnable rather
-       * than strictly running, so under overcommit this can also wait
-       * for a preempted thread to be rescheduled -- bounded by a
-       * scheduler quantum, and acceptable on a path about to sleep. */
-      if (!pb_thread_running(tid))
-         continue;
-      /* EAGAIN is a full queue, which drains as its signals are
-       * handled; ESRCH is a thread that has exited, which fences it. */
-      for (;;)
+      int n = 0;
+      /* Stores, not atomic_init: the handlers that update these run on
+       * other threads, and the only edge between this and them is the
+       * syscall that queues their signal. */
+      retro_atomic_store_release_int(&acks, 0);
+      while (n < PB_ACK_BATCH && (e = readdir(d)) != NULL)
       {
-         if (pb_send_ack(pid, tid, &acks) == 0)
+         pid_t tid = (pid_t)atoi(e->d_name);
+         if (tid <= 0 || tid == self)
+            continue;
+         /* Only threads on a CPU need interrupting; a thread that was
+          * switched out was drained by the switch. 'R' is runnable rather
+          * than strictly running, so under overcommit this can also wait
+          * for a preempted thread to be rescheduled -- bounded by a
+          * scheduler quantum, and acceptable on a path about to sleep. */
+         if (!pb_thread_running(tid))
+            continue;
+         /* A thread with the signal blocked would never acknowledge it.
+          * It is one this process did not create for its own protocols
+          * -- a GL or Vulkan driver's workers block every signal -- and
+          * it touches no eventcount, so it has nothing this barrier
+          * needs drained. The header states that contract. */
+         if (pb_thread_blocks_signal(tid))
+            continue;
+         slots[n].acks = &acks;
+         slots[n].tid  = tid;
+         retro_atomic_store_release_int(&slots[n].closed, 0);
+         /* EAGAIN is a full queue, which drains as its signals are
+          * handled; ESRCH is a thread that has exited, which fences it. */
+         for (;;)
          {
-            sent++;
-            break;
+            if (pb_send_ack(pid, tid, &slots[n]) == 0)
+            {
+               n++;
+               break;
+            }
+            if (errno != EAGAIN)
+               break;
          }
-         if (errno != EAGAIN)
-            break;
       }
-   }
+      pb_ack_wait(slots, n, &acks, pid);
+   } while (e != NULL);
+   PB_TSAN_WALK_UNLOCK();
    closedir(d);
-   for (;;)
-   {
-      int got = retro_atomic_load_acquire_int(&acks);
-      if (got >= sent)
-         break;
-      /* Returns at once if an acknowledgement landed since the load. */
-#if defined(PB_FUTEX_WAIT_PRIVATE)
-      syscall(__NR_futex, (void*)&acks, PB_FUTEX_WAIT_PRIVATE, got,
-            NULL, NULL, 0);
-#endif
-   }
 }
 #endif
 
