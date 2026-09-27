@@ -16369,8 +16369,6 @@ SLES-51553:
     vuClampMode: 2 # Fixes SPS in item menu.
   gsHWFixes:
     textureInsideRT: 1 # Fixes rainbow shadow of legions.
-    alignSprite: 1 # Fixes green vertical lines.
-    roundSprite: 2 # Fixes vertical lines and some font artifacts but not completely fixed.
 SLES-51554:
   name: "Cell Damage Overdrive"
   region: "PAL-M5"
@@ -28982,8 +28980,6 @@ SLKA-25026:
     vuClampMode: 2 # Fixes SPS in item menu.
   gsHWFixes:
     textureInsideRT: 1 # Fixes rainbow shadow of legions.
-    alignSprite: 1 # Fixes green vertical lines.
-    roundSprite: 2 # Fixes vertical lines and some font artifacts but not completely fixed.
 SLKA-25027:
   name: "NBA Street Vol. 2"
   region: "NTSC-K"
@@ -36840,8 +36836,6 @@ SLPM-65249:
     vuClampMode: 2 # Fixes SPS in item menu.
   gsHWFixes:
     textureInsideRT: 1 # Fixes rainbow shadow of legions.
-    alignSprite: 1 # Fixes green vertical lines.
-    roundSprite: 2 # Fixes vertical lines and some font artifacts but not completely fixed.
 SLPM-65250:
   name: "Kattobi! Golf"
   region: "NTSC-J"
@@ -54779,8 +54773,6 @@ SLUS-20695:
     vuClampMode: 2 # Fixes SPS in item menu.
   gsHWFixes:
     textureInsideRT: 1 # Fixes rainbow shadow of legions.
-    alignSprite: 1 # Fixes green vertical lines.
-    roundSprite: 2 # Fixes vertical lines and some font artifacts but not completely fixed.
 SLUS-20696:
   name: "Nickelodeon Jimmy Neutron - Boy Genius - Jet Fusion"
   region: "NTSC-U"
