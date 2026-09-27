@@ -21,6 +21,7 @@
 #include "common/MathUtils.h"
 
 #include "GSRendererHW.h"
+#include "GSSpriteSnap.h"
 #include "GSTextureReplacements.h"
 #include "../../GSUtil.h"
 
@@ -2502,8 +2503,8 @@ void GSRendererHW::SnapSpriteEdges()
 		float s0, s1, t0, t1, q0, q1;
 		const int x0 = (int)a->XYZ.X - ox;
 		const int x1 = (int)b->XYZ.X - ox;
-		const int nx0 = -((-x0) & ~15);
-		const int nx1 = -((-x1) & ~15);
+		const int nx0 = gs_sprite_snap_edge(a->XYZ.X, ox) - ox;
+		const int nx1 = gs_sprite_snap_edge(b->XYZ.X, ox) - ox;
 		int y0, y1, ny0, ny1;
 
 		if (fst)
@@ -2540,8 +2541,8 @@ void GSRendererHW::SnapSpriteEdges()
 
 		y0 = (int)a->XYZ.Y - oy;
 		y1 = (int)b->XYZ.Y - oy;
-		ny0 = -((-y0) & ~15);
-		ny1 = -((-y1) & ~15);
+		ny0 = gs_sprite_snap_edge(a->XYZ.Y, oy) - oy;
+		ny1 = gs_sprite_snap_edge(b->XYZ.Y, oy) - oy;
 		if (y0 != y1)
 		{
 			const float f0 = (float)(ny0 - y0) / (float)(y1 - y0);
