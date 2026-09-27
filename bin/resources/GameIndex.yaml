@@ -11884,8 +11884,6 @@ SLED-50117:
     - BlitInternalFPSHack # Fixes internal FPS detection.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Fixes broken skin colour on Vlad and others.
-    autoFlush: 1 # Fixes motion blur effect.
-    halfPixelOffset: 4 # Aligns blur from upscaling.
 SLED-50286:
   name: "Red Faction [Demo]"
   region: "PAL-E"
@@ -13606,8 +13604,6 @@ SLES-50383:
     - BlitInternalFPSHack # Fixes internal FPS detection.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Fixes broken skin colour on Vlad and others.
-    autoFlush: 1 # Fixes motion blur effect.
-    halfPixelOffset: 4 # Aligns blur from upscaling.
 SLES-50384:
   name: "Metal Gear Solid 2 - Sons of Liberty"
   region: "PAL-I"
@@ -13616,8 +13612,6 @@ SLES-50384:
     - BlitInternalFPSHack # Fixes internal FPS detection.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Fixes broken skin colour on Vlad and others.
-    autoFlush: 1 # Fixes motion blur effect.
-    halfPixelOffset: 4 # Aligns blur from upscaling.
 SLES-50385:
   name: "Metal Gear Solid 2 - Sons of Liberty"
   region: "PAL-S"
@@ -13626,8 +13620,6 @@ SLES-50385:
     - BlitInternalFPSHack # Fixes internal FPS detection.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Fixes broken skin colour on Vlad and others.
-    autoFlush: 1 # Fixes motion blur effect.
-    halfPixelOffset: 4 # Aligns blur from upscaling.
 SLES-50386:
   name: "Crash Bandicoot - The Wrath of Cortex"
   region: "PAL-M6"
@@ -28430,8 +28422,6 @@ SLES-82009:
     - BlitInternalFPSHack # Fixes internal FPS detection.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Fixes broken skin colour on Vlad and others.
-    autoFlush: 1 # Fixes motion blur effect.
-    halfPixelOffset: 4 # Aligns blur from upscaling.
 SLES-82010:
   name: "Metal Gear Solid 2, Document of"
   region: "PAL-E"
@@ -30950,8 +30940,6 @@ SLKA-35001:
     - BlitInternalFPSHack # Fixes internal FPS detection.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Fixes broken skin colour on Vlad and others.
-    autoFlush: 1 # Fixes motion blur effect.
-    halfPixelOffset: 4 # Aligns blur from upscaling.
 SLKA-35003:
   name: "Sakura Taisen - Atsuki Chishioni"
   region: "NTSC-K"
@@ -33312,8 +33300,6 @@ SLPM-62043:
     - BlitInternalFPSHack # Fixes internal FPS detection.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Fixes broken skin colour on Vlad and others.
-    autoFlush: 1 # Fixes motion blur effect.
-    halfPixelOffset: 4 # Aligns blur from upscaling.
 SLPM-62044:
   name: "RC Revenge Pro"
   region: "NTSC-J"
@@ -36144,8 +36130,6 @@ SLPM-65077:
     - BlitInternalFPSHack # Fixes internal FPS detection.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Fixes broken skin colour on Vlad and others.
-    autoFlush: 1 # Fixes motion blur effect.
-    halfPixelOffset: 4 # Aligns blur from upscaling.
   memcardFilters:
     - "SLPM-65078"
     - "SLPM-65077"
@@ -36157,8 +36141,6 @@ SLPM-65078:
     - BlitInternalFPSHack # Fixes internal FPS detection.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Fixes broken skin colour on Vlad and others.
-    autoFlush: 1 # Fixes motion blur effect.
-    halfPixelOffset: 4 # Aligns blur from upscaling.
   memcardFilters:
     - "SLPM-65078"
     - "SLPM-65077"
@@ -38800,8 +38782,6 @@ SLPM-65754:
     - BlitInternalFPSHack # Fixes internal FPS detection.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Fixes broken skin colour on Vlad and others.
-    autoFlush: 1 # Fixes motion blur effect.
-    halfPixelOffset: 4 # Aligns blur from upscaling.
 SLPM-65755:
   name: "Samurai Western - Katsugeki Samurai-dou"
   region: "NTSC-J"
@@ -42049,8 +42029,6 @@ SLPM-66503:
     - BlitInternalFPSHack # Fixes internal FPS detection.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Fixes broken skin colour on Vlad and others.
-    autoFlush: 1 # Fixes motion blur effect.
-    halfPixelOffset: 4 # Aligns blur from upscaling.
 SLPM-66504:
   name: "Onimusha 2 [Mega Hits]"
   region: "NTSC-J"
@@ -43293,8 +43271,6 @@ SLPM-66792:
     - BlitInternalFPSHack # Fixes internal FPS detection.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Fixes broken skin colour on Vlad and others.
-    autoFlush: 1 # Fixes motion blur effect.
-    halfPixelOffset: 4 # Aligns blur from upscaling.
 SLPM-66793:
   name: "Metal Gear Solid 2 - Sons of Liberty [20th Anniversary Edition] [Disc 2 of 2]"
   region: "NTSC-J"
@@ -43303,8 +43279,6 @@ SLPM-66793:
     - BlitInternalFPSHack # Fixes internal FPS detection.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Fixes broken skin colour on Vlad and others.
-    autoFlush: 1 # Fixes motion blur effect.
-    halfPixelOffset: 4 # Aligns blur from upscaling.
 SLPM-66794:
   name: "Metal Gear Solid 3 - Snake Eater [20th Anniversary Edition]"
   region: "NTSC-J"
@@ -44049,8 +44023,6 @@ SLPM-67002:
     - BlitInternalFPSHack # Fixes internal FPS detection.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Fixes broken skin colour on Vlad and others.
-    autoFlush: 1 # Fixes motion blur effect.
-    halfPixelOffset: 4 # Aligns blur from upscaling.
 SLPM-67003:
   name: "Sakura Taisen - Atsuki Chishio ni"
   region: "NTSC-J"
@@ -44082,8 +44054,6 @@ SLPM-67008:
     - BlitInternalFPSHack # Fixes internal FPS detection.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Fixes broken skin colour on Vlad and others.
-    autoFlush: 1 # Fixes motion blur effect.
-    halfPixelOffset: 4 # Aligns blur from upscaling.
 SLPM-67009:
   name: "Sakura Taisen V - Saraba Itoshiki Hito Yo"
   region: "NTSC-J"
@@ -44208,8 +44178,6 @@ SLPM-67515:
     - BlitInternalFPSHack # Fixes internal FPS detection.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Fixes broken skin colour on Vlad and others.
-    autoFlush: 1 # Fixes motion blur effect.
-    halfPixelOffset: 4 # Aligns blur from upscaling.
 SLPM-67516:
   name: "Soul Reaver 2"
   region: "NTSC-K"
@@ -44411,8 +44379,6 @@ SLPM-68503:
     - BlitInternalFPSHack # Fixes internal FPS detection.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Fixes broken skin colour on Vlad and others.
-    autoFlush: 1 # Fixes motion blur effect.
-    halfPixelOffset: 4 # Aligns blur from upscaling.
 SLPM-68504:
   name: "Tokimeki Memorial 3 - Special Sound Track"
   region: "NTSC-J"
@@ -44824,8 +44790,6 @@ SLPM-74255:
     - BlitInternalFPSHack # Fixes internal FPS detection.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Fixes broken skin colour on Vlad and others.
-    autoFlush: 1 # Fixes motion blur effect.
-    halfPixelOffset: 4 # Aligns blur from upscaling.
 SLPM-74256:
   name: "Metal Gear Solid 2 - Sons of Liberty [PlayStation 2 the Best] [Disc 2 of 2]"
   region: "NTSC-J"
@@ -44834,8 +44798,6 @@ SLPM-74256:
     - BlitInternalFPSHack # Fixes internal FPS detection.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Fixes broken skin colour on Vlad and others.
-    autoFlush: 1 # Fixes motion blur effect.
-    halfPixelOffset: 4 # Aligns blur from upscaling.
 SLPM-74257:
   name: "Metal Gear Solid 3 - Subsistence (Disc 1) (Subsistence)"
   region: "NTSC-J"
@@ -45053,8 +45015,6 @@ SLPM-74901:
     - BlitInternalFPSHack # Fixes internal FPS detection.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Fixes broken skin colour on Vlad and others.
-    autoFlush: 1 # Fixes motion blur effect.
-    halfPixelOffset: 4 # Aligns blur from upscaling.
 SLPM-83770:
   name: "Persona 3 FES [Append Edition]"
   region: "NTSC-J"
@@ -52022,8 +51982,6 @@ SLUS-20144:
     - BlitInternalFPSHack # Fixes internal FPS detection.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Fixes broken skin colour on Vlad and others.
-    autoFlush: 1 # Fixes motion blur effect.
-    halfPixelOffset: 4 # Aligns blur from upscaling.
 SLUS-20145:
   name: "Ring of Red"
   region: "NTSC-U"
@@ -54062,8 +54020,6 @@ SLUS-20554:
     - BlitInternalFPSHack # Fixes internal FPS detection.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Fixes broken skin colour on Vlad and others.
-    autoFlush: 1 # Fixes motion blur effect.
-    halfPixelOffset: 4 # Aligns blur from upscaling.
 SLUS-20555:
   name: "Reel Fishing 3"
   region: "NTSC-U"
@@ -62313,8 +62269,6 @@ SLUS-29003:
     - BlitInternalFPSHack # Fixes internal FPS detection.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Fixes broken skin colour on Vlad and others.
-    autoFlush: 1 # Fixes motion blur effect.
-    halfPixelOffset: 4 # Aligns blur from upscaling.
 SLUS-29004:
   name: "Unison & Dead or Alive 2 Hardcore [Demo]"
   region: "NTSC-U"
