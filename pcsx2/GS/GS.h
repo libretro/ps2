@@ -74,7 +74,6 @@ struct gs_renderer_ops
 {
 	void (*reset)(bool hardware_reset);
 	void (*gif_soft_reset)(u32 mask);
-	void (*write_csr)(u32 csr);
 	void (*init_and_read_fifo)(u8* mem, u32 size);
 	void (*read_local_memory_unsync)(u8* mem, u32 qwc, u64 BITBLITBUF, u64 TRXPOS, u64 TRXREG);
 	void (*transfer)(const u8* mem, u32 size);
@@ -87,7 +86,6 @@ struct gs_renderer_ops
 void GSreset(bool hardware_reset);
 void GSclose(void);
 void GSgifSoftReset(u32 mask);
-void GSwriteCSR(u32 csr);
 void GSInitAndReadFIFO(u8* mem, u32 size);
 void GSReadLocalMemoryUnsync(u8* mem, u32 qwc, u64 BITBLITBUF, u64 TRXPOS, u64 TRXREG);
 void GSgifTransfer(const u8* mem, u32 size);

@@ -566,7 +566,6 @@ public:
 	void InitReadFIFO(u8* mem, int len);
 
 	void SoftReset(u32 mask);
-	void WriteCSR(u32 csr) { m_regs->CSR.U32[1] = csr; }
 	void ReadFIFO(u8* mem, int size);
 	void ReadLocalMemoryUnsync(u8* mem, int qwc, GIFRegBITBLTBUF BITBLTBUF, GIFRegTRXPOS TRXPOS, GIFRegTRXREG TRXREG);
 	void Transfer(const u8* mem, u32 size);

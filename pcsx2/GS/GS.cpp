@@ -212,7 +212,6 @@ static const struct gs_renderer_ops* s_gs_ops = NULL;
 
 static void gsdx_op_reset(bool hardware_reset)  { g_gs_renderer->Reset(hardware_reset); }
 static void gsdx_op_gif_soft_reset(u32 mask)    { g_gs_renderer->SoftReset(mask); }
-static void gsdx_op_write_csr(u32 csr)          { g_gs_renderer->WriteCSR(csr); }
 
 static void gsdx_op_init_and_read_fifo(u8* mem, u32 size)
 {
@@ -257,7 +256,6 @@ static u8* gsdx_op_regs_mem(void) { return g_gs_renderer->GetRegsMem(); }
 static const struct gs_renderer_ops gsdx_renderer_ops = {
 	gsdx_op_reset,
 	gsdx_op_gif_soft_reset,
-	gsdx_op_write_csr,
 	gsdx_op_init_and_read_fifo,
 	gsdx_op_read_local_memory_unsync,
 	gsdx_op_transfer,
@@ -425,12 +423,6 @@ void GSgifSoftReset(u32 mask)
 {
 	if (s_gs_ops && s_gs_ops->gif_soft_reset)
 		s_gs_ops->gif_soft_reset(mask);
-}
-
-void GSwriteCSR(u32 csr)
-{
-	if (s_gs_ops && s_gs_ops->write_csr)
-		s_gs_ops->write_csr(csr);
 }
 
 void GSInitAndReadFIFO(u8* mem, u32 size)

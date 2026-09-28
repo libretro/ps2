@@ -717,7 +717,6 @@ static int pgs_op_freeze(int mode, freezeData* data)
 const struct gs_renderer_ops pgs_renderer_ops = {
 	pgs_op_reset,
 	NULL, /* gif_soft_reset */
-	NULL, /* write_csr */
 	pgs_op_read_fifo,
 	NULL, /* read_local_memory_unsync */
 	pgs_op_transfer,
