@@ -73,13 +73,35 @@ namespace HostMemoryMap
  * moment a game started using the VUs. macOS and Linux never attempted a
  * near placement at all.
  *
- * Now: walk the free address space within a window of +-1.75GB around the
- * module (the 0.25GB of slack covers the image itself) and take the first
- * hole that fits. On Windows VirtualQuery enumerates the holes exactly; on
- * the mman platforms the kernel only takes hints, so step candidate bases
- * through the window and keep the first mapping the kernel honoured. */
+ * Now: walk the free address space near the module and take the first hole
+ * that fits. On Windows VirtualQuery enumerates the holes exactly; on the
+ * mman platforms the kernel only takes hints, so step candidate bases
+ * through the window and keep the first mapping the kernel honoured.
+ *
+ * The window is a reach budget, not a distance from a point. Two facts the
+ * first cut of this got wrong let the abort survive at random (still-crashing
+ * reports after the near placement landed and its diagnostic stayed silent):
+ *
+ *   - The emit cursor sweeps the WHOLE reservation (CodeSize, ~305MB), so a
+ *     reference from a block near the far end of the reservation to a global
+ *     is that far end's distance, not the base's. A base admitted 1.75GB from
+ *     the module plus 305MB of code reaches 2.05GB -- past the +-2GB rip/abs32
+ *     limit -- and the emitter aborts. The base window has to leave room for
+ *     the reservation's own span on top of the module.
+ *   - The globals are not at one point. This module's data section is tens of
+ *     MB and cpuRegs / vuRegs / mVUglob / microVU0,1 are scattered across it,
+ *     so reach has to be measured against the whole image span, not a single
+ *     anchor address.
+ *
+ * So bound the whole reservation [base, base+size] against the whole image
+ * [anchor +- MODULE_SPAN]: the worst operand is then HALF + MODULE_SPAN =
+ * RIP_LIMIT < 2GB for every cursor-to-global pair, which is what the emitter
+ * needs. */
 
-static const uptr NEAR_WINDOW = 0x70000000; /* 1.75GB */
+static const uptr RIP_LIMIT   = 0x7C000000; /* 1.9375GB: 2GB less rip-bias/operand-tail headroom */
+static const uptr MODULE_SPAN  = 0x10000000; /* 256MB: over-estimate of the loaded image, so a global
+                                              * anywhere in it -- not just the anchor -- is reachable */
+static const uptr NEAR_HALF   = RIP_LIMIT - MODULE_SPAN; /* usable half-window for the base */
 
 static inline uptr near_anchor(void)
 {
@@ -101,8 +123,10 @@ static VirtualMemoryManagerPtr TryAt(const char* name, uptr base, size_t size)
 static VirtualMemoryManagerPtr AllocateNearModule(const char* name, size_t size)
 {
 	const uptr anchor = near_anchor();
-	const uptr lo     = (anchor > NEAR_WINDOW) ? (anchor - NEAR_WINDOW) : 0x10000;
-	const uptr hi     = anchor + NEAR_WINDOW;
+	const uptr lo     = (anchor > NEAR_HALF) ? (anchor - NEAR_HALF) : 0x10000;
+	/* The base's far edge: base+size must stay within NEAR_HALF of the
+	 * anchor, so the far end of the reservation reaches the low globals. */
+	const uptr hi     = anchor + NEAR_HALF;
 	uptr addr         = lo;
 	MEMORY_BASIC_INFORMATION mbi;
 
@@ -135,8 +159,10 @@ static VirtualMemoryManagerPtr AllocateNearModule(const char* name, size_t size)
 	const uptr anchor = near_anchor();
 	const uptr step   = 0x04000000; /* 64MB */
 	/* Below the module first: on macOS the mmap area sits under the
-	 * image, on Linux above; try both directions alternately. */
-	for (uptr off = step; off + size <= NEAR_WINDOW; off += step)
+	 * image, on Linux above; try both directions alternately. off+size is
+	 * capped at NEAR_HALF so the whole reservation, either side, reaches
+	 * every global within +-MODULE_SPAN of the anchor. */
+	for (uptr off = step; off + size <= NEAR_HALF; off += step)
 	{
 		if (anchor > off + size)
 		{

@@ -295,14 +295,21 @@ static u8 s_module_data_anchor;
 // is thousands of memory operands quietly reading and writing near address
 // zero, which presents as arbitrary corruption rather than as an error.
 //
-// One comparison at reservation time turns that into a message.
+// One comparison at reservation time turns that into a message. The anchor is
+// one symbol, but the globals span the whole data section, and the operand is
+// emitted from anywhere in the reservation -- so the check pads the anchor by
+// MODULE_SPAN and tests the reservation's far corners, matching what actually
+// has to encode rather than a single point-to-base distance.
+#define MODULE_SPAN ((sptr)0x10000000) /* 256MB: over-estimate of the image */
 static void CheckRipRelativeReach(const char* what, const u8* base, size_t size)
 {
 	const sptr anchor = (sptr)&s_module_data_anchor;
 	const sptr lo = (sptr)base;
 	const sptr hi = (sptr)base + (sptr)size;
-	const sptr d_lo = lo - anchor;
-	const sptr d_hi = hi - anchor;
+	/* Worst pair: reservation far end to the low global, and the high
+	 * global to the reservation base. */
+	const sptr d_lo = lo - (anchor + MODULE_SPAN);
+	const sptr d_hi = hi - (anchor - MODULE_SPAN);
 
 	if (d_lo == (sptr)(s32)d_lo && d_hi == (sptr)(s32)d_hi)
 		return;
