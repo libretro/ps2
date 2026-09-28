@@ -6,6 +6,10 @@
 # pgs_c89_check     : the kernel header must compile as strict C89.
 # pgs_field_scanout : the high-res scanout factors of field-rendered games
 #                     and the sample layers the circuit shader reads for them.
+# pgs_scanout_exec  : the shipped scanout circuit drawn on a Vulkan device
+#                     (llvmpipe will do) over a VRAM of known contents,
+#                     every output pixel against that sample-layer model,
+#                     the tent reconstruction included.
 # pgs_ss_copies     : which texture reads carry super samples without the
 #                     full super-sampled textures option, and the embedded
 #                     triangle_setup built with the switch that selects them.
@@ -27,7 +31,8 @@
 #                     NaN, +/-0 and infinity all appear in the inputs.
 # pgs_kick_bench    : ns/vertex per candidate.
 # pgs_bank_splice   : puts a rebuilt SPIR-V module back into the shader
-#                     bank; checked here by a splice that replaces nothing.
+#                     bank, or takes one out; checked here by a splice that
+#                     replaces nothing.
 # pgs_spv_canon     : canonical form of a SPIR-V disassembly, for
 #                     grid_fold.sh, which checks a shader change leaves the
 #                     other grids' folded code as it was.
@@ -84,6 +89,26 @@ if command -v glslc >/dev/null 2>&1 && command -v spirv-opt >/dev/null 2>&1 &&
 else
 	echo
 	echo "skipping the grid fold lane (no glslc / spirv-tools)"
+fi
+
+# The scanout circuit as shipped, run on a Vulkan device. The module
+# comes out of the bank; the vertex shader is built here. Needs the
+# Vulkan loader and glslangValidator; llvmpipe is picked up through
+# VK_ICD_FILENAMES when set, so a machine without a GPU can run it too.
+if command -v glslangValidator >/dev/null 2>&1 &&
+   printf '#include <vulkan/vulkan.h>\nint main(void){return 0;}' |
+   cc -x c -std=c99 -I"$ROOT/3rdparty/vulkan-headers/include" - -o "$DIR/vk_probe" -lvulkan 2>/dev/null; then
+	rm -f "$DIR/vk_probe"
+	echo "=== scanout circuit on a Vulkan device ==="
+	"$DIR/pgs_bank_splice" -x "$PGS/gs/shaders/slangmosh.hpp" "sample_circuit[0]=$DIR/sample_circuit_0.spv" > /dev/null
+	glslangValidator -V --target-env vulkan1.1 "$DIR/pgs_fullscreen.vert" -o "$DIR/pgs_fullscreen.spv" > /dev/null
+	cc -std=c99 -pedantic -Wall -Wextra -O2 -I"$ROOT/3rdparty/vulkan-headers/include" \
+	   -o "$DIR/pgs_scanout_exec" "$DIR/pgs_scanout_exec.c" -lvulkan
+	"$DIR/pgs_scanout_exec" "$DIR/sample_circuit_0.spv" "$DIR/pgs_fullscreen.spv"
+	rm -f "$DIR/sample_circuit_0.spv" "$DIR/pgs_fullscreen.spv"
+else
+	echo
+	echo "skipping the scanout circuit lane (no Vulkan loader / glslangValidator)"
 fi
 
 # -msse2 selects the scalar pair bodies, which is the shape an MSVC build

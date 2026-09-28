@@ -12,12 +12,14 @@
  * changed.
  *
  *   pgs_bank_splice in.hpp out.hpp NAME=module.spv [NAME=module.spv ...]
+ *   pgs_bank_splice -x in.hpp NAME=module.spv [NAME=module.spv ...]
  *
  * NAME is the table's field: ubershader[0][1], sample_circuit[0],
  * triangle_setup. A NAME the table does not carry is an error, as is a
  * module without the SPIR-V magic. Words the table does not hand out
  * (slangmosh emits a module the interface never declares) stay where
- * they are relative to their neighbours.
+ * they are relative to their neighbours. With -x the named modules are
+ * written out of the bank instead, as they are.
  *
  * Build, from tests/pgs:
  *   cc -O2 -std=c89 -pedantic -Wall pgs_bank_splice.c -o pgs_bank_splice
@@ -140,16 +142,19 @@ int main(int argc, char **argv)
    unsigned long off;
    long written;
 
+   int extract = argc > 1 && !strcmp(argv[1], "-x");
+
    if (argc < 3)
    {
-      fprintf(stderr, "usage: %s in.hpp out.hpp NAME=module.spv ...\n", argv[0]);
+      fprintf(stderr, "usage: %s in.hpp out.hpp NAME=module.spv ...\n"
+                      "       %s -x in.hpp NAME=module.spv ...\n", argv[0], argv[0]);
       return 2;
    }
 
-   text = read_file(argv[1], &len);
+   text = read_file(argv[1 + extract], &len);
    if (!text)
    {
-      fprintf(stderr, "cannot read %s\n", argv[1]);
+      fprintf(stderr, "cannot read %s\n", argv[1 + extract]);
       return 1;
    }
 
@@ -158,7 +163,7 @@ int main(int argc, char **argv)
    bank_end = bank_body ? strstr(bank_body, "\n};") : NULL;
    if (!bank_end)
    {
-      fprintf(stderr, "%s: no spirv_bank[]\n", argv[1]);
+      fprintf(stderr, "%s: no spirv_bank[]\n", argv[1 + extract]);
       return 1;
    }
    bank_body += 2;
@@ -180,7 +185,7 @@ int main(int argc, char **argv)
    num_entries = parse_table(bank_end, entries, MAX_MODULES);
    if (num_entries <= 0)
    {
-      fprintf(stderr, "%s: no program table\n", argv[1]);
+      fprintf(stderr, "%s: no program table\n", argv[1 + extract]);
       return 1;
    }
 
@@ -199,7 +204,7 @@ int main(int argc, char **argv)
       }
       else if (modules[j].bytes != entries[i].bytes)
       {
-         fprintf(stderr, "%s: two sizes for the module at %lu\n", argv[1], entries[i].off);
+         fprintf(stderr, "%s: two sizes for the module at %lu\n", argv[1 + extract], entries[i].off);
          return 1;
       }
    }
@@ -215,7 +220,7 @@ int main(int argc, char **argv)
       if (modules[j].off < off || modules[j].bytes % 4 || modules[j].off + modules[j].bytes / 4 > num_words)
       {
          fprintf(stderr, "%s: module at %lu overlaps the one before or runs past the bank\n",
-               argv[1], modules[j].off);
+               argv[1 + extract], modules[j].off);
          return 1;
       }
       if (modules[j].off > off)
@@ -241,7 +246,7 @@ int main(int argc, char **argv)
       num_modules++;
    }
 
-   /* Replacements. */
+   /* Replacements, or with -x the modules to write out. */
    for (i = 3; i < argc; i++)
    {
       const char *eq = strchr(argv[i], '=');
@@ -265,6 +270,27 @@ int main(int argc, char **argv)
       {
          fprintf(stderr, "no module named %s in the table\n", name);
          return 1;
+      }
+
+      if (extract)
+      {
+         out = fopen(eq + 1, "wb");
+         if (!out)
+         {
+            fprintf(stderr, "cannot write %s\n", eq + 1);
+            return 1;
+         }
+         for (k = 0; k < entries[j].bytes / 4; k++)
+         {
+            unsigned long w = words[entries[j].off + k];
+            fputc((int)(w & 0xff), out);
+            fputc((int)((w >> 8) & 0xff), out);
+            fputc((int)((w >> 16) & 0xff), out);
+            fputc((int)((w >> 24) & 0xff), out);
+         }
+         fclose(out);
+         printf("%-24s %8lu bytes -> %s\n", name, entries[j].bytes, eq + 1);
+         continue;
       }
 
       blob = read_file(eq + 1, &blob_len);
@@ -297,6 +323,13 @@ int main(int argc, char **argv)
       modules[k].words = nw;
       modules[k].new_bytes = blob_len;
       printf("%-24s %8lu -> %8lu bytes\n", name, modules[k].bytes, blob_len);
+   }
+
+   if (extract)
+   {
+      free(words);
+      free(text);
+      return 0;
    }
 
    /* New layout. */
@@ -354,5 +387,9 @@ int main(int argc, char **argv)
    fclose(out);
 
    printf("bank: %lu -> %lu words, %d modules\n", num_words, off, num_modules);
+   for (j = 0; j < num_modules; j++)
+      free(modules[j].words);
+   free(words);
+   free(text);
    return 0;
 }
