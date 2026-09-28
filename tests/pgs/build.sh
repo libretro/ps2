@@ -26,6 +26,11 @@
 #                     must agree with the muglm form, float path included --
 #                     NaN, +/-0 and infinity all appear in the inputs.
 # pgs_kick_bench    : ns/vertex per candidate.
+# pgs_bank_splice   : puts a rebuilt SPIR-V module back into the shader
+#                     bank; checked here by a splice that replaces nothing.
+# pgs_spv_canon     : canonical form of a SPIR-V disassembly, for
+#                     grid_fold.sh, which checks a shader change leaves the
+#                     other grids' folded code as it was.
 #
 # Everything above runs on x86 and again on aarch64 under qemu, because the
 # pair kernels branch on the host ISA and the NEON arm is the one the core's
@@ -61,7 +66,25 @@ for CC in gcc clang; do
 	"$DIR/pgs_empty_instance"
 	$CC -std=c89 -pedantic -Wall -Wextra -O2 $SANFLAGS -o "$DIR/pgs_palette_samples" "$DIR/pgs_palette_samples.c"
 	"$DIR/pgs_palette_samples"
+	# The bank tools: a splice with nothing to replace must give the bank
+	# back byte for byte.
+	$CC -std=c89 -pedantic -Wall -Wextra -O2 $SANFLAGS -o "$DIR/pgs_bank_splice" "$DIR/pgs_bank_splice.c"
+	$CC -std=c89 -pedantic -Wall -Wextra -O2 $SANFLAGS -o "$DIR/pgs_spv_canon" "$DIR/pgs_spv_canon.c"
+	"$DIR/pgs_bank_splice" "$PGS/gs/shaders/slangmosh.hpp" "$DIR/bank_roundtrip.hpp" > /dev/null
+	cmp "$PGS/gs/shaders/slangmosh.hpp" "$DIR/bank_roundtrip.hpp" && echo "bank round trip: ok"
+	rm -f "$DIR/bank_roundtrip.hpp"
 done
+
+# A shader change must leave the grids it does not touch folding to the
+# same code (grid_fold.sh, against origin/master). Needs the SPIR-V tools.
+if command -v glslc >/dev/null 2>&1 && command -v spirv-opt >/dev/null 2>&1 &&
+   command -v spirv-dis >/dev/null 2>&1; then
+	echo "=== grid fold against ${GRID_FOLD_REF:-origin/master} ==="
+	sh "$DIR/grid_fold.sh" "${GRID_FOLD_REF:-origin/master}"
+else
+	echo
+	echo "skipping the grid fold lane (no glslc / spirv-tools)"
+fi
 
 # -msse2 selects the scalar pair bodies, which is the shape an MSVC build
 # below SSE4.1 takes; -msse4.1 selects the vector ones. Both have to be
