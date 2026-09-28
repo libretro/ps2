@@ -168,3 +168,7 @@ tests/pgs/pgs_palette_samples
 tests/pgs/pgs_bank_splice
 tests/pgs/pgs_spv_canon
 tests/recswitch/recswitch
+tests/mtgsvsync/mtgsvsync
+tests/mtgsvsync/mtgsvsync_rule1
+tests/mtgsvsync/mtgsvsync_rule2
+tests/mtgsvsync/mtgsvsync_tsan

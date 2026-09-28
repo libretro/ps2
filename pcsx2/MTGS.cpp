@@ -70,6 +70,21 @@ union PacketTagType
 static retro_spsc_t s_Ring;
 static bool s_RingOk = false;
 
+/* The GS's view of the privileged registers: a copy of PS2MEM_GS taken
+ * on this thread at each vsync, reset and freeze, while the EE is held
+ * in WaitGS. The renderers read display registers at vsync and nothing
+ * else, so a copy taken then is the frame's, and the EE is free to write
+ * the next frame's the moment its vsync is consumed - before the scanout,
+ * the frontend's present and its pacing wait, which the EE then overlaps
+ * instead of idling through. CSR stays in PS2MEM_GS, where the EE keeps
+ * it atomically; the field it carries at the vsync rides in the packet. */
+alignas(64) static u8 s_gs_regs[PS2MEM_GS_REGS];
+
+static __fi void mtgs_sync_regs(void)
+{
+	memcpy(s_gs_regs, PS2MEM_GS, sizeof(s_gs_regs));
+}
+
 static_assert(sizeof(PacketTagType) == 16, "command ring framing is one 16-byte record per packet");
 
 /* Reserve one record.  Backpressure on a full ring: the consumer is the
@@ -181,7 +196,12 @@ void MTGS::PostVsyncStart()
 	if (tag)
 	{
 		tag->command = GS_RINGTYPE_VSYNC;
-		tag->data[0] = 0;
+		/* The field this vsync scans out, and whether the privileged
+		 * registers changed since the last one: read here, on the thread
+		 * that owns them, so the consumer needs nothing from the EE's
+		 * state by the time it gets to them. */
+		tag->data[0] = (gsCSRload() & GS_CSR_FIELD) ? 0 : 1;
+		tag->data[1] = (u32)retro_atomic_exchange_int(&s_GSRegistersWritten, 0);
 		RingWriteEnd();
 	}
 
@@ -203,13 +223,10 @@ void MTGS::PostVsyncStart()
 	}
 #endif
 
-	// Remove extra frame input lag. With VsyncQueueSize hard-locked to 0 in
-	// the libretro topology, this WaitGS IS the frame-pacing mechanism: it
-	// blocks cpu_thread until the libretro thread (= MTGS thread) drains
-	// the ring through this VSYNC packet.
-	//
-	// (Letting the EE run 1-2 frames ahead of the GS was tried and measured: no
-	// change in wall time, because the EE is not actually waiting here.)
+	/* This wait is the pacing between the two threads: the EE holds here
+	 * until the libretro thread has consumed this vsync packet, which is
+	 * where the GS takes its copy of the registers and lets the EE go on
+	 * to the next frame while it scans this one out and hands it over. */
 	WaitGS(false);
 }
 
@@ -258,8 +275,9 @@ void MTGS::TryOpenGS(void)
 			log_cb(RETRO_LOG_ERROR, "MTGS: command ring allocation failed; GS commands will be dropped\n");
 	}
 
+	mtgs_sync_regs();
 	GS_HW_CONTEXT_BEGIN();
-	GSopen(EmuConfig.GS, EmuConfig.GS.Renderer, hw_render.context_type, PS2MEM_GS);
+	GSopen(EmuConfig.GS, EmuConfig.GS.Renderer, hw_render.context_type, s_gs_regs);
 	GS_HW_CONTEXT_END();
 
 	retro_atomic_store_release_int(&s_open_flag, true);
@@ -413,30 +431,51 @@ bool MTGS::MainLoop(bool flush_all)
 				}
 					break;
 				case GS_RINGTYPE_VSYNC:
-					// CSR & 0x2000; is the pageflip id.
+				{
+					const u32 field = tag.data[0];
+					const bool registers_written = tag.data[1] != 0;
+					/* The EE is held in WaitGS behind this packet, so the
+					 * registers are this frame's: take them, and if this is
+					 * the per-frame exit, commit the packet and let the EE go
+					 * before the scanout. The tag is not read past here. */
+					mtgs_sync_regs();
+					if (!flush_all)
+					{
+						consumed += sizeof(PacketTagType);
+						retro_spsc_read_end(&s_Ring, consumed);
+						consumed = 0;
+						/* Idle at the current epoch releases WaitGS's
+						 * empty-wait. Entries behind the vsync (a soft-reset
+						 * tag rides along with no notify of its own) re-arm
+						 * the work count so the next call drains them. */
+						if (work_eventcount_check(&s_sem_event) || retro_spsc_read_avail(&s_Ring) != 0)
+							work_eventcount_notify(&s_sem_event);
+					}
 					// flush_all skips GSvsync when multi-threaded (reset/pause drain
 					// without rendering), but in single-threaded mode MainLoop(true)
 					// IS the render path — call GSvsync.
 					if(!flush_all || sthread_get_current_thread_id() == s_thread)
 					{
 						GS_HW_CONTEXT_BEGIN();
-						GSvsync((gsCSRload() & GS_CSR_FIELD) ? 0 : 1,
-						        (bool)retro_atomic_exchange_int(&s_GSRegistersWritten, 0));
+						GSvsync(field, registers_written);
 						GS_HW_CONTEXT_END();
 					}
-					else
-						retro_atomic_store_release_int(&s_GSRegistersWritten, 0);
+					if (!flush_all)
+						return true;
 					break;
+				}
 				case GS_RINGTYPE_FREEZE:
 					{
 						MTGS_FreezeData* data = (MTGS_FreezeData*)tag.pointer;
 						int mode = tag.data[0];
+						mtgs_sync_regs();
 						GS_HW_CONTEXT_BEGIN();
 						GSfreeze((FreezeAction)mode, (freezeData*)data->fdata);
 						GS_HW_CONTEXT_END();
 					}
 					break;
 				case GS_RINGTYPE_RESET:
+					mtgs_sync_regs();
 					GS_HW_CONTEXT_BEGIN();
 					GSreset(tag.data[0] != 0);
 					GS_HW_CONTEXT_END();
@@ -452,30 +491,6 @@ bool MTGS::MainLoop(bool flush_all)
 			}
 
 			consumed += sizeof(PacketTagType);
-
-			if (!flush_all && tag.command == GS_RINGTYPE_VSYNC)
-			{
-				retro_spsc_read_end(&s_Ring, consumed);
-				/* Returning mid-ring: the batch acknowledge at the top of
-				 * the outer loop already consumed the notifies for any
-				 * entries still queued behind this vsync.  The eventcount's
-				 * contract -- relied on by WaitForEmpty and by the
-				 * pre-park empty post in WaitForWorkTimed -- is that a
-				 * consumer at RUNNING_0 has drained the ring, and the
-				 * per-frame early exit is the one place this consumer
-				 * breaks it.  Re-arm the sema when entries remain so the
-				 * next WaitForWorkTimed drains them instead of parking
-				 * and waking a producer whose WaitGS(false) rendezvous
-				 * (readbacks, freezes) has not actually completed: a
-				 * producer released early reads a readback buffer the GS
-				 * side never filled, and the stale entry is processed
-				 * late into memory the EE may have reused.  A notify
-				 * racing a concurrent enqueue at worst doubles up; the
-				 * state machine absorbs spurious wakes by design. */
-				if (retro_spsc_read_avail(&s_Ring) != 0)
-					work_eventcount_notify(&s_sem_event);
-				return true;
-			}
 		}
 		retro_spsc_read_end(&s_Ring, consumed);
 		}
