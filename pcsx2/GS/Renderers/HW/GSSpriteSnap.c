@@ -33,3 +33,10 @@ float gs_sprite_fit_nearest(float u_lo, float u_hi, int p_lo, int p_hi)
     * the texel it reads; stepping down, the one above it. */
    return r > 0.0f ? -f : 1.0f - f;
 }
+
+float gs_sprite_centre_linear(float u0, float u1, int p0, int p1)
+{
+   if (p1 == p0)
+      return 0.0f;
+   return -0.5f * (u1 - u0) * 16.0f / (float)(p1 - p0);
+}

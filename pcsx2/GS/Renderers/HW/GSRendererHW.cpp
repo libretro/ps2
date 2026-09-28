@@ -2482,7 +2482,7 @@ void GSRendererHW::RoundSpriteOffset()
  * the coordinates along the sprite's own line (carried as floats, since a
  * sixteenth of a texel would not hold the shifted value), so every
  * fragment samples where the GS does and the draw's extent is the GS's. */
-void GSRendererHW::SnapSpriteEdges()
+void GSRendererHW::SnapSpriteEdges(bool centre_linear)
 {
 	const u32 count = m_vertex.next & ~1u;
 	GSVertex* v = m_vertex.buff;
@@ -2572,6 +2572,18 @@ void GSRendererHW::SnapSpriteEdges()
 			s1 += dx / ku;
 			t0 += dy / kv;
 			t1 += dy / kv;
+		}
+
+		/* Magnified through the filter, each pixel's fragments centre on
+		 * the pixel's position (GSSpriteSnap.c). */
+		if (centre_linear && q0 == q1)
+		{
+			const float ds = gs_sprite_centre_linear(s0, s1, nx0, nx1);
+			const float dt = gs_sprite_centre_linear(t0, t1, ny0, ny1);
+			s0 += ds;
+			s1 += ds;
+			t0 += dt;
+			t1 += dt;
 		}
 
 		if (tme)
@@ -3281,7 +3293,9 @@ void GSRendererHW::Draw()
 		!(IsPossibleChannelShuffle() && (!src || src->m_target || m_cached_ctx.FRAME.Block() == m_cached_ctx.TEX0.TBP0)) &&
 		!(src && GSLocalMemory::m_psm[m_cached_ctx.FRAME.PSM].bpp == 16 && GSLocalMemory::m_psm[m_cached_ctx.TEX0.PSM].bpp == 16))
 	{
-		SnapSpriteEdges();
+		/* Magnifying through the filter, where the shader does not take the
+		 * native taps (an indexed read takes them magnified too). */
+		SnapSpriteEdges(PRIM->TME && m_vt.IsLinear() && MagnifiesTexture() && !(src && src->m_palette));
 		m_r_no_scissor = m_r;
 		m_r = m_r.rintersect(m_context->scissor.in);
 	}

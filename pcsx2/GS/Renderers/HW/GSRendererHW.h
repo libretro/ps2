@@ -103,7 +103,7 @@ private:
 
 	template <bool linear>
 	void RoundSpriteOffset();
-	void SnapSpriteEdges();
+	void SnapSpriteEdges(bool centre_linear);
 
 	void DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Target* ds, GSTextureCache::Source* tex, const TextureMinMaxResult& tmm);
 

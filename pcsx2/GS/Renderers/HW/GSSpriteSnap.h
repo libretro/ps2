@@ -39,6 +39,20 @@ int gs_sprite_snap_edge(int v, int o);
  * Any other step, and a sprite covering no pixel, gives 0. */
 float gs_sprite_fit_nearest(float u_lo, float u_hi, int p_lo, int p_hi);
 
+/* A sprite sampled bilinear that magnifies its texture: natively each
+ * pixel reads the filtered texture at its position, the pixel's top left
+ * corner, so a picture drawn twice its size lands with each texel's
+ * centre on a pixel corner. Drawn scaled, the fragments of a pixel sit
+ * across it and read the filtered texture there, half a pixel on from
+ * where the pixel reads it: the enlarged picture comes out half a pixel
+ * right and down, and a glow built from levels enlarged that way sits
+ * off the picture it glows around. Centring each pixel's fragments on
+ * the pixel's position moves the coordinates back half a pixel's step;
+ * this gives that amount, in the coordinate's own units, for the axis
+ * whose edges p0 and p1 (1/16 pixel units) carry coordinates u0 and u1.
+ * A sprite covering no pixel gives 0. */
+float gs_sprite_centre_linear(float u0, float u1, int p0, int p1);
+
 #ifdef __cplusplus
 }
 #endif
