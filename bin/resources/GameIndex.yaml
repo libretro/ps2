@@ -18699,10 +18699,6 @@ SLES-52533:
 SLES-52534:
   name: "Crimson Tears"
   region: "PAL-M3"
-  gsHWFixes:
-    halfPixelOffset: 1 # Aligns post effects.
-    nativeScaling: 2 # Fixes post effects.
-#    deinterlace: 6 # Game requires blend tff de-interlacing when auto for 'fixing' shimmer on character models and more flickering or half weaved, though the game suffers from the field order.
 SLES-52535:
   name: "Rumble Roses"
   region: "PAL-M5"
@@ -38058,10 +38054,6 @@ SLPM-65575:
   name: "Crimson Tears"
   region: "NTSC-J"
   compat: 5
-  gsHWFixes:
-    halfPixelOffset: 1 # Aligns post effects.
-    nativeScaling: 2 # Fixes post effects.
-#    deinterlace: 6 # Game requires blend tff de-interlacing when auto for 'fixing' shimmer on character models and more flickering or half weaved, though the game suffers from the field order.
 SLPM-65576:
   name: "Tantei Jinguuji Saburou - Kind of Blue"
   region: "NTSC-J"
@@ -56178,9 +56170,6 @@ SLUS-20948:
   name: "Crimson Tears"
   region: "NTSC-U"
   compat: 5
-  gsHWFixes:
-    halfPixelOffset: 1 # Aligns post effects.
-    nativeScaling: 2 # Fixes post effects.
 SLUS-20949:
   name: "Street Fighter Anniversary Collection"
   region: "NTSC-U"
