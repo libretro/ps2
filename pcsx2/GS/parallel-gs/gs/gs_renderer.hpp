@@ -232,7 +232,8 @@ enum class SuperSampling
 	X2 = 2,
 	X4 = 4,
 	X8 = 8,
-	X16 = 16
+	X16 = 16,
+	X32 = 32
 };
 
 struct GSOptions;
@@ -445,6 +446,7 @@ private:
 	void init_luts();
 	void init_phase_lut(uint32_t sampling_rate_x_log2, uint32_t sampling_rate_y_log2);
 	void init_vram(const GSOptions &options);
+	Vulkan::BufferHandle create_vram_buffer(VkDeviceSize size, bool &host_visible);
 
 	void upload_texture(const TextureUpload &upload);
 	void bind_textures(Vulkan::CommandBuffer &cmd, const RenderPass &rp);

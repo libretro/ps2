@@ -340,8 +340,10 @@ TileInfo get_tile_info()
 
 		if (SPARSE_PATTERN_SIZE_LOG2 == 1)
 		{
-			// Simple checkerboard.
-			local_pixel.x += local_pixel.y & 1;
+			// Simple checkerboard. The ordered 4x8 grid keeps its columns
+			// in line instead: the same positions across on every row.
+			if (NUM_SAMPLES_X_LOG2 < 2)
+				local_pixel.x += local_pixel.y & 1;
 		}
 		else if (SPARSE_PATTERN_SIZE_LOG2 == 2)
 		{
@@ -566,6 +568,8 @@ bool ballot_reduce_broadcast(bool value)
 	uvec4 b = subgroupBallot(value);
 
 	// No need to mask, we only care about valid ballot for the first sample we write-back.
+	if (NUM_SAMPLES >= 32)
+		b |= b >> 16u;
 	if (NUM_SAMPLES >= 16)
 		b |= b >> 8u;
 	if (NUM_SAMPLES >= 8)
@@ -673,6 +677,8 @@ void end_tile()
 			else
 			{
 				vec4 fb_color_float = unpackUnorm4x8(fb_color);
+				if (NUM_SAMPLES >= 32)
+					fb_color_float = fb_color_float + subgroupShuffleXor(fb_color_float, 16);
 				if (NUM_SAMPLES >= 16)
 					fb_color_float = fb_color_float + subgroupShuffleXor(fb_color_float, 8);
 				if (NUM_SAMPLES >= 8)
@@ -709,6 +715,8 @@ void end_tile()
 			// Problem scenarios arise when attempting to do depth testing while using the texture
 			// as an alpha cut-out. Only taking sample 0 could lead to bad artifacts on a specific Z slice.
 			// PS2 only uses greater-than depth testing, so picking minimum resolve always should be somewhat safe?
+			if (NUM_SAMPLES >= 32)
+				fb_depth = min(fb_depth, subgroupShuffleXor(fb_depth, 16));
 			if (NUM_SAMPLES >= 16)
 				fb_depth = min(fb_depth, subgroupShuffleXor(fb_depth, 8));
 			if (NUM_SAMPLES >= 8)
@@ -1177,7 +1185,10 @@ vec4 sample_texture(uint tex_word, uint filtering, vec2 uv, float q, bool perspe
 			// On the edge we risk sampling against something which does not exist.
 			// Just pick the nearest sample point which is in current texel.
 			// The LUT guarantees that texel offset for first sample is 0.
-			int layer = int(bitfieldExtract(lut.x, 0, 4));
+			// Past 16 samples the LUT carries five-bit sample IDs in the
+			// low 20 bits; the offsets sit at bits 16 + 4i in either
+			// layout, as the first sample's is always zero (init_phase_lut).
+			int layer = int(bitfieldExtract(lut.x, 0, NUM_SAMPLES > 16 ? 5 : 4));
 			color_1 = textureLod(
 				sampler2DArray(bindless_textures_array[tex_index], nearest_sampler),
 				vec3(uv, layer + 1), 0.0);
@@ -1189,7 +1200,8 @@ vec4 sample_texture(uint tex_word, uint filtering, vec2 uv, float q, bool perspe
 				{
 					if (weights[i] > 0.0)
 					{
-						layer = int(bitfieldExtract(lut.x, 4 * i, 4));
+						layer = NUM_SAMPLES > 16 ? int(bitfieldExtract(lut.x, 5 * i, 5)) :
+						                           int(bitfieldExtract(lut.x, 4 * i, 4));
 						int texel_x = bitfieldExtract(int(lut.x), 16 + 4 * i, 2);
 						int texel_y = bitfieldExtract(int(lut.x), 18 + 4 * i, 2);
 						color_1 += weights[i] * textureLod(

@@ -119,6 +119,15 @@ void GSInterface::set_super_sampling_rate(SuperSampling super_sampling,
 			sampling_rate_y_log2 = 3;
 		}
 		break;
+
+	case SuperSampling::X32:
+		// Ordered 4x8: four columns of samples across, eight rows down.
+		// Feeds a 4x scanout of a field-rendered game at the full field
+		// height, and a 4x scanout of a progressive one with two rows
+		// of samples per output row.
+		sampling_rate_x_log2 = 2;
+		sampling_rate_y_log2 = 3;
+		break;
 	}
 
 	super_sampled_copies = sampling_rate_y_log2 != 0 && !super_sampled_textures;

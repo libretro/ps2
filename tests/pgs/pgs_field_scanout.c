@@ -7,16 +7,25 @@
  * samples (rendered at half-line steps) fill it one to an output row, as
  * many as the grid has. The 8x checkerboard and the ordered 16x grid have
  * four rows of samples: 4x over the field, the frame at twice its height.
- * The sparse 16x grid's vertical samples are not rows and stay at 2x.
+ * The ordered 4x8 grid (32 samples) has eight, which the full-field-height
+ * scanout takes: 8x over the field, the frame at four times its height,
+ * 2560x1792 from a 640x224 field. The sparse 16x grid's vertical samples
+ * are not rows and stay at 2x.
  *
  * Pinned here, against a model of the rasterizer's sample layout
  * (gs_renderer.cpp compute_sample_points) and of vsync()'s factors:
  *  - the factors for every grid and requested scale, field-aware and
- *    progressive;
+ *    progressive, with and without the full-field-height request;
  *  - the layers sample_circuit.frag reads for a 2x-wide, 4x-over-the-field
  *    output pixel lie in that pixel's sample row and half (8x: the one
  *    sample there; ordered 16x: the two, averaged), and for the ordered
  *    grid at 4x both ways the one sample under it;
+ *  - on the 4x8 grid, the one sample under an output pixel of the
+ *    full-height field scanout, the two rows a 4x frame pixel averages,
+ *    and the column pairs a 2x scanout averages, each sample read once;
+ *  - the 4x8 grid's columns are in line row to row, where a checkerboard's
+ *    are not (negative control), and its five-bit sample IDs pack into the
+ *    phase LUT word beside the texel offsets;
  *  - the two fields' offset, half a field line, in output rows.
  *
  * Build and run, from tests/pgs:
@@ -35,10 +44,16 @@ static void sample_point(unsigned i, unsigned rx, unsigned ry, unsigned *x, unsi
       *x = (i / 8) * 4 + sparse[i % 4];
       return;
    }
-   *y = (i & 1) + ((i >> 2) & 1) * 2;
+   *y = (i & 1) + ((i >> 2) & 1) * 2 + ((i >> 4) & 1) * 4;
    *x = ((i >> 1) & 1) + ((i >> 3) & 1) * 2;
    if (ry - rx == 1)
-      *x = *x * 2 + (i % 2);
+   {
+      *x = *x * 2;
+      /* The ordered 4x8 grid keeps its columns in line; the
+       * checkerboards stagger them. */
+      if (!(rx == 2 && ry == 3))
+         *x += i % 2;
+   }
 }
 
 struct factors
@@ -46,9 +61,10 @@ struct factors
    unsigned sx, sy;
 };
 
-/* vsync(): the scanout factors for a requested scale (log2), a grid and
- * whether the field-aware path applies. */
-static struct factors scanout_factors(unsigned req, unsigned rx, unsigned ry, int field)
+/* vsync(): the scanout factors for a requested scale (log2), a grid,
+ * whether the field-aware path applies and whether the full field height
+ * was asked for. */
+static struct factors scanout_factors(unsigned req, unsigned rx, unsigned ry, int field, int full)
 {
    struct factors f;
    f.sx = req > rx ? rx : req;
@@ -58,10 +74,11 @@ static struct factors scanout_factors(unsigned req, unsigned rx, unsigned ry, in
    if (field)
    {
       unsigned fy = f.sx + 1;
+      const unsigned cap = full ? 3 : 2;
       if (fy > ry)
          fy = ry;
-      if (fy > 2)
-         fy = 2;
+      if (fy > cap)
+         fy = cap;
       if (ry - rx == 2)
          fy = 1;
       f.sy = fy;
@@ -73,26 +90,32 @@ static int check_factors(void)
 {
    static const struct
    {
-      unsigned rx, ry, req, field, sx, sy;
+      unsigned rx, ry, req, field, full, sx, sy;
    } cases[] = {
       /* 4x ordered */
-      { 1, 1, 1, 1, 1, 1 }, { 1, 1, 2, 1, 1, 1 }, { 1, 1, 1, 0, 1, 1 },
+      { 1, 1, 1, 1, 0, 1, 1 }, { 1, 1, 2, 1, 0, 1, 1 }, { 1, 1, 1, 0, 0, 1, 1 },
       /* 8x checkerboard */
-      { 1, 2, 1, 1, 1, 2 }, { 1, 2, 2, 1, 1, 2 }, { 1, 2, 2, 0, 1, 1 },
+      { 1, 2, 1, 1, 0, 1, 2 }, { 1, 2, 2, 1, 0, 1, 2 }, { 1, 2, 2, 0, 0, 1, 1 },
       /* 16x sparse */
-      { 1, 3, 1, 1, 1, 1 }, { 1, 3, 2, 1, 1, 1 }, { 1, 3, 2, 0, 1, 1 },
+      { 1, 3, 1, 1, 0, 1, 1 }, { 1, 3, 2, 1, 0, 1, 1 }, { 1, 3, 2, 0, 0, 1, 1 },
       /* 16x ordered */
-      { 2, 2, 1, 1, 1, 2 }, { 2, 2, 2, 1, 2, 2 }, { 2, 2, 2, 0, 2, 2 }, { 2, 2, 1, 0, 1, 1 }
+      { 2, 2, 1, 1, 0, 1, 2 }, { 2, 2, 2, 1, 0, 2, 2 }, { 2, 2, 2, 0, 0, 2, 2 }, { 2, 2, 1, 0, 0, 1, 1 },
+      /* 32x ordered 4x8: the full field height only when asked for, and
+       * only by the field-aware path */
+      { 2, 3, 2, 1, 1, 2, 3 }, { 2, 3, 2, 1, 0, 2, 2 }, { 2, 3, 2, 0, 1, 2, 2 }, { 2, 3, 2, 0, 0, 2, 2 },
+      { 2, 3, 1, 1, 1, 1, 2 }, { 2, 3, 1, 0, 1, 1, 1 },
+      /* the full-field request on the grids without eight rows */
+      { 2, 2, 2, 1, 1, 2, 2 }, { 1, 2, 2, 1, 1, 1, 2 }, { 1, 3, 2, 1, 1, 1, 1 }, { 1, 1, 2, 1, 1, 1, 1 }
    };
    int fail = 0;
    size_t i;
    for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++)
    {
-      const struct factors f = scanout_factors(cases[i].req, cases[i].rx, cases[i].ry, (int)cases[i].field);
+      const struct factors f = scanout_factors(cases[i].req, cases[i].rx, cases[i].ry, (int)cases[i].field, (int)cases[i].full);
       if (f.sx != cases[i].sx || f.sy != cases[i].sy)
       {
-         printf("  grid %u,%u scale %u field %u: %u,%u, wanted %u,%u\n", cases[i].rx, cases[i].ry, cases[i].req,
-            cases[i].field, f.sx, f.sy, cases[i].sx, cases[i].sy);
+         printf("  grid %u,%u scale %u field %u full %u: %u,%u, wanted %u,%u\n", cases[i].rx, cases[i].ry, cases[i].req,
+            cases[i].field, cases[i].full, f.sx, f.sy, cases[i].sx, cases[i].sy);
          fail++;
       }
    }
@@ -169,13 +192,182 @@ static int check_layers(void)
    return fail;
 }
 
+/* sample_circuit.frag on the 4x8 grid: the layers an output pixel (gx,
+ * gy) reads at scanout factors (sx, sy). */
+static unsigned grid32_layers(unsigned sx, unsigned sy, unsigned gx, unsigned gy, unsigned *layers)
+{
+   if (sx == 2)
+   {
+      const unsigned column = ((gx & 1u) << 1u) | ((gx >> 1u) << 3u);
+      if (sy == 3)
+      {
+         layers[0] = column | (gy & 1u) | (((gy >> 1u) & 1u) << 2u) | ((gy >> 2u) << 4u);
+         return 1;
+      }
+      layers[0] = column | ((gy & 1u) << 2u) | ((gy >> 1u) << 4u);
+      layers[1] = layers[0] + 1u;
+      return 2;
+   }
+   else
+   {
+      const unsigned column = (gx & 1u) << 3u;
+      unsigned row, rows, i, n = 0;
+      if (sy == 2)
+      {
+         row = ((gy & 1u) << 2u) | ((gy >> 1u) << 4u);
+         rows = 2;
+      }
+      else
+      {
+         row = (gy & 1u) << 4u;
+         rows = 4;
+      }
+      for (i = 0; i < rows; i++)
+      {
+         const unsigned r = row + (i & 1u) + ((i >> 1u) << 2u);
+         layers[n++] = column + r;
+         layers[n++] = column + r + 2u;
+      }
+      return n;
+   }
+}
+
+/* Every output pixel of a scanout shape reads the samples in its own
+ * part of the pixel - the rows and columns its factors give it - and
+ * every sample is read by exactly one output pixel. */
+static int check_grid32(void)
+{
+   static const unsigned shapes[][2] = { { 2, 3 }, { 2, 2 }, { 1, 2 }, { 1, 1 } };
+   int fail = 0;
+   size_t si;
+   for (si = 0; si < sizeof(shapes) / sizeof(shapes[0]); si++)
+   {
+      const unsigned sx = shapes[si][0], sy = shapes[si][1];
+      /* samples per output pixel: columns 4 >> sx, rows 8 >> sy */
+      const unsigned cols = 4u >> sx, rows = 8u >> sy;
+      unsigned gx, gy, s;
+      int seen[32] = { 0 };
+      for (gy = 0; gy < (1u << sy); gy++)
+         for (gx = 0; gx < (1u << sx); gx++)
+         {
+            unsigned layers[8], n, k;
+            n = grid32_layers(sx, sy, gx, gy, layers);
+            if (n != cols * rows)
+            {
+               printf("  4x8 at %u,%u: output %u,%u reads %u samples, its part holds %u\n", sx, sy, gx, gy, n, cols * rows);
+               fail++;
+            }
+            for (k = 0; k < n; k++)
+            {
+               unsigned x, y;
+               if (layers[k] >= 32)
+               {
+                  printf("  4x8 at %u,%u: layer %u\n", sx, sy, layers[k]);
+                  fail++;
+                  continue;
+               }
+               sample_point(layers[k], 2, 3, &x, &y);
+               /* x is in eighths, columns at 0, 2, 4, 6 */
+               if (x / 2 / cols != gx || y / rows != gy)
+               {
+                  printf("  4x8 at %u,%u: output %u,%u reads layer %u at column %u row %u\n",
+                     sx, sy, gx, gy, layers[k], x / 2, y);
+                  fail++;
+               }
+               seen[layers[k]]++;
+            }
+         }
+      for (s = 0; s < 32; s++)
+         if (seen[s] != 1)
+         {
+            printf("  4x8 at %u,%u: layer %u read %d times\n", sx, sy, s, seen[s]);
+            fail++;
+         }
+   }
+   return fail;
+}
+
+/* The 4x8 grid's columns: the same positions across on every row. A
+ * checkerboard's are not, which is the negative control. */
+static int columns_in_line(unsigned rx, unsigned ry, unsigned samples)
+{
+   unsigned i;
+   for (i = 0; i < samples; i++)
+   {
+      unsigned x, y, x0, y0;
+      sample_point(i, rx, ry, &x, &y);
+      /* the sample one row down in the same column: y bit 0 flipped */
+      sample_point(i ^ 1u, rx, ry, &x0, &y0);
+      if (y0 != (y ^ 1u) || x0 != x)
+         return 0;
+   }
+   return 1;
+}
+
+static int check_columns(void)
+{
+   int fail = 0;
+   if (!columns_in_line(2, 3, 32))
+   {
+      printf("  the 4x8 grid's columns are not in line\n");
+      fail++;
+   }
+   if (columns_in_line(1, 2, 8))
+   {
+      printf("  negative control: the 8x checkerboard's columns are in line\n");
+      fail++;
+   }
+   return fail;
+}
+
+/* The phase LUT word past 16 samples (init_phase_lut, ubershader.comp):
+ * four five-bit sample IDs in the low 20 bits and the three offsets that
+ * can be non-zero at bits 16 + 4i, which lands them in the high 12. */
+static int check_lut_word(void)
+{
+   int fail = 0;
+   unsigned ids[4], off[4][2];
+   unsigned trial;
+   for (trial = 0; trial < 64; trial++)
+   {
+      unsigned long word = 0;
+      unsigned i;
+      for (i = 0; i < 4; i++)
+      {
+         ids[i] = (trial * 7u + i * 11u + 3u) & 31u;
+         off[i][0] = i ? (trial + i) & 3u : 0;
+         off[i][1] = i ? (trial / 3u + i) & 3u : 0;
+         word |= (unsigned long)ids[i] << (5 * i);
+         if (i)
+         {
+            word |= (unsigned long)off[i][0] << (4 * (i - 1) + 20);
+            word |= (unsigned long)off[i][1] << (4 * (i - 1) + 22);
+         }
+      }
+      for (i = 0; i < 4; i++)
+      {
+         const unsigned id = (unsigned)(word >> (5 * i)) & 31u;
+         const unsigned ox = (unsigned)(word >> (16 + 4 * i)) & 3u;
+         const unsigned oy = (unsigned)(word >> (18 + 4 * i)) & 3u;
+         if (id != ids[i] || (i && (ox != off[i][0] || oy != off[i][1])))
+         {
+            printf("  LUT word: sample %u decodes as id %u at %u,%u, packed %u at %u,%u\n",
+               i, id, ox, oy, ids[i], off[i][0], off[i][1]);
+            fail++;
+            break;
+         }
+      }
+   }
+   return fail;
+}
+
 /* The phase-0 field sits half a field line above the other: at a factor
  * of 2^sy over the field that is 2^(sy-1) output rows. */
 static int check_offset(void)
 {
    int fail = 0;
    unsigned sy;
-   for (sy = 1; sy <= 2; sy++)
+   for (sy = 1; sy <= 3; sy++)
    {
       const unsigned rows_per_field_line = 1u << sy;
       const unsigned offset = 1u << (sy - 1);
@@ -193,6 +385,9 @@ int main(void)
    int fail = 0;
    fail += check_factors();
    fail += check_layers();
+   fail += check_grid32();
+   fail += check_columns();
+   fail += check_lut_word();
    fail += check_offset();
    printf("field scanout: %s\n", fail ? "FAIL" : "ok");
    return fail ? 1 : 0;

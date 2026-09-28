@@ -220,6 +220,68 @@ void main()
         else
             FragColor = sample_vram(addr, 0);
     }
+    else if (SUPER_SAMPLES == 32 && scale_x_log2 == 2u)
+    {
+        // The ordered 4x8 grid: four columns of samples across a pixel
+        // and eight rows down it, a layer indexed with the row in bits
+        // 0, 2 and 4 and the column in bits 1 and 3 (see
+        // compute_sample_points). Across, each output pixel is one
+        // column. Down, a field scanned out at its full height takes one
+        // row per output row; a frame at 4x takes two rows, averaged.
+        if (super_sample_is_valid(addr))
+        {
+            uint gx = super_sampled_coord.x & 3u;
+            uint column = ((gx & 1u) << 1u) | ((gx >> 1u) << 3u);
+            if (scale_y_log2 == 3u)
+            {
+                uint gy = super_sampled_coord.y & 7u;
+                uint row = (gy & 1u) | (((gy >> 1u) & 1u) << 2u) | ((gy >> 2u) << 4u);
+                FragColor = sample_vram(addr, BASE_SSAA_LAYER + column + row);
+            }
+            else
+            {
+                uint gy = super_sampled_coord.y & 3u;
+                uint row = ((gy & 1u) << 2u) | ((gy >> 1u) << 4u);
+                FragColor = 0.5 * (sample_vram(addr, BASE_SSAA_LAYER + column + row) +
+                                   sample_vram(addr, BASE_SSAA_LAYER + column + row + 1u));
+            }
+        }
+        else
+            FragColor = sample_vram(addr, 0);
+    }
+    else if (SUPER_SAMPLES == 32 && scale_x_log2 == 1u)
+    {
+        // The same grid scanned out at 2x across: each output pixel is
+        // two columns, averaged, with either two rows (a frame at 2x, or
+        // a field at 4x over its lines) or four (a frame at 2x with the
+        // rest of the grid as anti-aliasing).
+        if (super_sample_is_valid(addr))
+        {
+            uint column = (super_sampled_coord.x & 1u) << 3u;
+            uint row, rows;
+            if (scale_y_log2 == 2u)
+            {
+                uint gy = super_sampled_coord.y & 3u;
+                row = ((gy & 1u) << 2u) | ((gy >> 1u) << 4u);
+                rows = 2u;
+            }
+            else
+            {
+                row = (super_sampled_coord.y & 1u) << 4u;
+                rows = 4u;
+            }
+            FragColor = vec4(0.0);
+            for (uint i = 0; i < rows; i++)
+            {
+                uint r = row + (i & 1u) + ((i >> 1u) << 2u);
+                FragColor += sample_vram(addr, BASE_SSAA_LAYER + column + r) +
+                             sample_vram(addr, BASE_SSAA_LAYER + column + r + 2u);
+            }
+            FragColor /= float(2u * rows);
+        }
+        else
+            FragColor = sample_vram(addr, 0);
+    }
     else if (SUPER_SAMPLES >= 4)
     {
         if (super_sample_is_valid(addr))

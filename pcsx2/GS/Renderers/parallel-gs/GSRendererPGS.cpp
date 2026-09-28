@@ -230,15 +230,17 @@ static ParsedSuperSampling parse_super_sampling_options(u8 super_sampling)
 {
 	ParsedSuperSampling parsed = {};
 
-	if (super_sampling > 6)
-		super_sampling = 6;
+	if (super_sampling > 7)
+		super_sampling = 7;
 
 	// Setting 6 is the ordered 16x grid: the only layout that resolves
 	// two position bits per axis, which the 4x high-res scanout needs.
-	if (super_sampling == 6)
+	// Setting 7 is the ordered 4x8 grid, with a third row bit for the
+	// full-field-height scanout of field-rendered games.
+	if (super_sampling >= 6)
 	{
 		parsed.ordered = true;
-		parsed.super_sampling = SuperSampling::X16;
+		parsed.super_sampling = super_sampling == 7 ? SuperSampling::X32 : SuperSampling::X16;
 		return parsed;
 	}
 
@@ -545,9 +547,11 @@ void GSRendererPGS::VSync(u32 field, bool registers_written)
 	info.adapt_to_internal_horizontal_resolution = GSConfig.PCRTCAntiBlur;
 	info.raw_circuit_scanout                     = true;
 	// Config values: 0 = off, 1 = 2x, 2 = 4x point-sampled,
-	// 3 = 4x with the tent reconstruction filter.
-	info.high_resolution_scanout                 = GSConfig.PGSHighResScanout == 3 ? 2 : GSConfig.PGSHighResScanout;
+	// 3 = 4x with the tent reconstruction filter, 4 = 4x with a
+	// field-rendered game at its full field height.
+	info.high_resolution_scanout                 = GSConfig.PGSHighResScanout >= 3 ? 2 : GSConfig.PGSHighResScanout;
 	info.high_res_scanout_filtered               = GSConfig.PGSHighResScanout == 3;
+	info.high_res_scanout_full_field             = GSConfig.PGSHighResScanout == 4;
 	auto vsync                                   = iface.vsync(info);
 
 	auto stats = iface.consume_flush_stats();

@@ -537,6 +537,8 @@ static void check_variables(bool first_run)
 				setting_pgs_super_sampling = 5;
 			else if (!strcmp(var.value, "16x SSAA (ordered, can high-res 4x)"))
 				setting_pgs_super_sampling = 6;
+			else if (!strcmp(var.value, "32x SSAA (ordered, can high-res 4x full)"))
+				setting_pgs_super_sampling = 7;
 
 			if (first_run || setting_pgs_super_sampling != pgs_super_sampling_prev)
 			{
@@ -575,8 +577,11 @@ static void check_variables(bool first_run)
 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 		{
 			u8 pgs_high_res_scanout_prev = setting_pgs_high_res_scanout;
-			/* 0 = off, 1 = 2x, 2 = 4x, 3 = 4x anti-aliased. */
-			if (!strcmp(var.value, "enabled (4x, anti-aliased)"))
+			/* 0 = off, 1 = 2x, 2 = 4x, 3 = 4x anti-aliased,
+			 * 4 = 4x at the full field height. */
+			if (!strcmp(var.value, "enabled (4x, full field height)"))
+				setting_pgs_high_res_scanout = 4;
+			else if (!strcmp(var.value, "enabled (4x, anti-aliased)"))
 				setting_pgs_high_res_scanout = 3;
 			else if (!strcmp(var.value, "enabled (4x)"))
 				setting_pgs_high_res_scanout = 2;
@@ -1996,7 +2001,7 @@ unsigned retro_get_region(void)
 
 void retro_get_system_av_info(retro_system_av_info* info)
 {
-	unsigned pgs_scanout_log2  = setting_pgs_high_res_scanout == 3 ? 2 : setting_pgs_high_res_scanout;
+	unsigned pgs_scanout_log2  = setting_pgs_high_res_scanout >= 3 ? 2 : setting_pgs_high_res_scanout;
 	unsigned upscale_mul       = (setting_renderer == "paraLLEl-GS" && pgs_scanout_log2) ? (1u << pgs_scanout_log2) : setting_upscale_multiplier;
 
 	switch (gsVideoMode)

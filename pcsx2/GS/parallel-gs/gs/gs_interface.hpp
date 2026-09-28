@@ -202,6 +202,11 @@ struct VSyncInfo
 	// texture anti-aliasing at full resolution, for about half a pixel
 	// of softness. Ignored below 4x.
 	bool high_res_scanout_filtered;
+	// A field-rendered game at 4x takes every row of samples its field
+	// lines carry, up to the frame at four times its height, instead of
+	// stopping at twice. Needs a grid with eight rows of samples per
+	// pixel; on a smaller grid the scanout is what that grid gives.
+	bool high_res_scanout_full_field;
 
 	// If using interlaced, defer any attempt to deinterlace and just return the raw output as-is with phase information.
 	// User is responsible for deinterlacing in whatever way is appropriate.

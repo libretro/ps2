@@ -304,7 +304,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       "pcsx2_pgs_ssaa",
       "Video > paraLLEl super sampling",
       "paraLLEl super sampling",
-      "Apply supersampled anti-aliasing (SSAA). Unlike straight upscaling, supersampling retains a coherent visual look where 3D elements have similar resolution as UI elements. For 2x high-res scanout you need at least '4x SSAA ordered' (or higher); 4x high-res scanout needs '16x SSAA (ordered)' specifically -- the plain 16x mode uses a sparse grid that only supports 2x. Setting this to 'Native' disables super sampling.",
+      "Apply supersampled anti-aliasing (SSAA). Unlike straight upscaling, supersampling retains a coherent visual look where 3D elements have similar resolution as UI elements. For 2x high-res scanout you need at least '4x SSAA ordered' (or higher); 4x high-res scanout needs '16x SSAA (ordered)' specifically -- the plain 16x mode uses a sparse grid that only supports 2x. '32x SSAA (ordered)' is a 4x8 grid, four samples across and eight down: it also feeds the 4x scanout at the full field height, which gives field-rendered games twice the vertical resolution of 16x ordered, at twice its cost. Setting this to 'Native' disables super sampling.",
       NULL,
       "video",
       {
@@ -315,6 +315,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
          { "8x SSAA (can high-res)", NULL },
          { "16x SSAA (can high-res)", NULL },
          { "16x SSAA (ordered, can high-res 4x)", NULL },
+         { "32x SSAA (ordered, can high-res 4x full)", NULL },
          { NULL, NULL },
       },
       "Native"
@@ -323,13 +324,14 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       "pcsx2_pgs_high_res_scanout",
       "Video > paraLLEl experimental High-res scanout",
       "paraLLEl experimental High-res scanout",
-      "Scans out above native resolution with paraLLEl (2x: 640x448 becomes 1280x896; 4x: 2560x1792). Doesn't work with every game, some might require patches on top. 2x requires Supersampling at 4x SSAA ordered or higher; 4x requires 16x SSAA ordered, and falls back to 2x on lower grids. At 16x SSAA with plain 4x scanout the whole sample grid is spent on resolution, so edges keep no residual anti-aliasing; the anti-aliased 4x mode instead reconstructs each output pixel from the neighboring samples with a tent filter, trading a slight softness for far less texture shimmer.",
+      "Scans out above native resolution with paraLLEl (2x: 640x448 becomes 1280x896; 4x: 2560x1792). Doesn't work with every game, some might require patches on top. 2x requires Supersampling at 4x SSAA ordered or higher; 4x requires 16x SSAA ordered, and falls back to 2x on lower grids. At 16x SSAA with plain 4x scanout the whole sample grid is spent on resolution, so edges keep no residual anti-aliasing; the anti-aliased 4x mode instead reconstructs each output pixel from the neighboring samples with a tent filter, trading a slight softness for far less texture shimmer. A game that renders one field at a time gets half the height from 4x (2560x896); the full field height mode gives it the whole 2560x1792 and needs 32x SSAA ordered, falling back to the plain 4x on smaller grids.",
       NULL,
       "video",
       {
          { "enabled", "enabled (2x)" },
          { "enabled (4x)", NULL },
          { "enabled (4x, anti-aliased)", NULL },
+         { "enabled (4x, full field height)", NULL },
          { "disabled", NULL },
          { NULL, NULL },
       },

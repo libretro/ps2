@@ -102,7 +102,7 @@ struct RangeMerger
 	}
 };
 
-static constexpr int MaxSamples = 16;
+static constexpr int MaxSamples = 32;
 static constexpr int PhaseLUTGridSize = 64;
 static constexpr int MaxPhaseLUTResults = MaxSamples * 3 * 3;
 
@@ -133,18 +133,25 @@ static int compute_sample_points(
 	}
 	else
 	{
+		// The ordered 4x8 grid has a third row bit and keeps its columns
+		// in line: its samples sit at every other position across, like
+		// the checkerboards' do, but the same ones on every row.
+		const bool ordered_4x8 = sampling_rate_x_log2 == 2 && sampling_rate_y_log2 == 3;
+
 		for (int i = 0; i < num_sample_points; i++)
 		{
 			sample_points[i].y = (i >> 0) & 1;
 			sample_points[i].x = (i >> 1) & 1;
 			sample_points[i].y += ((i >> 2) & 1) * 2;
 			sample_points[i].x += ((i >> 3) & 1) * 2;
+			sample_points[i].y += ((i >> 4) & 1) * 4;
 
 			// Checkerboards
 			if (sampling_rate_y_log2 - sampling_rate_x_log2 == 1)
 			{
 				sample_points[i].x *= 2;
-				sample_points[i].x += i % 2;
+				if (!ordered_4x8)
+					sample_points[i].x += i % 2;
 			}
 		}
 	}
@@ -280,13 +287,29 @@ void GSRenderer::init_phase_lut(uint32_t sampling_rate_x_log2, uint32_t sampling
 			// .x: lower 16 bits encode 4 sample IDs.
 			// .x: higher 16 bits encode 4 i2x2 texel offsets.
 			// .y: Kernel weights in unorm8x4.
+			// Past 16 samples an ID takes 5 bits: the four IDs fill the
+			// low 20 bits and the three offsets that can be non-zero the
+			// high 12 (the first sample's offset is always zero).
+			const bool wide_ids = num_sample_points > 16;
 			for (int i = 0; i < 4; i++)
 			{
 				int sample_id = results[i].sample_id;
 				auto &texel_offset = results[i].texel_offset;
-				samples[y][x].x |= sample_id << (4 * i);
-				samples[y][x].x |= (texel_offset.x & 3u) << (4 * i + 16 + 0);
-				samples[y][x].x |= (texel_offset.y & 3u) << (4 * i + 16 + 2);
+				if (wide_ids)
+				{
+					samples[y][x].x |= sample_id << (5 * i);
+					if (i > 0)
+					{
+						samples[y][x].x |= (texel_offset.x & 3u) << (4 * (i - 1) + 20 + 0);
+						samples[y][x].x |= (texel_offset.y & 3u) << (4 * (i - 1) + 20 + 2);
+					}
+				}
+				else
+				{
+					samples[y][x].x |= sample_id << (4 * i);
+					samples[y][x].x |= (texel_offset.x & 3u) << (4 * i + 16 + 0);
+					samples[y][x].x |= (texel_offset.y & 3u) << (4 * i + 16 + 2);
+				}
 				vec2 dist = vec2{ float(results[i].dist.x) / float(falloff_dist),
 				                  float(results[i].dist.y) / float(falloff_dist) };
 				weights[i] = std::max(0.0f, 1.0f - dist.x) * std::max(0.0f, 1.0f - dist.y);
@@ -329,12 +352,46 @@ void GSRenderer::init_phase_lut(uint32_t sampling_rate_x_log2, uint32_t sampling
 	buffers.phase_lut = device->create_image(info, level_data);
 }
 
+static VkDeviceSize vram_buffer_size(uint32_t vram_size, SuperSampling super_sampling)
+{
+	// One copy of VRAM for single-rate, one reference copy of VRAM, and
+	// one per sample, doubled for the shadow copy the feedback hazards
+	// read from.
+	VkDeviceSize size = vram_size;
+	if (super_sampling != SuperSampling::X1)
+		size *= 1 + 1 + int(super_sampling);
+	return size * 2;
+}
+
 void GSRenderer::invalidate_super_sampling_state(
     uint32_t sampling_rate_x_log2, uint32_t sampling_rate_y_log2, bool copies_only)
 {
 	super_sampled_copies_only = copies_only;
 	if (!device || !buffers.gpu)
 		return;
+
+	// A grid with more samples than the buffer holds copies for: replace
+	// the buffer with one that does, carrying the live VRAM across. The
+	// sample copies and the shadow are cleared below either way.
+	auto needed = SuperSampling(1u << (sampling_rate_x_log2 + sampling_rate_y_log2));
+	if (vram_buffer_size(vram_size, needed) > buffers.gpu->get_create_info().size)
+	{
+		flush_submit(0);
+		device->wait_idle();
+
+		bool host_visible = false;
+		auto grown = create_vram_buffer(vram_buffer_size(vram_size, needed), host_visible);
+		auto cmd = device->request_command_buffer();
+		cmd->copy_buffer(*grown, 0, *buffers.gpu, 0, vram_size);
+		cmd->barrier(VK_PIPELINE_STAGE_2_COPY_BIT, VK_ACCESS_TRANSFER_WRITE_BIT,
+		             VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT);
+		device->submit(cmd);
+		device->wait_idle();
+
+		if (buffers.cpu == buffers.gpu)
+			buffers.cpu = grown;
+		buffers.gpu = std::move(grown);
+	}
 
 	VkDeviceSize clear_size = buffers.gpu->get_create_info().size - vram_size;
 	if (!clear_size)
@@ -366,6 +423,8 @@ SuperSampling GSRenderer::get_max_supported_super_sampling() const
 		max_ssaa = SuperSampling::X8;
 	if (device->supports_subgroup_size_log2(true, 4, 6))
 		max_ssaa = SuperSampling::X16;
+	if (device->supports_subgroup_size_log2(true, 5, 6))
+		max_ssaa = SuperSampling::X32;
 
 	return max_ssaa;
 }
@@ -375,36 +434,48 @@ void GSRenderer::set_field_aware_super_sampling(bool enable)
 	field_aware_super_sampling = enable;
 }
 
-void GSRenderer::init_vram(const GSOptions &options)
+Vulkan::BufferHandle GSRenderer::create_vram_buffer(VkDeviceSize size, bool &host_visible)
 {
 	Vulkan::BufferCreateInfo info = {};
 	info.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-
-	// One copy of VRAM for single-rate, one reference copy of VRAM, and up to 16 sample references.
-	// About 78 MB. This isn't too bad.
-	if (options.dynamic_super_sampling)
-		info.size = vram_size * (1 + 1 + int(get_max_supported_super_sampling()));
-	else if (options.super_sampling != SuperSampling::X1)
-		info.size = vram_size * (1 + 1 + int(options.super_sampling));
-	else
-		info.size = vram_size;
-
-	// Need a shadow copy of VRAM for various difficult feedback hazards.
-	// Simpler to reuse the same buffer.
-	info.size *= 2;
-
+	info.size = size;
 	// Ideally we just have one big memory pool.
 	// On iGPU there should be no need to copy memory around.
 	info.domain = Vulkan::BufferDomain::UMACachedCoherentPreferDevice;
 	info.misc = Vulkan::BUFFER_MISC_ZERO_INITIALIZE_BIT;
-	buffers.gpu = device->create_buffer(info);
-	device->set_name(*buffers.gpu, "vram-gpu");
+	auto buffer = device->create_buffer(info);
+	device->set_name(*buffer, "vram-gpu");
+	host_visible = device->map_host_buffer(*buffer, 0) != nullptr;
+	return buffer;
+}
 
-	if (!device->map_host_buffer(*buffers.gpu, 0))
+void GSRenderer::init_vram(const GSOptions &options)
+{
+	// The sample copies are held for the grid in use, and for the
+	// grids up to 16 samples when the rate can change in flight, so a
+	// change among them costs no reallocation. The 32-sample grid is
+	// reserved only when configured from the start; selected later, the
+	// buffer grows for it then.
+	SuperSampling reserved = options.super_sampling;
+	if (options.dynamic_super_sampling)
 	{
+		reserved = get_max_supported_super_sampling();
+		if (reserved > SuperSampling::X16 && options.super_sampling <= SuperSampling::X16)
+			reserved = SuperSampling::X16;
+	}
+	reserved = SuperSampling(std::min<uint32_t>(uint32_t(reserved), uint32_t(get_max_supported_super_sampling())));
+
+	bool host_visible = false;
+	buffers.gpu = create_vram_buffer(vram_buffer_size(vram_size, reserved), host_visible);
+
+	if (!host_visible)
+	{
+		Vulkan::BufferCreateInfo info = {};
+		info.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
 		info.domain = Vulkan::BufferDomain::CachedHost;
-		buffers.cpu = device->create_buffer(info);
+		info.misc = Vulkan::BUFFER_MISC_ZERO_INITIALIZE_BIT;
 		info.size = vram_size;
+		buffers.cpu = device->create_buffer(info);
 		device->set_name(*buffers.cpu, "vram-cpu");
 		LOGI("Discrete GPU detected. Opting in for PCI-e copies to keep CPU/GPU in sync.\n");
 	}
@@ -414,6 +485,8 @@ void GSRenderer::init_vram(const GSOptions &options)
 		buffers.cpu = buffers.gpu;
 	}
 
+	Vulkan::BufferCreateInfo info = {};
+	info.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
 	info.domain = Vulkan::BufferDomain::Device;
 	info.size = CLUTInstances * CLUTSize;
 	buffers.clut = device->create_buffer(info);
@@ -4306,14 +4379,16 @@ ScanoutResult GSRenderer::vsync(const PrivRegisterState &priv, const VSyncInfo &
 	// samples fill it (field rendering lays them at half-line steps). It
 	// takes as many as the grid has, one to an output row: 2x over the
 	// field is the frame at native height, 4x is the frame at twice its
-	// height. The sparse grid's vertical samples are not rows and keep 2x.
+	// height, and 8x, which the full-field scanout asks for from the
+	// ordered 4x8 grid, the frame at four times its height. The sparse
+	// grid's vertical samples are not rows and keep 2x.
 	if (field_aware_rendering)
 	{
 		uint32_t field_y_log2 = scanout_scale_x_log2 + 1;
 		if (field_y_log2 > sampling_rate_y_log2)
 			field_y_log2 = sampling_rate_y_log2;
-		if (field_y_log2 > 2)
-			field_y_log2 = 2;
+		if (field_y_log2 > (info.high_res_scanout_full_field ? 3u : 2u))
+			field_y_log2 = info.high_res_scanout_full_field ? 3u : 2u;
 		if (sampling_rate_y_log2 - sampling_rate_x_log2 == 2)
 			field_y_log2 = 1;
 		scanout_scale_y_log2 = field_y_log2;

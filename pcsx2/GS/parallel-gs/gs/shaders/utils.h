@@ -121,6 +121,8 @@ vec2 get_average_sampling_offset(int sample_rate_x_log2, int sample_rate_y_log2)
 		return vec2(6.0 / 16.0);
 	else if (sample_rate_x_log2 == 1 && sample_rate_y_log2 == 3) // 16x sparse
 		return vec2((6.0 + 22.0) / 64.0);
+	else if (sample_rate_x_log2 == 2 && sample_rate_y_log2 == 3) // 32x ordered 4x8
+		return vec2(3.0 / 8.0, 3.5 / 8.0);
 	else
 		return vec2(0.0);
 }
