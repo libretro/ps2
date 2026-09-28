@@ -124,6 +124,47 @@ vec4 fetch_grid_sample(uvec2 G, uint phase_stride)
 #endif
 }
 
+// The same for the ordered 4x8 grid, addressed in the output's
+// coordinates: four columns per native pixel across, and down either
+// eight rows (rows_log2 3, a field at its full height, one sample each)
+// or four (rows_log2 2, a frame at 4x, two rows averaged). Layer bits as
+// in compute_sample_points: the row in 0, 2 and 4, the column in 1 and 3.
+vec4 fetch_grid32_sample(uvec2 G, uint rows_log2, uint phase_stride)
+{
+#if PROMOTED
+    const uint TAP_BASE_LAYER = 1u;
+#else
+    const uint TAP_BASE_LAYER = 2u;
+#endif
+    uvec2 native = uvec2(G.x >> 2u, G.y >> rows_log2);
+    uint gx = G.x & 3u;
+    uint column = ((gx & 1u) << 1u) | ((gx >> 1u) << 3u);
+    uvec2 c = native * uvec2(1u, phase_stride) +
+        uvec2(registers.dbx, registers.dby + registers.phase);
+#if !PROMOTED
+    uint a = swizzle_PS2(c.x, c.y, registers.fbp * PGS_BLOCKS_PER_PAGE, registers.fbw, PSM, VRAM_MASK);
+    if (!super_sample_is_valid(a))
+        return sample_vram(a, 0);
+#define GRID32_ADDR a
+#else
+#define GRID32_ADDR c
+#endif
+    if (rows_log2 == 3u)
+    {
+        uint gy = G.y & 7u;
+        uint row = (gy & 1u) | (((gy >> 1u) & 1u) << 2u) | ((gy >> 2u) << 4u);
+        return sample_vram(GRID32_ADDR, TAP_BASE_LAYER + column + row);
+    }
+    else
+    {
+        uint gy = G.y & 3u;
+        uint row = ((gy & 1u) << 2u) | ((gy >> 1u) << 4u);
+        return 0.5 * (sample_vram(GRID32_ADDR, TAP_BASE_LAYER + column + row) +
+                      sample_vram(GRID32_ADDR, TAP_BASE_LAYER + column + row + 1u));
+    }
+#undef GRID32_ADDR
+}
+
 void main()
 {
     // The upper half of phase_stride carries the per-axis scanout scale
@@ -228,7 +269,23 @@ void main()
         // compute_sample_points). Across, each output pixel is one
         // column. Down, a field scanned out at its full height takes one
         // row per output row; a frame at 4x takes two rows, averaged.
-        if (super_sample_is_valid(addr))
+        if (tent_filter)
+        {
+            // The same [1 2 1]/4 tent as the 4x4 grid's, over this
+            // grid's samples: nine of them per output pixel, a column
+            // and a row apart, across native pixel edges too.
+            const float w[3] = float[3](0.25, 0.5, 0.25);
+            ivec2 base = ivec2(super_sampled_coord);
+            vec4 acc = vec4(0.0);
+            for (int dy = -1; dy <= 1; dy++)
+                for (int dx = -1; dx <= 1; dx++)
+                {
+                    uvec2 G = uvec2(max(base + ivec2(dx, dy), ivec2(0)));
+                    acc += w[dx + 1] * w[dy + 1] * fetch_grid32_sample(G, scale_y_log2, phase_stride);
+                }
+            FragColor = acc;
+        }
+        else if (super_sample_is_valid(addr))
         {
             uint gx = super_sampled_coord.x & 3u;
             uint column = ((gx & 1u) << 1u) | ((gx >> 1u) << 3u);

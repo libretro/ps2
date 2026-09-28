@@ -3,18 +3,22 @@
 # every grid it does not touch as it was.
 #
 # ubershader.comp and triangle_setup.comp are specialised on the grid
-# (constants 0 and 1, the log2 sample counts across and down), so a branch
-# added for one grid should fold away for the others. This builds both
-# shaders from the tree and from a git ref (origin/master unless given),
-# freezes the grid constants to each grid the renderer offers, optimises,
-# and compares the two builds in canonical form (pgs_spv_canon.c: ids
+# (constants 0 and 1, the log2 sample counts across and down), and
+# sample_circuit.frag on its sample count (constant 2), so a branch added
+# for one grid should fold away for the others. This builds the shaders
+# from the tree and from a git ref (origin/master unless given), freezes
+# the grid constants to each grid the renderer offers, optimises, and
+# compares the two builds in canonical form (pgs_spv_canon.c: ids
 # renumbered by first use, declarations sorted). Every grid must come out
 # identical, except those named in EXPECT_DIFFERENT (as "xy" pairs, comma
-# separated), which must not: for a change that adds a grid, naming it
-# is the control that the comparison can see a change at all.
+# separated, for every shader, or "shader:xy" for one of ubershader,
+# triangle_setup and sample_circuit), which must not: for a change that
+# adds a grid, naming it is the control that the comparison can see a
+# change at all.
 #
 #   sh tests/pgs/grid_fold.sh [ref]
 #   EXPECT_DIFFERENT=23 sh tests/pgs/grid_fold.sh origin/master
+#   EXPECT_DIFFERENT=sample_circuit:23 sh tests/pgs/grid_fold.sh
 #
 # Needs glslc, spirv-opt and spirv-dis (apt install glslang-tools
 # spirv-tools, or the shaderc package for glslc).
@@ -47,10 +51,25 @@ build() {
 }
 
 fold() {
-	# fold <in.spv> <x> <y> <out.txt> [more constants]
-	spirv-opt --set-spec-const-default-value="0:$2 1:$3${5:+ $5}" --freeze-spec-const \
-		--fold-spec-const-op-composite -O --eliminate-dead-const -O "$1" -o "$4.spv"
-	spirv-dis --no-header "$4.spv" | "$OUT/canon" > "$4"
+	# fold <in.spv> <constants> <out.txt>
+	spirv-opt --set-spec-const-default-value="$2" --freeze-spec-const \
+		--fold-spec-const-op-composite -O --eliminate-dead-const -O "$1" -o "$3.spv"
+	spirv-dis --no-header "$3.spv" | "$OUT/canon" > "$3"
+}
+
+# compare <src+defs label> <tag> <x> <y> <constants>
+compare() {
+	shader=${1%%.*}
+	fold "$OUT/old_$2.spv" "$5" "$OUT/old_$2_$3$4.txt"
+	fold "$OUT/new_$2.spv" "$5" "$OUT/new_$2_$3$4.txt"
+	if cmp -s "$OUT/old_$2_$3$4.txt" "$OUT/new_$2_$3$4.txt"; then r=same; else r=different; fi
+	want=same
+	for g in $(echo "$EXPECT_DIFFERENT" | tr ',' ' '); do
+		[ "$g" = "$3$4" ] && want=different
+		[ "$g" = "$shader:$3$4" ] && want=different
+	done
+	if [ "$r" = "$want" ]; then ok=ok; else ok=FAIL; echo FAIL >> "$OUT/failed"; fi
+	printf '  %-24s grid (%s,%s): %-9s %s\n' "$1" "$3" "$4" "$r" "$ok"
 }
 
 fail=0
@@ -67,15 +86,18 @@ for v in "ubershader.comp:00:-DFEEDBACK_COLOR=0 -DFEEDBACK_DEPTH=0" \
 	build "$OLD" comp "$src" "$OUT/old_$tag.spv" $defs
 	build "$NEW" comp "$src" "$OUT/new_$tag.spv" $defs
 	echo "$GRIDS" | tr '|' '\n' | while read -r x y; do
-		fold "$OUT/old_$tag.spv" "$x" "$y" "$OUT/old_${tag}_$x$y.txt" "$more"
-		fold "$OUT/new_$tag.spv" "$x" "$y" "$OUT/new_${tag}_$x$y.txt" "$more"
-		if cmp -s "$OUT/old_${tag}_$x$y.txt" "$OUT/new_${tag}_$x$y.txt"; then r=same; else r=different; fi
-		want=same
-		for g in $(echo "$EXPECT_DIFFERENT" | tr ',' ' '); do
-			[ "$g" = "$x$y" ] && want=different
-		done
-		if [ "$r" = "$want" ]; then ok=ok; else ok=FAIL; echo FAIL >> "$OUT/failed"; fi
-		printf '  %-20s grid (%s,%s): %-9s %s\n' "$src${defs:+ $defs}" "$x" "$y" "$r" "$ok"
+		compare "$src${defs:+ $defs}" "$tag" "$x" "$y" "0:$x 1:$y${more:+ $more}"
+	done
+done
+
+# sample_circuit knows only the sample count, 1 << (x + y); a grid's
+# count is what it folds on.
+for promoted in 0 1; do
+	tag=sc$promoted
+	build "$OLD" frag sample_circuit.frag "$OUT/old_$tag.spv" -DPROMOTED=$promoted
+	build "$NEW" frag sample_circuit.frag "$OUT/new_$tag.spv" -DPROMOTED=$promoted
+	echo "$GRIDS" | tr '|' '\n' | while read -r x y; do
+		compare "sample_circuit.frag -DPROMOTED=$promoted" "$tag" "$x" "$y" "2:$((1 << (x + y)))"
 	done
 done
 

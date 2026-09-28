@@ -13,7 +13,8 @@
  * are not rows and stay at 2x.
  *
  * Pinned here, against a model of the rasterizer's sample layout
- * (gs_renderer.cpp compute_sample_points) and of vsync()'s factors:
+ * (gs_renderer.cpp compute_sample_points, in pgs_scanout_model.h) and
+ * of vsync()'s factors:
  *  - the factors for every grid and requested scale, field-aware and
  *    progressive, with and without the full-field-height request;
  *  - the layers sample_circuit.frag reads for a 2x-wide, 4x-over-the-field
@@ -23,6 +24,10 @@
  *  - on the 4x8 grid, the one sample under an output pixel of the
  *    full-height field scanout, the two rows a 4x frame pixel averages,
  *    and the column pairs a 2x scanout averages, each sample read once;
+ *  - the tent reconstruction's taps on that grid, at 4x and at the full
+ *    field height, each read the sample at their own grid position, the
+ *    neighbouring native pixel's where they cross an edge (a tent kept
+ *    inside the pixel is the negative control);
  *  - the 4x8 grid's columns are in line row to row, where a checkerboard's
  *    are not (negative control), and its five-bit sample IDs pack into the
  *    phase LUT word beside the texel offsets;
@@ -33,28 +38,7 @@
  *   ./pgs_field_scanout
  */
 #include <stdio.h>
-
-/* compute_sample_points, in quarter pixels (the grid before rescaling). */
-static void sample_point(unsigned i, unsigned rx, unsigned ry, unsigned *x, unsigned *y)
-{
-   if (ry - rx == 2)
-   {
-      static const unsigned sparse[4] = { 0, 2, 3, 1 };
-      *y = i % 8;
-      *x = (i / 8) * 4 + sparse[i % 4];
-      return;
-   }
-   *y = (i & 1) + ((i >> 2) & 1) * 2 + ((i >> 4) & 1) * 4;
-   *x = ((i >> 1) & 1) + ((i >> 3) & 1) * 2;
-   if (ry - rx == 1)
-   {
-      *x = *x * 2;
-      /* The ordered 4x8 grid keeps its columns in line; the
-       * checkerboards stagger them. */
-      if (!(rx == 2 && ry == 3))
-         *x += i % 2;
-   }
-}
+#include "pgs_scanout_model.h"
 
 struct factors
 {
@@ -122,20 +106,6 @@ static int check_factors(void)
    return fail;
 }
 
-/* sample_circuit.frag, 2x across and 4x over the field: the layers an
- * output pixel (gx, gy) reads. */
-static unsigned field_layers(unsigned samples, unsigned gx, unsigned gy, unsigned *layers)
-{
-   if (samples == 8)
-   {
-      layers[0] = (gy & 1u) | (gx << 1u) | ((gy >> 1u) << 2u);
-      return 1;
-   }
-   layers[0] = (gy & 1u) | ((gy >> 1u) << 2u) | (gx << 3u);
-   layers[1] = layers[0] + 2u;
-   return 2;
-}
-
 static int check_layers(void)
 {
    int fail = 0;
@@ -179,9 +149,8 @@ static int check_layers(void)
       for (gy = 0; gy < 4; gy++)
          for (gx = 0; gx < 4; gx++)
          {
-            const unsigned slice = (gy & 1u) | ((gx & 1u) << 1u) | ((gy >> 1u) << 2u) | ((gx >> 1u) << 3u);
             unsigned x, y;
-            sample_point(slice, 2, 2, &x, &y);
+            sample_point(grid16_layer(gx, gy), 2, 2, &x, &y);
             if (x != gx || y != gy)
             {
                printf("  ordered 4x: output %u,%u reads the sample at %u,%u\n", gx, gy, x, y);
@@ -190,46 +159,6 @@ static int check_layers(void)
          }
    }
    return fail;
-}
-
-/* sample_circuit.frag on the 4x8 grid: the layers an output pixel (gx,
- * gy) reads at scanout factors (sx, sy). */
-static unsigned grid32_layers(unsigned sx, unsigned sy, unsigned gx, unsigned gy, unsigned *layers)
-{
-   if (sx == 2)
-   {
-      const unsigned column = ((gx & 1u) << 1u) | ((gx >> 1u) << 3u);
-      if (sy == 3)
-      {
-         layers[0] = column | (gy & 1u) | (((gy >> 1u) & 1u) << 2u) | ((gy >> 2u) << 4u);
-         return 1;
-      }
-      layers[0] = column | ((gy & 1u) << 2u) | ((gy >> 1u) << 4u);
-      layers[1] = layers[0] + 1u;
-      return 2;
-   }
-   else
-   {
-      const unsigned column = (gx & 1u) << 3u;
-      unsigned row, rows, i, n = 0;
-      if (sy == 2)
-      {
-         row = ((gy & 1u) << 2u) | ((gy >> 1u) << 4u);
-         rows = 2;
-      }
-      else
-      {
-         row = (gy & 1u) << 4u;
-         rows = 4;
-      }
-      for (i = 0; i < rows; i++)
-      {
-         const unsigned r = row + (i & 1u) + ((i >> 1u) << 2u);
-         layers[n++] = column + r;
-         layers[n++] = column + r + 2u;
-      }
-      return n;
-   }
 }
 
 /* Every output pixel of a scanout shape reads the samples in its own
@@ -251,7 +180,7 @@ static int check_grid32(void)
          for (gx = 0; gx < (1u << sx); gx++)
          {
             unsigned layers[8], n, k;
-            n = grid32_layers(sx, sy, gx, gy, layers);
+            n = scanout_layers(32, sx, sy, gx, gy, layers);
             if (n != cols * rows)
             {
                printf("  4x8 at %u,%u: output %u,%u reads %u samples, its part holds %u\n", sx, sy, gx, gy, n, cols * rows);
@@ -283,6 +212,106 @@ static int check_grid32(void)
             printf("  4x8 at %u,%u: layer %u read %d times\n", sx, sy, s, seen[s]);
             fail++;
          }
+   }
+   return fail;
+}
+
+/* sample_circuit.frag fetch_grid32_sample: the native pixel and the
+ * layers one tent tap reads at global grid position (Gx, Gy), with
+ * rows_log2 output rows per native pixel. When wrap is set the tap is
+ * kept inside the centre pixel's native pixel (nx, ny) instead, which
+ * is the negative control: a tent that does not cross pixel edges. */
+static unsigned grid32_tap(unsigned rows_log2, unsigned Gx, unsigned Gy, int wrap, unsigned *nx, unsigned *ny, unsigned *layers)
+{
+   const unsigned gx = Gx & 3u;
+   const unsigned column = ((gx & 1u) << 1u) | ((gx >> 1u) << 3u);
+   if (!wrap)
+   {
+      *nx = Gx >> 2u;
+      *ny = Gy >> rows_log2;
+   }
+   if (rows_log2 == 3)
+   {
+      const unsigned gy = Gy & 7u;
+      layers[0] = column | (gy & 1u) | (((gy >> 1u) & 1u) << 2u) | ((gy >> 2u) << 4u);
+      return 1;
+   }
+   else
+   {
+      const unsigned gy = Gy & 3u;
+      layers[0] = column | ((gy & 1u) << 2u) | ((gy >> 1u) << 4u);
+      layers[1] = layers[0] + 1u;
+      return 2;
+   }
+}
+
+/* One tap of the [1 2 1]/4 tent at grid position G reads the sample the
+ * grid has at G: in the native pixel G falls in, the column and row (or
+ * row pair) under it. Checked over the output pixels of one native pixel
+ * with neighbours on every side, where the outer taps cross its edges. */
+static int tent_taps_land(unsigned rows_log2, int wrap)
+{
+   const unsigned rows = 1u << rows_log2;
+   const unsigned per_row = 8u >> rows_log2;
+   unsigned ox, oy;
+   for (oy = 0; oy < rows; oy++)
+      for (ox = 0; ox < 4; ox++)
+      {
+         const unsigned bx = 4 + ox, by = rows + oy;
+         int dx, dy;
+         for (dy = -1; dy <= 1; dy++)
+            for (dx = -1; dx <= 1; dx++)
+            {
+               const unsigned Gx = bx + dx, Gy = by + dy;
+               unsigned nx = 1, ny = 1, layers[2], n, k;
+               n = grid32_tap(rows_log2, Gx, Gy, wrap, &nx, &ny, layers);
+               if (n != per_row)
+                  return 0;
+               for (k = 0; k < n; k++)
+               {
+                  unsigned x, y;
+                  if (layers[k] >= 32)
+                     return 0;
+                  sample_point(layers[k], 2, 3, &x, &y);
+                  /* x in eighths, columns at 0, 2, 4, 6; y the row */
+                  if (nx * 4 + x / 2 != Gx || ny * rows + y / per_row != Gy)
+                     return 0;
+               }
+               if (n == 2 && (layers[0] ^ layers[1]) != 1u)
+                  return 0;
+            }
+      }
+   return 1;
+}
+
+static int check_tent(void)
+{
+   static const float w[3] = { 0.25f, 0.5f, 0.25f };
+   float sum = 0.0f;
+   int fail = 0;
+   int i, j;
+   for (i = 0; i < 3; i++)
+      for (j = 0; j < 3; j++)
+         sum += w[i] * w[j];
+   if (sum != 1.0f)
+   {
+      printf("  tent weights sum to %g\n", (double)sum);
+      fail++;
+   }
+   if (!tent_taps_land(3, 0))
+   {
+      printf("  a tent tap on the 4x8 grid at the full field height misses its sample\n");
+      fail++;
+   }
+   if (!tent_taps_land(2, 0))
+   {
+      printf("  a tent tap on the 4x8 grid at 4x misses its sample\n");
+      fail++;
+   }
+   if (tent_taps_land(3, 1) || tent_taps_land(2, 1))
+   {
+      printf("  negative control: a tent kept inside the native pixel lands every tap\n");
+      fail++;
    }
    return fail;
 }
@@ -386,6 +415,7 @@ int main(void)
    fail += check_factors();
    fail += check_layers();
    fail += check_grid32();
+   fail += check_tent();
    fail += check_columns();
    fail += check_lut_word();
    fail += check_offset();

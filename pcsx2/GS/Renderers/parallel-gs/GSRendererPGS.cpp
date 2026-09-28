@@ -548,10 +548,10 @@ void GSRendererPGS::VSync(u32 field, bool registers_written)
 	info.raw_circuit_scanout                     = true;
 	// Config values: 0 = off, 1 = 2x, 2 = 4x point-sampled,
 	// 3 = 4x with the tent reconstruction filter, 4 = 4x with a
-	// field-rendered game at its full field height.
+	// field-rendered game at its full field height, 5 = both.
 	info.high_resolution_scanout                 = GSConfig.PGSHighResScanout >= 3 ? 2 : GSConfig.PGSHighResScanout;
-	info.high_res_scanout_filtered               = GSConfig.PGSHighResScanout == 3;
-	info.high_res_scanout_full_field             = GSConfig.PGSHighResScanout == 4;
+	info.high_res_scanout_filtered               = GSConfig.PGSHighResScanout == 3 || GSConfig.PGSHighResScanout == 5;
+	info.high_res_scanout_full_field             = GSConfig.PGSHighResScanout >= 4;
 	auto vsync                                   = iface.vsync(info);
 
 	auto stats = iface.consume_flush_stats();

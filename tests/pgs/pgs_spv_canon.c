@@ -1,9 +1,10 @@
 /* Canonical form of a SPIR-V disassembly, for comparing two builds of a
  * shader: ids renumbered in the order the function bodies first use
- * them, the declarations before the first function sorted, names and
- * source strings dropped, whitespace trimmed. Two modules that differ
- * only in id numbers and declaration order come out identical; two that
- * differ in an instruction do not.
+ * them, then the ids only the declarations mention in the order those
+ * declarations sort once numbered, the declarations before the first
+ * function sorted, names and source strings dropped, whitespace
+ * trimmed. Two modules that differ only in id numbers and declaration
+ * order come out identical; two that differ in an instruction do not.
  *
  *   spirv-dis --no-header a.spv | pgs_spv_canon > a.txt
  *
@@ -64,6 +65,19 @@ static int id_index(const char *s, size_t n, int add)
    }
 }
 
+/* Ids numbered so far, in the order the bodies met them; the others
+ * wait for the declarations to be sorted. */
+static int *id_number;
+static int num_numbered;
+
+static int number_id(const char *s, size_t n)
+{
+   int idx = id_index(s, n, 1);
+   if (idx >= 0 && id_number[idx] < 0)
+      id_number[idx] = num_numbered++;
+   return idx;
+}
+
 static void number_ids(const char *l)
 {
    const char *p = l;
@@ -73,15 +87,18 @@ static void number_ids(const char *l)
       while (is_id_char((unsigned char)*e))
          e++;
       if (e > p + 1)
-         id_index(p + 1, (size_t)(e - p - 1), 1);
+         number_id(p + 1, (size_t)(e - p - 1));
       p = e;
    }
 }
 
-static void rewrite(const char *l, char *out)
+/* Rewrite a line with its numbered ids as %iN and the rest as %?;
+ * returns how many of the rest it holds. */
+static int rewrite(const char *l, char *out)
 {
    const char *p = l;
    char *o = out;
+   int pending = 0;
    while (*p)
    {
       if (*p == '%')
@@ -91,18 +108,32 @@ static void rewrite(const char *l, char *out)
          while (is_id_char((unsigned char)*e))
             e++;
          idx = id_index(p + 1, (size_t)(e - p - 1), 0);
-         o += sprintf(o, "%%i%d", idx);
+         if (idx >= 0 && id_number[idx] >= 0)
+            o += sprintf(o, "%%i%d", id_number[idx]);
+         else
+         {
+            o += sprintf(o, "%%?");
+            pending++;
+         }
          p = e;
       }
       else
          *o++ = *p++;
    }
    *o = 0;
+   return pending;
 }
 
-static int cmp_str(const void *a, const void *b)
+struct decl
 {
-   return strcmp(*(char *const *)a, *(char *const *)b);
+   const char *src;
+   char *text;
+   int pending;
+};
+
+static int cmp_decl(const void *a, const void *b)
+{
+   return strcmp(((const struct decl *)a)->text, ((const struct decl *)b)->text);
 }
 
 static int dropped(const char *l)
@@ -118,17 +149,20 @@ int main(void)
 {
    static char buf[LINE_LEN];
    int first_function = -1;
-   int i;
-   char **header;
+   int i, progress;
+   struct decl *header;
    int num_header = 0;
 
    lines = (char **)malloc(MAX_LINES * sizeof(*lines));
    id_names = (char **)malloc(MAX_IDS * sizeof(*id_names));
+   id_number = (int *)malloc(MAX_IDS * sizeof(*id_number));
    hash_slots = (int *)malloc(HASH_SIZE * sizeof(*hash_slots));
-   if (!lines || !id_names || !hash_slots)
+   if (!lines || !id_names || !id_number || !hash_slots)
       return 1;
    for (i = 0; i < HASH_SIZE; i++)
       hash_slots[i] = -1;
+   for (i = 0; i < MAX_IDS; i++)
+      id_number[i] = -1;
 
    while (fgets(buf, sizeof(buf), stdin))
    {
@@ -158,29 +192,64 @@ int main(void)
    if (first_function < 0)
       first_function = num_lines;
 
-   /* Ids in the order the bodies use them, then whatever the header
-    * alone mentions. */
+   /* Ids in the order the bodies use them. */
    for (i = first_function; i < num_lines; i++)
       number_ids(lines[i]);
-   for (i = 0; i < first_function; i++)
-      number_ids(lines[i]);
 
-   header = (char **)malloc((size_t)(first_function + 1) * sizeof(*header));
+   header = (struct decl *)malloc((size_t)(first_function + 1) * sizeof(*header));
    if (!header)
       return 1;
    for (i = 0; i < first_function; i++)
    {
-      header[num_header] = (char *)malloc(strlen(lines[i]) * 2 + 16);
-      rewrite(lines[i], header[num_header]);
+      header[num_header].src = lines[i];
+      header[num_header].text = (char *)malloc(strlen(lines[i]) * 2 + 16);
       num_header++;
    }
-   qsort(header, (size_t)num_header, sizeof(*header), cmp_str);
+
+   /* Then the ids only the declarations mention: sort the declarations
+    * with those ids blanked, and number, in that order, the ids of the
+    * declarations that have just their own left -- a declaration whose
+    * operands are all numbered sorts the same in any build. Repeat as
+    * numbering one resolves others; whatever is left at the end (ids
+    * that never resolve this way) is numbered in sorted order. */
+   do
+   {
+      progress = 0;
+      for (i = 0; i < num_header; i++)
+         header[i].pending = rewrite(header[i].src, header[i].text);
+      qsort(header, (size_t)num_header, sizeof(*header), cmp_decl);
+      for (i = 0; i < num_header; i++)
+         if (header[i].pending == 1)
+         {
+            number_ids(header[i].src);
+            progress = 1;
+         }
+   } while (progress);
    for (i = 0; i < num_header; i++)
-      puts(header[i]);
+      if (header[i].pending)
+         number_ids(header[i].src);
+   for (i = 0; i < num_header; i++)
+      rewrite(header[i].src, header[i].text);
+   qsort(header, (size_t)num_header, sizeof(*header), cmp_decl);
+
+   for (i = 0; i < num_header; i++)
+   {
+      puts(header[i].text);
+      free(header[i].text);
+   }
+   free(header);
    for (i = first_function; i < num_lines; i++)
    {
       rewrite(lines[i], buf);
       puts(buf);
    }
+   for (i = 0; i < num_lines; i++)
+      free(lines[i]);
+   for (i = 0; i < num_ids; i++)
+      free(id_names[i]);
+   free(lines);
+   free(id_names);
+   free(id_number);
+   free(hash_slots);
    return 0;
 }

@@ -578,8 +578,10 @@ static void check_variables(bool first_run)
 		{
 			u8 pgs_high_res_scanout_prev = setting_pgs_high_res_scanout;
 			/* 0 = off, 1 = 2x, 2 = 4x, 3 = 4x anti-aliased,
-			 * 4 = 4x at the full field height. */
-			if (!strcmp(var.value, "enabled (4x, full field height)"))
+			 * 4 = 4x at the full field height, 5 = both. */
+			if (!strcmp(var.value, "enabled (4x, anti-aliased, full field height)"))
+				setting_pgs_high_res_scanout = 5;
+			else if (!strcmp(var.value, "enabled (4x, full field height)"))
 				setting_pgs_high_res_scanout = 4;
 			else if (!strcmp(var.value, "enabled (4x, anti-aliased)"))
 				setting_pgs_high_res_scanout = 3;

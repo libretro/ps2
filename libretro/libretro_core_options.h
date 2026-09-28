@@ -324,7 +324,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       "pcsx2_pgs_high_res_scanout",
       "Video > paraLLEl experimental High-res scanout",
       "paraLLEl experimental High-res scanout",
-      "Scans out above native resolution with paraLLEl (2x: 640x448 becomes 1280x896; 4x: 2560x1792). Doesn't work with every game, some might require patches on top. 2x requires Supersampling at 4x SSAA ordered or higher; 4x requires 16x SSAA ordered, and falls back to 2x on lower grids. At 16x SSAA with plain 4x scanout the whole sample grid is spent on resolution, so edges keep no residual anti-aliasing; the anti-aliased 4x mode instead reconstructs each output pixel from the neighboring samples with a tent filter, trading a slight softness for far less texture shimmer. A game that renders one field at a time gets half the height from 4x (2560x896); the full field height mode gives it the whole 2560x1792 and needs 32x SSAA ordered, falling back to the plain 4x on smaller grids.",
+      "Scans out above native resolution with paraLLEl (2x: 640x448 becomes 1280x896; 4x: 2560x1792). Doesn't work with every game, some might require patches on top. 2x requires Supersampling at 4x SSAA ordered or higher; 4x requires 16x SSAA ordered, and falls back to 2x on lower grids. At 16x SSAA with plain 4x scanout the whole sample grid is spent on resolution, so edges keep no residual anti-aliasing; the anti-aliased 4x mode instead reconstructs each output pixel from the neighboring samples with a tent filter, trading a slight softness for far less texture shimmer. A game that renders one field at a time gets half the height from 4x (2560x896); the full field height mode gives it the whole 2560x1792 and needs 32x SSAA ordered, falling back to the plain 4x on smaller grids. Its anti-aliased variant applies the same tent reconstruction at that height, and falls back to the anti-aliased 4x on smaller grids.",
       NULL,
       "video",
       {
@@ -332,6 +332,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
          { "enabled (4x)", NULL },
          { "enabled (4x, anti-aliased)", NULL },
          { "enabled (4x, full field height)", NULL },
+         { "enabled (4x, anti-aliased, full field height)", NULL },
          { "disabled", NULL },
          { NULL, NULL },
       },

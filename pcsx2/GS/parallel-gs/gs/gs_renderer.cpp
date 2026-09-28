@@ -4397,9 +4397,11 @@ ScanoutResult GSRenderer::vsync(const PrivRegisterState &priv, const VSyncInfo &
 	}
 
 	// The tent reconstruction only makes sense where the grid is fully
-	// spent on resolution: the symmetric 4x case.
+	// spent on resolution: the symmetric 4x case, and the 4x8 grid at
+	// 4x, with or without the full field height.
 	bool scanout_filtered = info.high_res_scanout_filtered &&
-	                        scanout_scale_x_log2 == 2 && scanout_scale_y_log2 == 2;
+	                        scanout_scale_x_log2 == 2 &&
+	                        (scanout_scale_y_log2 == 2 || scanout_scale_y_log2 == 3);
 
 	uint32_t super_samples = 1;
 	if (high_resolution_scanout)
