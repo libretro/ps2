@@ -29,6 +29,10 @@
 #include "common/emitter/x86types.h"
 #include "common/emitter/c89ops.h"
 
+/* This harness links no recompiler object, so it owns the cursor. */
+thread_local u8* x86Ptr PCSX2_TLS_INITIAL_EXEC = nullptr;
+thread_local XMMSSEType g_xmmtypes[iREGCNT_XMM] PCSX2_TLS_INITIAL_EXEC = {XMMT_INT};
+
 /* Somewhere to emit into. */
 static uint8_t s_buf[256];
 

@@ -20,6 +20,12 @@
 #include "../Vif.h"
 #include "../VU.h"
 #include "../R3000A.h"
+
+/* The emitter cursor and the SIMD-type tags: the one definition of each
+ * (x86types.h declares them extern). */
+thread_local u8* x86Ptr PCSX2_TLS_INITIAL_EXEC = nullptr;
+thread_local XMMSSEType g_xmmtypes[iREGCNT_XMM] PCSX2_TLS_INITIAL_EXEC = {XMMT_INT};
+
 u16 g_x86AllocCounter = 0;
 static u16 g_xmmAllocCounter = 0;
 

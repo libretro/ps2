@@ -28,11 +28,17 @@ XMMT_INT = 0, // integer (sse2 only)
 XMMT_FPS = 1  // floating point
 };
 
-// C++17 inline variables: one definition across all TUs, no object file
-// required. The switched build compiles no emitter .cpp at all, so these
-// cannot live there.
-inline thread_local u8* x86Ptr PCSX2_TLS_INITIAL_EXEC = nullptr;
-inline thread_local XMMSSEType g_xmmtypes[iREGCNT_XMM] PCSX2_TLS_INITIAL_EXEC = {XMMT_INT};
+// One strong definition each, in iCore.cpp; every other TU sees only these
+// externs. Every recompiler emits through the same cursor, so it has to be
+// one TLS slot per thread across the whole module. An `inline thread_local`
+// here is a COMDAT the linker must fold across every TU that includes this
+// header, and MSVC does not do that dependably: unfolded, the EE recompiler
+// sets its own copy while a COP2 macro op emits through the microVU TU's,
+// and the rip-relative distance is then measured from a stale cursor --
+// which is the FATAL_APP_EXIT in the emitter that survived every placement
+// fix. A strong definition cannot be duplicated.
+extern thread_local u8* x86Ptr PCSX2_TLS_INITIAL_EXEC;
+extern thread_local XMMSSEType g_xmmtypes[iREGCNT_XMM] PCSX2_TLS_INITIAL_EXEC;
 
 /* x86Ptr is the emitter cursor; read and assign it directly. The old
  * x86Ptr/x86Ptr = (u8*)()/x86Ptr wrappers existed against a
