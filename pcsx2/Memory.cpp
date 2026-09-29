@@ -108,10 +108,16 @@ static inline uptr near_anchor(void)
 	return (uptr)(void*)&near_anchor;
 }
 
-static VirtualMemoryManagerPtr TryAt(const char* name, uptr base, size_t size)
+static VirtualMemoryManagerPtr TryAt(const char* name, uptr base, size_t size, bool allow_high)
 {
-	/* VTLB will throw a fit if we try to put EE main memory here */
-	if ((sptr)base < 0 || (sptr)(base + size - 1) < 0)
+	/* Main memory (EE RAM) must not have the pointer sign bit set: VTLB
+	 * uses that bit to mark an address as a hardware-register handler
+	 * rather than real RAM (vtlb.cpp: "if ((sptr)p < 0)"). The code
+	 * reservation is never seen by VTLB, so a high (sign-bit-set) base is
+	 * fine for it -- and on Win64 the module itself is based high, so the
+	 * near search MUST accept high addresses or it can never place the
+	 * reservation next to the module. */
+	if (!allow_high && ((sptr)base < 0 || (sptr)(base + size - 1) < 0))
 		return nullptr;
 	VirtualMemoryManagerPtr mgr = std::make_shared<VirtualMemoryManager>(name, base, size, /*upper_bounds=*/0, /*strict=*/true);
 	if (mgr->IsOk())
@@ -120,7 +126,7 @@ static VirtualMemoryManagerPtr TryAt(const char* name, uptr base, size_t size)
 }
 
 #if defined(_WIN32)
-static VirtualMemoryManagerPtr AllocateNearModule(const char* name, size_t size)
+static VirtualMemoryManagerPtr AllocateNearModule(const char* name, size_t size, bool allow_high)
 {
 	const uptr anchor = near_anchor();
 	const uptr lo     = (anchor > NEAR_HALF) ? (anchor - NEAR_HALF) : 0x10000;
@@ -142,7 +148,7 @@ static VirtualMemoryManagerPtr AllocateNearModule(const char* name, size_t size)
 				cand = (lo + 0xFFFF) & ~(uptr)0xFFFF;
 			if (cand + size <= region_end && cand + size <= hi)
 			{
-				VirtualMemoryManagerPtr mgr = TryAt(name, cand, size);
+				VirtualMemoryManagerPtr mgr = TryAt(name, cand, size, allow_high);
 				if (mgr)
 					return mgr;
 			}
@@ -154,7 +160,7 @@ static VirtualMemoryManagerPtr AllocateNearModule(const char* name, size_t size)
 	return nullptr;
 }
 #else
-static VirtualMemoryManagerPtr AllocateNearModule(const char* name, size_t size)
+static VirtualMemoryManagerPtr AllocateNearModule(const char* name, size_t size, bool allow_high)
 {
 	const uptr anchor = near_anchor();
 	const uptr step   = 0x04000000; /* 64MB */
@@ -166,11 +172,11 @@ static VirtualMemoryManagerPtr AllocateNearModule(const char* name, size_t size)
 	{
 		if (anchor > off + size)
 		{
-			VirtualMemoryManagerPtr mgr = TryAt(name, (anchor - off - size) & ~(uptr)0xFFFF, size);
+			VirtualMemoryManagerPtr mgr = TryAt(name, (anchor - off - size) & ~(uptr)0xFFFF, size, allow_high);
 			if (mgr)
 				return mgr;
 		}
-		VirtualMemoryManagerPtr mgr = TryAt(name, (anchor + off) & ~(uptr)0xFFFF, size);
+		VirtualMemoryManagerPtr mgr = TryAt(name, (anchor + off) & ~(uptr)0xFFFF, size, allow_high);
 		if (mgr)
 			return mgr;
 	}
@@ -181,7 +187,7 @@ static VirtualMemoryManagerPtr AllocateNearModule(const char* name, size_t size)
 /// Attempts to find a spot near this module's globals for the memory maps
 static VirtualMemoryManagerPtr AllocateVirtualMemory(const char* name, size_t size, bool code)
 {
-	VirtualMemoryManagerPtr mgr = AllocateNearModule(name, size);
+	VirtualMemoryManagerPtr mgr = AllocateNearModule(name, size, /*allow_high=*/code);
 	if (mgr)
 		return mgr;
 
