@@ -39,6 +39,38 @@ static int mtgs_wait_drains(uintptr_t self, uintptr_t producer, int is_mtvu)
 	return self != producer;
 }
 
+/* Whether a vsync taken off the ring is scanned out and handed to the
+ * frontend.
+ *
+ * In retro_run, always: that is the frame. In a drain (flush_all) it is
+ * when the thread draining is the one that renders, because since the EE
+ * runs a frame ahead of the scanout a drain finds that frame's vsync in
+ * the ring - a savestate or a reset taken between two retro_runs would
+ * otherwise swallow it.
+ *
+ * Except while the frontend is taking the context away. context_destroy
+ * pauses the EE, which is a drain, and the frame it finds has nowhere to
+ * go: the context it would be shown on is the one being destroyed. And
+ * presenting it is a call back into the frontend from inside the
+ * frontend's own teardown. RetroArch up to 1.22 holds its context lock
+ * across context_destroy and takes the same lock at the top of every
+ * video_refresh; the lock is not recursive, so the present never returns
+ * and neither does the frontend (closing content hung, issue #171).
+ *
+ * flush_all: the call is a drain, not retro_run's pass
+ * self:      the calling thread
+ * renderer:  the thread that renders (mtgs_claim_ring)
+ * held:      the frontend is taking the context away (mtgs_hold_present) */
+static int mtgs_vsync_presents(int flush_all, uintptr_t self,
+		uintptr_t renderer, int held)
+{
+	if (!flush_all)
+		return 1;
+	if (held)
+		return 0;
+	return self == renderer;
+}
+
 /* Defined in MTGS.cpp. Plain C names and linkage: callable from a C
  * file the day the callers are one. */
 #ifdef __cplusplus
@@ -46,6 +78,7 @@ extern "C" {
 #endif
 void mtgs_claim_ring(void);            /* frontend, first thing in retro_run */
 void mtgs_set_producer_thread(int on); /* EE thread, as it starts and ends   */
+void mtgs_hold_present(int on);        /* frontend, around a context teardown */
 #ifdef __cplusplus
 }
 #endif

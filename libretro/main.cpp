@@ -2138,7 +2138,16 @@ static void libretro_context_reset(void)
 
 static void libretro_context_destroy(void)
 {
+	/* Pausing drains the GS ring, and since the EE runs a frame ahead
+	 * the drain finds that frame's vsync in it. It is consumed here and
+	 * not presented: a present is a video_refresh from inside the
+	 * frontend's own context teardown, on the context being torn down.
+	 * RetroArch up to 1.22 holds its context lock across this callback
+	 * and takes it again at the top of video_refresh, and hangs there
+	 * for good (issue #171). */
+	mtgs_hold_present(1);
 	cpu_thread_pause();
+	mtgs_hold_present(0);
 
 #ifdef ENABLE_VULKAN
 	/* The frontend keeps replaying the last set_image (cached-frame
@@ -2892,7 +2901,11 @@ void retro_unload_game(void)
 {
 	if (MTGS::IsOpen())
 	{
+		/* As in libretro_context_destroy: the frame the EE had ready is
+		 * consumed, not handed to a frontend that is unloading the game. */
+		mtgs_hold_present(1);
 		cpu_thread_pause();
+		mtgs_hold_present(0);
 		MTGS::CloseGS();
 	}
 

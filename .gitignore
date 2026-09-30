@@ -174,3 +174,7 @@ tests/mtgsvsync/mtgsvsync
 tests/mtgsvsync/mtgsvsync_rule1
 tests/mtgsvsync/mtgsvsync_rule2
 tests/mtgsvsync/mtgsvsync_tsan
+tests/mtgsclose/mtgsclose
+tests/mtgsclose/mtgsclose_rule1
+tests/mtgsclose/mtgsclose_rule2
+tests/mtgsclose/mtgsclose_tsan

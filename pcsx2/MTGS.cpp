@@ -128,6 +128,10 @@ alignas(64) static u64 g_ee_wait_ticks;
 
 extern struct retro_hw_render_callback hw_render;
 
+/* Set by the frontend's thread around a context teardown, and read by
+ * the drain that teardown runs on the same thread: mtgs_hold_present. */
+static int s_present_held = 0;
+
 /* See GS.h. NULL unless the renderer in use installed them. */
 void (*gs_hw_context_begin)(void) = NULL;
 void (*gs_hw_context_end)(void)   = NULL;
@@ -451,10 +455,14 @@ bool MTGS::MainLoop(bool flush_all)
 						if (work_eventcount_check(&s_sem_event) || retro_spsc_read_avail(&s_Ring) != 0)
 							work_eventcount_notify(&s_sem_event);
 					}
-					// flush_all skips GSvsync when multi-threaded (reset/pause drain
-					// without rendering), but in single-threaded mode MainLoop(true)
-					// IS the render path — call GSvsync.
-					if(!flush_all || sthread_get_current_thread_id() == s_thread)
+					/* Whether this vsync is scanned out: see
+					 * mtgs_vsync_presents (MTGSOwner.h). A drain on the
+					 * thread that renders presents the frame the EE had
+					 * ready, unless the frontend is taking the context
+					 * away. */
+					if (mtgs_vsync_presents(flush_all,
+								sthread_get_current_thread_id(), s_thread,
+								s_present_held))
 					{
 						GS_HW_CONTEXT_BEGIN();
 						GSvsync(field, registers_written);
@@ -625,6 +633,14 @@ void MTGS::WaitForClose()
 void mtgs_claim_ring(void)
 {
 	MTGS::s_thread = sthread_get_current_thread_id();
+}
+
+/* The frontend's thread, around context_destroy and unload: the drain
+ * inside consumes the frame the EE had ready without presenting it. See
+ * mtgs_vsync_presents (MTGSOwner.h). */
+void mtgs_hold_present(int on)
+{
+	s_present_held = on;
 }
 
 /* The EE thread, as it starts and as it ends. See MTGSOwner.h. */
