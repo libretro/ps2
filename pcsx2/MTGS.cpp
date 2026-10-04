@@ -279,6 +279,17 @@ void MTGS::TryOpenGS(void)
 			log_cb(RETRO_LOG_ERROR, "MTGS: command ring allocation failed; GS commands will be dropped\n");
 	}
 
+	/* The GS opens on an empty ring and a live eventcount, as it does in
+	 * a freshly loaded image. A GS closed earlier in this image left the
+	 * eventcount killed by MainLoop's exit tail, and the ring with
+	 * whatever was written after that tail skipped it; a frontend that
+	 * retires the core with dlclose may get the same image, statics and
+	 * all, on the next load. The EE is not producing while the GS is
+	 * closed, so both sides are quiescent here. */
+	if (s_RingOk)
+		retro_spsc_clear(&s_Ring);
+	work_eventcount_reset(&s_sem_event);
+
 	mtgs_sync_regs();
 	GS_HW_CONTEXT_BEGIN();
 	GSopen(EmuConfig.GS, EmuConfig.GS.Renderer, hw_render.context_type, s_gs_regs);
