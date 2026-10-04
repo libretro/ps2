@@ -186,3 +186,7 @@ tests/ata/*.exe
 tests/ata/*.img
 /tests/spsc/spsc_worksema
 /tests/spsc/spsc_worksema_tsan
+/tests/mtvuring/mtvu_ring
+/tests/mtvuring/mtvu_ring_old
+/tests/mtvuring/mtvu_ring_park
+/tests/mtvuring/mtvu_ring_tsan

@@ -110,6 +110,10 @@ static retro_atomic_int_t overlaps;
 static retro_atomic_int_t equal_while_full;
 static retro_atomic_int_t ran_off;
 static long long          packets;
+/* The reader starts only once the writer has filled the ring: it has
+ * wrapped, or found no room and had to wait. That is the stalled reader
+ * the old protocol wraps onto, every run rather than by timing. */
+static retro_atomic_int_t writer_filled;
 
 static int get_read_pos(void)  { return retro_atomic_load_acquire_int(&ato_read_pos); }
 static int get_write_pos(void) { return retro_atomic_load_acquire_int(&ato_write_pos); }
@@ -155,6 +159,7 @@ static int wait_on_size(int size)
          return need_wrap;
       if (retro_atomic_load_acquire_int(&ran_off))
          return 0;
+      retro_atomic_store_release_int(&writer_filled, 1);
       /* MTVU.cpp's wait: a spin budget, then park on the eventcount the
        * reader notifies after publishing. A missed notify shows up here
        * as a hang, which is the failure this models. */
@@ -193,6 +198,18 @@ static void wait_on_size(int size)
 }
 #endif
 
+/* Equal positions mean empty to the reader, so a writer position about
+ * to be published that lands on the reader's loses the whole ring. Read
+ * before publishing: the reader cannot pass what is not yet published,
+ * so equality here is the full ring, while after publishing the reader
+ * may have consumed everything and caught up, which is empty and equal
+ * for good reason. */
+static void check_landing(void)
+{
+   if (write_pos == get_read_pos())
+      retro_atomic_fetch_add_int(&equal_while_full, 1);
+}
+
 static void reserve_space(int size)
 {
 #if FIXED
@@ -202,7 +219,9 @@ static void reserve_space(int size)
    {
       ring[write_pos] = NULL_PACKET;
       write_pos = 0;
+      check_landing();
       retro_atomic_store_release_int(&ato_write_pos, write_pos);
+      retro_atomic_store_release_int(&writer_filled, 1);
    }
 #else
    if (write_pos + size > (RING_WORDS - 1))
@@ -210,7 +229,9 @@ static void reserve_space(int size)
       wait_on_size(1);
       ring[write_pos] = NULL_PACKET;
       write_pos = 0;
+      check_landing();
       retro_atomic_store_release_int(&ato_write_pos, write_pos);
+      retro_atomic_store_release_int(&writer_filled, 1);
    }
    wait_on_size(size);
 #endif
@@ -246,18 +267,19 @@ static void writer(void *data)
             ring[write_pos + k] = seq * 7u + (uint32_t)k;
       }
       write_pos += size;
+      check_landing();
       retro_atomic_store_release_int(&ato_write_pos, write_pos);
-      /* Equal positions mean empty to the reader; reaching that with a
-       * packet just published loses the whole ring. */
-      if (write_pos == get_read_pos())
-         retro_atomic_fetch_add_int(&equal_while_full, 1);
    }
+   retro_atomic_store_release_int(&writer_filled, 1);
    retro_atomic_store_release_int(&done, 1);
 }
 
 static void reader(void *data)
 {
    (void)data;
+   while (!retro_atomic_load_acquire_int(&writer_filled)
+       && !retro_atomic_load_acquire_int(&done))
+      sthread_yield();
    for (;;)
    {
       while (retro_atomic_load_acquire_int(&ato_read_pos) != get_write_pos())
