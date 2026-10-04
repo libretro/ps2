@@ -56,8 +56,8 @@ struct texture_image
    bool supports_rgba;
    /* When true, ->pixels holds packed XRGB2101010 (10-bit per channel,
     * bits [29:20]=R [19:10]=G [9:0]=B) rather than 8-bit RGBA/BGRA. Only
-    * honoured by drivers that advertise GFX_CTX_FLAGS_SCREEN_10BPC_SOURCE;
-    * others fall back to an 8-bit copy via image_texture_narrow_10bit(). */
+    * uploaded as such by drivers that answer TEXTURE_GPU_FORMAT_RGB10A2;
+    * others get an 8-bit copy via image_texture_narrow_10bit(). */
    bool pix10;
    /* Optional GPU-native compressed payload (BCn).  When non-NULL a
     * capable driver may upload it directly and leave ->pixels NULL;
@@ -103,7 +103,13 @@ enum texture_gpu_format
    TEXTURE_GPU_FORMAT_BC5,       /* RGTC2 (2 channel)  */
    TEXTURE_GPU_FORMAT_BC6H_UF,   /* BPTC unsigned HDR  */
    TEXTURE_GPU_FORMAT_BC6H_SF,   /* BPTC signed HDR    */
-   TEXTURE_GPU_FORMAT_BC7        /* BPTC LDR           */
+   TEXTURE_GPU_FORMAT_BC7,       /* BPTC LDR           */
+   /* Not a compressed payload and never on a texture_compressed:
+    * packed XRGB2101010 in ->pixels, flagged by ->pix10. Asked of
+    * supports_texture_format to learn whether the driver's load and
+    * in-place update sample it as 10-bit rather than reading its words
+    * as 8-bit texels. */
+   TEXTURE_GPU_FORMAT_RGB10A2
 };
 
 /* Numeric mip layout reported by a loader without decoding.  Offsets are
@@ -167,9 +173,21 @@ void image_texture_free(struct texture_image *img);
 bool image_texture_realize_rgba(struct texture_image *img);
 
 /* Narrow a texture_image whose ->pixels hold packed XRGB2101010 down to
- * 8-bit ARGB8888 in place (and clear ->pix10), for drivers that cannot sample
- * a 10-bit texture. No-op unless ->pix10 is set. */
+ * 8 bits a channel in place (and clear ->pix10), for drivers that cannot
+ * sample a 10-bit texture: ARGB8888 words, or memory-order R,G,B,A when
+ * ->supports_rgba is set, so ->supports_rgba stays true of the result.
+ * No-op unless ->pix10 is set. */
 void image_texture_narrow_10bit(struct texture_image *img);
+
+/* Rewrite ->pixels, linear 32-bit texels, in place as GX RGBA8 tiles:
+ * the layout the GameCube/Wii GPU samples straight from memory, 4x4
+ * tiles of 64 bytes holding the AR halves of a tile's sixteen texels
+ * and then their GB halves. ->width and ->height are rounded down to
+ * multiples of 4, which the layout requires. Decoders always emit
+ * linear images; only a consumer that hands the pixels to the GX
+ * itself asks for this. False, with @img untouched, when the four-row
+ * scratch cannot be allocated. */
+bool image_texture_tile_gx(struct texture_image *img);
 
 /* Image transfer */
 
