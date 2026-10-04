@@ -23,6 +23,7 @@
 #include <retro_common_api.h>
 #include <retro_atomic.h>
 #include <rthreads/rthreads.h>
+#include <rthreads/retro_eventcount.h>
 #include <streams/file_stream.h>
 
 /* The emulated SPEED ATA hard drive, in C89. State lives in a plain
@@ -144,9 +145,8 @@ typedef struct ata_state
 	uint8_t* currentWrite; /* array */
 
 	sthread_t* ioThread;
-	slock_t* ioMutex;
-	scond_t* ioThreadIdle_cv;
-	scond_t* ioReady;
+	retro_eventcount_t ioReadyEc; /* EE -> IO thread: a request is set */
+	retro_eventcount_t ioIdleEc;  /* IO thread -> EE: it went idle   */
 
 	ata_cmd_fn waitingCmd;
 	ata_cmd_fn pioDRQEndTransferFunc;
@@ -173,7 +173,11 @@ typedef struct ata_state
 	int pioEnd;
 	int sectorsPerInterrupt;
 
+	/* IO thread handshake; see ATA_Transfer.c. */
 	retro_atomic_int_t ioClose;
+	retro_atomic_int_t ioRead;
+	retro_atomic_int_t ioWrite;
+	retro_atomic_int_t ioThreadIdle;
 
 	uint16_t curCylinders;
 	/* WriteOnly, Only to be written BSY and DRQ are cleared, DMACK is
@@ -239,9 +243,6 @@ typedef struct ata_state
 
 	bool awaitFlush;
 	bool ioRunning;
-	bool ioThreadIdle_bool;
-	bool ioWrite;
-	bool ioRead;
 
 	/* Smart */
 	bool smartAutosave;
@@ -303,6 +304,8 @@ void ata_create_hdd_info(ata_state_t* ata, uint64_t sizeSectors);
 
 /* Transfer */
 void ata_io_thread_entry(void* userdata); /* sthread entry; userdata is the ata_state_t* */
+/* Set an IO request flag (ioRead or ioWrite) and wake the IO thread. */
+void ata_io_request(ata_state_t* ata, retro_atomic_int_t* request);
 void ata_hdd_read_async(ata_state_t* ata, ata_cmd_fn drqCMD);
 void ata_hdd_read_sync(ata_state_t* ata, ata_cmd_fn drqCMD);
 bool ata_hdd_can_assess_or_set_error(ata_state_t* ata);

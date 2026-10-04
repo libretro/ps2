@@ -121,48 +121,78 @@ static void ata_io_sparse_cache_update_location(ata_state_t* ata, uint64_t byteO
 static bool ata_io_sparse_zero(ata_state_t* ata, uint64_t byteOffset, uint64_t byteSize);
 static bool ata_is_all_zero(const void* data, size_t len);
 
+/* ioRead and ioWrite are requests: the EE sets one and announces it on
+ * ioReadyEc, the IO thread clears it once served. ioThreadIdle is set
+ * by the IO thread whenever it is between requests and announced on
+ * ioIdleEc. Neither side takes a lock; each sleeps on its eventcount
+ * only while the flag it waits for is still clear.
+ *
+ * ata_hdd_read_sync() withdraws a pending write and then waits for the
+ * IO thread to be idle, while the IO thread marks itself busy and then
+ * reads which request to serve. Each side stores, fences seq_cst and
+ * loads the other's flag, so either the IO thread sees the write
+ * withdrawn or the EE sees it busy and waits: a write never runs under
+ * the EE's synchronous read. */
+
+static INLINE bool ata_io_pending(ata_state_t* ata)
+{
+	return (retro_atomic_load_acquire_int(&ata->ioRead)
+		| retro_atomic_load_acquire_int(&ata->ioWrite)) != 0;
+}
+
+void ata_io_request(ata_state_t* ata, retro_atomic_int_t* request)
+{
+	retro_atomic_store_release_int(request, 1);
+	retro_eventcount_notify(&ata->ioReadyEc);
+}
+
+static void ata_io_wait_idle(ata_state_t* ata)
+{
+	while (!retro_atomic_load_acquire_int(&ata->ioThreadIdle))
+	{
+		int key = retro_eventcount_prepare_wait(&ata->ioIdleEc);
+		if (retro_atomic_load_acquire_int(&ata->ioThreadIdle))
+		{
+			retro_eventcount_cancel_wait(&ata->ioIdleEc);
+			break;
+		}
+		retro_eventcount_commit_wait(&ata->ioIdleEc, key);
+	}
+}
+
 void ata_io_thread_entry(void* userdata)
 {
 	ata_state_t* ata = (ata_state_t*)userdata;
-	int ioType;
-
-	slock_lock(ata->ioMutex);
-	ata->ioThreadIdle_bool = false;
-	slock_unlock(ata->ioMutex);
 
 	for (;;)
 	{
-		slock_lock(ata->ioMutex);
-		ata->ioThreadIdle_bool = true;
-		scond_broadcast(ata->ioThreadIdle_cv);
+		retro_atomic_store_release_int(&ata->ioThreadIdle, 1);
+		retro_eventcount_notify(&ata->ioIdleEc);
 
-		while (!(ata->ioRead | ata->ioWrite))
-			scond_wait(ata->ioReady, ata->ioMutex);
-		ata->ioThreadIdle_bool = false;
+		while (!ata_io_pending(ata))
+		{
+			int key = retro_eventcount_prepare_wait(&ata->ioReadyEc);
+			if (ata_io_pending(ata))
+			{
+				retro_eventcount_cancel_wait(&ata->ioReadyEc);
+				break;
+			}
+			retro_eventcount_commit_wait(&ata->ioReadyEc, key);
+		}
 
-		ioType = -1;
-		if (ata->ioRead)
-			ioType = 0;
-		else if (ata->ioWrite)
-			ioType = 1;
-
-		slock_unlock(ata->ioMutex);
+		retro_atomic_store_release_int(&ata->ioThreadIdle, 0);
+		retro_atomic_thread_fence_seq_cst();
 
 		/* Read or Write */
-		if (ioType == 0)
+		if (retro_atomic_load_acquire_int(&ata->ioRead))
 			ata_io_read(ata);
-		else if (ioType == 1)
+		else if (retro_atomic_load_acquire_int(&ata->ioWrite))
 		{
-			if (!ata_io_write(ata))
+			if (!ata_io_write(ata) && retro_atomic_load_acquire_int(&ata->ioClose))
 			{
-				if (retro_atomic_load_acquire_int(&ata->ioClose))
-				{
-					retro_atomic_store_release_int(&ata->ioClose, 0);
-					slock_lock(ata->ioMutex);
-					ata->ioThreadIdle_bool = true;
-					slock_unlock(ata->ioMutex);
-					return;
-				}
+				retro_atomic_store_release_int(&ata->ioClose, 0);
+				retro_atomic_store_release_int(&ata->ioThreadIdle, 1);
+				return;
 			}
 		}
 	}
@@ -186,9 +216,7 @@ static void ata_io_read(ata_state_t* ata)
 		log_cb(RETRO_LOG_ERROR, "DEV9: ATA: File read error\n");
 		abort();
 	}
-	slock_lock(ata->ioMutex);
-	ata->ioRead = false;
-	slock_unlock(ata->ioMutex);
+	retro_atomic_store_release_int(&ata->ioRead, 0);
 }
 
 static bool ata_io_write(ata_state_t* ata)
@@ -198,9 +226,10 @@ static bool ata_io_write(ata_state_t* ata)
 
 	if (!ata_write_queue_dequeue(&ata->writeQueue, &entry))
 	{
-		slock_lock(ata->ioMutex);
-		ata->ioWrite = false;
-		slock_unlock(ata->ioMutex);
+		/* A swap rather than a store: a request ata_close() set after
+		 * the failed dequeue is read here, and with it the ioClose it
+		 * published first. */
+		retro_atomic_exchange_int(&ata->ioWrite, 0);
 		return false;
 	}
 
@@ -403,10 +432,7 @@ void ata_hdd_read_async(ata_state_t* ata, ata_cmd_fn drqCMD)
 	}
 	ata->waitingCmd = drqCMD;
 
-	slock_lock(ata->ioMutex);
-	ata->ioRead = true;
-	slock_unlock(ata->ioMutex);
-	scond_broadcast(ata->ioReady);
+	ata_io_request(ata, &ata->ioRead);
 }
 
 /* Note, we don't expect both Async & Sync Reads
@@ -415,27 +441,18 @@ void ata_hdd_read_sync(ata_state_t* ata, ata_cmd_fn drqCMD)
 {
 	bool ioWritePaused;
 
-	slock_lock(ata->ioMutex);
-	/* Set ioWrite false to prevent reading & writing at the same time */
-	ioWritePaused = ata->ioWrite;
-	ata->ioWrite = false;
-
-	/* wait until thread waiting */
-	while (!ata->ioThreadIdle_bool)
-		scond_wait(ata->ioThreadIdle_cv, ata->ioMutex);
-	slock_unlock(ata->ioMutex);
+	/* Withdraw any write request to prevent reading & writing at the
+	 * same time, then wait until the IO thread is idle. */
+	ioWritePaused = retro_atomic_exchange_int(&ata->ioWrite, 0) != 0;
+	retro_atomic_thread_fence_seq_cst();
+	ata_io_wait_idle(ata);
 
 	ata->nsectorLeft = 0;
 
 	if (!ata_hdd_can_assess_or_set_error(ata))
 	{
 		if (ioWritePaused)
-		{
-			slock_lock(ata->ioMutex);
-			ata->ioWrite = true;
-			slock_unlock(ata->ioMutex);
-			scond_broadcast(ata->ioReady);
-		}
+			ata_io_request(ata, &ata->ioWrite);
 		return;
 	}
 
@@ -452,12 +469,7 @@ void ata_hdd_read_sync(ata_state_t* ata, ata_cmd_fn drqCMD)
 	ata_io_read(ata);
 
 	if (ioWritePaused)
-	{
-		slock_lock(ata->ioMutex);
-		ata->ioWrite = true;
-		slock_unlock(ata->ioMutex);
-		scond_broadcast(ata->ioReady);
-	}
+		ata_io_request(ata, &ata->ioWrite);
 
 	drqCMD(ata);
 }

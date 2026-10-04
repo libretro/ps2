@@ -178,3 +178,7 @@ tests/mtgsclose/mtgsclose
 tests/mtgsclose/mtgsclose_rule1
 tests/mtgsclose/mtgsclose_rule2
 tests/mtgsclose/mtgsclose_tsan
+tests/ata/ata_test
+tests/ata/ata_test_tsan
+tests/ata/*.exe
+tests/ata/*.img
