@@ -210,7 +210,18 @@ int mVUra_findFreeReg(struct microRegAlloc* r, int vfreg)
 				return i; // Reg is not needed and was a temp reg
 			}
 		}
-		return mVUra_findFreeRegRec(r, 0);
+		{
+			/* -1 means all fifteen are needed by the op being compiled;
+			 * every caller indexes xmmMap with the result. */
+			const int x = mVUra_findFreeRegRec(r, 0);
+			if (x < 0)
+			{
+				log_cb(RETRO_LOG_ERROR, "microVU%d: all %d XMM registers are needed by one instruction\n",
+					r->index, (int)xmmTotal);
+				abort();
+			}
+			return x;
+		}
 	}
 
 int mVUra_findFreeGPRRec(struct microRegAlloc* r, int startIdx)
@@ -240,7 +251,15 @@ int mVUra_findFreeGPR(struct microRegAlloc* r, int vireg)
 				return i; // Reg is not needed and was a temp reg
 			}
 		}
-		return mVUra_findFreeGPRRec(r, 0);
+		{
+			const int x = mVUra_findFreeGPRRec(r, 0);
+			if (x < 0)
+			{
+				log_cb(RETRO_LOG_ERROR, "microVU%d: no allocatable GPR is free for this instruction\n", r->index);
+				abort();
+			}
+			return x;
+		}
 	}
 
 void mVUra_reset(struct microRegAlloc* r, int cop2mode)

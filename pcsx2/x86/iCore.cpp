@@ -1,4 +1,5 @@
 #include "common/emitter/c89ops.h"
+#include <stdlib.h> /* abort */
 #include "../Config.h"
 /*  PCSX2 - PS2 Emulator for PCs
  *  Copyright (C) 2002-2010  PCSX2 Dev Team
@@ -167,6 +168,12 @@ int _getFreeXMMreg(u32 maxreg)
 		return tempi;
 	}
 
+	/* Every register is needed by the instruction being compiled, so
+	 * there is nothing to evict. Each caller indexes xmmregs (and the
+	 * microVU map in COP2 mode) with the result; -1 there writes the
+	 * memory in front of those arrays. Stop at the cause instead. */
+	log_cb(RETRO_LOG_ERROR, "Recompiler: all %u XMM registers are needed by one instruction\n", maxreg);
+	abort();
 	return -1;
 }
 

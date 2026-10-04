@@ -731,13 +731,17 @@ static void mVUmaskedAddSubOp(mV, int to, int from, bool isPS, bool issub)
 		/* every allocation this construction will ever need, hoisted
 		 * above the branch (see the note on mVUexactAddSubStage) and
 		 * above the mask stage, which folds the operand exp-255 flag
-		 * into sB on AVX hosts while the exponent fields are live */
+		 * into sB on AVX hosts while the exponent fields are live.
+		 * The stage's last two temps are tM and tS: both are dead once
+		 * the detector has branched (tS restored into dst, tM tested),
+		 * and every stage temp is written before it is read. That
+		 * keeps the composite at eight registers, so a fused op holds
+		 * its operands, ACC and overflow blend within the fifteen the
+		 * allocator has. */
 		const int sA = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
 		const int sB = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
 		const int sC = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
 		const int sQ = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
-		const int sE = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
-		const int sZ = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
 		const bool elide = mVU->addsubMaskNoop;
 		mVU->addsubMaskNoop = false;
 		mVU->addsubRecTotal++;
@@ -786,19 +790,17 @@ static void mVUmaskedAddSubOp(mV, int to, int from, bool isPS, bool issub)
 				xe_ptest_xx(tM, tM);
 				xe_fwd_jcc32(Jcc_Zero, to_fast_done);
 				xe_movaps_xx(dst, tS);            /* restore masked a */
-				mVUexactAddSubStage(mVU, dst, tD, false, sA, sB, sC, sQ, sE, sZ);
+				mVUexactAddSubStage(mVU, dst, tD, false, sA, sB, sC, sQ, tM, tS);
 				xe_fwd_set32(to_fast_done);
 			}
 			else
 			{
-				mVUexactAddSubStage(mVU, dst, tD, false, sA, sB, sC, sQ, sE, sZ);
+				mVUexactAddSubStage(mVU, dst, tD, false, sA, sB, sC, sQ, tM, tS);
 			}
 			mVUra_clearNeededXMM(mVU->regAlloc, sA);
 			mVUra_clearNeededXMM(mVU->regAlloc, sB);
 			mVUra_clearNeededXMM(mVU->regAlloc, sC);
 			mVUra_clearNeededXMM(mVU->regAlloc, sQ);
-			mVUra_clearNeededXMM(mVU->regAlloc, sE);
-			mVUra_clearNeededXMM(mVU->regAlloc, sZ);
 		}
 		if (!isPS)
 		{

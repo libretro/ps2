@@ -13,6 +13,7 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stdlib.h> /* abort */
 #include <string.h> /* memset */
 
 #include "../../R3000A.h"
@@ -99,6 +100,10 @@ static int _getFreeX86reg(int mode)
 		return tempi;
 	}
 
+	/* Nothing free and nothing evictable: the caller would index
+	 * x86regs with -1. */
+	log_cb(RETRO_LOG_ERROR, "Recompiler: no allocatable GPR is free for this instruction\n");
+	abort();
 	return -1;
 }
 

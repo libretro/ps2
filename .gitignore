@@ -129,6 +129,8 @@ build*/
 /tests/faultstress/fault_test
 /tests/faultstress/fault_test_tsan
 /tests/faultstress/fault_test.exe
+/tests/xmmpressure/xmmpressure
+/tests/xmmpressure/xmmpressure.exe
 /tests/ipu/ipu_test
 /tests/iop/iop_*
 

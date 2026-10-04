@@ -385,13 +385,17 @@ static void mVU_FMACa(microVU* mVU, int recPass, int opCase, int opType, int isA
  * pattern sign follows the product's; MSUB's is flipped
  * (round_to_max = sign(product) there). Flags are the flag
  * campaign's ledger, not this blend's. */
-static __fi int mVUfusedOvfPre(mV, int prod, int* patOut, bool msub)
+/* One register is held across the add: the saturation pattern on the
+ * overflow lanes and zero elsewhere. The pattern is never zero (its
+ * magnitude is 0x7FFFFFFF), so the lane mask is recovered from it after
+ * the add, when the add's own temps are released. */
+static __fi int mVUfusedOvfPre(mV, int prod, bool msub)
 {
-	int mask, pat;
+	int ovf, pat;
 	if (!(CHECK_VU_EXACTMUL && CHECK_VU_ACC_ADDSUB))
 		return -1;
-	mask = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
-	pat  = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+	ovf = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+	pat = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
 	/* True mul-stage overflow saturates to the all-ones pattern
 	 * (sign|0x7FFFFFFF -- plain-MUL rows prove the exact mul emits
 	 * exactly this); exp-255 products with a computed mantissa come
@@ -399,47 +403,47 @@ static __fi int mVUfusedOvfPre(mV, int prod, int* patOut, bool msub)
 	 * into the add normally, so the detector matches the full
 	 * magnitude pattern, not the exponent field. */
 	xe_movaps_xm(pat, mVUglob.absclip);
-	xe_movaps_xx(mask, prod);
-	xe_pand_xx(mask, pat);
-	xe_pcmpeqd_xx(mask, pat);                 /* |prod| == 0x7FFFFFFF */
+	xe_movaps_xx(ovf, prod);
+	xe_pand_xx(ovf, pat);
+	xe_pcmpeqd_xx(ovf, pat);                  /* |prod| == 0x7FFFFFFF */
 	xe_movaps_xx(pat, prod);
 	xe_pand_xm(pat, mVUglob.signbit);
 	if (msub)
 		xe_pxor_xm(pat, mVUglob.signbit);
 	xe_por_xm(pat, mVUglob.absclip);          /* sign | 0x7FFFFFFF */
-	*patOut = pat;
-	return mask;
+	xe_pand_xx(ovf, pat);                     /* pattern on ovf lanes */
+	mVUra_clearNeededXMM(mVU->regAlloc, pat);
+	return ovf;
 }
 
-static __fi void mVUfusedOvfPost(mV, int dst, int mask, int pat)
+static __fi void mVUfusedOvfPost(mV, int dst, int ovf)
 {
-	if (mask < 0)
+	int keep;
+	if (ovf < 0)
 		return;
+	keep = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+	xe_pxor_xx(keep, keep);
+	xe_pcmpeqd_xx(keep, ovf);                 /* lanes the add keeps */
 	{
 		/* mac_finish sets O on mul-overflow lanes regardless of the
 		 * add; fold them into the composite's event spill so the
-		 * flag block sees the union. */
+		 * flag block sees the union. The spill is stored in the
+		 * reversed convention the flag block's movmsk/shl path
+		 * expects, so the lane mask is reversed for the OR, or the
+		 * blend lanes land mirrored in the mac nibble. */
 		extern u32 s_vuAddSubOvfEvent[4];
 		const int t = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
-		xe_movaps_xm(t, &s_vuAddSubOvfEvent[0]);
-		/* The spill is stored in the reversed convention the flag
-		 * block's movmsk/shl path expects; the blend mask is in
-		 * architectural order, so reverse it for the OR (and restore
-		 * -- the value blend still needs it). Unreversed, blend
-		 * lanes landed mirrored in the mac nibble (fpaudit: fused-
-		 * only both-direction per-lane O flips while ADD was exact). */
-		xe_pshufd_xxi(mask, mask, 0x1B);
-		xe_por_xx(t, mask);
-		xe_pshufd_xxi(mask, mask, 0x1B);
+		xe_pcmpeqd_xx(t, t);
+		xe_pxor_xx(t, keep);                  /* overflow lanes */
+		xe_pshufd_xxi(t, t, 0x1B);
+		xe_por_xm(t, &s_vuAddSubOvfEvent[0]);
 		xe_movaps_mx(&s_vuAddSubOvfEvent[0], t);
 		mVUra_clearNeededXMM(mVU->regAlloc, t);
 	}
-	xe_pand_xx(pat, mask);                    /* pattern on ovf lanes */
-	xe_pandn_xx(mask, dst);                   /* mask = ~mask & dst   */
-	xe_por_xx(mask, pat);
-	xe_movaps_xx(dst, mask);
-	mVUra_clearNeededXMM(mVU->regAlloc, mask);
-	mVUra_clearNeededXMM(mVU->regAlloc, pat);
+	xe_pand_xx(dst, keep);
+	xe_por_xx(dst, ovf);
+	mVUra_clearNeededXMM(mVU->regAlloc, keep);
+	mVUra_clearNeededXMM(mVU->regAlloc, ovf);
 }
 
 // MADDA/MSUBA Opcodes
@@ -470,10 +474,10 @@ static void mVU_FMACb(microVU* mVU, int recPass, int opCase, int opType, int cla
 
 		if (_XYZW_SS || _X_Y_Z_W == 0xf)
 		{
-			int fovPat; const int fovMask = mVUfusedOvfPre(mVU, Fs, &fovPat, opType == 1);
+			const int fov = mVUfusedOvfPre(mVU, Fs, opType == 1);
 			if (_XYZW_SS) SSE_SS[opType](mVU, ACC, Fs, tempFt, -1);
 			else          SSE_PS[opType](mVU, ACC, Fs, tempFt, -1);
-			mVUfusedOvfPost(mVU, ACC, fovMask, fovPat);
+			mVUfusedOvfPost(mVU, ACC, fov);
 			mVUupdateFlags(mVU, ACC, Fs, tempFt);
 			if (_XYZW_SS && _X_Y_Z_W != 8)
 				xe_pshufd_xxi(ACC, ACC, shuffleSS(_X_Y_Z_W));
@@ -481,10 +485,10 @@ static void mVU_FMACb(microVU* mVU, int recPass, int opCase, int opType, int cla
 		else
 		{
 			const int tempACC = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
-			int fovPat; const int fovMask = mVUfusedOvfPre(mVU, Fs, &fovPat, opType == 1);
+			const int fov = mVUfusedOvfPre(mVU, Fs, opType == 1);
 			xe_movaps_xx(tempACC, ACC);
 			SSE_PS[opType](mVU, tempACC, Fs, tempFt, -1);
-			mVUfusedOvfPost(mVU, tempACC, fovMask, fovPat);
+			mVUfusedOvfPost(mVU, tempACC, fov);
 			mVUmergeRegs(ACC, tempACC, _X_Y_Z_W, 0);
 			mVUupdateFlags(mVU, ACC, Fs, tempFt);
 			mVUra_clearNeededXMM(mVU->regAlloc, tempACC);
@@ -525,10 +529,10 @@ static void mVU_FMACc(microVU* mVU, int recPass, int opCase, int clampType)
 			else          SSE_PS[2](mVU, Fs, Ft, -1, -1);
 		}
 		{
-			int fovPat; const int fovMask = mVUfusedOvfPre(mVU, Fs, &fovPat, false);
+			const int fov = mVUfusedOvfPre(mVU, Fs, false);
 			if (_XYZW_SS) SSE_SS[0](mVU, Fs, ACC, tempFt, -1);
 			else          SSE_PS[0](mVU, Fs, ACC, tempFt, -1);
-			mVUfusedOvfPost(mVU, Fs, fovMask, fovPat);
+			mVUfusedOvfPost(mVU, Fs, fov);
 		}
 
 		if (_XYZW_SS2)
@@ -567,10 +571,10 @@ static void mVU_FMACd(microVU* mVU, int recPass, int opCase, int clampType)
 			else          SSE_PS[2](mVU, Fs, Ft, -1, -1);
 		}
 		{
-			int fovPat; const int fovMask = mVUfusedOvfPre(mVU, Fs, &fovPat, true);
+			const int fov = mVUfusedOvfPre(mVU, Fs, true);
 			if (_XYZW_SS) SSE_SS[1](mVU, Fd, Fs, tempFt, -1);
 			else          SSE_PS[1](mVU, Fd, Fs, tempFt, -1);
-			mVUfusedOvfPost(mVU, Fd, fovMask, fovPat);
+			mVUfusedOvfPost(mVU, Fd, fov);
 		}
 
 		mVUupdateFlags(mVU, Fd, Fs, tempFt);
