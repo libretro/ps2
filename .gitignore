@@ -184,3 +184,5 @@ tests/ata/ata_test
 tests/ata/ata_test_tsan
 tests/ata/*.exe
 tests/ata/*.img
+/tests/spsc/spsc_worksema
+/tests/spsc/spsc_worksema_tsan

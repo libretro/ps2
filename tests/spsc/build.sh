@@ -28,14 +28,24 @@ fi
 # but the primitive, which is exactly what TSan is for.
 if [ "$WINDOWS" != "1" ]; then
   LC="$ROOT/libretro/libretro-common"
-  WS_SRC="$DIR/worksema.cpp \
-    $LC/rthreads/rthreads.c $LC/rthreads/retro_eventcount.c \
+  WS_C="$LC/rthreads/rthreads.c $LC/rthreads/retro_eventcount.c \
     $LC/rthreads/retro_procbarrier.c $LC/rthreads/retro_asym_eventcount.c"
   WS_INC="-I $ROOT -I $ROOT/common -I $ROOT/common/include -I $LC/include"
-  ${CXX:-c++} -std=c++17 -O1 -g -w -D_GNU_SOURCE -DHAVE_THREADS $WS_INC \
-    -o "$DIR/spsc_worksema" $WS_SRC -lpthread
+  # The libretro-common units are C and are built as C, as the core
+  # builds them; only the harness is C++.
+  ws_build() { # output, extra flags
+    OBJ_DIR="$DIR/.obj_$1"
+    rm -rf "$OBJ_DIR" && mkdir -p "$OBJ_DIR"
+    for src in $WS_C; do
+      ${CC:-gcc} -std=gnu99 -O1 -g -w -D_GNU_SOURCE -DHAVE_THREADS $2 $WS_INC \
+        -c "$src" -o "$OBJ_DIR/$(basename "$src" .c).o"
+    done
+    ${CXX:-c++} -std=c++17 -O1 -g -w -D_GNU_SOURCE -DHAVE_THREADS $2 $WS_INC \
+      -o "$DIR/$1" "$DIR/worksema.cpp" "$OBJ_DIR"/*.o -lpthread
+    rm -rf "$OBJ_DIR"
+  }
+  ws_build spsc_worksema ""
   "$DIR/spsc_worksema"
-  ${CXX:-c++} -std=c++17 -O1 -g -w -fsanitize=thread -D_GNU_SOURCE -DHAVE_THREADS $WS_INC \
-    -o "$DIR/spsc_worksema_tsan" $WS_SRC -lpthread
+  ws_build spsc_worksema_tsan "-fsanitize=thread"
   "$DIR/spsc_worksema_tsan"
 fi
