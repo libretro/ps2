@@ -20,7 +20,8 @@
  *
  * RULE selects the consumer's order:
  *   0  the tree's: copy, go idle, then scan out and present
- *   1  scan out and present, and go idle on the next call's wait
+ *   1  scan out and present, then commit the vsync and go idle on the
+ *      next call's wait
  *   2  go idle, then scan out from the live registers, no copy
  * build.sh runs 0 and requires 1 and 2 to fail: under 1 the producer is
  * held through every present, so no release is ever observed during one;
@@ -61,6 +62,16 @@ static int regs_copy;
 static retro_atomic_int_t released_after;
 static retro_eventcount_t released_ec;
 
+/* The vsync record in the ring: posted by the producer, committed by
+ * the consumer. WaitGS waits for the ring to drain. */
+static retro_atomic_int_t ring_vsyncs;
+
+static int ring_drained(void *ctx)
+{
+   (void)ctx;
+   return retro_atomic_load_acquire_int(&ring_vsyncs) == 0;
+}
+
 static void producer_main(void *arg)
 {
    int frame;
@@ -69,8 +80,9 @@ static void producer_main(void *arg)
    {
       /* The frame's registers, then the vsync, then WaitGS(false). */
       retro_atomic_store_release_int(&live_regs, frame);
+      retro_atomic_fetch_add_int(&ring_vsyncs, 1);
       work_eventcount_notify(&ev);
-      work_eventcount_wait_empty(&ev);
+      work_eventcount_wait_drained(&ev, ring_drained, NULL);
       /* Released: the next frame starts with its register write. */
       retro_atomic_store_release_int(&live_regs, frame + 1);
       retro_atomic_store_release_int(&released_after, frame);
@@ -109,6 +121,7 @@ int main(void)
    retro_eventcount_init(&released_ec);
    retro_atomic_store_relaxed_int(&live_regs, 0);
    retro_atomic_store_relaxed_int(&released_after, 0);
+   retro_atomic_store_relaxed_int(&ring_vsyncs, 0);
 
    producer = sthread_create(producer_main, NULL);
    if (!producer)
@@ -129,14 +142,14 @@ int main(void)
       /* The tree's order: the registers are the frame's while the
        * producer is held; copy them, let it go, then scan out. */
       regs_copy = retro_atomic_load_acquire_int(&live_regs);
-      if (work_eventcount_check(&ev))
-         work_eventcount_notify(&ev);
+      retro_atomic_fetch_sub_int(&ring_vsyncs, 1);
+      work_eventcount_drained(&ev, work_eventcount_epoch(&ev), 0);
       during  = present(frame);
       scanned = regs_copy;
 #elif RULE == 2
       /* Let go first, then scan out from the live registers. */
-      if (work_eventcount_check(&ev))
-         work_eventcount_notify(&ev);
+      retro_atomic_fetch_sub_int(&ring_vsyncs, 1);
+      work_eventcount_drained(&ev, work_eventcount_epoch(&ev), 0);
       during  = present(frame);
       scanned = retro_atomic_load_acquire_int(&live_regs);
 #else
@@ -144,6 +157,7 @@ int main(void)
        * next wait's idle. The scanout reads the live registers. */
       during  = present(frame);
       scanned = retro_atomic_load_acquire_int(&live_regs);
+      retro_atomic_fetch_sub_int(&ring_vsyncs, 1);
 #endif
 
       if (!during)

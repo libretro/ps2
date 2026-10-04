@@ -155,6 +155,27 @@ static INLINE int work_eventcount_check(WorkEventCount *w)
 	return 0;
 }
 
+/* The epoch to hand work_eventcount_drained(), read before the worker
+ * looks at its queue. */
+static INLINE int work_eventcount_epoch(WorkEventCount *w)
+{
+	return retro_atomic_load_acquire_int(&w->work.epoch);
+}
+
+/* The worker has drained its queue up to a record the producer waits
+ * on (MTGS's vsync): go idle now rather than at its next wait, which is
+ * what wakes a producer parked in work_eventcount_wait_drained().
+ * `pending` is whether the queue still held anything when looked at
+ * after `epoch` was read; anything still queued re-arms the work count
+ * so the next wait drains it. */
+static INLINE void work_eventcount_drained(WorkEventCount *w, int epoch, int pending)
+{
+	if (pending)
+		work_eventcount_notify(w);
+	else if (!retro_atomic_load_acquire_int(&w->dead))
+		work_eventcount_go_idle(w, epoch);
+}
+
 static INLINE void work_eventcount_wait(WorkEventCount *w)
 {
 	const s32 spin_budget = WorkEventCount_SpinBudget();
@@ -273,6 +294,39 @@ static INLINE int work_eventcount_wait_empty(WorkEventCount *w)
 			return 0;
 		}
 		if (work_eventcount_is_empty(w))
+		{
+			retro_eventcount_cancel_wait(&w->empty);
+			return 1;
+		}
+		retro_eventcount_commit_wait(&w->empty, key);
+	}
+}
+
+/* Block until `drained(ctx)` reports that the worker has consumed
+ * everything the producer queued; 0 if the worker is dead. For a
+ * producer whose queue can answer that itself, which is a stronger
+ * answer than the idle epoch: a worker can take a record before the
+ * notify that announces it and go idle an epoch behind, and
+ * work_eventcount_wait_empty() would then hold the producer until the
+ * worker's next wait. Woken by the worker going idle, which every drain
+ * that empties the queue ends with. */
+static INLINE int work_eventcount_wait_drained(WorkEventCount *w,
+		int (*drained)(void *ctx), void *ctx)
+{
+	for (;;)
+	{
+		int key;
+		if (retro_atomic_load_acquire_int(&w->dead))
+			return 0;
+		if (drained(ctx))
+			return 1;
+		key = retro_eventcount_prepare_wait(&w->empty);
+		if (retro_atomic_load_acquire_int(&w->dead))
+		{
+			retro_eventcount_cancel_wait(&w->empty);
+			return 0;
+		}
+		if (drained(ctx))
 		{
 			retro_eventcount_cancel_wait(&w->empty);
 			return 1;

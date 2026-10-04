@@ -123,14 +123,27 @@ static void drain(int flush_all)
 			retro_atomic_fetch_sub_int(&ring_vsyncs, 1);
 			consumed++;
 			/* The per-frame exit lets the EE go before the scanout. */
-			if (!flush_all && work_eventcount_check(&ev))
-				work_eventcount_notify(&ev);
+			if (!flush_all)
+			{
+				const int epoch = work_eventcount_epoch(&ev);
+				work_eventcount_drained(&ev, epoch,
+						retro_atomic_load_acquire_int(&ring_work) > 0
+						|| retro_atomic_load_acquire_int(&ring_vsyncs) > 0);
+			}
 			if (presents(flush_all))
 				video_refresh();
 			if (!flush_all)
 				return;
 		}
 	}
+}
+
+/* MTGS.cpp's mtgs_ring_drained: everything posted has been consumed. */
+static int ring_drained(void *ctx)
+{
+	(void)ctx;
+	return retro_atomic_load_acquire_int(&ring_work) == 0
+		&& retro_atomic_load_acquire_int(&ring_vsyncs) == 0;
 }
 
 /* The EE: a frame's packets, its vsync, and the wait behind it
@@ -145,7 +158,7 @@ static void ee_thread(void *u)
 		retro_atomic_fetch_add_int(&ring_vsyncs, 1);
 		retro_atomic_fetch_add_int(&posted, 1);
 		work_eventcount_notify(&ev);
-		work_eventcount_wait_empty(&ev);
+		work_eventcount_wait_drained(&ev, ring_drained, NULL);
 		if (retro_atomic_load_acquire_int(&pause_req))
 		{
 			retro_atomic_store_release_int(&ee_paused, 1);

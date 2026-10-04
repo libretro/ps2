@@ -449,11 +449,14 @@ bool MTGS::MainLoop(bool flush_all)
 						retro_spsc_read_end(&s_Ring, consumed);
 						consumed = 0;
 						/* Idle at the current epoch releases WaitGS's
-						 * empty-wait. Entries behind the vsync (a soft-reset
-						 * tag rides along with no notify of its own) re-arm
-						 * the work count so the next call drains them. */
-						if (work_eventcount_check(&s_sem_event) || retro_spsc_read_avail(&s_Ring) != 0)
-							work_eventcount_notify(&s_sem_event);
+						 * empty-wait, including when the vsync's own notify
+						 * landed after this drain began. Entries behind the
+						 * vsync (a soft-reset tag rides along with no notify
+						 * of its own) re-arm the work count so the next call
+						 * drains them. */
+						const int epoch = work_eventcount_epoch(&s_sem_event);
+						work_eventcount_drained(&s_sem_event, epoch,
+								retro_spsc_read_avail(&s_Ring) != 0);
 					}
 					/* Whether this vsync is scanned out: see
 					 * mtgs_vsync_presents (MTGSOwner.h). A drain on the
@@ -525,6 +528,14 @@ void MTGS::CloseGS(void)
 // Waits for the GS to empty out the entire ring buffer contents.
 // This function is allowed to exit after MTGS finished a path1 packet.
 // If isMTVU, then this implies this function is being called from the MTVU thread...
+/* The consumer commits a record only once it has processed it, and the
+ * vsync before its scanout, so an empty ring is a drained one. */
+static int mtgs_ring_drained(void* ctx)
+{
+	(void)ctx;
+	return retro_spsc_read_avail(&s_Ring) == 0;
+}
+
 void MTGS::WaitGS(bool isMTVU)
 {
 	/* See MTGSOwner.h for who drains and why it is decided by who
@@ -545,9 +556,14 @@ void MTGS::WaitGS(bool isMTVU)
 		if (!IsOpen())
 			return;
 		work_eventcount_notify(&s_sem_event);
-		/* Blocks until the ring drains. The return value (false if the
-		 * ring was killed) is unused, as at the other wait_empty sites. */
-		work_eventcount_wait_empty(&s_sem_event);
+		/* Blocks until the ring drains: until MainLoop has committed
+		 * every record written so far, the vsync among them. The return
+		 * value (false if the ring was killed) is unused, as at the
+		 * other wait_empty sites. */
+		if (s_RingOk)
+			work_eventcount_wait_drained(&s_sem_event, mtgs_ring_drained, NULL);
+		else
+			work_eventcount_wait_empty(&s_sem_event);
 		return;
 	}
 	if (!IsOpen()) /* WaitGS issued on a closed thread! */
