@@ -44,7 +44,6 @@ class SocketAdapter : public NetAdapter
 
 public:
 	SocketAdapter();
-	virtual bool blocks();
 	virtual bool isInitialised();
 	//gets a packet.rv :true success
 	virtual bool recv(NetPacket* pkt);

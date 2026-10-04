@@ -32,7 +32,8 @@
 #define __inline inline
 #endif
 
-void rx_process(NetPacket* pk);
+/* EE thread. Returns whether the packet went into the RX FIFO. */
+bool rx_process(NetPacket* pk);
 bool rx_fifo_can_rx();
 
 #define ETH_DEF "eth0"

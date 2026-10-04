@@ -1,0 +1,55 @@
+#!/bin/sh
+# The SMAP's receive path on the real net.cpp and smap.cpp: frames from
+# the host on the RX thread, delivered and read out on the EE. Plain and
+# TSan; MSYS2 MINGW64 builds and runs the plain one.
+# Runnable from ANY directory - paths resolve relative to this script.
+set -e
+DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+ROOT=$(CDPATH= cd -- "$DIR/../.." && pwd)
+LC="$ROOT/libretro/libretro-common"
+P="$ROOT/pcsx2"
+CC=${CC:-cc}
+CXX=${CXX:-c++}
+SANFLAGS="${SANFLAGS:-}"
+
+case "$(uname -s 2>/dev/null)" in
+  MINGW*|MSYS*|CYGWIN*) WINDOWS=1; EXE=.exe; LIBS="-lws2_32 -liphlpapi" ;;
+  *)                    WINDOWS=0; EXE="";   LIBS="-lpthread" ;;
+esac
+
+CXX_SRC="$DIR/glue.cpp $P/DEV9/net.cpp $P/DEV9/smap.cpp \
+  $P/DEV9/InternalServers/DHCP_Server.cpp $P/DEV9/InternalServers/DNS_Server.cpp \
+  $P/DEV9/InternalServers/DNS_Logger.cpp $P/DEV9/AdapterUtils.cpp \
+  $P/DEV9/PacketReader/EthernetFrame.cpp $P/DEV9/PacketReader/IP/IP_Packet.cpp \
+  $P/DEV9/PacketReader/IP/IP_Options.cpp $P/DEV9/PacketReader/IP/UDP/UDP_Packet.cpp \
+  $P/DEV9/PacketReader/IP/UDP/DHCP/DHCP_Packet.cpp $P/DEV9/PacketReader/IP/UDP/DHCP/DHCP_Options.cpp \
+  $P/DEV9/PacketReader/IP/UDP/DNS/DNS_Packet.cpp $P/DEV9/PacketReader/IP/UDP/DNS/DNS_Classes.cpp \
+  $P/Pcsx2Config.cpp $P/MemoryCardFile.cpp $P/FormatString.cpp $P/StringView.cpp"
+C_SRC="$DIR/main.c \
+  $LC/rthreads/rthreads.c $LC/rthreads/retro_procbarrier.c $LC/queues/retro_spsc.c \
+  $LC/string/stdstring.c $LC/string/rstrtod.c $LC/file/file_path.c $LC/file/file_path_io.c \
+  $LC/compat/compat_strl.c $LC/compat/fopen_utf8.c $LC/encodings/encoding_utf.c \
+  $LC/time/rtime.c $LC/streams/file_stream.c $LC/vfs/vfs_implementation.c"
+if [ "$WINDOWS" != "1" ]; then
+  C_SRC="$C_SRC $LC/compat/compat_ifaddrs.c"
+fi
+INC="-I $ROOT -I $P -I $ROOT/common -I $ROOT/common/include -I $ROOT/3rdparty/include -I $LC/include"
+DEFS="-DHAVE_THREADS -D_GNU_SOURCE -D__LIBRETRO__"
+
+build() { # output, extra flags
+	OBJ="$DIR/.obj_$1"
+	rm -rf "$OBJ" && mkdir -p "$OBJ"
+	for src in $C_SRC; do
+		"$CC" -std=gnu99 -w $DEFS $2 $INC -c "$src" -o "$OBJ/$(basename "$src" .c).o"
+	done
+	"$CXX" -std=c++17 -w $DEFS $2 $INC -o "$DIR/$1$EXE" $CXX_SRC "$OBJ"/*.o $LIBS
+	rm -rf "$OBJ"
+}
+
+build smaprx_test "-O2 -g $SANFLAGS"
+"$DIR/smaprx_test$EXE"
+
+if [ "$WINDOWS" != "1" ]; then
+	build smaprx_test_tsan "-O1 -g -fsanitize=thread"
+	"$DIR/smaprx_test_tsan" 5000
+fi

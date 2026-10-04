@@ -80,8 +80,7 @@ namespace InternalServers
 		return answers;
 	}
 
-	DNS_Server::DNS_Server(std::function<void()> receivedcallback)
-		: callback{receivedcallback}
+	DNS_Server::DNS_Server()
 	{
 #ifdef _WIN32
 		/* Use the MAKEWORD(lowbyte, highbyte) macro declared in Windef.h */
@@ -253,7 +252,6 @@ namespace InternalServers
 		retUdp->sourcePort = 53;
 		retUdp->destinationPort = clientPort;
 		dnsQueue.Enqueue(retUdp);
-		callback();
 	}
 
 	DNS_Server::~DNS_Server()

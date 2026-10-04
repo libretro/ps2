@@ -14,7 +14,6 @@
  */
 
 #ifdef _WIN32
-#include <retro_atomic.h>
 #include "common/RedtapeWindows.h"
 #include <winioctl.h>
 #endif
@@ -27,25 +26,8 @@
 
 #include "smap.h"
 #include "net.h"
-#include "../SLockGuard.h"
 
 bool has_link = true;
-/* Set by the RX thread per received packet, consumed by smap_async on
- * the EE side (deferred because the IOP irq system is not thread
- * safe - see the comment at the set site).  Consumed with an atomic
- * exchange: with the old plain flag, a set landing between the EE's
- * test and clear was swallowed - a lost RXEND interrupt. */
-static retro_atomic_int_t fireIntR;
-static slock_t* frame_counter_mutex(void)
-{
-	static slock_t* lock = slock_new();
-	return lock;
-}
-static slock_t* reset_mutex(void)
-{
-	static slock_t* lock = slock_new();
-	return lock;
-}
 /*
 #define	SMAP_BASE			0xb0000000
 #define	SMAP_REG8(Offset)		(*(u8 volatile*)(SMAP_BASE+(Offset)))
@@ -97,7 +79,7 @@ bool rx_fifo_can_rx()
 	return true;
 }
 
-void rx_process(NetPacket* pk)
+bool rx_process(NetPacket* pk)
 {
 	smap_bd_t* pbd = ((smap_bd_t*)&dev9.dev9R[SMAP_BD_RX_BASE & 0xffff]) + dev9.rxbdi;
 
@@ -106,7 +88,7 @@ void rx_process(NetPacket* pk)
 	if (!(pbd->ctrl_stat & SMAP_BD_RX_EMPTY))
 	{
 		log_cb(RETRO_LOG_ERROR, "DEV9: ERROR : Discarding %d bytes (RX%d not ready)\n", bytes, dev9.rxbdi);
-		return;
+		return false;
 	}
 
 	int pstart = (dev9.rxfifo_wr_ptr) & 16383;
@@ -118,7 +100,6 @@ void rx_process(NetPacket* pk)
 	}
 
 	//increase RXBD
-	SLockGuard reset_lock(reset_mutex());
 	dev9.rxbdi++;
 	dev9.rxbdi &= (SMAP_BD_SIZE / 8) - 1;
 
@@ -128,14 +109,8 @@ void rx_process(NetPacket* pk)
 	pbd->ctrl_stat &= ~SMAP_BD_RX_EMPTY;
 
 	//increase frame count
-	SLockGuard counter_lock(frame_counter_mutex());
 	dev9Ru8(SMAP_R_RXFIFO_FRAME_CNT)++;
-	counter_lock.Unlock();
-	reset_lock.Unlock();
-	//spams// emu_printf("Got packet, %d bytes (%d fifo)\n", pk->size,bytes);
-	retro_atomic_store_release_int(&fireIntR, 1);
-	//_DEV9irq(SMAP_INTR_RXEND,0);//now ? or when the fifo is full ? i guess now atm
-	//note that this _is_ wrong since the IOP interrupt system is not thread safe.. but nothing i can do about that
+	return true;
 }
 
 u32 wswap(u32 d)
@@ -544,8 +519,6 @@ u32 smap_read32(u32 addr)
 
 void smap_write8(u32 addr, u8 value)
 {
-	SLockGuard reset_lock(reset_mutex(), SLockGuard::Defer{});
-	SLockGuard counter_lock(frame_counter_mutex(), SLockGuard::Defer{});
 	switch (addr)
 	{
 		case SMAP_R_TXFIFO_FRAME_INC:
@@ -557,12 +530,8 @@ void smap_write8(u32 addr, u8 value)
 
 		case SMAP_R_RXFIFO_FRAME_DEC:
 			//log_cb(RETRO_LOG_DEBUG, "DEV9: SMAP_R_RXFIFO_FRAME_DEC 8bit write %x\n", value);
-			counter_lock.Lock();
 			dev9Ru8(addr) = value;
-			{
-				dev9Ru8(SMAP_R_RXFIFO_FRAME_CNT)--;
-			}
-			counter_lock.Unlock();
+			dev9Ru8(SMAP_R_RXFIFO_FRAME_CNT)--;
 			return;
 
 		case SMAP_R_TXFIFO_CTRL:
@@ -583,15 +552,11 @@ void smap_write8(u32 addr, u8 value)
 			//log_cb(RETRO_LOG_DEBUG, "DEV9: SMAP_R_RXFIFO_CTRL 8bit write %x\n", value);
 			if (value & SMAP_RXFIFO_RESET)
 			{
-				reset_lock.Lock(); //lock reset mutex 1st
-				counter_lock.Lock();
 				dev9.rxbdi = 0;
 				dev9.rxfifo_wr_ptr = 0;
 				dev9Ru8(SMAP_R_RXFIFO_FRAME_CNT) = 0;
 				dev9Ru32(SMAP_R_RXFIFO_RD_PTR) = 0;
 				dev9Ru32(SMAP_R_RXFIFO_SIZE) = 16384;
-				reset_lock.Unlock();
-				counter_lock.Unlock();
 			}
 			value &= ~SMAP_RXFIFO_RESET;
 			dev9Ru8(addr) = value;
@@ -870,10 +835,12 @@ void smap_writeDMA8Mem(u32* pMem, int size)
 
 void smap_async(u32 cycles)
 {
-	if (retro_atomic_exchange_int(&fireIntR, 0))
+	/* Received packets go into the RX FIFO here, on the thread that
+	 * emulates the SMAP, and raise RXEND here too. */
+	if (net_rx_deliver())
 	{
 		//Is this used to signal each individual packet, or just when there are packets in the RX fifo?
 		//I think it just signals when there are packets in the RX fifo
-		_DEV9irq(SMAP_INTR_RXEND, 0); //Make the call to _DEV9irq in a thread safe way
+		_DEV9irq(SMAP_INTR_RXEND, 0);
 	}
 }

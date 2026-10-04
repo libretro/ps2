@@ -13,8 +13,9 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stddef.h>
 #include <retro_atomic.h>
-#include <chrono>
+#include <retro_spsc.h>
 #include "common/Pcsx2Defs.h"
 
 #if defined(__POSIX__)
@@ -34,7 +35,6 @@
 #include "PacketReader/EthernetFrame.h"
 #include "PacketReader/IP/IP_Packet.h"
 #include "PacketReader/IP/UDP/UDP_Packet.h"
-#include "../SLockGuard.h"
 #include <rthreads/rthreads.h>
 
 NetAdapter* nif;
@@ -50,11 +50,15 @@ static void NetRxThreadEntry(void* arg)
 	NetRxThread();
 }
 
-static slock_t* rx_mutex(void)
-{
-	static slock_t* lock = slock_new();
-	return lock;
-}
+/* Packets from the host. The RX thread receives them into this ring and
+ * net_rx_deliver() hands them to the SMAP on the EE thread, so the
+ * emulated device is only ever touched by the thread that emulates it.
+ * A record is a NetPacket's size field followed by its bytes, rounded up
+ * to a word, written in one piece. */
+#define NET_RX_RING_BYTES (64 * 1024)
+#define NET_RX_RECORD_BYTES(size) (offsetof(NetPacket, buffer) + (((size_t)(size) + 3) & ~(size_t)3))
+static retro_spsc_t s_rx_ring;
+static bool s_rx_ring_ok;
 
 /* RX pump thread loops on this; the control side flips it on
  * start/stop.  volatile gives neither atomicity nor ordering in
@@ -66,19 +70,38 @@ void NetRxThread()
 	NetPacket tmp;
 	while (retro_atomic_load_acquire_int(&RxRunning))
 	{
-		while (rx_fifo_can_rx() && nif->recv(&tmp))
+		/* Receive only with room for the largest record, so a packet
+		 * taken from the host always fits; the rest wait in the host's
+		 * own buffers while the EE catches up. */
+		while (retro_spsc_write_avail(&s_rx_ring) >= NET_RX_RECORD_BYTES(sizeof(tmp.buffer)) && nif->recv(&tmp))
 		{
-			SLockGuard rx_lock(rx_mutex());
-			//Check if we can still rx
-			if (rx_fifo_can_rx())
-				rx_process(&tmp);
-			else
-				log_cb(RETRO_LOG_ERROR, "DEV9: rx_fifo_can_rx() false after nif->recv(), dropping\n");
+			if (tmp.size <= 0 || tmp.size > (int)sizeof(tmp.buffer))
+				continue;
+			retro_spsc_write(&s_rx_ring, &tmp, NET_RX_RECORD_BYTES(tmp.size));
 		}
 
-		using namespace std::chrono_literals;
 		retro_sleep(1);
 	}
+}
+
+bool net_rx_deliver()
+{
+	NetPacket tmp;
+	bool delivered = false;
+
+	if (nif == nullptr)
+		return false;
+
+	while (rx_fifo_can_rx())
+	{
+		int size;
+		if (retro_spsc_peek(&s_rx_ring, &size, sizeof(size)) == sizeof(size))
+			retro_spsc_read(&s_rx_ring, &tmp, NET_RX_RECORD_BYTES(size));
+		else if (!nif->InternalServerRecv(&tmp))
+			break;
+		delivered |= rx_process(&tmp);
+	}
+	return delivered;
 }
 
 void tx_put(NetPacket* pkt)
@@ -141,6 +164,17 @@ void InitNet()
 		return;
 	}
 
+	if (!s_rx_ring_ok)
+		s_rx_ring_ok = retro_spsc_init(&s_rx_ring, NET_RX_RING_BYTES);
+	if (!s_rx_ring_ok)
+	{
+		log_cb(RETRO_LOG_ERROR, "DEV9: Failed to allocate the receive ring\n");
+		delete na;
+		EmuConfig.DEV9.EthEnable = false;
+		return;
+	}
+	retro_spsc_clear(&s_rx_ring);
+
 	nif = na;
 	retro_atomic_store_release_int(&RxRunning, 1);
 
@@ -197,25 +231,10 @@ const IP_Address NetAdapter::internalIP{{{192, 0, 2, 1}}};
 const MAC_Address NetAdapter::broadcastMAC{{{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}}};
 const MAC_Address NetAdapter::internalMAC{{{0x76, 0x6D, 0xF4, 0x63, 0x30, 0x31}}};
 
-void NetAdapter::InternalServerThreadEntry(void* self)
-{
-	static_cast<NetAdapter*>(self)->InternalServerThread();
-}
-
 NetAdapter::NetAdapter()
 {
-	internalRxThread = NULL;
-		internalRxMutex = slock_new();
-		internalRxCV = scond_new();
 	//Ensure eeprom matches our default
 	SetMACAddress(nullptr);
-}
-
-bool NetAdapter::recv(NetPacket* pkt)
-{
-	if (!retro_atomic_load_acquire_int(&internalRxThreadRunning))
-		return InternalServerRecv(pkt);
-	return false;
 }
 
 bool NetAdapter::send(NetPacket* pkt)
@@ -223,26 +242,9 @@ bool NetAdapter::send(NetPacket* pkt)
 	return InternalServerSend(pkt);
 }
 
-//RxRunning must be set false before this
 NetAdapter::~NetAdapter()
 {
-	//unblock InternalServerRX thread
-	if (retro_atomic_load_acquire_int(&internalRxThreadRunning))
-	{
-		retro_atomic_store_release_int(&internalRxThreadRunning, 0);
-
-		{
-			SLockGuard srvlock(internalRxMutex);
-			internalRxHasData = true;
-		}
-
-		scond_broadcast(internalRxCV);
-		sthread_join(internalRxThread);
-		internalRxThread = NULL;
-	}
-	scond_free(internalRxCV);
-	slock_free(internalRxMutex);
-	}
+}
 
 void NetAdapter::InspectSend(NetPacket* pkt)
 {
@@ -339,12 +341,6 @@ void NetAdapter::InitInternalServer(ifaddrs* adapter, bool dhcpForceEnable, IP_A
 		dhcpServer.Init(adapter, ipOverride, subnetOverride, gatewayOvveride);
 
 	dnsServer.Init(adapter);
-
-	if (blocks())
-	{
-		retro_atomic_store_release_int(&internalRxThreadRunning, 1);
-		internalRxThread = sthread_create(NetAdapter::InternalServerThreadEntry, this);
-	}
 }
 
 #ifdef _WIN32
@@ -440,35 +436,3 @@ bool NetAdapter::InternalServerSend(NetPacket* pkt)
 	return false;
 }
 
-void NetAdapter::InternalSignalReceived()
-{
-	//Signal internal server thread to read
-	if (retro_atomic_load_acquire_int(&internalRxThreadRunning))
-	{
-		{
-			SLockGuard srvlock(internalRxMutex);
-			internalRxHasData = true;
-		}
-
-		scond_broadcast(internalRxCV);
-	}
-}
-
-void NetAdapter::InternalServerThread()
-{
-	NetPacket tmp;
-	while (retro_atomic_load_acquire_int(&internalRxThreadRunning))
-	{
-		SLockGuard srvLock(internalRxMutex);
-		while (!internalRxHasData)
-			scond_wait(internalRxCV, internalRxMutex);
-
-		{
-			SLockGuard rx_lock(rx_mutex());
-			while (rx_fifo_can_rx() && InternalServerRecv(&tmp))
-				rx_process(&tmp);
-		}
-
-		internalRxHasData = false;
-	}
-}

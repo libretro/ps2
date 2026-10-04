@@ -17,7 +17,6 @@
 
 #include "common/Pcsx2Defs.h"
 
-#include <functional>
 
 #include "DEV9/SimpleQueue.h"
 #include "DEV9/PacketReader/IP/IP_Address.h"
@@ -41,7 +40,6 @@ namespace InternalServers
 		PacketReader::IP::IP_Address broadcastIP;
 
 	private:
-		std::function<void()> callback;
 
 		PacketReader::IP::IP_Address dns1{};
 		PacketReader::IP::IP_Address dns2{};
@@ -52,7 +50,7 @@ namespace InternalServers
 		u16 maxMs = 576;
 
 	public:
-		DHCP_Server(std::function<void()> receivedcallback);
+		DHCP_Server();
 
 #ifdef _WIN32
 		void Init(PIP_ADAPTER_ADDRESSES adapter, PacketReader::IP::IP_Address ipOverride = {}, PacketReader::IP::IP_Address subnetOverride = {}, PacketReader::IP::IP_Address gatewayOvveride = {});

@@ -29,14 +29,12 @@ private:
 	pcap_t* hpcap = nullptr;
 
 	bool switched;
-	bool blocking;
 
 	PacketReader::IP::IP_Address ps2IP{};
 	PacketReader::MAC_Address hostMAC;
 
 public:
 	PCAPAdapter();
-	virtual bool blocks();
 	virtual bool isInitialised();
 	//gets a packet.rv :true success
 	virtual bool recv(NetPacket* pkt);

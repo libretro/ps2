@@ -55,8 +55,7 @@ using namespace PacketReader::IP::UDP::DHCP;
 
 namespace InternalServers
 {
-	DHCP_Server::DHCP_Server(std::function<void()> receivedcallback)
-		: callback{receivedcallback}
+	DHCP_Server::DHCP_Server()
 	{
 	}
 
@@ -375,7 +374,6 @@ namespace InternalServers
 		retUdp->destinationPort = 68;
 
 		recvBuff.Enqueue(retUdp);
-		callback();
 		return true;
 	}
 

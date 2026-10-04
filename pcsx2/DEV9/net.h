@@ -14,12 +14,10 @@
  */
 
 #pragma once
-#include <retro_atomic.h>
 #include <stdlib.h>
 #include <string>
 #include <cstring>
 
-#include <functional>
 
 #ifdef _WIN32
 #include "common/RedtapeWindows.h"
@@ -37,8 +35,6 @@
 #include "InternalServers/DHCP_Server.h"
 #include "InternalServers/DNS_Logger.h"
 #include "InternalServers/DNS_Server.h"
-#include "../SLockGuard.h"
-#include <rthreads/rthreads.h>
 
 struct ConfigDEV9;
 
@@ -97,26 +93,18 @@ protected:
 private:
 	//Only set if packet sent to the internal IP address
 	PacketReader::IP::IP_Address ps2IP{};
-	sthread_t* internalRxThread;
-	static void InternalServerThreadEntry(void* self);
-	retro_atomic_int_t internalRxThreadRunning = RETRO_ATOMIC_INT_INITIALIZER(0);
-
-	slock_t* internalRxMutex;
-	scond_t* internalRxCV;
-	bool internalRxHasData = false;
 
 	bool dhcpOn = false;
 
 protected:
-	InternalServers::DHCP_Server dhcpServer = InternalServers::DHCP_Server([&] { InternalSignalReceived(); });
+	InternalServers::DHCP_Server dhcpServer;
 	InternalServers::DNS_Logger dnsLogger;
-	InternalServers::DNS_Server dnsServer = InternalServers::DNS_Server([&] { InternalSignalReceived(); });
+	InternalServers::DNS_Server dnsServer;
 
 public:
 	NetAdapter();
-	virtual bool blocks() = 0;
 	virtual bool isInitialised() = 0;
-	virtual bool recv(NetPacket* pkt); //gets a packet
+	virtual bool recv(NetPacket* pkt) = 0; //gets a packet from the host, on the RX thread
 	virtual bool send(NetPacket* pkt); //sends the packet and deletes it when done
 	virtual void reset(){};
 	virtual void reloadSettings() = 0;
@@ -138,16 +126,21 @@ protected:
 	void ReloadInternalServer(ifaddrs* adapter, bool dhcpForceEnable = false, PacketReader::IP::IP_Address ipOverride = {}, PacketReader::IP::IP_Address subnetOverride = {}, PacketReader::IP::IP_Address gatewayOveride = {});
 #endif
 
-private:
+public:
+	/* The internal DHCP and DNS servers' replies, polled on the EE
+	 * thread, which is their queues' one consumer. */
 	bool InternalServerRecv(NetPacket* pkt);
-	bool InternalServerSend(NetPacket* pkt);
 
-	void InternalSignalReceived();
-	void InternalServerThread();
+private:
+	bool InternalServerSend(NetPacket* pkt);
 };
 
 void tx_put(NetPacket* ptr);
 void ad_reset();
+
+/* EE thread: hand the SMAP every received packet it has room for.
+ * Returns whether any was delivered. */
+bool net_rx_deliver();
 
 void InitNet();
 void ReconfigureLiveNet(const Pcsx2Config& old_config);

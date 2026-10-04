@@ -18,7 +18,6 @@
 #include "common/Pcsx2Defs.h"
 #include <retro_atomic.h>
 #include <unordered_map>
-#include <functional>
 
 #ifdef _WIN32
 #include <minwinbase.h>
@@ -68,7 +67,6 @@ namespace InternalServers
 		bool wsa_init = false;
 #endif
 
-		std::function<void()> callback;
 
 		PacketReader::IP::IP_Address localhostIP{{{127, 0, 0, 1}}};
 		std::unordered_map<std::string, PacketReader::IP::IP_Address> hosts;
@@ -76,7 +74,7 @@ namespace InternalServers
 		SimpleQueue<PacketReader::IP::UDP::UDP_Packet*> dnsQueue;
 
 	public:
-		DNS_Server(std::function<void()> receivedcallback);
+		DNS_Server();
 
 #ifdef _WIN32
 		void Init(PIP_ADAPTER_ADDRESSES adapter);

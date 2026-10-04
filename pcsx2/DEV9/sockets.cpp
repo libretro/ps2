@@ -259,11 +259,6 @@ SocketAdapter::SocketAdapter()
 	initialized = true;
 }
 
-bool SocketAdapter::blocks()
-{
-	return false;
-}
-
 bool SocketAdapter::isInitialised()
 {
 	return initialized;
@@ -271,9 +266,6 @@ bool SocketAdapter::isInitialised()
 
 bool SocketAdapter::recv(NetPacket* pkt)
 {
-	if (NetAdapter::recv(pkt))
-		return true;
-
 	EthernetFrame* bFrame;
 	if (!vRecBuffer.Dequeue(&bFrame))
 	{

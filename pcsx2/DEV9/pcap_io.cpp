@@ -142,10 +142,6 @@ AdapterOptions PCAPAdapter::GetAdapterOptions()
 {
 	return AdapterOptions::None;
 }
-bool PCAPAdapter::blocks()
-{
-	return blocking;
-}
 bool PCAPAdapter::isInitialised()
 {
 	return hpcap != nullptr;
@@ -153,9 +149,6 @@ bool PCAPAdapter::isInitialised()
 //gets a packet.rv :true success
 bool PCAPAdapter::recv(NetPacket* pkt)
 {
-	if (!blocking && NetAdapter::recv(pkt))
-		return true;
-
 	pcap_pkthdr* header;
 	const u_char* pkt_data;
 
@@ -311,10 +304,7 @@ bool PCAPAdapter::InitPCAP(const std::string& adapter, bool promiscuous)
 	{
 		log_cb(RETRO_LOG_ERROR, "DEV9: Error setting non-blocking: %s\n", pcap_geterr(hpcap));
 		log_cb(RETRO_LOG_ERROR, "DEV9: Continuing in blocking mode\n");
-		blocking = true;
 	}
-	else
-		blocking = false;
 
 	// Validate.
 	const int dlt = pcap_datalink(hpcap);
