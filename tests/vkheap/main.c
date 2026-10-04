@@ -13,6 +13,12 @@ static int fails;
 #define CHECK(c, m) do { if (!(c)) { printf("  FAIL: %s\n", m); fails++; } } while (0)
 
 static int allocations;   /* how many times the driver was asked */
+
+/* A memory type whose driver allocations stop succeeding once this many
+ * bytes are taken from it: the PCI BAR window. -1 refuses nothing. */
+static int          refuse_type = -1;
+static VkDeviceSize refuse_after;
+static VkDeviceSize refuse_taken;
 static int frees;
 static int maps;
 
@@ -20,9 +26,14 @@ static VkResult stub_allocate(VkDevice d, const VkMemoryAllocateInfo *ai,
       const VkAllocationCallbacks *cb, VkDeviceMemory *out)
 {
    (void)d; (void)cb;
+   if ((int)ai->memoryTypeIndex == refuse_type)
+   {
+      if (refuse_taken + ai->allocationSize > refuse_after)
+         return VK_ERROR_OUT_OF_DEVICE_MEMORY;
+      refuse_taken += ai->allocationSize;
+   }
    allocations++;
    *out = (VkDeviceMemory)(uintptr_t)(0x1000 + allocations);
-   (void)ai;
    return VK_SUCCESS;
 }
 
@@ -266,6 +277,66 @@ int main(void)
       gs_vk_heap_free(&t2, &drop[0]);
       CHECK(t2.bytes_used == 0, "everything given back after a trim");
       gs_vk_heap_shutdown(&t2);
+   }
+
+   /* The device-local host-visible type is a preference, not a
+    * requirement. Laid out the way a discrete card without resizable BAR
+    * reports it - device memory, system memory, and a small BAR window
+    * that is device local and host visible - and the GS device's own
+    * startup run against it: 64 MB blocks under a 256 MB ceiling, two
+    * device blocks and one host block reserved, a 64 MB upload buffer and
+    * then the 32 MB vertex buffer, both preferring the BAR. The driver
+    * gives the BAR one block and refuses the second; the vertex buffer
+    * must land in system memory instead of failing the device. */
+   {
+      VkPhysicalDeviceMemoryProperties bar;
+      gs_vk_heap_t h3;
+      gs_vk_alloc_t up, vtx, idx;
+      const VkMemoryPropertyFlags hv = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+         | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+      const VkDeviceSize mb = 1024u * 1024u;
+
+      memset(&bar, 0, sizeof(bar));
+      bar.memoryHeapCount = 3;
+      bar.memoryHeaps[0].size = 6144u * mb;
+      bar.memoryHeaps[1].size = 16384u * mb;
+      bar.memoryHeaps[2].size = 214u * mb;
+      bar.memoryTypeCount = 3;
+      bar.memoryTypes[0].propertyFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+      bar.memoryTypes[0].heapIndex     = 0;
+      bar.memoryTypes[1].propertyFlags = hv;
+      bar.memoryTypes[1].heapIndex     = 1;
+      bar.memoryTypes[2].propertyFlags = hv | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+      bar.memoryTypes[2].heapIndex     = 2;
+
+      refuse_type  = 2;
+      refuse_after = 64u * mb;
+      refuse_taken = 0;
+
+      memset(&h3, 0, sizeof(h3));
+      CHECK(gs_vk_heap_init(&h3, (VkDevice)1, &bar, &fns, 64u * mb, 256, 256u * mb) != 0, "bar: init");
+      CHECK(gs_vk_heap_reserve(&h3, ~0u, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 2) == 2, "bar: device reserve");
+      CHECK(gs_vk_heap_reserve(&h3, ~0u, hv, 1) == 1, "bar: host reserve");
+
+      req(&r, 64u * mb, 256, 0x7u);
+      CHECK(gs_vk_heap_alloc(&h3, &r, hv, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &up) != 0, "bar: upload buffer");
+      CHECK(up.type == 2, "bar: the upload buffer takes the BAR it prefers");
+
+      req(&r, 32u * mb, 256, 0x7u);
+      CHECK(gs_vk_heap_alloc(&h3, &r, hv, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &vtx) != 0,
+            "bar: the vertex buffer is allocated after the BAR refuses");
+      CHECK(vtx.type == 1 && vtx.mapped != NULL, "bar: in mapped system memory");
+      CHECK(h3.block_count == 4, "bar: out of the reserved host block, with the reservations kept");
+
+      req(&r, 16u * mb, 256, 0x7u);
+      CHECK(gs_vk_heap_alloc(&h3, &r, hv, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &idx) != 0,
+            "bar: and the index buffer after it");
+
+      gs_vk_heap_free(&h3, &idx);
+      gs_vk_heap_free(&h3, &vtx);
+      gs_vk_heap_free(&h3, &up);
+      gs_vk_heap_shutdown(&h3);
+      refuse_type = -1;
    }
 
    frees = 0;

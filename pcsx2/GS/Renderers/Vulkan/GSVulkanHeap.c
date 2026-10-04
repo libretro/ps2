@@ -279,16 +279,15 @@ unsigned gs_vk_heap_trim(gs_vk_heap_t *heap)
    return freed;
 }
 
-int gs_vk_heap_alloc(gs_vk_heap_t *heap, const VkMemoryRequirements *req,
-      VkMemoryPropertyFlags required, VkMemoryPropertyFlags preferred,
-      gs_vk_alloc_t *out)
+/* An allocation in one memory type: a block of that type with room, or
+ * a new block of it. may_trim is clear while another type is still left
+ * to try, so that a refused preference does not give back blocks the
+ * frames ahead were reserved for. */
+static int gs_vk_heap_alloc_in(gs_vk_heap_t *heap, const VkMemoryRequirements *req,
+      unsigned type, int may_trim, gs_vk_alloc_t *out)
 {
-   unsigned type = 0;
    unsigned i;
    VkDeviceSize block_size;
-
-   if (!gs_vk_pick_type(heap, req->memoryTypeBits, required, preferred, &type))
-      return 0;
 
    for (i = 0; i < heap->block_count; i++)
    {
@@ -311,7 +310,7 @@ int gs_vk_heap_alloc(gs_vk_heap_t *heap, const VkMemoryRequirements *req,
        * a run that filled the ceiling with upload blocks has nothing
        * for an image even with most of it free - and then one more
        * try. */
-      if (!gs_vk_heap_trim(heap))
+      if (!may_trim || !gs_vk_heap_trim(heap))
          return 0;
       if (!gs_vk_heap_add_block(heap, type, block_size))
          return 0;
@@ -325,6 +324,31 @@ int gs_vk_heap_alloc(gs_vk_heap_t *heap, const VkMemoryRequirements *req,
          return 1;
    }
    return 0;
+}
+
+int gs_vk_heap_alloc(gs_vk_heap_t *heap, const VkMemoryRequirements *req,
+      VkMemoryPropertyFlags required, VkMemoryPropertyFlags preferred,
+      gs_vk_alloc_t *out)
+{
+   unsigned type     = 0;
+   unsigned fallback = 0;
+   int has_fallback;
+
+   if (!gs_vk_pick_type(heap, req->memoryTypeBits, required, preferred, &type))
+      return 0;
+
+   /* preferred is a preference. The device-local host-visible type is
+    * the PCI BAR window on discrete cards without resizable BAR -
+    * 256 MB or less, shared with the driver and the frontend - and the
+    * driver refuses a block there long before the device runs out. The
+    * type that only meets the requirement takes it instead. */
+   has_fallback = preferred
+      && gs_vk_pick_type(heap, req->memoryTypeBits, required, 0, &fallback)
+      && fallback != type;
+
+   if (gs_vk_heap_alloc_in(heap, req, type, !has_fallback, out))
+      return 1;
+   return has_fallback && gs_vk_heap_alloc_in(heap, req, fallback, 1, out);
 }
 
 void gs_vk_heap_free(gs_vk_heap_t *heap, const gs_vk_alloc_t *alloc)
