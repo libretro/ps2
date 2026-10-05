@@ -12,9 +12,9 @@
  *
  * Here the rule is in one place and it is simple. Blocks are taken from
  * the driver, are large, and are never given back while the heap lives.
- * An allocation is an offset inside a block, found by walking that
- * block's free list; freeing puts the span back and merges it with its
- * neighbours. A host-visible block is mapped once when it is taken and
+ * An allocation is an offset inside a block, the lowest free span that
+ * fits; the free spans are kept sorted, so freeing is a binary search
+ * and a merge with the span on either side. A host-visible block is mapped once when it is taken and
  * stays mapped, so nothing maps or unmaps per use either.
  *
  * Reserve at startup with gs_vk_heap_reserve and the frames that follow
@@ -73,10 +73,18 @@ typedef struct gs_vk_block
    void          *mapped;      /* whole block, or NULL       */
    VkDeviceSize   size;
    VkDeviceSize   used;
-   gs_vk_span_t  *free_spans;
+   /* No free span is larger than this. Exact after a search that found
+    * nothing, an upper bound otherwise. */
+   VkDeviceSize   max_free;
+   gs_vk_span_t  *free_spans;  /* sorted by offset, never adjacent */
    unsigned       free_count;
    unsigned       free_capacity;
    unsigned       type;
+   /* Buffers, or images. The two never share a block: the driver may
+    * not have a buffer and an image within bufferImageGranularity of
+    * each other in one VkDeviceMemory, and keeping them in blocks of
+    * their own is that rule kept without padding anything. */
+   unsigned       linear;
 } gs_vk_block_t;
 
 /* Enough that the ceiling is what stops the heap growing, never this
@@ -118,16 +126,19 @@ void gs_vk_heap_shutdown(gs_vk_heap_t *heap);
 
 /* Takes blocks from the driver now, so that later allocations of this
  * kind are offsets. type_bits and flags are as a VkMemoryRequirements
- * would give. Returns the number of blocks taken. */
+ * would give, linear as for gs_vk_heap_alloc. Returns the number of
+ * blocks taken. */
 unsigned gs_vk_heap_reserve(gs_vk_heap_t *heap, uint32_t type_bits,
-      VkMemoryPropertyFlags flags, unsigned blocks);
+      VkMemoryPropertyFlags flags, int linear, unsigned blocks);
 
 /* Finds room for something with these requirements. required is what the
  * memory must be; preferred is tried first and dropped if no type has
- * it. Returns 0 if there is no room and no block could be taken. */
+ * it. linear is non-zero for a buffer or an image with linear tiling,
+ * zero for any other image. Returns 0 if there is no room and no block
+ * could be taken. */
 int  gs_vk_heap_alloc(gs_vk_heap_t *heap, const VkMemoryRequirements *req,
       VkMemoryPropertyFlags required, VkMemoryPropertyFlags preferred,
-      gs_vk_alloc_t *out);
+      int linear, gs_vk_alloc_t *out);
 
 void gs_vk_heap_free(gs_vk_heap_t *heap, const gs_vk_alloc_t *alloc);
 

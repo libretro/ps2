@@ -43,7 +43,12 @@ static int gs_vk_pick_type(const gs_vk_heap_t *heap, uint32_t type_bits,
    return 0;
 }
 
-static int gs_vk_block_add_span(gs_vk_block_t *b, VkDeviceSize offset, VkDeviceSize size)
+/* The free spans of a block are kept sorted by offset and never adjacent:
+ * a free then finds its place with a binary search and merges with the
+ * span on either side, where it used to compare every span with every
+ * other. Makes room for one more span at index at. */
+static int gs_vk_block_insert_span(gs_vk_block_t *b, unsigned at,
+      VkDeviceSize offset, VkDeviceSize size)
 {
    if (b->free_count == b->free_capacity)
    {
@@ -54,14 +59,26 @@ static int gs_vk_block_add_span(gs_vk_block_t *b, VkDeviceSize offset, VkDeviceS
       b->free_spans    = grown;
       b->free_capacity = cap;
    }
-   b->free_spans[b->free_count].offset = offset;
-   b->free_spans[b->free_count].size   = size;
+   if (at < b->free_count)
+      memmove(&b->free_spans[at + 1], &b->free_spans[at],
+            (b->free_count - at) * sizeof(gs_vk_span_t));
+   b->free_spans[at].offset = offset;
+   b->free_spans[at].size   = size;
    b->free_count++;
    return 1;
 }
 
+static void gs_vk_block_remove_span(gs_vk_block_t *b, unsigned at)
+{
+   b->free_count--;
+   if (at < b->free_count)
+      memmove(&b->free_spans[at], &b->free_spans[at + 1],
+            (b->free_count - at) * sizeof(gs_vk_span_t));
+}
+
 /* One block from the driver, whole and mapped if it can be. */
-static int gs_vk_heap_add_block(gs_vk_heap_t *heap, unsigned type, VkDeviceSize size)
+static int gs_vk_heap_add_block(gs_vk_heap_t *heap, unsigned type, unsigned linear,
+      VkDeviceSize size)
 {
    VkMemoryAllocateInfo mai;
    gs_vk_block_t *b;
@@ -109,12 +126,14 @@ static int gs_vk_heap_add_block(gs_vk_heap_t *heap, unsigned type, VkDeviceSize 
 
    b = &heap->blocks[slot];
    memset(b, 0, sizeof(*b));
-   b->memory = memory;
-   b->mapped = mapped;
-   b->size   = size;
-   b->type   = type;
+   b->memory   = memory;
+   b->mapped   = mapped;
+   b->size     = size;
+   b->max_free = size;
+   b->type     = type;
+   b->linear   = linear;
 
-   if (!gs_vk_block_add_span(b, 0, size))
+   if (!gs_vk_block_insert_span(b, 0, 0, size))
    {
       if (mapped)
          heap->fns.unmap_memory(heap->device, memory);
@@ -169,7 +188,7 @@ void gs_vk_heap_shutdown(gs_vk_heap_t *heap)
 }
 
 unsigned gs_vk_heap_reserve(gs_vk_heap_t *heap, uint32_t type_bits,
-      VkMemoryPropertyFlags flags, unsigned blocks)
+      VkMemoryPropertyFlags flags, int linear, unsigned blocks)
 {
    unsigned type = 0;
    unsigned made = 0;
@@ -180,41 +199,47 @@ unsigned gs_vk_heap_reserve(gs_vk_heap_t *heap, uint32_t type_bits,
 
    for (i = 0; i < blocks; i++)
    {
-      if (!gs_vk_heap_add_block(heap, type, heap->block_size))
+      if (!gs_vk_heap_add_block(heap, type, linear ? 1u : 0u, heap->block_size))
          break;
       made++;
    }
    return made;
 }
 
-/* First fit inside one block, honouring the alignment the requirement
- * asks for. The leftovers on either side stay free. */
+/* The lowest span of the block that fits, honouring the alignment the
+ * requirement asks for. The leftovers on either side stay free. */
 static int gs_vk_block_alloc(gs_vk_heap_t *heap, gs_vk_block_t *b, unsigned index,
       VkDeviceSize size, VkDeviceSize align, gs_vk_alloc_t *out)
 {
+   VkDeviceSize largest = 0;
    unsigned i;
+
+   /* No span of this block is larger than max_free, so a block that
+    * cannot hold this is passed over without its spans being read. */
+   if (size > b->max_free)
+      return 0;
 
    for (i = 0; i < b->free_count; i++)
    {
-      const VkDeviceSize start   = b->free_spans[i].offset;
-      const VkDeviceSize aligned = gs_vk_align_up(start, align);
-      const VkDeviceSize head    = aligned - start;
+      const VkDeviceSize start     = b->free_spans[i].offset;
+      const VkDeviceSize span_size = b->free_spans[i].size;
+      const VkDeviceSize aligned   = gs_vk_align_up(start, align);
+      const VkDeviceSize head      = aligned - start;
       VkDeviceSize tail;
 
-      if (head + size > b->free_spans[i].size)
+      if (span_size > largest)
+         largest = span_size;
+      if (head + size > span_size)
          continue;
 
-      tail = b->free_spans[i].size - head - size;
+      tail = span_size - head - size;
 
       if (head && tail)
       {
-         /* Split: the head stays where it is, the tail becomes a span. */
-         b->free_spans[i].size = head;
-         if (!gs_vk_block_add_span(b, aligned + size, tail))
-         {
-            b->free_spans[i].size = head + size + tail;
+         /* Split: the head stays where it is, the tail goes in after it. */
+         if (!gs_vk_block_insert_span(b, i + 1, aligned + size, tail))
             return 0;
-         }
+         b->free_spans[i].size = head;
       }
       else if (head)
          b->free_spans[i].size = head;
@@ -224,10 +249,7 @@ static int gs_vk_block_alloc(gs_vk_heap_t *heap, gs_vk_block_t *b, unsigned inde
          b->free_spans[i].size   = tail;
       }
       else
-      {
-         b->free_spans[i] = b->free_spans[b->free_count - 1];
-         b->free_count--;
-      }
+         gs_vk_block_remove_span(b, i);
 
       b->used          += size;
       heap->bytes_used += size;
@@ -245,6 +267,9 @@ static int gs_vk_block_alloc(gs_vk_heap_t *heap, gs_vk_block_t *b, unsigned inde
       out->type   = b->type;
       return 1;
    }
+
+   /* Every span was looked at and none fits: now the bound is exact. */
+   b->max_free = largest;
    return 0;
 }
 
@@ -284,14 +309,15 @@ unsigned gs_vk_heap_trim(gs_vk_heap_t *heap)
  * to try, so that a refused preference does not give back blocks the
  * frames ahead were reserved for. */
 static int gs_vk_heap_alloc_in(gs_vk_heap_t *heap, const VkMemoryRequirements *req,
-      unsigned type, int may_trim, gs_vk_alloc_t *out)
+      unsigned type, unsigned linear, int may_trim, gs_vk_alloc_t *out)
 {
    unsigned i;
    VkDeviceSize block_size;
 
    for (i = 0; i < heap->block_count; i++)
    {
-      if (!heap->blocks[i].memory || heap->blocks[i].type != type)
+      if (!heap->blocks[i].memory || heap->blocks[i].type != type
+            || heap->blocks[i].linear != linear)
          continue;
       if (gs_vk_block_alloc(heap, &heap->blocks[i], i, req->size, req->alignment, out))
          return 1;
@@ -304,7 +330,7 @@ static int gs_vk_heap_alloc_in(gs_vk_heap_t *heap, const VkMemoryRequirements *r
    if (block_size < req->size)
       block_size = gs_vk_align_up(req->size, 64u * 1024u);
 
-   if (!gs_vk_heap_add_block(heap, type, block_size))
+   if (!gs_vk_heap_add_block(heap, type, linear, block_size))
    {
       /* No room for another block. Empty ones are given back first -
        * a run that filled the ceiling with upload blocks has nothing
@@ -312,13 +338,14 @@ static int gs_vk_heap_alloc_in(gs_vk_heap_t *heap, const VkMemoryRequirements *r
        * try. */
       if (!may_trim || !gs_vk_heap_trim(heap))
          return 0;
-      if (!gs_vk_heap_add_block(heap, type, block_size))
+      if (!gs_vk_heap_add_block(heap, type, linear, block_size))
          return 0;
    }
 
    for (i = 0; i < heap->block_count; i++)
    {
-      if (!heap->blocks[i].memory || heap->blocks[i].type != type)
+      if (!heap->blocks[i].memory || heap->blocks[i].type != type
+            || heap->blocks[i].linear != linear)
          continue;
       if (gs_vk_block_alloc(heap, &heap->blocks[i], i, req->size, req->alignment, out))
          return 1;
@@ -328,8 +355,9 @@ static int gs_vk_heap_alloc_in(gs_vk_heap_t *heap, const VkMemoryRequirements *r
 
 int gs_vk_heap_alloc(gs_vk_heap_t *heap, const VkMemoryRequirements *req,
       VkMemoryPropertyFlags required, VkMemoryPropertyFlags preferred,
-      gs_vk_alloc_t *out)
+      int linear, gs_vk_alloc_t *out)
 {
+   const unsigned kind = linear ? 1u : 0u;
    unsigned type     = 0;
    unsigned fallback = 0;
    int has_fallback;
@@ -346,15 +374,20 @@ int gs_vk_heap_alloc(gs_vk_heap_t *heap, const VkMemoryRequirements *req,
       && gs_vk_pick_type(heap, req->memoryTypeBits, required, 0, &fallback)
       && fallback != type;
 
-   if (gs_vk_heap_alloc_in(heap, req, type, !has_fallback, out))
+   if (gs_vk_heap_alloc_in(heap, req, type, kind, !has_fallback, out))
       return 1;
-   return has_fallback && gs_vk_heap_alloc_in(heap, req, fallback, 1, out);
+   return has_fallback && gs_vk_heap_alloc_in(heap, req, fallback, kind, 1, out);
 }
 
 void gs_vk_heap_free(gs_vk_heap_t *heap, const gs_vk_alloc_t *alloc)
 {
    gs_vk_block_t *b;
-   unsigned i;
+   VkDeviceSize offset;
+   VkDeviceSize size;
+   unsigned lo;
+   unsigned hi;
+   int joins_prev;
+   int joins_next;
 
    if (!alloc || alloc->memory == VK_NULL_HANDLE || alloc->block >= heap->block_count)
       return;
@@ -373,52 +406,49 @@ void gs_vk_heap_free(gs_vk_heap_t *heap, const gs_vk_alloc_t *alloc)
    else if (heap->bytes_device >= alloc->size)
       heap->bytes_device -= alloc->size;
 
-   /* Merge with whatever it touches, so a block does not turn into a
-    * thousand unusable slivers over a run. Two passes because a freed
-    * span can join a neighbour on each side. */
-   for (i = 0; i < b->free_count; i++)
+   /* Put back where it belongs in the sorted spans and joined to
+    * whichever neighbours it touches, so a block does not turn into a
+    * thousand unusable slivers over a run. The first free span that
+    * starts after this one: */
+   offset = alloc->offset;
+   size   = alloc->size;
+   lo     = 0;
+   hi     = b->free_count;
+   while (lo < hi)
    {
-      if (b->free_spans[i].offset + b->free_spans[i].size == alloc->offset)
-      {
-         b->free_spans[i].size += alloc->size;
-         goto merged;
-      }
-      if (alloc->offset + alloc->size == b->free_spans[i].offset)
-      {
-         b->free_spans[i].offset = alloc->offset;
-         b->free_spans[i].size  += alloc->size;
-         goto merged;
-      }
+      const unsigned mid = lo + (hi - lo) / 2u;
+      if (b->free_spans[mid].offset < offset)
+         lo = mid + 1;
+      else
+         hi = mid;
    }
 
-   gs_vk_block_add_span(b, alloc->offset, alloc->size);
+   joins_prev = lo > 0
+      && b->free_spans[lo - 1].offset + b->free_spans[lo - 1].size == offset;
+   joins_next = lo < b->free_count && offset + size == b->free_spans[lo].offset;
 
-merged:
-   for (i = 0; i < b->free_count; i++)
+   if (joins_prev && joins_next)
    {
-      unsigned j = i + 1;
-      while (j < b->free_count)
-      {
-         if (b->free_spans[i].offset + b->free_spans[i].size == b->free_spans[j].offset)
-         {
-            b->free_spans[i].size += b->free_spans[j].size;
-            b->free_spans[j] = b->free_spans[b->free_count - 1];
-            b->free_count--;
-            j = i + 1;
-            continue;
-         }
-         if (b->free_spans[j].offset + b->free_spans[j].size == b->free_spans[i].offset)
-         {
-            b->free_spans[i].offset = b->free_spans[j].offset;
-            b->free_spans[i].size  += b->free_spans[j].size;
-            b->free_spans[j] = b->free_spans[b->free_count - 1];
-            b->free_count--;
-            j = i + 1;
-            continue;
-         }
-         j++;
-      }
+      b->free_spans[lo - 1].size += size + b->free_spans[lo].size;
+      size = b->free_spans[lo - 1].size;
+      gs_vk_block_remove_span(b, lo);
    }
+   else if (joins_prev)
+   {
+      b->free_spans[lo - 1].size += size;
+      size = b->free_spans[lo - 1].size;
+   }
+   else if (joins_next)
+   {
+      b->free_spans[lo].offset = offset;
+      b->free_spans[lo].size  += size;
+      size = b->free_spans[lo].size;
+   }
+   else if (!gs_vk_block_insert_span(b, lo, offset, size))
+      return;
+
+   if (size > b->max_free)
+      b->max_free = size;
 }
 
 /* A flush has to name a range that starts and ends on

@@ -130,7 +130,7 @@ int main(void)
 
    /* Reserving takes blocks now. */
    allocations = 0;
-   CHECK(gs_vk_heap_reserve(&heap, 0x3u, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 2) == 2,
+   CHECK(gs_vk_heap_reserve(&heap, 0x3u, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, 2) == 2,
          "reserve takes the blocks it was asked for");
    CHECK(allocations == 2, "two driver allocations, no more");
 
@@ -138,7 +138,7 @@ int main(void)
    allocations = 0;
    req(&r, 64 * 1024, 256, 0x1u);
    for (i = 0; i < 16; i++)
-      CHECK(gs_vk_heap_alloc(&heap, &r, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, &a[i]) != 0,
+      CHECK(gs_vk_heap_alloc(&heap, &r, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, 0, &a[i]) != 0,
             "allocation out of the reserved blocks");
    CHECK(allocations == 0, "sixteen allocations, nothing asked of the driver");
 
@@ -164,7 +164,7 @@ int main(void)
 
    allocations = 0;
    for (i = 0; i < 16; i++)
-      CHECK(gs_vk_heap_alloc(&heap, &r, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, &a[i]) != 0,
+      CHECK(gs_vk_heap_alloc(&heap, &r, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, 0, &a[i]) != 0,
             "re-taken");
    CHECK(allocations == 0, "a free and re-take asks the driver for nothing");
 
@@ -177,7 +177,7 @@ int main(void)
       gs_vk_heap_free(&heap, &a[i]);
    allocations = 0;
    req(&r, 512 * 1024, 256, 0x1u);
-   CHECK(gs_vk_heap_alloc(&heap, &r, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, &a[0]) != 0,
+   CHECK(gs_vk_heap_alloc(&heap, &r, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, 0, &a[0]) != 0,
          "a large allocation after freeing everything");
    CHECK(allocations == 0, "freed spans merged, so no new block");
    gs_vk_heap_free(&heap, &a[0]);
@@ -186,12 +186,12 @@ int main(void)
     * pointer is inside that mapping. */
    maps = 0;
    req(&r, 4096, 64, 0x2u);
-   CHECK(gs_vk_heap_alloc(&heap, &r, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0, &a[0]) != 0,
+   CHECK(gs_vk_heap_alloc(&heap, &r, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0, 1, &a[0]) != 0,
          "host visible allocation");
    CHECK(a[0].mapped != NULL, "and it is mapped");
    CHECK(maps == 1, "the block was mapped once");
    maps = 0;
-   CHECK(gs_vk_heap_alloc(&heap, &r, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0, &a[1]) != 0,
+   CHECK(gs_vk_heap_alloc(&heap, &r, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0, 1, &a[1]) != 0,
          "a second one");
    CHECK(maps == 0, "no second mapping");
    CHECK(a[1].mapped != a[0].mapped, "different offsets, different pointers");
@@ -199,13 +199,13 @@ int main(void)
    /* Something bigger than a block gets its own. */
    allocations = 0;
    req(&r, 4u * 1024u * 1024u, 256, 0x1u);
-   CHECK(gs_vk_heap_alloc(&heap, &r, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, &a[2]) != 0,
+   CHECK(gs_vk_heap_alloc(&heap, &r, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, 0, &a[2]) != 0,
          "an allocation larger than the block size");
    CHECK(allocations == 1, "which takes exactly one block");
 
    /* A requirement no memory type satisfies fails rather than pretending. */
    req(&r, 1024, 256, 0x0u);
-   CHECK(gs_vk_heap_alloc(&heap, &r, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, &a[3]) == 0,
+   CHECK(gs_vk_heap_alloc(&heap, &r, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, 0, &a[3]) == 0,
          "no type, no allocation");
 
    /* A ceiling is a ceiling: with one set, the heap refuses rather than
@@ -219,7 +219,7 @@ int main(void)
       CHECK(gs_vk_heap_init(&capped, (VkDevice)1, &props, &fns,
             1024 * 1024, 256, 4 * 1024 * 1024) != 0, "init with a ceiling");
       req(&r, 1024 * 1024, 256, 0x1u);
-      while (gs_vk_heap_alloc(&capped, &r, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, &c))
+      while (gs_vk_heap_alloc(&capped, &r, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, 0, &c))
       {
          taken++;
          if (taken > 64)
@@ -249,8 +249,8 @@ int main(void)
       req(&r, 1024 * 1024, 256, 0x1u);
       for (k = 0; k < 4; k++)
       {
-         CHECK(gs_vk_heap_alloc(&t2, &r, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, &keep[k]) != 0, "trim: keep");
-         CHECK(gs_vk_heap_alloc(&t2, &r, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, &drop[k]) != 0, "trim: drop");
+         CHECK(gs_vk_heap_alloc(&t2, &r, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, 0, &keep[k]) != 0, "trim: keep");
+         CHECK(gs_vk_heap_alloc(&t2, &r, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, 0, &drop[k]) != 0, "trim: drop");
          keep_mem[k] = keep[k].memory;
          keep_off[k] = keep[k].offset;
       }
@@ -267,7 +267,7 @@ int main(void)
       }
 
       /* And the freed room is usable again. */
-      CHECK(gs_vk_heap_alloc(&t2, &r, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, &drop[0]) != 0,
+      CHECK(gs_vk_heap_alloc(&t2, &r, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, 0, &drop[0]) != 0,
             "the trimmed room comes back");
 
       /* Freeing the ones kept still works, which is what a stale block
@@ -315,21 +315,21 @@ int main(void)
 
       memset(&h3, 0, sizeof(h3));
       CHECK(gs_vk_heap_init(&h3, (VkDevice)1, &bar, &fns, 64u * mb, 256, 256u * mb) != 0, "bar: init");
-      CHECK(gs_vk_heap_reserve(&h3, ~0u, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 2) == 2, "bar: device reserve");
-      CHECK(gs_vk_heap_reserve(&h3, ~0u, hv, 1) == 1, "bar: host reserve");
+      CHECK(gs_vk_heap_reserve(&h3, ~0u, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, 2) == 2, "bar: device reserve");
+      CHECK(gs_vk_heap_reserve(&h3, ~0u, hv, 1, 1) == 1, "bar: host reserve");
 
       req(&r, 64u * mb, 256, 0x7u);
-      CHECK(gs_vk_heap_alloc(&h3, &r, hv, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &up) != 0, "bar: upload buffer");
+      CHECK(gs_vk_heap_alloc(&h3, &r, hv, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 1, &up) != 0, "bar: upload buffer");
       CHECK(up.type == 2, "bar: the upload buffer takes the BAR it prefers");
 
       req(&r, 32u * mb, 256, 0x7u);
-      CHECK(gs_vk_heap_alloc(&h3, &r, hv, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &vtx) != 0,
+      CHECK(gs_vk_heap_alloc(&h3, &r, hv, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 1, &vtx) != 0,
             "bar: the vertex buffer is allocated after the BAR refuses");
       CHECK(vtx.type == 1 && vtx.mapped != NULL, "bar: in mapped system memory");
       CHECK(h3.block_count == 4, "bar: out of the reserved host block, with the reservations kept");
 
       req(&r, 16u * mb, 256, 0x7u);
-      CHECK(gs_vk_heap_alloc(&h3, &r, hv, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &idx) != 0,
+      CHECK(gs_vk_heap_alloc(&h3, &r, hv, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 1, &idx) != 0,
             "bar: and the index buffer after it");
 
       gs_vk_heap_free(&h3, &idx);
@@ -337,6 +337,111 @@ int main(void)
       gs_vk_heap_free(&h3, &up);
       gs_vk_heap_shutdown(&h3);
       refuse_type = -1;
+   }
+
+
+   /* Buffers and images never share a block, whatever the memory type:
+    * that is how bufferImageGranularity is honoured. */
+   {
+      gs_vk_heap_t k;
+      gs_vk_alloc_t img, buf, img2;
+
+      memset(&k, 0, sizeof(k));
+      CHECK(gs_vk_heap_init(&k, (VkDevice)1, &props, &fns, 1024 * 1024, 256, 0) != 0, "kinds: init");
+      req(&r, 4096, 256, 0x1u);
+      CHECK(gs_vk_heap_alloc(&k, &r, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, 0, &img) != 0, "kinds: image");
+      CHECK(gs_vk_heap_alloc(&k, &r, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, 1, &buf) != 0, "kinds: buffer");
+      CHECK(gs_vk_heap_alloc(&k, &r, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, 0, &img2) != 0, "kinds: second image");
+      CHECK(img.memory != buf.memory, "a buffer does not go in an image's block");
+      CHECK(img.memory == img2.memory, "two images share one");
+      gs_vk_heap_free(&k, &img);
+      gs_vk_heap_free(&k, &buf);
+      gs_vk_heap_free(&k, &img2);
+      gs_vk_heap_shutdown(&k);
+   }
+
+   /* Churn, the way a texture cache does it: thousands of allocations of
+    * mixed sizes and alignments, freed in no particular order. Checked
+    * against a list kept on the side: nothing overlaps, every offset is
+    * aligned, and the block's spans stay sorted, never adjacent, and add
+    * up with what is in use to the whole block. */
+   {
+      enum { LIVE = 600, ROUNDS = 60000 };
+      static gs_vk_alloc_t live[LIVE];
+      static int used[LIVE];
+      gs_vk_heap_t c;
+      unsigned seed = 1;
+      int n, ok = 1;
+
+      memset(&c, 0, sizeof(c));
+      memset(used, 0, sizeof(used));
+      CHECK(gs_vk_heap_init(&c, (VkDevice)1, &props, &fns, 8u * 1024u * 1024u, 256, 0) != 0, "churn: init");
+      for (n = 0; n < ROUNDS && ok; n++)
+      {
+         unsigned slot, b, sp;
+
+         seed = seed * 1664525u + 1013904223u;
+         slot = (seed >> 8) % LIVE;
+         if (used[slot])
+         {
+            gs_vk_heap_free(&c, &live[slot]);
+            used[slot] = 0;
+         }
+         else
+         {
+            const VkDeviceSize align = (VkDeviceSize)1 << ((seed >> 20) % 13);
+            const VkDeviceSize size  = 16 + ((seed >> 4) % 60000);
+            int j;
+
+            req(&r, size, align, 0x1u);
+            if (!gs_vk_heap_alloc(&c, &r, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, 0, &live[slot]))
+            {
+               ok = 0;
+               break;
+            }
+            used[slot] = 1;
+            if (live[slot].offset % align)
+               ok = 0;
+            for (j = 0; j < LIVE && ok; j++)
+            {
+               if (j == (int)slot || !used[j] || live[j].memory != live[slot].memory)
+                  continue;
+               if (!(live[j].offset + live[j].size <= live[slot].offset
+                     || live[slot].offset + live[slot].size <= live[j].offset))
+                  ok = 0;
+            }
+         }
+         if (n % 97)
+            continue;
+         for (b = 0; b < c.block_count && ok; b++)
+         {
+            const gs_vk_block_t *blk = &c.blocks[b];
+            VkDeviceSize free_bytes = 0;
+
+            if (!blk->memory)
+               continue;
+            for (sp = 0; sp < blk->free_count; sp++)
+            {
+               free_bytes += blk->free_spans[sp].size;
+               if (blk->free_spans[sp].size == 0 || blk->free_spans[sp].size > blk->max_free)
+                  ok = 0;
+               if (sp + 1 < blk->free_count
+                     && blk->free_spans[sp].offset + blk->free_spans[sp].size >= blk->free_spans[sp + 1].offset)
+                  ok = 0;
+            }
+            if (free_bytes + blk->used != blk->size)
+               ok = 0;
+         }
+      }
+      CHECK(ok, "churn: allocations aligned and apart, spans sorted, merged and accounted for");
+      for (n = 0; n < LIVE; n++)
+         if (used[n])
+            gs_vk_heap_free(&c, &live[n]);
+      CHECK(c.bytes_used == 0, "churn: everything given back");
+      for (n = 0; n < (int)c.block_count; n++)
+         CHECK(!c.blocks[n].memory || c.blocks[n].free_count == 1,
+               "churn: each block is one free span again");
+      gs_vk_heap_shutdown(&c);
    }
 
    frees = 0;

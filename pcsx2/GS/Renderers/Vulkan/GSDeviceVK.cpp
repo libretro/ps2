@@ -645,9 +645,9 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 		/* Taken now: two blocks of device memory for targets and
 		 * textures, one host-visible for uploads. A game that stays
 		 * inside them never reaches vkAllocateMemory again. */
-		gs_vk_heap_reserve(&m_heap, ~0u, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 2);
+		gs_vk_heap_reserve(&m_heap, ~0u, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, 2);
 		gs_vk_heap_reserve(&m_heap, ~0u,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 1);
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 1, 1);
 
 		log_cb(RETRO_LOG_INFO,
 			"GS: device memory heap, %llu MB blocks, %llu MB reserved, %llu MB ceiling.\n",
@@ -670,7 +670,8 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 
 		vkGetImageMemoryRequirements(vk_init_info.device, *image, &req);
 
-		if (!gs_vk_heap_alloc(&m_heap, &req, required, 0, alloc))
+		if (!gs_vk_heap_alloc(&m_heap, &req, required, 0,
+				ici->tiling == VK_IMAGE_TILING_LINEAR, alloc))
 		{
 			vkDestroyImage(vk_init_info.device, *image, nullptr);
 			*image = VK_NULL_HANDLE;
@@ -721,7 +722,7 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 
 		vkGetBufferMemoryRequirements(vk_init_info.device, *buffer, &req);
 
-		if (!gs_vk_heap_alloc(&m_heap, &req, required, preferred, alloc))
+		if (!gs_vk_heap_alloc(&m_heap, &req, required, preferred, 1, alloc))
 		{
 			vkDestroyBuffer(vk_init_info.device, *buffer, nullptr);
 			*buffer = VK_NULL_HANDLE;
