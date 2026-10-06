@@ -58,6 +58,7 @@ enum PCSX2ProfilerZone
 	PCSX2_ZONE_GS_VS_CIRC,  /* building the scanout circuits */
 	PCSX2_ZONE_GS_VS_MERGE, /* merge render pass and present handoff */
 	PCSX2_ZONE_GS_VS_IMG,   /* allocating the merged scanout image */
+	PCSX2_ZONE_GS_HANDOVER, /* the frontend's part of the vsync: its slot, set_image, the video callback */
 	PCSX2_ZONE_COUNT
 };
 
@@ -87,6 +88,7 @@ namespace PCSX2Profiler
 		ZONE_GS_VS_CIRC  = PCSX2_ZONE_GS_VS_CIRC,
 		ZONE_GS_VS_MERGE = PCSX2_ZONE_GS_VS_MERGE,
 		ZONE_GS_VS_IMG   = PCSX2_ZONE_GS_VS_IMG,
+		ZONE_GS_HANDOVER = PCSX2_ZONE_GS_HANDOVER,
 		ZONE_COUNT       = PCSX2_ZONE_COUNT
 	};
 

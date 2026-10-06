@@ -39,6 +39,11 @@
 #include <cstring>
 
 #include <libretro.h>
+#ifdef ENABLE_PCSX2_PROFILER
+#include "Profiler.h"
+#else
+#define PROFILE_SCOPE(z) do {} while (0)
+#endif
 
 #ifdef _WIN32
 #include "common/RedtapeWindows.h"
@@ -2086,6 +2091,10 @@ void GSDeviceVK::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture*
 void GSDeviceVK::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect)
 {
 	GSTextureVK* tex = (GSTextureVK*)sTex;
+	/* The frontend's part: its slot, the wait on it, set_image and the
+	 * video callback, which on a threaded video path holds until a slot
+	 * frees. Its own zone, so the vsync zone is the render. */
+	PROFILE_SCOPE(ZONE_GS_HANDOVER);
 	if (tex)
 	{
 		/* Blanking enforce, see 'GSRenderer::VSync()' */

@@ -23,6 +23,11 @@
 #include "../../../Host.h"
 #include "../../../PerformanceMetrics.h"
 #include "../../../Config.h"
+#ifdef ENABLE_PCSX2_PROFILER
+#include "../../../Profiler.h"
+#else
+#define PROFILE_SCOPE(z) do {} while (0)
+#endif
 
 extern retro_video_refresh_t video_cb;
 
@@ -312,7 +317,10 @@ void GSState::VSyncBase(u32 field, bool registers_written, bool idle_frame)
 				g_gs_device->PresentRect(current, src_uv, nullptr, draw_rect);
 			}
 			else
+			{
+				PROFILE_SCOPE(ZONE_GS_HANDOVER);
 				video_cb(NULL, 0, 0, 0);
+			}
 
 			g_gs_device->EndPresent();
 		}

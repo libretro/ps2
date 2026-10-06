@@ -7,6 +7,11 @@
 #include "GS/GSState.h"
 #include "GS.h"
 #include "PerformanceMetrics.h"
+#ifdef ENABLE_PCSX2_PROFILER
+#include "Profiler.h"
+#else
+#define PROFILE_SCOPE(z) do {} while (0)
+#endif
 #include "logging.hpp"
 #include <stdarg.h>
 
@@ -558,6 +563,7 @@ void GSRendererPGS::VSync(u32 field, bool registers_written)
 	if (GSConfig.SkipDuplicateFrames && has_presented_in_current_swapchain &&
 	    !registers_written && stats.num_render_passes == 0 && stats.num_copies == 0)
 	{
+		PROFILE_SCOPE(ZONE_GS_HANDOVER);
 		video_cb(nullptr, 0, 0, 0);
 		return;
 	}
@@ -579,6 +585,11 @@ void GSRendererPGS::VSync(u32 field, bool registers_written)
 			static uint32_t last_base_height = 0;
 			uint32_t new_base_width          = vsync.image->get_width();
 			uint32_t new_base_height         = vsync.image->get_height();
+			/* What follows is the frontend's: its slot, the wait on it,
+			 * set_image and the video callback, which on a threaded
+			 * video path holds until a slot frees. Its own zone, so
+			 * the vsync zone is the render. */
+			PROFILE_SCOPE(ZONE_GS_HANDOVER);
 			/* The frontend's slot for this frame, and the wait that
 			 * says it is done with what the slot held before. Its
 			 * mask is a contiguous run of bits: the ring is sized to
@@ -668,7 +679,10 @@ void GSRendererPGS::VSync(u32 field, bool registers_written)
 			last_aspect      = geom.aspect_ratio;
 		}
 		else
+		{
+			PROFILE_SCOPE(ZONE_GS_HANDOVER);
 			video_cb(nullptr, 0, 0, 0);
+		}
 	}
 
 	dev.next_frame_context();

@@ -63,6 +63,7 @@ namespace PCSX2Profiler
 		"GS vs circ",
 		"GS vs merge",
 		"GS vs image",
+		"GS handover",
 	};
 
 	/* The instrument is not free, and for a zone entered tens of thousands of
