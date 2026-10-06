@@ -489,13 +489,6 @@ static void check_variables(bool first_run)
 				setting_plugin_type = PLUGIN_GSDX_HW;
 		}
 
-#ifdef ENABLE_VULKAN
-		/* Read once: decided when the GS opens. */
-		var.key = "pcsx2_gs_thread";
-		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-			MTGS::SetOwnThread(!strcmp(var.value, "enabled"));
-#endif
-
 		var.key = "pcsx2_bios";
 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 		{

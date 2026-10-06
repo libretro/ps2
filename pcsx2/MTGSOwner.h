@@ -79,7 +79,6 @@ extern "C" {
 void mtgs_claim_ring(void);            /* frontend, first thing in retro_run */
 void mtgs_set_producer_thread(int on); /* EE thread, as it starts and ends   */
 void mtgs_hold_present(int on);        /* frontend, around a context teardown */
-void mtgs_worker_hold(int on);         /* any thread, around a direct call into the renderer */
 #ifdef __cplusplus
 }
 #endif

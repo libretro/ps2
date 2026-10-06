@@ -347,9 +347,6 @@ __ri bool VU_Thread::WaitOnSize(s32 size)
 		 * is clear the wait is long. The budget is 0 on a single-core
 		 * host, where spinning only steals the worker's timeslice. */
 		KickStart();
-		/* With the GS on the EE's thread, the worker's packets are popped
-		 * by the EE: a worker waiting on that would wait for ever here. */
-		MTGS::ProducerDrain();
 		if (spins < budget)
 		{
 			spins++;
