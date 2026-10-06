@@ -273,15 +273,15 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       "pcsx2_gs_thread",
       "Video > GS Thread (Vulkan, Restart)",
       "GS Thread (Vulkan, Restart)",
-      "Run the GS on its own thread. A frame is rendered while the EE runs it and is handed to the frontend as soon as the frontend asks, instead of being rendered inside that call; the frontend's input latency drops by the GS's render time. Needs a core free for the thread. Vulkan and paraLLEl-GS only.",
+      "Enabled: the GS runs on a thread of its own, the frontend's, as it always has. Disabled: the GS runs on the EE thread, rendering each frame the moment the EE finishes it and handing it to the frontend on request - no thread wake and no data crossing cores, so the frontend's input latency drops by the GS's render time, at the cost of EE and GS sharing one thread, which can cost frames in games where the two together exceed the frame time. Vulkan and paraLLEl-GS only.",
       NULL,
       "video",
       {
-         { "disabled", NULL },
          { "enabled", NULL },
+         { "disabled", NULL },
          { NULL, NULL },
       },
-      "disabled"
+      "enabled"
    },
 #endif
    {

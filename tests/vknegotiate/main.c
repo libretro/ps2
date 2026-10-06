@@ -186,7 +186,7 @@ static bool vn_environment(unsigned cmd, void* data)
 			if      (!strcmp(var->key, "pcsx2_bios"))     var->value = s_bios_name;
 			else if (!strcmp(var->key, "pcsx2_renderer")) var->value = getenv("VN_RENDERER") ? getenv("VN_RENDERER") : "Vulkan";
 			else if (!strcmp(var->key, "pcsx2_fastboot")) var->value = "disabled";
-			else if (!strcmp(var->key, "pcsx2_gs_thread")) var->value = getenv("VN_GS_THREAD") ? "enabled" : "disabled";
+			else if (!strcmp(var->key, "pcsx2_gs_thread")) var->value = getenv("VN_GS_ON_EE") ? "disabled" : "enabled";
 			return var->value != NULL;
 		case RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE:
 			*(bool*)data = false;

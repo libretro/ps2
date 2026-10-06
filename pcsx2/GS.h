@@ -341,8 +341,12 @@ namespace MTGS
 	void TryOpenGS(void);
 	void CloseGS(void);
 
-	/* Whether TryOpenGS puts the GS on its own thread (Vulkan only). */
+	/* Whether the GS has a thread of its own (the frontend's, draining
+	 * in retro_run) or, under Vulkan, runs on the EE's. */
 	void SetOwnThread(bool on);
+	/* The EE, where it would wait for the ring or the VU1 worker: with
+	 * the GS on its thread it drains the ring here instead. */
+	void ProducerDrain(void);
 };
 
 /////////////////////////////////////////////////////////////////////////////
