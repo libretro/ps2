@@ -135,9 +135,11 @@ namespace PCSX2Profiler
 	struct Scope
 	{
 		int prev;
-		Zone zone;
+		int zone;
 
-		explicit Scope(Zone z) : zone(z)
+		/* An int: the ZONE_* names above are an unnamed enum, which no
+		 * implicit conversion takes to the C enum Zone. */
+		explicit Scope(int z) : zone(z)
 		{
 			const u64 now = NowTicks();
 			if (g_current >= 0)

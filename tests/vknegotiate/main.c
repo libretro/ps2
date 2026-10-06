@@ -102,7 +102,9 @@ static vn_fn_t vn_sym(VN_HANDLE h, const char* name)
 static void vn_log(enum retro_log_level level, const char* fmt, ...)
 {
 	va_list ap;
-	if (level < RETRO_LOG_WARN)
+	/* Warnings and errors; everything with VN_VERBOSE, for the core's
+	 * own reports (the profiler's, say). */
+	if (level < RETRO_LOG_WARN && !getenv("VN_VERBOSE"))
 		return;
 	va_start(ap, fmt);
 	printf("  [core] ");

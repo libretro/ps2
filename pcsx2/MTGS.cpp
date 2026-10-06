@@ -217,7 +217,7 @@ void MTGS::PostVsyncStart()
 		if ((++frames % 60) == 0)
 		{
 			const double wall = (double)(now - last_wall);
-			fprintf(stderr, "[overlap] 60 frames: GS idle %.1f%% of wall, EE blocked in WaitGS %.1f%%\n",
+			log_cb(RETRO_LOG_INFO, "[overlap] 60 frames: GS idle %.1f%% of wall, EE blocked in WaitGS %.1f%%\n",
 			        wall > 0 ? 100.0 * (double)(g_gs_idle_ticks - last_idle) / wall : 0.0,
 			        wall > 0 ? 100.0 * (double)(g_ee_wait_ticks - last_wait) / wall : 0.0);
 			last_wall = now; last_idle = g_gs_idle_ticks; last_wait = g_ee_wait_ticks;

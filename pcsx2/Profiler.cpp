@@ -18,7 +18,27 @@
 #ifdef ENABLE_PCSX2_PROFILER
 
 #include <stdio.h>
+#include <stdarg.h>
 #include <time.h>
+#include <libretro.h>
+
+/* The report goes to the frontend's log, where RetroArch keeps it: on
+ * Windows a RetroArch without a console drops stderr, and a profile that
+ * cannot be read was not taken. stderr only when there is no log. */
+extern "C" retro_log_printf_t log_cb;
+
+static void profile_printf(const char* fmt, ...)
+{
+	char line[512];
+	va_list ap;
+	va_start(ap, fmt);
+	vsnprintf(line, sizeof(line), fmt, ap);
+	va_end(ap);
+	if (log_cb)
+		log_cb(RETRO_LOG_INFO, "%s", line);
+	else
+		fputs(line, stderr);
+}
 
 namespace PCSX2Profiler
 {
@@ -78,7 +98,7 @@ namespace PCSX2Profiler
 		s_scope_overhead_ticks = (tick1 - tick0) / (u64)N;
 
 		if (sink == ~0ull)
-			fprintf(stderr, "unreachable\n");
+			profile_printf("unreachable\n");
 	}
 
 	u64 NowNs(void)
@@ -110,7 +130,7 @@ namespace PCSX2Profiler
 		if (last_report != 0)
 		{
 			const double wall_ms = (double)(now - last_report) / 1e6;
-			fprintf(stderr, "[profile] 60 frames in %.1f ms wall (%.2f ms/frame)\n",
+			profile_printf("[profile] 60 frames in %.1f ms wall (%.2f ms/frame)\n",
 			        wall_ms, wall_ms / 60.0);
 			double measured_ms = 0.0;
 			double measured_overhead_ms = 0.0;
@@ -122,7 +142,7 @@ namespace PCSX2Profiler
 					(double)(g_zone_calls[i] * s_scope_overhead_ticks) * s_ns_per_tick / 1e6;
 				const double net_ms = ms > overhead_ms ? ms - overhead_ms : 0.0;
 				measured_overhead_ms += overhead_ms;
-				fprintf(stderr, "[profile]   %-12s %8.2f ms raw  %8.2f ms net  %6.2f%%  %10llu calls  %7.0f ns/call\n",
+				profile_printf("[profile]   %-12s %8.2f ms raw  %8.2f ms net  %6.2f%%  %10llu calls  %7.0f ns/call\n",
 				        s_zone_names[i], ms, net_ms,
 				        wall_ms > 0.0 ? 100.0 * net_ms / wall_ms : 0.0,
 				        (unsigned long long)g_zone_calls[i],
@@ -136,10 +156,10 @@ namespace PCSX2Profiler
 			 * the reader compare it to wall themselves -- above 100% means
 			 * the two threads overlapped, below means both had idle time.
 			 * Which thread was waiting is the [overlap] line's job. */
-			fprintf(stderr, "[profile]   %-12s %8.2f ms      %6.2f%% of wall (two threads; >100%% means overlap)\n",
+			profile_printf("[profile]   %-12s %8.2f ms      %6.2f%% of wall (two threads; >100%% means overlap)\n",
 			        "zones total", measured_ms,
 			        wall_ms > 0.0 ? 100.0 * measured_ms / wall_ms : 0.0);
-			fprintf(stderr, "[profile]   instrument   %8.2f ms      %6.2f%%  at %llu ns/scope -- subtracted from the net column\n",
+			profile_printf("[profile]   instrument   %8.2f ms      %6.2f%%  at %llu ns/scope -- subtracted from the net column\n",
 			        measured_overhead_ms,
 			        wall_ms > 0.0 ? 100.0 * measured_overhead_ms / wall_ms : 0.0,
 			        (unsigned long long)((double)s_scope_overhead_ticks * s_ns_per_tick));
