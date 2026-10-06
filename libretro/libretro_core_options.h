@@ -268,6 +268,22 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       },
       "Auto"
    },
+#ifdef ENABLE_VULKAN
+   {
+      "pcsx2_gs_thread",
+      "Video > GS Thread (Vulkan, Restart)",
+      "GS Thread (Vulkan, Restart)",
+      "Run the GS on its own thread. A frame is rendered while the EE runs it and is handed to the frontend as soon as the frontend asks, instead of being rendered inside that call; the frontend's input latency drops by the GS's render time. Needs a core free for the thread. Vulkan and paraLLEl-GS only.",
+      NULL,
+      "video",
+      {
+         { "disabled", NULL },
+         { "enabled", NULL },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+#endif
    {
       "pcsx2_upscale_multiplier",
       "Video > Internal Resolution (Restart)",

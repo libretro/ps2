@@ -57,6 +57,9 @@ typedef void retro_set_input_poll_t(retro_input_poll_t);
 typedef void retro_set_input_state_t(retro_input_state_t);
 typedef void retro_simple_t(void);
 typedef bool retro_load_game_t(const struct retro_game_info*);
+typedef size_t retro_serialize_size_t(void);
+typedef bool retro_serialize_t(void*, size_t);
+typedef bool retro_unserialize_t(const void*, size_t);
 
 enum { VN_V2, VN_V2RETRY, VN_V1 };
 
@@ -181,8 +184,9 @@ static bool vn_environment(unsigned cmd, void* data)
 			var = (struct retro_variable*)data;
 			var->value = NULL;
 			if      (!strcmp(var->key, "pcsx2_bios"))     var->value = s_bios_name;
-			else if (!strcmp(var->key, "pcsx2_renderer")) var->value = "Vulkan";
+			else if (!strcmp(var->key, "pcsx2_renderer")) var->value = getenv("VN_RENDERER") ? getenv("VN_RENDERER") : "Vulkan";
 			else if (!strcmp(var->key, "pcsx2_fastboot")) var->value = "disabled";
+			else if (!strcmp(var->key, "pcsx2_gs_thread")) var->value = getenv("VN_GS_THREAD") ? "enabled" : "disabled";
 			return var->value != NULL;
 		case RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE:
 			*(bool*)data = false;
@@ -190,6 +194,15 @@ static bool vn_environment(unsigned cmd, void* data)
 		default:
 			return false;
 	}
+}
+
+static VkInstance vn_instance_wrapper(void *opaque, const VkInstanceCreateInfo *ci)
+{
+	VkInstance instance = VK_NULL_HANDLE;
+	(void)opaque;
+	if (pvkCreateInstance(ci, NULL, &instance) != VK_SUCCESS)
+		return VK_NULL_HANDLE;
+	return instance;
 }
 
 /* RetroArch's wrapper in miniature: append what the frontend wants. */
@@ -396,6 +409,9 @@ int main(int argc, char** argv)
 	retro_set_input_state_t* set_input;
 	retro_simple_t *init_fn, *deinit_fn, *unload_game, *run;
 	retro_load_game_t* load_game;
+	retro_serialize_size_t* serialize_size;
+	retro_serialize_t* serialize;
+	retro_unserialize_t* unserialize;
 	const char *bios = getenv("LRPS2_BIOS");
 	const VkApplicationInfo *app;
 	VkInstanceCreateInfo ici;
@@ -447,8 +463,12 @@ int main(int argc, char** argv)
 	unload_game     = (retro_simple_t*)vn_sym(h, "retro_unload_game");
 	run             = (retro_simple_t*)vn_sym(h, "retro_run");
 	load_game       = (retro_load_game_t*)vn_sym(h, "retro_load_game");
+	serialize_size  = (retro_serialize_size_t*)vn_sym(h, "retro_serialize_size");
+	serialize       = (retro_serialize_t*)vn_sym(h, "retro_serialize");
+	unserialize     = (retro_unserialize_t*)vn_sym(h, "retro_unserialize");
 	if (!set_environment || !set_video || !set_audio || !set_audio_batch || !set_poll ||
-		!set_input || !init_fn || !deinit_fn || !unload_game || !run || !load_game)
+		!set_input || !init_fn || !deinit_fn || !unload_game || !run || !load_game
+		|| !serialize_size || !serialize || !unserialize)
 		VN_FAIL("core is missing a libretro export");
 
 	set_environment(vn_environment);
@@ -468,11 +488,21 @@ int main(int argc, char** argv)
 		VN_FAIL("entry points missing");
 
 	app = s_iface->get_application_info ? s_iface->get_application_info() : NULL;
-	memset(&ici, 0, sizeof(ici));
-	ici.sType            = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-	ici.pApplicationInfo = app;
-	if (pvkCreateInstance(&ici, NULL, &instance) != VK_SUCCESS)
-		VN_FAIL("vkCreateInstance failed");
+	if (s_mode != VN_V1 && s_iface->create_instance)
+	{
+		/* v2: the core makes the instance through the wrapper. */
+		instance = s_iface->create_instance(gipa, app, vn_instance_wrapper, NULL);
+		if (instance == VK_NULL_HANDLE)
+			VN_FAIL("create_instance failed");
+	}
+	else
+	{
+		memset(&ici, 0, sizeof(ici));
+		ici.sType            = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+		ici.pApplicationInfo = app;
+		if (pvkCreateInstance(&ici, NULL, &instance) != VK_SUCCESS)
+			VN_FAIL("vkCreateInstance failed");
+	}
 	VN_INST(vkDestroyInstance);
 	VN_INST(vkEnumeratePhysicalDevices);
 	VN_INST(vkEnumerateDeviceExtensionProperties);
@@ -542,6 +572,25 @@ int main(int argc, char** argv)
 	for (frame = 0; frame < frames; frame++)
 		run();
 	printf("  %d frames run, %u presented, %u duped, %u as images\n", frames, s_frames, s_dupes, s_images);
+	/* A savestate round trip between two frames: the drain the GS takes
+	 * for it, and the frames after it. */
+	{
+		size_t size = serialize_size();
+		void* state = size ? malloc(size) : NULL;
+		if (state && serialize(state, size))
+		{
+			for (frame = 0; frame < 10; frame++)
+				run();
+			if (!unserialize(state, size))
+				VN_FAIL("retro_unserialize failed");
+			for (frame = 0; frame < 30; frame++)
+				run();
+			printf("  savestate round trip: %u presented in all\n", s_frames);
+		}
+		else
+			printf("  savestate: not available (%u bytes)\n", (unsigned)size);
+		free(state);
+	}
 	if (s_queue_locked != 0)
 		VN_FAIL("queue lock unbalanced (%d)", s_queue_locked);
 	/* The synthetic BIOS draws nothing under the HW renderer; a real

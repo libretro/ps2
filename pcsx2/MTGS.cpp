@@ -24,6 +24,7 @@
 #include <libretro.h>
 
 #include "GS.h"
+#include "VMManager.h"
 #include "Gif_Unit.h"
 #include "MTVU.h"
 #include "WorkEventCount.h"
@@ -167,6 +168,96 @@ namespace MTGS
 
 bool MTGS::IsOpen() { return retro_atomic_load_acquire_int(&s_open_flag); }
 
+/* --- the GS on its own thread -------------------------------------------
+ *
+ * Without it, retro_run drains the ring: every GIF packet of the frame
+ * is parsed and recorded on the frontend's thread between its input
+ * poll and the frame's handover, and that is the time the frontend
+ * reports as the core's (several ms for paraLLEl-GS). With it, a worker
+ * drains the ring as the EE writes it, so a frame is rendered while the
+ * EE runs it, and retro_run finds it done and only hands it over.
+ *
+ * The EE's pacing is unchanged. It is held at each vsync until that
+ * vsync's record is committed (PostVsyncStart, WaitGS); the worker
+ * renders the vsync, keeps the frame and parks on that record until
+ * retro_run has handed the frame over, and commits it then - so the EE
+ * is let on to the next frame when it always was, at the present, and
+ * runs no further ahead than before.
+ *
+ * A drain from the frontend's side (WaitGS from a thread that does not
+ * produce, cpu_thread_pause) does not run the ring itself: it hands over
+ * or discards a parked frame by the rule in MTGSOwner.h, and waits for
+ * the worker to empty the ring. A hold (mtgs_worker_hold) parks the
+ * worker between records for a caller that touches the renderer
+ * directly, as ApplySettings does.
+ *
+ * Vulkan only: its command buffers are recorded and submitted from any
+ * thread, and set_image and the video callback stay in retro_run. */
+extern retro_video_refresh_t video_cb;
+
+namespace MTGS
+{
+	enum
+	{
+		FRAME_NONE = 0,  /* nothing parked */
+		FRAME_READY,     /* rendered, waiting for retro_run */
+		FRAME_RELEASED   /* handed over or discarded; the worker commits */
+	};
+	static bool s_own_thread;
+	static sthread_t* s_worker;
+	static retro_atomic_int_t s_worker_on   = RETRO_ATOMIC_INT_INITIALIZER(0);
+	static retro_atomic_int_t s_frame_state = RETRO_ATOMIC_INT_INITIALIZER(0);
+	static retro_atomic_int_t s_worker_hold = RETRO_ATOMIC_INT_INITIALIZER(0);
+	static retro_atomic_int_t s_worker_held = RETRO_ATOMIC_INT_INITIALIZER(0);
+	/* worker -> frontend: a frame is ready, the ring went empty, or the
+	 * hold moved; frontend -> worker: the frame was released, or the
+	 * hold moved. */
+	static retro_eventcount_t s_frame_ec;
+	static retro_eventcount_t s_release_ec;
+	/* The parked frame's handover, written by the worker before
+	 * FRAME_READY and run by the frontend after it; NULL is a dupe. */
+	static void (*s_present_fn)(void* ctx);
+	static void* s_present_ctx;
+
+	static void WorkerEntry(void* unused);
+}
+
+static INLINE int mtgs_worker_on(void)
+{
+	return retro_atomic_load_acquire_int(&MTGS::s_worker_on);
+}
+
+/* The handover itself: on the thread that renders without a worker, in
+ * retro_run with one. */
+static void mtgs_present_now(void (*fn)(void* ctx), void* ctx)
+{
+	if (fn)
+		fn(ctx);
+	else
+		video_cb(NULL, 0, 0, 0);
+}
+
+static void mtgs_present(void (*fn)(void* ctx), void* ctx)
+{
+	if (!mtgs_worker_on())
+	{
+		mtgs_present_now(fn, ctx);
+		return;
+	}
+	MTGS::s_present_fn  = fn;
+	MTGS::s_present_ctx = ctx;
+}
+
+void gs_present_vk(void (*handover)(void* ctx), void* ctx)
+{
+	mtgs_present(handover, ctx);
+}
+
+void gs_present_dupe(void)
+{
+	mtgs_present(NULL, NULL);
+}
+
 void MTGS::ResetGS(bool hardware_reset)
 {
 	// MTGS Reset process:
@@ -296,10 +387,401 @@ void MTGS::TryOpenGS(void)
 	GS_HW_CONTEXT_END();
 
 	retro_atomic_store_release_int(&s_open_flag, true);
+
+	/* The GS on its own thread: Vulkan, a hardware renderer, and a
+	 * ring to drain. The thread takes its own Granite command pool
+	 * index as any recording thread does. */
+	if (s_own_thread && s_RingOk && GSRendererOpen()
+	    && hw_render.context_type == RETRO_HW_CONTEXT_VULKAN
+	    && GSConfig.Renderer != GSRendererType::SW)
+	{
+		static bool s_ec_inited = false;
+		if (!s_ec_inited)
+		{
+			retro_eventcount_init(&s_frame_ec);
+			retro_eventcount_init(&s_release_ec);
+			s_ec_inited = true;
+		}
+		retro_atomic_store_release_int(&s_frame_state, FRAME_NONE);
+		retro_atomic_store_release_int(&s_worker_hold, 0);
+		retro_atomic_store_release_int(&s_worker_held, 0);
+		s_worker = sthread_create_with_stack_size(WorkerEntry, NULL,
+				VMManager::EMU_THREAD_STACK_SIZE);
+		if (s_worker)
+			retro_atomic_store_release_int(&s_worker_on, 1);
+		else
+			log_cb(RETRO_LOG_ERROR, "MTGS: GS thread creation failed; the GS runs in retro_run\n");
+	}
+}
+
+void MTGS::SetOwnThread(bool on)
+{
+	s_own_thread = on;
+}
+
+/* --- the worker and the frontend's side of it ------------------------- */
+
+static void mtgs_run_tag(const PacketTagType& tag);
+
+/* Parks the worker while a hold is on. Between records only, and at
+ * a parked vsync: nowhere inside the renderer. */
+static void mtgs_worker_wait_hold(void)
+{
+	while (retro_atomic_load_acquire_int(&MTGS::s_worker_hold)
+	    && retro_atomic_load_acquire_int(&MTGS::s_open_flag))
+	{
+		int key;
+		if (!retro_atomic_load_acquire_int(&MTGS::s_worker_held))
+		{
+			retro_atomic_store_release_int(&MTGS::s_worker_held, 1);
+			retro_eventcount_notify(&MTGS::s_frame_ec);
+		}
+		key = retro_eventcount_prepare_wait(&MTGS::s_release_ec);
+		if (!retro_atomic_load_acquire_int(&MTGS::s_worker_hold)
+		 || !retro_atomic_load_acquire_int(&MTGS::s_open_flag))
+		{
+			retro_eventcount_cancel_wait(&MTGS::s_release_ec);
+			break;
+		}
+		retro_eventcount_commit_wait(&MTGS::s_release_ec, key);
+	}
+	if (retro_atomic_load_acquire_int(&MTGS::s_worker_held))
+	{
+		retro_atomic_store_release_int(&MTGS::s_worker_held, 0);
+		retro_eventcount_notify(&MTGS::s_frame_ec);
+	}
+}
+
+/* The vsync's scanout on the worker: render it, park the frame for
+ * retro_run, and commit the record - which lets the EE go - once the
+ * frame has been handed over or discarded. */
+static void mtgs_worker_vsync(const PacketTagType& tag)
+{
+	const u32 field = tag.data[0];
+	const bool registers_written = tag.data[1] != 0;
+	mtgs_sync_regs();
+	MTGS::s_present_fn  = NULL;
+	MTGS::s_present_ctx = NULL;
+	GSvsync(field, registers_written);
+
+	retro_atomic_store_release_int(&MTGS::s_frame_state, MTGS::FRAME_READY);
+	retro_eventcount_notify(&MTGS::s_frame_ec);
+	for (;;)
+	{
+		int key;
+		mtgs_worker_wait_hold();
+		if (retro_atomic_load_acquire_int(&MTGS::s_frame_state) == MTGS::FRAME_RELEASED
+		 || !retro_atomic_load_acquire_int(&MTGS::s_open_flag))
+			break;
+		key = retro_eventcount_prepare_wait(&MTGS::s_release_ec);
+		if (retro_atomic_load_acquire_int(&MTGS::s_frame_state) == MTGS::FRAME_RELEASED
+		 || !retro_atomic_load_acquire_int(&MTGS::s_open_flag)
+		 || retro_atomic_load_acquire_int(&MTGS::s_worker_hold))
+		{
+			retro_eventcount_cancel_wait(&MTGS::s_release_ec);
+			continue;
+		}
+		retro_eventcount_commit_wait(&MTGS::s_release_ec, key);
+	}
+}
+
+void MTGS::WorkerEntry(void* unused)
+{
+	(void)unused;
+	for (;;)
+	{
+		size_t span;
+		const void* span_ptr;
+		mtgs_worker_wait_hold();
+		work_eventcount_wait(&s_sem_event);
+		if (!retro_atomic_load_acquire_int(&s_open_flag))
+			break;
+		while (s_RingOk && (span = retro_spsc_read_begin(&s_Ring, &span_ptr)) >= sizeof(PacketTagType))
+		{
+			size_t consumed = 0;
+			while (consumed < span)
+			{
+				const PacketTagType& tag = *(const PacketTagType*)((const u8*)span_ptr + consumed);
+				if (tag.command == GS_RINGTYPE_VSYNC)
+				{
+					int epoch;
+					mtgs_worker_vsync(tag);
+					if (!retro_atomic_load_acquire_int(&s_open_flag))
+						goto out;
+					consumed += sizeof(PacketTagType);
+					retro_spsc_read_end(&s_Ring, consumed);
+					consumed = 0;
+					/* As in MainLoop: idle at the current epoch lets the
+					 * EE's wait go; anything behind the vsync re-arms. */
+					epoch = work_eventcount_epoch(&s_sem_event);
+					work_eventcount_drained(&s_sem_event, epoch,
+							retro_spsc_read_avail(&s_Ring) != 0);
+					retro_atomic_store_release_int(&s_frame_state, FRAME_NONE);
+					retro_eventcount_notify(&s_frame_ec);
+					/* The span is committed up to here; what follows it
+					 * is taken as a new one. */
+					break;
+				}
+				mtgs_run_tag(tag);
+				consumed += sizeof(PacketTagType);
+			}
+			if (consumed)
+				retro_spsc_read_end(&s_Ring, consumed);
+		}
+		/* Empty: a drain waiting on that may go. */
+		retro_eventcount_notify(&s_frame_ec);
+	}
+out:
+	/* As MainLoop's exit: nothing parks on a closed GS. */
+	if (s_RingOk)
+		retro_spsc_skip(&s_Ring, retro_spsc_read_avail(&s_Ring));
+	retro_asym_eventcount_notify(&vu1Thread.ecP1Progress);
+	work_eventcount_kill(&s_sem_event);
+	retro_atomic_store_release_int(&s_frame_state, FRAME_NONE);
+	retro_eventcount_notify(&s_frame_ec);
+}
+
+/* Hands the parked frame over, or discards it, and lets the worker
+ * commit the vsync. */
+static void mtgs_frontend_release(int present)
+{
+	if (present)
+		mtgs_present_now(MTGS::s_present_fn, MTGS::s_present_ctx);
+	retro_atomic_store_release_int(&MTGS::s_frame_state, MTGS::FRAME_RELEASED);
+	retro_eventcount_notify(&MTGS::s_release_ec);
+}
+
+/* retro_run's frame: the one the worker has parked, or within 100 ms
+ * the next it parks. False on the timeout, as MainLoop returns it. */
+static bool mtgs_frontend_frame(void)
+{
+	for (;;)
+	{
+		int key;
+		if (retro_atomic_load_acquire_int(&MTGS::s_frame_state) == MTGS::FRAME_READY)
+		{
+			mtgs_frontend_release(1);
+			return true;
+		}
+		if (!retro_atomic_load_acquire_int(&MTGS::s_open_flag))
+			return false;
+		key = retro_eventcount_prepare_wait(&MTGS::s_frame_ec);
+		if (retro_atomic_load_acquire_int(&MTGS::s_frame_state) == MTGS::FRAME_READY
+		 || !retro_atomic_load_acquire_int(&MTGS::s_open_flag))
+		{
+			retro_eventcount_cancel_wait(&MTGS::s_frame_ec);
+			continue;
+		}
+		if (!retro_eventcount_commit_wait_timeout(&MTGS::s_frame_ec, key, 100 * 1000))
+		{
+			if (retro_atomic_load_acquire_int(&MTGS::s_frame_state) != MTGS::FRAME_READY)
+				return false;
+		}
+	}
+}
+
+/* A drain from the frontend's side: the ring is run by the worker, and
+ * this waits for it to empty, handing over or discarding a parked frame
+ * on the way by the rule in MTGSOwner.h. */
+static void mtgs_frontend_drain(void)
+{
+	work_eventcount_notify(&MTGS::s_sem_event);
+	for (;;)
+	{
+		int key;
+		if (!retro_atomic_load_acquire_int(&MTGS::s_open_flag))
+			return;
+		if (retro_atomic_load_acquire_int(&MTGS::s_frame_state) == MTGS::FRAME_READY)
+			mtgs_frontend_release(mtgs_vsync_presents(1,
+					sthread_get_current_thread_id(), MTGS::s_thread, s_present_held));
+		if (!s_RingOk || retro_spsc_read_avail(&s_Ring) == 0)
+			return;
+		key = retro_eventcount_prepare_wait(&MTGS::s_frame_ec);
+		if (retro_atomic_load_acquire_int(&MTGS::s_frame_state) == MTGS::FRAME_READY
+		 || retro_spsc_read_avail(&s_Ring) == 0
+		 || !retro_atomic_load_acquire_int(&MTGS::s_open_flag))
+		{
+			retro_eventcount_cancel_wait(&MTGS::s_frame_ec);
+			continue;
+		}
+		retro_eventcount_commit_wait(&MTGS::s_frame_ec, key);
+	}
+}
+
+/* Parks the worker outside the renderer for a caller that is about to
+ * touch it from another thread, and lets it go again. A count: the EE
+ * applies settings at a game's start while the frontend may too. */
+void mtgs_worker_hold(int on)
+{
+	if (!mtgs_worker_on())
+		return;
+	if (!on)
+	{
+		/* Returns once the worker has seen the last hold go: a hold
+		 * taken straight after must not find the acknowledgement of
+		 * this one still standing. */
+		if (retro_atomic_fetch_sub_int(&MTGS::s_worker_hold, 1) != 1)
+			return;
+		retro_eventcount_notify(&MTGS::s_release_ec);
+		for (;;)
+		{
+			int key;
+			if (!retro_atomic_load_acquire_int(&MTGS::s_worker_held)
+			 || !retro_atomic_load_acquire_int(&MTGS::s_open_flag))
+				return;
+			key = retro_eventcount_prepare_wait(&MTGS::s_frame_ec);
+			if (!retro_atomic_load_acquire_int(&MTGS::s_worker_held)
+			 || !retro_atomic_load_acquire_int(&MTGS::s_open_flag))
+			{
+				retro_eventcount_cancel_wait(&MTGS::s_frame_ec);
+				return;
+			}
+			retro_eventcount_commit_wait(&MTGS::s_frame_ec, key);
+		}
+	}
+	retro_atomic_fetch_add_int(&MTGS::s_worker_hold, 1);
+	work_eventcount_notify(&MTGS::s_sem_event);
+	retro_eventcount_notify(&MTGS::s_release_ec);
+	for (;;)
+	{
+		int key;
+		if (retro_atomic_load_acquire_int(&MTGS::s_worker_held)
+		 || !retro_atomic_load_acquire_int(&MTGS::s_open_flag))
+			return;
+		key = retro_eventcount_prepare_wait(&MTGS::s_frame_ec);
+		if (retro_atomic_load_acquire_int(&MTGS::s_worker_held)
+		 || !retro_atomic_load_acquire_int(&MTGS::s_open_flag))
+		{
+			retro_eventcount_cancel_wait(&MTGS::s_frame_ec);
+			return;
+		}
+		retro_eventcount_commit_wait(&MTGS::s_frame_ec, key);
+	}
+}
+
+/* Runs one record of the ring, on whichever thread drains it. A vsync
+ * is not run here: its commit and scanout are the drain's own, see the
+ * two drains below. */
+static void mtgs_run_tag(const PacketTagType& tag)
+{
+	switch (tag.command)
+	{
+		case GS_RINGTYPE_GSPACKET:
+			{
+				Gif_Path& path = gifUnit.gifPath[tag.data[2]];
+				u32 offset     = tag.data[0];
+				u32 size       = tag.data[1];
+				if (offset != ~0u)
+				{
+					GS_HW_CONTEXT_BEGIN();
+					GSgifTransfer((u8*)&path.buffer[offset], size / 16);
+					GS_HW_CONTEXT_END();
+				}
+				retro_atomic_fetch_sub_int(&path.readAmount, size);
+			}
+			break;
+
+		case GS_RINGTYPE_MTVU_GSPACKET:
+		{
+			// MTVU_GSPACKET only enqueued in MTVU mode.
+			// One ring item = one VU1 program, but the program may
+			// deliver MULTIPLE queue packets: PARTIAL flushes
+			// (gsPack.cycles != 0, emitted when the worker's path1
+			// buffer would fill mid-program -- continuous VU1
+			// microprograms) followed by the final packet
+			// (cycles == 0). Consume until the final one; each
+			// Each ecXGkick notify follows exactly one queue push.
+			Gif_Path& path = gifUnit.gifPath[GIF_PATH_1];
+			for (;;)
+			{
+				// Wait for MTVU to push a path1 packet.
+				// Spin-try first (except on aarch64, whose
+				// UserspaceSemaphore::Wait is already a
+				// syscall-free WFE park): partial flushes and
+				// short VU1 programs post microseconds apart,
+				// and eating a kernel sleep/wake pair per
+				// packet is the dominant per-program cost when
+				// this thread outruns the worker.  A miss
+				// falls through to the same Wait as before.
+				/* Wait for a path-1 packet. The queue's occupancy is
+				 * the condition -- there is no separate credit to take,
+				 * and PopGSPacketMTVU below is the consume. Spin the
+				 * budget first, then register, re-check, park. */
+				if (!path.GetPendingGSPackets())
+				{
+					s32 spins = WorkEventCount_SpinBudget();
+					while (!path.GetPendingGSPackets() && spins-- > 0)
+						WORK_EVENTCOUNT_RELAX();
+					while (!path.GetPendingGSPackets())
+					{
+						int key = retro_asym_eventcount_prepare_wait(&vu1Thread.ecXGkick);
+						if (path.GetPendingGSPackets())
+						{
+							retro_asym_eventcount_cancel_wait(&vu1Thread.ecXGkick);
+							break;
+						}
+						retro_asym_eventcount_commit_wait(&vu1Thread.ecXGkick, key);
+					}
+				}
+				GS_Packet gsPack = path.GetGSPacketMTVU(); // Get vu1 program's xgkick packet(s)
+				if (gsPack.size)
+				{
+					GS_HW_CONTEXT_BEGIN();
+					GSgifTransfer((u8*)&path.buffer[gsPack.offset], gsPack.size / 16);
+					GS_HW_CONTEXT_END();
+				}
+				retro_atomic_fetch_sub_int(&path.readAmount, gsPack.size + gsPack.readAmount);
+				const bool final_packet = gsPack.cycles == 0;
+				path.PopGSPacketMTVU(); // Should be done last, for proper WaitGS(isMTVU)
+				/* One post per pop: WaitGS(isMTVU) sleeps on
+				 * this instead of the old lock rendezvous. */
+				retro_asym_eventcount_notify(&vu1Thread.ecP1Progress);
+				if (final_packet)
+					break;
+			}
+		}
+			break;
+		case GS_RINGTYPE_FREEZE:
+			{
+				MTGS_FreezeData* data = (MTGS_FreezeData*)tag.pointer;
+				int mode = tag.data[0];
+				mtgs_sync_regs();
+				GS_HW_CONTEXT_BEGIN();
+				GSfreeze((FreezeAction)mode, (freezeData*)data->fdata);
+				GS_HW_CONTEXT_END();
+			}
+			break;
+		case GS_RINGTYPE_RESET:
+			mtgs_sync_regs();
+			GS_HW_CONTEXT_BEGIN();
+			GSreset(tag.data[0] != 0);
+			GS_HW_CONTEXT_END();
+			break;
+		case GS_RINGTYPE_INIT_AND_READ_FIFO:
+			GS_HW_CONTEXT_BEGIN();
+			GSInitAndReadFIFO((u8*)tag.pointer, tag.data[0]);
+			GS_HW_CONTEXT_END();
+			break;
+		// Optimized performance in non-Dev builds.
+		default:
+			break;
+	}
 }
 
 bool MTGS::MainLoop(bool flush_all)
 {
+	/* With the GS on its own thread this is the frontend's side of it:
+	 * retro_run's handover, or a drain. */
+	if (mtgs_worker_on())
+	{
+		if (flush_all)
+		{
+			mtgs_frontend_drain();
+			return true;
+		}
+		return mtgs_frontend_frame();
+	}
+
 	// Threading info: run in MTGS thread
 
 	/* MTVU handoff needs no lock: the WaitGS(isMTVU) rendezvous this
@@ -368,149 +850,48 @@ bool MTGS::MainLoop(bool flush_all)
 		{
 			const PacketTagType& tag = *(const PacketTagType*)((const u8*)span_ptr + consumed);
 
-			switch (tag.command)
+			if (tag.command == GS_RINGTYPE_VSYNC)
 			{
-				case GS_RINGTYPE_GSPACKET:
-					{
-						Gif_Path& path = gifUnit.gifPath[tag.data[2]];
-						u32 offset     = tag.data[0];
-						u32 size       = tag.data[1];
-						if (offset != ~0u)
-						{
-							GS_HW_CONTEXT_BEGIN();
-							GSgifTransfer((u8*)&path.buffer[offset], size / 16);
-							GS_HW_CONTEXT_END();
-						}
-						retro_atomic_fetch_sub_int(&path.readAmount, size);
-					}
-					break;
-
-				case GS_RINGTYPE_MTVU_GSPACKET:
+				const u32 field = tag.data[0];
+				const bool registers_written = tag.data[1] != 0;
+				/* The EE is held in WaitGS behind this packet, so the
+				 * registers are this frame's: take them, and if this is
+				 * the per-frame exit, commit the packet and let the EE go
+				 * before the scanout. The tag is not read past here. */
+				mtgs_sync_regs();
+				if (!flush_all)
 				{
-					// MTVU_GSPACKET only enqueued in MTVU mode.
-					// One ring item = one VU1 program, but the program may
-					// deliver MULTIPLE queue packets: PARTIAL flushes
-					// (gsPack.cycles != 0, emitted when the worker's path1
-					// buffer would fill mid-program -- continuous VU1
-					// microprograms) followed by the final packet
-					// (cycles == 0). Consume until the final one; each
-					// Each ecXGkick notify follows exactly one queue push.
-					Gif_Path& path = gifUnit.gifPath[GIF_PATH_1];
-					for (;;)
-					{
-						// Wait for MTVU to push a path1 packet.
-						// Spin-try first (except on aarch64, whose
-						// UserspaceSemaphore::Wait is already a
-						// syscall-free WFE park): partial flushes and
-						// short VU1 programs post microseconds apart,
-						// and eating a kernel sleep/wake pair per
-						// packet is the dominant per-program cost when
-						// this thread outruns the worker.  A miss
-						// falls through to the same Wait as before.
-						/* Wait for a path-1 packet. The queue's occupancy is
-						 * the condition -- there is no separate credit to take,
-						 * and PopGSPacketMTVU below is the consume. Spin the
-						 * budget first, then register, re-check, park. */
-						if (!path.GetPendingGSPackets())
-						{
-							s32 spins = WorkEventCount_SpinBudget();
-							while (!path.GetPendingGSPackets() && spins-- > 0)
-								WORK_EVENTCOUNT_RELAX();
-							while (!path.GetPendingGSPackets())
-							{
-								int key = retro_asym_eventcount_prepare_wait(&vu1Thread.ecXGkick);
-								if (path.GetPendingGSPackets())
-								{
-									retro_asym_eventcount_cancel_wait(&vu1Thread.ecXGkick);
-									break;
-								}
-								retro_asym_eventcount_commit_wait(&vu1Thread.ecXGkick, key);
-							}
-						}
-						GS_Packet gsPack = path.GetGSPacketMTVU(); // Get vu1 program's xgkick packet(s)
-						if (gsPack.size)
-						{
-							GS_HW_CONTEXT_BEGIN();
-							GSgifTransfer((u8*)&path.buffer[gsPack.offset], gsPack.size / 16);
-							GS_HW_CONTEXT_END();
-						}
-						retro_atomic_fetch_sub_int(&path.readAmount, gsPack.size + gsPack.readAmount);
-						const bool final_packet = gsPack.cycles == 0;
-						path.PopGSPacketMTVU(); // Should be done last, for proper WaitGS(isMTVU)
-						/* One post per pop: WaitGS(isMTVU) sleeps on
-						 * this instead of the old lock rendezvous. */
-						retro_asym_eventcount_notify(&vu1Thread.ecP1Progress);
-						if (final_packet)
-							break;
-					}
+					consumed += sizeof(PacketTagType);
+					retro_spsc_read_end(&s_Ring, consumed);
+					consumed = 0;
+					/* Idle at the current epoch releases WaitGS's
+					 * empty-wait, including when the vsync's own notify
+					 * landed after this drain began. Entries behind the
+					 * vsync (a soft-reset tag rides along with no notify
+					 * of its own) re-arm the work count so the next call
+					 * drains them. */
+					const int epoch = work_eventcount_epoch(&s_sem_event);
+					work_eventcount_drained(&s_sem_event, epoch,
+							retro_spsc_read_avail(&s_Ring) != 0);
 				}
-					break;
-				case GS_RINGTYPE_VSYNC:
+				/* Whether this vsync is scanned out: see
+				 * mtgs_vsync_presents (MTGSOwner.h). A drain on the
+				 * thread that renders presents the frame the EE had
+				 * ready, unless the frontend is taking the context
+				 * away. */
+				if (mtgs_vsync_presents(flush_all,
+							sthread_get_current_thread_id(), s_thread,
+							s_present_held))
 				{
-					const u32 field = tag.data[0];
-					const bool registers_written = tag.data[1] != 0;
-					/* The EE is held in WaitGS behind this packet, so the
-					 * registers are this frame's: take them, and if this is
-					 * the per-frame exit, commit the packet and let the EE go
-					 * before the scanout. The tag is not read past here. */
-					mtgs_sync_regs();
-					if (!flush_all)
-					{
-						consumed += sizeof(PacketTagType);
-						retro_spsc_read_end(&s_Ring, consumed);
-						consumed = 0;
-						/* Idle at the current epoch releases WaitGS's
-						 * empty-wait, including when the vsync's own notify
-						 * landed after this drain began. Entries behind the
-						 * vsync (a soft-reset tag rides along with no notify
-						 * of its own) re-arm the work count so the next call
-						 * drains them. */
-						const int epoch = work_eventcount_epoch(&s_sem_event);
-						work_eventcount_drained(&s_sem_event, epoch,
-								retro_spsc_read_avail(&s_Ring) != 0);
-					}
-					/* Whether this vsync is scanned out: see
-					 * mtgs_vsync_presents (MTGSOwner.h). A drain on the
-					 * thread that renders presents the frame the EE had
-					 * ready, unless the frontend is taking the context
-					 * away. */
-					if (mtgs_vsync_presents(flush_all,
-								sthread_get_current_thread_id(), s_thread,
-								s_present_held))
-					{
-						GS_HW_CONTEXT_BEGIN();
-						GSvsync(field, registers_written);
-						GS_HW_CONTEXT_END();
-					}
-					if (!flush_all)
-						return true;
-					break;
+					GS_HW_CONTEXT_BEGIN();
+					GSvsync(field, registers_written);
+					GS_HW_CONTEXT_END();
 				}
-				case GS_RINGTYPE_FREEZE:
-					{
-						MTGS_FreezeData* data = (MTGS_FreezeData*)tag.pointer;
-						int mode = tag.data[0];
-						mtgs_sync_regs();
-						GS_HW_CONTEXT_BEGIN();
-						GSfreeze((FreezeAction)mode, (freezeData*)data->fdata);
-						GS_HW_CONTEXT_END();
-					}
-					break;
-				case GS_RINGTYPE_RESET:
-					mtgs_sync_regs();
-					GS_HW_CONTEXT_BEGIN();
-					GSreset(tag.data[0] != 0);
-					GS_HW_CONTEXT_END();
-					break;
-				case GS_RINGTYPE_INIT_AND_READ_FIFO:
-					GS_HW_CONTEXT_BEGIN();
-					GSInitAndReadFIFO((u8*)tag.pointer, tag.data[0]);
-					GS_HW_CONTEXT_END();
-					break;
-				// Optimized performance in non-Dev builds.
-				default:
-					break;
+				if (!flush_all)
+					return true;
 			}
+			else
+				mtgs_run_tag(tag);
 
 			consumed += sizeof(PacketTagType);
 		}
@@ -530,6 +911,21 @@ bool MTGS::MainLoop(bool flush_all)
 
 void MTGS::CloseGS(void)
 {
+	/* The worker leaves first: everything it parks on is woken, and it
+	 * runs its exit tail on the way out. The renderer is closed on this
+	 * thread once it is gone. */
+	if (s_worker)
+	{
+		retro_atomic_store_release_int(&s_open_flag, false);
+		work_eventcount_kill(&s_sem_event);
+		retro_eventcount_notify(&s_release_ec);
+		sthread_join(s_worker);
+		s_worker = NULL;
+		retro_atomic_store_release_int(&s_worker_on, 0);
+		retro_atomic_store_release_int(&s_frame_state, FRAME_NONE);
+		retro_atomic_store_release_int(&s_worker_hold, 0);
+		retro_atomic_store_release_int(&s_worker_held, 0);
+	}
 	GS_HW_CONTEXT_BEGIN();
 	GSclose();
 	GS_HW_CONTEXT_END();
@@ -561,7 +957,7 @@ void MTGS::WaitGS(bool isMTVU)
 			 * with no completed GIF packets between PostVsyncStart and
 			 * here); without this MainLoop(true) returns at once. */
 			work_eventcount_notify(&s_sem_event);
-			MainLoop(true);
+			MainLoop(true);   /* the worker's drain when there is one */
 			return;
 		}
 		if (!IsOpen())
@@ -691,17 +1087,22 @@ void MTGS::Freeze(FreezeAction mode, MTGS_FreezeData& data)
 
 void MTGS::GameChanged()
 {
+	mtgs_worker_hold(1);
 	GSGameChanged();
+	mtgs_worker_hold(0);
 }
 
 void MTGS::ApplySettings()
 {
-	GSUpdateConfig(EmuConfig.GS, hw_render.context_type);
 	// We need to synchronize the thread when changing any settings when the download mode
 	// is unsynchronized, because otherwise we might potentially read in the middle of
 	// the GS renderer being reopened.
 	if (EmuConfig.GS.HWDownloadMode == GSHardwareDownloadMode::Unsynchronized)
 		WaitGS(false);
+	/* The worker is parked outside the renderer while its config moves. */
+	mtgs_worker_hold(1);
+	GSUpdateConfig(EmuConfig.GS, hw_render.context_type);
+	mtgs_worker_hold(0);
 }
 
 // Adds a finished GS Packet to the MTGS ring buffer

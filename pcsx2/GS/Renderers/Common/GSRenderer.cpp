@@ -23,8 +23,7 @@
 #include "../../../Host.h"
 #include "../../../PerformanceMetrics.h"
 #include "../../../Config.h"
-
-extern retro_video_refresh_t video_cb;
+#include "../../../GS.h"
 
 GSRenderer* g_gs_renderer = NULL;
 
@@ -312,7 +311,7 @@ void GSState::VSyncBase(u32 field, bool registers_written, bool idle_frame)
 				g_gs_device->PresentRect(current, src_uv, nullptr, draw_rect);
 			}
 			else
-				video_cb(NULL, 0, 0, 0);
+				gs_present_dupe();
 
 			g_gs_device->EndPresent();
 		}

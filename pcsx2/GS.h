@@ -306,6 +306,16 @@ extern void (*gs_hw_context_end)(void);
 #define GS_HW_CONTEXT_BEGIN() do { if (gs_hw_context_begin) gs_hw_context_begin(); } while (0)
 #define GS_HW_CONTEXT_END()   do { if (gs_hw_context_end)   gs_hw_context_end();   } while (0)
 
+/* How a Vulkan renderer hands a frame to the frontend. Called from the
+ * thread that renders, once per vsync. handover(ctx) is the handover
+ * itself - the sync slot, set_image and the video callback - and runs on
+ * the frontend's thread: here and now without a GS thread, in retro_run
+ * with one (MTGS::TryOpenGS, pcsx2_gs_thread), with the GS thread parked
+ * until it has run. */
+void gs_present_vk(void (*handover)(void* ctx), void* ctx);
+/* The frame before is shown again (video_cb with NULL). */
+void gs_present_dupe(void);
+
 namespace MTGS
 {
 	bool IsOpen();
@@ -330,6 +340,9 @@ namespace MTGS
 
 	void TryOpenGS(void);
 	void CloseGS(void);
+
+	/* Whether TryOpenGS puts the GS on its own thread (Vulkan only). */
+	void SetOwnThread(bool on);
 };
 
 /////////////////////////////////////////////////////////////////////////////

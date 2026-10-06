@@ -39,10 +39,21 @@ static std::vector<ImageHandle> vsync_images;
  * again), so it must stay valid as long as the slot's image does. */
 static std::vector<retro_vulkan_image> vsync_descs;
 
+/* The frame the worker rendered and the frontend is yet to take, see
+ * gs_present_vk (GS.h). */
+struct PGSPendingFrame
+{
+	Vulkan::ImageHandle image;
+	uint32_t internal_width, internal_height;
+	uint32_t mode_width, mode_height;
+};
+static PGSPendingFrame pgs_pending;
+
 static void pgs_release_vsync_images()
 {
 	vsync_images.clear();
 	vsync_descs.clear();
+	pgs_pending.image.reset();
 }
 extern retro_environment_t environ_cb;
 extern retro_video_refresh_t video_cb;
@@ -523,6 +534,109 @@ int GSRendererPGS::Defrost(freezeData* data)
 
 extern s8 setting_hint_widescreen;
 
+
+/* The handover: on the frontend's thread, with the GS thread, when
+ * there is one, parked until it returns. The slot is the frontend's
+ * current one, so it is chosen here and not at the render, which with a
+ * GS thread may run before the frontend has moved on from the last. */
+static void pgs_handover(void* unused)
+{
+	static retro_game_geometry geom  = {};
+	bool geom_changed                = false;
+	static float last_aspect         = 0.0f;
+	static uint32_t last_base_width  = 0;
+	static uint32_t last_base_height = 0;
+	Vulkan::ImageHandle image        = std::move(pgs_pending.image);
+	uint32_t new_base_width          = image->get_width();
+	uint32_t new_base_height         = image->get_height();
+	(void)unused;
+	/* The frontend's slot for this frame, and the wait that
+	 * says it is done with what the slot held before. Its
+	 * mask is a contiguous run of bits: the ring is sized to
+	 * it once and again if it grows. */
+	uint32_t sync_index = hw_render_iface->get_sync_index(hw_render_iface->handle);
+	/* A mask, not a count: bit i set means index i can be
+	 * returned, so the slots needed are one past the highest set
+	 * bit. Adding one to the mask asked for eight where the usual
+	 * 0b111 needs three. Same as GSDeviceVK (2005b82dc). */
+	uint32_t sync_mask  = hw_render_iface->get_sync_index_mask(hw_render_iface->handle);
+	uint32_t sync_slots = 0;
+	while (sync_mask)
+	{
+		sync_slots++;
+		sync_mask >>= 1;
+	}
+	if (sync_slots < 1)
+		sync_slots = 1;
+	if (sync_index >= sync_slots)
+		sync_index = 0;
+	if (vsync_images.size() < sync_slots)
+	{
+		vsync_images.resize(sync_slots);
+		vsync_descs.resize(sync_slots);
+	}
+	hw_render_iface->wait_sync_index(hw_render_iface->handle);
+
+	retro_vulkan_image &vkimage = vsync_descs[sync_index];
+	vkimage = {};
+	vkimage.image_view = image->get_view().get_unorm_view().view;
+	vkimage.image_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	vkimage.create_info = {
+		VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO, nullptr, 0,
+		image->get_image(), VK_IMAGE_VIEW_TYPE_2D, VK_FORMAT_R8G8B8A8_UNORM,
+		{ VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY },
+		{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 }
+	};
+
+	if (new_base_width != last_base_width)
+	{
+		geom_changed     = true;
+		geom.base_width  = new_base_width;
+	}
+	if (new_base_height != last_base_height)
+	{
+		geom_changed     = true;
+		geom.base_height = new_base_height;
+	}
+
+	switch (setting_hint_widescreen)
+	{
+		case 1:
+			geom.aspect_ratio = 16.0f / 9.0f;
+			break;
+		case 2:
+			geom.aspect_ratio = 16.0f / 10.0f;
+			break;
+		case 3:
+			geom.aspect_ratio = 21.0f / 9.0f;
+			break;
+		case 4:
+			geom.aspect_ratio = 32.0f / 9.0f;
+			break;
+		case 0:
+		default:
+			geom.aspect_ratio = 4.0f / 3.0f;
+			break;
+	}
+	float horizontal_scanout_ratio = float(pgs_pending.internal_width) / float(pgs_pending.mode_width);
+	float vertical_scanout_ratio = float(pgs_pending.internal_height) / float(pgs_pending.mode_height);
+	geom.aspect_ratio *= horizontal_scanout_ratio / vertical_scanout_ratio;
+	if (last_aspect != geom.aspect_ratio)
+		geom_changed = true;
+	if (geom_changed)
+		environ_cb(RETRO_ENVIRONMENT_SET_GEOMETRY, &geom);
+
+	hw_render_iface->set_image(hw_render_iface->handle, &vkimage, 0, nullptr, hw_render_iface->queue_index);
+	video_cb(RETRO_HW_FRAME_BUFFER_VALID, new_base_width, new_base_height, 0);
+	/* The image this slot held is let go here, after the wait
+	 * above said the frontend is done with it; the one just
+	 * handed over stays until this slot comes round again. */
+	vsync_images[sync_index] = std::move(image);
+	last_base_width  = new_base_width;
+	last_base_height = new_base_height;
+	last_aspect      = geom.aspect_ratio;
+}
+
 void GSRendererPGS::VSync(u32 field, bool registers_written)
 {
 	iface.flush();
@@ -558,7 +672,7 @@ void GSRendererPGS::VSync(u32 field, bool registers_written)
 	if (GSConfig.SkipDuplicateFrames && has_presented_in_current_swapchain &&
 	    !registers_written && stats.num_render_passes == 0 && stats.num_copies == 0)
 	{
-		video_cb(nullptr, 0, 0, 0);
+		gs_present_dupe();
 		return;
 	}
 
@@ -572,103 +686,16 @@ void GSRendererPGS::VSync(u32 field, bool registers_written)
 	{
 		if (vsync.image)
 		{
-			static retro_game_geometry geom  = {};
-			bool geom_changed                = false;
-			static float last_aspect         = 0.0f;
-			static uint32_t last_base_width  = 0;
-			static uint32_t last_base_height = 0;
-			uint32_t new_base_width          = vsync.image->get_width();
-			uint32_t new_base_height         = vsync.image->get_height();
-			/* The frontend's slot for this frame, and the wait that
-			 * says it is done with what the slot held before. Its
-			 * mask is a contiguous run of bits: the ring is sized to
-			 * it once and again if it grows. */
-			uint32_t sync_index = hw_render_iface->get_sync_index(hw_render_iface->handle);
-			/* A mask, not a count: bit i set means index i can be
-			 * returned, so the slots needed are one past the highest set
-			 * bit. Adding one to the mask asked for eight where the usual
-			 * 0b111 needs three. Same as GSDeviceVK (2005b82dc). */
-			uint32_t sync_mask  = hw_render_iface->get_sync_index_mask(hw_render_iface->handle);
-			uint32_t sync_slots = 0;
-			while (sync_mask)
-			{
-				sync_slots++;
-				sync_mask >>= 1;
-			}
-			if (sync_slots < 1)
-				sync_slots = 1;
-			if (sync_index >= sync_slots)
-				sync_index = 0;
-			if (vsync_images.size() < sync_slots)
-			{
-				vsync_images.resize(sync_slots);
-				vsync_descs.resize(sync_slots);
-			}
-			hw_render_iface->wait_sync_index(hw_render_iface->handle);
-
 			dev.flush_frame();
-
-			retro_vulkan_image &vkimage = vsync_descs[sync_index];
-			vkimage = {};
-			vkimage.image_view = vsync.image->get_view().get_unorm_view().view;
-			vkimage.image_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			vkimage.create_info = {
-				VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO, nullptr, 0,
-				vsync.image->get_image(), VK_IMAGE_VIEW_TYPE_2D, VK_FORMAT_R8G8B8A8_UNORM,
-				{ VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY },
-				{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 }
-			};
-
-			if (new_base_width != last_base_width)
-			{
-				geom_changed     = true;
-				geom.base_width  = new_base_width;
-			}
-			if (new_base_height != last_base_height)
-			{
-				geom_changed     = true;
-				geom.base_height = new_base_height;
-			}
-
-			switch (setting_hint_widescreen)
-			{
-				case 1:
-					geom.aspect_ratio = 16.0f / 9.0f;
-					break;
-				case 2:
-					geom.aspect_ratio = 16.0f / 10.0f;
-					break;
-				case 3:
-					geom.aspect_ratio = 21.0f / 9.0f;
-					break;
-				case 4:
-					geom.aspect_ratio = 32.0f / 9.0f;
-					break;
-				case 0:
-				default:
-					geom.aspect_ratio = 4.0f / 3.0f;
-					break;
-			}
-			float horizontal_scanout_ratio = float(vsync.internal_width) / float(vsync.mode_width);
-			float vertical_scanout_ratio = float(vsync.internal_height) / float(vsync.mode_height);
-			geom.aspect_ratio *= horizontal_scanout_ratio / vertical_scanout_ratio;
-			if (last_aspect != geom.aspect_ratio)
-				geom_changed = true;
-			if (geom_changed)
-				environ_cb(RETRO_ENVIRONMENT_SET_GEOMETRY, &geom);
-
-			hw_render_iface->set_image(hw_render_iface->handle, &vkimage, 0, nullptr, hw_render_iface->queue_index);
-			video_cb(RETRO_HW_FRAME_BUFFER_VALID, new_base_width, new_base_height, 0);
-			/* The image this slot held is let go here, after the wait
-			 * above said the frontend is done with it; the one just
-			 * handed over stays until this slot comes round again. */
-			vsync_images[sync_index] = vsync.image;
-			last_base_width  = new_base_width;
-			last_base_height = new_base_height;
-			last_aspect      = geom.aspect_ratio;
+			pgs_pending.image           = vsync.image;
+			pgs_pending.internal_width  = vsync.internal_width;
+			pgs_pending.internal_height = vsync.internal_height;
+			pgs_pending.mode_width      = vsync.mode_width;
+			pgs_pending.mode_height     = vsync.mode_height;
+			gs_present_vk(pgs_handover, nullptr);
 		}
 		else
-			video_cb(nullptr, 0, 0, 0);
+			gs_present_dupe();
 	}
 
 	dev.next_frame_context();

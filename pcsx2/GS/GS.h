@@ -85,6 +85,8 @@ struct gs_renderer_ops
 
 void GSreset(bool hardware_reset);
 void GSclose(void);
+/* Whether GSopen left a renderer behind its entry points. */
+bool GSRendererOpen(void);
 void GSgifSoftReset(u32 mask);
 void GSInitAndReadFIFO(u8* mem, u32 size);
 void GSReadLocalMemoryUnsync(u8* mem, u32 qwc, u64 BITBLITBUF, u64 TRXPOS, u64 TRXREG);

@@ -210,6 +210,11 @@ static void CloseGSDevice(bool clear_state)
  * OpenGSRenderer alone. */
 static const struct gs_renderer_ops* s_gs_ops = NULL;
 
+bool GSRendererOpen(void)
+{
+	return s_gs_ops != NULL;
+}
+
 static void gsdx_op_reset(bool hardware_reset)  { g_gs_renderer->Reset(hardware_reset); }
 static void gsdx_op_gif_soft_reset(u32 mask)    { g_gs_renderer->SoftReset(mask); }
 

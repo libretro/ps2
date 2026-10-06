@@ -545,6 +545,8 @@ public:
 	void StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, bool red,
 		bool green, bool blue, bool alpha, ShaderConvert shader = ShaderConvert::COPY);
 	void PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect);
+	/* PresentRect's handover to the frontend; see gs_present_vk (GS.h). */
+	static void vk_libretro_handover(void* ctx);
 	void DrawMultiStretchRects(const MultiStretchRect* rects, u32 num_rects, GSTexture* dTex, ShaderConvert shader);
 	void DoMultiStretchRects(const MultiStretchRect* rects, u32 num_rects, GSTextureVK* dTex, ShaderConvert shader);
 

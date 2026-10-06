@@ -2083,96 +2083,111 @@ void GSDeviceVK::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture*
 		false, allow_discard);
 }
 
+/* The frame the renderer finished and the frontend is yet to take, see
+ * gs_present_vk (GS.h). */
+static GSTexture* vk_pending_tex;
+static bool       vk_pending_blank;
+
 void GSDeviceVK::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect)
 {
+	if (!sTex)
+		return;
+	/* Blanking enforce, see 'GSRenderer::VSync()' */
+	vk_pending_tex   = sTex;
+	vk_pending_blank = !sRect.right && !sRect.bottom;
+	gs_present_vk(vk_libretro_handover, this);
+}
+
+/* The handover: on the frontend's thread, with the GS thread, when there
+ * is one, parked until it returns. The slot is the frontend's current
+ * one, so it is chosen here and not at the render, which with a GS
+ * thread may run before the frontend has moved on from the last. */
+void GSDeviceVK::vk_libretro_handover(void* ctx)
+{
+	GSDeviceVK* dev  = static_cast<GSDeviceVK*>(ctx);
+	GSTexture* sTex  = vk_pending_tex;
 	GSTextureVK* tex = (GSTextureVK*)sTex;
-	if (tex)
+	if (vk_pending_blank)
 	{
-		/* Blanking enforce, see 'GSRenderer::VSync()' */
-		if (!sRect.right && !sRect.bottom)
-		{
-			/* Blanking: clear the registered image so the frontend
-			 * falls back to its default (black) texture. Matches the
-			 * DX11 path's ClearRenderTarget(sTex, 0) blanking. */
-			/* Blanking retracts the image; the frontend must be done
-			 * with the one it had before the target is reused. */
-			vulkan->wait_sync_index(vulkan->handle);
-			vulkan->set_image(vulkan->handle, nullptr, 0, nullptr, vulkan->queue_index);
-			video_cb(RETRO_HW_FRAME_BUFFER_VALID, tex->GetWidth(), tex->GetHeight(), 0);
-		}
-		else
-		{
-			/* The texture handed over is the device's own present
-			 * target, which the next frame renders into again and a
-			 * resolution change recreates outright. The frontend
-			 * reads it on its own schedule - a frame or more later
-			 * on a threaded video path, many frames later under
-			 * fast-forward - so the handover follows the sync index
-			 * the interface provides: the frontend names the slot,
-			 * wait_sync_index() returns once it has finished reading
-			 * what that slot held before, and only then does this
-			 * frame's rendering into the target reach the queue
-			 * (recorded now, submitted at EndPresent below).
-			 * Nothing is copied. */
-			uint32_t sync_index = vulkan->get_sync_index(vulkan->handle);
-			/* A mask, not a count: bit i set means index i can be returned.
-			 * The slots needed are one past the highest set bit. (This
-			 * added one to the mask, which for the usual 0b111 asked for
-			 * eight descriptors where three are used.) */
-			uint32_t sync_mask  = vulkan->get_sync_index_mask(vulkan->handle);
-			uint32_t sync_slots = 0;
-			while (sync_mask)
-			{
-				sync_slots++;
-				sync_mask >>= 1;
-			}
-			if (sync_slots < 1)
-				sync_slots = 1;
-			if (sync_index >= sync_slots)
-				sync_index = 0;
-			if (vk_present_descs.size() < sync_slots)
-				vk_present_descs.resize(sync_slots);
-			vulkan->wait_sync_index(vulkan->handle);
-			SyncIndexWaited(sync_slots);
+		/* Blanking: clear the registered image so the frontend
+		 * falls back to its default (black) texture. Matches the
+		 * DX11 path's ClearRenderTarget(sTex, 0) blanking. */
+		/* Blanking retracts the image; the frontend must be done
+		 * with the one it had before the target is reused. */
+		vulkan->wait_sync_index(vulkan->handle);
+		vulkan->set_image(vulkan->handle, nullptr, 0, nullptr, vulkan->queue_index);
+		video_cb(RETRO_HW_FRAME_BUFFER_VALID, tex->GetWidth(), tex->GetHeight(), 0);
+		return;
+	}
+	/* The texture handed over is the device's own present
+	 * target, which the next frame renders into again and a
+	 * resolution change recreates outright. The frontend
+	 * reads it on its own schedule - a frame or more later
+	 * on a threaded video path, many frames later under
+	 * fast-forward - so the handover follows the sync index
+	 * the interface provides: the frontend names the slot,
+	 * wait_sync_index() returns once it has finished reading
+	 * what that slot held before, and only then does the next
+	 * frame's rendering into that target begin (the GS thread,
+	 * when there is one, is parked until this returns).
+	 * Nothing is copied. */
+	uint32_t sync_index = vulkan->get_sync_index(vulkan->handle);
+	/* A mask, not a count: bit i set means index i can be returned.
+	 * The slots needed are one past the highest set bit. (This
+	 * added one to the mask, which for the usual 0b111 asked for
+	 * eight descriptors where three are used.) */
+	uint32_t sync_mask  = vulkan->get_sync_index_mask(vulkan->handle);
+	uint32_t sync_slots = 0;
+	while (sync_mask)
+	{
+		sync_slots++;
+		sync_mask >>= 1;
+	}
+	if (sync_slots < 1)
+		sync_slots = 1;
+	if (sync_index >= sync_slots)
+		sync_index = 0;
+	if (vk_present_descs.size() < sync_slots)
+		vk_present_descs.resize(sync_slots);
+	vulkan->wait_sync_index(vulkan->handle);
+	dev->SyncIndexWaited(sync_slots);
 
-			retro_vulkan_image &vkimage = vk_present_descs[sync_index];
-			vkimage = {};
-			vkimage.image_view   = tex->GetView();
-			vkimage.image_layout = tex->GetVkLayout();
-			vkimage.create_info  = {
-				VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO, nullptr, 0,
-				tex->GetImage(), VK_IMAGE_VIEW_TYPE_2D, VK_FORMAT_R8G8B8A8_UNORM,
-				{VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY,
-					VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY},
-				{VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1}
-			};
-			vulkan->set_image(vulkan->handle, &vkimage, 0, nullptr, vulkan->queue_index);
-			video_cb(RETRO_HW_FRAME_BUFFER_VALID, tex->GetWidth(), tex->GetHeight(), 0);
-			/* Do not unregister the image after video_cb: the frontend
-			 * may reuse the pointer for cached-frame replays. */
+	retro_vulkan_image &vkimage = vk_present_descs[sync_index];
+	vkimage = {};
+	vkimage.image_view   = tex->GetView();
+	vkimage.image_layout = tex->GetVkLayout();
+	vkimage.create_info  = {
+		VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO, nullptr, 0,
+		tex->GetImage(), VK_IMAGE_VIEW_TYPE_2D, VK_FORMAT_R8G8B8A8_UNORM,
+		{VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY,
+			VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY},
+		{VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1}
+	};
+	vulkan->set_image(vulkan->handle, &vkimage, 0, nullptr, vulkan->queue_index);
+	video_cb(RETRO_HW_FRAME_BUFFER_VALID, tex->GetWidth(), tex->GetHeight(), 0);
+	/* Do not unregister the image after video_cb: the frontend
+	 * may reuse the pointer for cached-frame replays. */
 
-			/* The frontend has this texture now, and wait_sync_index only
-			 * says when it is done with what an index carried the time
-			 * before - so handing over the one merge target every frame
-			 * left the texture just handed over to be merged into again a
-			 * frame later, whether or not a frontend presenting from
-			 * another thread had read it yet. When the texture is the
-			 * merge target, which it is whenever the GS is not
-			 * deinterlacing, it changes places with the one this index
-			 * carried last time round, which the wait above has made ours
-			 * again. Merge() rewrites its target in full every frame and
-			 * copes with none, or one of another size. Nothing is copied,
-			 * as nothing was before. The deinterlacers' targets stay as
-			 * they were: weave keeps half of its target from field to
-			 * field. (GSDevice::m_merge: this class has pipelines of the
-			 * same name.) */
-			if (sTex == GSDevice::m_merge && sync_index < VK_PRESENT_MAX_SYNC_INDICES)
-			{
-				GSDevice::m_merge               = vk_present_textures[sync_index];
-				m_current                       = GSDevice::m_merge;
-				vk_present_textures[sync_index] = sTex;
-			}
-		}
+	/* The frontend has this texture now, and wait_sync_index only
+	 * says when it is done with what an index carried the time
+	 * before - so handing over the one merge target every frame
+	 * left the texture just handed over to be merged into again a
+	 * frame later, whether or not a frontend presenting from
+	 * another thread had read it yet. When the texture is the
+	 * merge target, which it is whenever the GS is not
+	 * deinterlacing, it changes places with the one this index
+	 * carried last time round, which the wait above has made ours
+	 * again. Merge() rewrites its target in full every frame and
+	 * copes with none, or one of another size. Nothing is copied,
+	 * as nothing was before. The deinterlacers' targets stay as
+	 * they were: weave keeps half of its target from field to
+	 * field. (GSDevice::m_merge: this class has pipelines of the
+	 * same name.) */
+	if (sTex == dev->GSDevice::m_merge && sync_index < VK_PRESENT_MAX_SYNC_INDICES)
+	{
+		dev->GSDevice::m_merge          = vk_present_textures[sync_index];
+		dev->m_current                  = dev->GSDevice::m_merge;
+		vk_present_textures[sync_index] = sTex;
 	}
 }
 
