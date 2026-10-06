@@ -104,6 +104,8 @@ bool create_device_vulkan(retro_vulkan_context *context, VkInstance instance, Vk
 	vk_init_info.num_required_device_layers     = num_required_device_layers;
 	vk_init_info.required_features              = required_features;
 	vk_init_info.vkGetInstanceProcAddr          = get_instance_proc_addr;
+	vk_init_info.create_device_wrapper          = nullptr;
+	vk_init_info.create_device_wrapper_opaque   = nullptr;
 
 	if(gpu != VK_NULL_HANDLE) {
 		VkPhysicalDeviceProperties props = {};
@@ -114,6 +116,91 @@ bool create_device_vulkan(retro_vulkan_context *context, VkInstance instance, Vk
 
 	if (!MTGS::IsOpen())
 		MTGS::TryOpenGS();
+
+	context->gpu                             = vk_init_info.gpu;
+	context->device                          = vk_init_info.device;
+	context->queue                           = GSDeviceVK::GetInstance()->GetGraphicsQueue();
+	context->queue_family_index              = GSDeviceVK::GetInstance()->GetGraphicsQueueFamilyIndex();
+	context->presentation_queue              = context->queue;
+	context->presentation_queue_family_index = context->queue_family_index;
+
+	return true;
+}
+
+/* With no GPU named, the core picks: the first discrete one, else the first. */
+static VkPhysicalDevice vk_libretro_pick_gpu(VkInstance instance, PFN_vkGetInstanceProcAddr get_instance_proc_addr)
+{
+	VkPhysicalDevice gpus[16];
+	uint32_t count = 16;
+	uint32_t i;
+	PFN_vkEnumeratePhysicalDevices enumerate = (PFN_vkEnumeratePhysicalDevices)
+		get_instance_proc_addr(instance, "vkEnumeratePhysicalDevices");
+	PFN_vkGetPhysicalDeviceProperties get_props = (PFN_vkGetPhysicalDeviceProperties)
+		get_instance_proc_addr(instance, "vkGetPhysicalDeviceProperties");
+
+	if (!enumerate || !get_props)
+		return VK_NULL_HANDLE;
+	{
+		const VkResult res = enumerate(instance, &count, gpus);
+		if ((res != VK_SUCCESS && res != VK_INCOMPLETE) || count == 0)
+			return VK_NULL_HANDLE;
+	}
+	for (i = 0; i < count; i++)
+	{
+		VkPhysicalDeviceProperties props;
+		get_props(gpus[i], &props);
+		if (props.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+			return gpus[i];
+	}
+	return gpus[0];
+}
+
+bool create_device2_vulkan(retro_vulkan_context *context, VkInstance instance, VkPhysicalDevice gpu, VkSurfaceKHR surface, PFN_vkGetInstanceProcAddr get_instance_proc_addr, retro_vulkan_create_device_wrapper_t create_device_wrapper, void *opaque)
+{
+	if (gpu == VK_NULL_HANDLE)
+		gpu = vk_libretro_pick_gpu(instance, get_instance_proc_addr);
+	if (gpu == VK_NULL_HANDLE)
+		return false;
+
+	vk_init_info.instance                       = instance;
+	vk_init_info.gpu                            = gpu;
+	vk_init_info.device                         = VK_NULL_HANDLE;
+	vk_init_info.required_device_extensions     = nullptr;
+	vk_init_info.num_required_device_extensions = 0;
+	vk_init_info.required_device_layers         = nullptr;
+	vk_init_info.num_required_device_layers     = 0;
+	vk_init_info.required_features              = nullptr;
+	vk_init_info.vkGetInstanceProcAddr          = get_instance_proc_addr;
+	vk_init_info.create_device_wrapper          = create_device_wrapper;
+	vk_init_info.create_device_wrapper_opaque   = opaque;
+
+	{
+		VkPhysicalDeviceProperties props = {};
+		vkGetPhysicalDeviceProperties    = (PFN_vkGetPhysicalDeviceProperties)vkGetInstanceProcAddr(instance, "vkGetPhysicalDeviceProperties");
+		vkGetPhysicalDeviceProperties(gpu, &props);
+		GSConfig.Adapter = props.deviceName;
+	}
+
+	if (!MTGS::IsOpen())
+		MTGS::TryOpenGS();
+
+	/* A false return must leave nothing behind, so the frontend can ask
+	 * again with another GPU: close the GS and drop a device it made. */
+	if (!GSDeviceVK::GetInstance() || vk_init_info.device == VK_NULL_HANDLE)
+	{
+		MTGS::CloseGS();
+		if (vk_init_info.device != VK_NULL_HANDLE)
+		{
+			PFN_vkDestroyDevice destroy_device = (PFN_vkDestroyDevice)
+				get_instance_proc_addr(instance, "vkDestroyDevice");
+			if (destroy_device)
+				destroy_device(vk_init_info.device, nullptr);
+		}
+		vk_init_info.device                       = VK_NULL_HANDLE;
+		vk_init_info.create_device_wrapper        = nullptr;
+		vk_init_info.create_device_wrapper_opaque = nullptr;
+		return false;
+	}
 
 	context->gpu                             = vk_init_info.gpu;
 	context->device                          = vk_init_info.device;
@@ -145,6 +232,14 @@ static void add_name_unique(std::vector<const char *> &list, const char *value) 
 }
 static VKAPI_ATTR VkResult VKAPI_CALL vkCreateDevice_libretro(VkPhysicalDevice physicalDevice, const VkDeviceCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkDevice *pDevice)
 {
+	/* v2: the frontend adds its own extensions and features. */
+	if (vk_init_info.create_device_wrapper)
+	{
+		*pDevice = vk_init_info.create_device_wrapper(physicalDevice,
+			vk_init_info.create_device_wrapper_opaque, pCreateInfo);
+		return *pDevice != VK_NULL_HANDLE ? VK_SUCCESS : VK_ERROR_INITIALIZATION_FAILED;
+	}
+
 	VkDeviceCreateInfo info = *pCreateInfo;
 	std::vector<const char *> EnabledLayerNames(info.ppEnabledLayerNames, info.ppEnabledLayerNames + info.enabledLayerCount);
 	std::vector<const char *> EnabledExtensionNames(info.ppEnabledExtensionNames, info.ppEnabledExtensionNames + info.enabledExtensionCount);
@@ -157,10 +252,13 @@ static VKAPI_ATTR VkResult VKAPI_CALL vkCreateDevice_libretro(VkPhysicalDevice p
 		add_name_unique(EnabledExtensionNames, vk_init_info.required_device_extensions[i]);
 
 	add_name_unique(EnabledExtensionNames, VK_KHR_SAMPLER_MIRROR_CLAMP_TO_EDGE_EXTENSION_NAME);
-	for (unsigned i = 0; i < sizeof(VkPhysicalDeviceFeatures) / sizeof(VkBool32); i++)
+	if (vk_init_info.required_features)
 	{
-		if (((VkBool32 *)vk_init_info.required_features)[i])
-			((VkBool32 *)&EnabledFeatures)[i] = VK_TRUE;
+		for (unsigned i = 0; i < sizeof(VkPhysicalDeviceFeatures) / sizeof(VkBool32); i++)
+		{
+			if (((VkBool32 *)vk_init_info.required_features)[i])
+				((VkBool32 *)&EnabledFeatures)[i] = VK_TRUE;
+		}
 	}
 
 	info.enabledLayerCount       = (uint32_t)EnabledLayerNames.size();
@@ -1616,6 +1714,15 @@ void GSDeviceVK::Destroy()
 	 * GPU below. */
 	vk_free_present_textures();
 
+	/* Create failed before there was a device: nothing on the GPU. */
+	if (vk_init_info.device == VK_NULL_HANDLE)
+	{
+		if (m_vulkan_library_held)
+			Vulkan::UnloadVulkanLibrary();
+		m_vulkan_library_held = false;
+		return;
+	}
+
 	EndRenderPass();
 	if (GetCurrentCommandBuffer() != VK_NULL_HANDLE)
 	{
@@ -1647,7 +1754,9 @@ void GSDeviceVK::Destroy()
 		m_heap_ready = false;
 	}
 
-	Vulkan::UnloadVulkanLibrary();
+	if (m_vulkan_library_held)
+		Vulkan::UnloadVulkanLibrary();
+	m_vulkan_library_held = false;
 }
 
 GSDevice::PresentResult GSDeviceVK::BeginPresent(bool frame_skip)
@@ -1680,6 +1789,8 @@ bool GSDeviceVK::CreateDeviceAndSwapChain()
 		log_cb(RETRO_LOG_ERROR, "Failed to load Vulkan library. Does your GPU and/or driver support Vulkan?\n");
 		return false;
 	}
+	/* Released in Destroy, which follows a failed Create too. */
+	m_vulkan_library_held = true;
 
 	// Read device physical memory properties, we need it for allocating buffers
 	vkGetPhysicalDeviceProperties(vk_init_info.gpu, &m_device_properties);
@@ -1701,7 +1812,6 @@ bool GSDeviceVK::CreateDeviceAndSwapChain()
 	if (!Vulkan::LoadVulkanInstanceFunctions(vk_init_info.instance))
 	{
 		log_cb(RETRO_LOG_ERROR, "Failed to load Vulkan instance functions\n");
-		Vulkan::UnloadVulkanLibrary();
 		return false;
 	}
 
@@ -1718,7 +1828,6 @@ bool GSDeviceVK::CreateDeviceAndSwapChain()
 			|| !CreateTextureStreamBuffer())
 	{
 		log_cb(RETRO_LOG_ERROR, "Failed to create Vulkan context\n");
-		Vulkan::UnloadVulkanLibrary();
 		return false;
 	}
 
@@ -3365,7 +3474,8 @@ void GSDeviceVK::DestroyResources()
 {
 	VkDevice m_device = vk_init_info.device;
 
-	ExecuteCommandBuffer(true);
+	if (GetCurrentCommandBuffer() != VK_NULL_HANDLE)
+		ExecuteCommandBuffer(true);
 
 	if (m_tfx_ubo_descriptor_set != VK_NULL_HANDLE)
 		FreeGlobalDescriptorSet(m_tfx_ubo_descriptor_set);

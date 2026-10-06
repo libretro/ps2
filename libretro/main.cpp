@@ -2401,7 +2401,22 @@ bool create_device_vulkan(retro_vulkan_context *context, VkInstance instance, Vk
 	VkSurfaceKHR surface, PFN_vkGetInstanceProcAddr get_instance_proc_addr, const char **required_device_extensions,
 	unsigned num_required_device_extensions, const char **required_device_layers, unsigned num_required_device_layers,
 	const VkPhysicalDeviceFeatures *required_features);
+bool create_device2_vulkan(retro_vulkan_context *context, VkInstance instance, VkPhysicalDevice gpu,
+	VkSurfaceKHR surface, PFN_vkGetInstanceProcAddr get_instance_proc_addr,
+	retro_vulkan_create_device_wrapper_t create_device_wrapper, void *opaque);
 const VkApplicationInfo *get_application_info_vulkan(void);
+
+/* A frontend without the support query takes version 1 only; RetroArch
+ * 1.14 and older reject any other version outright. */
+static unsigned libretro_vulkan_negotiation_version(void)
+{
+	struct retro_hw_render_context_negotiation_interface probe;
+	probe.interface_type    = RETRO_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE_VULKAN;
+	probe.interface_version = 0;
+	if (!environ_cb(RETRO_ENVIRONMENT_GET_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE_SUPPORT, &probe))
+		return 1;
+	return RETRO_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE_VULKAN_VERSION;
+}
 #endif
 
 void retro_init(void)
@@ -2690,13 +2705,16 @@ bool retro_load_game(const struct retro_game_info* game)
 				if (!is_software_setting(setting_renderer))
 					s_option_config.GS.Renderer = static_cast<decltype(s_option_config.GS.Renderer)>((int)GSRendererType::VK);
 				{
-					static const struct retro_hw_render_context_negotiation_interface_vulkan iface = {
+					static struct retro_hw_render_context_negotiation_interface_vulkan iface = {
 						RETRO_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE_VULKAN,
 						RETRO_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE_VULKAN_VERSION,
 						get_application_info_vulkan,
 						create_device_vulkan,
 						nullptr,
+						nullptr,
+						create_device2_vulkan,
 					};
+					iface.interface_version = libretro_vulkan_negotiation_version();
 					environ_cb(RETRO_ENVIRONMENT_SET_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE, (void*)&iface);
 				}
 				Vulkan::LoadVulkanLibrary();

@@ -40,6 +40,10 @@ struct vk_init_info_t
 	unsigned num_required_device_layers;
 	const VkPhysicalDeviceFeatures *required_features;
 	PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr;
+	/* Set under negotiation v2: the device is created through it. */
+	VkDevice (*create_device_wrapper)(VkPhysicalDevice gpu, void *opaque,
+		const VkDeviceCreateInfo *create_info);
+	void *create_device_wrapper_opaque;
 };
 
 class GSDeviceVK final : public GSDevice
@@ -367,6 +371,8 @@ private:
         * them. What VMA used to do, with the decisions in our own file. */
        gs_vk_heap_t m_heap = {};
        bool m_heap_ready = false;
+       /* A reference on the Vulkan library, taken in CreateDeviceAndSwapChain. */
+       bool m_vulkan_library_held = false;
 
        /* Images made and images whose memory came back. In steady state
         * these grow together; apart means a leak, and the heap taking a

@@ -133,6 +133,8 @@ build*/
 /tests/xmmpressure/xmmpressure.exe
 /tests/secondload/secondload
 /tests/secondload/secondload.exe
+/tests/vknegotiate/vknegotiate
+/tests/vknegotiate/vknegotiate.exe
 /tests/ipu/ipu_test
 /tests/iop/iop_*
 
