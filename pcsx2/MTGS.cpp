@@ -99,13 +99,21 @@ static_assert(sizeof(PacketTagType) == 16, "command ring framing is one 16-byte 
  * Returns NULL only when the ring never allocated (TryOpenGS failed and
  * logged); the caller drops the command, which is the degraded mode the
  * MTVU packet queue already uses for the same impossible allocation. */
+static void mtgs_ring_pressure(void);
+
 static __fi PacketTagType* RingWriteBegin(void)
 {
 	void* dst;
+	size_t span;
 	if (!s_RingOk)
 		return NULL;
-	while (retro_spsc_write_begin(&s_Ring, &dst) < sizeof(PacketTagType))
-		;
+	while ((span = retro_spsc_write_begin(&s_Ring, &dst)) < sizeof(PacketTagType))
+		mtgs_ring_pressure();
+	/* A worker that drains per frame is woken early when the ring
+	 * runs low; the contiguous span is a cheap stand-in for the free
+	 * space, short of it only at the wrap. */
+	if (span < (size_t)MTGS_RINGBUFFERSIZE * sizeof(PacketTagType) / 4)
+		mtgs_ring_pressure();
 	return (PacketTagType*)dst;
 }
 
@@ -214,6 +222,15 @@ namespace MTGS
 	 * hold moved. */
 	static retro_eventcount_t s_frame_ec;
 	static retro_eventcount_t s_release_ec;
+	/* What wakes the worker: a vsync the EE has written (counted here
+	 * by the EE, down by the worker as it commits each), or a wake asked
+	 * for outright - the ring filling, a wait or a hold from another
+	 * thread, the close. Not the per-packet notify: a worker parked on
+	 * that woke thousands of times a frame and cost the EE a wake
+	 * syscall on each (mtgs_worker_wake). */
+	static retro_eventcount_t s_frame_due;
+	static retro_atomic_int_t s_vsync_pending = RETRO_ATOMIC_INT_INITIALIZER(0);
+	static retro_atomic_int_t s_wake          = RETRO_ATOMIC_INT_INITIALIZER(0);
 	/* The parked frame's handover, written by the worker before
 	 * FRAME_READY and run by the frontend after it; NULL is a dupe. */
 	static void (*s_present_fn)(void* ctx);
@@ -225,6 +242,20 @@ namespace MTGS
 static INLINE int mtgs_worker_on(void)
 {
 	return retro_atomic_load_acquire_int(&MTGS::s_worker_on);
+}
+
+/* Any thread: the worker is to drain now, not at the next vsync. */
+static INLINE void mtgs_worker_wake(void)
+{
+	if (!mtgs_worker_on())
+		return;
+	retro_atomic_store_release_int(&MTGS::s_wake, 1);
+	retro_eventcount_notify(&MTGS::s_frame_due);
+}
+
+static void mtgs_ring_pressure(void)
+{
+	mtgs_worker_wake();
 }
 
 /* The handover itself: on the thread that renders without a worker, in
@@ -266,8 +297,13 @@ void MTGS::ResetGS(bool hardware_reset)
 	//  * clear the path and byRegs structs (used by GIFtagDummy)
 	/* Discarding pending entries requires both sides quiesced: the EE is
 	 * paused across a reset, and the consumer is this very thread. */
+	if (hardware_reset)
+		mtgs_worker_hold(1);
 	if (hardware_reset && s_RingOk)
+	{
 		retro_spsc_clear(&s_Ring);
+		retro_atomic_store_release_int(&s_vsync_pending, 0);
+	}
 
 	PacketTagType* tag = RingWriteBegin();
 	if (tag)
@@ -280,7 +316,11 @@ void MTGS::ResetGS(bool hardware_reset)
 	}
 
 	if (hardware_reset)
+	{
 		work_eventcount_notify(&s_sem_event);
+		mtgs_worker_hold(0);
+		mtgs_worker_wake();
+	}
 }
 
 void MTGS::PostVsyncStart()
@@ -298,6 +338,11 @@ void MTGS::PostVsyncStart()
 		tag->data[0] = (gsCSRload() & GS_CSR_FIELD) ? 0 : 1;
 		tag->data[1] = (u32)retro_atomic_exchange_int(&s_GSRegistersWritten, 0);
 		RingWriteEnd();
+		if (mtgs_worker_on())
+		{
+			retro_atomic_fetch_add_int(&s_vsync_pending, 1);
+			retro_eventcount_notify(&s_frame_due);
+		}
 	}
 
 #ifdef ENABLE_PCSX2_PROFILER
@@ -400,9 +445,12 @@ void MTGS::TryOpenGS(void)
 		{
 			retro_eventcount_init(&s_frame_ec);
 			retro_eventcount_init(&s_release_ec);
+			retro_eventcount_init(&s_frame_due);
 			s_ec_inited = true;
 		}
 		retro_atomic_store_release_int(&s_frame_state, FRAME_NONE);
+		retro_atomic_store_release_int(&s_vsync_pending, 0);
+		retro_atomic_store_release_int(&s_wake, 0);
 		retro_atomic_store_release_int(&s_worker_hold, 0);
 		retro_atomic_store_release_int(&s_worker_held, 0);
 		s_worker = sthread_create_with_stack_size(WorkerEntry, NULL,
@@ -485,6 +533,35 @@ static void mtgs_worker_vsync(const PacketTagType& tag)
 	}
 }
 
+/* Parks until there is a frame to drain: a vsync the EE has written,
+ * or a wake asked for. Between frames the worker is off the EE's
+ * notify entirely. */
+static void mtgs_worker_wait_frame(void)
+{
+	for (;;)
+	{
+		int key;
+		if (retro_atomic_load_acquire_int(&MTGS::s_vsync_pending) > 0
+		 || retro_atomic_load_acquire_int(&MTGS::s_wake)
+		 || retro_atomic_load_acquire_int(&MTGS::s_worker_hold)
+		 || !retro_atomic_load_acquire_int(&MTGS::s_open_flag))
+		{
+			retro_atomic_store_release_int(&MTGS::s_wake, 0);
+			return;
+		}
+		key = retro_eventcount_prepare_wait(&MTGS::s_frame_due);
+		if (retro_atomic_load_acquire_int(&MTGS::s_vsync_pending) > 0
+		 || retro_atomic_load_acquire_int(&MTGS::s_wake)
+		 || retro_atomic_load_acquire_int(&MTGS::s_worker_hold)
+		 || !retro_atomic_load_acquire_int(&MTGS::s_open_flag))
+		{
+			retro_eventcount_cancel_wait(&MTGS::s_frame_due);
+			continue;
+		}
+		retro_eventcount_commit_wait(&MTGS::s_frame_due, key);
+	}
+}
+
 void MTGS::WorkerEntry(void* unused)
 {
 	(void)unused;
@@ -492,10 +569,14 @@ void MTGS::WorkerEntry(void* unused)
 	{
 		size_t span;
 		const void* span_ptr;
+		int epoch;
+		mtgs_worker_wait_frame();
 		mtgs_worker_wait_hold();
-		work_eventcount_wait(&s_sem_event);
 		if (!retro_atomic_load_acquire_int(&s_open_flag))
 			break;
+		/* Taken as consumed up to this epoch, so that going idle below
+		 * releases a producer's wait on the ring as MainLoop's does. */
+		epoch = work_eventcount_epoch(&s_sem_event);
 		while (s_RingOk && (span = retro_spsc_read_begin(&s_Ring, &span_ptr)) >= sizeof(PacketTagType))
 		{
 			size_t consumed = 0;
@@ -516,6 +597,7 @@ void MTGS::WorkerEntry(void* unused)
 					epoch = work_eventcount_epoch(&s_sem_event);
 					work_eventcount_drained(&s_sem_event, epoch,
 							retro_spsc_read_avail(&s_Ring) != 0);
+					retro_atomic_fetch_sub_int(&s_vsync_pending, 1);
 					retro_atomic_store_release_int(&s_frame_state, FRAME_NONE);
 					retro_eventcount_notify(&s_frame_ec);
 					/* The span is committed up to here; what follows it
@@ -528,7 +610,10 @@ void MTGS::WorkerEntry(void* unused)
 			if (consumed)
 				retro_spsc_read_end(&s_Ring, consumed);
 		}
-		/* Empty: a drain waiting on that may go. */
+		/* Empty: a producer's wait on the ring (go idle on the sem, as
+		 * MainLoop's own wait does) or a drain from the frontend may go. */
+		work_eventcount_drained(&s_sem_event, epoch,
+				retro_spsc_read_avail(&s_Ring) != 0);
 		retro_eventcount_notify(&s_frame_ec);
 	}
 out:
@@ -586,6 +671,7 @@ static bool mtgs_frontend_frame(void)
 static void mtgs_frontend_drain(void)
 {
 	work_eventcount_notify(&MTGS::s_sem_event);
+	mtgs_worker_wake();
 	for (;;)
 	{
 		int key;
@@ -641,6 +727,7 @@ void mtgs_worker_hold(int on)
 	}
 	retro_atomic_fetch_add_int(&MTGS::s_worker_hold, 1);
 	work_eventcount_notify(&MTGS::s_sem_event);
+	retro_eventcount_notify(&MTGS::s_frame_due);
 	retro_eventcount_notify(&MTGS::s_release_ec);
 	for (;;)
 	{
@@ -918,6 +1005,7 @@ void MTGS::CloseGS(void)
 	{
 		retro_atomic_store_release_int(&s_open_flag, false);
 		work_eventcount_kill(&s_sem_event);
+		retro_eventcount_notify(&s_frame_due);
 		retro_eventcount_notify(&s_release_ec);
 		sthread_join(s_worker);
 		s_worker = NULL;
@@ -963,6 +1051,7 @@ void MTGS::WaitGS(bool isMTVU)
 		if (!IsOpen())
 			return;
 		work_eventcount_notify(&s_sem_event);
+		mtgs_worker_wake();
 		/* Blocks until the ring drains: until MainLoop has committed
 		 * every record written so far, the vsync among them. The return
 		 * value (false if the ring was killed) is unused, as at the
