@@ -1274,8 +1274,15 @@ void GSRenderer::flush_submit(uint64_t value)
 			last_submitted_timeline = value;
 			timeline_cond.notify_all();
 		}
-		binary = device->request_timeline_semaphore_as_binary(*descriptor_timeline, next_descriptor_timeline_signal++);
-		device->submit_empty(Vulkan::CommandBuffer::Type::Generic, nullptr, binary.get());
+		// Only a pool exhausted since the last signal waits on this
+		// value; otherwise the signal, an empty queue submission of its
+		// own, says nothing anyone reads. The value stays until it does.
+		if (!exhausted_descriptor_pools.empty() &&
+		    exhausted_descriptor_pools.back().timeline == next_descriptor_timeline_signal)
+		{
+			binary = device->request_timeline_semaphore_as_binary(*descriptor_timeline, next_descriptor_timeline_signal++);
+			device->submit_empty(Vulkan::CommandBuffer::Type::Generic, nullptr, binary.get());
+		}
 	}
 
 	// This is a delayed sync-point between CPU and GPU, and garbage collection can happen here.
@@ -4166,8 +4173,11 @@ void GSRenderer::sample_crtc_circuit(Vulkan::CommandBuffer &cmd, const Vulkan::I
                                      uint32_t scale_x_log2, uint32_t scale_y_log2, bool filtered,
                                      const Vulkan::Image *promoted)
 {
+	// A kept image was sampled by the previous merge; order that read
+	// before this write.
 	cmd.image_barrier(img, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
-	                  0, 0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT);
+	                  VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0,
+	                  VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT);
 
 	Vulkan::RenderPassInfo rp_info;
 	rp_info.num_color_attachments = 1;
@@ -4299,6 +4309,37 @@ bool GSRenderer::scanout_is_interlaced(const PrivRegisterState &priv, const VSyn
 bool GSRenderer::vsync_can_skip(const PrivRegisterState &priv, const VSyncInfo &info) const
 {
 	return !scanout_is_interlaced(priv, info);
+}
+
+Vulkan::ImageHandle GSRenderer::acquire_scanout_image(Vulkan::ImageHandle &slot, const Vulkan::ImageCreateInfo &info,
+                                                      std::vector<Vulkan::ImageHandle> *recycle)
+{
+	// The kept one first, then one the caller gave back, then a new one.
+	// Every user of these images starts from VK_IMAGE_LAYOUT_UNDEFINED, so
+	// whatever a reused image held is discarded, never read.
+	if (slot && slot->get_width() == info.width && slot->get_height() == info.height)
+		return slot;
+
+	slot.reset();
+
+	if (recycle)
+	{
+		for (size_t i = 0, n = recycle->size(); i < n; i++)
+		{
+			auto &img = (*recycle)[i];
+			if (img->get_width() == info.width && img->get_height() == info.height)
+			{
+				slot = std::move(img);
+				if (i + 1 != n)
+					img = std::move(recycle->back());
+				recycle->pop_back();
+				return slot;
+			}
+		}
+	}
+
+	slot = device->create_image(info);
+	return slot;
 }
 
 ScanoutResult GSRenderer::vsync(const PrivRegisterState &priv, const VSyncInfo &info,
@@ -4738,7 +4779,7 @@ ScanoutResult GSRenderer::vsync(const PrivRegisterState &priv, const VSyncInfo &
 				image_info.width <<= scanout_scale_x_log2;
 				image_info.height <<= scanout_scale_y_log2;
 			}
-			{ PROFILE_SCOPE(ZONE_GS_VS_CIRC); circuit1 = device->create_image(image_info); }
+			{ PROFILE_SCOPE(ZONE_GS_VS_CIRC); circuit1 = acquire_scanout_image(scanout_circuits[0], image_info, info.recycle); }
 			sample_crtc_circuit(cmd, *circuit1, priv.dispfb1, rect, super_samples,
 			                    scanout_scale_x_log2, scanout_scale_y_log2, scanout_filtered, promoted1);
 			device->set_name(*circuit1, "Circuit1");
@@ -4797,7 +4838,7 @@ ScanoutResult GSRenderer::vsync(const PrivRegisterState &priv, const VSyncInfo &
 				image_info.width <<= scanout_scale_x_log2;
 				image_info.height <<= scanout_scale_y_log2;
 			}
-			{ PROFILE_SCOPE(ZONE_GS_VS_CIRC); circuit2 = device->create_image(image_info); }
+			{ PROFILE_SCOPE(ZONE_GS_VS_CIRC); circuit2 = acquire_scanout_image(scanout_circuits[1], image_info, info.recycle); }
 			sample_crtc_circuit(cmd, *circuit2, priv.dispfb2, rect, super_samples,
 			                    scanout_scale_x_log2, scanout_scale_y_log2, scanout_filtered, promoted2);
 			device->set_name(*circuit2, "Circuit2");
@@ -4917,9 +4958,15 @@ ScanoutResult GSRenderer::vsync(const PrivRegisterState &priv, const VSyncInfo &
 				circuit2->get_width() <= effective_mode_width && circuit2->get_height() <= effective_mode_height;
 
 		if (is_raw_circuit1)
+		{
 			result.image = std::move(circuit1);
+			scanout_circuits[0].reset();
+		}
 		else if (is_raw_circuit2)
+		{
 			result.image = std::move(circuit2);
+			scanout_circuits[1].reset();
+		}
 
 		if (result.image)
 		{
@@ -4956,10 +5003,19 @@ ScanoutResult GSRenderer::vsync(const PrivRegisterState &priv, const VSyncInfo &
 	// 3-6x more in a game drawing almost nothing (FFX-2, 532-927 us/call) than
 	// in one drawing a great deal (NFSU2, 144-180 us/call), which is the shape
 	// of a wait or an allocator miss rather than work.
+	// With deinterlacing the merged field stays here, in the field ring,
+	// and the deinterlaced image is what goes to the caller; otherwise the
+	// merged image itself does, and the caller offers it back once done.
+	const bool should_deinterlace = !high_resolution_scanout && (is_interlaced || force_deinterlace);
+	const bool will_deinterlace = !info.skip_deinterlace && should_deinterlace;
+
 	Vulkan::ImageHandle merged;
 	{
 		PROFILE_SCOPE(ZONE_GS_VS_IMG);
-		merged = device->create_image(image_info);
+		if (will_deinterlace)
+			merged = acquire_scanout_image(scanout_field_spare, image_info, nullptr);
+		else
+			acquire_scanout_image(merged, image_info, info.recycle);
 	}
 
 	device->set_name(*merged, "Merged field");
@@ -4980,8 +5036,10 @@ ScanoutResult GSRenderer::vsync(const PrivRegisterState &priv, const VSyncInfo &
 		                  VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
 	}
 
+	// A field taken back from the ring was sampled by the previous
+	// deinterlace; order that read before this write.
 	cmd.image_barrier(*merged, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
-	                  0, 0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+	                  VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
 	                  VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT);
 
 	// Execution barrier so that we don't render to VRAM before we're done sampling.
@@ -5209,10 +5267,19 @@ ScanoutResult GSRenderer::vsync(const PrivRegisterState &priv, const VSyncInfo &
 		}
 	}
 
-	bool should_deinterlace = !high_resolution_scanout && (is_interlaced || force_deinterlace);
-
-	if (!info.skip_deinterlace && should_deinterlace)
+	if (will_deinterlace)
 	{
+		// The field leaving the ring is next frame's merged image, unless
+		// the ring still holds it under another index (the hole filling
+		// below aliases the first frames).
+		scanout_field_spare.reset();
+		if (vsync_last_fields[3] &&
+		    vsync_last_fields[3] != vsync_last_fields[2] &&
+		    vsync_last_fields[3] != vsync_last_fields[1] &&
+		    vsync_last_fields[3] != vsync_last_fields[0])
+		{
+			scanout_field_spare = std::move(vsync_last_fields[3]);
+		}
 		for (int i = 3; i >= 1; i--)
 			vsync_last_fields[i] = std::move(vsync_last_fields[i - 1]);
 		vsync_last_fields[0] = std::move(merged);
@@ -5232,6 +5299,7 @@ ScanoutResult GSRenderer::vsync(const PrivRegisterState &priv, const VSyncInfo &
 	{
 		for (auto &field : vsync_last_fields)
 			field.reset();
+		scanout_field_spare.reset();
 	}
 
 	cmd.end_region();
@@ -5259,7 +5327,8 @@ Vulkan::ImageHandle GSRenderer::fastmad_deinterlace(Vulkan::CommandBuffer &cmd, 
 	image_info.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 	image_info.misc |= Vulkan::IMAGE_MISC_MUTABLE_SRGB_BIT;
 
-	auto deinterlaced = device->create_image(image_info);
+	Vulkan::ImageHandle deinterlaced;
+	acquire_scanout_image(deinterlaced, image_info, vsync.recycle);
 	device->set_name(*deinterlaced, "Deinterlaced");
 
 	cmd.image_barrier(*deinterlaced, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,

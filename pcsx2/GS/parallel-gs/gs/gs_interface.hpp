@@ -188,6 +188,11 @@ struct VSyncInfo
 	// This will look funny if the game is constantly changing vertical scanout resolution.
 	bool raw_circuit_scanout;
 
+	// Images the caller has finished with, offered back: the scanout result
+	// is rendered into one of these when its size matches, instead of a fresh
+	// image every frame. Taken ones are removed from the list.
+	std::vector<Vulkan::ImageHandle> *recycle = nullptr;
+
 	// When using SSAA, attempt to scan out a higher resolution image based on the super samples.
 	// This only works well if the game is rendering 3D geometry directly to the frame buffer which is used to scanout.
 	// Some games blit the real framebuffer to scanout location using textures, which will lose the SSAA information necessary to scanout,

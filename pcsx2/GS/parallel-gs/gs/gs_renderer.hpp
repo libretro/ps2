@@ -442,6 +442,15 @@ private:
 	Vulkan::Semaphore descriptor_timeline;
 	uint64_t next_descriptor_timeline_signal = 1;
 
+	// The two CRTC circuit images, kept from one vsync to the next and
+	// recreated only when their size changes. One that is handed out as
+	// the raw scanout is dropped from here, since the caller then holds it.
+	Vulkan::ImageHandle scanout_circuits[2];
+	// The field that fell out of the deinterlace ring, written next.
+	Vulkan::ImageHandle scanout_field_spare;
+	Vulkan::ImageHandle acquire_scanout_image(Vulkan::ImageHandle &slot, const Vulkan::ImageCreateInfo &info,
+	                                          std::vector<Vulkan::ImageHandle> *recycle);
+
 	void ensure_command_buffer(Vulkan::CommandBufferHandle &cmd, Vulkan::CommandBuffer::Type type);
 	void init_luts();
 	void init_phase_lut(uint32_t sampling_rate_x_log2, uint32_t sampling_rate_y_log2);

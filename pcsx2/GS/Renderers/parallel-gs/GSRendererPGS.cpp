@@ -43,11 +43,15 @@ static std::vector<ImageHandle> vsync_images;
  * frontend keeps the pointer (a cached-frame replay dereferences it
  * again), so it must stay valid as long as the slot's image does. */
 static std::vector<retro_vulkan_image> vsync_descs;
+/* Images the frontend has finished with, offered back to the renderer
+ * for the next frame's scanout instead of a fresh one each frame. */
+static std::vector<ImageHandle> spare_vsync_images;
 
 static void pgs_release_vsync_images()
 {
 	vsync_images.clear();
 	vsync_descs.clear();
+	spare_vsync_images.clear();
 }
 extern retro_environment_t environ_cb;
 extern retro_video_refresh_t video_cb;
@@ -551,6 +555,7 @@ void GSRendererPGS::VSync(u32 field, bool registers_written)
 	// The scaling blur is technically a blur ...
 	info.adapt_to_internal_horizontal_resolution = GSConfig.PCRTCAntiBlur;
 	info.raw_circuit_scanout                     = true;
+	info.recycle                                 = &spare_vsync_images;
 	// Config values: 0 = off, 1 = 2x, 2 = 4x point-sampled,
 	// 3 = 4x with the tent reconstruction filter, 4 = 4x with a
 	// field-rendered game at its full field height, 5 = both.
@@ -670,9 +675,17 @@ void GSRendererPGS::VSync(u32 field, bool registers_written)
 
 			hw_render_iface->set_image(hw_render_iface->handle, &vkimage, 0, nullptr, hw_render_iface->queue_index);
 			video_cb(RETRO_HW_FRAME_BUFFER_VALID, new_base_width, new_base_height, 0);
-			/* The image this slot held is let go here, after the wait
-			 * above said the frontend is done with it; the one just
+			/* The image this slot held is offered back here, after the
+			 * wait above said the frontend is done with it; the one just
 			 * handed over stays until this slot comes round again. */
+			if (vsync_images[sync_index])
+			{
+				/* One per slot is enough; past that the list is only
+				 * holding sizes the mode has moved away from. */
+				if (spare_vsync_images.size() > sync_slots)
+					spare_vsync_images.erase(spare_vsync_images.begin());
+				spare_vsync_images.push_back(std::move(vsync_images[sync_index]));
+			}
 			vsync_images[sync_index] = vsync.image;
 			last_base_width  = new_base_width;
 			last_base_height = new_base_height;
@@ -684,8 +697,8 @@ void GSRendererPGS::VSync(u32 field, bool registers_written)
 			video_cb(nullptr, 0, 0, 0);
 		}
 	}
-
-	dev.next_frame_context();
+	/* vsync() ended with a flush that already moved the device to its
+	 * next frame context; nothing was submitted since. */
 }
 
 void GSRendererPGS::Transfer(const u8* mem, u32 size)
