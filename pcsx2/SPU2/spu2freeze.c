@@ -17,7 +17,6 @@
 #include <string.h>
 
 #include "Global.h"
-#include <memalign.h>
 #include "spu2.h" /* hopefully temporary, until I resolve lClocks depdendency */
 #include "../IopMem.h"
 
@@ -67,42 +66,57 @@ static_assert(alignof(struct SPU2Savestate_DataBlock) == SPU2_SAVE_ALIGN,
               "SPU2_SAVE_ALIGN no longer matches the block");
 #endif
 
-static void FreezeItImpl(struct SPU2Savestate_DataBlock *spud)
+/* The block is the frontend's savestate buffer, which carries no
+ * alignment guarantee, and the block embeds V_Core (64-byte aligned). So
+ * nothing here touches the block as a struct: every field is copied at
+ * its offset, once, straight between the buffer and the emulator. */
+#define SPU2_AT(field) offsetof(struct SPU2Savestate_DataBlock, field)
+#define SPU2_PUT(b, field, src) memcpy((b) + SPU2_AT(field), (src), sizeof(((struct SPU2Savestate_DataBlock *)0)->field))
+#define SPU2_GET(dst, b, field) memcpy((dst), (b) + SPU2_AT(field), sizeof(((struct SPU2Savestate_DataBlock *)0)->field))
+
+/* A DMA pointer as an offset into IOP memory, -1 for none; and back. */
+static u16 *spu2_ptr_to_offset(const u16 *p)
 {
+	return p ? (u16 *)(uintptr_t)((const u8 *)p - &iopMem->Main[0]) : (u16 *)(uintptr_t)-1;
+}
+
+static u16 *spu2_offset_to_ptr(const u16 *x)
+{
+	return (x == (const u16 *)(uintptr_t)-1) ? NULL : (u16 *)(&iopMem->Main[0] + (size_t)(uintptr_t)x);
+}
+
+void SPU2Savestate_FreezeIt(struct SPU2Savestate_DataBlock *spud)
+{
+	u8 *b           = (u8 *)spud;
+	const u32 id    = SPU2_SAVE_ID;
+	const u32 ver   = SPU2_SAVE_VERSION;
 	u32 i;
-	spud->spu2id = SPU2_SAVE_ID;
-	spud->version = SPU2_SAVE_VERSION;
 
-	memcpy(spud->unkregs, spu2regs, sizeof(spud->unkregs));
-	memcpy(spud->mem, _spu2mem, sizeof(spud->mem));
+	SPU2_PUT(b, spu2id, &id);
+	SPU2_PUT(b, unkregs, spu2regs);
+	SPU2_PUT(b, mem, _spu2mem);
+	SPU2_PUT(b, version, &ver);
+	SPU2_PUT(b, Cores, Cores);
 
-	memcpy(spud->Cores, Cores, sizeof(Cores));
-	memcpy(&spud->Spdif, &Spdif, sizeof(Spdif));
-
-	/* Convert pointers to offsets so we can safely restore them when loading. */
-	/* We use -1 for null, and anything else as an offset from iop memory. */
-#define FIX_POINTER(x) \
-	if (!(x)) \
-		(x) = (u16*)(uintptr_t)-1; \
-	else \
-		(x) = (u16*)(uintptr_t)((const u8*)(x) - &iopMem->Main[0])
-
+	/* The DMA pointers go in as offsets, over the host addresses the
+	 * copy above put there. */
 	for (i = 0; i < 2; i++)
 	{
-		V_Core *core = &spud->Cores[i];
-		FIX_POINTER(core->DMAPtr);
-		FIX_POINTER(core->DMARPtr);
+		u8 *core      = b + SPU2_AT(Cores) + i * sizeof(V_Core);
+		u16 *dma      = spu2_ptr_to_offset(Cores[i].DMAPtr);
+		u16 *dmar     = spu2_ptr_to_offset(Cores[i].DMARPtr);
+		memcpy(core + offsetof(V_Core, DMAPtr),  &dma,  sizeof(dma));
+		memcpy(core + offsetof(V_Core, DMARPtr), &dmar, sizeof(dmar));
 	}
 
-#undef FIX_POINTER
-
-	spud->OutPos = OutPos;
-	spud->InputPos = InputPos;
-	spud->Cycles = Cycles;
-	spud->lClocks = lClocks;
-	spud->PlayMode = PlayMode;
-	spud->DCFilterIn = DCFilterIn;
-	spud->DCFilterOut = DCFilterOut;
+	SPU2_PUT(b, Spdif, &Spdif);
+	SPU2_PUT(b, OutPos, &OutPos);
+	SPU2_PUT(b, InputPos, &InputPos);
+	SPU2_PUT(b, Cycles, &Cycles);
+	SPU2_PUT(b, lClocks, &lClocks);
+	SPU2_PUT(b, PlayMode, &PlayMode);
+	SPU2_PUT(b, DCFilterIn, &DCFilterIn);
+	SPU2_PUT(b, DCFilterOut, &DCFilterOut);
 
 	/* note: Don't save the cache.  PCSX2 doesn't offer a safe method of predicting */
 	/* the required size of the savestate prior to saving, plus this is just too */
@@ -110,12 +124,19 @@ static void FreezeItImpl(struct SPU2Savestate_DataBlock *spud)
 	/* force the user to rebuild their cache instead. */
 }
 
-static s32 ThawItImpl(struct SPU2Savestate_DataBlock *spud)
+s32 SPU2Savestate_ThawIt(struct SPU2Savestate_DataBlock *spud)
 {
+	const u8 *b = (const u8 *)spud;
+	u32 id;
+	u32 version;
 	u32 i;
 	int c;
 	int v;
-	if (spud->spu2id != SPU2_SAVE_ID || spud->version < SPU2_SAVE_VERSION_OLDEST)
+
+	SPU2_GET(&id, b, spu2id);
+	SPU2_GET(&version, b, version);
+
+	if (id != SPU2_SAVE_ID || version < SPU2_SAVE_VERSION_OLDEST)
 	{
 		/* Do *not* reset the cores. */
 		/* We'll need some "hints" as to how the cores should be initialized, and the */
@@ -124,117 +145,55 @@ static s32 ThawItImpl(struct SPU2Savestate_DataBlock *spud)
 
 		/* adpcm cache : Clear all the cache flags and buffers. */
 		memset(pcm_cache_data, 0, pcm_BlockCount * sizeof(PcmCacheEntry));
+		return 0;
+	}
+
+	SPU2_GET(spu2regs, b, unkregs);
+	SPU2_GET(_spu2mem, b, mem);
+	SPU2_GET(Cores, b, Cores);
+	for (i = 0; i < 2; i++)
+	{
+		Cores[i].DMAPtr  = spu2_offset_to_ptr(Cores[i].DMAPtr);
+		Cores[i].DMARPtr = spu2_offset_to_ptr(Cores[i].DMARPtr);
+	}
+
+	SPU2_GET(&Spdif, b, Spdif);
+	SPU2_GET(&OutPos, b, OutPos);
+	SPU2_GET(&InputPos, b, InputPos);
+	SPU2_GET(&Cycles, b, Cycles);
+	SPU2_GET(&lClocks, b, lClocks);
+	SPU2_GET(&PlayMode, b, PlayMode);
+	if (version >= 0x0011)
+	{
+		SPU2_GET(&DCFilterIn, b, DCFilterIn);
+		SPU2_GET(&DCFilterOut, b, DCFilterOut);
 	}
 	else
 	{
-		/*TODO/FIXME - implement this? */
-		/*SndBuffer::ClearContents(); */
+		memset(&DCFilterIn, 0, sizeof(DCFilterIn));
+		memset(&DCFilterOut, 0, sizeof(DCFilterOut));
+	}
 
-		memcpy(spu2regs, spud->unkregs, sizeof(spud->unkregs));
-		memcpy(_spu2mem, spud->mem, sizeof(spud->mem));
+	memset(pcm_cache_data, 0, pcm_BlockCount * sizeof(PcmCacheEntry));
 
-		memcpy(Cores, spud->Cores, sizeof(Cores));
-		memcpy(&Spdif, &spud->Spdif, sizeof(Spdif));
-
-		/* Reverse the pointer offset from above. */
-#define FIX_POINTER(x) \
-	if ((x) == (u16*)(uintptr_t)-1) \
-		(x) = NULL; \
-	else \
-		(x) = (u16*)(&iopMem->Main[0] + (size_t)(x))
-
-		for (i = 0; i < 2; i++)
+	/* Point every voice back into the cache, and put back what it
+	 * was reading: the cache is not saved, and a voice reads its
+	 * current block straight from SBuffer until SCurrent wraps, so
+	 * a zeroed entry played the rest of that block as silence. A
+	 * block from before the predictor state was kept gets the
+	 * silence it always got. */
+	for (c = 0; c < 2; c++)
+	{
+		for (v = 0; v < 24; v++)
 		{
-			V_Core *core = &Cores[i];
-			FIX_POINTER(core->DMAPtr);
-			FIX_POINTER(core->DMARPtr);
-		}
-
-#undef FIX_POINTER
-
-		OutPos = spud->OutPos;
-		InputPos = spud->InputPos;
-		Cycles = spud->Cycles;
-		lClocks = spud->lClocks;
-		PlayMode = spud->PlayMode;
-		if (spud->version >= 0x0011)
-		{
-			DCFilterIn  = spud->DCFilterIn;
-			DCFilterOut = spud->DCFilterOut;
-		}
-		else
-		{
-			memset(&DCFilterIn, 0, sizeof(DCFilterIn));
-			memset(&DCFilterOut, 0, sizeof(DCFilterOut));
-		}
-
-		memset(pcm_cache_data, 0, pcm_BlockCount * sizeof(PcmCacheEntry));
-
-		/* Point every voice back into the cache, and put back what it
-		 * was reading: the cache is not saved, and a voice reads its
-		 * current block straight from SBuffer until SCurrent wraps, so
-		 * a zeroed entry played the rest of that block as silence. A
-		 * block from before the predictor state was kept gets the
-		 * silence it always got. */
-		for (c = 0; c < 2; c++)
-		{
-			for (v = 0; v < 24; v++)
-			{
-				V_Voice *vc = &Cores[c].Voices[v];
-				if (spud->version >= 0x0010)
-					V_Voice_DecodeCurrentBlock(vc);
-				else
-					vc->SBuffer = pcm_cache_data[vc->NextA / pcm_WordsPerBlock].Sampledata;
-			}
+			V_Voice *vc = &Cores[c].Voices[v];
+			if (version >= 0x0010)
+				V_Voice_DecodeCurrentBlock(vc);
+			else
+				vc->SBuffer = pcm_cache_data[vc->NextA / pcm_WordsPerBlock].Sampledata;
 		}
 	}
 	return 0;
-}
-
-
-/* The caller hands us a DataBlock reference formed by casting into the
- * frontend's savestate blob, which carries no alignment guarantee -
- * DataBlock embeds V_Core (64-byte aligned), so accessing members through
- * such a reference is UB (UBSan: 34 misaligned V_Core reports across
- * freeze/thaw).  When the blob happens to be aligned, run in place;
- * otherwise bounce through an aligned heap temp.  If the temp cannot
- * be allocated, fall back to in-place access: on every ABI we target
- * that behaves as before (x86 tolerates the misalignment), which
- * beats losing the savestate. */
-void SPU2Savestate_FreezeIt(struct SPU2Savestate_DataBlock *spud)
-{
-	struct SPU2Savestate_DataBlock *tmp;
-
-	if (((uintptr_t)spud & (SPU2_SAVE_ALIGN - 1)) == 0)
-	{
-		FreezeItImpl(spud);
-		return;
-	}
-	tmp = (struct SPU2Savestate_DataBlock *)memalign_alloc(SPU2_SAVE_ALIGN, sizeof(struct SPU2Savestate_DataBlock));
-	if (!tmp)
-	{
-		FreezeItImpl(spud);
-		return;
-	}
-	FreezeItImpl(tmp);
-	memcpy((void *)spud, tmp, sizeof(struct SPU2Savestate_DataBlock));
-	memalign_free(tmp);
-}
-
-s32 SPU2Savestate_ThawIt(struct SPU2Savestate_DataBlock *spud)
-{
-	struct SPU2Savestate_DataBlock *tmp;
-	s32 ret;
-
-	if (((uintptr_t)spud & (SPU2_SAVE_ALIGN - 1)) == 0)
-		return ThawItImpl(spud);
-	tmp = (struct SPU2Savestate_DataBlock *)memalign_alloc(SPU2_SAVE_ALIGN, sizeof(struct SPU2Savestate_DataBlock));
-	if (!tmp)
-		return ThawItImpl(spud);
-	memcpy(tmp, (const void *)spud, sizeof(struct SPU2Savestate_DataBlock));
-	ret = ThawItImpl(tmp);
-	memalign_free(tmp);
-	return ret;
 }
 
 s32 SPU2Savestate_SizeIt(void)

@@ -81,9 +81,8 @@ for SAN in "" "-fsanitize=address,undefined"; do
 	done
 	gcc -O1 -g -std=gnu89 -Wdeclaration-after-statement -Wall $SAN $INC \
 	    -c "$DIR/dmabounds.c" -o "$TMP/dmabounds.o"
-	gcc -O1 -g $SAN $INC -c "$ROOT/libretro/libretro-common/memmap/memalign.c" -o "$TMP/d_memalign.o"
 	gcc $SAN "$TMP/dmabounds.o" $(for u in $UNITS_C; do echo "$TMP/d_$u.o"; done) \
-	    "$TMP/d_memalign.o" -o "$TMP/dmabounds"
+	    -o "$TMP/dmabounds"
 	"$TMP/dmabounds"
 done
 

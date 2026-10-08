@@ -71,12 +71,6 @@ u32 psxNextStartCounter;
 
 extern "C" const size_t spu2_layout_probe[5];
 
-/* Savestates are reached only through SPU2freeze, which no scenario calls. */
-extern "C" void *memalign_alloc(size_t a, size_t n);
-extern "C" void memalign_free(void *p);
-void *memalign_alloc(size_t a, size_t n) { (void)a; return malloc(n); }
-void memalign_free(void *p) { free(p); }
-
 extern "C" void psxDmaInterrupt(int) {}
 extern "C" void psxDmaInterrupt2(int) {}
 extern "C" void spu2Irq(void) {}
