@@ -1764,7 +1764,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [SSX3 (NTSC-U)]: LOD Control set to Highpoly patch applied.\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [SSX On Tour (NTSC-U)]: LOD Control set to Highpoly patch applied.\n");
 			}
 			/* Tokyo Xtreme Racer 3 (NTSC-U) [CRC: 0F932D81] */
 			else if (!strcmp(serial, "SLUS-20831"))
@@ -1883,7 +1883,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Sega Rally 2006 (NTSC-J)]: Increased draw distance (125%) patch applied.\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Sega Rally 2006 (NTSC-J)]: Increased draw distance (125%%) patch applied.\n");
 			}
 			/* Tokyo Bus Annai 2 (NTSC-J) */
 			else if (!strcmp(serial, "SLPM-65982"))
@@ -1944,7 +1944,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [24: The Game (NTSC-U)]: 60fps patch applied (needs 180% EE cyclerate).\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [24: The Game (NTSC-U)]: 60fps patch applied (needs 180%% EE cyclerate).\n");
 			}
 			/* Aeon Flux (NTSC-U) [CRC: 9FA0A1B0] */
 			else if (!strcmp(serial, "SLUS-21205"))
@@ -1955,7 +1955,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Aeon Flux (NTSC-U)]: 60fps patch applied (needs 300% EE cyclerate).\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Aeon Flux (NTSC-U)]: 60fps patch applied (needs 300%% EE cyclerate).\n");
 			}
 			/* Alias (NTSC-U) [CRC: E3ADDC73] */
 			else if (!strcmp(serial, "SLUS-20673"))
@@ -1966,7 +1966,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Alias (NTSC-U)]: 60fps patch applied (needs 130% EE cyclerate).\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Alias (NTSC-U)]: 60fps patch applied (needs 130%% EE cyclerate).\n");
 			}
 			/* Baroque (NTSC-U) [CRC: 4566213C] */
 			else if (!strcmp(serial, "SLUS-21714"))
@@ -2092,7 +2092,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Dark Angel: James Cameron's (NTSC-U)]: 60fps patch applied (needs 130% EE cyclerate).\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Dark Angel: James Cameron's (NTSC-U)]: 60fps patch applied (needs 130%% EE cyclerate).\n");
 			}
 			/* Dawn of Mana (NTSC-U) [CRC: 9DC6EE5A] */
 			else if (!strcmp(serial, "SLUS-21574"))
@@ -2130,7 +2130,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Deus Ex: The Conspiracy (NTSC-U)]: 60fps patch applied (needs 130% EE cyclerate).\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Deus Ex: The Conspiracy (NTSC-U)]: 60fps patch applied (needs 130%% EE cyclerate).\n");
 			}
 			/* Echo Night - Beyond (NTSC) [CRC: 2DE16D21] */
 			else if (!strcmp(serial, "SLUS-20928"))
@@ -2142,7 +2142,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Echo Night: Beyond (NTSC-U)]: 60fps patch applied (needs 130% EE cyclerate).\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Echo Night: Beyond (NTSC-U)]: 60fps patch applied (needs 130%% EE cyclerate).\n");
 			}
 			/* Fatal Frame II: Crimson Butterfly (NTSC-U) [CRC: 9A51B627] */
 			else if (!strcmp(serial, "SLUS-20766"))
@@ -2164,7 +2164,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Fatal Frame II: Crimson Butterfly (NTSC-U)]: 60fps patch applied (needs 130% EE cyclerate).\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Fatal Frame II: Crimson Butterfly (NTSC-U)]: 60fps patch applied (needs 130%% EE cyclerate).\n");
 			}
 			/* Grand Theft Auto III (NTSC-U) [CRC: 5E115FB6] */
 			else if (!strcmp(serial, "SLUS-20062"))
@@ -2235,7 +2235,7 @@ int lrps2_ingame_patches(const char *serial,
 					};
 					for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 						LoadPatchesFromString(patches[i]);
-					log_cb(RETRO_LOG_INFO, "[PATCH] [Grand Theft Auto: San Andreas (NTSC-U)]: 60fps patch applied (needs 180% EE cyclerate).\n");
+					log_cb(RETRO_LOG_INFO, "[PATCH] [Grand Theft Auto: San Andreas (NTSC-U)]: 60fps patch applied (needs 180%% EE cyclerate).\n");
 				}
 				else
 					log_cb(RETRO_LOG_INFO, "[PATCH] [Grand Theft Auto: San Andreas (NTSC-U)]: 60fps patch skipped, no patch for this revision (CRC %08X).\n", game_crc);
@@ -2264,7 +2264,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Kingdom Hearts 2 (NTSC-U)]: 60fps patch applied (needs 130% EE cyclerate).\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Kingdom Hearts II (NTSC-U)]: 60fps patch applied (needs 130%% EE cyclerate).\n");
 			}
 			/* Lord of the Rings, Return of the King (NTSC-U) [CRC: 4CE187F6] */
 			else if (!strcmp(serial, "SLUS-20770"))
@@ -2288,7 +2288,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Matrix, The - Path of Neo (NTSC-U)]: 60fps patch applied (needs 130% EE cyclerate).\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Matrix, The - Path of Neo (NTSC-U)]: 60fps patch applied (needs 130%% EE cyclerate).\n");
 			}
 			/* Max Payne 2: The Fall of Max Payne (NTSC-U) [CRC: CD68E44A] */
 			else if (!strcmp(serial, "SLUS-20814"))
@@ -2349,7 +2349,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Metal Arms - Glitch in the System (NTSC-U)]: 60fps patch applied (needs 180% EE cyclerate).\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Metal Arms - Glitch in the System (NTSC-U)]: 60fps patch applied (needs 180%% EE cyclerate).\n");
 			}
 			/* Midnight Club - Street Racing (NTSC-U) */
 			else if (!strcmp(serial, "SLUS-20063"))
@@ -2394,7 +2394,7 @@ int lrps2_ingame_patches(const char *serial,
 					for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 						LoadPatchesFromString(patches[i]);
 				}
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Midnight Club 3: DUB Edition (NTSC-U)]: 60fps patch applied (needs 180% EE cyclerate).\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Midnight Club 3: DUB Edition (NTSC-U)]: 60fps patch applied (needs 180%% EE cyclerate).\n");
 			}
 			/* Need For Speed - Hot Pursuit 2 (NTSC-U) [CRC: 1D2818AF] */
 			else if (!strcmp(serial, "SLUS-20362"))
@@ -2457,7 +2457,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Prince of Persia: The Sands of Time (NTSC-U)]: 60fps patch applied (needs 180% EE cyclerate).\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Prince of Persia: The Sands of Time (NTSC-U)]: 60fps patch applied (needs 180%% EE cyclerate).\n");
 			}
 			/* Project - Snowblind (NTSC-U) [CRC: 2BDA8ADB] */
 			else if (!strcmp(serial, "SLUS-21037"))
@@ -2468,7 +2468,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Project Snowblind (NTSC-U)]: 60fps patch applied (needs 130% EE cyclerate).\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Project Snowblind (NTSC-U)]: 60fps patch applied (needs 130%% EE cyclerate).\n");
 			}
 			/* Psi-Ops: The Mindgate Conspiracy (NTSC-U) [CRC: 9C71B59E] */
 			else if (!strcmp(serial, "SLUS-20688"))
@@ -2553,7 +2553,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Rune: Viking Warlord (NTSC-U)]: 60fps patch applied (needs 180% EE cyclerate).\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Rune: Viking Warlord (NTSC-U)]: 60fps patch applied (needs 180%% EE cyclerate).\n");
 			}
 			/* Scarface - The World is Yours (NTSC-U) [CRC: 41F4A178] */
 			else if (!strcmp(serial, "SLUS-21111"))
@@ -2564,7 +2564,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Scarface: The World Is Yours (NTSC-U)]: 60fps patch applied (needs 180% EE cyclerate).\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Scarface: The World Is Yours (NTSC-U)]: 60fps patch applied (needs 180%% EE cyclerate).\n");
 			}
 			/* Serious Sam - Next Encounter (NTSC-U) [CRC: 155466E8] */
 			else if (!strcmp(serial, "SLUS-20907"))
@@ -2615,7 +2615,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Spawn: Armageddon (NTSC-U)]: 60fps patch applied (needs 130% EE cyclerate).\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Spawn: Armageddon (NTSC-U)]: 60fps patch applied (needs 130%% EE cyclerate).\n");
 			}
 			/* Spider-Man - Friend or Foe (NTSC-U) [CRC: F52477F7] */
 			else if (!strcmp(serial, "SLUS-21600"))
@@ -2627,7 +2627,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Spiderman: Friend or Foe (NTSC-U)]: 60fps patch applied (needs 180% EE cyclerate).\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Spiderman: Friend or Foe (NTSC-U)]: 60fps patch applied (needs 180%% EE cyclerate).\n");
 			}
 			/* Splinter Cell - Pandora Tomorrow (NTSC-U) [CRC: 0277247B] */
 			else if (!strcmp(serial, "SLUS-20958"))
@@ -2639,7 +2639,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Splinter Cell: Pandora Tomorrow (NTSC-U)]: 60fps patch applied (needs 130% EE cyclerate).\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Splinter Cell: Pandora Tomorrow (NTSC-U)]: 60fps patch applied (needs 130%% EE cyclerate).\n");
 			}
 			/* SSX3 (NTSC-U) [CRC: 08FFF00D] */
 			else if (!strcmp(serial, "SLUS-20772"))
@@ -2709,7 +2709,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Star Wars: The Force Unleashed (NTSC-U)]: 60fps patch applied (needs 130% EE cyclerate).\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Star Wars: The Force Unleashed (NTSC-U)]: 60fps patch applied (needs 130%% EE cyclerate).\n");
 			}
 			/* Unreal Tournament (NTSC-U) [CRC: 5751CAC1] */
 			else if (!strcmp(serial, "SLUS-20034"))
@@ -2720,7 +2720,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Unreal Tournament (NTSC-U)]: 60fps patch applied (needs 180% EE cyclerate).\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Unreal Tournament (NTSC-U)]: 60fps patch applied (needs 180%% EE cyclerate).\n");
 			}
 			/* XGRA - Extreme G Racing Association (NTSC-U) [CRC: 56B36513] */
 			else if (!strcmp(serial, "SLUS-20632"))
@@ -2734,7 +2734,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [XGRA: Extreme G Racing Association (NTSC-U)]: 60fps patch applied (needs 130% EE cyclerate).\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [XGRA: Extreme G Racing Association (NTSC-U)]: 60fps patch applied (needs 130%% EE cyclerate).\n");
 			}
 		}
 		else if (!strncmp("SCUS-", serial, strlen("SCUS-")))
@@ -2760,7 +2760,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Dark Cloud 2 (NTSC-U)]: 60fps patch applied (needs 130% EE cyclerate).\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Dark Cloud 2 (NTSC-U)]: 60fps patch applied (needs 130%% EE cyclerate).\n");
 			}
 			/* MotorStorm - Arctic Edge (U)(SCUS-97654) */
 			else if (!strcmp(serial, "SCUS-97654"))
@@ -2812,7 +2812,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [7 Blades (PAL)]: 50fps patch applied (needs 130% EE cyclerate).\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [7 Blades (PAL)]: 50fps patch applied (needs 130%% EE cyclerate).\n");
 			}
 			/* 7 Sins (PAL-M) [CRC: 52DEB87B] TODO/FIXME - might not work */
 			else if (!strcmp(serial, "SLES-53280") || !strcmp(serial, "SLES-53297"))
@@ -2843,7 +2843,7 @@ int lrps2_ingame_patches(const char *serial,
 						}
 						break;
 				}
-				log_cb(RETRO_LOG_INFO, "[PATCH] [7 Sins (PAL)]: 50fps patch applied (needs 130% EE cyclerate).\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [7 Sins (PAL)]: 50fps patch applied (needs 130%% EE cyclerate).\n");
 			}
 			/* Aeon Flux (PAL-M) [CRC: 761CABB3] */
 			else if (!strcmp(serial, "SLES-54169"))
@@ -2854,7 +2854,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Aeon Flux (PAL)]: 50fps patch applied (needs 300% EE cyclerate).\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Aeon Flux (PAL)]: 50fps patch applied (needs 300%% EE cyclerate).\n");
 			}
 			/* Alias (PAL-M) [CRC: 83466553] */
 			if (!strcmp(serial, "SLES-51821"))
@@ -2866,10 +2866,10 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Alias (PAL)]: 50fps patch applied (needs 130% EE cyclerate).\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Alias (PAL)]: 50fps patch applied (needs 130%% EE cyclerate).\n");
 			}
 			/* Dark Angel (PAL) [CRC: 5BE3F481] */
-			else if (!strcmp(serial, "SLES-53414"))
+			else if (!strcmp(serial, "SLES-51333"))
 			{
 				/* Patch courtesy: PeterDelta */
 				/* Uncapped. Need EE Overclock at 130% */
@@ -2878,7 +2878,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Dark Angel (PAL)]: 50fps patch applied (needs 130% EE cyclerate).\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Dark Angel (PAL)]: 50fps patch applied (needs 130%% EE cyclerate).\n");
 			}
 			/* Echo Night - Beyond (PAL) [CRC: BBF8C3D6] */
 			else if (!strcmp(serial, "SLES-53414"))
@@ -2891,7 +2891,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Echo Night: Beyond (PAL)]: 50/60fps patch applied (needs 130% EE cyclerate).\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Echo Night: Beyond (PAL)]: 50/60fps patch applied (needs 130%% EE cyclerate).\n");
 			}
 			/* London Racer World Challenge (PAL-M) [CRC: F97680AA] */
 			else if (!strcmp(serial, "SLES-51580"))
@@ -2903,7 +2903,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [London Racer World Challenge (PAL)]: 50fps patch applied (needs 130% EE cyclerate).\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [London Racer World Challenge (PAL)]: 50fps patch applied (needs 130%% EE cyclerate).\n");
 			}
 			/* Metal Arms - Glitch in the System (PAL) [CRC: AF399CCC] */
 			else if (!strcmp(serial, "SLES-51758"))
@@ -2915,7 +2915,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Metal Arms: Glitch in the System (PAL)]: 50fps patch applied (needs 180% EE cyclerate).\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Metal Arms: Glitch in the System (PAL)]: 50fps patch applied (needs 180%% EE cyclerate).\n");
 			}
 			/* Metal Gear Solid 2: Substance (PAL-M) [CRC: 093E7D52] */
 			else if (!strcmp(serial, "SLES-82009"))
@@ -2950,7 +2950,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Project Zero 2: Crimson Butterfly (PAL)]: 50/60fps patch applied (needs 130% EE cyclerate).\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Project Zero 2: Crimson Butterfly (PAL)]: 50/60fps patch applied (needs 130%% EE cyclerate).\n");
 			}
 			/* Psi-Ops: The Mindgate Conspiracy (PAL-M) [CRC: 5E7EB5E2] */
 			else if (!strcmp(serial, "SLES-52702"))
@@ -2974,7 +2974,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Rayman Revolution (PAL)]: 50fps patch applied (needs 130% EE cyclerate).\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Rayman Revolution (PAL)]: 50fps patch applied (needs 130%% EE cyclerate).\n");
 			}
 			/* Reign of Fire (PAL) [CRC: 79464D5E] */
 			else if (!strcmp(serial, "SLES-50873"))
@@ -2999,7 +2999,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Rune: Viking Warlord (PAL)]: 50fps patch applied (needs 180% EE cyclerate).\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Rune: Viking Warlord (PAL)]: 50fps patch applied (needs 180%% EE cyclerate).\n");
 			}
 			/* Scarface - The World is Yours (NTSC-U) [CRC: 41F4A178] */
 			else if (!strcmp(serial, "SLES-54182"))
@@ -3010,7 +3010,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Scarface: The World Is Yours (PAL)]: 50fps patch applied (needs 180% EE cyclerate).\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Scarface: The World Is Yours (PAL)]: 50fps patch applied (needs 180%% EE cyclerate).\n");
 			}
 			/* Sitting Ducks (PAL-M5) [CRC: 6B8D216E] */
 			else if (!strcmp(serial, "SLES-52116"))
@@ -3036,7 +3036,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Smuggler's Run (PAL)]: 50fps patch applied (needs 130% EE cyclerate).\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Smuggler's Run (PAL)]: 50fps patch applied (needs 130%% EE cyclerate).\n");
 			}
 			/* Spawn - Armageddon (PAL) [CRC: 8C9BF4F9] */
 			else if (!strcmp(serial, "SLES-52326"))
@@ -3048,7 +3048,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Spawn: Armageddon (PAL)]: 50fps patch applied (needs 130% EE cyclerate).\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Spawn: Armageddon (PAL)]: 50fps patch applied (needs 130%% EE cyclerate).\n");
 			}
 			/* Splinter Cell - Pandora Tomorrow (PAL) [CRC: 80FAC91D] */
 			else if (!strcmp(serial, "SLES-52149"))
@@ -3060,7 +3060,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Splinter Cell: Pandora Tomorrow (PAL)]: 50fps patch applied (needs 130% EE cyclerate).\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Splinter Cell: Pandora Tomorrow (PAL)]: 50fps patch applied (needs 130%% EE cyclerate).\n");
 			}
 			/* Unreal Tournament (PAL-M5) [CRC: 4A805DF1] */
 			else if (!strcmp(serial, "SLES-50074"))
@@ -3072,7 +3072,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Unreal Tournament (PAL)]: 50fps patch applied (needs 180% EE cyclerate).\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Unreal Tournament (PAL)]: 50fps patch applied (needs 180%% EE cyclerate).\n");
 			}
 		}
 		else if (!strncmp("SCES-", serial, strlen("SCES-")))
@@ -3087,7 +3087,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Dog's Life, The (PAL)]: 50fps patch applied (needs 130% EE cyclerate).\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Dog's Life, The (PAL)]: 50fps patch applied (needs 130%% EE cyclerate).\n");
 			}
 			/* Drakan - The Ancients Gate (PAL-M) [CRC: 04F9D87F] */
 			else if (!strcmp(serial, "SCES-50006"))
@@ -3101,7 +3101,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Drakan: The Ancients Gate (PAL)]: 50fps patch applied (needs 130% EE cyclerate).\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Drakan: The Ancients Gate (PAL)]: 50fps patch applied (needs 130%% EE cyclerate).\n");
 			}
 			/* Final Fantasy X (PAL) */
 			else if (!strcmp(serial, "SCES-50494"))
@@ -3119,7 +3119,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Final Fantasy X (PAL)]: 50fps patch applied (needs 130% EE cyclerate).\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Final Fantasy X (PAL)]: 50fps patch applied (needs 130%% EE cyclerate).\n");
 			}
 			/* Getaway, The (PAL-M) [CRC: 458485EF] */
 			else if (!strcmp(serial, "SCES-51159"))
@@ -3131,7 +3131,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Getaway, The (PAL)]: 50fps patch applied (needs 130% EE cyclerate).\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Getaway, The (PAL)]: 50fps patch applied (needs 130%% EE cyclerate).\n");
 			}
 		}
 	}
@@ -3210,7 +3210,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Aeon Flux (NTSC-U)]: 16:9 (Hor+) Widescreen patch applied.\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Alias (NTSC-U)]: 16:9 (Hor+) Widescreen patch applied.\n");
 			}
 			/* Ape Escape 2 (NTSC-U) [CRC: BDD9F5E1] */
 			else if (!strcmp(serial, "SLUS-20685"))
@@ -4071,7 +4071,7 @@ int lrps2_ingame_patches(const char *serial,
 				log_cb(RETRO_LOG_INFO, "[PATCH] [MDK2: Armageddon (NTSC-U)]: 16:9 (Hor+) Widescreen patch applied.\n");
 			}
 			/* Mega Man X7 (NTSC-U) [CRC: 3EDA6DE7] */
-			else if (!strcmp(serial, "SLUS-21359"))
+			else if (!strcmp(serial, "SLUS-20487"))
 			{
 				/* Patch courtesy: nemesis2000 */
 				static const char *const patches[] = {
@@ -4477,7 +4477,7 @@ int lrps2_ingame_patches(const char *serial,
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Soulcalibur III (NTSC-U)]: Correction of built-in widescreen mode applied.\n");
 			}
 			/* Street Fighter EX3 (NTSC-U) [CRC: 72B3802A] */
-			else if (!strcmp(serial, "SLUS-201301")) 
+			else if (!strcmp(serial, "SLUS-20130"))
 			{
 				/* Patch courtesy: paul_met */
 				static const char *const patches[] = {
@@ -4688,7 +4688,7 @@ int lrps2_ingame_patches(const char *serial,
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Virtua Fighter 4: Evolution (NTSC-U)]: 16:9 (Hor+) Widescreen patch applied.\n");
 			}
 			/* WipeOut Fusion (NTSC-U) [CRC: 4C2D1E6D] */
-			else if (!strcmp(serial, "SLUS-20616"))  /* 16:9 */
+			else if (!strcmp(serial, "SLUS-20462"))  /* 16:9 */
 			{
 				static const char *const patches[] = {
 					/* built-in ws switches */
@@ -5000,7 +5000,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Whiplash (NTSC)]: 16:9 (Hor+) Widescreen patch applied.\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Kinetica (NTSC-U)]: 16:9 (Hor+) Widescreen patch applied.\n");
 			}
 			/* MotorStorm - Arctic Edge (U)(SCUS-97654) */
 			else if (!strcmp(serial, "SCUS-97654"))
@@ -5471,7 +5471,7 @@ int lrps2_ingame_patches(const char *serial,
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Gauntlet: Seven Sorrows (PAL-M)]: Force native widescreen mode patch applied.\n");
 			}
 			/* Gradius V (PAL-M) [CRC: 0F877618] */
-			else if (!strcmp(serial, "SLES-51580"))
+			else if (!strcmp(serial, "SLES-52095"))
 			{
 				/* Patch courtesy: Arapapa */
 				static const char *const patches[] = {
@@ -5524,7 +5524,7 @@ int lrps2_ingame_patches(const char *serial,
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Maken Shao (PAL)]: 16:9 (Hor+) Widescreen patch applied.\n");
 			}
 			/* Michigan: Report From Hell (PAL-M4) [CRC: DCD7104E] */
-			else if (!strcmp(serial, "SLES-50731"))
+			else if (!strcmp(serial, "SLES-53073"))
 			{
 				/* Patch courtesy: nemesis2000 */
 				static const char *const patches[] = {
@@ -6069,6 +6069,16 @@ int lrps2_ingame_patches(const char *serial,
 					LoadPatchesFromString(patches[i]);
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Ridge Racer V (NTSC-J)]: 16:9 Widescreen patch applied.\n");
 			}
+			/* Simple 2000 Series Vol. 101 - The Oneechanpon (NTSC-J) [CRC: C5B75C7C] */
+			else if (!strcmp(serial, "SLPS-20466"))
+			{
+				static const char *const patches[] = {
+					"patch=1,EE,20495104,extended,3F400000"
+				};
+				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
+					LoadPatchesFromString(patches[i]);
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Simple 2000 Series Vol. 101: The Oneechanpon (NTSC-J)]: 16:9 (Hor+) Widescreen patch applied.\n");
+			}
 			/* Simple 2000 Series Vol. 109 - The Taxi 2 (NTSC-J) [CRC:91A93F28] */
 			else if (!strcmp(serial, "SLPS-20478"))
 			{
@@ -6085,7 +6095,7 @@ int lrps2_ingame_patches(const char *serial,
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Simple 2000 Series Vol. 109 - The Taxi 2 (NTSC-J)]: 16:9 (Hor+) Widescreen patch applied.\n");
 			}
 			/* Street Fighter EX3 (NTSC-J) [CRC: 63642E9F] */
-			else if (!strcmp(serial, "SLPS-200003")) 
+			else if (!strcmp(serial, "SLPS-20003"))
 			{
 				/* Patch courtesy: nemesis2000 */
 				static const char *const patches[] = {
@@ -6398,16 +6408,6 @@ int lrps2_ingame_patches(const char *serial,
 					LoadPatchesFromString(patches[i]);
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Sengoku Basara 2 - Heroes (NTSC-J)]: 16:9 Widescreen patch applied.\n");
 			}
-			/* Simple 2000 Series Vol. 101 - The Oneechanpon (NTSC-J) [CRC: C5B75C7C] */
-			else if (!strcmp(serial, "SLPM-66212"))
-			{
-				static const char *const patches[] = {
-					"patch=1,EE,20495104,extended,3F400000"
-				};
-				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
-					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Simple 2000 Series Vol. 101: The Oneechanpon (NTSC-J)]: 16:9 (Hor+) Widescreen patch applied.\n");
-			}
 			/* Vampire Panic (NTSC-J) [CRC: 14DDB291 / C293DD66] */
 			else if (!strcmp(serial, "SLPM-62506"))
 			{
@@ -6474,8 +6474,8 @@ int lrps2_ingame_patches(const char *serial,
 					LoadPatchesFromString(patches[i]);
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Richard Burns Rally (NTSC-J)]: Force English language applied.\n");
 			}
-			/* Vampire Darkstalkers Collection (NTSC-J) */
-			if (!strcmp(serial, "SLPM-66212"))
+			/* Vampire Darkstalkers Collection (NTSC-J) [CRC: BE34808C] */
+			if (!strcmp(serial, "SLPM-65998"))
 			{
 				/* Patch courtesy: The Cutting Room Floor */
 				static const char *const patches[] = {
