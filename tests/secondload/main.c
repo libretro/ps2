@@ -6,7 +6,7 @@
  * frontend may keep the library loaded on purpose. Whatever the first
  * session left in the core's statics is then the second session's
  * starting state. This harness keeps the library loaded across three
- * sessions - retro_init, a content-less boot, a few hundred frames,
+ * sessions - retro_init, a boot, sixty frames,
  * retro_unload_game, retro_deinit - on a synthetic BIOS image (a ROMDIR
  * with a ROMVER entry and a branch-to-self reset vector: the EE spins in
  * place, the vsyncs and the GS ring run as in any boot).
@@ -14,6 +14,11 @@
  * A session that cannot drain the GS ring hangs in retro_run or at
  * unload with every thread spinning, so the gate is that the process
  * ends: build.sh runs it under a time limit.
+ *
+ * The first session loads content - a blank disc image - with per-game
+ * memory cards, named after the content; the later ones load none, with
+ * the shared cards. What the first session named its card must not carry
+ * into the next: slot 1 of a shared session is the shared Mcd001.ps2.
  *
  * Usage: secondload <path-to-core> <scratch-dir> */
 
@@ -52,6 +57,8 @@ typedef void retro_simple_t(void);
 typedef bool retro_load_game_t(const struct retro_game_info*);
 
 static char s_system_dir[1024];
+static char s_content[1100];
+static int  s_session;
 static unsigned s_frames;
 static unsigned s_drawn;
 
@@ -125,6 +132,8 @@ static bool sl_environment(unsigned cmd, void* data)
 			if      (!strcmp(var->key, "pcsx2_bios"))     var->value = "lrps2_secondload.bin";
 			else if (!strcmp(var->key, "pcsx2_renderer")) var->value = "Software (SW)";
 			else if (!strcmp(var->key, "pcsx2_fastboot")) var->value = "disabled";
+			else if (!strcmp(var->key, "pcsx2_shared_memory_cards"))
+				var->value = s_session ? "enabled" : "disabled";
 			return var->value != NULL;
 		case RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE:
 			*(bool*)data = false;
@@ -234,8 +243,33 @@ static int sl_write_bios(const char* path)
 	return fclose(f) == 0;
 }
 
+/* A blank disc image: 64 zeroed sectors. */
+static int sl_write_disc(const char* path)
+{
+	static unsigned char sectors[64 * 2048];
+	FILE* f = fopen(path, "wb");
+	if (!f)
+		return 0;
+	if (fwrite(sectors, 1, sizeof(sectors), f) != sizeof(sectors))
+	{
+		fclose(f);
+		return 0;
+	}
+	return fclose(f) == 0;
+}
+
+static int sl_exists(const char* path)
+{
+	FILE* f = fopen(path, "rb");
+	if (!f)
+		return 0;
+	fclose(f);
+	return 1;
+}
+
 int main(int argc, char** argv)
 {
+	struct retro_game_info disc;
 	char path[1100];
 	SL_HANDLE h;
 	retro_set_environment_t* set_environment;
@@ -273,6 +307,15 @@ int main(int argc, char** argv)
 		return 1;
 	}
 
+	sprintf(s_content, "%s/lrps2_secondload.iso", s_system_dir);
+	if (!sl_write_disc(s_content))
+	{
+		fprintf(stderr, "secondload: cannot write %s\n", s_content);
+		return 1;
+	}
+	memset(&disc, 0, sizeof(disc));
+	disc.path = s_content;
+
 	h = sl_dlopen(argv[1]);
 	if (!h)
 	{
@@ -307,8 +350,9 @@ int main(int argc, char** argv)
 		set_audio_batch(sl_audio_batch);
 		set_poll(sl_poll);
 		set_input(sl_input);
+		s_session = session;
 		init_fn();
-		if (!load_game(NULL))
+		if (!load_game(session ? NULL : &disc))
 		{
 			fprintf(stderr, "secondload: retro_load_game failed in session %d\n", session + 1);
 			return 3;
@@ -321,6 +365,19 @@ int main(int argc, char** argv)
 		fflush(stdout);
 		unload_game();
 		deinit_fn();
+	}
+
+	sprintf(path, "%s/pcsx2/memcards/Mcd001.ps2", s_system_dir);
+	if (!sl_exists(path))
+	{
+		fprintf(stderr, "secondload: the shared sessions did not use the shared card\n");
+		return 4;
+	}
+	sprintf(path, "%s/pcsx2/memcards/.ps2", s_system_dir);
+	if (sl_exists(path))
+	{
+		fprintf(stderr, "secondload: a shared session used a card named after no content\n");
+		return 4;
 	}
 
 	printf("secondload: ok\n");

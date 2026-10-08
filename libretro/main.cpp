@@ -2562,21 +2562,23 @@ bool retro_load_game(const struct retro_game_info* game)
 			break;
 	}
 
-	libretro_content[0] = '\0';
+	/* Per-game cards are named after the content; empty, the shared
+	 * cards are used. */
+	libretro_content.clear();
 
 	if (!setting_shared_memory_cards && game && game->path)
 	{
 		const char* save_base = nullptr;
-		char memcard_path[PCSX2_PATH_MAX];
 
 		environ_cb(RETRO_ENVIRONMENT_GET_SAVE_DIRECTORY, &save_base);
 
 		strlcpy(s_option_memcards, save_base, sizeof(s_option_memcards));
 		VMManager::Internal::UpdateEmuFolders();
 
-		snprintf(memcard_path, sizeof(memcard_path), "%s", path_basename(game->path));
-		path_remove_extension(memcard_path);
-		libretro_content = memcard_path;
+		/* The content's name without its extension. */
+		const char* name = path_basename(game->path);
+		const char* ext  = strrchr(name, '.');
+		libretro_content.assign(name, ext ? (size_t)(ext - name) : strlen(name));
 	}
 
 	VMManager::ApplySettings();
