@@ -99,6 +99,38 @@ extern "C"
 	PFN_vkQueueSubmit                vkQueueSubmit_org;
 }
 
+/* After the GS was opened for a device negotiation: true and the context
+ * filled in when the renderer came up on a device. Otherwise false, with
+ * nothing left behind, so the frontend can ask again with another GPU:
+ * the GS closed and a device it made destroyed. */
+static bool vk_negotiation_finish(retro_vulkan_context *context, VkInstance instance,
+	PFN_vkGetInstanceProcAddr get_instance_proc_addr)
+{
+	if (!GSDeviceVK::GetInstance() || vk_init_info.device == VK_NULL_HANDLE)
+	{
+		MTGS::CloseGS();
+		if (vk_init_info.device != VK_NULL_HANDLE)
+		{
+			PFN_vkDestroyDevice destroy_device = (PFN_vkDestroyDevice)
+				get_instance_proc_addr(instance, "vkDestroyDevice");
+			if (destroy_device)
+				destroy_device(vk_init_info.device, nullptr);
+		}
+		vk_init_info.device                       = VK_NULL_HANDLE;
+		vk_init_info.create_device_wrapper        = nullptr;
+		vk_init_info.create_device_wrapper_opaque = nullptr;
+		return false;
+	}
+
+	context->gpu                             = vk_init_info.gpu;
+	context->device                          = vk_init_info.device;
+	context->queue                           = GSDeviceVK::GetInstance()->GetGraphicsQueue();
+	context->queue_family_index              = GSDeviceVK::GetInstance()->GetGraphicsQueueFamilyIndex();
+	context->presentation_queue              = context->queue;
+	context->presentation_queue_family_index = context->queue_family_index;
+	return true;
+}
+
 bool create_device_vulkan(retro_vulkan_context *context, VkInstance instance, VkPhysicalDevice gpu, VkSurfaceKHR surface, PFN_vkGetInstanceProcAddr get_instance_proc_addr, const char **required_device_extensions, unsigned num_required_device_extensions, const char **required_device_layers, unsigned num_required_device_layers, const VkPhysicalDeviceFeatures *required_features)
 {
 	vk_init_info.instance                       = instance;
@@ -122,14 +154,7 @@ bool create_device_vulkan(retro_vulkan_context *context, VkInstance instance, Vk
 	if (!MTGS::IsOpen())
 		MTGS::TryOpenGS();
 
-	context->gpu                             = vk_init_info.gpu;
-	context->device                          = vk_init_info.device;
-	context->queue                           = GSDeviceVK::GetInstance()->GetGraphicsQueue();
-	context->queue_family_index              = GSDeviceVK::GetInstance()->GetGraphicsQueueFamilyIndex();
-	context->presentation_queue              = context->queue;
-	context->presentation_queue_family_index = context->queue_family_index;
-
-	return true;
+	return vk_negotiation_finish(context, instance, get_instance_proc_addr);
 }
 
 /* With no GPU named, the core picks: the first discrete one, else the first. */
@@ -189,32 +214,7 @@ bool create_device2_vulkan(retro_vulkan_context *context, VkInstance instance, V
 	if (!MTGS::IsOpen())
 		MTGS::TryOpenGS();
 
-	/* A false return must leave nothing behind, so the frontend can ask
-	 * again with another GPU: close the GS and drop a device it made. */
-	if (!GSDeviceVK::GetInstance() || vk_init_info.device == VK_NULL_HANDLE)
-	{
-		MTGS::CloseGS();
-		if (vk_init_info.device != VK_NULL_HANDLE)
-		{
-			PFN_vkDestroyDevice destroy_device = (PFN_vkDestroyDevice)
-				get_instance_proc_addr(instance, "vkDestroyDevice");
-			if (destroy_device)
-				destroy_device(vk_init_info.device, nullptr);
-		}
-		vk_init_info.device                       = VK_NULL_HANDLE;
-		vk_init_info.create_device_wrapper        = nullptr;
-		vk_init_info.create_device_wrapper_opaque = nullptr;
-		return false;
-	}
-
-	context->gpu                             = vk_init_info.gpu;
-	context->device                          = vk_init_info.device;
-	context->queue                           = GSDeviceVK::GetInstance()->GetGraphicsQueue();
-	context->queue_family_index              = GSDeviceVK::GetInstance()->GetGraphicsQueueFamilyIndex();
-	context->presentation_queue              = context->queue;
-	context->presentation_queue_family_index = context->queue_family_index;
-
-	return true;
+	return vk_negotiation_finish(context, instance, get_instance_proc_addr);
 }
 
 const VkApplicationInfo *get_application_info_vulkan(void)
@@ -277,6 +277,12 @@ static VKAPI_ATTR VkResult VKAPI_CALL vkCreateDevice_libretro(VkPhysicalDevice p
 
 static VKAPI_ATTR VkResult VKAPI_CALL vkQueueSubmit_libretro(VkQueue queue, uint32_t submitCount, const VkSubmitInfo *pSubmits, VkFence fence)
 {
+	/* Before context_reset hands over the interface - the device is
+	 * being negotiated, and a renderer that fails to come up submits
+	 * its init work on the way down - the frontend is not using the
+	 * queue yet, and there is no lock to take. */
+	if (!vulkan)
+		return vkQueueSubmit_org(queue, submitCount, pSubmits, fence);
 	vulkan->lock_queue(vulkan->handle);
 	VkResult res = vkQueueSubmit_org(queue, submitCount, pSubmits, fence);
 	vulkan->unlock_queue(vulkan->handle);

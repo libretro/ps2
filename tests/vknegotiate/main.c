@@ -9,6 +9,11 @@
  *             call, where it picks the GPU
  *   v1        has no support query; the core must offer version 1 and
  *             create the device through create_device
+ *   v2alloc,  v2 and v1 with a loader (vkshim.c, put ahead of the real one)
+ *   v1alloc   that grants VN_ALLOC_OK device memory allocations and refuses
+ *             the rest: a renderer that cannot come up refuses the device
+ *             cleanly - no submit through the interface it has not been
+ *             given yet, nothing left behind - and one that can goes on
  *
  * Each then resets the context, runs frames, takes a savestate round
  * trip, and tears down as RetroArch does. The BIOS is a synthetic image
@@ -18,6 +23,9 @@
  *
  * Usage: vknegotiate <path-to-core> <scratch-dir> <v2|v2retry|v1> */
 
+#ifndef _WIN32
+#define _XOPEN_SOURCE 700 /* putenv */
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -63,7 +71,8 @@ typedef size_t retro_serialize_size_t(void);
 typedef bool retro_serialize_t(void*, size_t);
 typedef bool retro_unserialize_t(const void*, size_t);
 
-enum { VN_V2, VN_V2RETRY, VN_V1 };
+enum { VN_V2, VN_V2RETRY, VN_V1, VN_V2ALLOC, VN_V1ALLOC };
+#define VN_IS_V1() (s_mode == VN_V1 || s_mode == VN_V1ALLOC)
 
 static int s_mode;
 static char s_system_dir[1024];
@@ -78,6 +87,10 @@ static unsigned s_frames, s_dupes, s_images, s_images_set;
 static int s_queue_locked;
 
 static PFN_vkGetInstanceProcAddr gipa;
+
+/* The alloc modes: VN_ALLOC_OK device memory allocations are granted by
+ * vkshim.c, the loader the core finds; this side only knows it is in one. */
+static int s_alloc_ok = -1;
 static PFN_vkCreateInstance pvkCreateInstance;
 static PFN_vkDestroyInstance pvkDestroyInstance;
 static PFN_vkEnumeratePhysicalDevices pvkEnumeratePhysicalDevices;
@@ -175,7 +188,7 @@ static bool vn_environment(unsigned cmd, void* data)
 			s_iface = (const struct retro_hw_render_context_negotiation_interface_vulkan*)data;
 			return true;
 		case RETRO_ENVIRONMENT_GET_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE_SUPPORT:
-			if (s_mode == VN_V1)
+			if (VN_IS_V1())
 				return false;
 			((struct retro_hw_render_context_negotiation_interface*)data)->interface_version =
 				RETRO_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE_VULKAN_VERSION;
@@ -427,14 +440,19 @@ int main(int argc, char** argv)
 	bool ok;
 	int frame;
 	int frames = getenv("VN_FRAMES") ? atoi(getenv("VN_FRAMES")) : VN_FRAMES;
+	PFN_vkGetInstanceProcAddr core_gipa;
 
 	setvbuf(stdout, NULL, _IONBF, 0);
 	if (argc < 4)
-		VN_FAIL("usage: vknegotiate <path-to-core> <scratch-dir> <v2|v2retry|v1>");
+		VN_FAIL("usage: vknegotiate <path-to-core> <scratch-dir> <v2|v2retry|v1|v2alloc|v1alloc>");
 	if      (!strcmp(argv[3], "v2"))      s_mode = VN_V2;
 	else if (!strcmp(argv[3], "v2retry")) s_mode = VN_V2RETRY;
 	else if (!strcmp(argv[3], "v1"))      s_mode = VN_V1;
+	else if (!strcmp(argv[3], "v2alloc")) s_mode = VN_V2ALLOC;
+	else if (!strcmp(argv[3], "v1alloc")) s_mode = VN_V1ALLOC;
 	else VN_FAIL("unknown mode %s", argv[3]);
+	if (s_mode == VN_V2ALLOC || s_mode == VN_V1ALLOC)
+		s_alloc_ok = getenv("VN_ALLOC_OK") ? atoi(getenv("VN_ALLOC_OK")) : 0;
 	if (strlen(argv[2]) + 48 > sizeof(s_system_dir))
 		VN_FAIL("scratch path too long");
 	if (!vn_vulkan_load() || !vn_vulkan_has_device())
@@ -442,6 +460,7 @@ int main(int argc, char** argv)
 		printf("vknegotiate: skip: no Vulkan device\n");
 		return 0;
 	}
+	core_gipa = gipa;
 
 	strcpy(s_system_dir, argv[2]);
 	sprintf(path, "%s/pcsx2", s_system_dir);
@@ -485,16 +504,16 @@ int main(int argc, char** argv)
 		VN_FAIL("retro_load_game failed");
 	if (!s_iface || s_iface->interface_type != RETRO_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE_VULKAN)
 		VN_FAIL("no Vulkan negotiation interface");
-	if (s_iface->interface_version != (s_mode == VN_V1 ? 1u : 2u))
+	if (s_iface->interface_version != (VN_IS_V1() ? 1u : 2u))
 		VN_FAIL("interface version %u offered to a %s frontend", s_iface->interface_version, argv[3]);
-	if (!s_iface->create_device || (s_mode != VN_V1 && !s_iface->create_device2))
+	if (!s_iface->create_device || (!VN_IS_V1() && !s_iface->create_device2))
 		VN_FAIL("entry points missing");
 
 	app = s_iface->get_application_info ? s_iface->get_application_info() : NULL;
-	if (s_mode != VN_V1 && s_iface->create_instance)
+	if (!VN_IS_V1() && s_iface->create_instance)
 	{
 		/* v2: the core makes the instance through the wrapper. */
-		instance = s_iface->create_instance(gipa, app, vn_instance_wrapper, NULL);
+		instance = s_iface->create_instance(core_gipa, app, vn_instance_wrapper, NULL);
 		if (instance == VK_NULL_HANDLE)
 			VN_FAIL("create_instance failed");
 	}
@@ -516,20 +535,20 @@ int main(int argc, char** argv)
 		VN_FAIL("no physical device");
 
 	memset(&ctx, 0, sizeof(ctx));
-	if (s_mode == VN_V1)
+	if (VN_IS_V1())
 	{
 		v1_exts[0] = VN_EXTRA_EXT;
 		memset(&v1_features, 0, sizeof(v1_features));
-		ok = s_iface->create_device(&ctx, instance, gpus[0], VK_NULL_HANDLE, gipa,
+		ok = s_iface->create_device(&ctx, instance, gpus[0], VK_NULL_HANDLE, core_gipa,
 			v1_exts, 1, NULL, 0, &v1_features);
-		if (!ok)
+		if (!ok && s_alloc_ok < 0)
 			VN_FAIL("create_device failed");
 		if (s_wrapper_calls)
 			VN_FAIL("v1 went through the v2 wrapper");
 	}
 	else
 	{
-		ok = s_iface->create_device2(&ctx, instance, gpus[0], VK_NULL_HANDLE, gipa,
+		ok = s_iface->create_device2(&ctx, instance, gpus[0], VK_NULL_HANDLE, core_gipa,
 			vn_device_wrapper, NULL);
 		if (s_mode == VN_V2RETRY)
 		{
@@ -538,14 +557,36 @@ int main(int argc, char** argv)
 			ok = s_iface->create_device2(&ctx, instance, VK_NULL_HANDLE, VK_NULL_HANDLE, gipa,
 				vn_device_wrapper, NULL);
 		}
-		if (!ok)
+		if (!ok && s_alloc_ok < 0)
 			VN_FAIL("create_device2 failed");
-		if (s_wrapper_calls != (s_mode == VN_V2RETRY ? 2 : 1))
+		if (ok && s_wrapper_calls != (s_mode == VN_V2RETRY ? 2 : 1))
 			VN_FAIL("wrapper called %d times", s_wrapper_calls);
-		if (ctx.device != s_wrapper_device)
+		if (ok && ctx.device != s_wrapper_device)
 			VN_FAIL("device is not the one the wrapper created");
 		printf("  wrapper extension %s %s\n", VN_EXTRA_EXT,
 			s_wrapper_extra ? "added" : "not supported here");
+	}
+	if (!ok)
+	{
+		/* Only the alloc modes get here: the renderer could not come up
+		 * on what the driver granted, and the device was refused. The
+		 * core left nothing locked and goes down as after any load. */
+		if (s_queue_locked != 0)
+			VN_FAIL("queue lock unbalanced after a refused device (%d)", s_queue_locked);
+		unload_game();
+		if (s_iface->destroy_device)
+			s_iface->destroy_device();
+		pvkDestroyInstance(instance, NULL);
+		deinit_fn();
+		printf("vknegotiate %s: %d allocations granted, device refused cleanly\n",
+			argv[3], s_alloc_ok);
+		return 0;
+	}
+	/* The renderer is up: the rest of the run allocates as it likes. */
+	if (s_alloc_ok >= 0)
+	{
+		static char unlimited[] = "VN_ALLOC_OK=2147483647";
+		putenv(unlimited);
 	}
 	if (ctx.device == VK_NULL_HANDLE || ctx.queue == VK_NULL_HANDLE || ctx.gpu == VK_NULL_HANDLE)
 		VN_FAIL("context not filled");

@@ -40,3 +40,31 @@ for mode in v2 v2retry v1; do
 	fi
 	rm -rf "$SCRATCH"
 done
+
+# A driver that runs out of device memory while the renderer comes up, at
+# each allocation the renderer makes before it is up: the device is
+# refused cleanly or the renderer comes up and runs. vkshim.c stands in for
+# the loader the core opens, so this needs the real one by path; Linux only.
+case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*|Darwin) echo "skip: alloc modes are Linux only"; exit 0 ;; esac
+REAL=$(ldconfig -p 2>/dev/null | awk '/libvulkan\.so\.1 /{print $NF; exit}')
+if [ -z "$REAL" ]; then
+	echo "skip: alloc modes need libvulkan.so.1"
+	exit 0
+fi
+SHIM=$(mktemp -d)
+${CC:-cc} -std=c99 -Wall -O2 -shared -fPIC \
+	-isystem "$ROOT/3rdparty/vulkan-headers/include" \
+	-o "$SHIM/libvulkan.so.1" "$DIR/vkshim.c" -ldl
+for mode in v2alloc v1alloc; do
+	for granted in 0 1 2 3 4 5 6 7; do
+		SCRATCH=$(mktemp -d)
+		if ! LD_LIBRARY_PATH="$SHIM" VN_REAL_VULKAN="$REAL" VN_ALLOC_OK=$granted VN_FRAMES=10 \
+				timeout 300 "$DIR/vknegotiate" "$CORE" "$SCRATCH" $mode; then
+			rm -rf "$SCRATCH" "$SHIM"
+			echo "  FAIL: Vulkan negotiation, $mode, $granted allocations granted"
+			exit 1
+		fi
+		rm -rf "$SCRATCH"
+	done
+done
+rm -rf "$SHIM"
