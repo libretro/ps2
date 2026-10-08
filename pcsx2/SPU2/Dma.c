@@ -23,7 +23,46 @@
 #include "../R3000A.h"
 #include "../IopHw.h"
 
-/* mode: 0 = split stereo; 1 = do not split stereo */
+/* The DMA pointers point into IOP RAM at MADR, and the guest's extent
+ * after MADR is its own. A copy to or from IOP RAM goes by offset and
+ * wraps at the end of RAM, as MADR & 0x1fffff does. */
+static u32 spu2_iop_offset(const void* p)
+{
+	return (u32)(((uintptr_t)p - (uintptr_t)iopMem->Main) & (PS2MEM_IOP_RAM - 1));
+}
+
+static void spu2_from_iop(void* dst, const void* src, u32 halfwords)
+{
+	u8* out   = (u8*)dst;
+	u32 off   = spu2_iop_offset(src);
+	u32 bytes = halfwords * 2;
+
+	while (bytes)
+	{
+		const u32 n = pcsx2_min_u(bytes, PS2MEM_IOP_RAM - off);
+		memcpy(out, iopMem->Main + off, n);
+		out   += n;
+		bytes -= n;
+		off    = 0;
+	}
+}
+
+static void spu2_to_iop(void* dst, const void* src, u32 halfwords)
+{
+	const u8* in = (const u8*)src;
+	u32 off      = spu2_iop_offset(dst);
+	u32 bytes    = halfwords * 2;
+
+	while (bytes)
+	{
+		const u32 n = pcsx2_min_u(bytes, PS2MEM_IOP_RAM - off);
+		memcpy(iopMem->Main + off, in, n);
+		in    += n;
+		bytes -= n;
+		off    = 0;
+	}
+}
+
 void V_Core_AutoDMAReadBuffer(V_Core *c, int mode)
 {
 	u32 spos = c->InputPosWrite & 0x100; /* Starting position passed by TSA */
@@ -50,27 +89,33 @@ void V_Core_AutoDMAReadBuffer(V_Core *c, int mode)
 	if (mode)
 	{
 		if (c->DMAPtr != NULL)
-			memcpy(GetMemPtr(0x2000 + (c->Index << 10) + spos), c->DMAPtr + c->InputDataProgress, size);
+			spu2_from_iop(GetMemPtr(0x2000 + (c->Index << 10) + spos),
+					c->DMAPtr + c->InputDataProgress, (u32)size / 2);
 		MADR(c) += size;
-		c->InputDataLeft -= 0x200;
+		c->InputDataLeft -= pcsx2_min_u(c->InputDataLeft, 0x200);
 		c->InputDataProgress += 0x200;
 	}
 	else
 	{
-		while (size)
+		/* A block at a time, each half of the input buffer in turn; the
+		 * last block of a transfer can be short. */
+		while (size > 0)
 		{
+			const int n = pcsx2_min_i(size, 0x100);
+
 			if (!leftbuffer)
 				spos |= 0x200;
 			else
 				spos &= ~0x200;
 
 			if (c->DMAPtr != NULL)
-				memcpy(GetMemPtr(0x2000 + (c->Index << 10) + spos), c->DMAPtr + c->InputDataProgress, 0x200);
-			c->InputDataTransferred += 0x200;
-			c->InputDataLeft -= 0x100;
-			c->InputDataProgress += 0x100;
+				spu2_from_iop(GetMemPtr(0x2000 + (c->Index << 10) + spos),
+						c->DMAPtr + c->InputDataProgress, (u32)n * 2);
+			c->InputDataTransferred += (u32)n * 2;
+			c->InputDataLeft -= (u32)n;
+			c->InputDataProgress += (u32)n;
 			leftbuffer = !leftbuffer;
-			size -= 0x100;
+			size -= n;
 			c->InputPosWrite += 0x80;
 		}
 	}
@@ -160,7 +205,7 @@ void V_Core_FinishDMAwrite(V_Core *c)
 	/* It starts at TSA and goes to buff1end. */
 
 	buff1size = (buff1end - c->ActiveTSA);
-	memcpy(GetMemPtr(c->ActiveTSA), c->DMAPtr, buff1size * 2);
+	spu2_from_iop(GetMemPtr(c->ActiveTSA), c->DMAPtr, buff1size);
 
 	if (buff2end > 0)
 	{
@@ -177,7 +222,7 @@ void V_Core_FinishDMAwrite(V_Core *c)
 		c->ActiveTSA = 0;
 		/* Emulation Grayarea: Should addresses wrap around to zero, or wrap around to */
 		/* 0x2800?  Hard to know for sure (almost no games depend on this) */
-		memcpy(GetMemPtr(0), c->DMAPtr, buff2end * 2);
+		spu2_from_iop(GetMemPtr(0), c->DMAPtr, buff2end);
 		TDA = (buff2end) & 0xfffff;
 
 		/* Flag interrupt?  If IRQA occurs between start and dest, flag it. */
@@ -254,7 +299,7 @@ void V_Core_FinishDMAread(V_Core *c)
 		c->DMAPtr = (u16*)&iopMem->Main[MADR(c) & 0x1fffff];
 
 	buff1size = (buff1end - c->ActiveTSA);
-	memcpy(c->DMARPtr, GetMemPtr(c->ActiveTSA), buff1size * 2);
+	spu2_to_iop(c->DMARPtr, GetMemPtr(c->ActiveTSA), buff1size);
 	/* Note on TSA's position after our copy finishes: */
 	/* IRQA should be measured by the end of the writepos+0x20.  But the TDA */
 	/* should be written back at the precise endpoint of the xfer. */
@@ -270,7 +315,7 @@ void V_Core_FinishDMAread(V_Core *c)
 
 		/* second branch needs cleared: */
 		/* It starts at the beginning of memory and moves forward to buff2end */
-		memcpy(c->DMARPtr, GetMemPtr(0), buff2end * 2);
+		spu2_to_iop(c->DMARPtr, GetMemPtr(0), buff2end);
 
 		TDA = (buff2end) & 0xfffff;
 

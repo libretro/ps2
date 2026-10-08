@@ -1,0 +1,136 @@
+/* SPU2 DMA and reverb at their edges, on the real SPU2 units. C89.
+ *
+ * - An auto-DMA transfer whose length is not whole 0x100-halfword blocks
+ *   finishes, in both buffer modes.
+ * - DMA in either direction that runs past the end of IOP RAM wraps to its
+ *   start, as MADR does, and touches nothing after it.
+ */
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "Global.h"
+#include "spu2.h"
+#include "Dma.h"
+#include "R3000A.h"
+#include "IopCounters.h"
+#include "IopHw.h"
+#include "MemoryTypes.h"
+
+/* What the SPU2 expects of the rest of the emulator. */
+u8 iopHw[PS2MEM_IOP_HARDWARE];
+IopVM_MemoryAllocMess* iopMem;
+psxRegisters psxRegs;
+psxCounter psxCounters[NUM_COUNTERS];
+s32 psxNextDeltaCounter;
+u32 psxNextStartCounter;
+void psxDmaInterrupt(int n) { (void)n; }
+void psxDmaInterrupt2(int n) { (void)n; }
+void spu2Irq(void) {}
+s16* retro_audio_reserve(int n) { static s16 buf[4096]; (void)n; return buf; }
+void retro_audio_commit(int n) { (void)n; }
+
+static int failures;
+#define CHECK(c, m) do { if (!(c)) { printf("  FAIL: %s\n", m); failures++; } } while (0)
+
+static void reset(void)
+{
+	memset(Cores, 0, sizeof(Cores));
+	memset(spu2regs, 0, sizeof(spu2regs));
+	memset(_spu2mem, 0, sizeof(_spu2mem));
+	memset(&DCFilterIn, 0, sizeof(DCFilterIn));
+	memset(&DCFilterOut, 0, sizeof(DCFilterOut));
+	memset(pcm_cache_data, 0, pcm_BlockCount * sizeof(PcmCacheEntry));
+	V_Core_Init(&Cores[0], 0);
+	V_Core_Init(&Cores[1], 1);
+	/* Everything after Main is marked, so a copy that runs off its end
+	 * shows up as the mark. */
+	memset(iopMem, 0x33, sizeof(*iopMem));
+}
+
+static int spu_bytes_are(u32 halfword_addr, u32 bytes, u8 v)
+{
+	const u8* p = (const u8*)GetMemPtr(halfword_addr);
+	u32 i;
+	for (i = 0; i < bytes; i++)
+		if (p[i] != v)
+			return 0;
+	return 1;
+}
+
+static void check_adma_partial(void)
+{
+	V_Core* c = &Cores[0];
+
+	reset();
+	c->AutoDMACtrl   = 1;
+	c->InputPosWrite = 0;
+	MADR(c)          = 0x1000;
+	V_Core_DoDMAwrite(c, (u16*)&iopMem->Main[0x1000], 0x180);
+	CHECK(c->InputDataLeft == 0, "auto-DMA of 1.5 blocks finishes with nothing left");
+
+	reset();
+	c->AutoDMACtrl   = 1;
+	c->InputPosWrite = 0;
+	c->InputDataLeft = 0x180;
+	c->DMAPtr        = (u16*)&iopMem->Main[0x1000];
+	V_Core_AutoDMAReadBuffer(c, 1);
+	CHECK(c->InputDataLeft == 0, "unsplit auto-DMA of less than a block does not wrap the count");
+}
+
+static void check_adma_wrap(void)
+{
+	V_Core* c = &Cores[0];
+
+	reset();
+	memset(&iopMem->Main[PS2MEM_IOP_RAM - 0x100], 0x11, 0x100);
+	memset(&iopMem->Main[0], 0x22, 0x200);
+	c->AutoDMACtrl   = 1;
+	c->InputPosWrite = 0;
+	c->InputDataLeft = 0x100;
+	c->DMAPtr        = (u16*)&iopMem->Main[PS2MEM_IOP_RAM - 0x100];
+	V_Core_AutoDMAReadBuffer(c, 0);
+	CHECK(spu_bytes_are(0x2000, 0x100, 0x11) && spu_bytes_are(0x2080, 0x100, 0x22),
+		"auto-DMA from the end of IOP RAM goes on from its start");
+}
+
+static void check_plain_wrap(void)
+{
+	V_Core* c = &Cores[0];
+	u32 i;
+	int untouched = 1;
+
+	reset();
+	memset(&iopMem->Main[PS2MEM_IOP_RAM - 0x100], 0x11, 0x100);
+	memset(&iopMem->Main[0], 0x22, 0x400);
+	c->TSA = 0x4000;
+	V_Core_DoDMAwrite(c, (u16*)&iopMem->Main[PS2MEM_IOP_RAM - 0x100], 0x200);
+	CHECK(spu_bytes_are(0x4000, 0x100, 0x11) && spu_bytes_are(0x4080, 0x200, 0x22),
+		"DMA from the end of IOP RAM goes on from its start");
+
+	reset();
+	memset(GetMemPtr(0x5000), 0x44, 0x400);
+	c->TSA = 0x5000;
+	V_Core_DoDMAread(c, (u16*)&iopMem->Main[PS2MEM_IOP_RAM - 0x100], 0x200);
+	V_Core_FinishDMAread(c);
+	for (i = 0; i < sizeof(iopMem->P); i++)
+		if (iopMem->P[i] != 0x33)
+			untouched = 0;
+	CHECK(untouched, "DMA to the end of IOP RAM writes nothing after it");
+	CHECK(iopMem->Main[PS2MEM_IOP_RAM - 1] == 0x44 && iopMem->Main[0] == 0x44
+		&& iopMem->Main[0x2ff] == 0x44 && iopMem->Main[0x300] == 0x33,
+		"and goes on from its start");
+}
+
+int main(void)
+{
+	iopMem = (IopVM_MemoryAllocMess*)malloc(sizeof(*iopMem));
+	if (!iopMem)
+		return 1;
+	check_adma_partial();
+	check_adma_wrap();
+	check_plain_wrap();
+	free(iopMem);
+	printf(failures ? "spu2 dmabounds: FAILED (%d)\n" : "spu2 dmabounds: ok\n", failures);
+	return failures != 0;
+}

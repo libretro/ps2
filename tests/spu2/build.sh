@@ -70,6 +70,23 @@ for CXX in g++ clang++; do
 	done
 done
 
+# The SPU2 at its edges, as dmabounds.c lists them. On the same units,
+# plain and under ASan + UBSan.
+echo
+echo "=== edges ==="
+for SAN in "" "-fsanitize=address,undefined"; do
+	for u in $UNITS_C; do
+		gcc -O1 -g -std=gnu89 -Wdeclaration-after-statement $SAN $INC \
+		    -c "$ROOT/pcsx2/SPU2/$u.c" -o "$TMP/d_$u.o"
+	done
+	gcc -O1 -g -std=gnu89 -Wdeclaration-after-statement -Wall $SAN $INC \
+	    -c "$DIR/dmabounds.c" -o "$TMP/dmabounds.o"
+	gcc -O1 -g $SAN $INC -c "$ROOT/libretro/libretro-common/memmap/memalign.c" -o "$TMP/d_memalign.o"
+	gcc $SAN "$TMP/dmabounds.o" $(for u in $UNITS_C; do echo "$TMP/d_$u.o"; done) \
+	    "$TMP/d_memalign.o" -o "$TMP/dmabounds"
+	"$TMP/dmabounds"
+done
+
 # Every scenario must hash the same alone and after every other one, or
 # the pins above describe an order, not a scenario. Quadratic, so once.
 echo
