@@ -12,8 +12,9 @@
  * The rule here is the same one and it is in one place. Blocks are
  * taken from the device, are large, and are not given back while the
  * heap lives unless a trim finds one empty. An allocation is an offset
- * inside a block, found by walking that block's free list; freeing puts
- * the span back and merges it with its neighbours. The caller places a
+ * inside a block, the lowest free span that fits; the free spans are
+ * kept sorted, so freeing is a binary search and a merge with the span
+ * on either side. The caller places a
  * resource at that offset with CreatePlacedResource.
  *
  * Unlike the Vulkan heap nothing is mapped here: D3D12 maps resources,
@@ -85,7 +86,10 @@ typedef struct gs_d3d12_block
    void            *heap;         /* ID3D12Heap*, NULL when the slot is a hole */
    uint64_t         size;
    uint64_t         used;
-   gs_d3d12_span_t *free_spans;
+   /* No free span is larger than this. Exact after a search that found
+    * nothing, an upper bound otherwise. */
+   uint64_t         max_free;
+   gs_d3d12_span_t *free_spans;   /* sorted by offset, never adjacent */
    unsigned         free_count;
    unsigned         free_capacity;
    uint32_t         heap_type;
@@ -115,6 +119,7 @@ typedef struct gs_d3d12_heap
     * these two lines say which side has it. */
    uint64_t            bytes_host;     /* UPLOAD and READBACK */
    uint64_t            bytes_device;   /* DEFAULT             */
+   uint64_t            bad_frees;      /* frees of memory already free, refused */
 } gs_d3d12_heap_t;
 
 /* block_size is what one ID3D12Heap is; anything larger than it gets a
@@ -137,6 +142,9 @@ int  gs_d3d12_heap_alloc(gs_d3d12_heap_t *heap, uint64_t size,
       uint64_t alignment, uint32_t heap_type, uint32_t heap_flags,
       gs_d3d12_alloc_t *out);
 
+/* A free of memory that is already free, or of an allocation whose block
+ * has since been given back, changes nothing; the first kind is counted
+ * in bad_frees. */
 void gs_d3d12_heap_free(gs_d3d12_heap_t *heap, const gs_d3d12_alloc_t *alloc);
 
 /* Gives empty blocks back to the device. Blocks are per type and per

@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include "GSD3D12Heap.h"
 
@@ -289,6 +290,184 @@ static void test_oversized_gets_its_own_block(void)
    gs_d3d12_heap_shutdown(&heap);
 }
 
+/* Two live allocations never share memory. */
+static int apart(const gs_d3d12_alloc_t *x, const gs_d3d12_alloc_t *y)
+{
+   return x->heap != y->heap
+      || x->offset + x->size <= y->offset
+      || y->offset + y->size <= x->offset;
+}
+
+static void test_double_free_never_aliases(void)
+{
+   gs_d3d12_heap_t heap;
+   gs_d3d12_alloc_t a, b, fill, x, y;
+
+   printf("a second free of one allocation never puts two resources on one span\n");
+   reset_stubs();
+   gs_d3d12_heap_init(&heap, NULL, &stub_fns, 4 * MB, 0);
+   CHECK(gs_d3d12_heap_alloc(&heap, 1 * MB, 64 * 1024,
+            GS_D3D12_HEAP_TYPE_DEFAULT, FLAG_ALL, &a), "allocate a");
+   CHECK(gs_d3d12_heap_alloc(&heap, 1 * MB, 64 * 1024,
+            GS_D3D12_HEAP_TYPE_DEFAULT, FLAG_ALL, &b), "allocate b");
+   gs_d3d12_heap_free(&heap, &a);
+   gs_d3d12_heap_free(&heap, &a);
+   CHECK(heap.bad_frees == 1, "the second free is refused and counted");
+   CHECK(heap.blocks[0].free_count == 2, "a's span is on the list once");
+   CHECK(gs_d3d12_heap_alloc(&heap, 2 * MB, 64 * 1024,
+            GS_D3D12_HEAP_TYPE_DEFAULT, FLAG_ALL, &fill), "fill the tail");
+   CHECK(gs_d3d12_heap_alloc(&heap, 1 * MB, 64 * 1024,
+            GS_D3D12_HEAP_TYPE_DEFAULT, FLAG_ALL, &x), "take a's room");
+   CHECK(!gs_d3d12_heap_alloc(&heap, 1 * MB, 64 * 1024,
+            GS_D3D12_HEAP_TYPE_DEFAULT, FLAG_ALL, &y)
+         || (apart(&x, &y) && apart(&y, &b) && apart(&y, &fill)),
+         "and nothing else lands on it");
+   CHECK(apart(&x, &b) && apart(&x, &fill) && apart(&b, &fill), "three live, apart");
+   gs_d3d12_heap_shutdown(&heap);
+}
+
+static void test_stale_handle_into_reused_slot(void)
+{
+   gs_d3d12_heap_t heap;
+   gs_d3d12_alloc_t old, live, next;
+
+   printf("a free whose block was trimmed leaves the slot's new block alone\n");
+   reset_stubs();
+   gs_d3d12_heap_init(&heap, NULL, &stub_fns, 64 * MB, 0);
+   CHECK(gs_d3d12_heap_alloc(&heap, 1 * MB, 64 * 1024,
+            GS_D3D12_HEAP_TYPE_DEFAULT, FLAG_ALL, &old), "allocate");
+   gs_d3d12_heap_free(&heap, &old);
+   CHECK(gs_d3d12_heap_trim(&heap) == 1, "trimmed");
+   CHECK(gs_d3d12_heap_alloc(&heap, 64 * MB, 64 * 1024,
+            GS_D3D12_HEAP_TYPE_UPLOAD, FLAG_BUFFERS, &live), "a new block fills the slot");
+   CHECK(live.block == old.block && live.heap != old.heap, "same slot, other heap");
+   gs_d3d12_heap_free(&heap, &old);
+   CHECK(heap.bytes_used == 64 * MB, "the stale free changed nothing");
+   CHECK(gs_d3d12_heap_alloc(&heap, 1 * MB, 64 * 1024,
+            GS_D3D12_HEAP_TYPE_UPLOAD, FLAG_BUFFERS, &next), "another upload");
+   CHECK(apart(&next, &live), "not placed on the live one");
+   gs_d3d12_heap_shutdown(&heap);
+}
+
+/* Thousands of allocations of mixed sizes and alignments freed in no
+ * order, against a list kept on the side: nothing overlaps, offsets are
+ * aligned, spans stay sorted and merged and add up with what is in use
+ * to the block. */
+static void test_churn(void)
+{
+   enum { LIVE = 600, ROUNDS = 60000 };
+   static gs_d3d12_alloc_t live[LIVE];
+   static int used[LIVE];
+   gs_d3d12_heap_t heap;
+   unsigned seed = 1;
+   int n, ok = 1;
+
+   printf("churn: aligned, apart, sorted, merged and accounted for\n");
+   reset_stubs();
+   memset(used, 0, sizeof(used));
+   gs_d3d12_heap_init(&heap, NULL, &stub_fns, 8 * MB, 0);
+   for (n = 0; n < ROUNDS && ok; n++)
+   {
+      unsigned slot, b, sp;
+
+      seed = seed * 1664525u + 1013904223u;
+      slot = (seed >> 8) % LIVE;
+      if (used[slot])
+      {
+         gs_d3d12_heap_free(&heap, &live[slot]);
+         used[slot] = 0;
+      }
+      else
+      {
+         const uint64_t align = (uint64_t)1 << ((seed >> 20) % 17);
+         const uint64_t size  = 16 + ((seed >> 4) % 60000);
+         int j;
+
+         if (!gs_d3d12_heap_alloc(&heap, size, align,
+                  GS_D3D12_HEAP_TYPE_DEFAULT, FLAG_ALL, &live[slot]))
+         {
+            ok = 0;
+            break;
+         }
+         used[slot] = 1;
+         if (live[slot].offset % align)
+            ok = 0;
+         for (j = 0; j < LIVE && ok; j++)
+            if (j != (int)slot && used[j] && !apart(&live[j], &live[slot]))
+               ok = 0;
+      }
+      if (n % 97)
+         continue;
+      for (b = 0; b < heap.block_count && ok; b++)
+      {
+         const gs_d3d12_block_t *blk = &heap.blocks[b];
+         uint64_t free_bytes = 0;
+
+         if (!blk->heap)
+            continue;
+         for (sp = 0; sp < blk->free_count; sp++)
+         {
+            free_bytes += blk->free_spans[sp].size;
+            if (blk->free_spans[sp].size == 0 || blk->free_spans[sp].size > blk->max_free)
+               ok = 0;
+            if (sp + 1 < blk->free_count
+                  && blk->free_spans[sp].offset + blk->free_spans[sp].size
+                     >= blk->free_spans[sp + 1].offset)
+               ok = 0;
+         }
+         if (free_bytes + blk->used != blk->size)
+            ok = 0;
+      }
+   }
+   CHECK(ok, "churn invariants held");
+   for (n = 0; n < LIVE; n++)
+      if (used[n])
+         gs_d3d12_heap_free(&heap, &live[n]);
+   CHECK(heap.bytes_used == 0 && heap.bad_frees == 0, "everything back, no bad frees");
+   for (n = 0; n < (int)heap.block_count; n++)
+      CHECK(!heap.blocks[n].heap || heap.blocks[n].free_count == 1,
+            "each block is one span again");
+   gs_d3d12_heap_shutdown(&heap);
+}
+
+/* 4000 small allocations freed in a shuffled order: each free is a
+ * search and a merge, so the whole run is quick and ends as one span. */
+static void test_fragmented_free(void)
+{
+   enum { N = 4000 };
+   static gs_d3d12_alloc_t a[N];
+   static unsigned order[N];
+   gs_d3d12_heap_t heap;
+   unsigned seed = 7;
+   clock_t t0;
+   int i;
+
+   printf("4000 shuffled frees merge back to one span\n");
+   reset_stubs();
+   gs_d3d12_heap_init(&heap, NULL, &stub_fns, 1 * MB, 0);
+   for (i = 0; i < N; i++)
+   {
+      CHECK(gs_d3d12_heap_alloc(&heap, 64, 64,
+               GS_D3D12_HEAP_TYPE_DEFAULT, FLAG_ALL, &a[i]), "small allocation");
+      order[i] = (unsigned)i;
+   }
+   for (i = N - 1; i > 0; i--)
+   {
+      unsigned j, t;
+      seed = seed * 1664525u + 1013904223u;
+      j        = (seed >> 8) % (unsigned)(i + 1);
+      t        = order[i];
+      order[i] = order[j];
+      order[j] = t;
+   }
+   t0 = clock();
+   for (i = 0; i < N; i++)
+      gs_d3d12_heap_free(&heap, &a[order[i]]);
+   printf("  (%.3f ms)\n", (double)(clock() - t0) * 1000.0 / CLOCKS_PER_SEC);
+   CHECK(heap.blocks[0].free_count == 1 && heap.blocks[0].used == 0, "one span, empty");
+   gs_d3d12_heap_shutdown(&heap);
+}
+
 int main(void)
 {
    test_reserve_then_no_device_calls();
@@ -300,6 +479,10 @@ int main(void)
    test_device_refusal_is_not_a_crash();
    test_free_of_a_stale_allocation();
    test_oversized_gets_its_own_block();
+   test_double_free_never_aliases();
+   test_stale_handle_into_reused_slot();
+   test_churn();
+   test_fragmented_free();
 
    if (fails)
    {
