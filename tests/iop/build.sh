@@ -165,6 +165,10 @@ echo "== IOP dispatch tables vs the MIPS I encoding =="
 "$CC" -O1 -g -Wall $SANFLAGS -o "$DIR/iop_tabaudit" "$DIR/tabaudit.c"
 "$DIR/iop_tabaudit" "$ROOT/pcsx2/R3000AOpcodeTables.cpp" "$ROOT/pcsx2/x86/iR3000Atables.cpp"
 
+echo "== IOP recompilers: RFE raises pending interrupts =="
+"$CC" -O1 -g -Wall $SANFLAGS -o "$DIR/iop_rfeintc" "$DIR/rfeintc.c"
+"$DIR/iop_rfeintc" "$ROOT/pcsx2/x86/iR3000Atables.cpp" "$ROOT/pcsx2/arm64/recR3000A_arm64.cpp"
+
 echo "== IOP driven through R3000AOpcodeTables.cpp vs console =="
 EXPECTED="${PS2AUTOTESTS:-}/tests/cpu/iop"
 if [ -d "$EXPECTED" ]; then

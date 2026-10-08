@@ -22,6 +22,7 @@
 #include "common/Pcsx2Defs.h"
 #include "IopMem.h"
 #include "IopHw.h"
+#include "IopDma.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -180,11 +181,11 @@ namespace
 	}
 
 	// C.68: ADDI/ADD/SUB (psxADDI/psxADD/psxSUB drop the integer-overflow trap
-	// and are byte-for-byte the U forms -- same call as EE C.42) and RFE (pure
-	// Status bit shuffle, R3000AOpcodeTables.cpp psxRFE; re-enabling IEc has no
-	// immediate side effect in the interpreter either, pending interrupts wait
-	// for the next event test). Checked in BOTH EmitSimple and IsTranslatable
-	// so block building and delay-slot inlining stay consistent.
+	// and are byte-for-byte the U forms -- same call as EE C.42) and RFE (the
+	// Status bit shuffle of psxRFE, then iopTestIntc like rpsxRFE so an
+	// interrupt pending behind IEc is raised at the next branch). Checked in
+	// BOTH EmitSimple and IsTranslatable so block building and delay-slot
+	// inlining stay consistent.
 	// Translate one side-effect-light instruction (ALU + aligned load/store) to
 	// native AArch64. Returns false (emitting nothing) for control flow and
 	// anything not covered. gpr (x19) is callee-saved so it survives mem helpers.
@@ -404,7 +405,7 @@ namespace
 			// ---- C.34: COP0 moves. psxMFC0/CFC0/MTC0/CTC0 are plain copies
 			// against psxRegs.CP0.r[rd] (offset 136 + rd*4 from the GPR base;
 			// no side effects anywhere in this interpreter, not even for
-			// Status/Cause). RFE (rs=0x10) stays on the interpreter.
+			// Status/Cause). RFE (rs=0x10) is handled below.
 			case 0x10:
 			{
 				const u32 rs_field = rs;
@@ -429,6 +430,11 @@ namespace
 					m.And(w0, w0, 0xfffffff0);
 					m.Orr(w0, w0, Operand(w1, LSR, 2));
 					m.Str(w0, MemOperand(gpr, 136 + 12 * 4));
+					// An interrupt left pending while IEc was clear is raised
+					// now, as rpsxRFE does: iopTestIntc pulls the next event
+					// test to within two cycles.
+					m.Mov(x16, reinterpret_cast<uint64_t>(&iopTestIntc));
+					m.Blr(x16);
 					return true;
 				}
 				return false;
