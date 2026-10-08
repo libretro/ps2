@@ -134,7 +134,15 @@ __fi static u8 getBits8(u8 *address)
    into 1st slot is copied to the 2nd slot. Which will later be copied
    back to the 1st slot when 128bits have been read.
 */
-static const DCTtabLut * tab;
+/* A coefficient read in two halves, suspended between them for more
+ * bitstream: the second half needs only whether the code was an escape
+ * and its level, so those travel in ipu_cmd.pos[5], which a savestate
+ * carries - bit 0 the escape, bits 8 and up the level, 2 set to say it
+ * is there. 1 is what a state from before this held, with nothing to go
+ * on: that block ends there. */
+#define IPU_DCT_RESUME(esc, lvl) (2 | ((esc) ? 1 : 0) | ((int)(lvl) << 8))
+#define IPU_DCT_LEGACY_RESUME    1
+
 static int mbaCount = 0;
 
 static int GetMacroblockModes(void)
@@ -342,6 +350,9 @@ __ri static bool get_intra_block(void)
 	int quantizer_scale = decoder.quantizer_scale;
 	s16 * dest = decoder.DCTblock;
 	u16 code;
+	const DCTtabLut * tab;
+	int esc = 0;
+	int lvl = 0;
 
 	/* decode AC coefficients */
 	for (int i=1 + ipu_cmd.pos[4]; ; i++)
@@ -373,7 +384,9 @@ __ri static bool get_intra_block(void)
 					return true;
 				}
 
-				i += (tab->run == 65) ? GETBITS(6) : tab->run;
+				esc = tab->run == 65;
+				lvl = tab->level;
+				i += esc ? GETBITS(6) : tab->run;
 				if (i >= 64)
 				{
 					ipu_cmd.pos[4] = 0;
@@ -381,19 +394,30 @@ __ri static bool get_intra_block(void)
 				}
 				/* fall-through */
 
-			case 1:
+			default:
 				{
+					if (ipu_cmd.pos[5] == IPU_DCT_LEGACY_RESUME)
+					{
+						ipu_cmd.pos[4] = 0;
+						ipu_cmd.pos[5] = 0;
+						return true;
+					}
+					if (ipu_cmd.pos[5] != 0)
+					{
+						esc = ipu_cmd.pos[5] & 1;
+						lvl = ipu_cmd.pos[5] >> 8;
+					}
 					if (!GETWORD())
 					{
 						ipu_cmd.pos[4] = i - 1;
-						ipu_cmd.pos[5] = 1;
+						ipu_cmd.pos[5] = IPU_DCT_RESUME(esc, lvl);
 						return false;
 					}
 
 					uint j = scan[i];
 					int val;
 
-					if (tab->run==65) /* escape */
+					if (esc) /* escape */
 					{
 						if(!decoder.mpeg1)
 						{
@@ -414,7 +438,7 @@ __ri static bool get_intra_block(void)
 					}
 					else
 					{
-						val = (tab->level * quantizer_scale * quant_matrix[i]) >> 4;
+						val = (lvl * quantizer_scale * quant_matrix[i]) >> 4;
 						if(decoder.mpeg1) /* oddification */
 							val = (val - 1) | 1;
 
@@ -447,6 +471,9 @@ __ri static bool get_non_intra_block(int * last)
 	int quantizer_scale = decoder.quantizer_scale;
 	s16 * dest = decoder.DCTblock;
 	u16 code;
+	const DCTtabLut * tab;
+	int esc = 0;
+	int lvl = 0;
 
 	/* decode AC coefficients */
 	for (i= ipu_cmd.pos[4] ; ; i++)
@@ -478,7 +505,9 @@ __ri static bool get_non_intra_block(int * last)
 					return true;
 				}
 
-				i += (tab->run == 65) ? GETBITS(6) : tab->run;
+				esc = tab->run == 65;
+				lvl = tab->level;
+				i += esc ? GETBITS(6) : tab->run;
 				if (i >= 64)
 				{
 					*last = i;
@@ -487,17 +516,29 @@ __ri static bool get_non_intra_block(int * last)
 				}
 				/* fall-through */
 
-			case 1:
+			default:
+				if (ipu_cmd.pos[5] == IPU_DCT_LEGACY_RESUME)
+				{
+					*last = i;
+					ipu_cmd.pos[4] = 0;
+					ipu_cmd.pos[5] = 0;
+					return true;
+				}
+				if (ipu_cmd.pos[5] != 0)
+				{
+					esc = ipu_cmd.pos[5] & 1;
+					lvl = ipu_cmd.pos[5] >> 8;
+				}
 				if (!GETWORD())
 				{
 					ipu_cmd.pos[4] = i;
-					ipu_cmd.pos[5] = 1;
+					ipu_cmd.pos[5] = IPU_DCT_RESUME(esc, lvl);
 					return false;
 				}
 
 				j = scan[i];
 
-				if (tab->run==65) /* escape */
+				if (esc) /* escape */
 				{
 					if (!decoder.mpeg1)
 					{
@@ -519,7 +560,7 @@ __ri static bool get_non_intra_block(int * last)
 				else
 				{
 					int bit1 = SBITS(1);
-					val = ((2 * tab->level + 1) * quantizer_scale * quant_matrix[i]) >> 5;
+					val = ((2 * lvl + 1) * quantizer_scale * quant_matrix[i]) >> 5;
 					val = (val ^ bit1) - bit1;
 					DUMPBITS(1);
 				}

@@ -78,10 +78,18 @@ static const u8 *g_src;
 static size_t g_src_len;
 static size_t g_src_qwc;   /* next quadword to hand over */
 
+/* Set, the FIFO is empty on every other read: the decoder suspends
+ * wherever it next needs bits, and is called again. */
+static int g_starve;
+static unsigned g_starve_tick;
+
 int IPU_Fifo_Input::read(void *value)
 {
 	u8 *dst = (u8 *)value;
 	size_t off = g_src_qwc * 16;
+
+	if (g_starve && (g_starve_tick++ & 1))
+		return 0;
 
 	if (off >= g_src_len)
 	{
@@ -262,6 +270,97 @@ static void setup(const ipu_stream *st, const ipu_slice *sl)
 	ipu_bp_fill_buffer(&g_BP, 32);
 }
 
+/* The fixtures again, with the input running dry every other quadword.
+ * Every suspension is a point a savestate can be taken at, and the
+ * decoder has to come back from each with nothing but what it keeps in
+ * ipu_cmd; so the macroblocks have to come out as they did fed in full.
+ * resumed counts the coefficients that went over a suspension between
+ * their two halves. */
+static uint64_t starved_hash(long *resumed)
+{
+	uint64_t h = hash_init();
+
+	g_starve_tick = 0;
+	*resumed      = 0;
+	for (size_t si = 0; si < sizeof(ipu_streams) / sizeof(ipu_streams[0]); si++)
+	{
+		const ipu_stream *st = ipu_streams[si];
+		for (int s = 0; s < st->nslices; s++)
+		{
+			g_starve = 0;
+			setup(st, &st->slices[s]);
+			for (int mx = 0; mx < st->mbw; mx++)
+			{
+				int quant = decoder.quantizer_scale;
+				int dct_type = 0;
+				long spin = 0;
+				bool done = false;
+
+				/* The slice setup and the header are this harness's to
+				 * read, fed in full; only the decoder is starved. */
+				if (!macroblock_header(st, &quant, &dct_type))
+					return 0;
+				decoder.quantizer_scale = quant;
+				decoder.macroblock_modes = MACROBLOCK_INTRA
+					| (dct_type ? DCT_TYPE_INTERLACED : 0);
+				memset(&ipu_cmd, 0, sizeof(ipu_cmd));
+				g_starve = 1;
+				while (!done)
+				{
+					ipu0ch.qwc       = 0x4000;
+					ipuRegs.ctrl.OFC = 0;
+					done = mpeg2_slice();
+					if (!done && ipu_cmd.pos[5] >= 2)
+						(*resumed)++;
+					if (!done && ++spin > 100000)
+					{
+						g_starve = 0;
+						return 0;
+					}
+				}
+				g_starve = 0;
+				decoder.dcr = 0;
+				hash_bytes(&h, &decoder.mb8, sizeof(decoder.mb8));
+			}
+		}
+	}
+	return h;
+}
+
+/* A state loaded into a process that has decoded nothing, parked between
+ * the two halves of a coefficient: the second half is decoded from what
+ * ipu_cmd carries, and a state from before that carried it ends the
+ * block rather than reading a table entry no process has. */
+static int resume_from_state(void)
+{
+	static const u8 stream[64] = { 0x80, 0x00 };
+	int ok = 1;
+
+	memset(&decoder, 0, sizeof(decoder));
+	for (int i = 0; i < 64; i++)
+		decoder.iq[i] = 16;
+	decoder.quantizer_scale = 8;
+	memset(g_srcbuf, 0, sizeof(g_srcbuf));
+	memcpy(g_srcbuf, stream, sizeof(stream));
+	g_src = g_srcbuf; g_src_len = sizeof(stream); g_src_qwc = 0;
+	memset(&g_BP, 0, sizeof(g_BP));
+	ipu_bp_fill_buffer(&g_BP, 32);
+
+	memset(&ipu_cmd, 0, sizeof(ipu_cmd));
+	memset(decoder.DCTblock, 0, sizeof(decoder.DCTblock));
+	ipu_cmd.pos[4] = 4;
+	ipu_cmd.pos[5] = IPU_DCT_RESUME(0, 3);
+	get_intra_block();
+	/* level 3 at scan position 5, sign bit 1: -(3 * 8 * 16 >> 4) */
+	ok &= decoder.DCTblock[mpeg2_scan.norm[5]] == -24;
+
+	memset(&ipu_cmd, 0, sizeof(ipu_cmd));
+	ipu_cmd.pos[4] = 4;
+	ipu_cmd.pos[5] = IPU_DCT_LEGACY_RESUME;
+	ok &= get_intra_block() && ipu_cmd.pos[5] == 0 && ipu_cmd.pos[4] == 0;
+	return ok;
+}
+
 int main(int argc, char **argv)
 {
 	const int print = (argc > 1 && strcmp(argv[1], "--print") == 0);
@@ -291,6 +390,10 @@ int main(int argc, char **argv)
 	 * one's. */
 	const double tight_mean = 1.0,  loose_mean = 12.0;
 	const long   tight_peak = 8,    loose_peak = 110;
+
+	/* Before anything is decoded, as in a process that has just loaded
+	 * the state. */
+	const int resumed_ok = resume_from_state();
 
 	printf("tier: ");
 #if defined(__AVX2__)
@@ -537,6 +640,19 @@ int main(int argc, char **argv)
 		printf("  { %016llx }\n", (unsigned long long)h);
 		return 0;
 	}
+
+	{
+		long resumed;
+		const uint64_t hs = starved_hash(&resumed);
+		printf("  starved input: %016llx, %ld coefficients resumed between halves%s\n",
+		       (unsigned long long)hs, resumed,
+		       (hs == h && resumed > 0) ? "  ok" : "  MISMATCH");
+		if (hs != h || resumed == 0)
+			failures++;
+	}
+	printf("  resume from a state: %s\n", resumed_ok ? "ok" : "FAILED");
+	if (!resumed_ok)
+		failures++;
 
 	printf("  slice %016llx%s\n", (unsigned long long)h,
 	       want_h == 0 ? "  (unpinned)" :
