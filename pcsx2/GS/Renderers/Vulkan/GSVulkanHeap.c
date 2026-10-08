@@ -448,25 +448,10 @@ void gs_vk_heap_free(gs_vk_heap_t *heap, const gs_vk_alloc_t *alloc)
     * handed out twice. */
    b = &heap->blocks[alloc->block];
    if (b->memory != alloc->memory || alloc->offset > b->size
-         || alloc->size > b->size - alloc->offset)
+         || alloc->size > b->size - alloc->offset || !alloc->size)
       return;
-   if (b->used >= alloc->size)
-      b->used -= alloc->size;
-   if (heap->bytes_used >= alloc->size)
-      heap->bytes_used -= alloc->size;
-   if (heap->props.memoryTypes[b->type].propertyFlags
-         & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
-   {
-      if (heap->bytes_host >= alloc->size)
-         heap->bytes_host -= alloc->size;
-   }
-   else if (heap->bytes_device >= alloc->size)
-      heap->bytes_device -= alloc->size;
 
-   /* Put back where it belongs in the sorted spans and joined to
-    * whichever neighbours it touches, so a block does not turn into a
-    * thousand unusable slivers over a run. The first free span that
-    * starts after this one: */
+   /* Where it goes in the sorted spans: the first that starts after it. */
    offset = alloc->offset;
    size   = alloc->size;
    lo     = 0;
@@ -480,6 +465,30 @@ void gs_vk_heap_free(gs_vk_heap_t *heap, const gs_vk_alloc_t *alloc)
          hi = mid;
    }
 
+   /* Memory that is already free is not freed again: a second free of one
+    * allocation would put its span on the list twice, and two resources
+    * would then be bound to the same memory. */
+   if ((lo > 0 && b->free_spans[lo - 1].offset + b->free_spans[lo - 1].size > offset)
+         || (lo < b->free_count && offset + size > b->free_spans[lo].offset))
+   {
+      heap->bad_frees++;
+      return;
+   }
+   if (b->used >= alloc->size)
+      b->used -= alloc->size;
+   if (heap->bytes_used >= alloc->size)
+      heap->bytes_used -= alloc->size;
+   if (heap->props.memoryTypes[b->type].propertyFlags
+         & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
+   {
+      if (heap->bytes_host >= alloc->size)
+         heap->bytes_host -= alloc->size;
+   }
+   else if (heap->bytes_device >= alloc->size)
+      heap->bytes_device -= alloc->size;
+
+   /* Joined to whichever neighbours it touches, so a block does not turn
+    * into a thousand unusable slivers over a run. */
    joins_prev = lo > 0
       && b->free_spans[lo - 1].offset + b->free_spans[lo - 1].size == offset;
    joins_next = lo < b->free_count && offset + size == b->free_spans[lo].offset;

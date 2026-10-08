@@ -114,6 +114,7 @@ typedef struct gs_vk_heap
    VkDeviceSize                     bytes_host;
    VkDeviceSize                     bytes_device;
    VkResult                         last_error;     /* why the last block could not be had */
+   VkDeviceSize                     bad_frees;      /* frees of memory already free, refused */
 } gs_vk_heap_t;
 
 /* block_size is what one VkDeviceMemory is; anything larger than it gets
@@ -149,6 +150,9 @@ int  gs_vk_heap_alloc(gs_vk_heap_t *heap, const VkMemoryRequirements *req,
       VkMemoryPropertyFlags required, VkMemoryPropertyFlags preferred,
       int linear, gs_vk_alloc_t *out);
 
+/* A free of memory that is already free, or of an allocation whose block
+ * has since been given back, changes nothing; the first kind is counted
+ * in bad_frees. */
 void gs_vk_heap_free(gs_vk_heap_t *heap, const gs_vk_alloc_t *alloc);
 
 /* Gives empty blocks back to the driver. Blocks are per memory type and

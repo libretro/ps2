@@ -519,6 +519,30 @@ int main(void)
       gs_vk_heap_shutdown(&h);
    }
 
+   /* A second free of one allocation is refused: its span goes on the
+    * list once, and nothing is handed out on top of a live allocation. */
+   {
+      gs_vk_heap_t h;
+      gs_vk_alloc_t x, y, fill, p, q;
+
+      memset(&h, 0, sizeof(h));
+      CHECK(gs_vk_heap_init(&h, (VkDevice)1, &props, &fns, 4u * 1024u * 1024u, 256, 0) != 0, "twice: init");
+      req(&r, 1024 * 1024, 256, 0x1u);
+      CHECK(gs_vk_heap_alloc(&h, &r, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, 0, &x) != 0, "twice: x");
+      CHECK(gs_vk_heap_alloc(&h, &r, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, 0, &y) != 0, "twice: y");
+      gs_vk_heap_free(&h, &x);
+      gs_vk_heap_free(&h, &x);
+      CHECK(h.bad_frees == 1 && h.blocks[x.block].free_count == 2,
+            "twice: the second free is refused and counted");
+      req(&r, 2u * 1024u * 1024u, 256, 0x1u);
+      CHECK(gs_vk_heap_alloc(&h, &r, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, 0, &fill) != 0, "twice: fill");
+      req(&r, 1024 * 1024, 256, 0x1u);
+      CHECK(gs_vk_heap_alloc(&h, &r, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, 0, &p) != 0, "twice: p");
+      CHECK(!gs_vk_heap_alloc(&h, &r, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, 0, &q)
+            || q.memory != p.memory, "twice: nothing lands on p in its block");
+      gs_vk_heap_shutdown(&h);
+   }
+
    /* A block is no more than an eighth of the driver heap its type is
     * in, so a small heap is not mostly one block. */
    {
