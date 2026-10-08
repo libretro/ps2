@@ -112,12 +112,11 @@ ifneq (,$(findstring unix,$(platform)))
       LDFLAGS += $(PTHREAD_FLAGS) -ldl
    endif
    FLAGS   +=
+   # No GL library on the link line: every GL entry point comes from the
+   # frontend through gladLoadGLLoader(), as in the CMake build.
    ifeq ($(HAVE_OPENGL),1)
       ifneq (,$(findstring gles,$(platform)))
          GLES = 1
-         GL_LIB := -lGLESv2
-      else
-         GL_LIB := -lGL
       endif
    endif
 

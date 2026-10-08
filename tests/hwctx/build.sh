@@ -12,3 +12,7 @@ SANFLAGS=""
 echo "== no OpenGL ES context, software renderer as the last resort =="
 "$CC" -O1 -g -Wall $SANFLAGS -o "$DIR/hwctx_ctxaudit" "$DIR/ctxaudit.c"
 "$DIR/hwctx_ctxaudit" "$ROOT/libretro/main.cpp" "$ROOT/pcsx2/GS/GS.cpp"
+
+echo "== unix Makefile build links no GL library =="
+"$CC" -O1 -g -Wall $SANFLAGS -o "$DIR/hwctx_linkaudit" "$DIR/linkaudit.c"
+"$DIR/hwctx_linkaudit" "$ROOT/Makefile" "$ROOT/pcsx2/GS/Renderers/OpenGL/GLContext.cpp"
