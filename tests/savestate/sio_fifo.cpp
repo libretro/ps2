@@ -126,6 +126,18 @@ int main(void)
 		for (drained = 0; drained <= 70; drained += drained < 4 ? 1 : 23)
 			round_trip(drained, live);
 
+	/* The fields a loaded state may not take out of range: the port and
+	 * slot that index the memory cards, and the SEND3 position and command
+	 * length. Sixteen is all descriptors read, seventeen is past them. */
+	expect(sio_port_slot_ok(0, 0) && sio_port_slot_ok(1, 3), "port 0..1, slot 0..3 load");
+	expect(!sio_port_slot_ok(2, 0), "port 2 is refused");
+	expect(!sio_port_slot_ok(0, 4), "slot 4 is refused");
+	expect(!sio_port_slot_ok(255, 200), "a port and slot from nowhere are refused");
+	expect(sio2_send3_ok(0, 0) && sio2_send3_ok(SIO2_SEND3_COUNT, Send3::COMMAND_LENGTH_MASK),
+	       "send3 position 0..16 and a length the field holds load");
+	expect(!sio2_send3_ok(SIO2_SEND3_COUNT + 1, 0), "send3 position 17 is refused");
+	expect(!sio2_send3_ok(0, (size_t)Send3::COMMAND_LENGTH_MASK + 1), "a longer command is refused");
+
 	printf("%s: sio fifo, %ld checks, %ld failures\n",
 	       failures ? "FAIL" : "PASS", checks, failures);
 	return failures != 0;

@@ -582,7 +582,7 @@ void Sio2::Write(u8 data)
 	if (!send3Read)
 	{
 		// No more SEND3 positions to access, but the game is still sending us SIO2 writes. Lets ignore them.
-		if (send3Position > 16)
+		if (send3Position >= SIO2_SEND3_COUNT)
 			return;
 
 		const u32 currentSend3 = send3[send3Position];
@@ -775,6 +775,9 @@ bool sio2Freeze(SaveStateBase *s)
 		return false;
 
 	SaveState_Freeze(s, sio2);
+	if (SaveState_IsLoading(s) && (!sio_port_slot_ok(sio2.port, sio2.slot)
+			|| !sio2_send3_ok(sio2.send3Position, sio2.commandLength)))
+		s->error = true;
 	FreezeSioFifo(s, fifoIn);
 	FreezeSioFifo(s, fifoOut);
 	if (!SaveState_IsOkay(s))
@@ -824,13 +827,15 @@ bool sioFreeze(SaveStateBase *s)
 		return false;
 
 	SaveState_Freeze(s, sio0);
+	if (SaveState_IsLoading(s) && !sio_port_slot_ok(sio0.port, sio0.slot))
+		s->error = true;
 	if (!SaveState_IsOkay(s))
 		return false;
 
 	/* A PS1 card transfer spans many SIO0 bytes, all to the card selected
 	 * at its first one. */
 	if (SaveState_IsLoading(s))
-		mcd = &mcds[sio0.port & 1][sio0.slot & 3];
+		mcd = &mcds[sio0.port][sio0.slot];
 
 	return true;
 }

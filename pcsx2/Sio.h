@@ -23,6 +23,9 @@
 #include <cstdlib>
 #include <cstring>
 
+/* SIO2 holds sixteen SEND3 command descriptors. */
+#define SIO2_SEND3_COUNT 16
+
 // Byte FIFO for SIO/SIO2 command exchange. Replaces std::deque<u8>: a flat
 // growable buffer with a head cursor, so push_back appends and pop_front just
 // advances the cursor (no per-byte node allocation, no memmove on consume).
@@ -158,7 +161,7 @@ public:
 class Sio2
 {
 public:
-	u32 send3[16];				// 0x1f808200 - 0x1f80823f
+	u32 send3[SIO2_SEND3_COUNT];	// 0x1f808200 - 0x1f80823f
 	// SEND1 and SEND2 are an unusual bunch. It's not entirely clear just from
 	// documentation but these registers almost seem like they are the same thing;
 	// when bit 2 is set, SEND2 is being read/written. When bit 2 isn't set, it is
@@ -214,6 +217,20 @@ public:
 
 extern Sio0 sio0;
 extern Sio2 sio2;
+
+/* What a loaded state may hold for the fields that index arrays or size a
+ * fifo: a port and slot inside mcds[][], a SEND3 position at most one
+ * past the last descriptor (all of them read), and a
+ * command length the descriptor's field can hold. */
+static inline bool sio_port_slot_ok(size_t port, size_t slot)
+{
+	return port < SIO::PORTS && slot < SIO::SLOTS;
+}
+
+static inline bool sio2_send3_ok(size_t position, size_t command_length)
+{
+	return position <= SIO2_SEND3_COUNT && command_length <= Send3::COMMAND_LENGTH_MASK;
+}
 
 extern _mcd *mcd;
 
