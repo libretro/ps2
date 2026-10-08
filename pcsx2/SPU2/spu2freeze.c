@@ -13,6 +13,7 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stddef.h>
 #include <string.h>
 
 #include "Global.h"
@@ -26,8 +27,10 @@
 /* Incremented whenever the savestate layout changes. 0x0010 carries the
  * per-voice BlockPrev1/2 in what was padding, so it is the same bytes as
  * 0x000f and a 0x000f block still loads -- it just cannot rebuild the
- * block each voice was playing, which is what those bytes are for. */
-#define SPU2_SAVE_VERSION       0x0010
+ * block each voice was playing, which is what those bytes are for.
+ * 0x0011 carries the output DC filter in the block's tail padding; an
+ * older block loads with the filter at rest. */
+#define SPU2_SAVE_VERSION       0x0011
 #define SPU2_SAVE_VERSION_OLDEST 0x000f
 
 /* What the block has to be aligned to for the members inside it. */
@@ -47,7 +50,16 @@ struct SPU2Savestate_DataBlock
 	u32 Cycles;
 	u32 lClocks;
 	int PlayMode;
+	StereoOut32 DCFilterIn;
+	StereoOut64 DCFilterOut;
 };
+
+/* The filter lives in what was the block's tail padding: the block is the
+ * size it was before it, so every state still has the size it had. */
+typedef char spu2_dc_filter_in_padding[
+	(sizeof(struct SPU2Savestate_DataBlock)
+	 == ((offsetof(struct SPU2Savestate_DataBlock, DCFilterIn) + SPU2_SAVE_ALIGN - 1)
+	     & ~(size_t)(SPU2_SAVE_ALIGN - 1))) ? 1 : -1];
 
 /* The block carries V_Core, whose Voices[] is 64-byte aligned. */
 #ifdef __cplusplus
@@ -89,6 +101,8 @@ static void FreezeItImpl(struct SPU2Savestate_DataBlock *spud)
 	spud->Cycles = Cycles;
 	spud->lClocks = lClocks;
 	spud->PlayMode = PlayMode;
+	spud->DCFilterIn = DCFilterIn;
+	spud->DCFilterOut = DCFilterOut;
 
 	/* note: Don't save the cache.  PCSX2 doesn't offer a safe method of predicting */
 	/* the required size of the savestate prior to saving, plus this is just too */
@@ -143,6 +157,16 @@ static s32 ThawItImpl(struct SPU2Savestate_DataBlock *spud)
 		Cycles = spud->Cycles;
 		lClocks = spud->lClocks;
 		PlayMode = spud->PlayMode;
+		if (spud->version >= 0x0011)
+		{
+			DCFilterIn  = spud->DCFilterIn;
+			DCFilterOut = spud->DCFilterOut;
+		}
+		else
+		{
+			memset(&DCFilterIn, 0, sizeof(DCFilterIn));
+			memset(&DCFilterOut, 0, sizeof(DCFilterOut));
+		}
 
 		memset(pcm_cache_data, 0, pcm_BlockCount * sizeof(PcmCacheEntry));
 

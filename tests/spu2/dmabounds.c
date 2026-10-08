@@ -5,6 +5,9 @@
  * - DMA in either direction that runs past the end of IOP RAM wraps to its
  *   start, as MADR does, and touches nothing after it.
  * - A reverb work area whose end masks down below its start is silent.
+ * - A savestate written to a buffer at any alignment reads back the DMA
+ *   pointers and the output filter, and the block is the same bytes
+ *   whatever the alignment.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -136,6 +139,50 @@ static void check_reverb(void)
 	CHECK(out.Left == 0 && out.Right == 0, "a work area that masks to empty is silent");
 }
 
+static void check_freeze(void)
+{
+	const s32 size = SPU2Savestate_SizeIt();
+	u8* buf        = (u8*)malloc((size_t)size * 2 + 64);
+	u8* first      = (u8*)malloc((size_t)size);
+	int offset;
+
+	if (!buf || !first)
+	{
+		CHECK(0, "freeze: allocation");
+		return;
+	}
+	for (offset = 0; offset < 64; offset += 7)
+	{
+		u8* blob = buf + 64 + offset;
+
+		reset();
+		memset(buf, 0, (size_t)size * 2 + 64);
+		Cores[0].DMAPtr     = (u16*)&iopMem->Main[0x1234];
+		Cores[1].DMARPtr    = (u16*)&iopMem->Main[0x5678];
+		DCFilterIn.Left     = 1234;
+		DCFilterOut.Right   = -5678;
+		_spu2mem[0x777]     = 0x2bcd;
+		SPU2Savestate_FreezeIt((struct SPU2Savestate_DataBlock*)blob);
+		if (offset == 0)
+			memcpy(first, blob, (size_t)size);
+		else
+			CHECK(memcmp(first, blob, (size_t)size) == 0, "freeze: the same bytes at any alignment");
+
+		Cores[0].DMAPtr = Cores[1].DMARPtr = NULL;
+		DCFilterIn.Left = DCFilterOut.Right = 0;
+		_spu2mem[0x777] = 0;
+		CHECK(SPU2Savestate_ThawIt((struct SPU2Savestate_DataBlock*)blob) == 0, "thaw");
+		CHECK(Cores[0].DMAPtr == (u16*)&iopMem->Main[0x1234]
+			&& Cores[1].DMARPtr == (u16*)&iopMem->Main[0x5678]
+			&& Cores[0].DMARPtr == NULL,
+			"thaw: the DMA pointers come back into IOP RAM");
+		CHECK(DCFilterIn.Left == 1234 && DCFilterOut.Right == -5678, "thaw: the output filter comes back");
+		CHECK(_spu2mem[0x777] == 0x2bcd, "thaw: sample RAM comes back");
+	}
+	free(first);
+	free(buf);
+}
+
 int main(void)
 {
 	iopMem = (IopVM_MemoryAllocMess*)malloc(sizeof(*iopMem));
@@ -145,6 +192,7 @@ int main(void)
 	check_adma_wrap();
 	check_plain_wrap();
 	check_reverb();
+	check_freeze();
 	free(iopMem);
 	printf(failures ? "spu2 dmabounds: FAILED (%d)\n" : "spu2 dmabounds: ok\n", failures);
 	return failures != 0;
