@@ -102,8 +102,21 @@ void ata_read_dma8_mem(ata_state_t* ata, uint8_t* pMem, int size)
 		log_cb(RETRO_LOG_DEBUG, "DEV9: DMA read, size %i, transferred %i, total size %i\n",
 				size, ata->rdTransferred, ata->nsector * 512);
 
-		/* read */
-		memcpy(pMem, &ata->readBuffer[ata->rdTransferred], (size_t)size);
+		/* The guest's DMA length is its own; what the command transfers is
+		 * nsector sectors. Past them there is nothing, and that is what the
+		 * guest is given. */
+		{
+			const int total = ata->nsector * 512;
+			int       have  = (ata->readBuffer && total > ata->rdTransferred)
+				? total - ata->rdTransferred : 0;
+
+			if (have > size)
+				have = size;
+			if (have > 0)
+				memcpy(pMem, &ata->readBuffer[ata->rdTransferred], (size_t)have);
+			if (have < size)
+				memset(pMem + have, 0, (size_t)(size - have));
+		}
 
 		ata->rdTransferred += size;
 
@@ -125,8 +138,18 @@ void ata_write_dma8_mem(ata_state_t* ata, uint8_t* pMem, int size)
 		log_cb(RETRO_LOG_DEBUG, "DEV9: DMA write, size %i, transferred %i, total size %i\n",
 				size, ata->wrTransferred, ata->nsector * 512);
 
-		/* write */
-		memcpy(&ata->currentWrite[ata->wrTransferred], pMem, (size_t)size);
+		/* Only what the command's nsector sectors hold is written; a guest
+		 * DMA longer than that has its tail dropped. */
+		{
+			const int total = ata->nsector * 512;
+			int       room  = (ata->currentWrite && total > ata->wrTransferred)
+				? total - ata->wrTransferred : 0;
+
+			if (room > size)
+				room = size;
+			if (room > 0)
+				memcpy(&ata->currentWrite[ata->wrTransferred], pMem, (size_t)room);
+		}
 
 		ata->wrTransferred += size;
 

@@ -46,7 +46,8 @@ retro_log_printf_t log_cb = harness_log;
 
 void _DEV9irq(int cause, int cycles) { (void)cause; (void)cycles; }
 void dev9_irq_cause_clear(int bits) { (void)bits; }
-int dev9_ata_dma_enabled(void) { return 0; }
+static int s_dma_enabled;
+int dev9_ata_dma_enabled(void) { return s_dma_enabled; }
 
 static unsigned rng_state = 12345u;
 
@@ -234,6 +235,53 @@ static void check_image(const char* path, int round)
 	fclose(f);
 }
 
+/* A guest DMA longer than the command's sectors: a write keeps only what
+ * the sectors hold, a read gives the sectors and then zeroes. */
+static void check_dma_bounds(const char* path)
+{
+	static uint8_t iop[256 * 1024];
+	ata_state_t* ata = ata_new();
+	size_t i;
+	int bad = 0;
+
+	if (!ata || ata_open(ata, path, IMAGE_SECTORS) != 0)
+	{
+		fail("dma: ata_open", 0, 0);
+		return;
+	}
+	s_dma_enabled = 1;
+	ata->udmaMode  = 5;
+	ata->regSelect = 0x40;
+	ata->lba48     = false;
+	ata_hdd_set_lba(ata, 0);
+
+	ata->nsector             = 1;
+	ata->wrTransferred       = 0;
+	ata->currentWrite        = (uint8_t*)malloc(512);
+	ata->currentWriteLength  = 512;
+	ata->currentWriteSectors = 0;
+	if (!ata->currentWrite)
+		abort();
+	memset(iop, 0x5a, 4096);
+	ata_write_dma8_mem(ata, iop, 4096);
+	if (ata->currentWrite != NULL || ata->wrTransferred != 0)
+		fail("dma: a write longer than its sector completes the command", 0, 0);
+
+	ata->nsector       = 1;
+	ata->rdTransferred = 0;
+	memset(ata->readBuffer, 0xab, 512);
+	memset(iop, 0xee, sizeof(iop));
+	ata_read_dma8_mem(ata, iop, (int)sizeof(iop));
+	for (i = 0; i < sizeof(iop); i++)
+		if (iop[i] != (i < 512 ? 0xab : 0x00))
+			bad = 1;
+	if (bad)
+		fail("dma: a read longer than its sector gives the sector, then zeroes", 0, 0);
+
+	s_dma_enabled = 0;
+	ata_free(ata);
+}
+
 int main(void)
 {
 	const char* path = "ata_test.img";
@@ -266,6 +314,7 @@ int main(void)
 		check_image(path, round);
 	}
 
+	check_dma_bounds(path);
 	remove(path);
 
 	if (failures)
