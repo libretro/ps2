@@ -130,6 +130,9 @@ alignas(64) static u64 g_ee_wait_ticks;
 
 extern struct retro_hw_render_callback hw_render;
 
+/* How long retro_run waits on an empty ring before it dupes a frame. */
+#define MTGS_WEDGE_MS 1000
+
 /* See MTGSOwner.h. */
 struct mtgs_frame mtgs_pending;
 uint32_t mtgs_presented_mark;
@@ -326,18 +329,20 @@ bool MTGS::MainLoop(bool flush_all)
 		{
 			/* The frontend thread must never park unboundedly: a wedged
 			 * producer degrades to duped frames with a live frontend,
-			 * never a frozen process.  100ms only fires when the EE has
-			 * genuinely stopped delivering vsyncs. */
+			 * never a frozen process. A dupe puts the frame it stood in
+			 * for into a later retro_run, so the bound is long enough
+			 * that only a wedge reaches it: a second with nothing at all
+			 * in the ring, not an EE busy recompiling or a slow build. */
 #ifdef ENABLE_PCSX2_PROFILER
 			{
 				const u64 t0 = __builtin_ia32_rdtsc();
-				const bool got = work_eventcount_wait_timed(&s_sem_event, 100);
+				const bool got = work_eventcount_wait_timed(&s_sem_event, MTGS_WEDGE_MS);
 				g_gs_idle_ticks += __builtin_ia32_rdtsc() - t0;
 				if (!got)
 					return false;
 			}
 #else
-			if (!work_eventcount_wait_timed(&s_sem_event, 100))
+			if (!work_eventcount_wait_timed(&s_sem_event, MTGS_WEDGE_MS))
 				return false;
 #endif
 		}
