@@ -184,7 +184,11 @@ else
 fi
 
 echo "== MDEC per-block decode equals the original loop =="
-${CXX:-c++} -std=c++17 -O1 -w $SANFLAGS -I "$ROOT" -I "$ROOT/pcsx2" \
+# Under a sanitizer this lane stops at the first report rather than printing
+# it and passing.
+RLEQ_SANFLAGS=""
+[ -n "$SANFLAGS" ] && RLEQ_SANFLAGS="$SANFLAGS -fno-sanitize-recover=all"
+${CXX:-c++} -std=c++17 -O1 -w $RLEQ_SANFLAGS -I "$ROOT" -I "$ROOT/pcsx2" \
 	-I "$ROOT/common" -I "$ROOT/common/include" -I "$ROOT/3rdparty/include" \
 	-I "$ROOT/libretro/libretro-common/include" \
 	-o "$DIR/iop_rleq" "$DIR/rleq_probe.cpp"

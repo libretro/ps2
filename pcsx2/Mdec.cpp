@@ -109,7 +109,9 @@ struct config_mdec Config;
 #define DCTSIZE2 64
 
 #define RUNOF(a) ((a)>>10)
-#define VALOF(a) (((int)(a)<<(32-10))>>(32-10))
+/* Sign-extend the 10-bit level. The left shift is done unsigned: shifting a
+ * set bit into an int's sign bit is undefined. */
+#define VALOF(a) ((int)((unsigned)(a)<<(32-10))>>(32-10))
 #define NOP	0xfe00
 
 #define	MULR(a)		((((int)0x0000059B) * (a)) >> 10)
