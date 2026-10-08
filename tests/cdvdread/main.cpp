@@ -275,6 +275,30 @@ int main(int argc, char **argv)
          ok &= good;
       }
 
+      /* The 2368-byte mode is the raw 2352: on a 2048-byte image the 24
+       * bytes before the data are zero and the data follows. A mode the
+       * reader does not know is an error, not a zero-length copy. */
+      {
+         int good = 1, i;
+         memset(got, 0xee, sizeof(got));
+         in.BeginRead2(20);
+         if (in.FinishRead3(got, CDVD_MODE_2368) < 0)
+            good = 0;
+         for (i = 0; i < 24 && good; i++)
+            if (got[i] != 0)
+               good = 0;
+         if (good && memcmp(got + 24, image + (size_t)20 * SECTOR, SECTOR))
+            good = 0;
+         in.BeginRead2(20);
+         if (in.FinishRead3(got, 99) != -1)
+            good = 0;
+         if (good)
+            printf("  ok: the 2368-byte mode reads the raw sector, an unknown mode fails\n");
+         else
+            printf("  FAIL: the 2368-byte mode or an unknown mode\n");
+         ok &= good;
+      }
+
       /* Past the end: several games do this and must not be told the
        * disc is broken. */
       in.BeginRead2(SECTORS + 16);

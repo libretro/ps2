@@ -122,6 +122,14 @@ int InputIsoFile::FinishRead3(u8* dst, uint mode)
 			_offset = 24;
 			length = 2048;
 			break;
+		case CDVD_MODE_2368:
+			/* The raw sector; the 16 bytes of subchannel Q after it are
+			 * the drive's to add, the image has none. */
+			_offset = 0;
+			length = 2352;
+			break;
+		default:
+			return -1;
 	}
 
 	int end1 = m_blockofs + m_blocksize;

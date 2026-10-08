@@ -1037,6 +1037,13 @@ int cdvdReadSector(void)
 		mdest[2062] = 0;
 		mdest[2063] = 0;
 	}
+	else if (cdvd.BlockSize == 2368)
+	{
+		/* 2352 bytes of sector and 16 of subchannel Q, which no image
+		 * carries: the Q bytes are zero. */
+		memcpy(mdest, cdr.Transfer, 2352);
+		memset(&mdest[2352], 0, 16);
+	}
 	else
 		memcpy(mdest, cdr.Transfer, cdvd.BlockSize);
 
