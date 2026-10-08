@@ -2,7 +2,10 @@
  * cannot express. A displacement that does not fit must not be emitted
  * as its low bits - that is a jump somewhere else - so the near forms
  * stop the emitter, and the fastcall to a far function loads the whole
- * address. C89; builds and runs on Windows and Linux. */
+ * address. A forward jump patched once its target is known writes its
+ * displacement wherever the instruction put it, at any alignment. C89;
+ * builds and runs on Windows and Linux; build.sh adds the alignment
+ * sanitizer where the compiler has it. */
 
 #include <setjmp.h>
 #include <signal.h>
@@ -14,6 +17,7 @@
 typedef uint8_t u8; typedef uint32_t u32; typedef uint64_t u64;
 typedef int32_t s32; typedef intptr_t sptr; typedef uintptr_t uptr;
 u8 *x86Ptr;
+#define Jcc_Unconditional (-1) /* the C++ JccComparisonType's */
 #include "common/emitter/c89emit.h"
 #include "common/emitter/c89ops.h"
 
@@ -79,6 +83,29 @@ int main(void)
          && memcmp(buf + 2, &far_fn, 8) == 0
          && buf[10] == 0xff && buf[11] == 0xd0,
          "as mov rax, imm64; call rax");
+
+   /* Forward jumps at every alignment, patched 9 bytes on. */
+   for (n = 0; n < 4; n++)
+   {
+      u8 *slot;
+      u8 *start = buf + n;
+      int32_t disp;
+      memset(buf, 0xcc, sizeof(buf));
+      x86Ptr = start;
+      xe_fwd_jcc32(E_CC_Z, slot);
+      x86Ptr += 9;
+      xe_fwd_set32(slot);
+      memcpy(&disp, slot, 4);
+      CHECK(start[0] == 0x0f && start[1] == 0x84 && disp == 9,
+            "forward jcc patched at any alignment");
+      memset(buf, 0xcc, sizeof(buf));
+      x86Ptr = start;
+      xe_fwd_jcc32(Jcc_Unconditional, slot);
+      xe_fwd_set32_aligned(slot);
+      memcpy(&disp, slot, 4);
+      CHECK(start[0] == 0xe9 && ((uptr)(slot + 4 + disp) & 0xf) == 0,
+            "forward jmp patched to an aligned target");
+   }
 
    printf(fails ? "reach: FAILED (%d)\n" : "reach: ok\n", fails);
    return fails != 0;

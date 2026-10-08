@@ -21,7 +21,12 @@ ${CXX:-c++} -std=c++17 -O1 -w $SANFLAGS \
 "$DIR/emitter_hwas"
 
 echo "== branch and call reach =="
-${CC:-cc} -std=c89 -pedantic -Wno-long-long -Wall -Wno-unused-function -O1 $SANFLAGS \
+ALIGNSAN=""
+if echo 'int main(void){return 0;}' | ${CC:-cc} -x c -fsanitize=alignment \
+	-fno-sanitize-recover=alignment -o /dev/null - 2>/dev/null; then
+	ALIGNSAN="-fsanitize=alignment -fno-sanitize-recover=alignment"
+fi
+${CC:-cc} -std=c89 -pedantic -Wno-long-long -Wall -Wno-unused-function -O1 $SANFLAGS $ALIGNSAN \
 	-I "$ROOT" -o "$DIR/emitter_reach" "$DIR/reach.c"
 "$DIR/emitter_reach"
 

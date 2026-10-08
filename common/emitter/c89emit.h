@@ -39,6 +39,11 @@
 #define EW32(p, v) do { uint32_t v_ = (uint32_t)(v); \
         (p)[0]=(uint8_t)(v_); (p)[1]=(uint8_t)(v_>>8); \
         (p)[2]=(uint8_t)(v_>>16); (p)[3]=(uint8_t)(v_>>24); (p) += 4; } while (0)
+/* EW32 at p without moving it: patching a displacement, which sits
+ * wherever the instruction put it. */
+#define EP32(p, v) do { uint32_t v_ = (uint32_t)(v); \
+        (p)[0]=(uint8_t)(v_); (p)[1]=(uint8_t)(v_>>8); \
+        (p)[2]=(uint8_t)(v_>>16); (p)[3]=(uint8_t)(v_>>24); } while (0)
 
 #define E_IS_S8(x) ((intptr_t)(x) == (intptr_t)(int8_t)(x))
 

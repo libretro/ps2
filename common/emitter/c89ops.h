@@ -1119,7 +1119,7 @@ static uintptr_t xe_opaque_uptr(const void *p)
 	  else { EW8(xep, 0x0f); EW8(xep, (uint8_t)(0x80 | (cc))); } \
 	  (slot) = xep; EW32(xep, 0); }; XE_CLOSE(); } while (0)
 #define xe_fwd_set32(slot) do { XE_OPEN();  \
-	{ *(int32_t*)(slot) = (int32_t)(xep - ((slot) + 4)); }; XE_CLOSE(); } while (0)
+	{ EP32((uint8_t*)(slot), (int32_t)(xep - ((slot) + 4))); }; XE_CLOSE(); } while (0)
 
 /* Pad to a 16-byte boundary with NOPs, then patch. The legacy x86SetJ32A
  * did this so a branch target starts a fresh cache line; the padding is
@@ -1127,7 +1127,7 @@ static uintptr_t xe_opaque_uptr(const void *p)
  * is computed. */
 #define xe_fwd_set32_aligned(slot) do { XE_OPEN(); \
 	while (((uintptr_t)xep) & 0xf) EW8(xep, 0x90); \
-	{ *(int32_t*)(slot) = (int32_t)(xep - ((slot) + 4)); }; XE_CLOSE(); } while (0)
+	{ EP32((uint8_t*)(slot), (int32_t)(xep - ((slot) + 4))); }; XE_CLOSE(); } while (0)
 
 /* microVU_Lower vocabulary */
 #define xe_mulss_xm(x, addr)  do { XE_OPEN(); { struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
