@@ -3090,108 +3090,69 @@ size_t retro_serialize_size(void)
 	return size;
 }
 
-bool retro_serialize(void* data, size_t size)
+/* Writes the whole machine into a state. The CPU thread must be paused and
+ * the VU1 and GS threads quiesced. On return saveme owns its block. */
+static bool state_write(SaveStateBase* saveme, size_t size)
 {
 	freezeData fP;
-	SaveStateBase saveme;
-
-	cpu_thread_pause();
-
-	/* Quiesce the MTVU worker and GS thread before snapshotting, so the VU
-	 * and GS state we capture is consistent and not mid-update by another
-	 * thread (matches the load path and the normal save/load invariant).
-	 * WaitVU() is a no-op when the multithreaded VU1 is not active, so it is
-	 * safe to call unconditionally. */
-	vu1Thread.WaitVU();
-	MTGS::WaitGS(false);
 
 	/* retro_serialize_size() already computed the upper bound on what we
 	 * need, so hand the writer an allocation that already covers it: the
 	 * growth inside FreezeMem/PrepBlock then never fires, and no section
 	 * (BIOS, internals, EE/IOP/VU memory, the SPU2/PAD/GS blocks) copies
 	 * the partial state as it accumulates. */
-	SaveState_Init(&saveme, (u8 *)malloc(size), 0, size, true);
-	if (!saveme.memory)
-	{
-		cpu_thread_resume();
+	SaveState_Init(saveme, (u8 *)malloc(size), 0, size, true);
+	if (!saveme->memory)
 		return false;
-	}
 
-	SaveState_FreezeBios(&saveme);
-	SaveState_FreezeInternals(&saveme);
+	SaveState_FreezeBios(saveme);
+	SaveState_FreezeInternals(saveme);
 
-	SaveState_FreezeMem(&saveme, eeMem->Main, sizeof(eeMem->Main));
-	SaveState_FreezeMem(&saveme, iopMem->Main, sizeof(iopMem->Main));
-	SaveState_FreezeMem(&saveme, eeHw, sizeof(eeHw));
-	SaveState_FreezeMem(&saveme, iopHw, sizeof(iopHw));
-	SaveState_FreezeMem(&saveme, eeMem->Scratch, sizeof(eeMem->Scratch));
-	SaveState_FreezeMem(&saveme, vuRegs[0].Mem, VU0_MEMSIZE);
-	SaveState_FreezeMem(&saveme, vuRegs[1].Mem, VU1_MEMSIZE);
-	SaveState_FreezeMem(&saveme, vuRegs[0].Micro, VU0_PROGSIZE);
-	SaveState_FreezeMem(&saveme, vuRegs[1].Micro, VU1_PROGSIZE);
+	SaveState_FreezeMem(saveme, eeMem->Main, sizeof(eeMem->Main));
+	SaveState_FreezeMem(saveme, iopMem->Main, sizeof(iopMem->Main));
+	SaveState_FreezeMem(saveme, eeHw, sizeof(eeHw));
+	SaveState_FreezeMem(saveme, iopHw, sizeof(iopHw));
+	SaveState_FreezeMem(saveme, eeMem->Scratch, sizeof(eeMem->Scratch));
+	SaveState_FreezeMem(saveme, vuRegs[0].Mem, VU0_MEMSIZE);
+	SaveState_FreezeMem(saveme, vuRegs[1].Mem, VU1_MEMSIZE);
+	SaveState_FreezeMem(saveme, vuRegs[0].Micro, VU0_PROGSIZE);
+	SaveState_FreezeMem(saveme, vuRegs[1].Micro, VU1_PROGSIZE);
 
 	fP.size = 0;
 	fP.data = nullptr;
 	SPU2freeze(FREEZE_SIZE, &fP);
-	SaveState_PrepBlock(&saveme, fP.size);
-	fP.data = SaveState_BlockPtr(&saveme);
+	SaveState_PrepBlock(saveme, fP.size);
+	fP.data = SaveState_BlockPtr(saveme);
 	SPU2freeze(FREEZE_SAVE, &fP);
-	SaveState_CommitBlock(&saveme, fP.size);
+	SaveState_CommitBlock(saveme, fP.size);
 
 	fP.size = 0;
 	fP.data = nullptr;
 	PADfreeze(FREEZE_SIZE, &fP);
-	SaveState_PrepBlock(&saveme, fP.size);
-	fP.data = SaveState_BlockPtr(&saveme);
+	SaveState_PrepBlock(saveme, fP.size);
+	fP.data = SaveState_BlockPtr(saveme);
 	PADfreeze(FREEZE_SAVE, &fP);
-	SaveState_CommitBlock(&saveme, fP.size);
+	SaveState_CommitBlock(saveme, fP.size);
 
 	fP.size = 0;
 	fP.data = nullptr;
 	GSfreeze(FREEZE_SIZE, &fP);
-	SaveState_PrepBlock(&saveme, fP.size);
-	fP.data = SaveState_BlockPtr(&saveme);
+	SaveState_PrepBlock(saveme, fP.size);
+	fP.data = SaveState_BlockPtr(saveme);
 	GSfreeze(FREEZE_SAVE, &fP);
-	SaveState_CommitBlock(&saveme, fP.size);
+	SaveState_CommitBlock(saveme, fP.size);
 
-	/* Bound the copy by the frontend-provided buffer size: if the
-	 * actual saved size somehow exceeds what retro_serialize_size()
-	 * predicted, refuse rather than overrun the caller's buffer. */
-	if (saveme.memory_size > size)
-	{
-		log_cb(RETRO_LOG_ERROR, "retro_serialize: produced %zu bytes, "
-			"frontend buffer is only %zu\n", saveme.memory_size, size);
-		free(saveme.memory);
-		cpu_thread_resume();
-		return false;
-	}
-	memcpy(data, saveme.memory, saveme.memory_size);
-	free(saveme.memory);
-
-	cpu_thread_resume();
-	return true;
+	return SaveState_IsOkay(saveme);
 }
 
-bool retro_unserialize(const void* data, size_t size)
+/* Loads the whole machine from a state, stopping at the first block that
+ * does not load. Whatever came before that block has already been applied,
+ * so a false return leaves the machine half-loaded: the caller restores it.
+ * The CPU thread must be paused and the VU1 and GS threads quiesced. */
+static bool state_read(const void* data, size_t size)
 {
 	freezeData fP;
 	SaveStateBase loadme;
-
-	cpu_thread_pause();
-
-	/* cpu_thread_pause() only stops the EE/main thread. Before we overwrite
-	 * VU and GS state below we must also quiesce the MTVU worker and the GS
-	 * thread, exactly as the normal reset/load path does - otherwise, when
-	 * loading a state while the VM is already running (e.g. RetroArch "Load
-	 * State" mid-game) the still-live VU1 thread keeps operating on the VU
-	 * memory / micro programs / JIT state we are in the middle of replacing,
-	 * corrupting the VM so it can't continue and every later load fails until
-	 * the content is closed and relaunched. A freshly booted VM has these
-	 * threads idle, which is why a cold load worked while an in-session load
-	 * did not. WaitVU() is a no-op when the multithreaded VU1 is not active,
-	 * so it is safe to call unconditionally. */
-	vu1Thread.WaitVU();
-	MTGS::WaitGS(false);
 
 	/* The live size is what PrepBlock and FreezeMem bound against, so the
 	 * whole payload counts as present from the start: otherwise the first
@@ -3207,8 +3168,12 @@ bool retro_unserialize(const void* data, size_t size)
 	 * state on every load. */
 	SaveState_Init(&loadme, (u8 *)const_cast<void *>(data), size, size, false);
 
-	SaveState_FreezeBios(&loadme);
-	SaveState_FreezeInternals(&loadme);
+	if (!SaveState_FreezeBios(&loadme) || !SaveState_FreezeInternals(&loadme))
+	{
+		log_cb(RETRO_LOG_ERROR, "state load: CPU or subsystem block rejected "
+			"at offset %d (tag '%.31s')\n", loadme.idx, loadme.tagspace);
+		return false;
+	}
 
 	VMManager::Internal::ClearCPUExecutionCaches();
 	SaveState_FreezeMem(&loadme, eeMem->Main, sizeof(eeMem->Main));
@@ -3220,13 +3185,22 @@ bool retro_unserialize(const void* data, size_t size)
 	SaveState_FreezeMem(&loadme, vuRegs[1].Mem, VU1_MEMSIZE);
 	SaveState_FreezeMem(&loadme, vuRegs[0].Micro, VU0_PROGSIZE);
 	SaveState_FreezeMem(&loadme, vuRegs[1].Micro, VU1_PROGSIZE);
+	if (!SaveState_IsOkay(&loadme))
+	{
+		log_cb(RETRO_LOG_ERROR, "state load: memory blocks short (size=%zu)\n", size);
+		return false;
+	}
 
 	fP.size = 0;
 	fP.data = nullptr;
 	SPU2freeze(FREEZE_SIZE, &fP);
 	SaveState_PrepBlock(&loadme, fP.size);
 	fP.data = SaveState_BlockPtr(&loadme);
-	SPU2freeze(FREEZE_LOAD, &fP);
+	if (!SaveState_IsOkay(&loadme) || SPU2freeze(FREEZE_LOAD, &fP) != 0)
+	{
+		log_cb(RETRO_LOG_ERROR, "state load: SPU2 block rejected\n");
+		return false;
+	}
 	SaveState_CommitBlock(&loadme, fP.size);
 
 	fP.size = 0;
@@ -3234,66 +3208,121 @@ bool retro_unserialize(const void* data, size_t size)
 	PADfreeze(FREEZE_SIZE, &fP);
 	SaveState_PrepBlock(&loadme, fP.size);
 	fP.data = SaveState_BlockPtr(&loadme);
-	PADfreeze(FREEZE_LOAD, &fP);
+	if (!SaveState_IsOkay(&loadme) || PADfreeze(FREEZE_LOAD, &fP) != 0)
+	{
+		log_cb(RETRO_LOG_ERROR, "state load: PAD block rejected\n");
+		return false;
+	}
 	SaveState_CommitBlock(&loadme, fP.size);
 
 	/* GS is the final block: hand Defrost the actual remaining payload
 	 * rather than this session's freeze-size expectation. The saved GS
 	 * block's length depends on the version and configuration of the
 	 * session that wrote it; Defrost walks the payload by the version
-	 * header inside it, and its own size guard must judge the real bytes
-	 * present, not our recomputation. A mismatch here used to slice the
-	 * wrong span silently. Also check the result: a rejected defrost
-	 * (newer state version, truncated payload) previously "succeeded"
-	 * into a reset, empty GS. */
+	 * header inside it, and its own size guard judges the real bytes
+	 * present. */
 	fP.size = static_cast<int>(size) - loadme.idx;
 	if (fP.size <= 0)
 	{
-		cpu_thread_resume();
-		log_cb(RETRO_LOG_ERROR, "retro_unserialize: no GS payload left "
+		log_cb(RETRO_LOG_ERROR, "state load: no GS payload left "
 			"(offset=%d size=%zu)\n", loadme.idx, size);
 		return false;
 	}
 	fP.data = SaveState_BlockPtr(&loadme);
 	if (GSfreeze(FREEZE_LOAD, &fP) != 0)
 	{
-		cpu_thread_resume();
-		log_cb(RETRO_LOG_ERROR, "retro_unserialize: GS state rejected "
+		log_cb(RETRO_LOG_ERROR, "state load: GS block rejected "
 			"(payload=%d bytes)\n", fP.size);
 		return false;
 	}
 	SaveState_CommitBlock(&loadme, fP.size);
 
-	/* Discard buffered audio: any pre-load samples in the buffer no
-	 * longer match the SPU2 state we just restored. */
-	discard_buffered_audio();
+	return SaveState_IsOkay(&loadme);
+}
 
-	/* If the state was loaded before the game booted far enough for the normal
-	 * boot path to apply GameDB settings (e.g. RetroArch Auto Load State), the
-	 * game identity VMManager caches is still the BIOS one: the per-game
-	 * fixes were never applied and the game can render incorrectly (issue
-	 * #127). The state has just restored ElfCRC and the game-started flags,
-	 * so re-derive the identity from them; the call early-returns when the
-	 * identity is unchanged, keeping repeat unserializes cheap.
-	 *
-	 * This must happen while the CPU thread is still paused: the identity
-	 * change runs ApplySettings, whose config diff can reset the EE
-	 * recompiler and execution caches, which is only safe with the EE
-	 * thread quiescent. Doing it after cpu_thread_resume() raced the
-	 * running JIT and caused intermittent SIGILL/aborts and timing slips
-	 * after state loads. */
-	VMManager::RefreshRunningGameAfterStateLoad();
+/* Quiesce everything a state touches: the EE/main thread, and the MTVU
+ * worker and GS thread, which otherwise keep operating on the VU memory,
+ * micro programs and GS state being captured or replaced. WaitVU() is a
+ * no-op when the multithreaded VU1 is not active. */
+static void state_quiesce(void)
+{
+	cpu_thread_pause();
+	vu1Thread.WaitVU();
+	MTGS::WaitGS(false);
+}
+
+bool retro_serialize(void* data, size_t size)
+{
+	SaveStateBase saveme;
+	bool ok;
+
+	state_quiesce();
+	ok = state_write(&saveme, size);
+
+	/* Bound the copy by the frontend-provided buffer size: if the
+	 * actual saved size somehow exceeds what retro_serialize_size()
+	 * predicted, refuse rather than overrun the caller's buffer. */
+	if (ok && saveme.memory_size > size)
+	{
+		log_cb(RETRO_LOG_ERROR, "retro_serialize: produced %zu bytes, "
+			"frontend buffer is only %zu\n", saveme.memory_size, size);
+		ok = false;
+	}
+	if (ok)
+		memcpy(data, saveme.memory, saveme.memory_size);
+	free(saveme.memory);
 
 	cpu_thread_resume();
-	if (!SaveState_IsOkay(&loadme))
+	return ok;
+}
+
+bool retro_unserialize(const void* data, size_t size)
+{
+	SaveStateBase backup;
+	bool have_backup, ok;
+
+	state_quiesce();
+
+	/* A state is applied block by block, so one that fails partway has
+	 * already replaced the registers and subsystems before the failing
+	 * block, and every block after it would read as zeros. Running on from
+	 * that wipes main memory under live CPU state. Snapshot the machine
+	 * first and put it back if the load does not complete. */
+	have_backup = state_write(&backup, retro_serialize_size());
+
+	ok = state_read(data, size);
+	if (!ok)
 	{
-		log_cb(RETRO_LOG_ERROR, "retro_unserialize: short or "
-			"corrupt savestate (size=%zu)\n", size);
-		return false;
+		if (have_backup && state_read(backup.memory, backup.memory_size))
+			log_cb(RETRO_LOG_ERROR, "retro_unserialize: state not loaded; "
+				"the running game is unchanged\n");
+		else
+			log_cb(RETRO_LOG_ERROR, "retro_unserialize: state not loaded "
+				"and the running game could not be restored\n");
+	}
+	free(backup.memory);
+
+	if (ok)
+	{
+		/* Any pre-load samples in the buffer no longer match the SPU2
+		 * state just restored. */
+		discard_buffered_audio();
+
+		/* If the state was loaded before the game booted far enough for
+		 * the normal boot path to apply GameDB settings (e.g. RetroArch
+		 * Auto Load State), the game identity VMManager caches is still
+		 * the BIOS one (issue #127). The state has restored ElfCRC and
+		 * the game-started flags, so re-derive the identity from them;
+		 * it early-returns when the identity is unchanged.
+		 *
+		 * This must run while the CPU thread is still paused: the
+		 * identity change runs ApplySettings, whose config diff can reset
+		 * the EE recompiler and execution caches. */
+		VMManager::RefreshRunningGameAfterStateLoad();
 	}
 
-
-	return true;
+	cpu_thread_resume();
+	return ok;
 }
 
 size_t retro_get_memory_size(unsigned id)

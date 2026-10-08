@@ -146,6 +146,23 @@ void SaveState_FreezeMem(SaveStateBase *s, void *data, int size)
 	}
 }
 
+bool SaveState_PeekTag(const SaveStateBase *s, const char *tag)
+{
+	char next[sizeof(s->tagspace)];
+	char want[sizeof(s->tagspace)];
+
+	if (s->is_saving || s->error)
+		return false;
+	if (s->idx < 0 || (size_t)s->idx > s->memory_size ||
+	    s->memory_size - (size_t)s->idx < sizeof(next))
+		return false;
+
+	memcpy(next, &s->memory[s->idx], sizeof(next));
+	memset(want, 0, sizeof(want));
+	strlcpy(want, tag, sizeof(want));
+	return memcmp(next, want, sizeof(want)) == 0;
+}
+
 bool SaveState_FreezeTag(SaveStateBase *s, const char *src)
 {
 	if (s->error)

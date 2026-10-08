@@ -783,8 +783,15 @@ bool sio2Freeze(SaveStateBase *s)
 	if (!SaveState_IsOkay(s))
 		return false;
 
-	if (!FreezeMcds(s) || !g_MemoryCardProtocol.FreezePS1State(s))
-		return false;
+	/* States saved before the card protocol state was added end the SIO2
+	 * block here; the cards then keep the state they have. */
+	if (SaveState_IsSaving(s) || SaveState_PeekTag(s, "mcds"))
+	{
+		if (!FreezeMcds(s) || !g_MemoryCardProtocol.FreezePS1State(s))
+			return false;
+	}
+	else
+		log_cb(RETRO_LOG_INFO, "sio2Freeze: state predates the memory card protocol block; cards keep their current state.\n");
 
 	// CRCs for memory cards.
 	// If the memory card hasn't changed when loading state, we can safely skip ejecting it.

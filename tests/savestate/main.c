@@ -192,6 +192,31 @@ int main(void)
 		free(w.memory);
 	}
 
+	/* ---- PeekTag looks without moving, and a miss is not an error */
+	{
+		SaveStateBase w, l;
+		int before;
+
+		SaveState_Init(&w, NULL, 0, 0, true);
+		expect(!SaveState_PeekTag(&w, "mcds"), "a writer never peeks a tag");
+		SaveState_FreezeTag(&w, "mcds");
+
+		SaveState_Init(&l, w.memory, w.memory_size, w.memory_cap, false);
+		before = l.idx;
+		expect(SaveState_PeekTag(&l, "mcds"), "the next tag is seen");
+		expect(l.idx == before, "and the cursor stays put");
+		expect(!SaveState_PeekTag(&l, "mcd"), "a prefix of the tag is not the tag");
+		expect(!SaveState_PeekTag(&l, "cdvd"), "a different tag is a miss");
+		expect(SaveState_IsOkay(&l), "and a miss leaves the reader usable");
+		expect(SaveState_FreezeTag(&l, "mcds"), "the peeked tag still reads");
+		expect(!SaveState_PeekTag(&l, "mcds"), "nothing left to peek at the end");
+
+		SaveState_Init(&l, w.memory, w.memory_size - 1, w.memory_cap, false);
+		expect(!SaveState_PeekTag(&l, "mcds"), "a tag cut short is not seen");
+
+		free(w.memory);
+	}
+
 	free(s.memory);
 
 	printf("%s: savestate blocks, %ld checks, %ld failures\n",

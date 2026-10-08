@@ -68,6 +68,11 @@ void SaveState_PrepBlock(SaveStateBase *s, int size);
  * comes back is not the one written, the damage is somewhere before it. */
 bool SaveState_FreezeTag(SaveStateBase *s, const char *src);
 
+/* Loading only: whether the next thing in the state is the given tag. The
+ * cursor does not move and a miss is not an error, so a block added to the
+ * format later can be skipped when an older state does not carry it. */
+bool SaveState_PeekTag(const SaveStateBase *s, const char *tag);
+
 bool SaveState_FreezeBios(SaveStateBase *s);
 bool SaveState_FreezeInternals(SaveStateBase *s);
 
