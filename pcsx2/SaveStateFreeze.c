@@ -17,6 +17,7 @@
  * runs on is in SaveStateBase.c; the per-subsystem entry points called from
  * here live with the subsystems themselves. */
 
+#include <stddef.h>
 #include <string.h>
 
 #include "SaveState.h"
@@ -57,8 +58,23 @@ bool SaveState_FreezeInternals(SaveStateBase *s)
 	if (!SaveState_FreezeTag(s, "cpuRegs"))
 		return false;
 
-	SaveState_Freeze(s, cpuRegs);		/* cpu regs + COP0 */
-	SaveState_Freeze(s, psxRegs);		/* iop regs */
+	{
+		/* code is the instruction register, which the recompilers write
+		 * as they compile and the code they emit writes again before
+		 * anything reads it: at a block boundary it holds whichever
+		 * instruction was compiled last, history rather than state. A
+		 * state carries it as 0, so the same machine saves as the same
+		 * bytes whatever was compiled on the way. */
+		const int at = s->idx;
+		SaveState_Freeze(s, cpuRegs);		/* cpu regs + COP0 */
+		SaveState_Freeze(s, psxRegs);		/* iop regs */
+		if (SaveState_IsSaving(s) && SaveState_IsOkay(s))
+		{
+			memset(s->memory + at + offsetof(cpuRegisters, code), 0, sizeof(cpuRegs.code));
+			memset(s->memory + at + sizeof(cpuRegs) + offsetof(psxRegisters, code), 0,
+				sizeof(psxRegs.code));
+		}
+	}
 	SaveState_Freeze(s, fpuRegs);
 	SaveState_Freeze(s, tlb);		/* tlbs */
 	SaveState_Freeze(s, AllowParams1);	/* OSDConfig written (Fast Boot) */

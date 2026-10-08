@@ -8,6 +8,8 @@
  * - A savestate written to a buffer at any alignment reads back the DMA
  *   pointers and the output filter, and the block is the same bytes
  *   whatever the alignment.
+ * - A state thawed and frozen again is the same bytes: it holds no host
+ *   address, such as a voice's pointer into the block cache.
  * - Invalidating the whole PCM cache leaves no entry valid, across the
  *   wrap of its generation too.
  */
@@ -203,6 +205,31 @@ static void check_freeze(void)
 	free(buf);
 }
 
+static void check_freeze_round_trip(void)
+{
+	const s32 size = SPU2Savestate_SizeIt();
+	u8* a          = (u8*)malloc((size_t)size);
+	u8* b          = (u8*)malloc((size_t)size);
+	int v;
+
+	if (!a || !b)
+	{
+		CHECK(0, "round trip: allocation");
+		free(a);
+		free(b);
+		return;
+	}
+	reset();
+	for (v = 0; v < SPU2_NUM_VOICES; v++)
+		Cores[0].Voices[v].NextA = 0x2800 + v * 8;
+	SPU2Savestate_FreezeIt((struct SPU2Savestate_DataBlock*)a);
+	CHECK(SPU2Savestate_ThawIt((struct SPU2Savestate_DataBlock*)a) == 0, "round trip: thaw");
+	SPU2Savestate_FreezeIt((struct SPU2Savestate_DataBlock*)b);
+	CHECK(memcmp(a, b, (size_t)size) == 0, "a thawed state freezes to the same bytes");
+	free(a);
+	free(b);
+}
+
 static void check_cache_generation(void)
 {
 	PcmCacheEntry* e = &pcm_cache_data[0x4000];
@@ -232,6 +259,7 @@ int main(void)
 	check_plain_wrap();
 	check_reverb();
 	check_freeze();
+	check_freeze_round_trip();
 	check_cache_generation();
 	free(iopMem);
 	printf(failures ? "spu2 dmabounds: FAILED (%d)\n" : "spu2 dmabounds: ok\n", failures);

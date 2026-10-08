@@ -754,8 +754,6 @@ bool psxRcntFreeze(SaveStateBase *s)
 			if (!psxCounters[i].rate)
 				psxCounters[i].rate = 1;
 		}
-
-		psxRcntUpdate();
 	}
 
 	return true;

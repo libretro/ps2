@@ -36,6 +36,10 @@ static void SPU2_InternalReset(bool psxmode)
 	s_psxmode = psxmode;
 	if (!s_psxmode)
 	{
+		/* Mixing starts from the IOP clock as it is now, which a machine
+		 * reset has just set back: the clock difference to the last mix
+		 * is not audio the new machine produced. */
+		lClocks = psxRegs.cycle;
 		memset(spu2regs, 0, 0x010000);
 		memset(_spu2mem, 0, 0x200000);
 		memset(_spu2mem + 0x2800, 7, 0x10); /* from BIOS reversal. Locks the voices so they don't run free. */
@@ -53,8 +57,6 @@ void SPU2_Initialize(void)    { }
 
 void SPU2_Open(void)
 {
-	lClocks = psxRegs.cycle;
-
 	SPU2_InternalReset(false);
 }
 

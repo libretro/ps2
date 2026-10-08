@@ -176,6 +176,11 @@ void GSState::ResetBase(bool hardware_reset)
 	m_env.CTXT[0].Reset();
 	m_env.CTXT[1].Reset();
 
+	/* The registers a reset leaves are ones the register handlers could
+	 * have produced, as a restored state's are: the same machine holds
+	 * the same values whether it was reset or loaded. */
+	NormalizeRestoredRegs();
+
 	m_mem.m_clut.Reset();
 
 	PRIM = &m_env.PRIM;

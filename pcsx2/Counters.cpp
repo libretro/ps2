@@ -215,10 +215,16 @@ void rcntInit(void)
 	counters[2].interrupt = 11;
 	counters[3].interrupt = 12;
 
+	/* Both start their render periods now, with those periods' lengths:
+	 * a reset finds the counters in whatever phase the old machine left
+	 * them, and a length kept from that phase brings the first vsync
+	 * early. */
 	hsyncCounter.Mode = MODE_HRENDER;
 	hsyncCounter.startCycle = cpuRegs.cycle;
+	hsyncCounter.deltaCycles = vSyncInfo.hRender;
 	vsyncCounter.Mode = MODE_VRENDER;
 	vsyncCounter.startCycle = cpuRegs.cycle;
+	vsyncCounter.deltaCycles = vSyncInfo.Render;
 
 	for (i = 0; i < 4; i++)
 		rcntReset(i);
@@ -1038,8 +1044,6 @@ bool rcntFreeze(SaveStateBase *s)
 			if (!counters[i].rate)
 				counters[i].rate = 2;
 		}
-
-		cpuRcntSet();
 	}
 
 	return SaveState_IsOkay(s);

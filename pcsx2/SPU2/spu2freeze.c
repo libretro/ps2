@@ -99,14 +99,21 @@ void SPU2Savestate_FreezeIt(struct SPU2Savestate_DataBlock *spud)
 	SPU2_PUT(b, Cores, Cores);
 
 	/* The DMA pointers go in as offsets, over the host addresses the
-	 * copy above put there. */
+	 * copy above put there; each voice's pointer into the block cache,
+	 * which a thaw rebuilds, goes in as NULL. A state holds no host
+	 * address. */
 	for (i = 0; i < 2; i++)
 	{
 		u8 *core      = b + SPU2_AT(Cores) + i * sizeof(V_Core);
 		u16 *dma      = spu2_ptr_to_offset(Cores[i].DMAPtr);
 		u16 *dmar     = spu2_ptr_to_offset(Cores[i].DMARPtr);
+		s16 *none     = NULL;
+		u32 v;
 		memcpy(core + offsetof(V_Core, DMAPtr),  &dma,  sizeof(dma));
 		memcpy(core + offsetof(V_Core, DMARPtr), &dmar, sizeof(dmar));
+		for (v = 0; v < SPU2_NUM_VOICES; v++)
+			memcpy(core + offsetof(V_Core, Voices) + v * sizeof(V_Voice)
+				+ offsetof(V_Voice, SBuffer), &none, sizeof(none));
 	}
 
 	SPU2_PUT(b, Spdif, &Spdif);
