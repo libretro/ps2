@@ -152,13 +152,13 @@ void MemoryCardProtocol::GetSpecs()
 void MemoryCardProtocol::SetTerminator()
 {
 	if (this->PS1Fail()) return;
-	const u8 newTerminator = fifoIn.front();
+	/* The reply carries the terminator just set: newer MCMAN revisions
+	 * check [4] for the value they sent. */
+	mcd->term = fifoIn.front();
 	fifoIn.pop_front();
-	const u8 oldTerminator = mcd->term;
-	mcd->term = newTerminator;
 	fifoOut.push_back(0x00);
 	fifoOut.push_back(0x2b);
-	fifoOut.push_back(oldTerminator);
+	fifoOut.push_back(mcd->term);
 }
 
 void MemoryCardProtocol::GetTerminator()
@@ -449,6 +449,9 @@ void MemoryCardProtocol::AuthXor()
 void MemoryCardProtocol::AuthF3()
 {
 	if (this->PS1Fail()) return;
+	/* An authentication reset puts the card back on the default
+	 * terminator, which MCMAN sets again once the card is authenticated. */
+	mcd->term = Terminator::DEFAULT;
 	The2bTerminator(5);
 }
 
