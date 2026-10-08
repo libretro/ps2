@@ -775,14 +775,17 @@ bool GSDevice12::AllocatePreinitializedGPUBuffer(u32 size, ID3D12Resource** gpu_
 	void* mapped;
 	hr = cpu_buffer->Map(0, &read_range, &mapped);
 	if (FAILED(hr))
+	{
+		DeferResourceDestruction(&cpu_alloc, cpu_buffer.get());
 		return false;
+	}
 	fill_callback(mapped);
 	cpu_buffer->Unmap(0, &write_range);
 
 	if (!CreatePlacedResource(&rd, D3D12_HEAP_TYPE_DEFAULT, D3D12_RESOURCE_STATE_COMMON,
 			nullptr, gpu_buffer, gpu_alloc))
 	{
-		gs_d3d12_heap_free(&m_heap, &cpu_alloc);
+		DeferResourceDestruction(&cpu_alloc, cpu_buffer.get());
 		return false;
 	}
 

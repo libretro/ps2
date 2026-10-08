@@ -89,6 +89,8 @@ private:
 	static bool CreateRTVDescriptor(ID3D12Resource* resource, DXGI_FORMAT format, D3D12DescriptorHandle* dh);
 	static bool CreateDSVDescriptor(ID3D12Resource* resource, DXGI_FORMAT format, D3D12DescriptorHandle* dh);
 	static bool CreateUAVDescriptor(ID3D12Resource* resource, DXGI_FORMAT format, D3D12DescriptorHandle* dh);
+	static void FreeDescriptors(D3D12DescriptorHandle* srv, D3D12DescriptorHandle* write,
+		WriteDescriptorType write_type, D3D12DescriptorHandle* uav);
 
 	ID3D12GraphicsCommandList* GetCommandBufferForUpdate();
 	ID3D12Resource* AllocateUploadStagingBuffer(const void* data, u32 pitch, u32 upload_pitch, u32 height) const;

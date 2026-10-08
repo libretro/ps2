@@ -187,42 +187,32 @@ std::unique_ptr<GSTexture12> GSTexture12::Create(Type type, Format format, int w
 
 	D3D12DescriptorHandle srv_descriptor, write_descriptor, uav_descriptor;
 	WriteDescriptorType write_descriptor_type = WriteDescriptorType::None;
+	bool ok = true;
+
 	if (srv_format != DXGI_FORMAT_UNKNOWN)
+		ok = CreateSRVDescriptor(resource.get(), levels, srv_format, &srv_descriptor);
+
+	if (ok && type == Type::RenderTarget)
 	{
-		if (!CreateSRVDescriptor(resource.get(), levels, srv_format, &srv_descriptor))
-			return {};
+		write_descriptor_type = WriteDescriptorType::RTV;
+		ok = CreateRTVDescriptor(resource.get(), rtv_format, &write_descriptor);
+	}
+	else if (ok && type == Type::DepthStencil)
+	{
+		write_descriptor_type = WriteDescriptorType::DSV;
+		ok = CreateDSVDescriptor(resource.get(), dsv_format, &write_descriptor);
 	}
 
-	switch (type)
+	if (ok && uav_format != DXGI_FORMAT_UNKNOWN)
+		ok = CreateUAVDescriptor(resource.get(), uav_format, &uav_descriptor);
+
+	if (!ok)
 	{
-		case Type::RenderTarget:
-			write_descriptor_type = WriteDescriptorType::RTV;
-			if (!CreateRTVDescriptor(resource.get(), rtv_format, &write_descriptor))
-			{
-				dev->GetRTVHeapManager().Free(&srv_descriptor);
-				return {};
-			}
-			break;
-
-		case Type::DepthStencil:
-			write_descriptor_type = WriteDescriptorType::DSV;
-			if (!CreateDSVDescriptor(resource.get(), dsv_format, &write_descriptor))
-			{
-				dev->GetDSVHeapManager().Free(&srv_descriptor);
-				return {};
-			}
-			break;
-
-		case Type::Texture:
-		case Type::RWTexture:
-		default:
-			break;
-	}
-
-	if (uav_format != DXGI_FORMAT_UNKNOWN && !CreateUAVDescriptor(resource.get(), dsv_format, &uav_descriptor))
-	{
-		dev->GetDescriptorHeapManager().Free(&write_descriptor);
-		dev->GetDescriptorHeapManager().Free(&srv_descriptor);
+		/* Each descriptor back to the heap it came from. The resource is
+		 * already named in an aliasing barrier on this frame's init list,
+		 * so it and its span go back when that list has run. */
+		FreeDescriptors(&srv_descriptor, &write_descriptor, write_descriptor_type, &uav_descriptor);
+		dev->DeferResourceDestruction(&alloc, resource.get());
 		return {};
 	}
 
@@ -240,44 +230,50 @@ std::unique_ptr<GSTexture12> GSTexture12::Adopt(wil::com_ptr_nothrow<ID3D12Resou
 
 	D3D12DescriptorHandle srv_descriptor, write_descriptor, uav_descriptor;
 	WriteDescriptorType write_descriptor_type = WriteDescriptorType::None;
-	if (srv_format != DXGI_FORMAT_UNKNOWN)
-	{
-		if (!CreateSRVDescriptor(resource.get(), desc.MipLevels, srv_format, &srv_descriptor))
-			return {};
-	}
+	bool ok = true;
 
-	if (type == Type::RenderTarget)
+	if (srv_format != DXGI_FORMAT_UNKNOWN)
+		ok = CreateSRVDescriptor(resource.get(), desc.MipLevels, srv_format, &srv_descriptor);
+
+	if (ok && type == Type::RenderTarget)
 	{
 		write_descriptor_type = WriteDescriptorType::RTV;
-		if (!CreateRTVDescriptor(resource.get(), rtv_format, &write_descriptor))
-		{
-			dev->GetRTVHeapManager().Free(&srv_descriptor);
-			return {};
-		}
+		ok = CreateRTVDescriptor(resource.get(), rtv_format, &write_descriptor);
 	}
-	else if (type == Type::DepthStencil)
+	else if (ok && type == Type::DepthStencil)
 	{
 		write_descriptor_type = WriteDescriptorType::DSV;
-		if (!CreateDSVDescriptor(resource.get(), dsv_format, &write_descriptor))
-		{
-			dev->GetDSVHeapManager().Free(&srv_descriptor);
-			return {};
-		}
+		ok = CreateDSVDescriptor(resource.get(), dsv_format, &write_descriptor);
 	}
 
-	if (uav_format != DXGI_FORMAT_UNKNOWN)
+	if (ok && uav_format != DXGI_FORMAT_UNKNOWN)
+		ok = CreateUAVDescriptor(resource.get(), uav_format, &uav_descriptor);
+
+	if (!ok)
 	{
-		if (!CreateUAVDescriptor(resource.get(), srv_format, &uav_descriptor))
-		{
-			dev->GetDescriptorHeapManager().Free(&write_descriptor);
-			dev->GetDescriptorHeapManager().Free(&srv_descriptor);
-			return {};
-		}
+		FreeDescriptors(&srv_descriptor, &write_descriptor, write_descriptor_type, &uav_descriptor);
+		return {};
 	}
 
 	return std::unique_ptr<GSTexture12>(new GSTexture12(type, format, static_cast<u32>(desc.Width), desc.Height,
 				desc.MipLevels, desc.Format, std::move(resource), {}, srv_descriptor, write_descriptor, uav_descriptor,
 				write_descriptor_type, resource_state));
+}
+
+/* Descriptors a texture failed to finish with, each back to its own heap:
+ * the SRV and UAV to the shader-visible one, the write descriptor to the
+ * RTV or DSV heap it was taken from. */
+void GSTexture12::FreeDescriptors(D3D12DescriptorHandle* srv, D3D12DescriptorHandle* write,
+	WriteDescriptorType write_type, D3D12DescriptorHandle* uav)
+{
+	GSDevice12* const dev = GSDevice12::GetInstance();
+
+	dev->GetDescriptorHeapManager().Free(srv);
+	dev->GetDescriptorHeapManager().Free(uav);
+	if (write_type == WriteDescriptorType::RTV)
+		dev->GetRTVHeapManager().Free(write);
+	else if (write_type == WriteDescriptorType::DSV)
+		dev->GetDSVHeapManager().Free(write);
 }
 
 bool GSTexture12::CreateSRVDescriptor(
@@ -375,6 +371,7 @@ ID3D12Resource* GSTexture12::AllocateUploadStagingBuffer(const void* data, u32 p
 	if (FAILED(hr))
 	{
 		log_cb(RETRO_LOG_INFO, "(AllocateUploadStagingBuffer) Map() failed with %08X\n", hr);
+		dev->DeferResourceDestruction(&alloc, resource.get());
 		return nullptr;
 	}
 

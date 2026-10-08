@@ -46,8 +46,9 @@ bool D3D12StreamBuffer::Create(u32 size)
 	u8* host_pointer;
 	if (FAILED(buffer->Map(0, &read_range, reinterpret_cast<void**>(&host_pointer))))
 	{
-		buffer.reset();
-		gs_d3d12_heap_free(dev->GetHeap(), &alloc);
+		/* Named in an aliasing barrier on this frame's init list: it and
+		 * its span go back once that list has run. */
+		dev->DeferResourceDestruction(&alloc, buffer.get());
 		return false;
 	}
 
