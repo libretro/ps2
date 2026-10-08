@@ -15,6 +15,8 @@
 
 #pragma once
 
+#include "GSRetireRing.h"
+
 #include <array>
 
 #include "common/HashCombine.h"
@@ -853,19 +855,16 @@ protected:
 	 * merge/interlace chain the present registers) cannot be destroyed
 	 * the moment a resize replaces them: the frontend samples the
 	 * registered image in its own submissions and may replay it for
-	 * pause or screenshots, none of which our fences observe. Retire
-	 * them through this ring instead; entries die once enough frames
-	 * have passed for every frontend reference to be gone. */
-	static constexpr u32 NUM_RETIRED_PRESENT_TEXTURES = 8;
+	 * pause or screenshots, none of which our fences observe. They are
+	 * retired here instead (GSRetireRing.h) and freed once the frontend
+	 * is done with them. */
 	/* How many presents a retired texture is held for when nothing better
 	 * is known - a guess at how long the frontend might still reference
 	 * it, which a frontend that caches frames for longer would outlive.
 	 * Where the frontend tells us, SyncIndexWaited below is used instead
 	 * and this does not apply. */
 	static constexpr u32 RETIRED_PRESENT_MIN_AGE = 8;
-	GSTexture* m_retired_present[NUM_RETIRED_PRESENT_TEXTURES] = {};
-	u32 m_retired_present_age[NUM_RETIRED_PRESENT_TEXTURES] = {};
-	u32 m_retired_present_slot = 0;
+	struct gs_retire_ring m_retired_present = {};
 	u32 m_present_age = 0;
 	/* What the frontend has actually told us, where it does. A backend
 	 * that hands textures over per sync index calls SyncIndexWaited right
@@ -875,7 +874,6 @@ protected:
 	 * guess at a frame count is involved. */
 	u32 m_sync_waits = 0;
 	u32 m_sync_slots = 0;
-	u32 m_retired_present_waits[NUM_RETIRED_PRESENT_TEXTURES] = {};
 	GSTexture* m_target_tmp = nullptr;
 	GSTexture* m_current = nullptr;
 	GSTexture* m_colclip_rt = nullptr; ///< Temp hw colclip texture

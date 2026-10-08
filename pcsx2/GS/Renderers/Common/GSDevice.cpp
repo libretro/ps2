@@ -204,16 +204,17 @@ void GSDevice::PrewarmPool()
 		made, (unsigned long long)(spent >> 20));
 }
 
+static void retired_present_free(void* tex)
+{
+	gs_texture_free(static_cast<GSTexture*>(tex));
+}
+
 void GSDevice::DestroyBase()
 {
 	ClearCurrent();
 
 	/* Nothing presents after this, so the retired textures go too. */
-	for (u32 i = 0; i < NUM_RETIRED_PRESENT_TEXTURES; i++)
-	{
-		gs_texture_free(m_retired_present[i]);
-		m_retired_present[i] = nullptr;
-	}
+	gs_retire_clear(&m_retired_present, retired_present_free);
 
 	PurgePool();
 }
@@ -403,21 +404,8 @@ void GSDevice::AgePool()
 	 * has since been waited through. Otherwise there is nothing to go on
 	 * but a count of presents. */
 	m_present_age++;
-	for (u32 i = 0; i < NUM_RETIRED_PRESENT_TEXTURES; i++)
-	{
-		bool done;
-		if (!m_retired_present[i])
-			continue;
-		if (m_sync_slots)
-			done = (m_sync_waits - m_retired_present_waits[i]) > m_sync_slots;
-		else
-			done = (m_present_age - m_retired_present_age[i]) > RETIRED_PRESENT_MIN_AGE;
-		if (done)
-		{
-			gs_texture_free(m_retired_present[i]);
-			m_retired_present[i] = nullptr;
-		}
-	}
+	gs_retire_age(&m_retired_present, m_present_age, m_sync_waits, m_sync_slots,
+		RETIRED_PRESENT_MIN_AGE, retired_present_free);
 	m_frame++;
 
 	/* Age is not a reason to free a texture. It was: anything unused for
@@ -658,19 +646,8 @@ void GSDevice::Interlace(const GSVector2i& ds, int field, int mode, float yoffse
 
 void GSDevice::RetirePresentTexture(GSTexture* t)
 {
-	if (!t)
-		return;
-
-	/* The ring holds the last NUM_RETIRED_PRESENT_TEXTURES of these; what
-	 * decides when one is freed is in AgePool. Reaching the slot again
-	 * before then frees it regardless, which is the one case the ring's
-	 * size still governs. */
-	const u32 slot = m_retired_present_slot;
-	m_retired_present_slot = (slot + 1) % NUM_RETIRED_PRESENT_TEXTURES;
-	gs_texture_free(m_retired_present[slot]);
-	m_retired_present[slot] = t;
-	m_retired_present_age[slot] = m_present_age;
-	m_retired_present_waits[slot] = m_sync_waits;
+	/* Freed by AgePool once the frontend is done with it. */
+	gs_retire_add(&m_retired_present, t, m_present_age, m_sync_waits, retired_present_free);
 }
 
 bool GSDevice::ResizeRenderTarget(GSTexture** t, int w, int h, bool preserve_contents, bool recycle, bool defer_destroy)

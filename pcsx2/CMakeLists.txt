@@ -361,6 +361,8 @@ set(pcsx2GSSources
 	GS/Renderers/HW/GSTargetBudget.h
 	GS/Renderers/Common/GSStableGroup.c
 	GS/Renderers/Common/GSStableGroup.h
+	GS/Renderers/Common/GSRetireRing.c
+	GS/Renderers/Common/GSRetireRing.h
 	GS/Renderers/HW/GSScratch.c
 	GS/Renderers/HW/GSScratch.h
 	GS/Renderers/Vulkan/GSVulkanHeap.c
