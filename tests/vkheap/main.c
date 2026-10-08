@@ -22,6 +22,12 @@ static VkDeviceSize refuse_taken;
 static int frees;
 static int maps;
 
+/* A memory type the driver allocates but will not map. -1 maps all. */
+static int map_fail_type = -1;
+/* The type each fake VkDeviceMemory was allocated from, by handle. */
+#define TYPE_OF_MAX 4096
+static unsigned char type_of[TYPE_OF_MAX];
+
 static VkResult stub_allocate(VkDevice d, const VkMemoryAllocateInfo *ai,
       const VkAllocationCallbacks *cb, VkDeviceMemory *out)
 {
@@ -34,6 +40,8 @@ static VkResult stub_allocate(VkDevice d, const VkMemoryAllocateInfo *ai,
    }
    allocations++;
    *out = (VkDeviceMemory)(uintptr_t)(0x1000 + allocations);
+   if (allocations < TYPE_OF_MAX)
+      type_of[allocations] = (unsigned char)ai->memoryTypeIndex;
    return VK_SUCCESS;
 }
 
@@ -53,6 +61,11 @@ static VkResult stub_map(VkDevice d, VkDeviceMemory m, VkDeviceSize off,
       VkDeviceSize size, VkMemoryMapFlags f, void **out)
 {
    (void)d; (void)off; (void)f;
+   {
+      const uintptr_t n = (uintptr_t)m - 0x1000;
+      if (map_fail_type >= 0 && n < TYPE_OF_MAX && type_of[n] == (unsigned char)map_fail_type)
+         return VK_ERROR_MEMORY_MAP_FAILED;
+   }
    maps++;
    *out = malloc(size == VK_WHOLE_SIZE ? (4u * 1024u * 1024u) : (size_t)size);
    if (!*out)
@@ -339,6 +352,190 @@ int main(void)
       refuse_type = -1;
    }
 
+
+   /* The BAR listed first, the way some drivers order it: the type that
+    * has both flags comes before the system memory that only meets the
+    * requirement. The driver refuses the BAR outright; the upload must
+    * still land in system memory, mapped. */
+   {
+      VkPhysicalDeviceMemoryProperties o;
+      gs_vk_heap_t h;
+      gs_vk_alloc_t x;
+      const VkMemoryPropertyFlags hv = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+         | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+
+      memset(&o, 0, sizeof(o));
+      o.memoryHeapCount = 2;
+      o.memoryHeaps[0].size = 256u * 1024u * 1024u;
+      o.memoryHeaps[1].size = 1024u * 1024u * 1024u;
+      o.memoryTypeCount = 3;
+      o.memoryTypes[0].propertyFlags = hv | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+      o.memoryTypes[0].heapIndex     = 0;
+      o.memoryTypes[1].propertyFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+      o.memoryTypes[1].heapIndex     = 0;
+      o.memoryTypes[2].propertyFlags = hv;
+      o.memoryTypes[2].heapIndex     = 1;
+
+      refuse_type  = 0;
+      refuse_after = 0;
+      refuse_taken = 0;
+      memset(&h, 0, sizeof(h));
+      CHECK(gs_vk_heap_init(&h, (VkDevice)1, &o, &fns, 1024 * 1024, 256, 0) != 0, "order: init");
+      req(&r, 4096, 256, 0x7u);
+      CHECK(gs_vk_heap_alloc(&h, &r, hv, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 1, &x) != 0,
+            "order: refused BAR listed first, the upload still allocates");
+      CHECK(x.type == 2 && x.mapped != NULL, "order: in mapped system memory");
+      gs_vk_heap_free(&h, &x);
+      gs_vk_heap_shutdown(&h);
+      refuse_type = -1;
+   }
+
+   /* A host-visible type the driver will not map. Memory asked for as
+    * host visible is written through its address: it is never handed out
+    * unmapped, the block goes back, and a second host-visible type is
+    * used. */
+   {
+      VkPhysicalDeviceMemoryProperties o;
+      gs_vk_heap_t h;
+      gs_vk_alloc_t x;
+      int frees_before;
+      const VkMemoryPropertyFlags hv = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+         | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+
+      fill_props(&o);
+      o.memoryTypeCount = 3;
+      o.memoryTypes[2].propertyFlags = hv | VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
+      o.memoryTypes[2].heapIndex     = 0;
+
+      map_fail_type = 1;
+      memset(&h, 0, sizeof(h));
+      CHECK(gs_vk_heap_init(&h, (VkDevice)1, &o, &fns, 1024 * 1024, 256, 0) != 0, "map: init");
+
+      frees_before = frees;
+      req(&r, 4096, 64, 0x2u);
+      CHECK(gs_vk_heap_alloc(&h, &r, hv, 0, 1, &x) == 0,
+            "map: the only type it may use will not map, so it fails");
+      CHECK(h.last_error == VK_ERROR_MEMORY_MAP_FAILED, "map: and says why");
+      CHECK(frees == frees_before + 1 && h.bytes_reserved == 0,
+            "map: the unmappable block went back to the driver");
+
+      req(&r, 4096, 64, 0x6u);
+      CHECK(gs_vk_heap_alloc(&h, &r, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0, 1, &x) != 0,
+            "map: with a second host-visible type it allocates");
+      CHECK(x.type == 2 && x.mapped != NULL, "map: mapped, in the second type");
+      gs_vk_heap_free(&h, &x);
+
+      CHECK(gs_vk_heap_reserve(&h, 0x2u, hv, 1, 2) == 0,
+            "map: a reserve takes no unmappable host block");
+      gs_vk_heap_shutdown(&h);
+      map_fail_type = -1;
+   }
+
+   /* On a card where every type is host visible, a block that will not
+    * map still serves what never looks at its address, and is passed
+    * over for what does. */
+   {
+      VkPhysicalDeviceMemoryProperties o;
+      gs_vk_heap_t h;
+      gs_vk_alloc_t img, up;
+
+      memset(&o, 0, sizeof(o));
+      o.memoryHeapCount = 1;
+      o.memoryHeaps[0].size = 1024u * 1024u * 1024u;
+      o.memoryTypeCount = 2;
+      o.memoryTypes[0].propertyFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+         | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+      o.memoryTypes[1].propertyFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+         | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+
+      map_fail_type = 0;
+      memset(&h, 0, sizeof(h));
+      CHECK(gs_vk_heap_init(&h, (VkDevice)1, &o, &fns, 1024 * 1024, 256, 0) != 0, "uma: init");
+      req(&r, 4096, 256, 0x3u);
+      CHECK(gs_vk_heap_alloc(&h, &r, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, 1, &img) != 0,
+            "uma: device-local memory from a block that would not map");
+      CHECK(img.type == 0 && img.mapped == NULL, "uma: in the unmapped block");
+      CHECK(gs_vk_heap_alloc(&h, &r, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0, 1, &up) != 0,
+            "uma: a host-visible buffer next to it");
+      CHECK(up.mapped != NULL && up.memory != img.memory,
+            "uma: passed over the unmapped block, and mapped");
+      gs_vk_heap_free(&h, &up);
+      gs_vk_heap_free(&h, &img);
+      gs_vk_heap_shutdown(&h);
+      map_fail_type = -1;
+   }
+
+   /* Two device-local types and a driver with none left of the first:
+    * the second is tried rather than the allocation failed. */
+   {
+      VkPhysicalDeviceMemoryProperties o;
+      gs_vk_heap_t h;
+      gs_vk_alloc_t x;
+
+      memset(&o, 0, sizeof(o));
+      o.memoryHeapCount = 1;
+      o.memoryHeaps[0].size = 1024u * 1024u * 1024u;
+      o.memoryTypeCount = 2;
+      o.memoryTypes[0].propertyFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+      o.memoryTypes[1].propertyFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
+      refuse_type  = 0;
+      refuse_after = 0;
+      refuse_taken = 0;
+      memset(&h, 0, sizeof(h));
+      CHECK(gs_vk_heap_init(&h, (VkDevice)1, &o, &fns, 1024 * 1024, 256, 0) != 0, "second: init");
+      req(&r, 4096, 256, 0x3u);
+      CHECK(gs_vk_heap_alloc(&h, &r, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, 0, &x) != 0,
+            "second: out of the first type, the second is used");
+      CHECK(x.type == 1, "second: in the second type");
+      CHECK(gs_vk_heap_reserve(&h, 0x3u, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, 2) == 2,
+            "second: a reserve goes on to the second type too");
+      gs_vk_heap_free(&h, &x);
+      gs_vk_heap_shutdown(&h);
+      refuse_type = -1;
+   }
+
+   /* A free of an allocation whose block was trimmed, after the slot
+    * has a new block: the new block is left alone, so nothing in it is
+    * handed out twice. */
+   {
+      gs_vk_heap_t h;
+      gs_vk_alloc_t old, n1, n2;
+
+      memset(&h, 0, sizeof(h));
+      CHECK(gs_vk_heap_init(&h, (VkDevice)1, &props, &fns, 1024 * 1024, 256, 0) != 0, "stale: init");
+      req(&r, 1024 * 1024, 256, 0x1u);
+      CHECK(gs_vk_heap_alloc(&h, &r, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, 0, &old) != 0, "stale: first");
+      gs_vk_heap_free(&h, &old);
+      CHECK(gs_vk_heap_trim(&h) == 1, "stale: trimmed");
+      CHECK(gs_vk_heap_alloc(&h, &r, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, 0, &n1) != 0, "stale: slot reused");
+      CHECK(n1.block == old.block && n1.memory != old.memory, "stale: same slot, new memory");
+      gs_vk_heap_free(&h, &old);
+      CHECK(h.bytes_used == r.size, "stale: the old handle changed nothing");
+      CHECK(gs_vk_heap_alloc(&h, &r, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, 0, &n2) != 0, "stale: another");
+      CHECK(n2.memory != n1.memory, "stale: the live block was not handed out again");
+      gs_vk_heap_free(&h, &n2);
+      gs_vk_heap_free(&h, &n1);
+      gs_vk_heap_shutdown(&h);
+   }
+
+   /* A block is no more than an eighth of the driver heap its type is
+    * in, so a small heap is not mostly one block. */
+   {
+      VkPhysicalDeviceMemoryProperties o;
+      gs_vk_heap_t h;
+      gs_vk_alloc_t x;
+
+      fill_props(&o);
+      o.memoryHeaps[0].size = 16u * 1024u * 1024u;
+      memset(&h, 0, sizeof(h));
+      CHECK(gs_vk_heap_init(&h, (VkDevice)1, &o, &fns, 64u * 1024u * 1024u, 256, 0) != 0, "size: init");
+      req(&r, 4096, 256, 0x1u);
+      CHECK(gs_vk_heap_alloc(&h, &r, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, 0, &x) != 0, "size: alloc");
+      CHECK(h.bytes_reserved == 2u * 1024u * 1024u, "size: a 2 MB block on a 16 MB heap");
+      gs_vk_heap_free(&h, &x);
+      gs_vk_heap_shutdown(&h);
+   }
 
    /* Buffers and images never share a block, whatever the memory type:
     * that is how bufferImageGranularity is honoured. */

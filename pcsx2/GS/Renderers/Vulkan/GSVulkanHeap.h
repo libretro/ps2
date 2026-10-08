@@ -113,6 +113,7 @@ typedef struct gs_vk_heap
     * host-visible, images and targets are device-local. */
    VkDeviceSize                     bytes_host;
    VkDeviceSize                     bytes_device;
+   VkResult                         last_error;     /* why the last block could not be had */
 } gs_vk_heap_t;
 
 /* block_size is what one VkDeviceMemory is; anything larger than it gets
@@ -126,16 +127,24 @@ void gs_vk_heap_shutdown(gs_vk_heap_t *heap);
 
 /* Takes blocks from the driver now, so that later allocations of this
  * kind are offsets. type_bits and flags are as a VkMemoryRequirements
- * would give, linear as for gs_vk_heap_alloc. Returns the number of
- * blocks taken. */
+ * would give, linear as for gs_vk_heap_alloc. Every type with flags is
+ * tried in turn; host-visible blocks are taken only if they map. Returns
+ * the number of blocks taken. */
 unsigned gs_vk_heap_reserve(gs_vk_heap_t *heap, uint32_t type_bits,
       VkMemoryPropertyFlags flags, int linear, unsigned blocks);
 
 /* Finds room for something with these requirements. required is what the
- * memory must be; preferred is tried first and dropped if no type has
- * it. linear is non-zero for a buffer or an image with linear tiling,
- * zero for any other image. Returns 0 if there is no room and no block
- * could be taken. */
+ * memory must be; preferred is tried first and dropped when no memory
+ * type has it or the driver has none of it left. Every memory type that
+ * will do is tried, in that order. linear is non-zero for a buffer or an
+ * image with linear tiling, zero for any other image.
+ *
+ * With VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT in required, out->mapped is an
+ * address: memory that could not be mapped is not handed out. Where the
+ * bit is only in preferred, or not asked for, out->mapped may be NULL.
+ *
+ * Returns 0 when there is no room and no block could be taken;
+ * heap->last_error is then what the driver last said. */
 int  gs_vk_heap_alloc(gs_vk_heap_t *heap, const VkMemoryRequirements *req,
       VkMemoryPropertyFlags required, VkMemoryPropertyFlags preferred,
       int linear, gs_vk_alloc_t *out);
