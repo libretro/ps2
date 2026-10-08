@@ -147,6 +147,9 @@ endif
 # ============================================================================
 # libretro core entry points (C++)
 # ============================================================================
+SOURCES_C += \
+	$(LIBRETRO_DIR)/audio_queue.c \
+	$(LIBRETRO_DIR)/state_ext.c
 SOURCES_CXX += \
 	$(LIBRETRO_DIR)/main.cpp \
 	$(LIBRETRO_DIR)/patches.cpp \

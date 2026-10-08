@@ -35,6 +35,7 @@ void SaveState_Init(SaveStateBase *s, u8 *memory, size_t size, size_t cap,
 	s->idx         = 0;
 	s->error       = false;
 	s->is_saving   = is_saving;
+	s->fixed       = false;
 	s->tagspace[0] = 0;
 }
 
@@ -49,6 +50,11 @@ static bool savestate_reserve(SaveStateBase *s, size_t want)
 
 	if (want <= s->memory_cap)
 		return true;
+	if (s->fixed)
+	{
+		s->error = true;
+		return false;
+	}
 
 	cap = s->memory_cap ? s->memory_cap : 4096;
 	while (cap < want)

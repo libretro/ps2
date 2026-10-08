@@ -28,6 +28,8 @@
 #include "MTVU.h"
 #include "WorkEventCount.h"
 #include "MTGSOwner.h"
+#include "PAD/PAD.h"
+#include "../libretro/audio_queue.h"
 #if !defined(_WIN32)
 #include <unistd.h>
 #endif
@@ -128,9 +130,10 @@ alignas(64) static u64 g_ee_wait_ticks;
 
 extern struct retro_hw_render_callback hw_render;
 
-/* Set by the frontend's thread around a context teardown, and read by
- * the drain that teardown runs on the same thread: mtgs_hold_present. */
-static int s_present_held = 0;
+/* See MTGSOwner.h. */
+struct mtgs_frame mtgs_pending;
+uint32_t mtgs_presented_mark;
+int mtgs_vsync_drained;
 
 /* See GS.h. NULL unless the renderer in use installed them. */
 void (*gs_hw_context_begin)(void) = NULL;
@@ -206,8 +209,12 @@ void MTGS::PostVsyncStart()
 		 * state by the time it gets to them. */
 		tag->data[0] = (gsCSRload() & GS_CSR_FIELD) ? 0 : 1;
 		tag->data[1] = (u32)retro_atomic_exchange_int(&s_GSRegistersWritten, 0);
+		/* Where this frame's audio ends: see audio_queue.h. */
+		tag->data[2] = retro_audio_mark();
 		RingWriteEnd();
 	}
+	else
+		mtgs_vsync_drained = 1; /* no ring: nothing to wait for a pause behind */
 
 #ifdef ENABLE_PCSX2_PROFILER
 	{
@@ -448,43 +455,48 @@ bool MTGS::MainLoop(bool flush_all)
 				case GS_RINGTYPE_VSYNC:
 				{
 					const u32 field = tag.data[0];
-					const bool registers_written = tag.data[1] != 0;
+					const u32 registers_written = tag.data[1];
+					const u32 audio_mark = tag.data[2];
 					/* The EE is held in WaitGS behind this packet, so the
-					 * registers are this frame's: take them, and if this is
-					 * the per-frame exit, commit the packet and let the EE go
-					 * before the scanout. The tag is not read past here. */
+					 * registers are this frame's. The tag is not read past
+					 * here. */
 					mtgs_sync_regs();
-					if (!flush_all)
+					if (flush_all)
 					{
-						consumed += sizeof(PacketTagType);
-						retro_spsc_read_end(&s_Ring, consumed);
-						consumed = 0;
-						/* Idle at the current epoch releases WaitGS's
-						 * empty-wait, including when the vsync's own notify
-						 * landed after this drain began. Entries behind the
-						 * vsync (a soft-reset tag rides along with no notify
-						 * of its own) re-arm the work count so the next call
-						 * drains them. */
+						/* A drain: kept for the next retro_run, not
+						 * presented. See MTGSOwner.h. */
+						memcpy(mtgs_pending.regs, s_gs_regs, sizeof(mtgs_pending.regs));
+						mtgs_pending.audio_mark        = audio_mark;
+						mtgs_pending.field             = field;
+						mtgs_pending.registers_written = registers_written;
+						mtgs_pending.pending           = 1;
+						mtgs_vsync_drained             = 1;
+						break;
+					}
+					/* retro_run's frame. The EE goes on to the next one
+					 * with the input this retro_run polled, let go before
+					 * the scanout. */
+					pad_input_latch();
+					mtgs_vsync_drained  = 0;
+					mtgs_presented_mark = audio_mark;
+					consumed += sizeof(PacketTagType);
+					retro_spsc_read_end(&s_Ring, consumed);
+					consumed = 0;
+					/* Idle at the current epoch releases WaitGS's
+					 * empty-wait, including when the vsync's own notify
+					 * landed after this drain began. Entries behind the
+					 * vsync (a soft-reset tag rides along with no notify
+					 * of its own) re-arm the work count so the next call
+					 * drains them. */
+					{
 						const int epoch = work_eventcount_epoch(&s_sem_event);
 						work_eventcount_drained(&s_sem_event, epoch,
 								retro_spsc_read_avail(&s_Ring) != 0);
 					}
-					/* Whether this vsync is scanned out: see
-					 * mtgs_vsync_presents (MTGSOwner.h). A drain on the
-					 * thread that renders presents the frame the EE had
-					 * ready, unless the frontend is taking the context
-					 * away. */
-					if (mtgs_vsync_presents(flush_all,
-								sthread_get_current_thread_id(), s_thread,
-								s_present_held))
-					{
-						GS_HW_CONTEXT_BEGIN();
-						GSvsync(field, registers_written);
-						GS_HW_CONTEXT_END();
-					}
-					if (!flush_all)
-						return true;
-					break;
+					GS_HW_CONTEXT_BEGIN();
+					GSvsync(field, registers_written != 0);
+					GS_HW_CONTEXT_END();
+					return true;
 				}
 				case GS_RINGTYPE_FREEZE:
 					{
@@ -555,7 +567,7 @@ void MTGS::WaitGS(bool isMTVU)
 	 * drains it here. */
 	if (!isMTVU)
 	{
-		if (mtgs_wait_drains(sthread_get_current_thread_id(), s_producer_thread, 0))
+		if (MTGS_WAIT_DRAINS(sthread_get_current_thread_id(), s_producer_thread, 0))
 		{
 			/* Entries may have been written without a notify (a frame
 			 * with no completed GIF packets between PostVsyncStart and
@@ -662,12 +674,18 @@ void mtgs_claim_ring(void)
 	MTGS::s_thread = sthread_get_current_thread_id();
 }
 
-/* The frontend's thread, around context_destroy and unload: the drain
- * inside consumes the frame the EE had ready without presenting it. See
- * mtgs_vsync_presents (MTGSOwner.h). */
-void mtgs_hold_present(int on)
+/* The frontend's thread, retro_run, with the EE paused: the registers
+ * are the drained vsync's, whatever has been loaded or written since. */
+int mtgs_present_pending(void)
 {
-	s_present_held = on;
+	if (!mtgs_pending.pending || !retro_atomic_load_acquire_int(&MTGS::s_open_flag))
+		return 0;
+	mtgs_pending.pending = 0;
+	memcpy(s_gs_regs, mtgs_pending.regs, sizeof(s_gs_regs));
+	GS_HW_CONTEXT_BEGIN();
+	GSvsync(mtgs_pending.field, mtgs_pending.registers_written != 0);
+	GS_HW_CONTEXT_END();
+	return 1;
 }
 
 /* The EE thread, as it starts and as it ends. See MTGSOwner.h. */

@@ -85,7 +85,7 @@ static int wait_drains(void)
 {
 	uintptr_t self = sthread_get_current_thread_id();
 #if RULE == 0
-	return mtgs_wait_drains(self, producer, 0);
+	return MTGS_WAIT_DRAINS(self, producer, 0);
 #elif RULE == 1
 	return owner == 0 || owner == self;
 #else

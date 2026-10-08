@@ -165,6 +165,8 @@ static IPUregisters& ipuRegs = (IPUregisters&)eeHw[0x2000];
 
 alignas(16) extern tIPU_cmd ipu_cmd;
 
+#include "ipu_decode_state.h"
+
 extern void ipuReset();
 
 extern u32 ipuRead32(u32 mem);

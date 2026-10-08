@@ -18,7 +18,7 @@
 #include <cmath>
 #include <libretro.h>
 
-#include <retro_atomic.h>
+#include <string.h>
 
 #include "PAD.h"
 
@@ -184,19 +184,73 @@ static retro_input_poll_t poll_cb;
 static retro_input_state_t input_cb;
 struct retro_rumble_interface rumble;
 
-/* Written by Input::Update (libretro thread) once per retro_run,
- * read by PADpoll (cpu_thread) during SIO2 transfers.  Published
- * per-field with release/acquire retro_atomics: no locks anywhere
- * near the SIO2 path, and per-field skew matches real hardware
- * polling mid-change.  Values are int-sized bit patterns (u32 masks
- * stored bitwise). */
-static retro_atomic_int_t button_mask[2];
-static retro_atomic_int_t pad_lx[2];
-static retro_atomic_int_t pad_ly[2];
-static retro_atomic_int_t pad_rx[2];
-static retro_atomic_int_t pad_ry[2];
+/* What the pads, and the USB keyboard and mouse, report. Input::Update,
+ * on the frontend's thread, fills the staged copy; pad_input_latch makes
+ * it the live one, which PADpoll and the USB HID devices read on the EE
+ * thread. The latch runs only while the EE is held - at the vsync that
+ * lets it go on to the next frame, and before retro_run resumes it - so a
+ * frame reads the input of the retro_run that let it start, wherever the
+ * EE thread happens to be when the frontend polls, and the EE never sees
+ * a copy being written. Mouse motion adds up from latch to latch and is
+ * taken once, by the first read of it. */
+struct pad_input
+{
+	u32 buttons;
+	int lx, ly, rx, ry;
+	int mouse_x, mouse_y;
+	u8  analog[12];
+	u8  keys[RETROK_LAST / 8 + 1];
+	u8  mouse_buttons;
+};
+static struct pad_input pad_staged[2];
+static struct pad_input pad_live[2];
+
+extern "C" void pad_input_latch(void)
+{
+	unsigned port;
+	for (port = 0; port < 2; port++)
+	{
+		const int mx = pad_live[port].mouse_x + pad_staged[port].mouse_x;
+		const int my = pad_live[port].mouse_y + pad_staged[port].mouse_y;
+		pad_live[port]           = pad_staged[port];
+		pad_live[port].mouse_x   = mx;
+		pad_live[port].mouse_y   = my;
+		pad_staged[port].mouse_x = 0;
+		pad_staged[port].mouse_y = 0;
+	}
+}
+
+/* The input_state the USB HID devices read through: the latched copy. */
+static int16_t pad_latched_input(unsigned port, unsigned device, unsigned index, unsigned id)
+{
+	struct pad_input* in;
+	int v;
+	(void)index;
+	if (port >= 2)
+		return 0;
+	in = &pad_live[port];
+	if (device == RETRO_DEVICE_KEYBOARD)
+		return id < RETROK_LAST && ((in->keys[id >> 3] >> (id & 7)) & 1);
+	if (device != RETRO_DEVICE_MOUSE)
+		return 0;
+	switch (id)
+	{
+		case RETRO_DEVICE_ID_MOUSE_X:
+			v          = in->mouse_x;
+			in->mouse_x = 0;
+			return (int16_t)(v < -32768 ? -32768 : v > 32767 ? 32767 : v);
+		case RETRO_DEVICE_ID_MOUSE_Y:
+			v          = in->mouse_y;
+			in->mouse_y = 0;
+			return (int16_t)(v < -32768 ? -32768 : v > 32767 ? 32767 : v);
+		case RETRO_DEVICE_ID_MOUSE_LEFT:   return in->mouse_buttons & 1;
+		case RETRO_DEVICE_ID_MOUSE_RIGHT:  return (in->mouse_buttons >> 1) & 1;
+		case RETRO_DEVICE_ID_MOUSE_MIDDLE: return (in->mouse_buttons >> 2) & 1;
+		default:                           return 0;
+	}
+}
+
 static int pad_type[2] = { -1, -1 };
-static u8 analog_buttons[2][12];
 
 PadSettings pad_settings[2];
 
@@ -389,14 +443,16 @@ namespace Input
 		environ_cb(RETRO_ENVIRONMENT_SET_CONTROLLER_INFO, (void*)ports);
 		environ_cb(RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS, desc);
 
-		retro_atomic_store_release_int(&button_mask[0], (int)0xFFFFFFFF);
-		retro_atomic_store_release_int(&button_mask[1], (int)0xFFFFFFFF);
+		Shutdown();
 	}
 
+	/* All released, staged and live: the EE is not running. */
 	void Shutdown()
 	{
-		retro_atomic_store_release_int(&button_mask[0], (int)0xFFFFFFFF);
-		retro_atomic_store_release_int(&button_mask[1], (int)0xFFFFFFFF);
+		memset(pad_staged, 0, sizeof(pad_staged));
+		pad_staged[0].buttons = 0xFFFFFFFF;
+		pad_staged[1].buttons = 0xFFFFFFFF;
+		pad_input_latch();
 	}
 
 	void Update()
@@ -419,8 +475,8 @@ namespace Input
 				else
 				{
 					// Apply pressure level if needed/possible and deadzone
-					analog_buttons[port][btn_index] = process_button(conf.button_deadzone, port, keymap[i], mask);
-					new_button_mask |= (analog_buttons[port][btn_index] == 0) << i;
+					pad_staged[port].analog[btn_index] = process_button(conf.button_deadzone, port, keymap[i], mask);
+					new_button_mask |= (pad_staged[port].analog[btn_index] == 0) << i;
 					++btn_index;
 				}
 			}
@@ -440,12 +496,31 @@ namespace Input
 			new_rx *= conf.axis_invert_rx;
 			new_ry *= conf.axis_invert_ry;
 
-			/* Publish the frame's snapshot, one release-store per field. */
-			retro_atomic_store_release_int(&button_mask[port], (int)new_button_mask);
-			retro_atomic_store_release_int(&pad_lx[port], new_lx);
-			retro_atomic_store_release_int(&pad_ly[port], new_ly);
-			retro_atomic_store_release_int(&pad_rx[port], new_rx);
-			retro_atomic_store_release_int(&pad_ry[port], new_ry);
+			if (pad_type[port] == RETRO_DEVICE_KEYBOARD
+			 || pad_type[port] == RETRO_DEVICE_KEYBOARD_AND_MOUSE)
+			{
+				unsigned k;
+				memset(pad_staged[port].keys, 0, sizeof(pad_staged[port].keys));
+				for (k = 0; k < RETROK_LAST; k++)
+					if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, k))
+						pad_staged[port].keys[k >> 3] |= (u8)(1u << (k & 7));
+			}
+			if (pad_type[port] == RETRO_DEVICE_MOUSE
+			 || pad_type[port] == RETRO_DEVICE_KEYBOARD_AND_MOUSE)
+			{
+				pad_staged[port].mouse_x += input_cb(port, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_X);
+				pad_staged[port].mouse_y += input_cb(port, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_Y);
+				pad_staged[port].mouse_buttons = (u8)(
+					  (input_cb(port, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_LEFT)   ? 1 : 0)
+					| (input_cb(port, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_RIGHT)  ? 2 : 0)
+					| (input_cb(port, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_MIDDLE) ? 4 : 0));
+			}
+
+			pad_staged[port].buttons = new_button_mask;
+			pad_staged[port].lx      = new_lx;
+			pad_staged[port].ly      = new_ly;
+			pad_staged[port].rx      = new_rx;
+			pad_staged[port].ry      = new_ry;
 
 			if (conf.rumble_scale_q8 > 0)
 				pads[port][0].rumble(conf.rumble_scale_q8, sioConvertPortAndSlotToPad(port, 0));
@@ -466,7 +541,7 @@ void retro_set_input_state(retro_input_state_t cb)
 
 retro_input_state_t PADGetInputStateCallback(void)
 {
-	return input_cb;
+	return pad_latched_input;
 }
 
 /* The per-port controller type, as the frontend set it through
@@ -763,7 +838,7 @@ u8 PADpoll(u8 value)
 					query.response[2] = 0x5A;
 
 					const u32 ext_port = sioConvertPortAndSlotToPad(query.port, query.slot);
-					const u32 buttons  = (u32)retro_atomic_load_acquire_int(&button_mask[ext_port]);
+					const u32 buttons  = pad_live[ext_port].buttons;
 
 					// "Start in analog mode" option: on the first read after
 					// reset, promote a still-digital, unlocked pad to analog.
@@ -798,27 +873,27 @@ u8 PADpoll(u8 value)
 
 					if (pad->mode != MODE_DIGITAL) // ANALOG || DS2 native
 					{
-						query.response[5] = 0x80 + (retro_atomic_load_acquire_int(&pad_rx[ext_port]) >> 8);
-						query.response[6] = 0x80 + (retro_atomic_load_acquire_int(&pad_ry[ext_port]) >> 8);
-						query.response[7] = 0x80 + (retro_atomic_load_acquire_int(&pad_lx[ext_port]) >> 8);
-						query.response[8] = 0x80 + (retro_atomic_load_acquire_int(&pad_ly[ext_port]) >> 8);
+						query.response[5] = 0x80 + (pad_live[ext_port].rx >> 8);
+						query.response[6] = 0x80 + (pad_live[ext_port].ry >> 8);
+						query.response[7] = 0x80 + (pad_live[ext_port].lx >> 8);
+						query.response[8] = 0x80 + (pad_live[ext_port].ly >> 8);
 
 						if (pad->mode != MODE_ANALOG) /* DS2 native */
 						{
 							query.numBytes             = 21;
 
-							query.response[9]          = TEST_BIT(buttons, 13) ? 0 : analog_buttons[ext_port][ANALOG_BTN_RIGHT];
-							query.response[10]         = TEST_BIT(buttons, 15) ? 0 : analog_buttons[ext_port][ANALOG_BTN_LEFT];
-							query.response[11]         = TEST_BIT(buttons, 12) ? 0 : analog_buttons[ext_port][ANALOG_BTN_UP];
-							query.response[12]         = TEST_BIT(buttons, 14) ? 0 : analog_buttons[ext_port][ANALOG_BTN_DOWN];
-							query.response[13]         = TEST_BIT(buttons,  4) ? 0 : analog_buttons[ext_port][ANALOG_BTN_TRIANGLE];
-							query.response[14]         = TEST_BIT(buttons,  5) ? 0 : analog_buttons[ext_port][ANALOG_BTN_CIRCLE];
-							query.response[15]         = TEST_BIT(buttons,  6) ? 0 : analog_buttons[ext_port][ANALOG_BTN_CROSS];
-							query.response[16]         = TEST_BIT(buttons,  7) ? 0 : analog_buttons[ext_port][ANALOG_BTN_SQUARE];
-							query.response[17]         = TEST_BIT(buttons,  2) ? 0 : analog_buttons[ext_port][ANALOG_BTN_L1];
-							query.response[18]         = TEST_BIT(buttons,  3) ? 0 : analog_buttons[ext_port][ANALOG_BTN_R1];
-							query.response[19]         = TEST_BIT(buttons,  0) ? 0 : analog_buttons[ext_port][ANALOG_BTN_L2];
-							query.response[20]         = TEST_BIT(buttons,  1) ? 0 : analog_buttons[ext_port][ANALOG_BTN_R2];
+							query.response[9]          = TEST_BIT(buttons, 13) ? 0 : pad_live[ext_port].analog[ANALOG_BTN_RIGHT];
+							query.response[10]         = TEST_BIT(buttons, 15) ? 0 : pad_live[ext_port].analog[ANALOG_BTN_LEFT];
+							query.response[11]         = TEST_BIT(buttons, 12) ? 0 : pad_live[ext_port].analog[ANALOG_BTN_UP];
+							query.response[12]         = TEST_BIT(buttons, 14) ? 0 : pad_live[ext_port].analog[ANALOG_BTN_DOWN];
+							query.response[13]         = TEST_BIT(buttons,  4) ? 0 : pad_live[ext_port].analog[ANALOG_BTN_TRIANGLE];
+							query.response[14]         = TEST_BIT(buttons,  5) ? 0 : pad_live[ext_port].analog[ANALOG_BTN_CIRCLE];
+							query.response[15]         = TEST_BIT(buttons,  6) ? 0 : pad_live[ext_port].analog[ANALOG_BTN_CROSS];
+							query.response[16]         = TEST_BIT(buttons,  7) ? 0 : pad_live[ext_port].analog[ANALOG_BTN_SQUARE];
+							query.response[17]         = TEST_BIT(buttons,  2) ? 0 : pad_live[ext_port].analog[ANALOG_BTN_L1];
+							query.response[18]         = TEST_BIT(buttons,  3) ? 0 : pad_live[ext_port].analog[ANALOG_BTN_R1];
+							query.response[19]         = TEST_BIT(buttons,  0) ? 0 : pad_live[ext_port].analog[ANALOG_BTN_L2];
+							query.response[20]         = TEST_BIT(buttons,  1) ? 0 : pad_live[ext_port].analog[ANALOG_BTN_R2];
 						}
 						else
 							query.numBytes             = 9;

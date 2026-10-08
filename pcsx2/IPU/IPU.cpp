@@ -104,6 +104,9 @@ void ipuReset(void)
 	memset(g_ipu_thresh, 0, sizeof(g_ipu_thresh));
 	memset(g_ipu_indx4, 0, sizeof(g_ipu_indx4));
 	coded_block_pattern = 0;
+	ipu_decode.mba_count  = 0;
+	ipu_decode.idec_ready = 1;
+	ipu_decode.bdec_ready = 1;
 
 	IPUCoreStatus.DataRequested = false;
 	IPUCoreStatus.WaitingOnIPUFrom= false;

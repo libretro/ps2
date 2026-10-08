@@ -46,6 +46,8 @@ typedef struct SaveStateBase
 	char   tagspace[32];
 	bool   error;        /* something went wrong reading or writing */
 	bool   is_saving;    /* direction: saving when set, loading when not */
+	bool   fixed;        /* saving into memory the writer does not own:
+	                      * running out of it is an error, not a realloc */
 } SaveStateBase;
 
 #ifdef __cplusplus

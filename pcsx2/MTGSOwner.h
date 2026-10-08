@@ -30,46 +30,52 @@
 /* self:     the calling thread
  * producer: the EE thread, 0 while there is none
  * is_mtvu:  the call is from the MTVU worker
- * Returns nonzero when the caller must drain the ring itself, zero when
- * it must park until the ring has been drained for it. */
-static int mtgs_wait_drains(uintptr_t self, uintptr_t producer, int is_mtvu)
-{
-	if (is_mtvu)
-		return 0;
-	return self != producer;
-}
+ * Nonzero when the caller must drain the ring itself, zero when it must
+ * park until the ring has been drained for it. */
+#define MTGS_WAIT_DRAINS(self, producer, is_mtvu) \
+	(!(is_mtvu) && (self) != (producer))
 
-/* Whether a vsync taken off the ring is scanned out and handed to the
- * frontend.
+/* What happens to a vsync, and where the EE stops for a pause.
  *
- * In retro_run, always: that is the frame. In a drain (flush_all) it is
- * when the thread draining is the one that renders, because since the EE
- * runs a frame ahead of the scanout a drain finds that frame's vsync in
- * the ring - a savestate or a reset taken between two retro_runs would
- * otherwise swallow it.
+ * The EE goes on to the next frame as soon as its vsync is consumed, so
+ * between two retro_runs it is a frame ahead: running that frame, or
+ * parked behind its vsync. retro_run consumes the vsync, scans the frame
+ * out and presents it. Anything else that empties the ring - pausing the
+ * EE for a savestate, a reset, an option change, a disc swap, the
+ * frontend taking the context away - is a drain, and a drain never
+ * presents: a present is a call into the frontend's video_refresh, which
+ * belongs inside retro_run and nowhere else. The drained vsync is kept in
+ * mtgs_pending instead, and the next retro_run presents it rather than
+ * waiting for another, so every retro_run is one frame however many
+ * drains came between.
  *
- * Except while the frontend is taking the context away. context_destroy
- * pauses the EE, which is a drain, and the frame it finds has nowhere to
- * go: the context it would be shown on is the one being destroyed. And
- * presenting it is a call back into the frontend from inside the
- * frontend's own teardown. RetroArch up to 1.22 holds its context lock
- * across context_destroy and takes the same lock at the top of every
- * video_refresh; the lock is not recursive, so the present never returns
- * and neither does the frontend (closing content hung, issue #171).
+ * A pause stops the EE only at a vsync a drain consumed. Asked while the
+ * EE runs the frame ahead, it finishes that frame; asked in the moment
+ * after retro_run let it go and before it noticed, it runs the frame too
+ * rather than stopping at the vsync retro_run already presented. Either
+ * way a pause leaves the machine at the same point - one frame ahead,
+ * its vsync pending - whatever the timing of the two threads, and that
+ * point is what a savestate holds. Anything else that interrupts the EE
+ * (stopping, a CPU change) still stops it at once.
  *
- * flush_all: the call is a drain, not retro_run's pass
- * self:      the calling thread
- * renderer:  the thread that renders (mtgs_claim_ring)
- * held:      the frontend is taking the context away (mtgs_hold_present) */
-static int mtgs_vsync_presents(int flush_all, uintptr_t self,
-		uintptr_t renderer, int held)
+ * interrupted: VMManager asks the EE to stop
+ * paused:      and what it asks for is a pause
+ * drained:     the vsync the EE was let go from was a drain's */
+#define MTGS_EE_STOPS(interrupted, paused, drained) \
+	((interrupted) && (!(paused) || (drained)))
+
+/* A drained vsync, kept for the next retro_run: the GS's copy of the
+ * privileged registers at that vsync, the field it scans out, whether the
+ * registers changed since the one before, and the audio mark that ends
+ * its frame. Frontend's thread only. */
+struct mtgs_frame
 {
-	if (!flush_all)
-		return 1;
-	if (held)
-		return 0;
-	return self == renderer;
-}
+	uint8_t  regs[0x2000]; /* PS2MEM_GS_REGS */
+	uint32_t audio_mark;
+	uint32_t field;
+	uint32_t registers_written;
+	uint32_t pending;
+};
 
 /* Defined in MTGS.cpp. Plain C names and linkage: callable from a C
  * file the day the callers are one. */
@@ -78,7 +84,17 @@ extern "C" {
 #endif
 void mtgs_claim_ring(void);            /* frontend, first thing in retro_run */
 void mtgs_set_producer_thread(int on); /* EE thread, as it starts and ends   */
-void mtgs_hold_present(int on);        /* frontend, around a context teardown */
+
+/* Frontend's thread, retro_run: scan out and present the drained frame,
+ * when there is one. Nonzero when it did. */
+int mtgs_present_pending(void);
+
+extern struct mtgs_frame mtgs_pending;
+/* The audio mark of the last vsync retro_run consumed. */
+extern uint32_t mtgs_presented_mark;
+/* Set by whoever consumed the vsync the EE was last let go from: nonzero
+ * for a drain. Read by the EE after its wait. */
+extern int mtgs_vsync_drained;
 #ifdef __cplusplus
 }
 #endif

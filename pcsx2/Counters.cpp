@@ -29,6 +29,7 @@
 
 #include "ps2/HwInternal.h"
 #include "VMManager.h"
+#include "MTGSOwner.h"
 #include "CDVD/CDVD.h"     /* cdvdGetDiscRegion */
 #include "ps2/BiosTools.h" /* BiosRegion */
 
@@ -591,7 +592,9 @@ static __fi void VSyncStart(u64 sCycle)
 	//The GS needs to be told at the start of a vsync else it loses half of its picture (could be responsible for some halfscreen issues)
 	//We got away with it before i think due to our awful GS timing, but now we have it right (ish)
 	MTGS::PostVsyncStart();
-	if (VMManager::Internal::IsExecutionInterrupted())
+	/* A pause stops the EE only at a vsync a drain consumed: MTGSOwner.h. */
+	if (MTGS_EE_STOPS(VMManager::Internal::IsExecutionInterrupted(),
+			VMManager::GetState() == VMState::Paused, mtgs_vsync_drained))
 		Cpu->ExitExecution();
 
 	hwIntcIrq(INTC_VBLANK_S);

@@ -73,6 +73,9 @@ static constexpr mpeg2_scan_pack make_scan_pack(void)
 
 alignas(16) const mpeg2_scan_pack mpeg2_scan = make_scan_pack();
 
+/* See ipu_decode_state.h. One copy, shared by every ISA's decoder. */
+struct ipu_decode_state ipu_decode = { 0, 1, 1 };
+
 #endif
 
 MULTI_ISA_UNSHARED_START
@@ -142,8 +145,6 @@ __fi static u8 getBits8(u8 *address)
  * on: that block ends there. */
 #define IPU_DCT_RESUME(esc, lvl) (2 | ((esc) ? 1 : 0) | ((int)(lvl) << 8))
 #define IPU_DCT_LEGACY_RESUME    1
-
-static int mbaCount = 0;
 
 static int GetMacroblockModes(void)
 {
@@ -627,7 +628,6 @@ __ri static bool mpeg2sliceIDEC(void)
 {
 	u16 code;
 
-	static bool ready_to_decode = true;
 	switch (ipu_cmd.pos[0])
 	{
 		case 0:
@@ -765,9 +765,9 @@ __ri static bool mpeg2sliceIDEC(void)
 
 					case 2:
 						{
-							if (ready_to_decode == true)
+							if (ipu_decode.idec_ready)
 							{
-								ready_to_decode = false;
+								ipu_decode.idec_ready = 0;
 								IPUCoreStatus.WaitingOnIPUFrom = false;
 								IPUCoreStatus.WaitingOnIPUTo = false;
 								IPU_INT_PROCESS(64); // Should probably be much higher, but Myst 3 doesn't like it right now.
@@ -786,7 +786,7 @@ __ri static bool mpeg2sliceIDEC(void)
 								return false;
 							}
 
-							mbaCount = 0;
+							ipu_decode.mba_count = 0;
 							if (read)
 							{
 								IPUCoreStatus.WaitingOnIPUFrom = true;
@@ -797,7 +797,7 @@ __ri static bool mpeg2sliceIDEC(void)
 						/* fall-through */
 
 					case 3:
-						ready_to_decode = true;
+						ipu_decode.idec_ready = 1;
 						for (;;)
 						{
 							if (!GETWORD())
@@ -820,7 +820,7 @@ __ri static bool mpeg2sliceIDEC(void)
 							else switch (UBITS(11))
 							{
 								case 8:		/* macroblock_escape */
-									mbaCount += 33;
+									ipu_decode.mba_count += 33;
 									/* fall-through */
 
 								case 15:	/* macroblock_stuffing (MPEG1 only) */
@@ -833,9 +833,9 @@ __ri static bool mpeg2sliceIDEC(void)
 						}
 
 						DUMPBITS(mba->len);
-						mbaCount += mba->mba;
+						ipu_decode.mba_count += mba->mba;
 
-						if (mbaCount)
+						if (ipu_decode.mba_count)
 							decoder.dc_dct_pred[0] =
 							decoder.dc_dct_pred[1] =
 							decoder.dc_dct_pred[2] = 128 << decoder.intra_dc_precision;
@@ -914,7 +914,6 @@ finish_idec:
 __fi static bool mpeg2_slice(void)
 {
 	int DCT_offset, DCT_stride;
-	static bool ready_to_decode = true;
 
 	macroblock_8& mb8 = decoder.mb8;
 	macroblock_16& mb16 = decoder.mb16;
@@ -1169,10 +1168,10 @@ __fi static bool mpeg2_slice(void)
 
 		case 3:
 			{
-				if (ready_to_decode == true)
+				if (ipu_decode.bdec_ready)
 				{
 					ipu_cmd.pos[0]  = 3;
-					ready_to_decode = false;
+					ipu_decode.bdec_ready = 0;
 					IPUCoreStatus.WaitingOnIPUFrom = false;
 					IPUCoreStatus.WaitingOnIPUTo = false;
 					IPU_INT_PROCESS(64); // Should probably be much higher, but Myst 3 doesn't like it right now.
@@ -1190,7 +1189,7 @@ __fi static bool mpeg2_slice(void)
 					return false;
 				}
 
-				mbaCount = 0;
+				ipu_decode.mba_count = 0;
 				if (read)
 				{
 					IPUCoreStatus.WaitingOnIPUFrom = true;
@@ -1247,7 +1246,7 @@ __fi static bool mpeg2_slice(void)
 			break;
 	}
 
-	ready_to_decode = true;
+	ipu_decode.bdec_ready = 1;
 	return true;
 }
 

@@ -5,7 +5,8 @@
 #include <retro_atomic.h>
 #include <faulthandler.h>
 #include "common/Pcsx2Defs.h"
-#include <retro_spsc.h>
+#include "audio_queue.h"
+#include "state_ext.h"
 
 #include <cstdint>
 #include <libretro.h>
@@ -107,7 +108,7 @@ static void cpu_thread_entry_trampoline(void* arg)
 {
 	(void)arg;
 	/* The EE is the GS ring's producer for as long as this thread lives:
-	 * mtgs_wait_drains parks a producer and lets anyone else drain. Set
+	 * MTGS_WAIT_DRAINS parks a producer and lets anyone else drain. Set
 	 * here, around the entry, so every way out of it is covered; it is
 	 * ahead of the boot handshake the entry publishes, which orders it
 	 * before the frontend's first read, and cleared before the join. */
@@ -116,41 +117,22 @@ static void cpu_thread_entry_trampoline(void* arg)
 	mtgs_set_producer_thread(0);
 }
 
-/* Pause/resume coordination for cpu_thread.
+/* The EE parks on this while Paused. The predicate is the state word
+ * itself: every waker stores the new state and then notifies, and
+ * prepare/commit makes a store that lands between the EE's check and its
+ * park a wake rather than a lost one.
  *
- * When the libretro thread asks the VM to pause (savestate, reset,
- * settings change), cpu_thread eventually loops to its 'case Paused'
- * branch and used to busy-spin there waiting for the state to change
- * back. That burned 100% of one core for the entire duration of any
- * libretro-thread side activity that holds the VM paused (multi-MB
- * savestate write/read, GPU context recreate, etc.).
- *
- * Now cpu_thread sleeps on cpu_thread_cv with predicate
- * "state != Paused"; cpu_thread_resume() does the resume-side state
- * transition under the mutex and notifies. A 100 ms timeout on the
- * wait is belt-and-suspenders insurance against a missed notify - the
- * normal path is instant via notify_one(). */
-/* Counted semaphore instead of mutex+condvar: a Post is remembered, so
- * the resume side needs no lock to close the check-then-wait window -
- * if cpu_thread saw the old state and is about to Wait(), the Post
- * issued after the state store is already banked and the Wait returns
- * immediately.  Stale posts from earlier cycles are absorbed by the
- * predicate re-check loop around Wait(). */
-/* The EE parks here while Paused. An eventcount rather than a counted
- * semaphore: the predicate is the state word itself, every waker stores
- * the new state and then notifies, and prepare/commit is what makes a
- * store that lands between the EE's check and its park a wake rather
- * than a lost one -- the property the counted post used to provide. */
+ * Resumes are counted, and the EE records the count it has taken each
+ * time it sees Running. A pause waits for the EE to take the latest
+ * resume before it asks it to stop: a pause right behind a resume then
+ * stops the EE where any other pause does, at the next drained vsync
+ * (MTGSOwner.h), and not wherever it stood if its thread had not been
+ * scheduled in between. */
+static retro_atomic_int_t cpu_thread_resumes;
+static retro_atomic_int_t cpu_thread_resumes_taken;
+/* Initialised in retro_load_game, before the EE thread exists. */
 static retro_eventcount_t cpu_thread_resume_ec;
 static bool               cpu_thread_resume_ec_inited = false;
-static void cpu_thread_resume_ec_ensure(void)
-{
-	if (!cpu_thread_resume_ec_inited)
-	{
-		retro_eventcount_init(&cpu_thread_resume_ec);
-		cpu_thread_resume_ec_inited = true;
-	}
-}
 
 static freezeData fd = {};
 static std::unique_ptr<u8[]> fd_data;
@@ -413,22 +395,23 @@ static bool update_option_visibility(void)
 
 static void cpu_thread_pause(void)
 {
+	while (VMManager::GetState() == VMState::Running
+		&& retro_atomic_load_acquire_int(&cpu_thread_resumes_taken)
+		!= retro_atomic_load_acquire_int(&cpu_thread_resumes))
+		MTGS::MainLoop(true);
 	VMManager::SetPaused(true);
 	while((VMState)retro_atomic_load_acquire_int(&cpu_thread_state) != VMState::Paused)
 		MTGS::MainLoop(true);
 }
 
-/* Counterpart to cpu_thread_pause().  Store the new state, then Post:
- * because the semaphore counts, the post cannot be lost regardless of
- * where cpu_thread is in its check-then-wait.  Any new resume site
- * (replacing 'VMManager::SetPaused(false)' or
- * 'VMManager::SetState(VMState::Running)' that was paired with a prior
- * cpu_thread_pause) should call this instead. */
+/* Counterpart to cpu_thread_pause(): count the resume, store the new
+ * state, then notify. */
 static void cpu_thread_resume(void)
 {
+	retro_atomic_fetch_add_int(&cpu_thread_resumes, 1);
 	VMManager::SetPaused(false);
-	cpu_thread_resume_ec_ensure();
-	retro_eventcount_notify(&cpu_thread_resume_ec);
+	if (cpu_thread_resume_ec_inited)
+		retro_eventcount_notify(&cpu_thread_resume_ec);
 }
 
 /* Renderer-setting helpers. The "Renderer" menu has two SW entries
@@ -1611,168 +1594,10 @@ void vk_libretro_set_hwrender_interface(retro_hw_render_interface_vulkan *hw_ren
 
 void retro_set_audio_sample_batch(retro_audio_sample_batch_t cb) { batch_cb = cb; }
 void retro_set_video_refresh(retro_video_refresh_t cb) { video_cb = cb; }
-/* The core only ever uses batch_cb (audio is queued in bulk via
- * upload_output_audio_buffer at end-of-frame). The libretro API still
- * requires this symbol to exist, so accept the callback and discard. */
+/* The core only ever uses batch_cb (audio_queue.h). The libretro API
+ * still requires this symbol to exist, so accept the callback and
+ * discard. */
 void retro_set_audio_sample(retro_audio_sample_t /*cb*/) { }
-
-/* Audio output buffer.
- *
- * SPU2 writes stereo int16 samples directly into this buffer during
- * retro_run() via the reserve/commit pair below. One bulk batch_cb()
- * upload happens at the end of retro_run().
- *
- * Threading: SPU2 (cpu_thread) produces, upload_output_audio_buffer
- * (libretro thread) consumes.  The MTGS vsync barrier serializes them
- * in the steady state but NOT during boot/loads or whenever the EE
- * runs ahead of retro_run (TSan: commit racing the end-of-frame
- * upload).  The handoff is a retro_spsc byte queue - lock-free SPSC
- * with release/acquire cursors, no mutex anywhere near SPU2 timing
- * paths.  retro_audio_reserve hands SPU2 a pointer into a
- * producer-PRIVATE staging array (cpu_thread only, no sync), and
- * retro_audio_commit publishes the filled samples with one
- * retro_spsc_write.  The consumer drains in bounded chunks.
- *
- * Bounded by design: if the frontend stalls long enough to fill about
- * 1.3 s of audio, further chunks are dropped (counted, logged once)
- * instead of the previous realloc-grow-without-limit. */
-#define AUDIO_SPSC_BYTES    (1 << 18) /* 256 KB = 128K int16s, ~1.37 s stereo at 48 kHz */
-#define AUDIO_STAGING_INT16 16384     /* above SPU2 SAMPLECOUNT-capped max reserve (~9.6K) */
-static retro_spsc_t audio_spsc;
-static bool         audio_spsc_ok;
-static int16_t      audio_staging[AUDIO_STAGING_INT16];       /* cpu_thread-private */
-/* Producer mode for the reserve->commit pair in flight: true when
- * reserve handed out a span inside the ring (zero-copy), false when
- * it fell back to the staging array because the contiguous span at
- * the head was smaller than the request (once per ring lap).
- * cpu_thread-private. */
-static bool         audio_reserve_in_ring;
-static uint32_t     audio_dropped_samples;
-static bool         audio_drop_logged;
-
-
-static void init_output_audio_buffer(int32_t capacity)
-{
-   (void)capacity;
-   if (!audio_spsc_ok)
-      audio_spsc_ok = retro_spsc_init(&audio_spsc, AUDIO_SPSC_BYTES);
-   audio_dropped_samples = 0;
-   audio_drop_logged     = false;
-}
-
-static void free_output_audio_buffer(void)
-{
-   /* Called with cpu_thread joined and no upload in flight. */
-   if (audio_spsc_ok)
-   {
-      retro_spsc_free(&audio_spsc);
-      audio_spsc_ok = false;
-   }
-}
-
-static void upload_output_audio_buffer(void)
-{
-   /* Feed batch_cb directly from the ring: read_begin exposes the
-    * contiguous readable span, whose region the producer cannot touch
-    * until read_end frees it.  Frame granularity (4-byte commits)
-    * keeps every span whole-frame-sized and int16-aligned.  At most
-    * two iterations per drain (wrap).  An empty frame uploads
-    * nothing - synthetic silence would break the 48 kHz contract. */
-   const void *span;
-   size_t      span_bytes;
-   if (!audio_spsc_ok)
-      return;
-   while ((span_bytes = retro_spsc_read_begin(&audio_spsc, &span)) >= 2 * sizeof(int16_t))
-   {
-      const size_t take = span_bytes & ~(size_t)(2 * sizeof(int16_t) - 1);
-      batch_cb((const int16_t*)span, take / (2 * sizeof(int16_t)));
-      retro_spsc_read_end(&audio_spsc, take);
-   }
-}
-
-/* Reserve room for `max_samples` int16s past the current write position
- * and return a writable pointer to the start of that region. The caller
- * fills as many samples as it wants up to max_samples, then calls
- * retro_audio_commit() with the actual count.
- *
- * This avoids allocating a per-call stack batch (TimeUpdate is __fi /
- * always_inline, called from many sites; a 4800-stereo stack array
- * would balloon every caller's frame) and the intermediate memcpy
- * the previous push-style API required - SPU2's Mix() now writes
- * straight into the persistent buffer. */
-
-/* Discard everything queued.  Producer (cpu_thread) must be paused;
- * drains consumer-side because retro_spsc_clear requires both sides
- * stopped. */
-static void discard_buffered_audio(void)
-{
-   /* Producer (cpu_thread) must be paused; drains consumer-side
-    * because retro_spsc_clear requires both sides stopped.  Advances
-    * the tail without copying anything. */
-   const void *span;
-   size_t      span_bytes;
-   if (!audio_spsc_ok)
-      return;
-   while ((span_bytes = retro_spsc_read_begin(&audio_spsc, &span)) != 0)
-      retro_spsc_read_end(&audio_spsc, span_bytes);
-}
-
-extern "C" int16_t *retro_audio_reserve(int32_t max_samples)
-{
-   void  *span;
-   size_t span_bytes;
-   const size_t need = (size_t)max_samples * sizeof(int16_t);
-   if (max_samples > (int32_t)AUDIO_STAGING_INT16 || !audio_spsc_ok)
-      return NULL;
-   /* Common case: hand SPU2's Mix a span inside the ring itself -
-    * zero-copy end to end.  Every commit is a whole number of stereo
-    * frames (4 bytes), so head only ever advances by multiples of 4
-    * and the span is int16-aligned by construction.  Falls back to
-    * the producer-private staging array when the contiguous run to
-    * the physical end of the ring is smaller than the request, which
-    * happens at most once per ring lap (~1.3 s of audio). */
-   span_bytes = retro_spsc_write_begin(&audio_spsc, &span);
-   if (span_bytes >= need)
-   {
-      audio_reserve_in_ring = true;
-      return (int16_t*)span;
-   }
-   audio_reserve_in_ring = false;
-   return audio_staging;
-}
-
-extern "C" void retro_audio_commit(int32_t samples)
-{
-   const size_t bytes = (size_t)samples * sizeof(int16_t);
-   if (!samples)
-   {
-      if (audio_reserve_in_ring)
-         retro_spsc_write_end(&audio_spsc, 0); /* abandon */
-      return;
-   }
-   if (audio_reserve_in_ring)
-   {
-      /* Mix already wrote into the ring; publishing is one
-       * release-store. */
-      retro_spsc_write_end(&audio_spsc, bytes);
-      return;
-   }
-   /* Wrap fallback: staging -> ring, retro_spsc_write handles the
-    * split copy.  Total free space can still be short if the
-    * frontend stalled past ~1.3 s of buffered audio; drop rather
-    * than grow without bound. */
-   if (retro_spsc_write_avail(&audio_spsc) < bytes)
-   {
-      audio_dropped_samples += (uint32_t)samples;
-      if (!audio_drop_logged)
-      {
-         audio_drop_logged = true;
-         log_cb(RETRO_LOG_WARN, "Audio SPSC queue full; dropping samples (frontend stalled?)\n");
-      }
-      return;
-   }
-   retro_spsc_write(&audio_spsc, audio_staging, bytes);
-}
 
 void retro_set_environment(retro_environment_t cb)
 {
@@ -1836,7 +1661,8 @@ static bool RETRO_CALLCONV set_eject_state(bool ejected)
 	 * be a problem.
 	 *
 	 * Park the EE for the swap, the way retro_serialize does for the
-	 * same reason.  Guarded on there being a VM at all, because
+	 * same reason; the next retro_run lets it go.  Guarded on there
+	 * being a VM at all, because
 	 * cpu_thread_pause waits for a thread that has to exist to answer -
 	 * a frontend may eject before content is loaded. */
 	const bool vm_live = VMManager::HasValidVM();
@@ -1861,9 +1687,6 @@ static bool RETRO_CALLCONV set_eject_state(bool ejected)
 		VMManager::ChangeDisc(CDVD_SourceType::Iso, disk_images[image_index]);
 		cdvdCtrlTrayClose();
 	}
-
-	if (vm_live)
-		cpu_thread_resume();
 
 	disk_ejected = ejected;
 	return true;
@@ -1973,7 +1796,10 @@ extern "C" void pcsx2_jithash_dump(void);
 void retro_deinit(void)
 {
 	pcsx2_jithash_dump();
-	free_output_audio_buffer();
+	if (audio_queue_dropped)
+		log_cb(RETRO_LOG_WARN, "%u audio samples dropped: the frontend stopped taking audio\n",
+			(unsigned)audio_queue_dropped);
+	audio_queue_free();
 	// WIN32 doesn't allow canceling threads from global constructors/destructors in a shared library.
 	vu1Thread.Close();
 }
@@ -2063,11 +1889,10 @@ void retro_reset(void)
 {
 	cpu_thread_pause();
 	VMManager::Reset();
-	/* Discard any audio buffered before the reset; carrying pre-reset
-	 * samples into the post-reset stream causes audible glitches and
-	 * leaves the buffer in a non-deterministic starting state. */
-	discard_buffered_audio();
-	cpu_thread_resume();
+	/* The frame and the audio the EE had ready are the old machine's.
+	 * The next retro_run starts the new one. */
+	mtgs_pending.pending = 0;
+	audio_queue_discard();
 }
 
 /* See GSDevice12.cpp and GSDevice11.cpp. */
@@ -2143,22 +1968,16 @@ static void libretro_context_reset(void)
 		defrost();
 		GS_HW_CONTEXT_END();
 	}
-
-	cpu_thread_resume();
+	/* The EE stays paused: the next retro_run presents the frame the
+	 * teardown's drain kept and lets it go. */
 }
 
 static void libretro_context_destroy(void)
 {
-	/* Pausing drains the GS ring, and since the EE runs a frame ahead
-	 * the drain finds that frame's vsync in it. It is consumed here and
-	 * not presented: a present is a video_refresh from inside the
-	 * frontend's own context teardown, on the context being torn down.
-	 * RetroArch up to 1.22 holds its context lock across this callback
-	 * and takes it again at the top of video_refresh, and hangs there
-	 * for good (issue #171). */
-	mtgs_hold_present(1);
+	/* Pausing drains the GS ring, and the frame the EE had ready is kept
+	 * for the next retro_run (MTGSOwner.h): nothing is presented from
+	 * inside the frontend's own context teardown. */
 	cpu_thread_pause();
-	mtgs_hold_present(0);
 
 #ifdef ENABLE_VULKAN
 	/* The frontend keeps replaying the last set_image (cached-frame
@@ -2356,6 +2175,8 @@ static void cpu_thread_entry(VMBootParameters boot_params)
 						continue;
 
 					case VMState::Running:
+						retro_atomic_store_release_int(&cpu_thread_resumes_taken,
+							retro_atomic_load_acquire_int(&cpu_thread_resumes));
 						VMManager::Execute();
 						continue;
 
@@ -2387,7 +2208,6 @@ static void cpu_thread_entry(VMBootParameters boot_params)
 						 * notifies; registering before the re-check is what
 						 * keeps that from being lost.  A full sleep lets a
 						 * paused core idle instead of waking to re-poll. */
-						cpu_thread_resume_ec_ensure();
 						while (VMManager::GetState() == VMState::Paused)
 						{
 							int key = retro_eventcount_prepare_wait(&cpu_thread_resume_ec);
@@ -2507,11 +2327,7 @@ void retro_init(void)
 
 	environ_cb(RETRO_ENVIRONMENT_SET_DISK_CONTROL_EXT_INTERFACE, &disk_control);
 
-	/* PAL: ~960 stereo samples/frame -> 1920 int16. NTSC: ~801 stereo
-	 * samples/frame -> 1602 int16. 4096 int16 (2048 stereo) gives us
-	 * headroom past the steady-state nominal so we don't realloc on
-	 * the first frame. */
-	init_output_audio_buffer(4096);
+	audio_queue_init();
 }
 
 static void get_first_track_from_cue(std::string &path)
@@ -2876,6 +2692,11 @@ bool retro_load_game(const struct retro_game_info* game)
 		retro_eventcount_init(&cpu_thread_boot_ec);
 		cpu_thread_boot_ec_inited = true;
 	}
+	if (!cpu_thread_resume_ec_inited)
+	{
+		retro_eventcount_init(&cpu_thread_resume_ec);
+		cpu_thread_resume_ec_inited = true;
+	}
 	cpu_thread_boot_params = boot_params;
 	cpu_thread = sthread_create_with_stack_size(cpu_thread_entry_trampoline, NULL,
 			VMManager::EMU_THREAD_STACK_SIZE);
@@ -2932,11 +2753,9 @@ void retro_unload_game(void)
 {
 	if (MTGS::IsOpen())
 	{
-		/* As in libretro_context_destroy: the frame the EE had ready is
-		 * consumed, not handed to a frontend that is unloading the game. */
-		mtgs_hold_present(1);
+		/* The frame the EE had ready is dropped with the game. */
 		cpu_thread_pause();
-		mtgs_hold_present(0);
+		mtgs_pending.pending = 0;
 		MTGS::CloseGS();
 	}
 
@@ -2952,8 +2771,8 @@ void retro_unload_game(void)
 	 * the new state and not sleep) or is already in Wait() (the banked
 	 * post wakes it), the wakeup cannot be lost.  The old mutex+condvar
 	 * version needed a lock across the notify for the same guarantee. */
-	cpu_thread_resume_ec_ensure();
-	retro_eventcount_notify(&cpu_thread_resume_ec);
+	if (cpu_thread_resume_ec_inited)
+		retro_eventcount_notify(&cpu_thread_resume_ec);
 	/* Input goes down before the join, as it always has: the ordering
 	 * here is not this commit's to change.  The teardown helper is
 	 * flagged, so it will not touch input a second time. */
@@ -2985,9 +2804,9 @@ void retro_unload_game(void)
  *    difference must not rebuild anything. Geometry does not need an announce
  *    at all on the HW-render path - SET_GEOMETRY carries it without a reinit,
  *    which is how the widescreen hint already does it.
- *  - Drain the GS thread before an announce that does go out, so no queued work
- *    races the frontend's reinit. The CPU thread is already parked here:
- *    retro_run has not resumed it yet. */
+ *  - Pause the EE before an announce that does go out, which drains the GS
+ *    ring, so no queued work races the frontend's reinit. The frame the EE
+ *    had ready is kept for this retro_run to present (MTGSOwner.h). */
 static void update_av_info(void)
 {
 	retro_system_av_info av_info;
@@ -3025,7 +2844,7 @@ static void update_av_info(void)
 	}
 
 	if (hw_vulkan && MTGS::IsOpen())
-		MTGS::WaitGS(false);
+		cpu_thread_pause();
 
 	environ_cb(RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO, &av_info);
 }
@@ -3050,27 +2869,45 @@ void retro_run(void)
 	{
 		/* No renderer, and the EE stays parked: the frame is the last. */
 		video_cb(NULL, 0, 0, 0);
-		upload_output_audio_buffer();
 		return;
 	}
 
 	if (!MTGS::IsOpen())
 		MTGS::TryOpenGS();
 
+	/* One frame, and that frame's audio. When something since the last
+	 * retro_run drained the ring, the frame the EE had ready is pending
+	 * and is this one (MTGSOwner.h); otherwise this waits for the EE's
+	 * next vsync. Either way the EE goes on with the input polled above:
+	 * here, if it is paused, and at the vsync otherwise. */
+	if (mtgs_present_pending())
+	{
+		audio_queue_upload(mtgs_pending.audio_mark, batch_cb);
+		if ((VMState)retro_atomic_load_acquire_int(&cpu_thread_state) == VMState::Paused)
+		{
+			pad_input_latch();
+			cpu_thread_resume();
+		}
+		return;
+	}
+
 	if ((VMState)retro_atomic_load_acquire_int(&cpu_thread_state) == VMState::Paused)
+	{
+		pad_input_latch();
 		cpu_thread_resume();
+	}
 
 	if (!MTGS::MainLoop(false))
 	{
 		/* Bounded-wait timeout: the EE thread delivered no vsync within
 		 * the window.  Dupe the previous frame so the frontend's frame
 		 * time iteration, input, and menu stay alive regardless of what
-		 * the emulation threads are doing. */
+		 * the emulation threads are doing; the frame and its audio come
+		 * with a later retro_run. */
 		video_cb(NULL, 0, 0, 0);
+		return;
 	}
-	upload_output_audio_buffer();
-
-
+	audio_queue_upload(mtgs_presented_mark, batch_cb);
 }
 
 std::optional<WindowInfo> Host::AcquireRenderWindow(void)
@@ -3105,24 +2942,26 @@ size_t retro_serialize_size(void)
 	size         += fP.size;
 	GSfreeze(FREEZE_SIZE, &fP);
 	size         += fP.size;
+	size         += state_ext_size();
 
 	return size;
 }
 
-/* Writes the whole machine into a state. The CPU thread must be paused and
- * the VU1 and GS threads quiesced. On return saveme owns its block. */
-static bool state_write(SaveStateBase* saveme, size_t size)
+/* Writes the whole machine into dst, size bytes, the size
+ * retro_serialize_size() gives: the emulator's blocks from the start,
+ * the extension block (state_ext.h) in the last bytes, and zeros between.
+ * The CPU thread must be paused and the VU1 and GS threads quiesced. */
+static bool state_write(void* dst, size_t size)
 {
 	freezeData fP;
+	SaveStateBase state;
+	SaveStateBase* saveme = &state;
+	const size_t ext = state_ext_size();
 
-	/* retro_serialize_size() already computed the upper bound on what we
-	 * need, so hand the writer an allocation that already covers it: the
-	 * growth inside FreezeMem/PrepBlock then never fires, and no section
-	 * (BIOS, internals, EE/IOP/VU memory, the SPU2/PAD/GS blocks) copies
-	 * the partial state as it accumulates. */
-	SaveState_Init(saveme, (u8 *)malloc(size), 0, size, true);
-	if (!saveme->memory)
+	if (size < ext)
 		return false;
+	SaveState_Init(saveme, (u8 *)dst, 0, size - ext, true);
+	saveme->fixed = true;
 
 	SaveState_FreezeBios(saveme);
 	SaveState_FreezeInternals(saveme);
@@ -3161,7 +3000,11 @@ static bool state_write(SaveStateBase* saveme, size_t size)
 	GSfreeze(FREEZE_SAVE, &fP);
 	SaveState_CommitBlock(saveme, fP.size);
 
-	return SaveState_IsOkay(saveme);
+	if (!SaveState_IsOkay(saveme))
+		return false;
+	memset((u8 *)dst + saveme->idx, 0, size - ext - (size_t)saveme->idx);
+	state_ext_write((u8 *)dst + size - ext);
+	return true;
 }
 
 /* Loads the whole machine from a state, stopping at the first block that
@@ -3172,6 +3015,9 @@ static bool state_read(const void* data, size_t size)
 {
 	freezeData fP;
 	SaveStateBase loadme;
+	/* The emulator's blocks end where the extension block starts. */
+	const size_t full_size = size;
+	size = state_ext_strip(data, size);
 
 	/* The live size is what PrepBlock and FreezeMem bound against, so the
 	 * whole payload counts as present from the start: otherwise the first
@@ -3255,8 +3101,11 @@ static bool state_read(const void* data, size_t size)
 		return false;
 	}
 	SaveState_CommitBlock(&loadme, fP.size);
+	if (!SaveState_IsOkay(&loadme))
+		return false;
 
-	return SaveState_IsOkay(&loadme);
+	state_ext_read(data, full_size);
+	return true;
 }
 
 /* Quiesce everything a state touches: the EE/main thread, and the MTVU
@@ -3272,32 +3121,26 @@ static void state_quiesce(void)
 
 bool retro_serialize(void* data, size_t size)
 {
-	SaveStateBase saveme;
 	bool ok;
 
 	state_quiesce();
-	ok = state_write(&saveme, size);
+	/* Straight into the frontend's buffer, which is bounded by size: a
+	 * state that would not fit is refused rather than grown into. */
+	ok = state_write(data, size);
+	if (!ok)
+		log_cb(RETRO_LOG_ERROR, "retro_serialize: the state does not fit "
+			"the %zu bytes given\n", size);
 
-	/* Bound the copy by the frontend-provided buffer size: if the
-	 * actual saved size somehow exceeds what retro_serialize_size()
-	 * predicted, refuse rather than overrun the caller's buffer. */
-	if (ok && saveme.memory_size > size)
-	{
-		log_cb(RETRO_LOG_ERROR, "retro_serialize: produced %zu bytes, "
-			"frontend buffer is only %zu\n", saveme.memory_size, size);
-		ok = false;
-	}
-	if (ok)
-		memcpy(data, saveme.memory, saveme.memory_size);
-	free(saveme.memory);
-
-	cpu_thread_resume();
+	/* The EE stays paused: the next retro_run presents the frame the
+	 * pause left pending and lets it go, so taking a state does not
+	 * move the machine on. */
 	return ok;
 }
 
 bool retro_unserialize(const void* data, size_t size)
 {
-	SaveStateBase backup;
+	const size_t backup_size = retro_serialize_size();
+	u8* backup = (u8 *)malloc(backup_size);
 	bool have_backup, ok;
 
 	state_quiesce();
@@ -3307,26 +3150,22 @@ bool retro_unserialize(const void* data, size_t size)
 	 * block, and every block after it would read as zeros. Running on from
 	 * that wipes main memory under live CPU state. Snapshot the machine
 	 * first and put it back if the load does not complete. */
-	have_backup = state_write(&backup, retro_serialize_size());
+	have_backup = backup && state_write(backup, backup_size);
 
 	ok = state_read(data, size);
 	if (!ok)
 	{
-		if (have_backup && state_read(backup.memory, backup.memory_size))
+		if (have_backup && state_read(backup, backup_size))
 			log_cb(RETRO_LOG_ERROR, "retro_unserialize: state not loaded; "
 				"the running game is unchanged\n");
 		else
 			log_cb(RETRO_LOG_ERROR, "retro_unserialize: state not loaded "
 				"and the running game could not be restored\n");
 	}
-	free(backup.memory);
+	free(backup);
 
 	if (ok)
 	{
-		/* Any pre-load samples in the buffer no longer match the SPU2
-		 * state just restored. */
-		discard_buffered_audio();
-
 		/* If the state was loaded before the game booted far enough for
 		 * the normal boot path to apply GameDB settings (e.g. RetroArch
 		 * Auto Load State), the game identity VMManager caches is still
@@ -3340,7 +3179,8 @@ bool retro_unserialize(const void* data, size_t size)
 		VMManager::RefreshRunningGameAfterStateLoad();
 	}
 
-	cpu_thread_resume();
+	/* Paused until the next retro_run, which presents the frame the
+	 * state left pending. */
 	return ok;
 }
 
