@@ -3911,12 +3911,14 @@ namespace {
 			m.Str(x0, RegsField(&cpuRegs.cycle));
 		};
 
+		// JR/JALR target first: `jalr rd, rs` with rd == rs jumps to the old
+		// rs (JALR() in Interpreter.cpp reads it before _SetLink).
+		if (is_jr) LoadGpr(m, x20, gpr, rs);
 		// Link value is ZERO-extended to match the interpreter's _SetLink
 		// (R5900.h: UD[0] = u32 pc+4) -- NOT sign-extended as real MIPS64 would.
 		// Kernel return addresses (0x8xxxxxxx) otherwise get 0xffffffff upper
 		// halves that the interpreter path never produces.
 		if (link > 0) { m.Mov(w0, bpc + 8); StoreGpr(m, x0, gpr, (u32)link); }
-		if (is_jr) LoadGpr(m, x20, gpr, rs);
 
 		if (uncond)
 		{

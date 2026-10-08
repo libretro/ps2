@@ -66,6 +66,10 @@ echo "== arm64 EE rec cpuRegs access widths vs R5900.h =="
 "$CC" -O1 -g -Wall $SANFLAGS -o "$DIR/ee_cyclewidth" "$DIR/cyclewidth.c"
 "$DIR/ee_cyclewidth" "$ROOT/pcsx2/R5900.h" "$ROOT/pcsx2/arm64/recR5900_arm64.cpp"
 
+echo "== arm64 EE/IOP recs: JALR reads its target before the link =="
+"$CC" -O1 -g -Wall $SANFLAGS -o "$DIR/ee_linkorder" "$DIR/linkorder.c"
+"$DIR/ee_linkorder" "$ROOT/pcsx2/arm64/recR5900_arm64.cpp" "$ROOT/pcsx2/arm64/recR3000A_arm64.cpp"
+
 echo "== EE ALU driven through R5900OpcodeImpl.cpp vs console =="
 EXPECTED="${PS2AUTOTESTS:-}/tests/cpu/ee"
 if [ -d "$EXPECTED" ]; then

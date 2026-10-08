@@ -659,12 +659,15 @@ namespace
 			return true;
 		}
 
-		// link (before the delay slot, unconditionally)
+		// JR/JALR target: read before the link is written -- `jalr rd, rs`
+		// with rd == rs jumps to the old rs (psxJALR)
+		if (is_jr) { LoadGpr(m, w21, gpr, rs); }
+		// link (before the delay slot, unconditionally); the BxxZAL condition
+		// below reads rs after it, as psxBGEZAL/psxBLTZAL do
 		if (link > 0) { m.Mov(w0, bpc + 8); StoreGpr(m, w0, gpr, (u32)link); }
-		// snapshot condition operands / jr target before the delay slot can clobber them
+		// snapshot condition operands before the delay slot can clobber them
 		if (two)   { LoadGpr(m, w20, gpr, rs); LoadGpr(m, w21, gpr, rt); }
 		else if (one) { LoadGpr(m, w20, gpr, rs); }
-		if (is_jr) { LoadGpr(m, w21, gpr, rs); }
 		// the always-executed delay slot
 		EmitSimple(m, gpr, ds);
 		// time: n_leading native ops + the branch + the delay slot
