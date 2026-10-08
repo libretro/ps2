@@ -189,8 +189,8 @@ static int check_backwards_cso(const char *path)
 
 int main(int argc, char **argv)
 {
-   const char *iso = "/tmp/cdvdread.iso";
-   const char *cso = "/tmp/cdvdread.cso";
+   const char *iso = "cdvdread.iso";
+   const char *cso = "cdvdread.cso";
    const char *dir = (argc > 1) ? argv[1] : ".";
    uint8_t *image  = (uint8_t*)malloc(SECTOR * SECTORS);
    uint8_t got[2456];
