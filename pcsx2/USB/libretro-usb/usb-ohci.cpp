@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include "USB/libretro-usb/queue.h"
 #include "USB/libretro-usb/USBinternal.h"
+#include "USB/libretro-usb/ohci_dma.h"
 #include "IopMem.h"
 
 
@@ -284,7 +285,7 @@ void ohci_hard_reset(OHCIState* ohci)
 /* Get an array of dwords from main memory */
 __fi static int get_dwords(u32 addr, u32* buf, u32 num)
 {
-	if ((addr + (num * sizeof(u32))) > Ps2MemSize::IopRam)
+	if (!OHCI_DMA_FITS(addr, num * sizeof(u32), Ps2MemSize::IopRam))
 		return 0;
 
 	memcpy(buf, iopMem->Main + addr, num * sizeof(u32));
@@ -294,7 +295,7 @@ __fi static int get_dwords(u32 addr, u32* buf, u32 num)
 /* Get an array of words from main memory */
 __fi static int get_words(u32 addr, u16* buf, u32 num)
 {
-	if ((addr + (num * sizeof(u16))) > Ps2MemSize::IopRam)
+	if (!OHCI_DMA_FITS(addr, num * sizeof(u16), Ps2MemSize::IopRam))
 		return 0;
 
 	memcpy(buf, iopMem->Main + addr, num * sizeof(u16));
@@ -304,7 +305,7 @@ __fi static int get_words(u32 addr, u16* buf, u32 num)
 /* Put an array of dwords in to main memory */
 __fi static int put_dwords(u32 addr, u32* buf, u32 num)
 {
-	if ((addr + (num * sizeof(u32))) > Ps2MemSize::IopRam)
+	if (!OHCI_DMA_FITS(addr, num * sizeof(u32), Ps2MemSize::IopRam))
 		return 0;
 
 	memcpy(iopMem->Main + addr, buf, num * sizeof(u32));
@@ -314,7 +315,7 @@ __fi static int put_dwords(u32 addr, u32* buf, u32 num)
 /* Put an array of dwords in to main memory */
 __fi static int put_words(u32 addr, u16* buf, u32 num)
 {
-	if ((addr + (num * sizeof(u16))) > Ps2MemSize::IopRam)
+	if (!OHCI_DMA_FITS(addr, num * sizeof(u16), Ps2MemSize::IopRam))
 		return 0;
 
 	memcpy(iopMem->Main + addr, buf, num * sizeof(u16));
@@ -358,67 +359,19 @@ static inline int ohci_put_iso_td(OHCIState* ohci, u32 addr, struct ohci_iso_td*
 		   put_words(addr + 16, td->offset, 8);
 }
 
-/* Read/Write the contents of a TD from/to main memory.  */
+/* Read/Write the contents of a TD from/to main memory: ohci_dma.h. */
 static int ohci_copy_td(OHCIState* ohci, struct ohci_td* td, uint8_t* buf, u32 len, int write)
 {
-	u32 ptr = td->cbp;
-	const u32 n = std::min<u32>(0x1000 - (ptr & 0xfff), len);
-
-	if ((ptr + n) > Ps2MemSize::IopRam)
-		return 1;
-
-	if (write)
-		memcpy(iopMem->Main + ptr, buf, len);
-	else
-		memcpy(buf, iopMem->Main + ptr, len);
-
-	if (n == len)
-		return 0;
-	ptr = td->be & ~0xfffu;
-	buf += n;
-	len -= n;
-
-	if ((ptr + n) > Ps2MemSize::IopRam)
-		return 1;
-
-	if (write)
-		memcpy(iopMem->Main + ptr, buf, len);
-	else
-		memcpy(buf, iopMem->Main + ptr, len);
-
-	return 0;
+	(void)ohci;
+	return ohci_dma_copy(iopMem->Main, Ps2MemSize::IopRam, td->cbp, td->be, buf, len, write);
 }
 
-/* Read/Write the contents of an ISO TD from/to main memory.  */
+/* Read/Write the contents of an ISO TD from/to main memory: ohci_dma.h. */
 static int ohci_copy_iso_td(OHCIState* ohci, u32 start_addr, u32 end_addr,
 							uint8_t* buf, u32 len, int write)
 {
-	u32 ptr = start_addr;
-	const u32 n = std::min<u32>(0x1000 - (ptr & 0xfff), len);
-
-	if ((ptr + n) > Ps2MemSize::IopRam)
-		return 1;
-
-	if (write)
-		memcpy(iopMem->Main + ptr, buf, len);
-	else
-		memcpy(buf, iopMem->Main + ptr, len);
-
-	if (n == len)
-		return 0;
-	ptr = end_addr & ~0xfffu;
-	buf += n;
-	len -= n;
-
-	if ((ptr + n) > Ps2MemSize::IopRam)
-		return 1;
-
-	if (write)
-		memcpy(iopMem->Main + ptr, buf, len);
-	else
-		memcpy(buf, iopMem->Main + ptr, len);
-
-	return 0;
+	(void)ohci;
+	return ohci_dma_copy(iopMem->Main, Ps2MemSize::IopRam, start_addr, end_addr, buf, len, write);
 }
 
 static void ohci_process_lists(OHCIState* ohci, int completion);
@@ -1147,10 +1100,10 @@ void ohci_frame_boundary(void* opaque)
 	ohci->frame_number = (ohci->frame_number + 1) & 0xffff;
 	hcca->frame = ohci->frame_number;
 
-	if (ohci->done_count == 0 && !(ohci->intr_status & OHCI_INTR_WD))
+	/* An empty done queue has nothing to write back: the counter runs
+	 * on, and the write-back waits for a TD to retire. */
+	if (ohci->done_count == 0 && !(ohci->intr_status & OHCI_INTR_WD) && ohci->done)
 	{
-		if (!ohci->done)
-			abort();
 		if (ohci->intr & ohci->intr_status)
 			ohci->done |= 1;
 		hcca->done = ohci->done;

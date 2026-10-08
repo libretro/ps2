@@ -703,8 +703,8 @@ int hid_pointer_poll(HIDState* hs, uint8_t* buf, int len)
 			}
 			break;
 
-		default:
-			abort();
+		default: /* not a pointer: no report */
+			break;
 	}
 
 	return l;

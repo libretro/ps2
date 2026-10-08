@@ -811,6 +811,8 @@ set(pcsx2USBSources
 	USB/libretro-usb/input-keymap-qcode-to-qnum.cpp
 	USB/libretro-usb/usb-hid.cpp
 	USB/libretro-usb/usb-ohci.cpp
+	USB/libretro-usb/ohci_dma.c
+	USB/libretro-usb/ohci_dma.h
 	USB/shared/ringbuffer.cpp
 )
 set(pcsx2USBHeaders

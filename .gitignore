@@ -197,3 +197,4 @@ tests/ata/*.img
 /tests/gsgroup/gsgroup
 /tests/gsscratch/gsscratch
 /tests/cdvdread/cdvd_read
+/tests/ohcidma/ohcidma
