@@ -694,29 +694,16 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 
 	bool GSDeviceVK::CreateHeap()
 	{
-		/* One VkDeviceMemory is this big, and the blocks reserved below
-		 * are taken now so that a frame never asks the driver for one.
-		 * The size is the console's: everything a PS2 game has at once
-		 * lives in four megabytes of GS memory, so all of it as host
-		 * textures at this upscale is that times the scale squared, and
-		 * a block holds a couple of those. */
+		/* One VkDeviceMemory is 64 MB: a block a game can actually empty
+		 * is one small enough to be filled by one kind of thing, and a
+		 * block is only given back when it is empty. The blocks reserved
+		 * below are taken now so that a frame never asks the driver for
+		 * one. */
 		const float scale = GSConfig.UpscaleMultiplier > 0.0f ? GSConfig.UpscaleMultiplier : 1.0f;
-		u64 block = (u64)((float)VM_SIZE * scale * scale) * 2u;
+		const u64 block = 64ull * 1024ull * 1024ull;
 		VkPhysicalDeviceMemoryProperties mem_props;
 		VkPhysicalDeviceProperties dev_props;
 		gs_vk_heap_fns_t fns;
-
-		if (block < 64ull * 1024ull * 1024ull)
-			block = 64ull * 1024ull * 1024ull;
-		/* 64 MB, not 512. Two reasons, both from the last run's log.
-		 * "4096 MB reserved, 3199 MB used" is 900 MB of block tails
-		 * that nothing can reach, and a block is only given back when
-		 * it is entirely empty, which at 512 MB never happens once
-		 * allocations are scattered through it - so the trim added last
-		 * time returned nothing. A block a game can actually empty is
-		 * one small enough to be filled by one kind of thing. */
-		if (block > 64ull * 1024ull * 1024ull)
-			block = 64ull * 1024ull * 1024ull;
 
 		vkGetPhysicalDeviceMemoryProperties(vk_init_info.gpu, &mem_props);
 		vkGetPhysicalDeviceProperties(vk_init_info.gpu, &dev_props);
@@ -731,19 +718,23 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 		/* And a ceiling, because a heap without one takes blocks until
 		 * the card is gone.
 		 *
-		 * Sixteen times what everything a PS2 game has at once costs at
-		 * this upscale, because the budgets above the heap already come
-		 * to more than half that: the pool may hold four live sets of
-		 * targets and two of textures, the cache two of live targets,
-		 * the upload buffers one, and the hash cache its own. A ceiling
-		 * under that sum refuses allocations the renderer is entitled to
-		 * make, and the code above does not all cope with being refused.
-		 * Never fewer than four blocks either, or at native the ceiling
-		 * would be smaller than one block. */
-		u64 ceiling = (u64)((float)VM_SIZE * scale * scale) * 16u;
-
-		if (ceiling < block * 4u)
-			ceiling = block * 4u;
+		 * What textures and targets may take is sixteen times what
+		 * everything a PS2 game has at once costs at this upscale,
+		 * because the budgets above the heap already come to more than
+		 * half that: the pool may hold four live sets of targets and two
+		 * of textures, the cache two of live targets, the upload buffers
+		 * one, and the hash cache its own. A ceiling under that sum
+		 * refuses allocations the renderer is entitled to make, and the
+		 * code above does not all cope with being refused.
+		 *
+		 * The buffers made once at startup come on top: buffers and images
+		 * never share a block, so they take blocks of their own, and the
+		 * last of them must not find the ceiling already reached. */
+		const u64 working_set = (u64)((float)VM_SIZE * scale * scale);
+		const u64 fixed = (u64)TEXTURE_BUFFER_SIZE + VERTEX_BUFFER_SIZE + INDEX_BUFFER_SIZE
+			+ VERTEX_UNIFORM_BUFFER_SIZE + FRAGMENT_UNIFORM_BUFFER_SIZE
+			+ 2u * (u64)EXPAND_BUFFER_SIZE;
+		const u64 ceiling = gs_vk_heap_ceiling(working_set, block, fixed);
 
 		if (!gs_vk_heap_init(&m_heap, vk_init_info.device, &mem_props, &fns, block,
 				dev_props.limits.nonCoherentAtomSize, ceiling))

@@ -122,6 +122,106 @@ static void req(VkMemoryRequirements *r, VkDeviceSize size, VkDeviceSize align, 
    r->memoryTypeBits = bits;
 }
 
+/* What GSDeviceVK::CreateHeap and CreateBuffers do at startup, in order:
+ * two image blocks and one buffer block reserved, then the texture upload
+ * buffer, the vertex, index and two uniform stream buffers (host visible,
+ * preferring device local), and the expansion index buffer - a host-visible
+ * staging copy and its device-local home. Every one must be had, at every
+ * upscale, whatever memory types the device offers. */
+#define STARTUP_TEXTURE_UPLOAD (64u * 1024u * 1024u)
+#define STARTUP_EXPAND         (2u * 16383u * 6u)
+
+static int startup(const VkPhysicalDeviceMemoryProperties *p, const gs_vk_heap_fns_t *fns,
+      unsigned scale)
+{
+   static const VkDeviceSize streams[4] = {
+      32u * 1024u * 1024u, 16u * 1024u * 1024u, 8u * 1024u * 1024u, 8u * 1024u * 1024u };
+   const VkMemoryPropertyFlags hv = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+      | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+   const VkDeviceSize block = 64u * 1024u * 1024u;
+   const VkDeviceSize fixed = (VkDeviceSize)STARTUP_TEXTURE_UPLOAD + streams[0] + streams[1]
+      + streams[2] + streams[3] + 2u * (VkDeviceSize)STARTUP_EXPAND;
+   gs_vk_heap_t h;
+   gs_vk_alloc_t a;
+   VkMemoryRequirements r;
+   int ok = 1, i;
+
+   memset(&h, 0, sizeof(h));
+   if (!gs_vk_heap_init(&h, (VkDevice)1, p, fns, block, 256,
+            gs_vk_heap_ceiling((VkDeviceSize)4194304u * scale * scale, block, fixed)))
+      return 0;
+   gs_vk_heap_reserve(&h, ~0u, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, 2);
+   gs_vk_heap_reserve(&h, ~0u, hv, 1, 1);
+
+   req(&r, STARTUP_TEXTURE_UPLOAD, 256, ~0u);
+   ok &= gs_vk_heap_alloc(&h, &r, hv, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 1, &a) != 0;
+   for (i = 0; i < 4; i++)
+   {
+      req(&r, streams[i], 256, ~0u);
+      ok &= gs_vk_heap_alloc(&h, &r, hv, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 1, &a) != 0;
+   }
+   req(&r, STARTUP_EXPAND, 256, ~0u);
+   ok &= gs_vk_heap_alloc(&h, &r, hv, 0, 1, &a) != 0;
+   ok &= gs_vk_heap_alloc(&h, &r, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, 1, &a) != 0;
+
+   /* And the two image blocks reserved for the first frames are still
+    * there: the buffers did not have to give them back to fit. */
+   {
+      unsigned b, image_blocks = 0;
+      for (b = 0; b < h.block_count; b++)
+         if (h.blocks[b].memory && !h.blocks[b].linear)
+            image_blocks++;
+      ok &= image_blocks == 2;
+   }
+   gs_vk_heap_shutdown(&h);
+   return ok;
+}
+
+static void check_startup(const gs_vk_heap_fns_t *fns)
+{
+   const VkMemoryPropertyFlags dl = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+   const VkMemoryPropertyFlags hv = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+      | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+   static const unsigned scales[] = { 1, 2, 3, 4, 8 };
+   const char *names[4] = { "unified, private and shared types", "unified, one type",
+      "discrete without a BAR", "discrete with a 256 MB BAR" };
+   VkPhysicalDeviceMemoryProperties p[4];
+   char what[96];
+   unsigned l, s;
+
+   memset(p, 0, sizeof(p));
+   p[0].memoryHeapCount = 1; p[0].memoryHeaps[0].size = 16384ull * 1024u * 1024u;
+   p[0].memoryTypeCount = 2;
+   p[0].memoryTypes[0].propertyFlags = dl;
+   p[0].memoryTypes[1].propertyFlags = dl | hv;
+
+   p[1].memoryHeapCount = 1; p[1].memoryHeaps[0].size = 16384ull * 1024u * 1024u;
+   p[1].memoryTypeCount = 1;
+   p[1].memoryTypes[0].propertyFlags = dl | hv;
+
+   p[2].memoryHeapCount = 2;
+   p[2].memoryHeaps[0].size = 8192ull * 1024u * 1024u;
+   p[2].memoryHeaps[1].size = 16384ull * 1024u * 1024u;
+   p[2].memoryTypeCount = 2;
+   p[2].memoryTypes[0].propertyFlags = dl;
+   p[2].memoryTypes[1].propertyFlags = hv;
+   p[2].memoryTypes[1].heapIndex     = 1;
+
+   p[3] = p[2];
+   p[3].memoryHeapCount = 3;
+   p[3].memoryHeaps[2].size = 256ull * 1024u * 1024u;
+   p[3].memoryTypeCount = 3;
+   p[3].memoryTypes[2].propertyFlags = dl | hv;
+   p[3].memoryTypes[2].heapIndex     = 2;
+
+   for (l = 0; l < 4; l++)
+      for (s = 0; s < sizeof(scales) / sizeof(scales[0]); s++)
+      {
+         sprintf(what, "startup: %s at %ux has every buffer and keeps its image blocks", names[l], scales[s]);
+         CHECK(startup(&p[l], fns, scales[s]), what);
+      }
+}
+
 int main(void)
 {
    VkPhysicalDeviceMemoryProperties props;
@@ -664,6 +764,8 @@ int main(void)
                "churn: each block is one free span again");
       gs_vk_heap_shutdown(&c);
    }
+
+   check_startup(&fns);
 
    frees = 0;
    gs_vk_heap_shutdown(&heap);

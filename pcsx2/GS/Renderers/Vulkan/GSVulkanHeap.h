@@ -126,6 +126,15 @@ int  gs_vk_heap_init(gs_vk_heap_t *heap, VkDevice device,
 
 void gs_vk_heap_shutdown(gs_vk_heap_t *heap);
 
+/* The ceiling for a renderer whose working set - everything the console
+ * holds at once, at the upscale - is working_set, with fixed bytes of
+ * buffers made once at startup. Sixteen working sets, never under four
+ * blocks, bound what textures and targets may take; the fixed buffers
+ * come on top of that, rounded up to blocks, and one more block for the
+ * part of a block each memory type they land in can leave unused. */
+VkDeviceSize gs_vk_heap_ceiling(VkDeviceSize working_set, VkDeviceSize block,
+      VkDeviceSize fixed);
+
 /* Takes blocks from the driver now, so that later allocations of this
  * kind are offsets. type_bits and flags are as a VkMemoryRequirements
  * would give, linear as for gs_vk_heap_alloc. Every type with flags is

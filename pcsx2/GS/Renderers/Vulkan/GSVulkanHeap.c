@@ -201,6 +201,16 @@ int gs_vk_heap_init(gs_vk_heap_t *heap, VkDevice device,
    return 1;
 }
 
+VkDeviceSize gs_vk_heap_ceiling(VkDeviceSize working_set, VkDeviceSize block,
+      VkDeviceSize fixed)
+{
+   VkDeviceSize ceiling = working_set * 16u;
+
+   if (ceiling < block * 4u)
+      ceiling = block * 4u;
+   return ceiling + gs_vk_align_up(fixed, block) + block;
+}
+
 void gs_vk_heap_shutdown(gs_vk_heap_t *heap)
 {
    unsigned i;
