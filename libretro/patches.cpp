@@ -896,12 +896,6 @@ int lrps2_ingame_patches(const char *serial,
 					/* skip overwriting the DISPLAY2 register values 
 					 * with the 480p ones */
 					"patch=1,EE,00117388,word,10000011", /* 10600011 */
-					/* disable the battle transition warp additive dissolve effect - 
-					 * it does crash sometimes when left enabled, uncomment this 
-					 * if you encounter a crash during a loading of the battle */
-#if 0
-					"patch=1,EE,00308548,word,1000015B", /* 10A0015B */
-#endif
 					/* fix the missing icons in battle mode */
 					"patch=1,EE,E0011983,extended,00361AE4",
 					"patch=1,EE,20361AE4,extended,24031000",
@@ -4763,11 +4757,6 @@ int lrps2_ingame_patches(const char *serial,
 					"patch=1,EE,00268f40,word,24020078",
 					"patch=1,EE,203e4340,extended,00000174",
 					"patch=1,EE,203e4360,extended,00000174"
-#if 0
-					/* black borders fix (optional) */
-					"patch=1,EE,00244d90,word,24060000",
-					"patch=1,EE,00244da4,word,24c801c0"
-#endif
 				};
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
@@ -5079,7 +5068,6 @@ int lrps2_ingame_patches(const char *serial,
 			/* Fantavision (PAL-M5) [CRC: ] */
 			else if (!strcmp(serial, "SCES-50002")) 
 			{
-#if 1
 				/* Hor+ */
 				static const char *const patches[] = {
 					"patch=1,EE,901bab58,extended,0c06ea7c",
@@ -5087,17 +5075,6 @@ int lrps2_ingame_patches(const char *serial,
 					"patch=1,EE,20193f50,extended,3c0143f0" /* 3c014420 */
 				};
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Fantavision (PAL)]: 16:9 (Hor+) Widescreen patch applied.\n");
-#else
-/* Vert- */
-				static const char *const patches[] = {
-					"patch=1,EE,901bab58,extended,0c06ea7c",
-					/* Zoom */
-					"patch=1,EE,20193fe4,extended,3c013ec0", /* 3c013f00 */
-					/* Y-Fov */
-					"patch=1,EE,20193fc8,extended,3c013eb4"  /* 3c013ef0 */
-				};
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Fantavision (PAL)]: 16:9 (Vert-) Widescreen patch applied.\n");
-#endif
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
 			}
@@ -5299,21 +5276,12 @@ int lrps2_ingame_patches(const char *serial,
 			else if (!strcmp(serial, "SLES-51877")) /* 16:9 */
 			{
 				/* Patch courtesy: ElHecht */
-#if 1
 				static const char *const patches[] = {
 					"patch=1,EE,2060EC20,word,3FA3A283" /* 3FDA2E04 X-RES */
 				};
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Bloody Roar 4 (NTSC-U)]: 16:9 (Hor+) Widescreen patch applied.\n");
-#else
-				static const char *const patches[] = {
-					"patch=1,EE,2060EC20,word,40117402" /* 40117402 Y-RES */
-				};
-				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
-					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Bloody Roar 4 (NTSC-U)]: 16:9 (Vert-) Widescreen patch applied.\n");
-#endif
 			}
 			/* BMX XXX (SLES-51365) [CRC: 3A48B51C] */
 			else if (!strcmp(serial, "SLES-51365"))
@@ -5993,7 +5961,6 @@ int lrps2_ingame_patches(const char *serial,
 			/* Jikuu Bouken Zentrix (NTSC-J) [CRC: F6ACFAA1] */
 			else if (!strcmp(serial, "SLPS-25498")) /* 16:9 */
 			{
-#if 1
 				/* Hor+ */
 				static const char *const patches[] = {
 					/* X-Fov */
@@ -6002,18 +5969,6 @@ int lrps2_ingame_patches(const char *serial,
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Jikuu Bouken Zentrix (NTSC-J)]: 16:9 (Hor+) Widescreen patch applied.\n");
-#else
-				/* Vert- */
-				static const char *const patches[] = {
-					/* Y-Fov */
-					"patch=1,EE,00223aac,word,3c013f40", /* 00000000 */
-					"patch=1,EE,00223ab0,word,4481f000", /* 00000000 */
-					"patch=1,EE,00223ab8,word,461e6302" /* 46150303 */
-				};
-				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
-					LoadPatchesFromString(patches[i]);
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Jikuu Bouken Zentrix (NTSC-J)]: 16:9 (Vert-) Widescreen patch applied.\n");
-#endif
 			}
 			/* Kagero 2: Dark Illusion (NTSC-J) [CRC: 5FEE89E0) */
 			else if (!strcmp(serial, "SLPS-25445")) /* 16:9 */
@@ -6030,12 +5985,6 @@ int lrps2_ingame_patches(const char *serial,
 					/* font fix for cut-scenes
 					 * c041023c 00608244 (1st)  */
 					"patch=1,EE,001c86f0,word,3c024190", /* 3c0241c0 */
-					/* remove black bars in cut-scenes
-					 * 2044023c 3000bfff 00608244 */
-#if 0
-					"patch=1,EE,001e7234,word,3c020000", /* 3c024420 */
-					"patch=1,EE,001e7280,word,3c020000" /* 3c024420 */
-#endif
 				};
 				for (size_t i = 0; i < sizeof(patches) / sizeof(patches[0]); i++)
 					LoadPatchesFromString(patches[i]);
@@ -6178,12 +6127,6 @@ int lrps2_ingame_patches(const char *serial,
 			{
 				/* Patch courtesy: LittleGiant */
 				static const char *const patches[] = {
-#if 0
-					/* black borders's fix (optional) */
-					"patch=1,EE,001945E4,word,24634230", /* 24634260 */
-					"patch=1,EE,001947e0,word,24634230", /* 24634260 */
-					"patch=1,EE,001948B4,word,24644230" /* 24644260 */
-#endif
 						/* 16:9 */
 					"patch=1,EE,0013e3b4,word,3c023f40", /* 3c023f80 game play */
 					"patch=1,EE,0013d9d4,word,3c023f40", /* 3c023f80 cutscenes fix */
