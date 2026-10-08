@@ -62,9 +62,10 @@ echo "== EE dispatch tables vs the R5900 encoding =="
 "$CC" -O1 -g -Wall $SANFLAGS -o "$DIR/ee_tabaudit" "$DIR/tabaudit.c"
 "$DIR/ee_tabaudit" "$ROOT/pcsx2/R5900OpcodeTables.cpp"
 
-echo "== arm64 EE rec cpuRegs access widths vs R5900.h =="
+echo "== arm64 EE/IOP recs: register-file access widths vs their headers =="
 "$CC" -O1 -g -Wall $SANFLAGS -o "$DIR/ee_cyclewidth" "$DIR/cyclewidth.c"
-"$DIR/ee_cyclewidth" "$ROOT/pcsx2/R5900.h" "$ROOT/pcsx2/arm64/recR5900_arm64.cpp"
+"$DIR/ee_cyclewidth" "$ROOT/pcsx2/R5900.h" cpuRegisters cpuRegs "$ROOT/pcsx2/arm64/recR5900_arm64.cpp"
+"$DIR/ee_cyclewidth" "$ROOT/pcsx2/R3000A.h" psxRegisters psxRegs "$ROOT/pcsx2/arm64/recR3000A_arm64.cpp"
 
 echo "== arm64 EE/IOP recs: JALR reads its target before the link =="
 "$CC" -O1 -g -Wall $SANFLAGS -o "$DIR/ee_linkorder" "$DIR/linkorder.c"

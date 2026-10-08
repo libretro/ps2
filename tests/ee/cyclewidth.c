@@ -1,7 +1,8 @@
-/*  EE recompiler register-file width audit.
+/*  arm64 recompiler register-file width audit.
  *
- *  The arm64 EE recompiler reaches cpuRegs fields through RegsField(),
- *  and the register named in the access sets its width: a w register
+ *  The arm64 EE and IOP recompilers reach cpuRegs and psxRegs fields
+ *  through RegsField(), and the register named in the access sets its
+ *  width: a w register
  *  moves 32 bits, an x register 64. Nothing ties that choice to the
  *  field's declared type, so a 32-bit access to a u64 field compiles
  *  and runs. A narrow store drops the carry out of the low word -- the
@@ -10,12 +11,14 @@
  *  which every timer derives a count from a start cycle in the future.
  *  A wide store to a u32 field overwrites the field after it.
  *
- *  This reads the field types out of the cpuRegisters declaration in
- *  R5900.h and checks every Ldr/Str through RegsField(&cpuRegs.<field>)
- *  in the recompiler against them. Only top-level fields are checked;
- *  accesses into nested members (CP0.n.Status, GPR.r[n]) are skipped.
+ *  This reads the field types out of a register-file struct declaration
+ *  and checks every Ldr/Str through RegsField(&<var>.<field>) in a
+ *  recompiler against them. Only top-level fields are checked; accesses
+ *  into nested members (CP0.n.Status, GPR.r[n]) are skipped.
  *
- *  Usage: tests/ee/cyclewidth <path-to-R5900.h> <path-to-recR5900_arm64.cpp>
+ *  Usage: tests/ee/cyclewidth <header> <struct> <var> <recompiler.cpp>
+ *    e.g. R5900.h cpuRegisters cpuRegs recR5900_arm64.cpp
+ *         R3000A.h psxRegisters psxRegs recR3000A_arm64.cpp
  */
 
 #include <ctype.h>
@@ -69,17 +72,23 @@ static int type_bits(const char* t, size_t n)
 }
 
 /* Collect "type name[, name...];" declarations of the scalar widths we
- * know, from the body of the cpuRegisters struct. Lines with any other
- * leading type (GPRregs, CP0regs, ...) are nested members and skipped. */
-static int parse_fields(const char* hdr)
+ * know, from the body of the named struct. Lines with any other leading
+ * type (GPRregs, CP0regs, ...) are nested members and skipped. */
+static int parse_fields(const char* hdr, const char* tag)
 {
-	const char* start = strstr(hdr, "typedef struct cpuRegisters");
+	char open[96], close[96];
+	const char* start;
 	const char* end;
 	const char* p;
 
+	if (strlen(tag) > 64)
+		return 0;
+	sprintf(open, "typedef struct %s", tag);
+	sprintf(close, "} %s;", tag);
+	start = strstr(hdr, open);
 	if (!start)
 		return 0;
-	end = strstr(start, "} cpuRegisters;");
+	end = strstr(start, close);
 	if (!end)
 		return 0;
 	p = strchr(start, '{');
@@ -147,29 +156,36 @@ static int field_bits(const char* name, size_t n)
 
 int main(int argc, char** argv)
 {
-	static const char kNeedle[] = "RegsField(&cpuRegs.";
+	char needle[96];
+	size_t needle_len;
+	const char* tag;
+	const char* var;
 	char* hdr;
 	char* src;
 	const char* p;
 	int checked = 0, bad = 0, wide_fields = 0, i;
 
-	if (argc != 3)
+	if (argc != 5 || strlen(argv[3]) > 64)
 	{
-		fprintf(stderr, "usage: %s <R5900.h> <recR5900_arm64.cpp>\n", argv[0]);
+		fprintf(stderr, "usage: %s <header> <struct> <var> <recompiler.cpp>\n", argv[0]);
 		return 2;
 	}
+	tag = argv[2];
+	var = argv[3];
+	sprintf(needle, "RegsField(&%s.", var);
+	needle_len = strlen(needle);
 	hdr = read_file(argv[1]);
-	src = read_file(argv[2]);
+	src = read_file(argv[4]);
 	if (!hdr || !src)
 	{
-		fprintf(stderr, "cannot read %s\n", !hdr ? argv[1] : argv[2]);
+		fprintf(stderr, "cannot read %s\n", !hdr ? argv[1] : argv[4]);
 		free(hdr);
 		free(src);
 		return 2;
 	}
-	if (!parse_fields(hdr))
+	if (!parse_fields(hdr, tag))
 	{
-		fprintf(stderr, "no cpuRegisters fields found in %s\n", argv[1]);
+		fprintf(stderr, "no %s fields found in %s\n", tag, argv[1]);
 		free(hdr);
 		free(src);
 		return 2;
@@ -178,9 +194,9 @@ int main(int argc, char** argv)
 		if (fields[i].bits == 64)
 			wide_fields++;
 
-	for (p = strstr(src, kNeedle); p; p = strstr(p + 1, kNeedle))
+	for (p = strstr(src, needle); p; p = strstr(p + 1, needle))
 	{
-		const char* name = p + sizeof(kNeedle) - 1;
+		const char* name = p + needle_len;
 		const char* ne = name;
 		const char* ls = p;
 		const char* op;
@@ -221,17 +237,17 @@ int main(int argc, char** argv)
 
 		if ((*r == 'w' && bits == 64) || (*r == 'x' && bits == 32))
 		{
-			printf("  line %d: %c-register access to %d-bit cpuRegs.%.*s\n", line, *r, bits,
+			printf("  line %d: %c-register access to %d-bit %s.%.*s\n", line, *r, bits, var,
 				(int)(ne - name), name);
 			bad++;
 		}
 	}
 
-	printf("  %d cpuRegs fields (%d of them 64-bit), %d accesses checked\n", nfields, wide_fields,
+	printf("  %d %s fields (%d of them 64-bit), %d accesses checked\n", nfields, var, wide_fields,
 		checked);
 	free(hdr);
 	free(src);
-	if (!wide_fields || !checked)
+	if (!checked)
 	{
 		printf("FAIL: nothing to check -- has the declaration or the access helper moved?\n");
 		return 1;
