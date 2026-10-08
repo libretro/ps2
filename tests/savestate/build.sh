@@ -78,6 +78,13 @@ for CC in gcc clang; do
 	echo "  ok, $CC"
 done
 
+# Every member of the memory card protocol state has a line in its freeze.
+echo
+echo "=== memory card state coverage ==="
+gcc -O1 -g -std=gnu89 -Wall -Wextra -o "$TMP/mcdstate" "$DIR/mcdstate.c"
+"$TMP/mcdstate" "$ROOT/pcsx2/Sio.h" "$ROOT/pcsx2/Sio.cpp" \
+	"$ROOT/pcsx2/MemoryCardProtocol.h" "$ROOT/pcsx2/MemoryCardProtocol.cpp"
+
 # mingw gives __forceinline a storage class in C but not in C++; the header
 # carries no inline definitions today, but the SPU2 lane found that the hard
 # way, so check it here too rather than wait for it.

@@ -17,6 +17,8 @@
 
 #include "common/Pcsx2Defs.h"
 
+struct SaveStateBase;
+
 struct PS1MemoryCardState
 {
 	size_t currentByte = 2;
@@ -40,6 +42,7 @@ private:
 
 public:
 	void ResetPS1State();
+	bool FreezePS1State(SaveStateBase* s);
 
 	void Probe();
 	void UnknownWriteDeleteEnd();

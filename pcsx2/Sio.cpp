@@ -738,6 +738,37 @@ static void FreezeSioFifo(SaveStateBase *s, SioFifo &q)
 	}
 }
 
+/* The protocol state of every card: the terminator MCMAN set, the sector
+ * and transfer address of the access in progress, the PS1 flag and the
+ * auto-eject countdown. port and slot are fixed by position. */
+static bool FreezeMcds(SaveStateBase *s)
+{
+	u32 port, slot;
+
+	if (!SaveState_FreezeTag(s, "mcds"))
+		return false;
+
+	for (port = 0; port < SIO::PORTS; port++)
+	{
+		for (slot = 0; slot < SIO::SLOTS; slot++)
+		{
+			_mcd *m = &mcds[port][slot];
+			u8 good = m->goodSector ? 1 : 0;
+
+			SaveState_Freeze(s, m->sectorAddr);
+			SaveState_Freeze(s, m->transferAddr);
+			SaveState_Freeze(s, m->autoEjectTicks);
+			SaveState_Freeze(s, m->term);
+			SaveState_Freeze(s, m->FLAG);
+			SaveState_Freeze(s, good);
+			if (SaveState_IsLoading(s))
+				m->goodSector = good != 0;
+		}
+	}
+
+	return SaveState_IsOkay(s);
+}
+
 bool sio2Freeze(SaveStateBase *s)
 {
 	if (!(SaveState_FreezeTag(s, "sio2")))
@@ -747,6 +778,9 @@ bool sio2Freeze(SaveStateBase *s)
 	FreezeSioFifo(s, fifoIn);
 	FreezeSioFifo(s, fifoOut);
 	if (!SaveState_IsOkay(s))
+		return false;
+
+	if (!FreezeMcds(s) || !g_MemoryCardProtocol.FreezePS1State(s))
 		return false;
 
 	// CRCs for memory cards.
@@ -790,8 +824,15 @@ bool sioFreeze(SaveStateBase *s)
 		return false;
 
 	SaveState_Freeze(s, sio0);
+	if (!SaveState_IsOkay(s))
+		return false;
 
-	return SaveState_IsOkay(s);
+	/* A PS1 card transfer spans many SIO0 bytes, all to the card selected
+	 * at its first one. */
+	if (SaveState_IsLoading(s))
+		mcd = &mcds[sio0.port & 1][sio0.slot & 3];
+
+	return true;
 }
 
 std::tuple<u32, u32> sioConvertPadToPortAndSlot(u32 index)

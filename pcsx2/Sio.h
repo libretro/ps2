@@ -101,23 +101,16 @@ extern SioFifo fifoOut;
 
 struct _mcd
 {
-	u8 currentCommand;
+	u32 sectorAddr;     // read/write sector address
+	u32 transferAddr;   // Transfer address
+	u32 autoEjectTicks;
+
 	u8 term; // terminator value;
-
-	bool goodSector; // xor sector check
-	u8 msb;
-	u8 lsb;
-	u32 sectorAddr;  // read/write sector address
-	u32 transferAddr; // Transfer address
-
-	std::vector<u8> buf; // Buffer for reading and writing
-
-	u8 FLAG;  // for PSX;
-
+	u8 FLAG; // for PSX;
 	u8 port; // port
 	u8 slot; // and slot for this memcard
 
-	size_t autoEjectTicks;
+	bool goodSector; // xor sector check
 };
 
 class Sio0

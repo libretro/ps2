@@ -17,6 +17,7 @@
 #include <cstring>
 
 #include "MemoryCardProtocol.h"
+#include "SaveState.h"
 #include "Sio.h"
 
 MemoryCardProtocol g_MemoryCardProtocol;
@@ -73,6 +74,26 @@ void MemoryCardProtocol::ResetPS1State()
 	ps1McState.checksum = 0;
 	ps1McState.expectedChecksum = 0;
 	memset(ps1McState.buf, 0, sizeof(ps1McState.buf));
+}
+
+/* The PS1 transfer in progress, if any, so a state saved mid-sector picks up
+ * at the same byte. currentByte goes in as a u32: the state is the same on
+ * every host. */
+bool MemoryCardProtocol::FreezePS1State(SaveStateBase* s)
+{
+	u32 current_byte = (u32)ps1McState.currentByte;
+
+	SaveState_Freeze(s, current_byte);
+	SaveState_Freeze(s, ps1McState.sectorAddrMSB);
+	SaveState_Freeze(s, ps1McState.sectorAddrLSB);
+	SaveState_Freeze(s, ps1McState.checksum);
+	SaveState_Freeze(s, ps1McState.expectedChecksum);
+	SaveState_Freeze(s, ps1McState.buf);
+	if (!SaveState_IsOkay(s))
+		return false;
+	if (SaveState_IsLoading(s))
+		ps1McState.currentByte = current_byte;
+	return true;
 }
 
 void MemoryCardProtocol::Probe()
