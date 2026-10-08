@@ -39,6 +39,13 @@ unsigned smaprx_bd_read(int bd, int word);
 void smaprx_bd_write(int bd, int word, unsigned v);
 unsigned smaprx_fifo_read32(void);
 void smaprx_frame_dec(void);
+void smaprx_ptr_write16(int which, unsigned v);
+unsigned smaprx_ptr_read(int which);
+void smaprx_txfifo_write32(unsigned v);
+unsigned smaprx_txfifo_byte(int i);
+void smaprx_rxfifo_set(int i, unsigned v);
+void smaprx_dma_write(unsigned* words, int bytes);
+void smaprx_dma_read(unsigned* words, int bytes);
 
 static void harness_log(enum retro_log_level level, const char* fmt, ...)
 {
@@ -90,6 +97,45 @@ static void fail(const char* what, unsigned seq)
 {
 	if (failures++ < 8)
 		fprintf(stderr, "  FAIL: %s (frame %u)\n", what, seq);
+}
+
+/* The FIFO pointers are registers the guest can write anything to. Every
+ * access stays a word inside the 16 KB FIFO: a pointer past its end
+ * wraps, and one that is not word aligned is taken down to the word. */
+static void check_fifo_pointers(void)
+{
+	unsigned words[2];
+	int i;
+
+	smaprx_ptr_write16(0, 0xfffc);
+	smaprx_txfifo_write32(0x11223344u);
+	if (smaprx_txfifo_byte(0x3ffc) != 0x44 || smaprx_txfifo_byte(0x3fff) != 0x11
+		|| smaprx_ptr_read(0) != 0)
+		fail("TX write pointer past the FIFO wraps into it", 0);
+
+	smaprx_ptr_write16(0, 0x3ffe);
+	smaprx_txfifo_write32(0xa1b2c3d4u);
+	if (smaprx_txfifo_byte(0x3ffc) != 0xd4 || smaprx_ptr_read(0) != 0)
+		fail("unaligned TX write pointer is taken to its word", 0);
+
+	for (i = 0; i < 4; i++)
+		smaprx_rxfifo_set(0x3ffc + i, 0x10 + i);
+	smaprx_ptr_write16(1, 0xfffe);
+	if (smaprx_fifo_read32() != 0x13121110u || smaprx_ptr_read(1) != 0)
+		fail("RX read pointer past the FIFO wraps into it", 0);
+
+	words[0] = 0x01020304u;
+	words[1] = 0x05060708u;
+	smaprx_ptr_write16(0, 0xffff);
+	smaprx_dma_write(words, 8);
+	if (smaprx_txfifo_byte(0x3ffc) != 0x04 || smaprx_txfifo_byte(0) != 0x08
+		|| smaprx_ptr_read(0) != 4)
+		fail("TX DMA from a pointer past the FIFO stays in it", 0);
+
+	smaprx_ptr_write16(1, 0xffff);
+	smaprx_dma_read(words, 4);
+	if (words[0] != 0x13121110u || smaprx_ptr_read(1) != 0)
+		fail("RX DMA from a pointer past the FIFO stays in it", 0);
 }
 
 int main(int argc, char** argv)
@@ -164,6 +210,7 @@ int main(int argc, char** argv)
 	}
 
 	smaprx_close();
+	check_fifo_pointers();
 
 	if (smaprx_rxend_irqs() == 0)
 		fail("no RXEND was raised", expect);

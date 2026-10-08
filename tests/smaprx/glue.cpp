@@ -53,6 +53,25 @@ void smaprx_bd_write(int bd, int word, unsigned v) { smap_write16(SMAP_BD_RX_BAS
 unsigned smaprx_fifo_read32(void) { return smap_read32(SMAP_R_RXFIFO_DATA); }
 void smaprx_frame_dec(void) { smap_write8(SMAP_R_RXFIFO_FRAME_DEC, 1); }
 
+/* The FIFO pointer registers, 0 the TX write pointer and 1 the RX read
+ * pointer, written the 16-bit way a guest can. */
+static u32 fifo_ptr_reg(int which) { return which ? SMAP_R_RXFIFO_RD_PTR : SMAP_R_TXFIFO_WR_PTR; }
+void smaprx_ptr_write16(int which, unsigned v) { smap_write16(fifo_ptr_reg(which), (u16)v); }
+unsigned smaprx_ptr_read(int which) { return dev9Ru32(fifo_ptr_reg(which)); }
+void smaprx_txfifo_write32(unsigned v) { smap_write32(SMAP_R_TXFIFO_DATA, v); }
+unsigned smaprx_txfifo_byte(int i) { return dev9.txfifo[i]; }
+void smaprx_rxfifo_set(int i, unsigned v) { dev9.rxfifo[i] = (u8)v; }
+void smaprx_dma_write(unsigned* words, int bytes)
+{
+	dev9Ru16(SMAP_R_TXFIFO_CTRL) |= SMAP_TXFIFO_DMAEN;
+	smap_writeDMA8Mem((u32*)words, bytes);
+}
+void smaprx_dma_read(unsigned* words, int bytes)
+{
+	dev9Ru16(SMAP_R_RXFIFO_CTRL) |= SMAP_RXFIFO_DMAEN;
+	smap_readDMA8Mem((u32*)words, bytes);
+}
+
 } /* extern "C" */
 
 /* The host adapter, standing in for the sockets backend. */

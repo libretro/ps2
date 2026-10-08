@@ -118,6 +118,11 @@ u32 wswap(u32 d)
 	return (d >> 16) | (d << 16);
 }
 
+/* A FIFO pointer as the FIFO is addressed: a word inside its 16 KB. The
+ * registers hold whatever the guest wrote; every access goes through
+ * this. */
+#define SMAP_FIFO_PTR(v) ((u32)(v) & 16380u)
+
 void tx_process()
 {
 	//we loop based on count ? or just *use* it ?
@@ -502,10 +507,10 @@ u32 smap_read32(u32 addr)
 
 		case SMAP_R_RXFIFO_DATA:
 		{
-			int rd_ptr = dev9Ru32(SMAP_R_RXFIFO_RD_PTR) & 16383;
+			const u32 rd_ptr = SMAP_FIFO_PTR(dev9Ru32(SMAP_R_RXFIFO_RD_PTR));
+			u32 rv;
 
-			int rv = *((u32*)(dev9.rxfifo + rd_ptr));
-
+			memcpy(&rv, dev9.rxfifo + rd_ptr, sizeof(rv));
 			dev9Ru32(SMAP_R_RXFIFO_RD_PTR) = ((rd_ptr + 4) & 16383);
 
 			//log_cb(RETRO_LOG_DEBUG, "DEV9: SMAP_R_RXFIFO_DATA 32bit read %x\n", rv);
@@ -779,9 +784,13 @@ void smap_write32(u32 addr, u32 value)
 	{
 		case SMAP_R_TXFIFO_DATA:
 			//log_cb(RETRO_LOG_DEBUG, "DEV9: SMAP_R_TXFIFO_DATA 32bit write %x\n", value);
-			*((u32*)(dev9.txfifo + dev9Ru32(SMAP_R_TXFIFO_WR_PTR))) = value;
-			dev9Ru32(SMAP_R_TXFIFO_WR_PTR) = (dev9Ru32(SMAP_R_TXFIFO_WR_PTR) + 4) & 16383;
+		{
+			const u32 wr_ptr = SMAP_FIFO_PTR(dev9Ru32(SMAP_R_TXFIFO_WR_PTR));
+
+			memcpy(dev9.txfifo + wr_ptr, &value, sizeof(value));
+			dev9Ru32(SMAP_R_TXFIFO_WR_PTR) = (wr_ptr + 4) & 16383;
 			return;
+		}
 		default:
 			log_cb(RETRO_LOG_DEBUG, "DEV9: SMAP : Unknown 32 bit write @ %X,v=%X\n", addr, value);
 			dev9Ru32(addr) = value;
@@ -793,12 +802,12 @@ void smap_readDMA8Mem(u32* pMem, int size)
 {
 	if (dev9Ru16(SMAP_R_RXFIFO_CTRL) & SMAP_RXFIFO_DMAEN)
 	{
-		dev9Ru32(SMAP_R_RXFIFO_RD_PTR) &= 16383;
+		dev9Ru32(SMAP_R_RXFIFO_RD_PTR) = SMAP_FIFO_PTR(dev9Ru32(SMAP_R_RXFIFO_RD_PTR));
 
 		log_cb(RETRO_LOG_DEBUG, "DEV9:  * * SMAP DMA READ START: rd_ptr=%d, wr_ptr=%d\n", dev9Ru32(SMAP_R_RXFIFO_RD_PTR), dev9.rxfifo_wr_ptr);
 		while (size > 0)
 		{
-			*pMem = *((u32*)(dev9.rxfifo + dev9Ru32(SMAP_R_RXFIFO_RD_PTR)));
+			memcpy(pMem, dev9.rxfifo + dev9Ru32(SMAP_R_RXFIFO_RD_PTR), sizeof(*pMem));
 			pMem++;
 			dev9Ru32(SMAP_R_RXFIFO_RD_PTR) = (dev9Ru32(SMAP_R_RXFIFO_RD_PTR) + 4) & 16383;
 
@@ -814,7 +823,7 @@ void smap_writeDMA8Mem(u32* pMem, int size)
 {
 	if (dev9Ru16(SMAP_R_TXFIFO_CTRL) & SMAP_TXFIFO_DMAEN)
 	{
-		dev9Ru32(SMAP_R_TXFIFO_WR_PTR) &= 16383;
+		dev9Ru32(SMAP_R_TXFIFO_WR_PTR) = SMAP_FIFO_PTR(dev9Ru32(SMAP_R_TXFIFO_WR_PTR));
 
 		log_cb(RETRO_LOG_DEBUG, "DEV9:  * * SMAP DMA WRITE START: wr_ptr=%d, rd_ptr=%d\n", dev9Ru32(SMAP_R_TXFIFO_WR_PTR), dev9.txfifo_rd_ptr);
 		while (size > 0)
@@ -823,7 +832,7 @@ void smap_writeDMA8Mem(u32* pMem, int size)
 			//	value=(value<<24)|(value>>24)|((value>>8)&0xFF00)|((value<<8)&0xFF0000);
 			pMem++;
 
-			*((u32*)(dev9.txfifo + dev9Ru32(SMAP_R_TXFIFO_WR_PTR))) = value;
+			memcpy(dev9.txfifo + dev9Ru32(SMAP_R_TXFIFO_WR_PTR), &value, sizeof(value));
 			dev9Ru32(SMAP_R_TXFIFO_WR_PTR) = (dev9Ru32(SMAP_R_TXFIFO_WR_PTR) + 4) & 16383;
 			size -= 4;
 		}
