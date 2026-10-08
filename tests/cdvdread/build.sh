@@ -22,6 +22,7 @@ for c in streams/file_stream vfs/vfs_implementation compat/fopen_utf8 \
          streams/trans_stream_pipe features/features_cpu; do
 	${CC:-cc} -O1 -w $SANFLAGS $INC -c "$LC/$c.c" -o "$OBJ/$(echo $c | tr / _).o"
 done
+${CC:-cc} -O1 -w $SANFLAGS $INC -c "$ROOT/pcsx2/memcard_ecc.c" -o "$OBJ/memcard_ecc.o"
 
 ${CXX:-c++} -std=c++17 -O1 -w $SANFLAGS $INC \
 	-o "$DIR/cdvd_read" "$DIR/main.cpp" \

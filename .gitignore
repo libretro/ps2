@@ -198,5 +198,8 @@ tests/ata/*.img
 /tests/gsscratch/gsscratch
 /tests/cdvdread/cdvd_read
 /tests/ohcidma/ohcidma
+/tests/memcard/memcard_termaudit
+/tests/memcard/memcard_ecc
+/tests/memcard/memcard_ecc.exe
 /tests/emitter/emitter_frame
 /tests/emitter/emitter_frame_sysv

@@ -16,6 +16,7 @@
 #include <array>
 #include "StringView.h"
 #include "common/Pcsx2Defs.h"
+#include <cstdlib>
 #include <cstring> /* memset */
 #include <utility>
 #include <vector>
@@ -29,6 +30,7 @@
 #include "Config.h"
 #include "Host.h"
 #include "Memory.h"
+#include "memcard_ecc.h"
 
 #define MCD_SIZE 131072 /* Legacy PSX card default size = 1024 * 8 * 16 = 131072 */
 
@@ -37,137 +39,6 @@
 #define MC2_ERASE_SIZE 8448 /* 528 * 16 */
 
 static bool FileMcd_Open = false;
-
-// ECC code ported from mymc
-// https://sourceforge.net/p/mymc-opl/code/ci/master/tree/ps2mc_ecc.py
-// Public domain license
-
-static u32 CalculateECC(u8* buf)
-{
-	const u8 parity_table[256] = {0,1,1,0,1,0,0,1,1,0,0,1,0,1,1,0,1,0,0,1,0,1,1,
-	0,0,1,1,0,1,0,0,1,1,0,0,1,0,1,1,0,0,1,1,0,1,0,0,1,0,1,1,0,1,0,0,1,1,0,0,1,0,
-	1,1,0,1,0,0,1,0,1,1,0,0,1,1,0,1,0,0,1,0,1,1,0,1,0,0,1,1,0,0,1,0,1,1,0,0,1,1,
-	0,1,0,0,1,1,0,0,1,0,1,1,0,1,0,0,1,0,1,1,0,0,1,1,0,1,0,0,1,1,0,0,1,0,1,1,0,0,
-	1,1,0,1,0,0,1,0,1,1,0,1,0,0,1,1,0,0,1,0,1,1,0,0,1,1,0,1,0,0,1,1,0,0,1,0,1,1,
-	0,1,0,0,1,0,1,1,0,0,1,1,0,1,0,0,1,0,1,1,0,1,0,0,1,1,0,0,1,0,1,1,0,1,0,0,1,0,
-	1,1,0,0,1,1,0,1,0,0,1,1,0,0,1,0,1,1,0,0,1,1,0,1,0,0,1,0,1,1,0,1,0,0,1,1,0,0,
-	1,0,1,1,0};
-
-	const u8 column_parity_mask[256] = {0,7,22,17,37,34,51,52,52,51,34,37,17,22,
-	7,0,67,68,85,82,102,97,112,119,119,112,97,102,82,85,68,67,82,85,68,67,119,112,
-	97,102,102,97,112,119,67,68,85,82,17,22,7,0,52,51,34,37,37,34,51,52,0,7,22,17,
-	97,102,119,112,68,67,82,85,85,82,67,68,112,119,102,97,34,37,52,51,7,0,17,22,
-	22,17,0,7,51,52,37,34,51,52,37,34,22,17,0,7,7,0,17,22,34,37,52,51,112,119,102,
-	97,85,82,67,68,68,67,82,85,97,102,119,112,112,119,102,97,85,82,67,68,68,67,82,
-	85,97,102,119,112,51,52,37,34,22,17,0,7,7,0,17,22,34,37,52,51,34,37,52,51,7,0,
-	17,22,22,17,0,7,51,52,37,34,97,102,119,112,68,67,82,85,85,82,67,68,112,119,102,
-	97,17,22,7,0,52,51,34,37,37,34,51,52,0,7,22,17,82,85,68,67,119,112,97,102,102,
-	97,112,119,67,68,85,82,67,68,85,82,102,97,112,119,119,112,97,102,82,85,68,67,
-	0,7,22,17,37,34,51,52,52,51,34,37,17,22,7,0};
-
-	u8 column_parity = 0x77;
-	u8 line_parity_0 = 0x7F;
-	u8 line_parity_1 = 0x7F;
-
-	for (int i = 0; i < 128; i++)
-	{
-		u8 b = buf[i];
-		column_parity ^= column_parity_mask[b];
-		if (parity_table[b])
-		{
-			line_parity_0 ^= ~i;
-			line_parity_1 ^= i;
-		}
-	}
-
-	return column_parity | (line_parity_0 << 8) | (line_parity_1 << 16);
-}
-
-static bool ConvertNoECCtoRAW(const char* file_in, const char* file_out)
-{
-	u8 buffer[512];
-	RFILE *fin = filestream_open(file_in, RETRO_VFS_FILE_ACCESS_READ, RETRO_VFS_FILE_ACCESS_HINT_NONE);
-	if (!fin)
-		return false;
-
-	RFILE *fout = filestream_open(file_out, RETRO_VFS_FILE_ACCESS_WRITE, RETRO_VFS_FILE_ACCESS_HINT_NONE);
-	if (!fout)
-	{
-		filestream_close(fin);
-		return false;
-	}
-
-	const s64 size = filestream_get_size(fin);
-
-	for (s64 i = 0; i < (size / 512); i++)
-	{
-		if (filestream_read(fin, buffer, sizeof(buffer)) != (int64_t)(sizeof(buffer)) ||
-			filestream_write(fout, buffer, sizeof(buffer)) != (int64_t)(sizeof(buffer)))
-		{
-			filestream_close(fin);
-			filestream_close(fout);
-			return false;
-		}
-
-		for (int j = 0; j < 4; j++)
-		{
-			u32 checksum = CalculateECC(&buffer[j * 128]);
-			if (filestream_write(fout, &checksum, 3) != (int64_t)(3))
-			{
-				filestream_close(fin);
-				filestream_close(fout);
-				return false;
-			}
-		}
-
-		u32 nullbytes = 0;
-		if (filestream_write(fout, &nullbytes, sizeof(nullbytes)) != (int64_t)(sizeof(nullbytes)))
-		{
-			filestream_close(fin);
-			filestream_close(fout);
-			return false;
-		}
-	}
-
-	filestream_close(fin);
-	if (filestream_flush(fout) != 0)
-		return false;
-	filestream_close(fout);
-	return true;
-}
-
-static bool ConvertRAWtoNoECC(const char* file_in, const char* file_out)
-{
-	u8 buffer[512];
-	u8 checksum[16];
-	RFILE *fin = filestream_open(file_in, RETRO_VFS_FILE_ACCESS_READ, RETRO_VFS_FILE_ACCESS_HINT_NONE);
-	if (!fin)
-		return false;
-
-	RFILE *fout = filestream_open(file_out, RETRO_VFS_FILE_ACCESS_WRITE, RETRO_VFS_FILE_ACCESS_HINT_NONE);
-	if (!fout)
-		return false;
-
-	const s64 size = filestream_get_size(fin);
-
-	for (s64 i = 0; i < (size / 528); i++)
-	{
-		if (filestream_read(fin, buffer, sizeof(buffer)) != (int64_t)(sizeof(buffer)) ||
-			filestream_write(fout, buffer, sizeof(buffer)) != (int64_t)(sizeof(buffer)) ||
-			filestream_read(fin, checksum, sizeof(checksum)) != (int64_t)(sizeof(checksum)))
-		{
-			filestream_close(fin);
-			filestream_close(fout);
-			return false;
-		}
-	}
-
-	filestream_close(fin);
-	if (filestream_flush(fout) != 0)
-		return false;
-	filestream_close(fout);
-	return true;
-}
 
 // --------------------------------------------------------------------------------------
 //  FileMemoryCard
@@ -289,6 +160,13 @@ FileMemoryCard::~FileMemoryCard()
 
 void FileMemoryCard::Open()
 {
+	/* The card path and its staging name, off the stack. */
+	char* paths = (char*)malloc(2 * PCSX2_PATH_MAX);
+	if (!paths)
+		return;
+	char* fname   = paths;
+	char* newname = paths + PCSX2_PATH_MAX;
+
 	for (int slot = 0; slot < 8; ++slot)
 	{
 		m_filenames[slot] = {};
@@ -301,10 +179,9 @@ void FileMemoryCard::Open()
 				continue;
 		}
 
-		char fname[PCSX2_PATH_MAX];
 		bool cont = false;
 
-		EmuConfig.FullpathToMcd(fname, sizeof(fname), slot);
+		EmuConfig.FullpathToMcd(fname, PCSX2_PATH_MAX, slot);
 
 		if (fname[0] == '\0')
 			cont = true;
@@ -334,16 +211,14 @@ void FileMemoryCard::Open()
 
 		if (StringView::EndsWith(fname, ".bin"))
 		{
-			char newname[PCSX2_PATH_MAX];
-
-			if (snprintf(newname, sizeof(newname), "%sx", fname) >= (int)sizeof(newname))
+			if (snprintf(newname, PCSX2_PATH_MAX, "%sx", fname) >= PCSX2_PATH_MAX)
 			{
 				/* Truncation folds newname back onto fname and the
 				 * converter would read and write the same file. */
 				log_cb(RETRO_LOG_ERROR, "Memcard: path too long to stage ECC conversion: %s\n", fname);
 				continue;
 			}
-			if (!ConvertNoECCtoRAW(fname, newname))
+			if (!memcard_noecc_to_raw(fname, newname))
 			{
 				filestream_delete(newname);
 				continue;
@@ -358,7 +233,7 @@ void FileMemoryCard::Open()
 		if (m_file[slot]) // Load the whole card into RAM
 		{
 			m_fileSize[slot]  = filestream_get_size(m_file[slot]);
-			m_filenames[slot] = std::move(fname);
+			m_filenames[slot] = fname;
 			m_ispsx[slot]     = m_fileSize[slot] == 0x20000;
 			m_chkaddr = 0x210;
 
@@ -372,8 +247,15 @@ void FileMemoryCard::Open()
 				m_cardSize[slot] = static_cast<size_t>(m_fileSize[slot]);
 				m_cardData[slot] = new u8[m_cardSize[slot]];
 				filestream_seek(m_file[slot], 0, RETRO_VFS_SEEK_POSITION_START);
-				if (filestream_read(m_file[slot], m_cardData[slot], m_cardSize[slot]) != (int64_t)(m_cardSize[slot]))
+				const int64_t got = filestream_read(m_file[slot], m_cardData[slot], m_cardSize[slot]);
+				if (got != (int64_t)(m_cardSize[slot]))
+				{
 					log_cb(RETRO_LOG_ERROR, "Error reading memcard.\n");
+					/* What was not read is blank card, not whatever the
+					 * allocation held. */
+					const size_t have = got > 0 ? static_cast<size_t>(got) : 0;
+					memset(m_cardData[slot] + have, 0xff, m_cardSize[slot] - have);
+				}
 			}
 
 			/* Checksum word lives at m_chkaddr; take it from the buffer
@@ -383,6 +265,7 @@ void FileMemoryCard::Open()
 				memcpy(&m_chksum[slot], m_cardData[slot] + m_chkaddr, sizeof(m_chksum[slot]));
 		}
 	}
+	free(paths);
 }
 
 void FileMemoryCard::Close()
@@ -402,7 +285,7 @@ void FileMemoryCard::Close()
 		if (StringView::EndsWith(m_filenames[slot], ".bin"))
 		{
 			const std::string name_in(m_filenames[slot] + 'x');
-			if (ConvertRAWtoNoECC(name_in.c_str(), m_filenames[slot].c_str()))
+			if (memcard_raw_to_noecc(name_in.c_str(), m_filenames[slot].c_str()))
 				filestream_delete(name_in.c_str());
 		}
 
@@ -426,23 +309,20 @@ bool FileMemoryCard::Seek(RFILE* f, u32 adr)
 // returns FALSE if an error occurred (either permission denied or disk full)
 bool FileMemoryCard::Create(const char* mcdFile, uint sizeInMB)
 {
-	u8 buf[MC2_ERASE_SIZE];
-	RFILE *fp = filestream_open(mcdFile, RETRO_VFS_FILE_ACCESS_WRITE, RETRO_VFS_FILE_ACCESS_HINT_NONE);
-	if (!fp)
+	u8* buf = (u8*)malloc(MC2_ERASE_SIZE);
+	if (!buf)
 		return false;
+	RFILE *fp = filestream_open(mcdFile, RETRO_VFS_FILE_ACCESS_WRITE, RETRO_VFS_FILE_ACCESS_HINT_NONE);
+	bool ok = fp != nullptr;
 
-	memset(buf, 0xff, sizeof(buf));
+	memset(buf, 0xff, MC2_ERASE_SIZE);
 
-	for (uint i = 0; i < (MC2_MBSIZE * sizeInMB) / sizeof(buf); i++)
-	{
-		if (filestream_write(fp, buf, sizeof(buf)) != (int64_t)(sizeof(buf)))
-		{
-			filestream_close(fp);
-			return false;
-		}
-	}
-	filestream_close(fp);
-	return true;
+	for (uint i = 0; ok && i < (MC2_MBSIZE * sizeInMB) / MC2_ERASE_SIZE; i++)
+		ok = filestream_write(fp, buf, MC2_ERASE_SIZE) == (int64_t)(MC2_ERASE_SIZE);
+	if (fp)
+		filestream_close(fp);
+	free(buf);
+	return ok;
 }
 
 s32 FileMemoryCard::IsPresent(uint slot)
@@ -547,31 +427,20 @@ s32 FileMemoryCard::EraseBlock(uint slot, u32 adr)
 
 u64 FileMemoryCard::GetCRC(uint slot)
 {
-	RFILE* mcfp = m_file[slot];
-	if (!mcfp)
+	if (!m_file[slot])
 		return 0;
 	if (m_ispsx[slot])
 	{
+		/* The XOR of the card's 64-bit words, over whole runs of eight
+		 * 528-byte sectors, taken from the image held in RAM. */
+		const size_t run = 528 * 8 * sizeof(u64);
+		const size_t len = m_cardData[slot] ? m_cardSize[slot] / run * run : 0;
 		u64 retval = 0;
-		if (!Seek(mcfp, 0))
-			return 0;
-
-		const s64 mcfpsize = m_fileSize[slot];
-		if (mcfpsize < 0)
-			return 0;
-
-		// Process the file in 4k chunks.  Speeds things up significantly.
-
-		u64 buffer[528 * 8]; // use 528 (sector size), ensures even divisibility
-
-		const uint filesize = static_cast<uint>(mcfpsize) / sizeof(buffer);
-		for (uint i = filesize; i; --i)
+		for (size_t i = 0; i < len; i += sizeof(u64))
 		{
-			if (filestream_read(mcfp, buffer, sizeof(buffer)) != (int64_t)(sizeof(buffer)))
-				return 0;
-
-			for (uint t = 0; t < C89_ARRAY_SIZE(buffer); ++t)
-				retval ^= buffer[t];
+			u64 w;
+			memcpy(&w, m_cardData[slot] + i, sizeof(w));
+			retval ^= w;
 		}
 		return retval;
 	}
