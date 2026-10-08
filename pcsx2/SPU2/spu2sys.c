@@ -67,7 +67,7 @@ __fi void spu2M_Write(u32 addr, s16 value)
 	if (addr >= SPU2_DYN_MEMLINE)
 	{
 		const int cacheIdx = addr / pcm_WordsPerBlock;
-		pcm_cache_data[cacheIdx].Validated = false;
+		pcm_cache_data[cacheIdx].Generation = 0;
 	}
 	*GetMemPtr(addr) = value;
 }

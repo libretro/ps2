@@ -8,6 +8,8 @@
  * - A savestate written to a buffer at any alignment reads back the DMA
  *   pointers and the output filter, and the block is the same bytes
  *   whatever the alignment.
+ * - Invalidating the whole PCM cache leaves no entry valid, across the
+ *   wrap of its generation too.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -183,6 +185,24 @@ static void check_freeze(void)
 	free(buf);
 }
 
+static void check_cache_generation(void)
+{
+	PcmCacheEntry* e = &pcm_cache_data[0x4000];
+
+	reset();
+	e->Generation = pcm_cache_generation;
+	pcm_cache_invalidate_all();
+	CHECK(e->Generation != pcm_cache_generation, "an entry valid before is not after");
+
+	pcm_cache_generation = 0xffffffffu;
+	e->Generation        = 0xffffffffu;
+	pcm_cache_data[7].Generation = 1;
+	pcm_cache_invalidate_all();
+	CHECK(pcm_cache_generation != 0 && e->Generation != pcm_cache_generation
+		&& pcm_cache_data[7].Generation != pcm_cache_generation,
+		"nor across the wrap, where every entry is cleared");
+}
+
 int main(void)
 {
 	iopMem = (IopVM_MemoryAllocMess*)malloc(sizeof(*iopMem));
@@ -193,6 +213,7 @@ int main(void)
 	check_plain_wrap();
 	check_reverb();
 	check_freeze();
+	check_cache_generation();
 	free(iopMem);
 	printf(failures ? "spu2 dmabounds: FAILED (%d)\n" : "spu2 dmabounds: ok\n", failures);
 	return failures != 0;

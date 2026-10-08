@@ -522,15 +522,21 @@ s32  SPU2Savestate_SizeIt(void);
 /* 28 samples per decoded PCM block (as stored in our cache) */
 #define pcm_DecodedSamplesPerBlock 28
 
+/* An entry is valid while its Generation is the cache's: invalidating one
+ * entry sets it to 0, invalidating them all moves the cache's on. */
 typedef struct PcmCacheEntry
 {
-	bool Validated;
+	u32 Generation;
 	s16 Sampledata[pcm_DecodedSamplesPerBlock];
 	s32 Prev1;
 	s32 Prev2;
 } PcmCacheEntry;
 
 extern PcmCacheEntry pcm_cache_data[pcm_BlockCount];
+extern u32 pcm_cache_generation;
+
+/* Every entry invalid at once, without touching them. */
+void pcm_cache_invalidate_all(void);
 
 #ifdef __cplusplus
 }

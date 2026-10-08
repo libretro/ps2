@@ -174,7 +174,7 @@ s32 SPU2Savestate_ThawIt(struct SPU2Savestate_DataBlock *spud)
 		memset(&DCFilterOut, 0, sizeof(DCFilterOut));
 	}
 
-	memset(pcm_cache_data, 0, pcm_BlockCount * sizeof(PcmCacheEntry));
+	pcm_cache_invalidate_all();
 
 	/* Point every voice back into the cache, and put back what it
 	 * was reading: the cache is not saved, and a voice reads its
@@ -190,7 +190,10 @@ s32 SPU2Savestate_ThawIt(struct SPU2Savestate_DataBlock *spud)
 			if (version >= 0x0010)
 				V_Voice_DecodeCurrentBlock(vc);
 			else
+			{
 				vc->SBuffer = pcm_cache_data[vc->NextA / pcm_WordsPerBlock].Sampledata;
+				memset(vc->SBuffer, 0, pcm_DecodedSamplesPerBlock * sizeof(s16));
+			}
 		}
 	}
 	return 0;

@@ -197,7 +197,7 @@ void V_Core_FinishDMAwrite(V_Core *c)
 
 	do
 	{
-		cacheLine->Validated = false;
+		cacheLine->Generation = 0;
 		cacheLine++;
 	} while (cacheLine != cacheEnd);
 

@@ -83,6 +83,18 @@ static __fi void IncrementNextA(V_Voice *vc)
 /* multiple times.  Cache chunks are decoded when the mixer requests the blocks, and */
 /* invalided when DMA transfers and memory writes are performed. */
 PcmCacheEntry pcm_cache_data[pcm_BlockCount];
+u32 pcm_cache_generation = 1;
+
+void pcm_cache_invalidate_all(void)
+{
+	/* Only a wrap reaches the entries: their stamps could then match
+	 * the generation again. */
+	if (++pcm_cache_generation == 0)
+	{
+		memset(pcm_cache_data, 0, sizeof(pcm_cache_data));
+		pcm_cache_generation = 1;
+	}
+}
 
 /* LOOP/END sets the ENDX bit and sets NAX to LSA, and the voice is muted if LOOP is not set */
 /* LOOP seems to only have any effect on the block with LOOP/END set, where it prevents muting the voice */
@@ -146,7 +158,8 @@ static __fi s32 GetNextDataBuffered(V_Core *thiscore, V_Voice *vc, uint voiceidx
 		cacheLine = &pcm_cache_data[cacheIdx];
 		vc->SBuffer = cacheLine->Sampledata;
 
-		if (cacheLine->Validated && vc->Prev1 == cacheLine->Prev1 && vc->Prev2 == cacheLine->Prev2)
+		if (cacheLine->Generation == pcm_cache_generation
+				&& vc->Prev1 == cacheLine->Prev1 && vc->Prev2 == cacheLine->Prev2)
 		{
 			/* Cached block!  Read from the cache directly. */
 			/* Make sure to propagate the prev1/prev2 ADPCM: */
@@ -159,7 +172,7 @@ static __fi s32 GetNextDataBuffered(V_Core *thiscore, V_Voice *vc, uint voiceidx
 			/* Only flag the cache if it's a non-dynamic memory range. */
 			if (vc->NextA >= SPU2_DYN_MEMLINE)
 			{
-				cacheLine->Validated = true;
+				cacheLine->Generation = pcm_cache_generation;
 				cacheLine->Prev1 = vc->Prev1;
 				cacheLine->Prev2 = vc->Prev2;
 			}
