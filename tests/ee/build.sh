@@ -62,6 +62,10 @@ echo "== EE dispatch tables vs the R5900 encoding =="
 "$CC" -O1 -g -Wall $SANFLAGS -o "$DIR/ee_tabaudit" "$DIR/tabaudit.c"
 "$DIR/ee_tabaudit" "$ROOT/pcsx2/R5900OpcodeTables.cpp"
 
+echo "== arm64 EE rec cpuRegs access widths vs R5900.h =="
+"$CC" -O1 -g -Wall $SANFLAGS -o "$DIR/ee_cyclewidth" "$DIR/cyclewidth.c"
+"$DIR/ee_cyclewidth" "$ROOT/pcsx2/R5900.h" "$ROOT/pcsx2/arm64/recR5900_arm64.cpp"
+
 echo "== EE ALU driven through R5900OpcodeImpl.cpp vs console =="
 EXPECTED="${PS2AUTOTESTS:-}/tests/cpu/ee"
 if [ -d "$EXPECTED" ]; then
