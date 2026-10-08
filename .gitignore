@@ -141,13 +141,7 @@ build*/
 /tests/iop/iop_*
 
 # emitter oracle build products
-tests/emitter/emitter_oracle
-tests/emitter/shim_oracle
-tests/emitter/equiv_ref
-tests/emitter/equiv_sw
-tests/emitter/exhaustive
-tests/emitter/sse_exhaustive
-tests/emitter/newbind
+tests/emitter/emitter_hwas
 tests/emitter/*.o
 pcsx2/GameDatabaseBuiltin.cpp
 /tests/mtgsown/mtgsown

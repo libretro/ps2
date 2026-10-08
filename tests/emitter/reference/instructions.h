@@ -1180,11 +1180,6 @@ namespace x86Emitter
 // one at a time -- only group1 does today, and the rest still go through the
 // reference emitter.
 //
-// Equivalence is checked by tests/emitter/switch_equiv.cpp, which compiles
-// one driver both ways and diffs the emitted bytes. That is a different
-// question from the two oracles: they compare the emitters side by side in a
-// single build, whereas with this flag set the reference is not present in
-// the translation unit at all.
 // instructions.h has no include guard of its own and is pulled into a single
 // translation unit many times over; the objects below are definitions, not
 // declarations, so this block needs one of its own.

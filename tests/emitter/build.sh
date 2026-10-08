@@ -29,9 +29,3 @@ fi
 ${CC:-cc} -std=c89 -pedantic -Wno-long-long -Wall -Wno-unused-function -O1 $SANFLAGS $ALIGNSAN \
 	-I "$ROOT" -o "$DIR/emitter_reach" "$DIR/reach.c"
 "$DIR/emitter_reach"
-
-# The other five files in this directory -- oracle, exhaustive,
-# shim_oracle, newbind, sse_exhaustive and switch_equiv -- all reach the
-# removed C++ emitter, whether through reference/x86emitter_shim.h or
-# directly via the x86Emitter namespace and xADD/xRegister32. None of them
-# build, and each is a rewrite rather than a fix, so none is run here.

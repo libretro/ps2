@@ -865,10 +865,6 @@ endif
 # common/emitter/c89emit.h, behind the header-only shim, instead of the
 # out-of-line C++ implementations. Off by default.
 #
-# Equivalence is checked by tests/emitter/switch_equiv.cpp, which compiles one
-# driver both ways and diffs the emitted bytes. That is byte equality of the
-# emitter's output; it is not a claim that the emulator has been run this way.
-#
 # Toggling this needs a clean build. It changes header content rather than any
 # source file, so make will not rebuild translation units that only include
 # the emitter transitively, and the switched objects define their instruction

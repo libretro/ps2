@@ -21,9 +21,6 @@ using namespace x86Emitter;
 //                         Begin SSE-Only Part!
 // ------------------------------------------------------------------------
 
-/* The SSE_xxSS / SSE2_xxSD C wrappers that lived here had exactly one caller,
- * the newbind byte suite, and it now oracles the xe_* macros the recompilers
- * actually emit through. With no callers the wrappers were dead code in the
- * reference build too, so they are gone; this TU stays in the link because
- * the suites' object list expects it and because it is where any future
+/* This TU stays in the link because the reference build's object list
+ * expects it and because it is where any future
  * reference-only SSE helper belongs. */
