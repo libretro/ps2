@@ -733,9 +733,10 @@ static uintptr_t xe_opaque_uptr(const void *p)
 #define xe_lea64_m(reg, addr)  do { XE_OPEN();  \
 	{ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
 	  E_LEA(xep, 1, 0, (reg), xm_); }; XE_CLOSE(); } while (0)
-#define xe_movsxd_rm16(reg, addr) do { XE_OPEN();  \
+/* movsx r32, word [abs]: the whole 32-bit register is written. */
+#define xe_movsx32_rm16(reg, addr) do { XE_OPEN();  \
 	{ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
-	  E_P16(xep); E_REX_MEM(xep, 0, (reg), xm_); \
+	  E_REX_MEM(xep, 0, (reg), xm_); \
 	  EW8(xep, 0x0f); EW8(xep, 0xbf); E_MODRM_MEM(xep, (reg), xm_, 0); }; XE_CLOSE(); } while (0)
 
 /* ================= iFPU vocabulary ================= */

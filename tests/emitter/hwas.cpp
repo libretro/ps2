@@ -201,6 +201,10 @@ int main(void)
 	CASE("cmp rax, rcx",         xe_cmp64_rr(0, 1));
 	CASE("movsxd rax, ecx",      xe_movsxd_rr(0, 1));
 	CASE("movsxd r8, r9d",       xe_movsxd_rr(8, 9));
+	/* movsx from a word in memory writes the whole 32-bit register; the
+	 * PDIVBW divisor is loaded this way. */
+	CASE("movsx ecx, WORD PTR ds:0x12345678", xe_movsx32_rm16(1, 0x12345678));
+	CASE("movsx r9d, WORD PTR ds:0x100",      xe_movsx32_rm16(9, 0x100));
 
 	/* Shifts by an immediate, including the one-bit short form. */
 	CASE("shl eax, 1",           xe_shl32_ri(0, 1));

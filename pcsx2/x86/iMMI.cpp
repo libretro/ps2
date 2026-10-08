@@ -2054,7 +2054,7 @@ void recPDIVBW(void)
 	_flushConstReg(_Rs_);
 	_flushConstReg(_Rt_);
 
-	xe_movsxd_rm16(XE_CX, &cpuRegs.GPR.r[_Rt_].US[0]);
+	xe_movsx32_rm16(XE_CX, &cpuRegs.GPR.r[_Rt_].US[0]);
 	for (n = 0; n < 4; n++)
 		recPDIVBW_lane(n);
 }
