@@ -43,6 +43,10 @@ std::unique_ptr<GLContext> GLContext::Create()
 	if (!context)
 		return nullptr;
 
+	if (hw_render.context_type == RETRO_HW_CONTEXT_OPENGLES3 ||
+	    hw_render.context_type == RETRO_HW_CONTEXT_OPENGLES_VERSION)
+		context->m_version.profile = Profile::ES;
+
 	log_cb(RETRO_LOG_INFO, "Created an %s context\n", context->IsGLES() ? "OpenGL ES" : "OpenGL");
 
 	// load up glad
