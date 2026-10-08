@@ -2106,13 +2106,24 @@ static void defrost(void)
 		log_cb(RETRO_LOG_ERROR, "(context_reset) Failed to defrost\n");
 }
 
+/* The frontend gave a Vulkan context and no interface to present through:
+ * there is no renderer to open until the next context_reset. */
+static bool hw_interface_missing;
+
 static void libretro_context_reset(void)
 {
+	hw_interface_missing = false;
 #ifdef ENABLE_VULKAN
 	if (hw_render.context_type == RETRO_HW_CONTEXT_VULKAN)
 	{
 		if (!environ_cb(RETRO_ENVIRONMENT_GET_HW_RENDER_INTERFACE, (void **)&vulkan) || !vulkan)
+		{
+			/* Nothing to present through, so nothing is opened on it. */
+			vulkan = NULL;
+			hw_interface_missing = true;
 			log_cb(RETRO_LOG_ERROR, "Failed to get HW rendering interface!\n");
+			return;
+		}
 		if (vulkan->interface_version != RETRO_HW_RENDER_INTERFACE_VULKAN_VERSION)
 			log_cb(RETRO_LOG_ERROR, "HW render interface mismatch, expected %u, got %u!\n",
 			RETRO_HW_RENDER_INTERFACE_VULKAN_VERSION, vulkan->interface_version);
@@ -3034,6 +3045,14 @@ void retro_run(void)
 		update_av_info();
 
 	Input::Update();
+
+	if (hw_interface_missing)
+	{
+		/* No renderer, and the EE stays parked: the frame is the last. */
+		video_cb(NULL, 0, 0, 0);
+		upload_output_audio_buffer();
+		return;
+	}
 
 	if (!MTGS::IsOpen())
 		MTGS::TryOpenGS();
