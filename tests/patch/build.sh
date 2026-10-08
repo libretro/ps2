@@ -32,11 +32,14 @@ ${CXX:-c++} -std=c++17 -O1 -w $SANFLAGS -I "$ROOT" -I "$ROOT/pcsx2" \
 "$DIR/patch_dbload" "$ROOT/bin/resources/GameIndex.yaml"
 
 echo "== the core's built-in game patches, every serial and hint =="
+${CC:-cc} -std=c89 -O1 -Wall -Wdeclaration-after-statement $SANFLAGS \
+	-I "$LC/include" -c "$DIR/ingame.c" -o "$DIR/ingame.o"
 ${CXX:-c++} -std=c++17 -O1 -w $SANFLAGS -I "$ROOT" -I "$ROOT/pcsx2" \
 	-I "$ROOT/common" -I "$ROOT/common/include" -I "$ROOT/3rdparty/include" \
 	-I "$LC/include" \
-	-o "$DIR/patch_ingame" "$DIR/ingame.cpp" "$ROOT/libretro/patches.cpp" \
+	-o "$DIR/patch_ingame" "$DIR/ingame.o" "$DIR/ingame_glue.cpp" "$ROOT/libretro/patches.cpp" \
 	"$ROOT/pcsx2/Patch.cpp" "$ROOT/pcsx2/FormatString.cpp" "$ROOT/pcsx2/StringView.cpp" \
 	"$LC/file/file_path.c" "$LC/string/stdstring.c" "$LC/compat/compat_strl.c" \
 	"$LC/encodings/encoding_utf.c" "$LC/time/rtime.c"
+rm -f "$DIR/ingame.o"
 "$DIR/patch_ingame" "$ROOT/libretro/patches.cpp"
