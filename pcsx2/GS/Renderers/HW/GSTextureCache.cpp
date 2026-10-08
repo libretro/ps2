@@ -20,6 +20,7 @@
 
 #include "GSTextureCache.h"
 #include "GSSurfaceSearch.h"
+#include "GSScratch.h"
 #include "GSTargetBudget.h"
 #include "GSObjectPool.h"
 #include "GSTextureReplacements.h"
@@ -44,12 +45,24 @@ GSTextureCache::GSTextureCache()
 	s_unswizzle_buffer = (u8*)memalign_alloc(VECTOR_ALIGNMENT, 9 * 1024 * 1024);
 }
 
+/* Where the copy builders put their lists of copies, which are sized by
+ * page counts and dirty lists rather than anything the stack can be
+ * trusted with (GSScratch.h). One per site, so none holds another's. */
+static struct gs_scratch s_scratch_copy_pages;
+static struct gs_scratch s_scratch_merged_done;
+static struct gs_scratch s_scratch_merged_queue;
+static struct gs_scratch s_scratch_dirty;
+
 GSTextureCache::~GSTextureCache()
 {
 	RemoveAll(true, true, true);
 
 	s_hash_cache_purge_list = {};
 	memalign_free(s_unswizzle_buffer);
+	gs_scratch_free(&s_scratch_copy_pages);
+	gs_scratch_free(&s_scratch_merged_done);
+	gs_scratch_free(&s_scratch_merged_queue);
+	gs_scratch_free(&s_scratch_dirty);
 }
 
 void GSTextureCache::ReadbackAll()
@@ -4715,7 +4728,10 @@ void GSTextureCache::CopyPages(Target* src, u32 sbw, u32 src_offset, Target* dst
 	const GSVector4i page_rc = GSVector4i::loadh(pgs);
 	const GSVector4 src_size = GSVector4(src->GetUnscaledSize()).xyxy();
 	const GSVector4 dst_scale = GSVector4(dst->GetScale());
-	GSDevice::MultiStretchRect* rects = static_cast<GSDevice::MultiStretchRect*>(alloca(sizeof(GSDevice::MultiStretchRect) * num_pages));
+	GSDevice::MultiStretchRect* rects = static_cast<GSDevice::MultiStretchRect*>(
+		gs_scratch_get(&s_scratch_copy_pages, sizeof(GSDevice::MultiStretchRect) * num_pages));
+	if (!rects)
+		return;
 	for (u32 i = 0; i < num_pages; i++)
 	{
 		const u32 src_page_num = src_offset + i;
@@ -5670,13 +5686,15 @@ GSTextureCache::Source* GSTextureCache::CreateMergedSource(GIFRegTEX0 TEX0, GIFR
 	GSTexture::GSMap lmtex_map;
 	bool lmtex_mapped = false;
 
-	u8* pages_done = static_cast<u8*>(alloca((num_pages + 7) / 8));
-	memset(pages_done, 0, (num_pages + 7) / 8);
+	u8* pages_done = static_cast<u8*>(gs_scratch_get(&s_scratch_merged_done, (num_pages + 7) / 8));
 
 	// Queue of rectangles to copy, we try to batch as many at once as possible.
 	// Multiply by 2 in case we need to preload.
-	GSDevice::MultiStretchRect* copy_queue =
-		static_cast<GSDevice::MultiStretchRect*>(alloca(sizeof(GSDevice::MultiStretchRect) * num_pages * 2));
+	GSDevice::MultiStretchRect* copy_queue = static_cast<GSDevice::MultiStretchRect*>(
+		gs_scratch_get(&s_scratch_merged_queue, sizeof(GSDevice::MultiStretchRect) * num_pages * 2));
+	if (!pages_done || !copy_queue)
+		return nullptr;
+	memset(pages_done, 0, (num_pages + 7) / 8);
 	u32 copy_count = 0;
 
 	// Page counters.
@@ -7086,6 +7104,11 @@ void GSTextureCache::Target::Update(bool cannot_scale)
 	const GSVector4i t_size(total_rect - t_offset);
 	const GSVector4 t_sizef(t_size.zwzw());
 
+	GSDevice::MultiStretchRect* drects = static_cast<GSDevice::MultiStretchRect*>(
+		gs_scratch_get(&s_scratch_dirty, sizeof(GSDevice::MultiStretchRect) * m_dirty.size()));
+	if (!drects)
+		return;
+
 	// This'll leave undefined data in pixels that we're not reading from... shouldn't hurt anything.
 	GSTexture* const t = g_gs_device->CreateTexture(t_size.z, t_size.w, 1, GSTexture::Format::Color);
 	if (!t)
@@ -7105,8 +7128,6 @@ void GSTextureCache::Target::Update(bool cannot_scale)
 	const bool override_linear = (upscaled && GSConfig.UserHacks_BilinearHack == GSBilinearDirtyMode::ForceBilinear);
 	const bool linear = (m_type == RenderTarget && upscaled && GSConfig.UserHacks_BilinearHack != GSBilinearDirtyMode::ForceNearest);
 
-	GSDevice::MultiStretchRect* drects = static_cast<GSDevice::MultiStretchRect*>(
-		alloca(sizeof(GSDevice::MultiStretchRect) * static_cast<u32>(m_dirty.size())));
 	u32 ndrects = 0;
 
 	const GSOffset off(g_gs_renderer->m_mem.GetOffset(m_TEX0.TBP0, m_TEX0.TBW, m_TEX0.PSM));
