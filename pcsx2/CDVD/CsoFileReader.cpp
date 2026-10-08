@@ -284,7 +284,8 @@ ThreadedFileReader::Chunk CsoFileReader::ChunkForOffset(u64 offset)
 
 int CsoFileReader::ReadChunk(void *dst, s64 chunkID)
 {
-	if (chunkID < 0)
+	/* The index has one entry per frame and one past the last. */
+	if (chunkID < 0 || (u64)chunkID >= (m_totalSize + m_frameSize - 1) >> m_frameShift)
 		return -1;
 
 	const u32 frame = chunkID;
@@ -293,6 +294,14 @@ int CsoFileReader::ReadChunk(void *dst, s64 chunkID)
 	const bool compressed = (m_index[frame + 0] & 0x80000000) == 0;
 	const u32 index0 = m_index[frame + 0] & 0x7FFFFFFF;
 	const u32 index1 = m_index[frame + 1] & 0x7FFFFFFF;
+
+	/* The index runs forwards; a frame that ends before it starts is a
+	 * damaged file, not a 2 GB frame. */
+	if (index1 < index0)
+	{
+		log_cb(RETRO_LOG_ERROR, "CSO index for frame %u runs backwards.\n", frame);
+		return 0;
+	}
 
 	// Calculate where the compressed payload is (if compressed.)
 	const u64 frameRawPos = (u64)index0 << m_indexShift;
@@ -356,7 +365,13 @@ int CsoFileReader::ReadChunk(void *dst, s64 chunkID)
 		}
 		// This might be less bytes than frameRawSize in case of padding on the last frame.
 		// This is because the index positions must be aligned.
-		const u32 readRawBytes = (u32)filestream_read(m_src, m_readBuffer, frameRawSize);
+		/* No compressed frame is larger than the read buffer, which holds
+		 * a whole frame and its alignment; one that claims to be is cut to
+		 * it and fails to decompress. */
+		const u64 bufferSize = (m_frameSize + (1u << m_indexShift) < CSO_READ_BUFFER_SIZE)
+			? CSO_READ_BUFFER_SIZE : (u64)m_frameSize + (1u << m_indexShift);
+		const u32 readRawBytes = (u32)filestream_read(m_src, m_readBuffer,
+				(int64_t)(frameRawSize < bufferSize ? frameRawSize : bufferSize));
 		bool success = false;
 
 		if (m_uselz4)

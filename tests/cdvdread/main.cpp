@@ -27,12 +27,20 @@
 #include <libretro.h>
 
 #include "CDVD/ThreadedFileReader.h"
+#include "CDVD/CsoFileReader.h"
+#include <streams/file_stream.h>
+#include <vfs/vfs_implementation.h>
 #include "CDVD/IsoFileFormats.h"
 #include "Config.h"
 #include "Host.h"
 #include "HostFS.h"
 
-retro_log_printf_t log_cb = NULL;
+/* The readers log their errors; the damaged-image case reaches them. */
+static void quiet_log(enum retro_log_level level, const char *fmt, ...)
+{
+   (void)level; (void)fmt;
+}
+retro_log_printf_t log_cb = quiet_log;
 std::string libretro_content;
 
 /* Pcsx2Config.cpp supplies EmuConfig and EmuFolders. Only the directory
@@ -97,6 +105,86 @@ static int check_pass(InputIsoFile &in, const uint8_t *image, const char *what)
    }
    printf("  ok: %s -- %d sectors forwards, backwards and alternating\n", what, SECTORS);
    return 1;
+}
+
+static void put32(uint8_t *p, uint32_t v)
+{
+   p[0] = (uint8_t)v; p[1] = (uint8_t)(v >> 8); p[2] = (uint8_t)(v >> 16); p[3] = (uint8_t)(v >> 24);
+}
+
+/* A CSO whose index runs backwards at its first frame, with 512 KB of
+ * payload after it, read through a VFS that has no mapping - the way a
+ * frontend VFS serves it, and the path that stages frames in the read
+ * buffer. The frame is refused; nothing past the buffer is written. */
+static int check_backwards_cso(const char *path)
+{
+   static struct retro_vfs_interface iface;
+   struct retro_vfs_interface_info info;
+   const size_t payload = 512 * 1024;
+   const uint32_t frames = 4;
+   const size_t index_at = 24, payload_at = 24 + (frames + 1) * 4;
+   uint8_t *file = (uint8_t*)calloc(1, payload_at + payload);
+   uint8_t sector[SECTOR];
+   int ok = 1, got;
+   FILE *f;
+
+   if (!file)
+      return 0;
+   memcpy(file, "CISO", 4);
+   put32(file + 4, 24);
+   put32(file + 8, frames * SECTOR);
+   put32(file + 12, 0);
+   put32(file + 16, SECTOR);
+   file[20] = 1;
+   put32(file + index_at, (uint32_t)payload_at);
+   put32(file + index_at + 4, 1);
+   put32(file + index_at + 8, (uint32_t)(payload_at + payload));
+   put32(file + index_at + 12, (uint32_t)(payload_at + payload));
+   put32(file + index_at + 16, (uint32_t)(payload_at + payload));
+   f = fopen(path, "wb");
+   if (!f || fwrite(file, 1, payload_at + payload, f) != payload_at + payload)
+   {
+      printf("  FAIL: could not write %s\n", path);
+      free(file);
+      return 0;
+   }
+   fclose(f);
+   free(file);
+
+   iface.get_path = (retro_vfs_get_path_t)retro_vfs_file_get_path_impl;
+   iface.open     = (retro_vfs_open_t)retro_vfs_file_open_impl;
+   iface.close    = (retro_vfs_close_t)retro_vfs_file_close_impl;
+   iface.size     = (retro_vfs_size_t)retro_vfs_file_size_impl;
+   iface.tell     = (retro_vfs_tell_t)retro_vfs_file_tell_impl;
+   iface.seek     = (retro_vfs_seek_t)retro_vfs_file_seek_impl;
+   iface.read     = (retro_vfs_read_t)retro_vfs_file_read_impl;
+   info.required_interface_version = FILESTREAM_REQUIRED_VFS_VERSION;
+   info.iface = &iface;
+   filestream_vfs_init(&info);
+   {
+      CsoFileReader cr;
+      if (!cr.Open(path))
+      {
+         printf("  FAIL: could not open the damaged CSO\n");
+         ok = 0;
+      }
+      else
+      {
+         got = cr.ReadSync(sector, 0, 1);
+         if (got > 0)
+         {
+            printf("  FAIL: a frame whose index runs backwards was read (%d)\n", got);
+            ok = 0;
+         }
+         cr.Close();
+      }
+   }
+   info.iface = NULL;
+   filestream_vfs_init(&info);
+   remove(path);
+   if (ok)
+      printf("  ok: a CSO frame whose index runs backwards is refused\n");
+   return ok;
 }
 
 int main(int argc, char **argv)
@@ -216,6 +304,8 @@ int main(int argc, char **argv)
       }
       remove(cso);
    }
+
+   ok &= check_backwards_cso("cdvdread_backwards.cso");
 
    free(image);
    remove(iso);
