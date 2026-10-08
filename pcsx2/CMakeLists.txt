@@ -966,6 +966,8 @@ target_link_libraries(PCSX2_FLAGS INTERFACE
 	${LIBC_LIBRARIES}
 )
 
+# Outside Windows there is nothing to link for GL: the renderer gets its
+# entry points from the frontend.
 if(WIN32)
 	target_link_libraries(PCSX2_FLAGS INTERFACE
 		d3dcompiler.lib
@@ -975,8 +977,6 @@ if(WIN32)
 		opengl32.lib
 		OneCore.lib
 	)
-else()
-	# Nothing to link: the GL renderer gets its entry points from the frontend.
 endif()
 
 # additonal include directories

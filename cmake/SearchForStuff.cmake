@@ -6,22 +6,12 @@ if(EXISTS ${PROJECT_SOURCE_DIR}/.git)
 endif()
 # zlib and libpng are gone: every former consumer decodes through
 # libretro-common (rinflate/rpng), compiled into the libretro target.
-if (WIN32)
-	# We bundle everything on Windows
-else()
-	# No GL library to find: the GL renderer resolves every entry point
-	# through hw_render.get_proc_address via glad.
-	# On macOS, Mono.framework contains an ancient version of libpng.  We don't want that.
-	# Avoid it by telling cmake to avoid finding frameworks while we search for libpng.
-	if(APPLE)
-	else()
-		set(FIND_FRAMEWORK_BACKUP ${CMAKE_FIND_FRAMEWORK})
-		set(CMAKE_FIND_FRAMEWORK NEVER)
-	endif()
-
-	## Use pcsx2 package to find module
+# Windows bundles everything. Elsewhere there is no GL library to find:
+# the GL renderer resolves every entry point through
+# hw_render.get_proc_address via glad.
+if(NOT WIN32)
 	include(FindLibc)
-endif(WIN32)
+endif()
 
 # Require threads on all OSes.
 find_package(Threads REQUIRED)
