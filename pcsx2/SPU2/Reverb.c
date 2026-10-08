@@ -41,6 +41,14 @@ StereoOut32 V_Core_DoReverb(V_Core *c, StereoOut32 Input)
 	 * so the produced indices are bit-for-bit unchanged. */
 	rv_start = c->EffectsStartA & 0x3fffff;
 	rv_end   = (c->EffectsEndA & 0x3fffff) | 0xffff;
+	/* The addresses as the indexer reads them: an end that masks down
+	 * below the start is an empty work area, not a modulo by zero. */
+	if (rv_end < rv_start)
+	{
+		StereoOut32 ret;
+		ret.Left = ret.Right = 0;
+		return ret;
+	}
 	rv_size  = (rv_end - rv_start) + 1;
 	rv_phase = Cycles >> 1;
 	/* Reads rv_phase, rv_size and rv_start from the enclosing scope, which

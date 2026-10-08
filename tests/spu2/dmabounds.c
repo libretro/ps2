@@ -4,6 +4,7 @@
  *   finishes, in both buffer modes.
  * - DMA in either direction that runs past the end of IOP RAM wraps to its
  *   start, as MADR does, and touches nothing after it.
+ * - A reverb work area whose end masks down below its start is silent.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -122,6 +123,19 @@ static void check_plain_wrap(void)
 		"and goes on from its start");
 }
 
+static void check_reverb(void)
+{
+	V_Core* c = &Cores[0];
+	StereoOut32 in, out;
+
+	reset();
+	c->EffectsStartA = 0x00010000;
+	c->EffectsEndA   = 0x0040ffff;
+	in.Left = in.Right = 0x1000;
+	out = V_Core_DoReverb(c, in);
+	CHECK(out.Left == 0 && out.Right == 0, "a work area that masks to empty is silent");
+}
+
 int main(void)
 {
 	iopMem = (IopVM_MemoryAllocMess*)malloc(sizeof(*iopMem));
@@ -130,6 +144,7 @@ int main(void)
 	check_adma_partial();
 	check_adma_wrap();
 	check_plain_wrap();
+	check_reverb();
 	free(iopMem);
 	printf(failures ? "spu2 dmabounds: FAILED (%d)\n" : "spu2 dmabounds: ok\n", failures);
 	return failures != 0;
