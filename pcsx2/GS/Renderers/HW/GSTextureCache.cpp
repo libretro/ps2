@@ -19,6 +19,7 @@
 #include "common/MathUtils.h"
 
 #include "GSTextureCache.h"
+#include "GSSurfaceSearch.h"
 #include "GSTargetBudget.h"
 #include "GSObjectPool.h"
 #include "GSTextureReplacements.h"
@@ -7575,8 +7576,8 @@ GSTextureCache::SurfaceOffset GSTextureCache::ComputeSurfaceOffset(const Surface
 	if (a_el.bp >= b_el.bp)
 	{
 		// A starts after B, search <x,y> offset from B to A in B coords.
-		const u32 b_bw = b_psm_s.trbpp > 8 ? pcsx2_max_i(1U, b_el.bw) : pcsx2_max_i(1U, b_el.bw / 2);
-		const int y_page_offset = pcsx2_max_i(b_rect.y, static_cast<int>((((a_el.bp >= b_el.bp) >> 5) / b_bw) * b_psm_s.pgs.y));
+		const u32 b_bw = GS_SURFACE_PAGES_PER_ROW(b_el.bw, b_psm_s.pgs.x);
+		const int y_page_offset = GS_SURFACE_SEARCH_FIRST_ROW(a_el.bp, b_el.bp, b_bw, b_psm_s.pgs.y, b_rect.y);
 		for (b2a_offset.y = y_page_offset; b2a_offset.y < b_rect.w; b2a_offset.y += dy)
 		{
 			for (b2a_offset.x = b_rect.x; b2a_offset.x < b_rect.z; b2a_offset.x += dx)
