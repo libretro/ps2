@@ -359,6 +359,8 @@ set(pcsx2GSSources
 	GS/Renderers/HW/GSSpriteSnap.h
 	GS/Renderers/HW/GSTargetBudget.c
 	GS/Renderers/HW/GSTargetBudget.h
+	GS/Renderers/Common/GSStableGroup.c
+	GS/Renderers/Common/GSStableGroup.h
 	GS/Renderers/Vulkan/GSVulkanHeap.c
 	GS/Renderers/Vulkan/GSVulkanHeap.h
 	GS/Renderers/HW/GSObjectPool.h

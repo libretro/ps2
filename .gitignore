@@ -194,3 +194,4 @@ tests/ata/*.img
 /tests/smaprx/smaprx_test_tsan
 /tests/smaprx/*.exe
 /tests/framepace/framepace
+/tests/gsgroup/gsgroup

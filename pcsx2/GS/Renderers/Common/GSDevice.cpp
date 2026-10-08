@@ -14,12 +14,14 @@
  */
 
 #include <algorithm>
+#include <type_traits>
 #include "common/Pcsx2Defs.h"
 #include <cmath>
 
 #include "common/Align.h"
 
 #include "GSDevice.h"
+#include "GSStableGroup.h"
 
 /* What the texture cache is holding, for the allocation failure message.
  * Defined in GSTextureCache.cpp; the device cannot include its header. */
@@ -506,12 +508,21 @@ void GSDevice::DrawMultiStretchRectsBase(
 	}
 }
 
+static int multi_stretch_rect_same(const void* a, const void* b)
+{
+	const GSDevice::MultiStretchRect* l = (const GSDevice::MultiStretchRect*)a;
+	const GSDevice::MultiStretchRect* r = (const GSDevice::MultiStretchRect*)b;
+	return l->src == r->src && l->linear == r->linear;
+}
+
+/* The copies from one source with one filter together, so each group is
+ * one batch, in an order that does not depend on where the sources sit
+ * in memory (GSStableGroup.h). */
 void GSDevice::SortMultiStretchRects(MultiStretchRect* rects, u32 num_rects)
 {
-	// Depending on num_rects, insertion sort may be better here.
-	std::sort(rects, rects + num_rects, [](const MultiStretchRect& lhs, const MultiStretchRect& rhs) {
-		return lhs.src < rhs.src || lhs.linear < rhs.linear;
-	});
+	static_assert(std::is_trivially_copyable<MultiStretchRect>::value,
+		"gs_stable_group moves the rects bytewise");
+	gs_stable_group(rects, num_rects, sizeof(*rects), multi_stretch_rect_same);
 }
 
 void GSDevice::ClearCurrent()
