@@ -196,16 +196,22 @@ std::optional<IsoFileDescriptor> IsoDirectory::FindFile(const std::string_view& 
 	// walk through path ("." and ".." entries are in the directories themselves, so even if the
 	// path included . and/or .., it still works)
 
-	// ignore the device (cdrom0:\)
-	const bool has_device = (parts.front().back() == ':');
+	if (parts.empty())
+		return std::nullopt;
 
-	for (size_t index = has_device ? 1 : 0; index < (parts.size() - 1); index++)
+	// ignore the device (cdrom0:\)
+	const bool has_device = !parts.front().empty() && parts.front().back() == ':';
+
+	/* Each component is looked up in the directory the walk has reached,
+	 * and the entry is copied out before that directory is reopened as
+	 * the next level, since reopening replaces the entries it holds. */
+	for (size_t index = has_device ? 1 : 0; index + 1 < parts.size(); index++)
 	{
-		const int subdir_index = GetIndexOf(parts[index]);
+		const int subdir_index = dir->GetIndexOf(parts[index]);
 		if (subdir_index < 0)
 			return std::nullopt;
 
-		const IsoFileDescriptor& subdir_entry = GetEntry(static_cast<size_t>(index));
+		const IsoFileDescriptor subdir_entry = dir->GetEntry(static_cast<size_t>(subdir_index));
 		if (subdir_entry.IsFile() || !subdir.Open(subdir_entry))
 			return std::nullopt;
 
@@ -216,7 +222,7 @@ std::optional<IsoFileDescriptor> IsoDirectory::FindFile(const std::string_view& 
 	if (file_index < 0)
 		return std::nullopt;
 
-	return GetEntry(static_cast<size_t>(file_index));
+	return dir->GetEntry(static_cast<size_t>(file_index));
 }
 
 bool IsoDirectory::Exists(const std::string_view& filePath) const

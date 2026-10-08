@@ -35,6 +35,15 @@ IsoFile::IsoFile(const IsoFileDescriptor& fileEntry)
 	Init();
 }
 
+/* One sector of the image into the buffer, or zeroes where the image has
+ * none: a record read from a sector that is not there is a zero-length
+ * record, which ends a directory, never whatever the buffer held. */
+static void isofile_load_sector(u8* buffer, u32 lba)
+{
+	if (lba > 0x7FFFFFFFu || !isofs_read_sector(buffer, (int)lba))
+		memset(buffer, 0, IsoFile::sectorLength);
+}
+
 void IsoFile::Init()
 {
 	currentSectorNumber = fileEntry.lba;
@@ -43,7 +52,7 @@ void IsoFile::Init()
 	maxOffset = fileEntry.size;
 
 	if (maxOffset > 0)
-		isofs_read_sector(currentSector, currentSectorNumber);
+		isofile_load_sector(currentSector, currentSectorNumber);
 }
 
 bool IsoFile::open(const IsoDirectory& dir, const std::string_view& filename)
@@ -79,13 +88,11 @@ u32 IsoFile::seek(u32 absoffset)
 {
 	u32 endOffset = absoffset;
 
-	int oldSectorNumber = currentSectorNumber;
-	int newSectorNumber = fileEntry.lba + (int)(endOffset / sectorLength);
+	const u32 oldSectorNumber = currentSectorNumber;
+	const u32 newSectorNumber = fileEntry.lba + endOffset / sectorLength;
 
 	if (oldSectorNumber != newSectorNumber)
-	{
-		isofs_read_sector(currentSector, newSectorNumber);
-	}
+		isofile_load_sector(currentSector, newSectorNumber);
 
 	currentOffset = endOffset;
 	currentSectorNumber = newSectorNumber;
@@ -151,7 +158,7 @@ void IsoFile::makeDataAvailable()
 	if (sectorOffset >= sectorLength)
 	{
 		currentSectorNumber++;
-		isofs_read_sector(currentSector, currentSectorNumber);
+		isofile_load_sector(currentSector, currentSectorNumber);
 		sectorOffset -= sectorLength;
 	}
 }

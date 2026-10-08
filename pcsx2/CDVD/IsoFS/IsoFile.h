@@ -32,7 +32,7 @@ protected:
 	u32 currentOffset;
 	u32 maxOffset;
 
-	int currentSectorNumber;
+	u32 currentSectorNumber;
 	u8 currentSector[sectorLength];
 	int sectorOffset;
 
