@@ -110,7 +110,7 @@ void V_Core_AutoDMAReadBuffer(V_Core *c, int mode)
 
 			if (c->DMAPtr != NULL)
 				spu2_from_iop(GetMemPtr(0x2000 + (c->Index << 10) + spos),
-						c->DMAPtr + c->InputDataProgress, (u32)n * 2);
+						c->DMAPtr + c->InputDataProgress, (u32)n);
 			c->InputDataTransferred += (u32)n * 2;
 			c->InputDataLeft -= (u32)n;
 			c->InputDataProgress += (u32)n;

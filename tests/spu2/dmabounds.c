@@ -100,6 +100,24 @@ static void check_adma_wrap(void)
 		"auto-DMA from the end of IOP RAM goes on from its start");
 }
 
+/* One auto-DMA block is 0x100 halfwords into one half of the core's input
+ * buffer: exactly that much is written, and the other half is untouched. */
+static void check_adma_extent(void)
+{
+	V_Core* c = &Cores[0];
+
+	reset();
+	memset(&iopMem->Main[0x1000], 0x55, 0x800);
+	c->AutoDMACtrl   = 1;
+	c->InputPosWrite = 0;
+	c->InputDataLeft = 0x100;
+	c->DMAPtr        = (u16*)&iopMem->Main[0x1000];
+	V_Core_AutoDMAReadBuffer(c, 0);
+	CHECK(spu_bytes_are(0x2000, 0x200, 0x55), "a block of auto-DMA fills its half of the input buffer");
+	CHECK(spu_bytes_are(0x2100, 0x600, 0x00), "and writes nothing past it");
+	CHECK(c->InputDataProgress == 0x100 && c->InputDataLeft == 0, "and moves on by one block");
+}
+
 static void check_plain_wrap(void)
 {
 	V_Core* c = &Cores[0];
@@ -210,6 +228,7 @@ int main(void)
 		return 1;
 	check_adma_partial();
 	check_adma_wrap();
+	check_adma_extent();
 	check_plain_wrap();
 	check_reverb();
 	check_freeze();
