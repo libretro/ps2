@@ -337,7 +337,7 @@
 
 /* movzx r32 <- byte [abs] and r32 <- r8; the byte-register REX rule
  * (bare 0x40 for ids 4-7) lives in E_MOVEXT_RR's srcw==0 branch. */
-#define xe_movzx32_r8(dst, src8) do { XE_OPEN(); E_MOVEXT_RR(xep, 0, 0, 0, (dst), (src8)); XE_CLOSE(); } while (0)
+#define xe_movzx32_r8(dst, src8) do { XE_OPEN(); E_MOVEXT_RR(xep, 0, 0, 0, (dst), E_R8_ID(src8)); XE_CLOSE(); } while (0)
 
 
 #define xe_movzx32_r16(dst, src) do { XE_OPEN(); E_MOVEXT_RR(xep, 0, 0, 1, (dst), (src)); XE_CLOSE(); } while (0)
@@ -350,7 +350,7 @@
 
 
 /* movsx r32 <- r8/r16 (0F BE / 0F BF) */
-#define xe_movsx32_r8(dst, src8) do { XE_OPEN(); E_MOVEXT_RR(xep, 0, 1, 0, (dst), (src8)); XE_CLOSE(); } while (0)
+#define xe_movsx32_r8(dst, src8) do { XE_OPEN(); E_MOVEXT_RR(xep, 0, 1, 0, (dst), E_R8_ID(src8)); XE_CLOSE(); } while (0)
 #define xe_movsx32_r16(dst, src) do { XE_OPEN(); E_MOVEXT_RR(xep, 0, 1, 1, (dst), (src)); XE_CLOSE(); } while (0)
 
 /* shifts by CL, named */
@@ -518,11 +518,11 @@ static uintptr_t xe_opaque_uptr(const void *p)
 	xe_fastcall0(fn); } while (0)
 
 #define xe_ret() do { XE_OPEN(); EW8(xep, 0xc3); XE_CLOSE(); } while (0)  /* xRET is a macro */
-#define xe_test8_rr(a, b) do { XE_OPEN(); E_TEST_RR_SZ(xep, 1, (a), (b)); XE_CLOSE(); } while (0)
+#define xe_test8_rr(a, b) do { XE_OPEN(); E_TEST_RR_SZ(xep, 1, E_R8_ID(a), E_R8_ID(b)); XE_CLOSE(); } while (0)
 
 
 #define xe_cmp64_ri(reg, imm)  do { XE_OPEN(); E_G1_RI(xep, 1, 7, (reg), (int32_t)(imm)); XE_CLOSE(); } while (0)
-#define xe_test8_ri(reg, imm)  do { XE_OPEN(); E_TEST_RI_SZ(xep, 1, (reg), (imm)); XE_CLOSE(); } while (0)
+#define xe_test8_ri(reg, imm)  do { XE_OPEN(); E_TEST_RI_SZ(xep, 1, E_R8_ID(reg), (imm)); XE_CLOSE(); } while (0)
 /* movmskps r32, xmm: 0F 50 /r, gpr in the reg field */
 #define xe_movmskps_rx(gpr, xmm) do { XE_OPEN(); E_SSE_RR(xep, 0x00, 0x50, (gpr), (xmm)); XE_CLOSE(); } while (0)
 
@@ -706,7 +706,7 @@ static uintptr_t xe_opaque_uptr(const void *p)
 
 /* iMMI scalar stragglers */
 #define xe_bsr32_rr(d, s)      do { XE_OPEN();  \
-	{ EW8(xep, 0x0f); EW8(xep, 0xbd); E_MODRM_RR(xep, (d), (s)); }; XE_CLOSE(); } while (0)
+	{ E_REX(xep, 0, (d), 0, (s)); EW8(xep, 0x0f); EW8(xep, 0xbd); E_MODRM_RR(xep, (d), (s)); }; XE_CLOSE(); } while (0)
 #define xe_dec32_r(reg)        do { XE_OPEN(); E_INCDEC_R_SZ(xep, 4, 1, (reg)); XE_CLOSE(); } while (0)
 #define xe_udiv32_r(reg)       do { XE_OPEN(); E_G3_R(xep, 0, 6, (reg)); XE_CLOSE(); } while (0)
 /* pextrd gpr, xmm, imm: 66 0F 3A 16, xmm in reg field */
@@ -1142,7 +1142,7 @@ static uintptr_t xe_opaque_uptr(const void *p)
 	  E_MODRM_RR(xep, (dst), (src)); }; XE_CLOSE(); } while (0)
 
 #define xe_cmp8_ri(reg, imm) do { XE_OPEN();  \
-	{ E_REX8_RM(xep, (reg)); \
+	{ E_REX8_RM(xep, E_R8_ID(reg)); \
 	  if ((reg) == 0) { EW8(xep, 0x3c); } \
 	  else { EW8(xep, 0x80); E_MODRM_RR(xep, 7, (reg)); } \
 	  EW8(xep, (uint8_t)(imm)); }; XE_CLOSE(); } while (0)

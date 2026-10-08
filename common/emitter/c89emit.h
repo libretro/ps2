@@ -422,7 +422,7 @@ static struct e_mem e_mem_abs(const void* addr)
                 if ((intptr_t)(m).disp != (intptr_t)(int32_t)(m).disp) \
                     abort(); \
                 EW8((p), (uint8_t)((0 << 6) | (((reg)&7) << 3) | 4)); \
-                EW8((p), (uint8_t)(((m).scale << 6) | (((m).index) << 3) | 5)); \
+                EW8((p), (uint8_t)(((m).scale << 6) | (((m).index & 7) << 3) | 5)); \
                 EW32((p), (uint32_t)(int32_t)(m).disp); \
                 ds_ = -1; \
             } else { \
@@ -735,6 +735,9 @@ static struct e_mem e_mem_abs(const void* addr)
 #define E_R8H(n) (n)
 #define E_R8L(n) ((n) | 0x10)
 #define E_R8_EXT(r)  ((((r) & 0x0F) > 7) ? 1 : 0)
+/* A plain register id as a byte register: 4..7 are spl/bpl/sil/dil, as
+ * for every other width, never ah/ch/dh/bh. Ids already marked pass. */
+#define E_R8_ID(r)   ((((r) >= 4) && ((r) <= 7)) ? E_R8L(r) : (r))
 #define E_R8_NEEDREX(r) (((r) >= 0x10) ? 1 : 0)
 
 /* REX for an 8-bit reg,reg pair. Emitted when any bit is set OR when either
