@@ -257,11 +257,15 @@ namespace R3000A
 	};
 
 	/* Resolve a guest path under hostRoot, or yield an empty string if it
-	 * escapes. Writes into the caller's buffer; no allocation. */
+	 * escapes. Writes into the caller's buffer; no allocation.
+	 *
+	 * The HLE calls run on the IOP's thread, one at a time and never
+	 * nested, so their path buffers here and below are static rather than
+	 * several KB of stack each. */
 	static void host_path(char* out, size_t out_size, const char* path, int allow_open_host_root)
 	{
-		char   native[PCSX2_PATH_MAX];
-		char   canonical[PCSX2_PATH_MAX];
+		static char   native[PCSX2_PATH_MAX];
+		static char   canonical[PCSX2_PATH_MAX];
 		size_t root_len;
 
 		out[0] = '\0';
@@ -739,8 +743,8 @@ namespace R3000A
 		int open_HLE()
 		{
 			HostFile* file = NULL;
-			char path_raw[PCSX2_PATH_MAX];
-			char path[PCSX2_PATH_MAX];
+			static char path_raw[PCSX2_PATH_MAX];
+			static char path[PCSX2_PATH_MAX];
 			Ra0_BUF(path_raw);
 			clean_path(path, sizeof(path), path_raw);
 			s32 flags = a1;
@@ -800,8 +804,8 @@ namespace R3000A
 		int dopen_HLE()
 		{
 			HostDir* dir = NULL;
-			char path_raw[PCSX2_PATH_MAX];
-			char path[PCSX2_PATH_MAX];
+			static char path_raw[PCSX2_PATH_MAX];
+			static char path[PCSX2_PATH_MAX];
 			Ra0_BUF(path_raw);
 			clean_path(path, sizeof(path), path_raw);
 
@@ -893,8 +897,8 @@ namespace R3000A
 
 		int _getStat_HLE(bool iomanx)
 		{
-			char path_raw[PCSX2_PATH_MAX];
-			char path[PCSX2_PATH_MAX];
+			static char path_raw[PCSX2_PATH_MAX];
+			static char path[PCSX2_PATH_MAX];
 			Ra0_BUF(path_raw);
 			clean_path(path, sizeof(path), path_raw);
 			u32 data = a1;
@@ -902,7 +906,7 @@ namespace R3000A
 			if (is_host(path))
 			{
 				const char* colon = strchr(path, ':');
-				char full_path[PCSX2_PATH_MAX];
+				static char full_path[PCSX2_PATH_MAX];
 
 				host_path(full_path, sizeof(full_path), colon ? colon + 1 : path, 1);
 				if (iomanx)
@@ -956,15 +960,15 @@ namespace R3000A
 
 		int remove_HLE()
 		{
-			char full_path_raw[PCSX2_PATH_MAX];
-			char full_path[PCSX2_PATH_MAX];
+			static char full_path_raw[PCSX2_PATH_MAX];
+			static char full_path[PCSX2_PATH_MAX];
 			Ra0_BUF(full_path_raw);
 			clean_path(full_path, sizeof(full_path), full_path_raw);
 
 			if (is_host(full_path))
 			{
 				const char* colon = strchr(full_path, ':');
-				char file_path[PCSX2_PATH_MAX];
+				static char file_path[PCSX2_PATH_MAX];
 
 				host_path(file_path, sizeof(file_path), colon ? colon + 1 : full_path, 0);
 				/* The PS2 kernel's remove refuses directories; keep that
@@ -983,15 +987,15 @@ namespace R3000A
 
 		int mkdir_HLE()
 		{
-			char full_path_raw[PCSX2_PATH_MAX];
-			char full_path[PCSX2_PATH_MAX];
+			static char full_path_raw[PCSX2_PATH_MAX];
+			static char full_path[PCSX2_PATH_MAX];
 			Ra0_BUF(full_path_raw);
 			clean_path(full_path, sizeof(full_path), full_path_raw);
 
 			if (is_host(full_path))
 			{
 				const char* colon = strchr(full_path, ':');
-				char folder_path[PCSX2_PATH_MAX];
+				static char folder_path[PCSX2_PATH_MAX];
 
 				host_path(folder_path, sizeof(folder_path), colon ? colon + 1 : full_path, 0); // NOTE: Don't allow creating the ELF directory.
 				const bool succeeded = path_mkdir(folder_path);
@@ -1029,15 +1033,15 @@ namespace R3000A
 
 		int rmdir_HLE()
 		{
-			char full_path_raw[PCSX2_PATH_MAX];
-			char full_path[PCSX2_PATH_MAX];
+			static char full_path_raw[PCSX2_PATH_MAX];
+			static char full_path[PCSX2_PATH_MAX];
 			Ra0_BUF(full_path_raw);
 			clean_path(full_path, sizeof(full_path), full_path_raw);
 
 			if (is_host(full_path))
 			{
 				const char* colon = strchr(full_path, ':');
-				char folder_path[PCSX2_PATH_MAX];
+				static char folder_path[PCSX2_PATH_MAX];
 
 				host_path(folder_path, sizeof(folder_path), colon ? colon + 1 : full_path, 0); // NOTE: Don't allow removing the elf directory itself.
 				/* rmdir's inverse guard: only a directory may go. */
@@ -1061,7 +1065,7 @@ namespace R3000A
 
 			if (fd == 1) // stdout
 			{
-				char s[PCSX2_PATH_MAX];
+				static char s[PCSX2_PATH_MAX];
 				Ra1_BUF(s);
 				pc = ra;
 				v0 = a2;

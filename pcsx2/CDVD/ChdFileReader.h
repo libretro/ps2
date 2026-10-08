@@ -50,6 +50,7 @@ private:
 	/// index 0 = the image itself, 1.. = parent chain outward
 	std::vector<rchd_t*> m_chds;
 	std::vector<Source>  m_srcs;
+	uint8_t*             m_feed = nullptr; /* FEED_CHUNK bytes, for unmapped sources */
 
 	u64 file_size = 0;
 	u32 hunk_size = 0;

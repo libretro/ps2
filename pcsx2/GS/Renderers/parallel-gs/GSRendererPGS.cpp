@@ -63,8 +63,18 @@ struct LibretroLog final : Util::LoggingInterface
 		if (!log_cb)
 			return false;
 
-		char buf[4 * 1024];
-		vsnprintf(buf, sizeof(buf), fmt, va);
+		/* Logs from any of Granite's threads: short lines on the stack,
+		 * longer ones on the heap. */
+		char small[512];
+		char* buf = small;
+		va_list again;
+		va_copy(again, va);
+		const int len = vsnprintf(small, sizeof(small), fmt, va);
+		if (len >= (int)sizeof(small) && (buf = (char*)malloc((size_t)len + 1)) != nullptr)
+			vsnprintf(buf, (size_t)len + 1, fmt, again);
+		else if (!buf)
+			buf = small;
+		va_end(again);
 
 		retro_log_level level = RETRO_LOG_DUMMY;
 		if (strcmp(tag, "[ERROR]: ") == 0)
@@ -75,6 +85,8 @@ struct LibretroLog final : Util::LoggingInterface
 			level = RETRO_LOG_WARN;
 
 		log_cb(level, "%s", buf);
+		if (buf != small)
+			free(buf);
 		return true;
 	}
 };

@@ -236,15 +236,24 @@ static inline int build_index(RFILE* in, s64 span, struct access** built)
 	s64 chunk_base;              /* file offset of the current input chunk */
 	struct access* index = NULL;
 	void* z;
-	unsigned char input[CHUNK];
-	unsigned char window[WINSIZE];
+	/* The input chunk and the window, on the heap: together they are
+	 * far more than a stack frame should hold. */
+	unsigned char* input;
+	unsigned char* window;
 	size_t in_avail = 0, in_used = 0;
 	size_t win_fill = 0;         /* valid bytes in window (current cycle) */
 	int done = 0;
 
+	input = (unsigned char*)malloc(CHUNK + WINSIZE);
+	if (!input)
+		return ZIDX_MEM_ERROR;
+	window = input + CHUNK;
 	z = rinflate_new(47); /* automatic zlib or gzip decoding */
 	if (!z)
+	{
+		free(input);
 		return ZIDX_MEM_ERROR;
+	}
 	rinflate_set_stop_at_block(z, 1);
 
 	totout = last = 0;
@@ -319,10 +328,12 @@ static inline int build_index(RFILE* in, s64 span, struct access** built)
 	if (index == NULL)
 	{
 		rinflate_free(z);
+		free(input);
 		return 0;
 	}
 
 	rinflate_free(z);
+	free(input);
 	index->list = (Point*)realloc(index->list, sizeof(struct point) * index->have);
 	index->size = index->have;
 	index->span = span;
@@ -332,6 +343,7 @@ static inline int build_index(RFILE* in, s64 span, struct access** built)
 
 build_index_error:
 	rinflate_free(z);
+	free(input);
 	if (index != NULL)
 		free_index(index);
 	return ret;
@@ -342,6 +354,7 @@ typedef struct zstate
 	s64 out_offset;
 	s64 in_offset;
 	void* strm; /* rinflate raw stream, live between sequential extracts */
+	unsigned char* work; /* extract's input chunk and discard window, kept */
 	int isValid;
 } Zstate;
 
@@ -351,6 +364,17 @@ static inline void zstate_free_strm(zstate* state)
 	{
 		rinflate_free(state->strm);
 		state->strm = nullptr;
+	}
+}
+
+/* Everything the state holds: the stream and the work buffer. */
+static inline void zstate_free(zstate* state)
+{
+	zstate_free_strm(state);
+	if (state)
+	{
+		free(state->work);
+		state->work = nullptr;
 	}
 }
 
@@ -371,8 +395,8 @@ static inline int extract(RFILE* in, struct access* index, s64 offset,
 {
 	int ret = ZIDX_OK, skip;
 	struct point* here;
-	unsigned char input[CHUNK];
-	unsigned char discard[WINSIZE];
+	unsigned char* input;
+	unsigned char* discard;
 	int isEnd = 0;
 	size_t in_avail = 0, in_used = 0;
 	size_t out_size = 0, out_done = 0;
@@ -380,6 +404,12 @@ static inline int extract(RFILE* in, struct access* index, s64 offset,
 
 	if (len < 0 || state == nullptr)
 		return 0;
+	if (!state->work)
+		state->work = (unsigned char*)malloc(CHUNK + WINSIZE);
+	if (!state->work)
+		return ZIDX_MEM_ERROR;
+	input   = state->work;
+	discard = state->work + CHUNK;
 
 	if (state->isValid && offset != state->out_offset)
 	{

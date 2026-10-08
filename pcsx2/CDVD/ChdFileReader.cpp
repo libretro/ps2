@@ -64,13 +64,12 @@ ChdFileReader::~ChdFileReader()
 /* Feed one outstanding request cycle.  Mapped sources feed straight
  * from the mapping - the decoder consumes bytes in place, so a mapped
  * image never copies compressed data at all.  Unmapped sources go
- * through a bounded scratch buffer; short feeds are legal and rchd
- * simply re-requests the remainder. */
+ * through m_feed, a bounded buffer made the first time one is needed;
+ * short feeds are legal and rchd simply re-requests the remainder. */
 bool ChdFileReader::DriveRead(rchd_t* chd, const Source& self, const Source& parent)
 {
 	rchd_request_t reqs[CHD_PIPELINE_DEPTH];
 	rchd_request_t req;
-	uint8_t scratch[FEED_CHUNK];
 
 	for (;;)
 	{
@@ -98,11 +97,13 @@ bool ChdFileReader::DriveRead(rchd_t* chd, const Source& self, const Source& par
 					return false;
 				if (filestream_seek(src.fp, static_cast<int64_t>(reqs[i].offset), RETRO_VFS_SEEK_POSITION_START) != 0)
 					return false;
+				if (!m_feed && !(m_feed = static_cast<uint8_t*>(malloc(FEED_CHUNK))))
+					return false;
 				const size_t  want = pcsx2_min_sz(reqs[i].length, FEED_CHUNK);
-				const int64_t got  = filestream_read(src.fp, scratch, static_cast<int64_t>(want));
+				const int64_t got  = filestream_read(src.fp, m_feed, static_cast<int64_t>(want));
 				if (got <= 0)
 					return false;
-				if (rchd_feed_at(chd, reqs[i].offset, reqs[i].source, scratch, static_cast<size_t>(got)) < 0)
+				if (rchd_feed_at(chd, reqs[i].offset, reqs[i].source, m_feed, static_cast<size_t>(got)) < 0)
 					return false;
 			}
 		}
@@ -140,7 +141,6 @@ bool ChdFileReader::OpenOne(const char* path, rchd_t** out_chd, Source* out_src)
 	/* The open is the same pull loop as a read, without a parent: a
 	   header, map, or metadata byte can only live in the file itself. */
 	rchd_request_t req;
-	uint8_t scratch[FEED_CHUNK];
 	for (;;)
 	{
 		const int err = rchd_open_step(chd, &req);
@@ -173,14 +173,15 @@ bool ChdFileReader::OpenOne(const char* path, rchd_t** out_chd, Source* out_src)
 				return false;
 			}
 			const size_t  want = pcsx2_min_sz(req.length, FEED_CHUNK);
-			const int64_t got  = filestream_read(src.fp, scratch, static_cast<int64_t>(want));
+			const int64_t got  = (m_feed || (m_feed = static_cast<uint8_t*>(malloc(FEED_CHUNK))))
+				? filestream_read(src.fp, m_feed, static_cast<int64_t>(want)) : 0;
 			if (got <= 0)
 			{
 				rchd_free(chd);
 				filestream_close(src.fp);
 				return false;
 			}
-			rchd_feed(chd, scratch, static_cast<size_t>(got));
+			rchd_feed(chd, m_feed, static_cast<size_t>(got));
 		}
 	}
 
@@ -327,6 +328,8 @@ void ChdFileReader::Close2()
 			filestream_close(s.fp);
 	}
 	m_srcs.clear();
+	free(m_feed);
+	m_feed = nullptr;
 	file_size = 0;
 	hunk_size = 0;
 }

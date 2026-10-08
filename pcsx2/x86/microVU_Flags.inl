@@ -320,9 +320,13 @@ __fi void mVUsetupFlags(mV, microFlagCycles* mFC)
 	}
 }
 
-/* Visited-PC set for _mVUflagPass recursion guard. Backed by a caller-owned
-   stack buffer sized to the VU's micro memory (one u32 per 8-byte slot), so
-   the set can never exceed microMemSize/8 distinct PCs and never allocates. */
+/* Visited-PC set for _mVUflagPass recursion guard. Backed by one buffer per
+   VU sized to the largest micro memory (one u32 per 8-byte slot), so the
+   set can never exceed microMemSize/8 distinct PCs and never allocates.
+   Each VU compiles on one thread at a time, and VU0 and VU1 may compile at
+   once on different threads, so each has its own. */
+static u32 mVUflagVisitedPC[2][0x4000 / 8];
+
 struct mVUflagVisited
 {
 	u32* pc;
@@ -404,9 +408,8 @@ static void mVUflagPass(mV, u32 startPC, u32 sCount = 0, u32 found = 0)
 {
 	/* At most microMemSize/8 distinct PCs can be visited (one per 8-byte
 	   instruction slot): 8192 for VU1 (0x4000), 2048 for VU0 (0x1000). */
-	u32 visitedPC[0x4000 / 8];
 	mVUflagVisited v;
-	v.pc    = visitedPC;
+	v.pc    = mVUflagVisitedPC[mVU->index & 1];
 	v.count = 0;
 	_mVUflagPass(mVU, startPC, sCount, found, &v);
 }

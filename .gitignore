@@ -203,3 +203,4 @@ tests/ata/*.img
 /tests/memcard/memcard_ecc.exe
 /tests/emitter/emitter_frame
 /tests/emitter/emitter_frame_sysv
+/tests/settings/settings_optioncfg

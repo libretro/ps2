@@ -205,11 +205,12 @@ static void LoadExtraRom(const char* ext, u8 (&dest)[_size])
 		// Try the name properly extensioned next (name.rom1)
 		if (strrchr(BiosPath.c_str(), '.'))
 		{
-			/* fill_pathname takes the dot with the extension; Path::ReplaceExtension kept the path's own. */
-			char dotext[32], repl[PATH_MAX_LENGTH];
-			snprintf(dotext, sizeof(dotext), ".%s", ext);
-			fill_pathname(repl, BiosPath.c_str(), dotext, sizeof(repl));
-			Bios1 = repl;
+			/* The name's own extension, if it has one, gives way to ext. */
+			const char* full = BiosPath.c_str();
+			const char* dot  = strrchr(path_basename(full), '.');
+			Bios1.assign(full, dot ? (size_t)(dot - full) : BiosPath.size());
+			Bios1 += '.';
+			Bios1 += ext;
 		}
 		else
 			Bios1 = BiosPath;

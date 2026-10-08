@@ -141,18 +141,16 @@ static const char* INDEX_TEMPLATE_KEY = "$(f)";
  * start, since a template with a directory prefix wants the bare name.
  * A relative result is joined under base. An empty output means the
  * template was malformed: no key, more than one, or ending with the key
- * when that is not allowed.
- *
- * Was three std::strings and a find/rfind pair; the same rules on a
- * fixed buffer, since the result is a path and was only ever read back
- * with c_str(). */
+ * when that is not allowed, or no memory for the working buffers. */
 static void ApplyTemplate(char* out, size_t out_size,
 	const char* name, const char* base,
 	const char* fileTemplate, const char* filename,
 	bool canEndWithKey)
 {
 	const size_t keylen = strlen(INDEX_TEMPLATE_KEY);
-	char   tmpl[PCSX2_PATH_MAX];
+	/* The trimmed template and the substituted path, off the stack. */
+	char*  tmpl = (char*)malloc(2 * PCSX2_PATH_MAX);
+	char*  joined;
 	char*  key;
 	char*  start;
 	char*  end;
@@ -160,9 +158,12 @@ static void ApplyTemplate(char* out, size_t out_size,
 
 	out[0] = '\0';
 	(void)name;
+	if (!tmpl)
+		return;
+	joined = tmpl + PCSX2_PATH_MAX;
 
 	/* StripWhitespace, in place. */
-	strlcpy(tmpl, fileTemplate ? fileTemplate : "", sizeof(tmpl));
+	strlcpy(tmpl, fileTemplate ? fileTemplate : "", PCSX2_PATH_MAX);
 	start = tmpl;
 	while (*start == ' ' || *start == '\t' || *start == '\r' || *start == '\n')
 		start++;
@@ -174,16 +175,16 @@ static void ApplyTemplate(char* out, size_t out_size,
 	len = (size_t)(end - start);
 
 	key = strstr(start, INDEX_TEMPLATE_KEY);
-	if (!key)
-		return;                                   /* not found */
-	if (strstr(key + 1, INDEX_TEMPLATE_KEY))
-		return;                                   /* more than one */
-	if (!canEndWithKey && (size_t)(key - start) == len - keylen)
-		return;                                   /* ends with the key */
+	if (!key                                       /* not found */
+	 || strstr(key + 1, INDEX_TEMPLATE_KEY)        /* more than one */
+	 || (!canEndWithKey && (size_t)(key - start) == len - keylen)) /* ends with the key */
+	{
+		free(tmpl);
+		return;
+	}
 
 	{
 		const char* fname = filename;
-		char        joined[PCSX2_PATH_MAX];
 
 		/* A key past the start means the template carries its own
 		 * directory, so only the leaf name goes in. */
@@ -201,13 +202,14 @@ static void ApplyTemplate(char* out, size_t out_size,
 
 		/* Substitute: prefix, filename, suffix. */
 		*key = '\0';
-		snprintf(joined, sizeof(joined), "%s%s%s", start, fname, key + keylen);
+		snprintf(joined, PCSX2_PATH_MAX, "%s%s%s", start, fname, key + keylen);
 
 		if (path_is_absolute(joined))
 			strlcpy(out, joined, out_size);
 		else
 			pcsx2_path_join(out, out_size, base, joined);
 	}
+	free(tmpl);
 }
 
 static void iso2indexname(char* out, size_t out_size, const char* isoname)
@@ -245,15 +247,18 @@ GzippedFileReader::~GzippedFileReader() = default;
 bool GzippedFileReader::LoadOrCreateIndex()
 {
 	// Try to read index from disk
-	char indexfile[PCSX2_PATH_MAX];
-
-	iso2indexname(indexfile, sizeof(indexfile), m_filename);
-	// iso2indexname(...) will set errors if it can't apply the template
-	if (indexfile[0] == '\0')
+	char* indexfile = (char*)malloc(PCSX2_PATH_MAX);
+	if (!indexfile)
 		return false;
 
-	if ((m_index = ReadIndexFromFile(indexfile)) != nullptr)
-		return true;
+	iso2indexname(indexfile, PCSX2_PATH_MAX, m_filename);
+	// iso2indexname(...) will set errors if it can't apply the template
+	if (indexfile[0] == '\0' || (m_index = ReadIndexFromFile(indexfile)) != nullptr)
+	{
+		const bool found = indexfile[0] != '\0';
+		free(indexfile);
+		return found;
+	}
 
 	// No valid index file. Generate an index
 	log_cb(RETRO_LOG_WARN, "This may take a while (but only once). Scanning compressed file to generate a quick access index...\n");
@@ -278,9 +283,11 @@ bool GzippedFileReader::LoadOrCreateIndex()
 	else
 	{
 		free_index(index);
+		free(indexfile);
 		return false;
 	}
 
+	free(indexfile);
 	return true;
 }
 
@@ -300,11 +307,8 @@ bool GzippedFileReader::Open2(const char* filename)
 
 void GzippedFileReader::Close2()
 {
-	if (m_z_state.isValid)
-	{
-		zstate_free_strm(&m_z_state);
-		m_z_state = {};
-	}
+	zstate_free(&m_z_state);
+	m_z_state = {};
 
 	if (m_src)
 	{

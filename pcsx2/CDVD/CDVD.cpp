@@ -182,9 +182,7 @@ static void cdvdCreateNewNVM(void)
 }
 
 
-/* BIOS path with the extension swapped, into a caller buffer. Replaces
- * three Path::ReplaceExtension(BiosPath, ...) calls, each of which
- * allocated a std::string to be read straight back as a C string. */
+/* BIOS path with the extension swapped, into a caller buffer. */
 static void cdvdBiosSiblingPath(char* out, size_t out_size, const char* ext)
 {
 	strlcpy(out, BiosPath.c_str(), out_size);
@@ -195,8 +193,11 @@ static void cdvdBiosSiblingPath(char* out, size_t out_size, const char* ext)
 
 void cdvdLoadNVRAM(void)
 {
-	char nvmfile[PCSX2_PATH_MAX];
-	cdvdBiosSiblingPath(nvmfile, sizeof(nvmfile), "nvm");
+	/* One path buffer, the NVRAM's and then the MEC's. */
+	char path[PCSX2_PATH_MAX];
+	const char* nvmfile = path;
+	const char* mecfile = path;
+	cdvdBiosSiblingPath(path, sizeof(path), "nvm");
 	RFILE *fp = filestream_open(nvmfile, RETRO_VFS_FILE_ACCESS_READ, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 	if (!fp || filestream_read(fp, s_nvram, sizeof(s_nvram)) != (int64_t)sizeof(s_nvram))
 	{
@@ -220,14 +221,11 @@ void cdvdLoadNVRAM(void)
 		}
 	}
 
-	/* The NVRAM handle is done with here.  It used to be left open and
-	 * then overwritten by the MEC open below, which leaked it - one
-	 * RFILE and its 64 KiB stdio buffer per VM start. */
+	/* The NVRAM handle is done with here, before fp is reused. */
 	if (fp)
 		filestream_close(fp);
 
-	char mecfile[PCSX2_PATH_MAX];
-	cdvdBiosSiblingPath(mecfile, sizeof(mecfile), "mec");
+	cdvdBiosSiblingPath(path, sizeof(path), "mec");
 	fp = filestream_open(mecfile, RETRO_VFS_FILE_ACCESS_READ, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 	if (!fp || filestream_read(fp, &s_mecha_version, sizeof(s_mecha_version)) != (int64_t)sizeof(s_mecha_version))
 	{

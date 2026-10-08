@@ -287,16 +287,16 @@ extern std::string libretro_content;
 
 void VMManager::LoadSettings()
 {
-	/* The options set the fields the options set, and nothing else. What
-	 * LoadSave used to do was write only the entries the settings map
-	 * held, which left the runtime state -- UseBOOT2Injection, the IRX and
-	 * game-argument strings, the memory card types -- exactly as the
-	 * caller had it. Assigning the option config over EmuConfig discarded
-	 * all of that, including the CopyRuntimeConfig that ApplySettings does
-	 * immediately before calling here: fast boot came back as the default
-	 * on every settings change, which took the region and the refresh rate
-	 * with it, and the memory card types went back to File. */
-	Pcsx2Config runtime(std::move(EmuConfig));
+	/* The options set the fields the options set, and nothing else: the
+	 * runtime state -- UseBOOT2Injection, the IRX and game-argument
+	 * strings, the memory card types, fast boot -- is carried over from
+	 * the config as the caller had it.
+	 *
+	 * Kept rather than on the stack: a Pcsx2Config is 25 KB. Only one
+	 * thread applies settings at a time - the EE is paused, or it is the
+	 * EE booting. Moved from, as EmuConfig is assigned afresh next. */
+	static Pcsx2Config runtime;
+	runtime = std::move(EmuConfig);
 	EmuConfig = Host::OptionConfig();
 	EmuConfig.CopyRuntimeConfig(runtime);
 	EmuConfig.ApplyOptionFixups();
@@ -306,12 +306,11 @@ void VMManager::LoadSettings()
 		EmuConfig.Mcd[1].Enabled = false;
 	}
 	PAD::LoadConfig();
-	/* Everything below was the tail of the old LoadSettings and went with
-	 * the settings map by mistake. The hack masks drop user hacks a global
-	 * switch has since disabled, so a stale value cannot outlive it; the
-	 * interlace line is what a no-interlacing patch needs to take effect;
-	 * and ApplyGameFixes is the game database's, without which a game that
-	 * needs one renders wrongly -- which is what this cost Sega Rally. */
+	/* The hack masks drop user hacks a global switch has disabled, so a
+	 * stale value cannot outlive it; the interlace line is what a
+	 * no-interlacing patch needs to take effect; and ApplyGameFixes is the
+	 * game database's, without which a game that needs one renders
+	 * wrongly. */
 	EmuConfig.GS.MaskUserHacks();
 	EmuConfig.GS.MaskUpscalingHacks();
 	if (s_active_no_interlacing_patches > 0 && EmuConfig.GS.InterlaceMode == GSInterlaceMode::Automatic)
@@ -1224,11 +1223,11 @@ void VMManager::ApplySettings()
 		MTGS::WaitGS(false);
 	}
 
-	// Reset to a clean Pcsx2Config. Otherwise things which are optional (e.g. gamefixes)
-	// do not use the correct default values when loading.
-	Pcsx2Config old_config(std::move(EmuConfig));
-	EmuConfig = Pcsx2Config();
-	EmuConfig.CopyRuntimeConfig(old_config);
+	/* LoadSettings builds the config afresh from the options and the
+	 * runtime fields, so nothing optional keeps a stale value; the old one
+	 * is kept to compare against, off the stack (see LoadSettings). */
+	static Pcsx2Config old_config;
+	old_config = EmuConfig;
 	LoadSettings();
 	CheckForConfigChanges(old_config);
 }

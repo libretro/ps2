@@ -2336,17 +2336,12 @@ static void get_first_track_from_cue(std::string &path)
 	// so just find the first 'FILE "<gametrack>.bin" BINARY' line
 	// and extract the track filename from it
 	char buffer[1024];
-	char basedir[4096];
 	const char *line_start = "FILE \"";
 	const char *line_end = "\" BINARY";
 
-	snprintf(basedir, sizeof(basedir), "%s", path.c_str());
-	path_basedir(basedir);
-
-	/* Through the VFS, like every other file this core opens.  fopen()
-	 * takes the path in the local 8-bit encoding, so on Windows a cue
-	 * sitting under a path with any non-ASCII character in it simply
-	 * did not open. */
+	/* Through the VFS, like every other file this core opens: fopen()
+	 * takes the path in the local 8-bit encoding, which on Windows
+	 * cannot name every path. */
 	RFILE *cue_file = filestream_open(path.c_str(),
 			RETRO_VFS_FILE_ACCESS_READ, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 	if (!cue_file)
@@ -2367,13 +2362,22 @@ static void get_first_track_from_cue(std::string &path)
 			{
 				const std::string track(line.substr(start, end - start));
 				filestream_close(cue_file);
-				/* An absolute FILE entry is already the path; joining it
-				 * to the cue's own directory produced nonsense like
-				 * /games//games/disc.bin and the track was not found. */
+				/* An absolute FILE entry is already the path; a relative
+				 * one is under the cue's own directory. */
 				if (path_is_absolute(track.c_str()))
 					path = track;
 				else
-					path = basedir + track;
+				{
+					/* path_basedir writes "./" for a bare name. */
+					char *basedir = (char*)malloc(path.size() + 3);
+					if (basedir)
+					{
+						memcpy(basedir, path.c_str(), path.size() + 1);
+						path_basedir(basedir);
+						path = basedir + track;
+						free(basedir);
+					}
+				}
 				return;
 			}
 		}
@@ -2445,7 +2449,12 @@ bool retro_load_game(const struct retro_game_info* game)
 	strlcpy(EmuFolders::Settings, EmuFolders::AppRoot,
 			sizeof(EmuFolders::Settings));
 
-	s_option_config = Pcsx2Config();
+	{
+		/* The defaults, kept rather than built on the stack each time:
+		 * a Pcsx2Config is 25 KB. */
+		static const Pcsx2Config defaults;
+		s_option_config = defaults;
+	}
 	VMManager::ApplyHardwareDefaults(s_option_config);
 	/* The two values that ride beside the config start over with it.
 	 * The settings map did this at every load: SetDefaults put the
@@ -2597,18 +2606,22 @@ bool retro_load_game(const struct retro_game_info* game)
 		if (!strcmp(path_get_extension(game->path), "m3u"))
 		{
 			RFILE *fd = filestream_open(game->path, RETRO_VFS_FILE_ACCESS_READ, RETRO_VFS_FILE_ACCESS_HINT_NONE);
+			/* The line, the playlist's directory and the joined path. */
+			char *paths = fd ? (char*)malloc(3 * PCSX2_PATH_MAX) : NULL;
 
-			if (fd)
+			if (fd && !paths)
+				filestream_close(fd);
+			else if (fd)
 			{
 				int len;
-				char linebuf[PCSX2_PATH_MAX];
-				char game_dir[PCSX2_PATH_MAX];
-				char game_abs[PCSX2_PATH_MAX];
+				char *linebuf  = paths;
+				char *game_dir = paths + PCSX2_PATH_MAX;
+				char *game_abs = paths + 2 * PCSX2_PATH_MAX;
 
 				game_dir[0] = '\0';
 				game_abs[0] = '\0';
 
-				snprintf(game_dir, sizeof(game_dir), "%s", game_path.c_str());
+				snprintf(game_dir, PCSX2_PATH_MAX, "%s", game_path.c_str());
 				path_basedir(game_dir);
 
 				while ((filestream_gets(fd, linebuf, PCSX2_PATH_MAX) != NULL) && (disk_images.size() < MAX_DISKS))
@@ -2651,9 +2664,9 @@ bool retro_load_game(const struct retro_game_info* game)
 					 * playlist will live has to emit - silently listed
 					 * no discs at all. */
 					if (path_is_absolute(linebuf))
-						strlcpy(game_abs, linebuf, sizeof(game_abs));
+						strlcpy(game_abs, linebuf, PCSX2_PATH_MAX);
 					else
-						fill_pathname_join(game_abs, game_dir, linebuf, sizeof(game_abs));
+						fill_pathname_join(game_abs, game_dir, linebuf, PCSX2_PATH_MAX);
 
 					if (path_is_valid(game_abs))
 					{
@@ -2666,13 +2679,14 @@ bool retro_load_game(const struct retro_game_info* game)
 				}
 
 				apply_initial_image();
-				get_image_path(get_image_index(), game_abs, sizeof(game_abs));
+				get_image_path(get_image_index(), game_abs, PCSX2_PATH_MAX);
 				boot_params.filename = game_abs;
 
 				/* The playlist has been read; the handle was never
 				 * released, so every multi-disc load leaked an RFILE and
 				 * the 64 KiB buffer the VFS attaches to it. */
 				filestream_close(fd);
+				free(paths);
 			}
 		}
 		else
