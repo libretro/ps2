@@ -1087,6 +1087,13 @@ static uintptr_t xe_opaque_uptr(const void *p)
 /* SSE fallback path pieces */
 #define xe_pcmpeqd_xmemg(x, m) do { XE_OPEN(); E_SSE_R_MEM(xep, 0x66, 0x76, (x), (m)); XE_CLOSE(); } while (0)
 #define xe_movups_memxg(m, x) do { XE_OPEN(); E_SSE_R_MEM(xep, 0x00, 0x11, (x), (m)); XE_CLOSE(); } while (0)
+/* xmm6-xmm15, which Win64 makes callee-saved, stored at [rsp + disp]
+ * and up, 16 bytes apiece, and loaded back. movups: the slots need no
+ * alignment. */
+#define xe_win64_save_xmm(disp) do { int xr_; for (xr_ = 6; xr_ < 16; xr_++) { \
+	struct e_mem xs_; XE_MEM_BD(xs_, 4, (disp) + (xr_ - 6) * 16); xe_movups_memxg(xs_, xr_); } } while (0)
+#define xe_win64_restore_xmm(disp) do { int xr_; for (xr_ = 6; xr_ < 16; xr_++) { \
+	struct e_mem xs_; XE_MEM_BD(xs_, 4, (disp) + (xr_ - 6) * 16); xe_movups_xmemg(xr_, xs_); } } while (0)
 #define xe_jmp_r(reg) do { XE_OPEN();  \
 	{ E_REX(xep, 0, 0, 0, (reg)); EW8(xep, 0xff); \
 	  EW8(xep, (uint8_t)(0xe0 | ((reg) & 7))); }; XE_CLOSE(); } while (0)

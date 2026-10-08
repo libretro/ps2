@@ -198,3 +198,5 @@ tests/ata/*.img
 /tests/gsscratch/gsscratch
 /tests/cdvdread/cdvd_read
 /tests/ohcidma/ohcidma
+/tests/emitter/emitter_frame
+/tests/emitter/emitter_frame_sysv

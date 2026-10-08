@@ -153,6 +153,16 @@ int main(void)
 		return 0;
 	}
 
+	/* The Win64 frame's xmm6-xmm15 saves: rsp needs a SIB byte, the low
+	 * registers no REX and the high ones REX.R, and the last slots pass
+	 * a byte displacement. */
+	CASE("movups [rsp+0x20], xmm6",   { struct e_mem m; XE_MEM_BD(m, 4, 0x20); xe_movups_memxg(m, 6); });
+	CASE("movups [rsp+0x30], xmm7",   { struct e_mem m; XE_MEM_BD(m, 4, 0x30); xe_movups_memxg(m, 7); });
+	CASE("movups [rsp+0x40], xmm8",   { struct e_mem m; XE_MEM_BD(m, 4, 0x40); xe_movups_memxg(m, 8); });
+	CASE("movups [rsp+0xb0], xmm15",  { struct e_mem m; XE_MEM_BD(m, 4, 0xb0); xe_movups_memxg(m, 15); });
+	CASE("movups xmm6, [rsp+0x20]",   { struct e_mem m; XE_MEM_BD(m, 4, 0x20); xe_movups_xmemg(6, m); });
+	CASE("movups xmm15, [rsp+0xb0]",  { struct e_mem m; XE_MEM_BD(m, 4, 0xb0); xe_movups_xmemg(15, m); });
+
 	/* Register-to-register ALU, low and extended registers, since the REX
 	 * prefix is where an encoder most often goes wrong. */
 	CASE("add eax, ecx",     xe_add32_rr(0, 1));
