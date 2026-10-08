@@ -196,3 +196,4 @@ tests/ata/*.img
 /tests/framepace/framepace
 /tests/gsgroup/gsgroup
 /tests/gsscratch/gsscratch
+/tests/cdvdread/cdvd_read

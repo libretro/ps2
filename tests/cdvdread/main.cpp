@@ -28,6 +28,8 @@
 
 #include "CDVD/ThreadedFileReader.h"
 #include "CDVD/CsoFileReader.h"
+#include "CDVD/zlib_indexed.h"
+#include <encodings/crc32.h>
 #include <streams/file_stream.h>
 #include <vfs/vfs_implementation.h>
 #include "CDVD/IsoFileFormats.h"
@@ -116,6 +118,53 @@ static void put32(uint8_t *p, uint32_t v)
  * payload after it, read through a VFS that has no mapping - the way a
  * frontend VFS serves it, and the path that stages frames in the read
  * buffer. The frame is refused; nothing past the buffer is written. */
+/* A gzip of the image in stored deflate blocks: no compressor needed. */
+static int write_gz(const char *path, const uint8_t *data, size_t len)
+{
+   static const uint8_t head[10] = { 0x1f, 0x8b, 8, 0, 0, 0, 0, 0, 0, 0xff };
+   uint8_t hdr[5], tail[8];
+   size_t done = 0;
+   uint32_t crc = encoding_crc32(0, data, len);
+   FILE *f = fopen(path, "wb");
+   if (!f || fwrite(head, 1, sizeof(head), f) != sizeof(head))
+      return 0;
+   while (done < len)
+   {
+      const size_t n = (len - done) > 65535 ? 65535 : (len - done);
+      hdr[0] = (uint8_t)(done + n == len ? 1 : 0);
+      hdr[1] = (uint8_t)n; hdr[2] = (uint8_t)(n >> 8);
+      hdr[3] = (uint8_t)~n; hdr[4] = (uint8_t)(~n >> 8);
+      if (fwrite(hdr, 1, 5, f) != 5 || fwrite(data + done, 1, n, f) != n)
+         return 0;
+      done += n;
+   }
+   put32(tail, crc);
+   put32(tail + 4, (uint32_t)len);
+   if (fwrite(tail, 1, 8, f) != 8)
+      return 0;
+   return fclose(f) == 0;
+}
+
+/* A quick-access index next to the gzip, as the reader would have
+ * written it, with the span and size given. */
+static int write_gz_index(const char *path, int32_t span, int64_t size)
+{
+   static const char id[] = "PCSX2.index.gzip.v1|";
+   Access a;
+   Point pt;
+   FILE *f = fopen(path, "wb");
+   memset(&a, 0, sizeof(a));
+   memset(&pt, 0, sizeof(pt));
+   a.have = 1;
+   a.size = 1;
+   a.span = span;
+   a.uncompressed_size = size;
+   if (!f || fwrite(id, 1, sizeof(id) - 1, f) != sizeof(id) - 1
+       || fwrite(&a, sizeof(a), 1, f) != 1 || fwrite(&pt, sizeof(pt), 1, f) != 1)
+      return 0;
+   return fclose(f) == 0;
+}
+
 static int check_backwards_cso(const char *path)
 {
    static struct retro_vfs_interface iface;
@@ -310,6 +359,44 @@ int main(int argc, char **argv)
       else
          printf("  ok: a read past the end reports 0\n");
       in.Close();
+   }
+
+   /* A gzip whose quick-access index holds a span or a size no reader
+    * wrote: the index is not used, a new one is built from the gzip, and
+    * the sectors come back right. */
+   {
+      static const struct { int32_t span; int64_t size; const char *what; } bad[] = {
+         { 0,            (int64_t)SECTOR * SECTORS, "a zero span"     },
+         { -4096,        (int64_t)SECTOR * SECTORS, "a negative span" },
+         { 4 << 20,      -1,                        "a negative size" },
+      };
+      /* Absolute, so the index sits beside it: a relative name puts
+       * the index under the data root. */
+      char gz[1100], idx[1200];
+      unsigned b;
+      snprintf(gz, sizeof(gz), "%s/cdvdread.iso.gz", dir);
+      snprintf(idx, sizeof(idx), "%s.pindex.tmp", gz);
+      if (!write_gz(gz, image, (size_t)SECTOR * SECTORS))
+      {
+         printf("  FAIL: could not write %s\n", gz);
+         ok = 0;
+      }
+      else for (b = 0; b < sizeof(bad) / sizeof(bad[0]); b++)
+      {
+         InputIsoFile in;
+         char what[96];
+         if (!write_gz_index(idx, bad[b].span, bad[b].size) || !in.Open(gz))
+         {
+            printf("  FAIL: gzip with an index holding %s does not open\n", bad[b].what);
+            ok = 0;
+            continue;
+         }
+         snprintf(what, sizeof(what), "gzip, its index holding %s", bad[b].what);
+         ok &= check_pass(in, image, what);
+         in.Close();
+      }
+      remove(gz);
+      remove(idx);
    }
 
    /* And through the CSO, where every read goes through the chunk cache. */

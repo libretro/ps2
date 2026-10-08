@@ -29,6 +29,8 @@
 
 #define GZIP_ID "PCSX2.index.gzip.v1|"
 #define GZIP_ID_LEN (sizeof(GZIP_ID) - 1) /* sizeof includes the \0 terminator */
+/* The largest span an index may hold: 16 times the one the reader writes. */
+#define GZIP_SPAN_MAX (64 * 1024 * 1024)
 
 // File format is:
 // - [GZIP_ID_LEN] GZIP_ID (no \0)
@@ -74,8 +76,14 @@ static Access* ReadIndexFromFile(const char* filename)
 		return nullptr;
 	}
 
+	/* The span divides every offset into a chunk number and is how much
+	 * a chunk read decompresses, and the size bounds every read: an
+	 * index holding values no reader writes is not used, and a new one
+	 * is built from the gzip. */
 	const s64 datasize = size - GZIP_ID_LEN - sizeof(Access);
 	if (filestream_read(fp, index, sizeof(Access)) != (int64_t)sizeof(Access) ||
+		index->span <= 0 || index->span > GZIP_SPAN_MAX ||
+		index->uncompressed_size <= 0 ||
 		index->have <= 0 ||
 		datasize != static_cast<s64>(index->have) * static_cast<s64>(sizeof(Point)))
 	{
