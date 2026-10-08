@@ -20,45 +20,10 @@
 
 VKStreamBuffer::VKStreamBuffer() = default;
 
-VKStreamBuffer::VKStreamBuffer(VKStreamBuffer&& move)
-	: m_size(move.m_size)
-	, m_current_offset(move.m_current_offset)
-	, m_current_space(move.m_current_space)
-	, m_current_gpu_position(move.m_current_gpu_position)
-	, m_alloc(move.m_alloc)
-	, m_buffer(move.m_buffer)
-	, m_host_pointer(move.m_host_pointer)
-	  , m_tracked_fences(std::move(move.m_tracked_fences))
-{
-	move.m_size = 0;
-	move.m_current_offset = 0;
-	move.m_current_space = 0;
-	move.m_current_gpu_position = 0;
-	move.m_alloc = gs_vk_alloc_t{};
-	move.m_buffer = VK_NULL_HANDLE;
-	move.m_host_pointer = nullptr;
-}
-
 VKStreamBuffer::~VKStreamBuffer()
 {
 	if (IsValid())
 		Destroy(true);
-}
-
-VKStreamBuffer& VKStreamBuffer::operator=(VKStreamBuffer&& move)
-{
-	if (IsValid())
-		Destroy(true);
-
-	std::swap(m_size, move.m_size);
-	std::swap(m_current_offset, move.m_current_offset);
-	std::swap(m_current_space, move.m_current_space);
-	std::swap(m_current_gpu_position, move.m_current_gpu_position);
-	std::swap(m_buffer, move.m_buffer);
-	std::swap(m_host_pointer, move.m_host_pointer);
-	std::swap(m_tracked_fences, move.m_tracked_fences);
-
-	return *this;
 }
 
 bool VKStreamBuffer::Create(VkBufferUsageFlags usage, u32 size)

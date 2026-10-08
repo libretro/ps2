@@ -26,11 +26,11 @@ class VKStreamBuffer
 {
 	public:
 		VKStreamBuffer();
-		VKStreamBuffer(VKStreamBuffer&& move);
+		VKStreamBuffer(VKStreamBuffer&&) = delete;
 		VKStreamBuffer(const VKStreamBuffer&) = delete;
 		~VKStreamBuffer();
 
-		VKStreamBuffer& operator=(VKStreamBuffer&& move);
+		VKStreamBuffer& operator=(VKStreamBuffer&&) = delete;
 		VKStreamBuffer& operator=(const VKStreamBuffer&) = delete;
 
 		__fi bool IsValid() const { return (m_buffer != VK_NULL_HANDLE); }
