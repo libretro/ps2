@@ -40,7 +40,13 @@
         (p)[0]=(uint8_t)(v_); (p)[1]=(uint8_t)(v_>>8); \
         (p)[2]=(uint8_t)(v_>>16); (p)[3]=(uint8_t)(v_>>24); (p) += 4; } while (0)
 
-#define E_IS_S8(x) ((int32_t)(x) == (int8_t)(x))
+#define E_IS_S8(x) ((intptr_t)(x) == (intptr_t)(int8_t)(x))
+
+/* A rel32 displacement that does not fit cannot be encoded; emitting its
+ * low 32 bits would branch somewhere else. Same discipline as
+ * E_MODRM_ABS: fail at emission. */
+#define E_CHECK_REL32(d) do { \
+        if ((intptr_t)(d) != (intptr_t)(int32_t)(d)) abort(); } while (0)
 
 /* REX. Emitted only when needed, exactly like EmitRex. */
 #define E_REX(p, w, r, x, b) do { \
@@ -290,9 +296,11 @@
 /* near jmp / jcc with a 32-bit displacement to a known target */
 #define E_JMP32(p, target) do { \
         intptr_t d_ = (intptr_t)(target) - ((intptr_t)(p) + 5); \
+        E_CHECK_REL32(d_); \
         EW8((p), 0xe9); EW32((p), (uint32_t)(int32_t)d_); } while (0)
 #define E_JCC32(p, cc, target) do { \
         intptr_t d_ = (intptr_t)(target) - ((intptr_t)(p) + 6); \
+        E_CHECK_REL32(d_); \
         EW8((p), 0x0f); EW8((p), (uint8_t)(0x80 | (cc))); \
         EW32((p), (uint32_t)(int32_t)d_); } while (0)
 
@@ -642,6 +650,7 @@ static struct e_mem e_mem_abs(const void* addr)
             else { EW8((p), 0x0f); EW8((p), (uint8_t)(0x80 | (cc))); } \
             slot_ = (p); EW32((p), 0); \
             dn_ = (intptr_t)(target) - (intptr_t)(p); \
+            E_CHECK_REL32(dn_); \
             slot_[0]=(uint8_t)dn_; slot_[1]=(uint8_t)(dn_>>8); \
             slot_[2]=(uint8_t)(dn_>>16); slot_[3]=(uint8_t)(dn_>>24); \
         } } while (0)
@@ -665,12 +674,14 @@ static struct e_mem e_mem_abs(const void* addr)
         (p) += 4; } while (0)
 #define E_FWD32_SET(p, base) do { \
         intptr_t d_ = (intptr_t)(p) - (intptr_t)(base); \
+        E_CHECK_REL32(d_); \
         (base)[-4]=(uint8_t)d_; (base)[-3]=(uint8_t)(d_>>8); \
         (base)[-2]=(uint8_t)(d_>>16); (base)[-1]=(uint8_t)(d_>>24); } while (0)
 
 /* call rel32 / call r/m64 / ret / nop */
 #define E_CALL_REL(p, target) do { \
         intptr_t d_ = (intptr_t)(target) - ((intptr_t)(p) + 5); \
+        E_CHECK_REL32(d_); \
         EW8((p), 0xe8); EW32((p), (uint32_t)(int32_t)d_); } while (0)
 #define E_CALL_R(p, reg) do { \
         if ((reg) >= 8) EW8((p), 0x41); \

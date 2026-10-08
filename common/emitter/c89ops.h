@@ -372,8 +372,9 @@
 	{ intptr_t xd_ = ((intptr_t)xep + 5) - (intptr_t)(fn); \
 	  if (xd_ == (intptr_t)(int32_t)xd_) { E_CALL_REL(xep, (fn)); } \
 	  else { \
-		struct e_mem xm_; XE_MEM_ABS(xm_, (fn)); \
-		E_LEA(xep, 1, 0, 0 /* rax */, xm_); \
+		/* Out of rel32 reach, so out of rip-relative LEA reach too: \
+		 * the address goes in rax whole. */ \
+		E_MOV64_RI(xep, 1, 0 /* rax */, (intptr_t)(fn)); \
 		E_CALL_R(xep, 0); \
 	  } }; XE_CLOSE(); } while (0)
 
@@ -618,6 +619,7 @@ static uintptr_t xe_opaque_uptr(const void *p)
 		EW8(xep, (uint8_t)(0x70 | (cc))); EW8(xep, (uint8_t)xd8_); \
 	  } else { \
 		intptr_t xd32_ = (intptr_t)(target) - ((intptr_t)xep + 6); \
+		E_CHECK_REL32(xd32_); \
 		EW8(xep, 0x0f); EW8(xep, (uint8_t)(0x80 | (cc))); \
 		EW32(xep, (uint32_t)(int32_t)xd32_); \
 	  } }; XE_CLOSE(); } while (0)

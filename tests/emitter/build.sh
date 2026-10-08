@@ -20,6 +20,11 @@ ${CXX:-c++} -std=c++17 -O1 -w $SANFLAGS \
 	-o "$DIR/emitter_hwas" "$DIR/hwas.cpp"
 "$DIR/emitter_hwas"
 
+echo "== branch and call reach =="
+${CC:-cc} -std=c89 -pedantic -Wno-long-long -Wall -Wno-unused-function -O1 $SANFLAGS \
+	-I "$ROOT" -o "$DIR/emitter_reach" "$DIR/reach.c"
+"$DIR/emitter_reach"
+
 # The other five files in this directory -- oracle, exhaustive,
 # shim_oracle, newbind, sse_exhaustive and switch_equiv -- all reach the
 # removed C++ emitter, whether through reference/x86emitter_shim.h or
