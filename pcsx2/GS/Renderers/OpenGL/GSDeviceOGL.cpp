@@ -176,7 +176,7 @@ bool GSDeviceOGL::CheckFeatures(bool& buggy_pbo)
 	GLint minor_gl = 0;
 	glGetIntegerv(GL_MAJOR_VERSION, &major_gl);
 	glGetIntegerv(GL_MINOR_VERSION, &minor_gl);
-	if (!GLAD_GL_VERSION_3_3 && !GLAD_GL_ES_VERSION_3_1)
+	if (!GLAD_GL_VERSION_3_3)
 	{
 		log_cb(RETRO_LOG_ERROR, "OpenGL is not supported. Only OpenGL %d.%d\n was found\n", major_gl, minor_gl);
 		return false;
@@ -302,7 +302,7 @@ bool GSDeviceOGL::Create()
 
 	if (!GSConfig.DisableShaderCache)
 	{
-		if (!m_shader_cache.Open(false))
+		if (!m_shader_cache.Open())
 			log_cb(RETRO_LOG_WARN, "Shader cache failed to open.\n");
 	}
 	else

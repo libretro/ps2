@@ -43,28 +43,11 @@ std::unique_ptr<GLContext> GLContext::Create()
 	if (!context)
 		return nullptr;
 
-	if (hw_render.context_type == RETRO_HW_CONTEXT_OPENGLES3 ||
-	    hw_render.context_type == RETRO_HW_CONTEXT_OPENGLES_VERSION)
-		context->m_version.profile = Profile::ES;
-
-	log_cb(RETRO_LOG_INFO, "Created an %s context\n", context->IsGLES() ? "OpenGL ES" : "OpenGL");
-
-	// load up glad
-	if (!context->IsGLES())
+	/* The core only ever asks the frontend for a desktop GL context. */
+	if (!gladLoadGLLoader(gl_retro_proc_addr))
 	{
-		if (!gladLoadGLLoader(gl_retro_proc_addr))
-		{
-			log_cb(RETRO_LOG_ERROR, "Failed to load GL functions for GLAD\n");
-			return nullptr;
-		}
-	}
-	else
-	{
-		if (!gladLoadGLES2Loader(gl_retro_proc_addr))
-		{
-			log_cb(RETRO_LOG_ERROR, "Failed to load GLES functions for GLAD\n");
-			return nullptr;
-		}
+		log_cb(RETRO_LOG_ERROR, "Failed to load GL functions for GLAD\n");
+		return nullptr;
 	}
 
 	return context;

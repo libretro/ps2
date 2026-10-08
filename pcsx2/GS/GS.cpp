@@ -84,9 +84,6 @@ static GSRendererType GSsetRenderer(enum retro_hw_context_type api)
 	{
 		case RETRO_HW_CONTEXT_OPENGL:
 		case RETRO_HW_CONTEXT_OPENGL_CORE:
-		case RETRO_HW_CONTEXT_OPENGLES2:        /* TODO/FIXME */
-		case RETRO_HW_CONTEXT_OPENGLES3:        /* TODO/FIXME */
-		case RETRO_HW_CONTEXT_OPENGLES_VERSION: /* TODO/FIXME */
 			return GSRendererType::OGL;
 		case RETRO_HW_CONTEXT_VULKAN:
 #ifdef HAVE_PARALLEL_GS
@@ -160,9 +157,6 @@ static bool OpenGSDevice(GSRendererType renderer, bool clear_state_on_fail)
 			break;
 		case RETRO_HW_CONTEXT_OPENGL:
 		case RETRO_HW_CONTEXT_OPENGL_CORE:
-		case RETRO_HW_CONTEXT_OPENGLES2:        /* TODO/FIXME */
-		case RETRO_HW_CONTEXT_OPENGLES3:        /* TODO/FIXME */
-		case RETRO_HW_CONTEXT_OPENGLES_VERSION: /* TODO/FIXME */
 #ifdef ENABLE_OPENGL
 			g_gs_device = new GSDeviceOGL();
 			if (!g_gs_device->Create())
@@ -402,9 +396,17 @@ void GSopen(const Pcsx2Config::GSOptions& config, GSRendererType renderer, enum 
 	GSConfig          = config;
 	GSConfig.Renderer = renderer;
 
-	if (OpenGSDevice(renderer, true))
-		if (!OpenGSRenderer(renderer, basemem))
-			CloseGSDevice(true);
+	if (!OpenGSDevice(renderer, true))
+	{
+		log_cb(RETRO_LOG_ERROR, "GS: no device could be created on the frontend's context (type %d); there will be no picture.\n",
+			(int)api);
+		return;
+	}
+	if (!OpenGSRenderer(renderer, basemem))
+	{
+		log_cb(RETRO_LOG_ERROR, "GS: the renderer could not be opened; there will be no picture.\n");
+		CloseGSDevice(true);
+	}
 }
 
 void GSclose(void)

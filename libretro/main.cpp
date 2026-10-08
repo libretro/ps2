@@ -2217,10 +2217,9 @@ static bool libretro_set_hw_render(retro_hw_context_type type)
 			hw_render.version_minor = 0;
 			break;
 
-		case RETRO_HW_CONTEXT_OPENGLES3:
-			hw_render.version_major = 3;
-			hw_render.version_minor = 0;
-			break;
+		/* No OpenGL ES: the GL renderer is desktop GL only (GLSL 330/430
+		 * core shaders, GL_ARB_shading_language_420pack), so an ES context
+		 * would be accepted and then produce no picture. */
 
 		case RETRO_HW_CONTEXT_NONE:
 			return true;
@@ -2273,8 +2272,6 @@ static bool libretro_select_hw_render(void)
 			return true;
 		else if (libretro_set_hw_render(RETRO_HW_CONTEXT_OPENGL))
 			return true;
-		else if (libretro_set_hw_render(RETRO_HW_CONTEXT_OPENGLES3))
-			return true;
 	}
 
 #ifdef _WIN32
@@ -2287,9 +2284,14 @@ static bool libretro_select_hw_render(void)
 		return true;
 	if (libretro_set_hw_render(RETRO_HW_CONTEXT_OPENGL))
 		return true;
-	if (libretro_set_hw_render(RETRO_HW_CONTEXT_OPENGLES3))
+#ifdef ENABLE_VULKAN
+	if (libretro_set_hw_render(RETRO_HW_CONTEXT_VULKAN))
 		return true;
-	return false;
+#endif
+	/* No context a hardware renderer can draw into, e.g. an OpenGL ES-only
+	 * frontend: the software renderer needs none. */
+	log_cb(RETRO_LOG_WARN, "No usable hardware context; using the software renderer.\n");
+	return libretro_set_hw_render(RETRO_HW_CONTEXT_NONE);
 }
 
 /* RAII registration with the lock-free fault filter: this thread

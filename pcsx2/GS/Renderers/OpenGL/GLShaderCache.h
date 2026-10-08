@@ -34,7 +34,7 @@ class GLShaderCache
 		GLShaderCache();
 		~GLShaderCache();
 
-		bool Open(bool is_gles);
+		bool Open();
 		void Close();
 
 		std::optional<GLProgram> GetProgram(const std::string_view vertex_shader, const std::string_view fragment_shader, const PreLinkCallback& callback = {});

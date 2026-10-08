@@ -25,22 +25,5 @@ class GLContext
 		GLContext();
 		~GLContext();
 
-		enum class Profile
-		{
-			NoProfile,
-			Core,
-			ES
-		};
-
-		struct Version
-		{
-			Profile profile;
-			int major_version;
-			int minor_version;
-		};
-
-		__fi bool IsGLES() const { return (m_version.profile == Profile::ES); }
 		static std::unique_ptr<GLContext> Create();
-	protected:
-		Version m_version = {};
 };
