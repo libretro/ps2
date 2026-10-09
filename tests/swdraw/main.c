@@ -644,6 +644,19 @@ static void case_nine_frames(void)
 	}
 }
 
+/* A sprite 8 pixels past the right edge of a 64-wide frame whose scissor
+ * is 128 wide: drawn where the frame wraps it, a page down (a sanitizer
+ * build sees how the coordinates move). */
+static void case_fb_wrap(void)
+{
+	ad_common();
+	ad(GS_FRAME_1, 0, 1ul << 16);                  /* FBP 0, FBW 1 */
+	ad(GS_SCISSOR, 31ul << 16, 127ul << 16);
+	ad(GS_PRIM, 0, 6);                             /* sprite */
+	ad(GS_XYZ2, 0, XY(72, 0));
+	ad(GS_XYZ2, 0, XY(80, 8));
+}
+
 static const struct { const char* name; void (*build)(void); const char* scale; } s_cases[] = {
 	{ "aa1_small",       case_aa1_small,    "1" },
 	{ "aa1_triangle",    case_aa1_triangle, "1" },
@@ -667,6 +680,7 @@ static const struct { const char* name; void (*build)(void); const char* scale; 
 	{ "big_triangles",   case_big_triangles, "1" },
 	{ "present",         case_present,       "1" },
 	{ "points",          case_points,        "1" },
+	{ "fb_wrap",         case_fb_wrap,       "1" },
 	{ "nine_frames",     case_nine_frames,   "1" },
 	{ "display_large_2x", case_display_large, "2" },
 };

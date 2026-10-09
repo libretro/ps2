@@ -2845,8 +2845,8 @@ void GSInterface::drawing_kick_append()
 
 			for (uint32_t i = 0; i < num_vertices; i++)
 			{
-				pos[i].pos.x += x_offset << PGS_SUBPIXEL_BITS;
-				pos[i].pos.y += y_offset << PGS_SUBPIXEL_BITS;
+				pos[i].pos.x += x_offset * (1 << PGS_SUBPIXEL_BITS);
+				pos[i].pos.y += y_offset * (1 << PGS_SUBPIXEL_BITS);
 			}
 		}
 
