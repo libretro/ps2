@@ -28,36 +28,46 @@
 namespace Util
 {
 static thread_local unsigned thread_id_to_index = ~0u;
+/* The device generation thread_id_to_index was handed out under. Each
+ * device starts a generation with its own pools, so an index from an
+ * earlier one is given up and the thread asks again. */
+static thread_local unsigned thread_id_generation = 0;
 
 /* Index 0 belongs to the thread that set up the device (it registers
- * itself); the counter hands out 1 upward. */
+ * itself); the counter hands out 1 upward, afresh for every device. */
 static PGS::atomic_uint32_t next_thread_index(1);
-static unsigned thread_index_count = 1;
+static PGS::atomic_uint32_t thread_index_count(1);
+static PGS::atomic_uint32_t thread_index_generation(1);
 
 void set_thread_index_count(unsigned count)
 {
-	thread_index_count = count ? count : 1;
+	thread_index_count.store(count ? count : 1);
+	next_thread_index.store(1);
+	thread_index_generation.fetch_add(1);
 }
 
 unsigned get_current_thread_index()
 {
+	const unsigned gen = thread_index_generation.load();
 	auto ret = thread_id_to_index;
-	if (ret == ~0u)
+	if (ret == ~0u || thread_id_generation != gen)
 	{
+		const unsigned count = thread_index_count.load();
 		unsigned idx = next_thread_index.fetch_add(1, PGS::memory_order_relaxed);
-		if (idx >= thread_index_count)
+		if (idx >= count)
 		{
 			/* More recording threads than the device has pools. Sharing
 			 * index 0 races the owning thread on one VkCommandPool; the
 			 * count in GSRendererPGS is what needs raising. */
 			LOGE("Thread %llu needs a command pool but the device has only %u; sharing pool 0.\n",
-			     (unsigned long long)sthread_get_current_thread_id(), thread_index_count);
+			     (unsigned long long)sthread_get_current_thread_id(), count);
 			idx = 0;
 		}
 		else
 			LOGI("Thread %llu takes command pool index %u.\n",
 			     (unsigned long long)sthread_get_current_thread_id(), idx);
 		thread_id_to_index = idx;
+		thread_id_generation = gen;
 		ret = idx;
 	}
 	return ret;
@@ -66,5 +76,6 @@ unsigned get_current_thread_index()
 void register_thread_index(unsigned index)
 {
 	thread_id_to_index = index;
+	thread_id_generation = thread_index_generation.load();
 }
 }

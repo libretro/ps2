@@ -40,6 +40,8 @@ unsigned get_current_thread_index();
 void register_thread_index(unsigned thread_index);
 
 /* The number of indices the device was built with; indices are handed
- * out below it. Set once, before any thread asks. */
+ * out below it. Set for every device, before any thread asks: it starts
+ * the handing-out afresh, and every thread's index from an earlier
+ * device, registered or handed out, is given up. */
 void set_thread_index_count(unsigned count);
 }

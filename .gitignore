@@ -205,3 +205,6 @@ tests/ata/*.img
 /tests/emitter/emitter_frame_sysv
 /tests/settings/settings_optioncfg
 /tests/gscolclip/gscolclip_audit
+/tests/pgsthreadidx/pgsthreadidx
+/tests/pgsthreadidx/pgsthreadidx_tsan
+/tests/pgsthreadidx/pgsthreadidx.exe
