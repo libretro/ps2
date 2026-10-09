@@ -207,6 +207,7 @@ static unsigned      s_disp_fbw = 10;
 static unsigned      s_disp_dh  = 447;
 static unsigned      s_smode2   = 1;       /* interlaced */
 static unsigned      s_smode1_hi, s_smode1_lo; /* SMODE1, written when set */
+static unsigned      s_display_off;        /* PMODE 0, DISPFB1 and DISPLAY1 left unset */
 
 /* A case may instead lay out its own quadwords and send them in kicks,
  * each a run of them sent after waiting a number of vsyncs, and then
@@ -896,6 +897,24 @@ static void case_shuffle_left_of_offset(void)
 	ad(GS_XYZ2, 0, XY(128, 32));
 }
 
+/* With the display never set up, a clear one page wide and 1024 high
+ * at page 0 and another at page 32 after it: the clear, finished as
+ * one, looks to the display for a width and finds none (a sanitizer
+ * build sees what it divides by). */
+static void case_split_clear_no_display(void)
+{
+	s_display_off = 1;
+	ad_common();
+	ad(GS_FRAME_1, 0, 1ul << 16);                  /* FBP 0, FBW 1 */
+	ad(GS_SCISSOR, 2047ul << 16, 63ul << 16);
+	ad(GS_PRIM, 0, 6);                             /* sprite */
+	ad(GS_XYZ2, 0, XY(0, 0));
+	ad(GS_XYZ2, 0, XY(64, 1024));
+	ad(GS_FRAME_1, 0, (1ul << 16) | 32);           /* FBP 32, FBW 1 */
+	ad(GS_XYZ2, 0, XY(0, 0));
+	ad(GS_XYZ2, 0, XY(64, 1024));
+}
+
 static const struct { const char* name; void (*build)(void); const char* scale; } s_cases[] = {
 	{ "aa1_small",       case_aa1_small,    "1" },
 	{ "aa1_triangle",    case_aa1_triangle, "1" },
@@ -929,6 +948,7 @@ static const struct { const char* name; void (*build)(void); const char* scale; 
 	{ "depth_texture_far", case_depth_texture_far, "1" },
 	{ "move_width_change", case_move_width_change, "1" },
 	{ "shuffle_left_of_offset", case_shuffle_left_of_offset, "1" },
+	{ "split_clear_no_display", case_split_clear_no_display, "1" },
 	{ "frame_on_depth32", case_frame_on_depth32, "1" },
 	{ "display_large_2x", case_display_large, "2" },
 };
@@ -960,13 +980,16 @@ static int sl_write_bios(const char* path)
 			sl_put32(pk + i * 16 + k * 4, s_qw[i][k]);
 
 	pc = sl_emit(rom, 0, SL_LUI(8, 0xB200));                         /* t0 = GS privileged regs */
-	pc = sl_emit_store64(rom, pc, 8, 0x00, 0, 0xFF25u);              /* PMODE: RC1, alpha FF    */
+	pc = sl_emit_store64(rom, pc, 8, 0x00, 0, s_display_off ? 0 : 0xFF25u); /* PMODE: RC1, alpha FF */
 	if (s_smode1_hi || s_smode1_lo)
 		pc = sl_emit_store64(rom, pc, 8, 0x10, s_smode1_hi, s_smode1_lo); /* SMODE1             */
 	pc = sl_emit_store64(rom, pc, 8, 0x20, 0, s_smode2);             /* SMODE2                  */
-	pc = sl_emit_store64(rom, pc, 8, 0x70, 0, s_disp_fbw << 9);      /* DISPFB1                 */
-	pc = sl_emit_store64(rom, pc, 8, 0x80, 2559u | (s_disp_dh << 12), /* DISPLAY1                */
-		636u | (50u << 12) | (3u << 23));
+	if (!s_display_off)
+	{
+		pc = sl_emit_store64(rom, pc, 8, 0x70, 0, s_disp_fbw << 9);  /* DISPFB1                 */
+		pc = sl_emit_store64(rom, pc, 8, 0x80, 2559u | (s_disp_dh << 12), /* DISPLAY1            */
+			636u | (50u << 12) | (3u << 23));
+	}
 	/* Copy the quadwords: t3 = ROM source, t4 = RAM destination, t6 = words. */
 	pc = sl_emit(rom, pc, SL_LUI(11, 0xBFC0));
 	pc = sl_emit(rom, pc, SL_ORI(11, 11, SL_PACKET_ROM));
@@ -1227,7 +1250,8 @@ int main(int argc, char** argv)
 	unload_game();
 	deinit_fn();
 
-	if (s_drawn == 0)
+	/* With the display off a frame is passed on with no picture. */
+	if (s_display_off ? s_frames == 0 : s_drawn == 0)
 	{
 		fprintf(stderr, "swdraw: %s: no frame was drawn\n", s_cases[c].name);
 		return 4;

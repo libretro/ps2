@@ -1802,13 +1802,14 @@ bool GSRendererHW::TryToResolveSinglePageFramebuffer(GIFRegFRAME& FRAME, bool on
 			}
 		}
 
-		// Still bad FBW? Fall back to the resolution hack (Brave).
-		if (new_bw <= 1)
+		// Still bad FBW? Fall back to the resolution hack (Brave),
+		// when the display has a height to go by.
+		const GSVector2i fb_size = PCRTCDisplays.GetFramebufferSize(-1);
+		if (new_bw <= 1 && fb_size.y > 0)
 		{
 			// Framebuffer is likely to be read as 16bit later, so we will need to double the width if the write is 32bit.
 			const bool double_width =
 				GSLocalMemory::m_psm[new_psm].bpp == 32 && PCRTCDisplays.GetFramebufferBitDepth() == 16;
-			const GSVector2i fb_size = PCRTCDisplays.GetFramebufferSize(-1);
 			u32 width =
 				std::ceil(static_cast<float>(m_split_clear_pages * GSLocalMemory::m_psm[new_psm].pgs.y) / fb_size.y) *
 				64;
