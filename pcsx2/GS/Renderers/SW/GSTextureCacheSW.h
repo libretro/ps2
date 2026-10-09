@@ -31,6 +31,7 @@ public:
 		GIFRegTEX0 m_TEX0;
 		GIFRegTEXA m_TEXA;
 		void* m_buff;
+		size_t m_buff_size; /* what m_buff was made for */
 		u32 m_tw;
 		u32 m_age;
 		bool m_complete;

@@ -141,6 +141,7 @@ GSTextureCacheSW::Texture::Texture(u32 tw0, const GIFRegTEX0& TEX0, const GIFReg
 	: m_TEX0(TEX0)
 	, m_TEXA(TEXA)
 	, m_buff(nullptr)
+	, m_buff_size(0)
 	, m_tw(tw0)
 	, m_age(0)
 	, m_complete(false)
@@ -168,14 +169,10 @@ GSTextureCacheSW::Texture::~Texture()
 		memalign_free(m_buff);
 }
 
+/* The buffer is kept for Update, which makes it again if the new layout
+ * needs another size. */
 void GSTextureCacheSW::Texture::Reset(u32 tw0, const GIFRegTEX0& TEX0, const GIFRegTEXA& TEXA)
 {
-	if (m_buff && (m_TEX0.TW != TEX0.TW || m_TEX0.TH != TEX0.TH))
-	{
-		memalign_free(m_buff);
-		m_buff = nullptr;
-	}
-
 	m_tw       = tw0;
 	m_age      = 0;
 	m_complete = false;
@@ -220,14 +217,25 @@ bool GSTextureCacheSW::Texture::Update(const GSVector4i& rect)
 	if (r.eq(GSVector4i(0, 0, tw, th)))
 		m_complete = true; // lame, but better than nothing
 
+	/* The buffer's size follows the row pitch (m_tw and the format) and
+	 * the height: a buffer kept through Reset for another layout is made
+	 * again, its contents gone with it. */
+	const size_t buff_size = ((size_t)(1 << m_tw) << shift) * (size_t)th * 4;
+	if (m_buff && m_buff_size != buff_size)
+	{
+		memalign_free(m_buff);
+		m_buff = nullptr;
+		memset(m_valid, 0, sizeof(m_valid));
+	}
+
 	if (!m_buff)
 	{
-		const size_t pitch = (size_t)(1 << m_tw) << shift;
-		const size_t size  = pitch * (size_t)th * 4;
+		const size_t size = buff_size;
 
 		m_buff = memalign_alloc(VECTOR_ALIGNMENT, size);
 		if (!m_buff)
 			return false;
+		m_buff_size = size;
 
 		// This _shouldn't_ be necessary, but apparently our texture min/max is wrong somewhere,
 		// and we end up sampling from "random" malloc memory.
