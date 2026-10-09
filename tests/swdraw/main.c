@@ -261,6 +261,7 @@ static void ad(unsigned reg, unsigned long hi, unsigned long lo)
 #define GS_RGBAQ    0x01
 #define GS_ST       0x02
 #define GS_UV       0x03
+#define GS_UV       0x03
 #define GS_XYZ2     0x05
 #define GS_TEX0_1   0x06
 #define GS_TEX1_1   0x14
@@ -743,6 +744,25 @@ static void case_vram_wrap_read(void)
 	s_expect_run[0] = 0x3C2B1A09ul;
 }
 
+/* A textured triangle into a 32-bit frame whose depth buffer, 16-bit,
+ * is at the same block, depth tested and written: the renderer keeps the
+ * frame it is drawing to while it finds the depth buffer (a sanitizer
+ * build sees one freed under it). */
+static void case_frame_on_depth(void)
+{
+	ad_common();
+	ad(GS_ZBUF_1, 0, 2ul << 24);                   /* ZBP 0, PSMZ16, written */
+	ad(GS_TEST_1, 0, (1ul << 16) | (2ul << 17));   /* ZTE, ZTST GEQUAL */
+	ad(GS_TEX0_1, 1, 0x2000ul | (1ul << 14) | (6ul << 26) | (2ul << 30)); /* TBW 1, CT32, 64x64 */
+	ad(GS_PRIM, 0, 3 | 0x10 | 0x100);              /* triangle, TME, FST */
+	ad(GS_UV, 0, 0);
+	ad(GS_XYZ2, 0, XY(0, 0));
+	ad(GS_UV, 0, 1024);
+	ad(GS_XYZ2, 0, XY(64, 0));
+	ad(GS_UV, 0, 1024ul << 16);
+	ad(GS_XYZ2, 0, XY(0, 64));
+}
+
 static const struct { const char* name; void (*build)(void); const char* scale; } s_cases[] = {
 	{ "aa1_small",       case_aa1_small,    "1" },
 	{ "aa1_triangle",    case_aa1_triangle, "1" },
@@ -771,6 +791,7 @@ static const struct { const char* name; void (*build)(void); const char* scale; 
 	{ "nine_frames",     case_nine_frames,   "1" },
 	{ "offset_reload",   case_offset_reload, "1" },
 	{ "vram_wrap_read",  case_vram_wrap_read, "1" },
+	{ "frame_on_depth",  case_frame_on_depth, "1" },
 	{ "display_large_2x", case_display_large, "2" },
 };
 

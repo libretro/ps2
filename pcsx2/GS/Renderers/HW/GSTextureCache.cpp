@@ -2033,7 +2033,8 @@ GSVector2i GSTextureCache::ScaleRenderTargetSize(const GSVector2i& sz, float sca
 }
 
 GSTextureCache::Target* GSTextureCache::LookupTarget(GIFRegTEX0 TEX0, const GSVector2i& size, float scale, int type,
-	bool used, u32 fbmask, bool is_frame, bool preload, bool preserve_rgb, bool preserve_alpha, const GSVector4i draw_rect, bool is_shuffle, bool possible_clear, bool preserve_scale)
+	bool used, u32 fbmask, bool is_frame, bool preload, bool preserve_rgb, bool preserve_alpha, const GSVector4i draw_rect, bool is_shuffle, bool possible_clear, bool preserve_scale,
+	const Target* keep)
 {
 	const GSLocalMemory::psm_t& psm_s = GSLocalMemory::m_psm[TEX0.PSM];
 	const u32 bp = TEX0.TBP0;
@@ -2360,14 +2361,17 @@ GSTextureCache::Target* GSTextureCache::LookupTarget(GIFRegTEX0 TEX0, const GSVe
 		// some bad data.
 		auto& rev_list = m_dst[rev_type];
 		Target* dst_match = nullptr;
-		for (auto i = rev_list.begin(); i != rev_list.end(); ++i)
+		for (auto i = rev_list.begin(); i != rev_list.end(); )
 		{
 			Target* t = *i;
 			// Don't pull in targets without valid lower 24 bits, it makes no sense to convert them.
 			// FIXME: Technically the difference in size is fine, but if the target gets reinterpreted, the hw renderer doesn't rearrange the target.
 			// This does cause some extra uploads in some games (like Burnout), but without this, bad data gets displayed in games like Transformers.
 			if (bp != t->m_TEX0.TBP0 || !t->m_valid_rgb || (!is_shuffle && t->m_TEX0.TBW < TEX0.TBW && possible_clear))
+			{
+				++i;
 				continue;
+			}
 
 			const GSLocalMemory::psm_t& t_psm_s = GSLocalMemory::m_psm[t->m_TEX0.PSM];
 			if (t_psm_s.bpp != psm_s.bpp)
@@ -2386,8 +2390,9 @@ GSTextureCache::Target* GSTextureCache::LookupTarget(GIFRegTEX0 TEX0, const GSVe
 						remove_target = true;
 				}
 
-				// Probably an old target, get rid of it.
-				if (remove_target)
+				// Probably an old target, get rid of it - unless it is the one
+				// the caller holds (a frame at the depth buffer's block).
+				if (remove_target && t != keep)
 				{
 					InvalidateSourcesFromTarget(t);
 					i = rev_list.erase(i);
@@ -2403,6 +2408,7 @@ GSTextureCache::Target* GSTextureCache::LookupTarget(GIFRegTEX0 TEX0, const GSVe
 			}
 			else if (t->m_age == 1 && (preserve_rgb || (preserve_alpha && (t->m_valid_alpha_low || t->m_valid_alpha_high))))
 				dst_match = t;
+			++i;
 		}
 		// We only want to use a matched target if it's actually being used.
 		if (dst_match)
