@@ -519,7 +519,7 @@ void GSInterface::rewrite_forwarded_clut_upload(
 			return;
 		if (pos2.pos.x != 0 || pos2.pos.y != PGS_SUBPIXELS)
 			return;
-		if (pos3.pos.x <= 7 * PGS_SUBPIXEL_BITS || pos3.pos.y != PGS_SUBPIXELS)
+		if (pos3.pos.x <= 7 * PGS_SUBPIXELS || pos3.pos.y != PGS_SUBPIXELS)
 			return;
 
 		auto &attr0 = render_pass.attributes[3 * render_pass.primitive_count - 5];
@@ -539,14 +539,16 @@ void GSInterface::rewrite_forwarded_clut_upload(
 		if ((attr0.uv.x & (PGS_SUBPIXELS - 1)))
 			return;
 
+		// Only a 32-bit palette source is forwarded; anything else leaves
+		// the upload as it came.
+		uint32_t tex_index = prim_a.tex & ((1u << TEX_TEXTURE_INDEX_BITS) - 1u);
+		if (render_pass.tex0_infos[tex_index].PSM != PSMCT32)
+			return;
+
 		// Rewrite the upload.
 		upload.csm2_x_scale = float(attr3.uv.x - attr0.uv.x) / (float(pos3.pos.x) + 8 * PGS_SUBPIXELS);
 		upload.csm2_x_bias = attr0.uv.x >> PGS_SUBPIXEL_BITS;
 		upload.tex0.desc.CSM = TEX0Bits::CSM_LAYOUT_LINE;
-
-		uint32_t tex_index = prim_a.tex & ((1u << TEX_TEXTURE_INDEX_BITS) - 1u);
-		if (render_pass.tex0_infos[tex_index].PSM != PSMCT32)
-			return;
 
 		upload.tex0.desc.CBP = render_pass.tex0_infos[tex_index].TBP0;
 		upload.texclut.desc.CBW = render_pass.tex0_infos[tex_index].TBW;
