@@ -375,8 +375,8 @@ void GSRendererHW::ConvertSpriteTextureShuffleImpl(GSTextureCache::Target* rt, G
 	const auto SetTexCoords = [&](float u, float v, GSVertex& vtx_out) {
 		if constexpr (fst)
 		{
-			vtx_out.U = static_cast<u32>(u * 16.0f);
-			vtx_out.V = static_cast<u32>(v * 16.0f);
+			vtx_out.U = static_cast<u32>(static_cast<s32>(u * 16.0f));
+			vtx_out.V = static_cast<u32>(static_cast<s32>(v * 16.0f));
 		}
 		else
 		{
@@ -387,8 +387,10 @@ void GSRendererHW::ConvertSpriteTextureShuffleImpl(GSTextureCache::Target* rt, G
 	};
 
 	const auto SetPosCoords = [&](float x, float y, GSVertex& vtx_out) {
-		vtx_out.XYZ.X = xyof.x + static_cast<u32>(x * 16.0f);
-		vtx_out.XYZ.Y = xyof.y + static_cast<u32>(y * 16.0f);
+		/* Left of or above the offset is negative: signed, as the
+		 * 16-bit register wraps it. */
+		vtx_out.XYZ.X = xyof.x + static_cast<s32>(x * 16.0f);
+		vtx_out.XYZ.Y = xyof.y + static_cast<s32>(y * 16.0f);
 	};
 
 	const auto WriteQuad = [&](const GSVector4& xy, GSVector4 uv, GSVertex*& vout, u16*& iout) {

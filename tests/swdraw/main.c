@@ -875,6 +875,27 @@ static void case_frame_on_depth32(void)
 	ad(GS_XYZ2, 0, XY(0, 64));
 }
 
+/* A 32-bit sprite at block 0, then a 16-bit sprite textured from the
+ * same block (a texture shuffle) that starts 32 pixels left of the
+ * drawing offset: the quad the shuffle is redrawn as starts there too
+ * (a sanitizer build sees the coordinate converted). */
+static void case_shuffle_left_of_offset(void)
+{
+	ad_common();
+	ad(GS_PRIM, 0, 6);                             /* sprite */
+	ad(GS_XYZ2, 0, XY(0, 0));
+	ad(GS_XYZ2, 0, XY(128, 64));
+	ad(GS_FRAME_1, 0, (10ul << 16) | (2ul << 24)); /* FBP 0, FBW 10, PSMCT16 */
+	/* TBP0 0, TBW 10, PSMCT16, TW 7, TH 6. */
+	ad(GS_TEX0_1, 1, (10ul << 14) | (2ul << 20) | (7ul << 26) | (2ul << 30));
+	ad(GS_XYOFFSET, 0, 64ul * 16);                 /* OFX 64 */
+	ad(GS_PRIM, 0, 6 | 0x10 | 0x100);              /* sprite, TME, FST */
+	ad(GS_UV, 0, 0);
+	ad(GS_XYZ2, 0, XY(32, 0));
+	ad(GS_UV, 0, (96ul * 16) | ((32ul * 16) << 16));
+	ad(GS_XYZ2, 0, XY(128, 32));
+}
+
 static const struct { const char* name; void (*build)(void); const char* scale; } s_cases[] = {
 	{ "aa1_small",       case_aa1_small,    "1" },
 	{ "aa1_triangle",    case_aa1_triangle, "1" },
@@ -907,6 +928,7 @@ static const struct { const char* name; void (*build)(void); const char* scale; 
 	{ "dirty_whole_target", case_dirty_whole_target, "1" },
 	{ "depth_texture_far", case_depth_texture_far, "1" },
 	{ "move_width_change", case_move_width_change, "1" },
+	{ "shuffle_left_of_offset", case_shuffle_left_of_offset, "1" },
 	{ "frame_on_depth32", case_frame_on_depth32, "1" },
 	{ "display_large_2x", case_display_large, "2" },
 };
