@@ -391,8 +391,9 @@ bool VKShaderCache::ReadExistingShaderCache(const std::string& index_filename, c
 	for (;;)
 	{
 		CacheIndexEntry entry;
+		// blob_size counts SPIR-V words; the blob must end inside the file.
 		if (filestream_read(m_index_file, &entry, sizeof(entry)) != (int64_t)(sizeof(entry)) ||
-				(entry.file_offset + entry.blob_size) > blob_file_size)
+				static_cast<u64>(entry.file_offset) + static_cast<u64>(entry.blob_size) * sizeof(SPIRVCodeType) > blob_file_size)
 		{
 			if (filestream_eof(m_index_file))
 				break;

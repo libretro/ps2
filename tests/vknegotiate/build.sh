@@ -44,6 +44,17 @@ for mode in v2 v2retry v1; do
 	rm -rf "$SCRATCH"
 done
 
+# A shader cache whose index names blobs past the end of the blob file,
+# left by a run before: the next run drops it and builds a new one.
+SCRATCH=$(mktemp -d)
+if ! timeout 300 "$DIR/vknegotiate" "$CORE" "$SCRATCH" v2 ||
+   ! VN_CORRUPT_SHADER_INDEX=1 timeout 300 "$DIR/vknegotiate" "$CORE" "$SCRATCH" v2; then
+	rm -rf "$SCRATCH"
+	echo "  FAIL: Vulkan negotiation, corrupt shader cache index"
+	exit 1
+fi
+rm -rf "$SCRATCH"
+
 # A GIF packet that is still being sent when the state is saved
 # (tests/swdraw's gif_split case, its BIOS image written by that harness):
 # the state saved straight after its load is again the one loaded, on

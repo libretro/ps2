@@ -22,7 +22,8 @@
  * frames must also arrive as images, unless VN_IDLE_BIOS says the image
  * draws nothing after it boots (tests/swdraw's cases). VN_RENDERER picks
  * the renderer (Vulkan, the default, or paraLLEl-GS); VN_EXPECT_RUN names
- * 32-bit words the state at the end must hold 64 of each in a row.
+ * 32-bit words the state at the end must hold 64 of each in a row, and
+ * VN_CORRUPT_SHADER_INDEX damages the shader cache a previous run left.
  *
  * Usage: vknegotiate <path-to-core> <scratch-dir> <v2|v2retry|v1> */
 
@@ -492,6 +493,24 @@ int main(int argc, char** argv)
 	sprintf(path, "%s/pcsx2/bios/%s", s_system_dir, s_bios_name);
 	if (bios ? !vn_copy(bios, path) : !vn_write_bios(path))
 		VN_FAIL("cannot write %s", path);
+	/* VN_CORRUPT_SHADER_INDEX: every entry of the shader cache index a run
+	 * before this one left in the scratch directory gets a blob that runs
+	 * a long way past the end of the blob file, its offset plus size past
+	 * what 32 bits hold. The core must drop the cache, not read it. */
+	if (getenv("VN_CORRUPT_SHADER_INDEX"))
+	{
+		static const unsigned char entry_tail[8] = { 0x10, 0, 0, 0, 0xF0, 0xFF, 0xFF, 0xFF };
+		long at, size;
+		FILE* f;
+		sprintf(path, "%s/pcsx2/cache/vulkan_shaders.idx", s_system_dir);
+		f = fopen(path, "r+b");
+		if (!f || fseek(f, 0, SEEK_END) != 0 || (size = ftell(f)) < 32)
+			VN_FAIL("cannot corrupt %s", path);
+		for (at = 36 + 24; at + 8 <= size; at += 32)   /* past the version and device header */
+			if (fseek(f, at, SEEK_SET) != 0 || fwrite(entry_tail, 1, 8, f) != 8)
+				VN_FAIL("cannot corrupt %s", path);
+		fclose(f);
+	}
 
 	h = vn_dlopen(argv[1]);
 	if (!h)
