@@ -763,6 +763,37 @@ static void case_frame_on_depth(void)
 	ad(GS_XYZ2, 0, XY(0, 64));
 }
 
+/* A target 2048 wide and 2047 high, a local to local copy over the whole
+ * of it from memory no target holds, then a draw to it: the copy leaves
+ * all of the target to be read back in from GS memory before the draw,
+ * through a buffer that holds it (a sanitizer build sees one that does
+ * not). */
+static void case_dirty_whole_target(void)
+{
+	unsigned i;
+	qw(9 | 0x8000u, 0x10000000u, 0xEu, 0);                 /* A+D, NLOOP 9, EOP */
+	qw(1, 0, GS_PRMODECONT, 0);
+	qw(32u << 16, 0, GS_FRAME_1, 0);                       /* FBP 0, FBW 32 */
+	qw(0, 1, GS_ZBUF_1, 0);                                /* ZMSK */
+	qw((1u << 16) | (1u << 17), 0, GS_TEST_1, 0);          /* ZTE, ZTST always */
+	qw(0, 0, GS_XYOFFSET, 0);
+	qw(2047u << 16, 2047u << 16, GS_SCISSOR, 0);
+	qw(6, 0, GS_PRIM, 0);                                  /* sprite down the whole height */
+	qw(0, 0, GS_XYZ2, 0);
+	qw((unsigned)XY(64, 2047), 0, GS_XYZ2, 0);
+	kick(0, s_qw_count, 0);
+	i = s_qw_count;
+	qw(6 | 0x8000u, 0x10000000u, 0xEu, 0);
+	qw(0x3000u | (32u << 16), 32u << 16, GS_BITBLTBUF, 0); /* SBP 0x3000 -> DBP 0, both 32 wide */
+	qw(0, 0, GS_TRXPOS, 0);
+	qw(2047, 2047, GS_TRXREG, 0);
+	qw(2, 0, GS_TRXDIR, 0);                                /* local to local */
+	qw(0, 0, GS_XYZ2, 0);                                  /* a sprite to the target */
+	qw((unsigned)XY(64, 64), 0, GS_XYZ2, 0);
+	kick(i, s_qw_count - i, 5);
+	s_run_frames = 40;
+}
+
 static const struct { const char* name; void (*build)(void); const char* scale; } s_cases[] = {
 	{ "aa1_small",       case_aa1_small,    "1" },
 	{ "aa1_triangle",    case_aa1_triangle, "1" },
@@ -792,6 +823,7 @@ static const struct { const char* name; void (*build)(void); const char* scale; 
 	{ "offset_reload",   case_offset_reload, "1" },
 	{ "vram_wrap_read",  case_vram_wrap_read, "1" },
 	{ "frame_on_depth",  case_frame_on_depth, "1" },
+	{ "dirty_whole_target", case_dirty_whole_target, "1" },
 	{ "display_large_2x", case_display_large, "2" },
 };
 

@@ -37,12 +37,14 @@ static u8* s_unswizzle_buffer;
 /// List of candidates for purging when the hash cache gets too large.
 static std::vector<std::pair<GSTextureCache::HashCacheMap::iterator, s32>> s_hash_cache_purge_list;
 
+/* The largest read through the unswizzle buffer: a whole target, up to
+ * 2048x2048 pixels of four bytes, block aligned and at a vector-aligned
+ * pitch, which 2048 already is. */
+#define GS_UNSWIZZLE_BUFFER_SIZE (2048 * 2048 * 4)
+
 GSTextureCache::GSTextureCache()
 {
-	// In theory 4MB is enough but 9MB is safer for overflow (8MB
-	// isn't enough in custom resolution)
-	// Test: onimusha 3 PAL 60Hz
-	s_unswizzle_buffer = (u8*)memalign_alloc(VECTOR_ALIGNMENT, 9 * 1024 * 1024);
+	s_unswizzle_buffer = (u8*)memalign_alloc(VECTOR_ALIGNMENT, GS_UNSWIZZLE_BUFFER_SIZE);
 }
 
 /* Where the copy builders put their lists of copies, which are sized by
