@@ -2566,6 +2566,16 @@ int GSState::Defrost(const freezeData* fd)
 		ReadState(&path.reg, data);
 
 		path.SetTag(&path.tag); // expand regs
+
+		/* SetTag leaves an idle path's registers as they were, and Freeze
+		 * writes them back: an idle path takes the state's too, so the
+		 * state saved after a load is the state that was loaded. */
+		if (path.nloop == 0)
+		{
+			const GSVector4i v = GSVector4i::loadl(&path.tag.REGS);
+			path.nreg = (path.tag.U32[1] & 0xf0000000) ? (path.tag.U32[1] >> 28) : 16;
+			path.regs = v.upl8(v >> 4) & GSVector4i::x0f(path.nreg);
+		}
 	}
 
 	ReadState(&m_q, data);

@@ -16,7 +16,8 @@
  *             given yet, nothing left behind - and one that can goes on
  *
  * Each then resets the context, runs frames, takes a savestate round
- * trip, and tears down as RetroArch does. The BIOS is a synthetic image
+ * trip - a state saved straight after its load must be the state that
+ * was loaded - and tears down as RetroArch does. The BIOS is a synthetic image
  * (secondload's) unless LRPS2_BIOS names a real one; with a real one the
  * frames must also arrive as images. VN_RENDERER picks the renderer
  * (Vulkan, the default, or paraLLEl-GS).
@@ -627,6 +628,29 @@ int main(int argc, char** argv)
 				run();
 			if (!unserialize(state, size))
 				VN_FAIL("retro_unserialize failed");
+			/* Saved again straight away, the loaded state is the state
+			 * that was saved: nothing the load restores is lost. */
+			{
+				unsigned char* again = (unsigned char*)malloc(size);
+				size_t i;
+				if (!again || !serialize(again, size))
+					VN_FAIL("retro_serialize after the load failed");
+				{
+					size_t first = size, last = 0, n = 0;
+					for (i = 0; i < size; i++)
+						if (((const unsigned char*)state)[i] != again[i])
+						{
+							if (first == size) first = i;
+							last = i;
+							n++;
+						}
+					if (n)
+						VN_FAIL("a state saved straight after a load differs from it in %lu bytes, %lu to %lu of %lu",
+							(unsigned long)n, (unsigned long)first, (unsigned long)last, (unsigned long)size);
+				}
+				free(again);
+				printf("  a state saved straight after its load is the same\n");
+			}
 			for (frame = 0; frame < 30; frame++)
 				run();
 			printf("  savestate round trip: %u presented in all\n", s_frames);
