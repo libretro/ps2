@@ -84,7 +84,10 @@ GSRendererSW::GSRendererSW(int threads)
 	m_tc = std::make_unique<GSTextureCacheSW>();
 	m_rl = GSRasterizerList::Create(threads);
 
-	m_output = (u8*)memalign_alloc(VECTOR_ALIGNMENT, 1024 * 1024 * sizeof(u32));
+	m_output_size = 1024 * 1024 * sizeof(u32);
+	m_output      = (u8*)memalign_alloc(VECTOR_ALIGNMENT, m_output_size);
+	if (!m_output)
+		m_output_size = 0;
 
 	/* 2x at any upscale of two or more. */
 	if (GSConfig.UpscaleMultiplier >= 2.0f)
@@ -135,7 +138,8 @@ void GSRendererSW::Destroy()
 	}
 
 	memalign_free(m_output);
-	m_output = nullptr;
+	m_output      = nullptr;
+	m_output_size = 0;
 
 	for (auto& it : m_hr_offsets)
 		memalign_free(it.second);
@@ -187,7 +191,11 @@ GSTexture* GSRendererSW::GetOutput(int i, float& scale, int& y_offset)
 	if (g_gs_device->ResizeRenderTarget(&m_texture[index], w * s, h * s, false, false))
 	{
 		const GSLocalMemory::psm_t& psm = GSLocalMemory::m_psm[curFramebuffer.PSM];
-		constexpr int pitch = 1024 * 4;
+		/* The read is the display's width and height, each rounded out to
+		 * whole blocks, the parts past a wrap at 2048 placed after the
+		 * parts before it: a block more each way holds it. */
+		const int pitch = (w + psm.bs.x) * 4;
+		const size_t need = static_cast<size_t>(pitch) * static_cast<size_t>(h + psm.bs.y);
 		// Should really be framebufferOffsets rather than framebufferRect but this might be compensated with anti-blur in some games.
 		const int off_x = (framebufferRect.x & 0x7ff) & ~(psm.bs.x-1);
 		const int off_y = (framebufferRect.y & 0x7ff) & ~(psm.bs.y-1);
@@ -208,6 +216,15 @@ GSTexture* GSRendererSW::GetOutput(int i, float& scale, int& y_offset)
 
 		if (s > 1 && HiresLayout(curFramebuffer.PSM))
 			return GetOutputHires(index, curFramebuffer, off_x, off_y, w, h, texa);
+
+		if (need > m_output_size)
+		{
+			memalign_free(m_output);
+			m_output      = (u8*)memalign_alloc(VECTOR_ALIGNMENT, need);
+			m_output_size = m_output ? need : 0;
+			if (!m_output)
+				return nullptr;
+		}
 
 		// Need to read it in 2 parts, since you can't do a split rect.
 		if (r.bottom >= 2048)

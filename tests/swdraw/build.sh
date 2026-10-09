@@ -32,7 +32,7 @@ fi
 SCRATCH=$(mktemp -d)
 trap 'rm -rf "$SCRATCH"' EXIT
 failed=0
-for c in aa1_small aa1_triangle aa1_triangle_2x aa1_line aa1_line_2x mip_tw8 mip_tw11 mip_tw11_2x; do
+for c in aa1_small aa1_triangle aa1_triangle_2x aa1_line aa1_line_2x mip_tw8 mip_tw11 mip_tw11_2x display_large display_large_2x; do
 	if ! timeout 300 "$DIR/swdraw" "$CORE" "$SCRATCH" "$c"; then
 		echo "  FAIL: $c"
 		failed=1

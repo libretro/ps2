@@ -48,6 +48,7 @@ static char s_system_dir[1024];
 /* The case's rasterizer threads and scale. */
 static const char* s_opt_threads = "0";
 static const char* s_opt_scale   = "1";
+static const char* s_opt_deinterlace = "Automatic";
 static unsigned s_frames;
 static unsigned s_drawn;
 
@@ -133,6 +134,7 @@ static bool sl_environment(unsigned cmd, void* data)
 			else if (!strcmp(var->key, "pcsx2_fastboot")) var->value = "disabled";
 			else if (!strcmp(var->key, "pcsx2_sw_renderer_threads")) var->value = s_opt_threads;
 			else if (!strcmp(var->key, "pcsx2_upscale_multiplier")) var->value = s_opt_scale;
+			else if (!strcmp(var->key, "pcsx2_deinterlace_mode")) var->value = s_opt_deinterlace;
 			return var->value != NULL;
 		case RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE:
 			*(bool*)data = false;
@@ -185,6 +187,12 @@ static unsigned sl_emit_store64(unsigned char* rom, unsigned pc, unsigned base,
 /* The packet: a GIFtag for A+D, then (data, register) quadwords. */
 #define SL_PACKET_ROM 0x2000u
 #define SL_MAX_AD     64
+
+/* The display: DISPFB1's width in 64-pixel units and DISPLAY1's
+ * height less one, which the case may change. */
+static unsigned      s_disp_fbw = 10;
+static unsigned      s_disp_dh  = 447;
+static unsigned      s_smode2   = 1;       /* interlaced */
 
 static unsigned      s_ad_count;
 static unsigned long s_ad[SL_MAX_AD][3]; /* data hi, data lo, register */
@@ -297,6 +305,18 @@ static void case_mip_tw11(void) { mip_draw(11); }
  * with or without the sizing that keeps the TW 11 one in bounds. */
 static void case_mip_tw8(void) { mip_draw(8); }
 
+/* A display read out of a framebuffer 4032 pixels wide and 2048 lines
+ * high, the most DISPFB and DISPLAY describe: progressive, with the
+ * deinterlacer off, which reads the display's whole height. */
+static void case_display_large(void)
+{
+	s_disp_fbw = 63;
+	s_disp_dh  = 2047;
+	s_smode2   = 0;
+	s_opt_deinterlace = "Off";
+	case_aa1_small();
+}
+
 static const struct { const char* name; void (*build)(void); const char* scale; } s_cases[] = {
 	{ "aa1_small",       case_aa1_small,    "1" },
 	{ "aa1_triangle",    case_aa1_triangle, "1" },
@@ -306,6 +326,8 @@ static const struct { const char* name; void (*build)(void); const char* scale; 
 	{ "mip_tw8",         case_mip_tw8,      "1" },
 	{ "mip_tw11",        case_mip_tw11,     "1" },
 	{ "mip_tw11_2x",     case_mip_tw11,     "2" },
+	{ "display_large",   case_display_large, "1" },
+	{ "display_large_2x", case_display_large, "2" },
 };
 
 /* A 4MB image the core's BIOS scan accepts. The reset program turns on a
@@ -337,9 +359,9 @@ static int sl_write_bios(const char* path)
 
 	pc = sl_emit(rom, 0, SL_LUI(8, 0xB200));                         /* t0 = GS privileged regs */
 	pc = sl_emit_store64(rom, pc, 8, 0x00, 0, 0xFF25u);              /* PMODE: RC1, alpha FF    */
-	pc = sl_emit_store64(rom, pc, 8, 0x20, 0, 1u);                   /* SMODE2: interlaced      */
-	pc = sl_emit_store64(rom, pc, 8, 0x70, 0, 10u << 9);             /* DISPFB1: 640 wide       */
-	pc = sl_emit_store64(rom, pc, 8, 0x80, 2559u | (447u << 12),     /* DISPLAY1                */
+	pc = sl_emit_store64(rom, pc, 8, 0x20, 0, s_smode2);             /* SMODE2                  */
+	pc = sl_emit_store64(rom, pc, 8, 0x70, 0, s_disp_fbw << 9);      /* DISPFB1                 */
+	pc = sl_emit_store64(rom, pc, 8, 0x80, 2559u | (s_disp_dh << 12), /* DISPLAY1                */
 		636u | (50u << 12) | (3u << 23));
 	/* Copy the packet: t3 = ROM source, t4 = RAM destination, t6 = words. */
 	pc = sl_emit(rom, pc, SL_LUI(11, 0xBFC0));

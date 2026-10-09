@@ -86,7 +86,10 @@ public: /* called through gs_state_ops (GSRendererSW.cpp); these were protected 
 	std::unique_ptr<GSTextureCacheSW> m_tc;
 	GSRingHeap m_vertex_heap;
 	GSTexture *m_texture[3] = {};
+	/* The display's picture as read out of local memory, 32 bits a
+	 * pixel; grown to what the display needs. */
 	u8* m_output;
+	size_t m_output_size;
 	GSPixelOffset4* m_fzb;
 	GSVector4i m_fzb_bbox;
 	u32 m_fzb_cur_pages[16];
