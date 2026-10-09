@@ -147,18 +147,37 @@ static int16_t vn_input(unsigned p, unsigned d, unsigned i, unsigned id)
 	return 0;
 }
 
-/* The frontend side of the hardware interface: one sync index, and a
- * queue lock the core must pair. */
+/* The frontend side of the hardware interface: one sync index - or with
+ * VN_SYNC_GROW, three from the twentieth frame on, as a frontend whose
+ * swapchain grows hands out - and a queue lock the core must pair. Like
+ * RetroArch it keeps the image pointer it was given and reads it again
+ * until the next set_image, here while it waits for a slot. */
+static const struct retro_vulkan_image* s_last_image;
 static void vn_set_image(void *h, const struct retro_vulkan_image *img,
 	uint32_t n, const VkSemaphore *s, uint32_t q)
 {
 	(void)h; (void)n; (void)s; (void)q;
 	s_images_set = img && img->image_view != VK_NULL_HANDLE;
+	s_last_image = img;
 }
-static uint32_t vn_sync_index(void *h) { (void)h; return 0; }
-static uint32_t vn_sync_mask(void *h) { (void)h; return 1; }
+static uint32_t vn_sync_mask(void *h)
+{
+	(void)h;
+	return (getenv("VN_SYNC_GROW") && s_frames >= 20) ? 7 : 1;
+}
+static uint32_t vn_sync_index(void *h) { return vn_sync_mask(h) == 7 ? s_frames % 3 : 0; }
 static void vn_set_cmd(void *h, uint32_t n, const VkCommandBuffer *c) { (void)h; (void)n; (void)c; }
-static void vn_wait_sync(void *h) { (void)h; if (pvkDeviceWaitIdle) pvkDeviceWaitIdle(s_vk.device); }
+static void vn_wait_sync(void *h)
+{
+	(void)h;
+	if (s_last_image)
+	{
+		volatile VkImageView view = s_last_image->image_view;
+		(void)view;
+	}
+	if (pvkDeviceWaitIdle)
+		pvkDeviceWaitIdle(s_vk.device);
+}
 static void vn_lock(void *h) { (void)h; s_queue_locked++; }
 static void vn_unlock(void *h) { (void)h; s_queue_locked--; }
 static void vn_set_sem(void *h, VkSemaphore s) { (void)h; (void)s; }

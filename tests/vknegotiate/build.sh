@@ -20,8 +20,10 @@ case "$(uname -s)" in
 esac
 CORE=${LRPS2_CORE:-$CORE}
 
-# C99, not C89: the Vulkan headers are.
-${CC:-cc} -std=c99 -pedantic -Wall -O2 \
+# C99, not C89: the Vulkan headers are. CFLAGS reaches the harness, so
+# that against a sanitizer core its own reads of what the core handed
+# over are checked too (-fsanitize=address,undefined).
+${CC:-cc} -std=c99 -pedantic -Wall -O2 ${CFLAGS} \
 	-I "$ROOT/libretro/libretro-common/include" \
 	-isystem "$ROOT/3rdparty/vulkan-headers/include" \
 	-o "$DIR/vknegotiate" "$DIR/main.c" $LIBS
@@ -110,10 +112,12 @@ done
 
 # Cases whose failure is an out-of-bounds read or an overflow: they only
 # fail on their own against a core built with SANITIZER=address,undefined.
-for c in upload_short big_triangles; do
+# present scans out frames while the frontend's sync slots grow from one
+# to three, the frontend reading the image it was last given meanwhile.
+for c in upload_short big_triangles present; do
 	"$SCRATCH/swdraw" --bios "$SCRATCH/$c.bin" $c
 	for renderer in Vulkan paraLLEl-GS; do
-		if ! VN_IDLE_BIOS=1 LRPS2_BIOS="$SCRATCH/$c.bin" VN_RENDERER=$renderer \
+		if ! VN_SYNC_GROW=1 VN_IDLE_BIOS=1 LRPS2_BIOS="$SCRATCH/$c.bin" VN_RENDERER=$renderer \
 				timeout 300 "$DIR/vknegotiate" "$CORE" "$SCRATCH" v2; then
 			rm -rf "$SCRATCH"
 			echo "  FAIL: $c, $renderer"

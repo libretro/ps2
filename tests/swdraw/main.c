@@ -206,6 +206,7 @@ static unsigned sl_emit_store64(unsigned char* rom, unsigned pc, unsigned base,
 static unsigned      s_disp_fbw = 10;
 static unsigned      s_disp_dh  = 447;
 static unsigned      s_smode2   = 1;       /* interlaced */
+static unsigned      s_smode1_hi, s_smode1_lo; /* SMODE1, written when set */
 
 /* A case may instead lay out its own quadwords and send them in kicks,
  * each a run of them sent after waiting a number of vsyncs, and then
@@ -589,6 +590,15 @@ static void case_big_triangles(void)
 	ad(GS_XYZ2, 0, XY(0, 4000));
 }
 
+/* A shaded triangle on an NTSC display that SMODE1 sets as the BIOS
+ * does, for a renderer that scans out only a mode it knows. */
+static void case_present(void)
+{
+	s_smode1_hi = 0x7;
+	s_smode1_lo = 0x40834504u;
+	frame_draw(0);
+}
+
 static const struct { const char* name; void (*build)(void); const char* scale; } s_cases[] = {
 	{ "aa1_small",       case_aa1_small,    "1" },
 	{ "aa1_triangle",    case_aa1_triangle, "1" },
@@ -610,6 +620,7 @@ static const struct { const char* name; void (*build)(void); const char* scale; 
 	{ "many_copies",     case_many_copies,   "1" },
 	{ "upload_short",    case_upload_short,  "1" },
 	{ "big_triangles",   case_big_triangles, "1" },
+	{ "present",         case_present,       "1" },
 	{ "display_large_2x", case_display_large, "2" },
 };
 
@@ -641,6 +652,8 @@ static int sl_write_bios(const char* path)
 
 	pc = sl_emit(rom, 0, SL_LUI(8, 0xB200));                         /* t0 = GS privileged regs */
 	pc = sl_emit_store64(rom, pc, 8, 0x00, 0, 0xFF25u);              /* PMODE: RC1, alpha FF    */
+	if (s_smode1_hi || s_smode1_lo)
+		pc = sl_emit_store64(rom, pc, 8, 0x10, s_smode1_hi, s_smode1_lo); /* SMODE1             */
 	pc = sl_emit_store64(rom, pc, 8, 0x20, 0, s_smode2);             /* SMODE2                  */
 	pc = sl_emit_store64(rom, pc, 8, 0x70, 0, s_disp_fbw << 9);      /* DISPFB1                 */
 	pc = sl_emit_store64(rom, pc, 8, 0x80, 2559u | (s_disp_dh << 12), /* DISPLAY1                */

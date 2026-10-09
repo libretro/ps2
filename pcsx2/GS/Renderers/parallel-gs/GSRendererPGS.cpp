@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: LGPL-3.0+
 
 #include "GSRendererPGS.h"
+
+#include <string.h>
 #include "thread_id.hpp"
 #include "common/Pcsx2Defs.h"
 #include "GS/GSState.h"
@@ -41,8 +43,9 @@ static std::unique_ptr<Vulkan::Context> vulkan_ctx;
 static std::vector<ImageHandle> vsync_images;
 /* The retro_vulkan_image the frontend was pointed at, per slot: the
  * frontend keeps the pointer (a cached-frame replay dereferences it
- * again), so it must stay valid as long as the slot's image does. */
-static std::vector<retro_vulkan_image> vsync_descs;
+ * again), so it must stay valid as long as the slot's image does. One
+ * per bit of the sync index mask, never moved. */
+static retro_vulkan_image vsync_descs[32];
 /* Images the frontend has finished with, offered back to the renderer
  * for the next frame's scanout instead of a fresh one each frame. */
 static std::vector<ImageHandle> spare_vsync_images;
@@ -50,7 +53,7 @@ static std::vector<ImageHandle> spare_vsync_images;
 static void pgs_release_vsync_images()
 {
 	vsync_images.clear();
-	vsync_descs.clear();
+	memset(vsync_descs, 0, sizeof(vsync_descs));
 	spare_vsync_images.clear();
 }
 extern retro_environment_t environ_cb;
@@ -628,10 +631,7 @@ void GSRendererPGS::VSync(u32 field, bool registers_written)
 			if (sync_index >= sync_slots)
 				sync_index = 0;
 			if (vsync_images.size() < sync_slots)
-			{
 				vsync_images.resize(sync_slots);
-				vsync_descs.resize(sync_slots);
-			}
 			hw_render_iface->wait_sync_index(hw_render_iface->handle);
 
 			dev.flush_frame();
