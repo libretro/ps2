@@ -3957,7 +3957,7 @@ void GSRendererHW::Draw()
 
 		// Remove overwritten Zs at the FBP.
 		g_texture_cache->InvalidateVideoMemType(GSTextureCache::DepthStencil, m_cached_ctx.FRAME.Block(),
-			m_cached_ctx.FRAME.PSM, m_texture_shuffle_info ? GetEffectiveTextureShuffleFbmsk() : fm);
+			m_cached_ctx.FRAME.PSM, m_texture_shuffle_info ? GetEffectiveTextureShuffleFbmsk() : fm, false, ds);
 	}
 
 	if (zm != 0xffffffff && ds)
@@ -3970,7 +3970,7 @@ void GSRendererHW::Draw()
 
 		// Remove overwritten RTs at the ZBP.
 		g_texture_cache->InvalidateVideoMemType(
-			GSTextureCache::RenderTarget, m_cached_ctx.ZBUF.Block(), m_cached_ctx.ZBUF.PSM, zm);
+			GSTextureCache::RenderTarget, m_cached_ctx.ZBUF.Block(), m_cached_ctx.ZBUF.PSM, zm, false, rt);
 	}
 
 	if (rt)

@@ -3376,13 +3376,15 @@ void GSTextureCache::InvalidateContainedTargets(u32 start_bp, u32 end_bp, u32 wr
 // Goal: Depth And Target at the same address is not possible. On GS it is
 // the same memory but not on the Dx/GL. Therefore a write to the Depth/Target
 // must invalidate the Target/Depth respectively
-void GSTextureCache::InvalidateVideoMemType(int type, u32 bp, u32 write_psm, u32 write_fbmsk, bool dirty_only)
+void GSTextureCache::InvalidateVideoMemType(int type, u32 bp, u32 write_psm, u32 write_fbmsk, bool dirty_only,
+	const Target* keep)
 {
 	auto& list = m_dst[type];
 	for (auto i = list.begin(); i != list.end(); ++i)
 	{
 		Target* const t = *i;
-		if (bp != t->m_TEX0.TBP0 || (dirty_only && t->m_dirty.empty()))
+		// The caller's own target, which it has just drawn to, stays.
+		if (bp != t->m_TEX0.TBP0 || (dirty_only && t->m_dirty.empty()) || t == keep)
 			continue;
 
 		const GSLocalMemory::psm_t& psm_s = GSLocalMemory::m_psm[write_psm];

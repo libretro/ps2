@@ -856,6 +856,25 @@ static void case_move_width_change(void)
 	s_run_frames = 40;
 }
 
+/* A textured triangle into a 32-bit frame whose depth buffer, 32-bit,
+ * is at the same block, depth tested and written: when the draw is done
+ * it keeps both targets while it drops what each overwrote in the other
+ * (a sanitizer build sees one freed under it). */
+static void case_frame_on_depth32(void)
+{
+	ad_common();
+	ad(GS_ZBUF_1, 0, 0);                           /* ZBP 0, PSMZ32, written */
+	ad(GS_TEST_1, 0, (1ul << 16) | (2ul << 17));   /* ZTE, ZTST GEQUAL */
+	ad(GS_TEX0_1, 1, 0x2000ul | (1ul << 14) | (6ul << 26) | (2ul << 30)); /* TBW 1, CT32, 64x64 */
+	ad(GS_PRIM, 0, 3 | 0x10 | 0x100);              /* triangle, TME, FST */
+	ad(GS_UV, 0, 0);
+	ad(GS_XYZ2, 0, XY(0, 0));
+	ad(GS_UV, 0, 1024);
+	ad(GS_XYZ2, 0, XY(64, 0));
+	ad(GS_UV, 0, 1024ul << 16);
+	ad(GS_XYZ2, 0, XY(0, 64));
+}
+
 static const struct { const char* name; void (*build)(void); const char* scale; } s_cases[] = {
 	{ "aa1_small",       case_aa1_small,    "1" },
 	{ "aa1_triangle",    case_aa1_triangle, "1" },
@@ -888,6 +907,7 @@ static const struct { const char* name; void (*build)(void); const char* scale; 
 	{ "dirty_whole_target", case_dirty_whole_target, "1" },
 	{ "depth_texture_far", case_depth_texture_far, "1" },
 	{ "move_width_change", case_move_width_change, "1" },
+	{ "frame_on_depth32", case_frame_on_depth32, "1" },
 	{ "display_large_2x", case_display_large, "2" },
 };
 
