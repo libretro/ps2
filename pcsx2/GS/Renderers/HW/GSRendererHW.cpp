@@ -1280,6 +1280,11 @@ GSRendererHW::TextureShuffleInfo GSRendererHW::DetectTextureShuffleImpl()
 	}
 
 	const auto GetQuadXYUV = [&](u32 i, GSVector4i& xyout, GSVector4i& uvout) {
+		// Only quads the draw has: past them the index buffer holds
+		// whatever an earlier draw left there.
+		if (i >= num_quads)
+			return false;
+
 		GSVertex v0, v1;
 		if (!GetQuadCorners(verts, index + verts_per_quad * i, v0, v1))
 			return false;
