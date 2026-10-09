@@ -4674,6 +4674,8 @@ void GSDeviceVK::RenderHW(GSHWDrawConfig& config)
 			{
 				if (date_image)
 					Recycle(date_image);
+				if (draw_rt_clone)
+					Recycle(draw_rt_clone);
 				return;
 			}
 
