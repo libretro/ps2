@@ -1007,6 +1007,9 @@ void GSInterface::check_frame_buffer_state()
 			}
 			else
 			{
+				// The pass starts over from its last instance; the frame
+				// and Z set below replace what that held.
+				render_pass.current_instance = render_pass.num_instances - 1;
 				flush_pending_transfer(true);
 				tracker.flush_render_pass(FlushReason::FBPointer);
 			}

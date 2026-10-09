@@ -628,6 +628,22 @@ static void case_points(void)
 	s_expect_run[0] = 0x78563412ul;
 }
 
+/* A sprite into each of nine frames in turn, one more than a render
+ * pass keeps apart: the ninth ends the pass (a sanitizer build sees what
+ * it is started from). */
+static void case_nine_frames(void)
+{
+	unsigned long f;
+	ad_common();
+	ad(GS_PRIM, 0, 6);                             /* sprite */
+	for (f = 0; f < 9; f++)
+	{
+		ad(GS_FRAME_1, 0, (1ul << 16) | f);        /* FBP f, FBW 1 */
+		ad(GS_XYZ2, 0, XY(0, 0));
+		ad(GS_XYZ2, 0, XY(8, 8));
+	}
+}
+
 static const struct { const char* name; void (*build)(void); const char* scale; } s_cases[] = {
 	{ "aa1_small",       case_aa1_small,    "1" },
 	{ "aa1_triangle",    case_aa1_triangle, "1" },
@@ -651,6 +667,7 @@ static const struct { const char* name; void (*build)(void); const char* scale; 
 	{ "big_triangles",   case_big_triangles, "1" },
 	{ "present",         case_present,       "1" },
 	{ "points",          case_points,        "1" },
+	{ "nine_frames",     case_nine_frames,   "1" },
 	{ "display_large_2x", case_display_large, "2" },
 };
 
