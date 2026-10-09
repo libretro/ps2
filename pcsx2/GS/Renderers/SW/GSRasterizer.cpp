@@ -44,8 +44,6 @@ GSRasterizer::GSRasterizer(GSDrawScanline* ds, int id, int threads)
 	, m_threads(threads)
 	, m_scanmsk_value(0)
 {
-	memset(&m_pixels, 0, sizeof(m_pixels));
-
 	m_thread_height = compute_best_thread_height(threads);
 
 	/* 4096 lines and columns: the 2x drawing's. */
@@ -105,23 +103,10 @@ int GSRasterizer::FindMyNextScanline(int top) const
 	return top;
 }
 
-int GSRasterizer::GetPixels(bool reset)
-{
-	int pixels = m_pixels.sum;
-
-	if (reset)
-		m_pixels.sum = 0;
-
-	return pixels;
-}
-
 void GSRasterizer::Draw(GSRasterizerData& data)
 {
 	if ((data.vertex && data.vertex_count == 0) || (data.index && data.index_count == 0))
 		return;
-
-	m_pixels.actual = 0;
-	m_pixels.total = 0;
 
 	m_setup_prim = data.setup_prim;
 	m_draw_scanline = data.draw_scanline;
@@ -221,14 +206,6 @@ void GSRasterizer::Draw(GSRasterizerData& data)
 	_mm256_zeroupper();
 #endif
 
-	/* NOTE: 'data.pixels = m_pixels.actual;' used to live here.  data
-	 * is the SHARED GSRasterizerData job object - every worker slicing
-	 * the same draw wrote this one field, and nothing in the tree ever
-	 * read it back.  Besides being a data race, it made all workers
-	 * store to the same cache line on every draw, bouncing that line
-	 * between cores for no result.  m_pixels.sum below is per-worker
-	 * and is what GetPixels() actually reports. */
-	m_pixels.sum += m_pixels.actual;
 }
 
 /* A point at 2x covers its native pixel's 2x2. */
@@ -838,8 +815,6 @@ void GSRasterizer::DrawSprite(const GSVertexSW* vertex, const u16* index)
 
 			int pixels = r.width() * r.height();
 
-			m_pixels.actual += pixels;
-			m_pixels.total += pixels;
 		}
 		else
 		{
@@ -855,8 +830,6 @@ void GSRasterizer::DrawSprite(const GSVertexSW* vertex, const u16* index)
 
 				int pixels = r.width() * r.height();
 
-				m_pixels.actual += pixels;
-				m_pixels.total += pixels;
 
 				top = r.bottom + ((m_threads - 1) << m_thread_height);
 			}
@@ -1149,8 +1122,6 @@ void GSRasterizer::DrawScanline(int pixels, int left, int top, const GSVertexSW&
 {
 	/* SCANMSK skips native lines; the 2x drawing's line is half its row. */
 	if ((m_scanmsk_value & 2) && (m_scanmsk_value & 1) == ((top >> m_local.gd->sel.hires) & 1)) return;
-	m_pixels.actual += pixels;
-	m_pixels.total += ((left + pixels + (PIXELS_PER_LOOP - 1)) & ~(PIXELS_PER_LOOP - 1)) - (left & ~(PIXELS_PER_LOOP - 1));
 
 	m_draw_scanline(pixels, left, top, scan, m_local);
 }
@@ -1159,8 +1130,6 @@ void GSRasterizer::DrawEdge(int pixels, int left, int top, const GSVertexSW& sca
 {
 	/* SCANMSK skips native lines; the 2x drawing's line is half its row. */
 	if ((m_scanmsk_value & 2) && (m_scanmsk_value & 1) == ((top >> m_local.gd->sel.hires) & 1)) return;
-	m_pixels.actual += 1;
-	m_pixels.total += PIXELS_PER_LOOP - 1;
 
 	m_draw_edge(pixels, left, top, scan, m_local);
 }
@@ -1200,11 +1169,6 @@ void GSSingleRasterizer::Sync()
 bool GSSingleRasterizer::IsSynced() const
 {
 	return true;
-}
-
-int GSSingleRasterizer::GetPixels(bool reset /*= true*/)
-{
-	return m_r.GetPixels(reset);
 }
 
 GSRasterizerList::GSRasterizerList(int threads)
@@ -1283,18 +1247,6 @@ bool GSRasterizerList::IsSynced() const
 	}
 
 	return true;
-}
-
-int GSRasterizerList::GetPixels(bool reset)
-{
-	int pixels = 0;
-
-	for (size_t i = 0; i < m_workers.size(); i++)
-	{
-		pixels += m_r[i]->GetPixels(reset);
-	}
-
-	return pixels;
 }
 
 std::unique_ptr<IRasterizer> GSRasterizerList::Create(int threads)
