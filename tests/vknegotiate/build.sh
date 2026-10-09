@@ -83,6 +83,18 @@ for renderer in Vulkan paraLLEl-GS; do
 		exit 1
 	fi
 done
+
+# Destination alpha a clear wrote and a draw wrote, read back and read by
+# a blend: the same alpha either way, on both renderers.
+"$SCRATCH/swdraw" --bios "$SCRATCH/dest_alpha.bin" dest_alpha
+for renderer in Vulkan paraLLEl-GS; do
+	if ! VN_EXPECT_RUN=5a000000,0000005a VN_IDLE_BIOS=1 LRPS2_BIOS="$SCRATCH/dest_alpha.bin" VN_RENDERER=$renderer \
+			timeout 300 "$DIR/vknegotiate" "$CORE" "$SCRATCH" v2; then
+		rm -rf "$SCRATCH"
+		echo "  FAIL: destination alpha, $renderer"
+		exit 1
+	fi
+done
 rm -rf "$SCRATCH"
 
 # A driver that runs out of device memory while the renderer comes up, at

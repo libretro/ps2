@@ -22,7 +22,7 @@
  * frames must also arrive as images, unless VN_IDLE_BIOS says the image
  * draws nothing after it boots (tests/swdraw's cases). VN_RENDERER picks
  * the renderer (Vulkan, the default, or paraLLEl-GS); VN_EXPECT_RUN names
- * a 32-bit word the state must hold 64 of in a row.
+ * 32-bit words the state must hold 64 of each in a row.
  *
  * Usage: vknegotiate <path-to-core> <scratch-dir> <v2|v2retry|v1> */
 
@@ -626,26 +626,32 @@ int main(int argc, char** argv)
 		void* state = size ? malloc(size) : NULL;
 		if (state && serialize(state, size))
 		{
-			/* VN_EXPECT_RUN: the state holds 64 of this 32-bit word in a
-			 * row, as a block of GS memory the case filled or a readback
-			 * it took does. */
+			/* VN_EXPECT_RUN: the state holds 64 of each of these 32-bit
+			 * words (hex, comma separated) in a row, as a block of GS
+			 * memory the case filled or a readback it took does. */
 			if (getenv("VN_EXPECT_RUN"))
 			{
-				const unsigned long want = strtoul(getenv("VN_EXPECT_RUN"), NULL, 16);
-				const unsigned char* p = (const unsigned char*)state;
-				size_t a, i, run = 0;
-				/* At each byte alignment: the blocks before the GS's are
-				 * not all whole words long. */
-				for (a = 0; a < 4 && run < 64; a++)
-					for (i = a, run = 0; i + 4 <= size && run < 64; i += 4)
-					{
-						const unsigned long w = (unsigned long)p[i] | (unsigned long)p[i + 1] << 8
-							| (unsigned long)p[i + 2] << 16 | (unsigned long)p[i + 3] << 24;
-						run = (w == want) ? run + 1 : 0;
-					}
-				if (run < 64)
-					VN_FAIL("the state has no run of 64 words of %08lx", want);
-				printf("  the state holds 64 words of %08lx in a row\n", want);
+				const char* next = getenv("VN_EXPECT_RUN");
+				while (*next)
+				{
+					char* end;
+					const unsigned long want = strtoul(next, &end, 16);
+					const unsigned char* p = (const unsigned char*)state;
+					size_t a, i, run = 0;
+					/* At each byte alignment: the blocks before the GS's
+					 * are not all whole words long. */
+					for (a = 0; a < 4 && run < 64; a++)
+						for (i = a, run = 0; i + 4 <= size && run < 64; i += 4)
+						{
+							const unsigned long w = (unsigned long)p[i] | (unsigned long)p[i + 1] << 8
+								| (unsigned long)p[i + 2] << 16 | (unsigned long)p[i + 3] << 24;
+							run = (w == want) ? run + 1 : 0;
+						}
+					if (run < 64)
+						VN_FAIL("the state has no run of 64 words of %08lx", want);
+					printf("  the state holds 64 words of %08lx in a row\n", want);
+					next = (*end == ',') ? end + 1 : end + strlen(end);
+				}
 			}
 			for (frame = 0; frame < 10; frame++)
 				run();

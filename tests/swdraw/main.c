@@ -58,10 +58,10 @@ static const char* s_opt_deinterlace = "Automatic";
 static unsigned s_frames;
 static unsigned s_drawn;
 /* A case may ask for more frames, and for a savestate taken after them
- * to hold 64 of a 32-bit word in a row, as a block of GS memory it filled
- * or a readback it took does. */
+ * to hold 64 of each of up to two 32-bit words in a row, as a block of GS
+ * memory it filled or a readback it took does. */
 static int s_run_frames = SL_FRAMES;
-static unsigned long s_expect_run;
+static unsigned long s_expect_run[2];
 
 /* GetProcAddress already returns a function pointer; POSIX dlsym returns
  * an object pointer, copied across as lrps2_smoke does. */
@@ -436,7 +436,7 @@ static void case_copy_then_upload(void)
 		qw(0x9ABCDEF0u, 0x9ABCDEF0u, 0x9ABCDEF0u, 0x9ABCDEF0u);
 	kick(i, s_qw_count - i, 20);
 	s_run_frames  = 60;
-	s_expect_run  = 0x78563412ul;
+	s_expect_run[0] = 0x78563412ul;
 }
 
 /* A page of 0x5A000000, read back as PSMT8H and then as PSMT4HH: the
@@ -471,7 +471,56 @@ static void case_readback_t4hh(void)
 	kick(16, 5, 5);
 	readback(128);                                         /* as 32 bits a pixel */
 	s_run_frames  = 60;
-	s_expect_run  = 0x55555555ul;
+	s_expect_run[0] = 0x55555555ul;
+}
+
+/* Destination alpha, written and read back. A page cleared to
+ * 0x5A000000 reads back as that. Then a sprite of alpha 0x40 at 24,8, so
+ * the page's alpha is not one value, one of alpha 0x5A at 16,8, and one
+ * of red 0x80 blended over 8,8 to 24,16 as Cs * Ad: the 16x4 read back
+ * from 8,8, half of it alpha the clear wrote and half alpha a draw wrote,
+ * is 64 words of 0x0000005A. */
+static void case_dest_alpha(void)
+{
+	qw(10 | 0x8000u, 0x10000000u, 0xEu, 0);                /* A+D, NLOOP 10, EOP */
+	qw(1, 0, GS_PRMODECONT, 0);
+	qw(1u << 16, 0, GS_FRAME_1, 0);                        /* FBP 0, FBW 1, PSMCT32 */
+	qw(0, 1, GS_ZBUF_1, 0);                                /* ZMSK */
+	qw((1u << 16) | (1u << 17), 0, GS_TEST_1, 0);          /* ZTE, ZTST always */
+	qw(0, 0, GS_XYOFFSET, 0);
+	qw(63u << 16, 31u << 16, GS_SCISSOR, 0);
+	qw(0x5A000000u, 0x3f800000u, GS_RGBAQ, 0);
+	qw(6, 0, GS_PRIM, 0);                                  /* sprite over the page */
+	qw(0, 0, GS_XYZ2, 0);
+	qw((unsigned)XY(64, 32), 0, GS_XYZ2, 0);
+	kick(0, s_qw_count, 0);
+	qw(4 | 0x8000u, 0x10000000u, 0xEu, 0);
+	qw(1u << 16, 0, GS_BITBLTBUF, 0);                      /* SBP 0, SBW 1, PSMCT32 */
+	qw(32u, 0, GS_TRXPOS, 0);                              /* from 32,0 */
+	qw(8, 8, GS_TRXREG, 0);
+	qw(1, 0, GS_TRXDIR, 0);                                /* local to host */
+	kick(11, 5, 5);
+	readback(16);
+	qw(15 | 0x8000u, 0x10000000u, 0xEu, 0);
+	qw(0x40000000u, 0x3f800000u, GS_RGBAQ, 0);             /* 24,8 to 32,16 */
+	qw((unsigned)XY(24, 8), 0, GS_XYZ2, 0);
+	qw((unsigned)XY(32, 16), 0, GS_XYZ2, 0);
+	qw(0x5A000000u, 0x3f800000u, GS_RGBAQ, 0);             /* 16,8 to 24,16 */
+	qw((unsigned)XY(16, 8), 0, GS_XYZ2, 0);
+	qw((unsigned)XY(24, 16), 0, GS_XYZ2, 0);
+	qw(0x98, 0, GS_ALPHA_1, 0);                            /* (Cs - 0) * Ad + 0 */
+	qw(0x00000080u, 0x3f800000u, GS_RGBAQ, 0);
+	qw(6 | 0x40, 0, GS_PRIM, 0);                           /* sprite, ABE */
+	qw((unsigned)XY(8, 8), 0, GS_XYZ2, 0);
+	qw((unsigned)XY(24, 16), 0, GS_XYZ2, 0);
+	qw(8u | (8u << 16), 0, GS_TRXPOS, 0);                  /* from 8,8 */
+	qw(16, 4, GS_TRXREG, 0);
+	qw(1, 0, GS_TRXDIR, 0);
+	kick(16, 16, 5);
+	readback(16);
+	s_run_frames = 60;
+	s_expect_run[0] = 0x5A000000ul;
+	s_expect_run[1] = 0x0000005Aul;
 }
 
 static const struct { const char* name; void (*build)(void); const char* scale; } s_cases[] = {
@@ -491,6 +540,7 @@ static const struct { const char* name; void (*build)(void); const char* scale; 
 	{ "gif_split",       case_gif_split,     "1" },
 	{ "copy_then_upload", case_copy_then_upload, "1" },
 	{ "readback_t4hh",   case_readback_t4hh, "1" },
+	{ "dest_alpha",      case_dest_alpha,    "1" },
 	{ "display_large_2x", case_display_large, "2" },
 };
 
@@ -665,7 +715,7 @@ int main(int argc, char** argv)
 	retro_serialize_size_t* serialize_size;
 	retro_serialize_t* serialize;
 	unsigned c;
-	int frame;
+	int frame, i;
 
 	if (argc < 4)
 	{
@@ -758,12 +808,13 @@ int main(int argc, char** argv)
 	}
 	for (frame = 0; frame < s_run_frames; frame++)
 		run();
-	if (s_expect_run && !sl_state_has_run(serialize_size, serialize, s_expect_run))
-	{
-		fprintf(stderr, "swdraw: %s: the state has no run of 64 words of %08lx\n",
-			s_cases[c].name, s_expect_run);
-		return 5;
-	}
+	for (i = 0; i < 2; i++)
+		if (s_expect_run[i] && !sl_state_has_run(serialize_size, serialize, s_expect_run[i]))
+		{
+			fprintf(stderr, "swdraw: %s: the state has no run of 64 words of %08lx\n",
+				s_cases[c].name, s_expect_run[i]);
+			return 5;
+		}
 	unload_game();
 	deinit_fn();
 

@@ -7542,7 +7542,9 @@ bool GSRendererHW::TryTargetClear(GSTextureCache::Target* rt, GSTextureCache::Ta
 			{
 				if (alpha_one_or_less)
 				{
-					const u32 new_alpha = pcsx2_min_i((c >> 24) * 2U, 255U);
+					/* Stored as a draw stores it, A / 128 as a unorm, so
+					 * every reader of a scaled target sees the same A. */
+					const u32 new_alpha = ((c >> 24) * 255U + 64U) / 128U;
 					clear_c = (clear_c & 0xFFFFFF) | (new_alpha << 24);
 					rt->m_rt_alpha_scale = true;
 				}
