@@ -9,7 +9,7 @@
  * survives. Run against a core built with SANITIZER=address,undefined,
  * an out-of-bounds access in the renderer fails the run.
  *
- * Usage: swdraw <path-to-core> <scratch-dir> <case> */
+ * Usage: swdraw <path-to-core> <scratch-dir> <case> [extra rasterizer threads] */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -317,6 +317,26 @@ static void case_display_large(void)
 	case_aa1_small();
 }
 
+/* A shaded triangle low in a 32-bit frame, drawn with nothing before it
+ * and drawn after FRAME was set to a 4-bit format on the same pages and
+ * width, which no draw used: the two pictures are the same. */
+static void frame_draw(int after_t4)
+{
+	if (after_t4)
+		ad(GS_FRAME_1, 0, (10ul << 16) | (0x14ul << 24)); /* PSMT4 */
+	ad_common();
+	ad(GS_PRIM, 0, 3 | 0x08);
+	ad(GS_RGBAQ, 0x3f800000ul, 0x800000ffu);
+	ad(GS_XYZ2, 0, XY(20, 200));
+	ad(GS_RGBAQ, 0x3f800000ul, 0x8000ff00u);
+	ad(GS_XYZ2, 0, XY(620, 260));
+	ad(GS_RGBAQ, 0x3f800000ul, 0x80ff0000u);
+	ad(GS_XYZ2, 0, XY(300, 440));
+}
+
+static void case_frame_ct32(void) { frame_draw(0); }
+static void case_frame_after_t4(void) { frame_draw(1); }
+
 static const struct { const char* name; void (*build)(void); const char* scale; } s_cases[] = {
 	{ "aa1_small",       case_aa1_small,    "1" },
 	{ "aa1_triangle",    case_aa1_triangle, "1" },
@@ -327,6 +347,10 @@ static const struct { const char* name; void (*build)(void); const char* scale; 
 	{ "mip_tw11",        case_mip_tw11,     "1" },
 	{ "mip_tw11_2x",     case_mip_tw11,     "2" },
 	{ "display_large",   case_display_large, "1" },
+	{ "frame_ct32",      case_frame_ct32,    "1" },
+	{ "frame_after_t4",  case_frame_after_t4, "1" },
+	{ "frame_ct32_2x",   case_frame_ct32,    "2" },
+	{ "frame_after_t4_2x", case_frame_after_t4, "2" },
 	{ "display_large_2x", case_display_large, "2" },
 };
 
@@ -437,6 +461,8 @@ int main(int argc, char** argv)
 	}
 	s_cases[c].build();
 	s_opt_scale = s_cases[c].scale;
+	if (argc > 4)
+		s_opt_threads = argv[4];
 #ifdef _WIN32
 	SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX);
 #endif

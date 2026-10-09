@@ -32,10 +32,35 @@ fi
 SCRATCH=$(mktemp -d)
 trap 'rm -rf "$SCRATCH"' EXIT
 failed=0
-for c in aa1_small aa1_triangle aa1_triangle_2x aa1_line aa1_line_2x mip_tw8 mip_tw11 mip_tw11_2x display_large display_large_2x; do
-	if ! timeout 300 "$DIR/swdraw" "$CORE" "$SCRATCH" "$c"; then
+for c in aa1_small aa1_triangle aa1_triangle_2x aa1_line aa1_line_2x mip_tw8 mip_tw11 mip_tw11_2x \
+         display_large display_large_2x frame_ct32 frame_after_t4 frame_ct32_2x frame_after_t4_2x; do
+	if ! timeout 300 "$DIR/swdraw" "$CORE" "$SCRATCH" "$c" > "$SCRATCH/$c.out" 2>&1; then
+		cat "$SCRATCH/$c.out"
 		echo "  FAIL: $c"
+		failed=1
+	else
+		grep '^swdraw:' "$SCRATCH/$c.out"
+	fi
+done
+
+# A few again on four rasterizers, which split the rows between them.
+for c in aa1_triangle mip_tw8 frame_ct32_2x display_large; do
+	if ! timeout 300 "$DIR/swdraw" "$CORE" "$SCRATCH" "$c" 3 > "$SCRATCH/$c.mt.out" 2>&1; then
+		cat "$SCRATCH/$c.mt.out"
+		echo "  FAIL: $c on four rasterizers"
 		failed=1
 	fi
 done
+
+# Pairs that must draw the same picture: the last frame's hash.
+same() {
+	a=$(sed -n 's/^swdraw: .* last \([0-9a-f]*\)$/\1/p' "$SCRATCH/$1.out")
+	b=$(sed -n 's/^swdraw: .* last \([0-9a-f]*\)$/\1/p' "$SCRATCH/$2.out")
+	if [ -z "$a" ] || [ "$a" != "$b" ]; then
+		echo "  FAIL: $2 draws a different picture from $1"
+		failed=1
+	fi
+}
+same frame_ct32    frame_after_t4
+same frame_ct32_2x frame_after_t4_2x
 exit $failed

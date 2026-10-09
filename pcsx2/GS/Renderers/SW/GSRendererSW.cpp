@@ -895,7 +895,7 @@ const GSRendererSW::HiresOffset* GSRendererSW::HiresOffsets()
 {
 	const GIFRegFRAME& FRAME = m_context->FRAME;
 	const GIFRegZBUF& ZBUF = m_context->ZBUF;
-	const u32 hash = m_context->offset.fzb4->hash;
+	const u64 hash = m_context->offset.fzb4->hash;
 	const auto it = m_hr_offsets.find(hash);
 	const gs_hr_layout_t* fl;
 	const gs_hr_layout_t* zl;

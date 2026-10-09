@@ -23,16 +23,6 @@
 #include <unordered_map>
 #include <vector>
 
-struct GSPixelOffset
-{
-	// 16 bit offsets (m_vm16[...])
-
-	GSVector2i row[2048]; // f yn | z yn
-	GSVector2i col[2048]; // f xn | z xn
-	u32 hash;
-	u32 fbp, zbp, fpsm, zpsm, bw;
-};
-
 /* Which tiles of a texture live in each GS page, for the repeating-texture
  * invalidation in both texture caches. It was an array of GS_MAX_PAGES
  * std::vectors - up to five hundred and twelve separate allocations per
@@ -56,7 +46,7 @@ struct GSPixelOffset4
 
 	GSVector2i row[2048]; // f yn | z yn (n = 0 1 2 ...)
 	GSVector2i col[512]; // f xn | z xn (n = 0 4 8 ...)
-	u32 hash;
+	u64 hash; // FBP, ZBP, FBW and both PSMs whole
 	u32 fbp, zbp, fpsm, zpsm, bw;
 };
 
@@ -523,8 +513,7 @@ protected:
 
 	//
 
-	std::unordered_map<u32, GSPixelOffset*> m_pomap;
-	std::unordered_map<u32, GSPixelOffset4*> m_po4map;
+	std::unordered_map<u64, GSPixelOffset4*> m_po4map;
 	std::unordered_map<u64, GSPage2TileMap*> m_p2tmap;
 
 public:
@@ -539,7 +528,6 @@ public:
 	{
 		return GSOffset(m_psm[psm].info, bp, bw, psm);
 	}
-	GSPixelOffset* GetPixelOffset(const GIFRegFRAME& FRAME, const GIFRegZBUF& ZBUF);
 	GSPixelOffset4* GetPixelOffset4(const GIFRegFRAME& FRAME, const GIFRegZBUF& ZBUF);
 	GSPage2TileMap* GetPage2TileMap(const GIFRegTEX0& TEX0);
 	static bool HasOverlap(u32 src_bp, u32 src_bw, u32 src_psm, GSVector4i src_rect, u32 dst_bp, u32 dst_bw, u32 dst_psm, GSVector4i dst_rect);

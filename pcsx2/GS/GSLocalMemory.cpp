@@ -248,64 +248,11 @@ GSLocalMemory::~GSLocalMemory()
 	if (m_vm8)
 		GSFreeWrappedMemory(m_vm8, m_vmsize, 4);
 
-	for (auto& i : m_pomap)
-		memalign_free(i.second);
 	for (auto& i : m_po4map)
 		memalign_free(i.second);
 
 	for (auto& i : m_p2tmap)
 		memalign_free(i.second);
-}
-
-GSPixelOffset* GSLocalMemory::GetPixelOffset(const GIFRegFRAME& FRAME, const GIFRegZBUF& ZBUF)
-{
-	u32 fbp = FRAME.Block();
-	u32 zbp = ZBUF.Block();
-	u32 fpsm = FRAME.PSM;
-	u32 zpsm = ZBUF.PSM;
-	u32 bw = FRAME.FBW;
-
-	// "(psm & 0x0f) ^ ((psm & 0xf0) >> 2)" creates 4 bit unique identifiers for render target formats (only)
-
-	u32 fpsm_hash = (fpsm & 0x0f) ^ ((fpsm & 0x30) >> 2);
-	u32 zpsm_hash = (zpsm & 0x0f) ^ ((zpsm & 0x30) >> 2);
-
-	u32 hash = (FRAME.FBP << 0) | (ZBUF.ZBP << 9) | (bw << 18) | (fpsm_hash << 24) | (zpsm_hash << 28);
-
-	auto it = m_pomap.find(hash);
-
-	if (it != m_pomap.end())
-	{
-		return it->second;
-	}
-
-	GSPixelOffset* off = (GSPixelOffset*)memalign_alloc(VECTOR_ALIGNMENT, sizeof(GSPixelOffset));
-
-	off->hash = hash;
-	off->fbp = fbp;
-	off->zbp = zbp;
-	off->fpsm = fpsm;
-	off->zpsm = zpsm;
-	off->bw = bw;
-
-	int fs = m_psm[fpsm].bpp >> 5;
-	int zs = m_psm[zpsm].bpp >> 5;
-
-	for (int i = 0; i < 2048; i++)
-	{
-		off->row[i].x = (int)m_psm[fpsm].info.pa(0, i, fbp, bw) << fs;
-		off->row[i].y = (int)m_psm[zpsm].info.pa(0, i, zbp, bw) << zs;
-	}
-
-	for (int i = 0; i < 2048; i++)
-	{
-		off->col[i].x = (m_psm[fpsm].info.pa(i, 0, 0, 32) - m_psm[fpsm].info.pa(0, 0, 0, 32)) << fs;
-		off->col[i].y = (m_psm[zpsm].info.pa(i, 0, 0, 32) - m_psm[zpsm].info.pa(0, 0, 0, 32)) << zs;
-	}
-
-	m_pomap[hash] = off;
-
-	return off;
 }
 
 GSPixelOffset4* GSLocalMemory::GetPixelOffset4(const GIFRegFRAME& FRAME, const GIFRegZBUF& ZBUF)
@@ -316,12 +263,10 @@ GSPixelOffset4* GSLocalMemory::GetPixelOffset4(const GIFRegFRAME& FRAME, const G
 	u32 zpsm = ZBUF.PSM;
 	u32 bw = FRAME.FBW;
 
-	// "(psm & 0x0f) ^ ((psm & 0xf0) >> 2)" creates 4 bit unique identifiers for render target formats (only)
-
-	u32 fpsm_hash = (fpsm & 0x0f) ^ ((fpsm & 0x30) >> 2);
-	u32 zpsm_hash = (zpsm & 0x0f) ^ ((zpsm & 0x30) >> 2);
-
-	u32 hash = (FRAME.FBP << 0) | (ZBUF.ZBP << 9) | (bw << 18) | (fpsm_hash << 24) | (zpsm_hash << 28);
+	/* Every field whole: FRAME and ZBUF take any of the six-bit formats,
+	 * not only the ones a render target is meant to have. */
+	const u64 hash = (u64)FRAME.FBP | ((u64)ZBUF.ZBP << 9) | ((u64)bw << 18)
+		| ((u64)fpsm << 24) | ((u64)zpsm << 30);
 
 	auto it = m_po4map.find(hash);
 
