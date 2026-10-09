@@ -627,7 +627,8 @@ int main(int argc, char** argv)
 		if (state && serialize(state, size))
 		{
 			/* VN_EXPECT_RUN: the state holds 64 of this 32-bit word in a
-			 * row, as a block of the GS memory the case filled does. */
+			 * row, as a block of GS memory the case filled or a readback
+			 * it took does. */
 			if (getenv("VN_EXPECT_RUN"))
 			{
 				const unsigned long want = strtoul(getenv("VN_EXPECT_RUN"), NULL, 16);

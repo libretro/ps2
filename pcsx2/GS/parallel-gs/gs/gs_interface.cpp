@@ -3407,10 +3407,15 @@ void GSInterface::init_transfer()
 			PSM_DISPATCH(PSMZ16S);
 			PSM_DISPATCH(PSMT8);
 			PSM_DISPATCH(PSMT8H);
+			PSM_DISPATCH(PSMT4);
+			PSM_DISPATCH(PSMT4HL);
+			PSM_DISPATCH(PSMT4HH);
 #undef PSM_DISPATCH
 
 		default:
+			// An invalid PSM reads zeros, not a previous readback.
 			LOGW("Unrecognized FIFO readback PSM: %u\n", transfer_state.copy.bitbltbuf.desc.SPSM);
+			memset(transfer_state.fifo_readback.data(), 0, required_bytes);
 			break;
 		}
 	}

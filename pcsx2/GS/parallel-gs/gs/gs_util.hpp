@@ -105,11 +105,28 @@ static inline void vram_readback(void *readback_data, const void *host_data, uin
 				static_cast<uint8_t *>(readback_data)[output_pixel] = static_cast<const uint8_t *>(host_data)[4 * addr + 3];
 				break;
 
-			// 4-bit is not allowed for readback.
+			// 4-bit pixels, two to a byte, the first in the low nibble.
+			case PSMT4:
+			case PSMT4HL:
+			case PSMT4HH:
+			{
+				uint32_t nibble;
+				if (PSM == PSMT4)
+					nibble = static_cast<const uint8_t *>(host_data)[addr / 2] >> (4 * (addr & 1));
+				else
+					nibble = static_cast<const uint32_t *>(host_data)[addr] >> (PSM == PSMT4HL ? 24 : 28);
+				nibble &= 0xfu;
+
+				auto &out = static_cast<uint8_t *>(readback_data)[output_pixel / 2];
+				if (output_pixel & 1)
+					out = uint8_t(out | (nibble << 4));
+				else
+					out = uint8_t(nibble);
+				break;
+			}
 
 			default:
-				LOGW("Unrecognized fifo readback format.\n");
-				static_cast<uint32_t *>(readback_data)[output_pixel] = 0;
+				break;
 			}
 		}
 	}

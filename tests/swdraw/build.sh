@@ -33,7 +33,7 @@ SCRATCH=$(mktemp -d)
 trap 'rm -rf "$SCRATCH"' EXIT
 failed=0
 for c in aa1_small aa1_triangle aa1_triangle_2x aa1_line aa1_line_2x mip_tw8 mip_tw11 mip_tw11_2x \
-         display_large display_large_2x frame_ct32 frame_after_t4 frame_ct32_2x frame_after_t4_2x copy_then_upload; do
+         display_large display_large_2x frame_ct32 frame_after_t4 frame_ct32_2x frame_after_t4_2x copy_then_upload readback_t4hh; do
 	if ! timeout 300 "$DIR/swdraw" "$CORE" "$SCRATCH" "$c" > "$SCRATCH/$c.out" 2>&1; then
 		cat "$SCRATCH/$c.out"
 		echo "  FAIL: $c"

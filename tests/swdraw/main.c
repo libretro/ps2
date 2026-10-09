@@ -58,8 +58,8 @@ static const char* s_opt_deinterlace = "Automatic";
 static unsigned s_frames;
 static unsigned s_drawn;
 /* A case may ask for more frames, and for a savestate taken after them
- * to hold 64 of a 32-bit word in a row, as a block of GS memory it
- * filled does. */
+ * to hold 64 of a 32-bit word in a row, as a block of GS memory it filled
+ * or a readback it took does. */
 static int s_run_frames = SL_FRAMES;
 static unsigned long s_expect_run;
 
@@ -208,13 +208,15 @@ static unsigned      s_disp_dh  = 447;
 static unsigned      s_smode2   = 1;       /* interlaced */
 
 /* A case may instead lay out its own quadwords and send them in kicks,
- * each a run of them sent after waiting a number of vsyncs. */
+ * each a run of them sent after waiting a number of vsyncs, and then
+ * optionally read a number of quadwords back from the GS (a local to host
+ * transfer the kick set up) into RAM at 0x200000 + 0x1000 * the kick. */
 #define SL_MAX_QW    64
 #define SL_MAX_KICKS 4
 static unsigned      s_qw_count;
 static unsigned      s_qw[SL_MAX_QW][4];
 static unsigned      s_kick_count;
-static unsigned      s_kick[SL_MAX_KICKS][3]; /* first quadword, count, vsyncs to wait first */
+static unsigned      s_kick[SL_MAX_KICKS][4]; /* first quadword, count, vsyncs to wait first, readback */
 
 static void qw(unsigned a, unsigned b, unsigned c, unsigned d)
 {
@@ -228,7 +230,14 @@ static void kick(unsigned first, unsigned count, unsigned vsyncs)
 	s_kick[s_kick_count][0] = first;
 	s_kick[s_kick_count][1] = count;
 	s_kick[s_kick_count][2] = vsyncs;
+	s_kick[s_kick_count][3] = 0;
 	s_kick_count++;
+}
+
+/* The last kick reads qwc quadwords back. */
+static void readback(unsigned qwc)
+{
+	s_kick[s_kick_count - 1][3] = qwc;
 }
 
 static unsigned      s_ad_count;
@@ -430,6 +439,41 @@ static void case_copy_then_upload(void)
 	s_expect_run  = 0x78563412ul;
 }
 
+/* A page of 0x5A000000, read back as PSMT8H and then as PSMT4HH: the
+ * second is the top nibble of each pixel, two to a byte, and 64 words of
+ * 0x55555555 reach RAM - not what the first readback left behind. */
+static void case_readback_t4hh(void)
+{
+	qw(10 | 0x8000u, 0x10000000u, 0xEu, 0);                /* A+D, NLOOP 10, EOP */
+	qw(1, 0, GS_PRMODECONT, 0);
+	qw(1u << 16, 0, GS_FRAME_1, 0);                        /* FBP 0, FBW 1, PSMCT32 */
+	qw(0, 1, GS_ZBUF_1, 0);                                /* ZMSK */
+	qw((1u << 16) | (1u << 17), 0, GS_TEST_1, 0);          /* ZTE, ZTST always */
+	qw(0, 0, GS_XYOFFSET, 0);
+	qw(63u << 16, 31u << 16, GS_SCISSOR, 0);
+	qw(0x5A000000u, 0x3f800000u, GS_RGBAQ, 0);
+	qw(6, 0, GS_PRIM, 0);                                  /* sprite over the page */
+	qw(0, 0, GS_XYZ2, 0);
+	qw((unsigned)XY(64, 32), 0, GS_XYZ2, 0);
+	kick(0, s_qw_count, 0);
+	qw(4 | 0x8000u, 0x10000000u, 0xEu, 0);
+	qw((1u << 16) | (0x1Bu << 24), 0, GS_BITBLTBUF, 0);    /* SBP 0, SBW 1, PSMT8H */
+	qw(0, 0, GS_TRXPOS, 0);
+	qw(32, 8, GS_TRXREG, 0);
+	qw(1, 0, GS_TRXDIR, 0);                                /* local to host */
+	kick(11, 5, 5);
+	readback(16);
+	qw(4 | 0x8000u, 0x10000000u, 0xEu, 0);
+	qw((1u << 16) | (0x2Cu << 24), 0, GS_BITBLTBUF, 0);    /* SBP 0, SBW 1, PSMT4HH */
+	qw(0, 0, GS_TRXPOS, 0);
+	qw(32, 16, GS_TRXREG, 0);
+	qw(1, 0, GS_TRXDIR, 0);
+	kick(16, 5, 5);
+	readback(128);                                         /* as 32 bits a pixel */
+	s_run_frames  = 60;
+	s_expect_run  = 0x55555555ul;
+}
+
 static const struct { const char* name; void (*build)(void); const char* scale; } s_cases[] = {
 	{ "aa1_small",       case_aa1_small,    "1" },
 	{ "aa1_triangle",    case_aa1_triangle, "1" },
@@ -446,6 +490,7 @@ static const struct { const char* name; void (*build)(void); const char* scale; 
 	{ "frame_after_t4_2x", case_frame_after_t4, "2" },
 	{ "gif_split",       case_gif_split,     "1" },
 	{ "copy_then_upload", case_copy_then_upload, "1" },
+	{ "readback_t4hh",   case_readback_t4hh, "1" },
 	{ "display_large_2x", case_display_large, "2" },
 };
 
@@ -536,6 +581,33 @@ static int sl_write_bios(const char* path)
 		pc = sl_emit(rom, pc, SL_ANDI(9, 9, 0x100));
 		pc = sl_emit(rom, pc, SL_BNE(9, 0, (loop - (pc + 4)) >> 2));
 		pc = sl_emit(rom, pc, 0);
+		if (s_kick[k][3])
+		{
+			/* VIF1_STAT.FDR and BUSDIR turn the VIF1 FIFO round, then
+			 * VIF1's DMA channel reads the transfer into RAM. */
+			pc = sl_emit(rom, pc, SL_LUI(10, 0xB000));               /* VIF1_STAT = FDR         */
+			pc = sl_emit(rom, pc, SL_ORI(10, 10, 0x3C00));
+			pc = sl_emit(rom, pc, SL_LUI(9, 0x0080));
+			pc = sl_emit(rom, pc, SL_SW(9, 0, 10));
+			pc = sl_emit_store64(rom, pc, 8, 0x1040, 0, 1);          /* BUSDIR: GS to host      */
+			pc = sl_emit(rom, pc, SL_LUI(25, 0xB000));               /* t9 = VIF1 DMA channel   */
+			pc = sl_emit(rom, pc, SL_ORI(25, 25, 0x9000));
+			pc = sl_emit(rom, pc, SL_LUI(12, 0x0020));               /* MADR                    */
+			pc = sl_emit(rom, pc, SL_ORI(12, 12, k * 0x1000));
+			pc = sl_emit(rom, pc, SL_SW(12, 0x10, 25));
+			pc = sl_emit(rom, pc, SL_ORI(14, 0, s_kick[k][3]));      /* QWC                     */
+			pc = sl_emit(rom, pc, SL_SW(14, 0x20, 25));
+			pc = sl_emit(rom, pc, SL_ORI(15, 0, 0x100));             /* CHCR: to memory, STR    */
+			pc = sl_emit(rom, pc, SL_SW(15, 0x00, 25));
+			loop = pc;
+			pc = sl_emit(rom, pc, SL_LW(9, 0, 25));
+			pc = sl_emit(rom, pc, 0);
+			pc = sl_emit(rom, pc, SL_ANDI(9, 9, 0x100));
+			pc = sl_emit(rom, pc, SL_BNE(9, 0, (loop - (pc + 4)) >> 2));
+			pc = sl_emit(rom, pc, 0);
+			pc = sl_emit_store64(rom, pc, 8, 0x1040, 0, 0);          /* BUSDIR: host to GS      */
+			pc = sl_emit(rom, pc, SL_SW(0, 0, 10));                  /* VIF1_STAT = 0           */
+		}
 	}
 	pc = sl_emit(rom, pc, SL_B(-1));                                 /* spin                    */
 	sl_emit(rom, pc, 0);
