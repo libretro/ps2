@@ -2116,7 +2116,7 @@ GSTextureCache::Target* GSTextureCache::LookupTarget(GIFRegTEX0 TEX0, const GSVe
 						RelayoutTarget(dst, TEX0.TBW);
 					break;
 				}
-				else
+				else if (t != keep)
 				{
 					InvalidateSourcesFromTarget(t);
 					i = list.erase(i);
@@ -3991,7 +3991,8 @@ bool GSTextureCache::Move(u32 SBP, u32 SBW, u32 SPSM, int sx, int sy, u32 DBP, u
 		new_TEX0.PSM = DPSM;
 
 		const GSVector2i target_size = GetTargetSize(DBP, DBW, DPSM, pcsx2_align_up_pow2_u32(w, 64), h);
-		dst = LookupTarget(new_TEX0, target_size, src->m_scale, src->m_type);
+		dst = LookupTarget(new_TEX0, target_size, src->m_scale, src->m_type, true, 0, false, GSConfig.PreloadFrameWithGSData,
+			true, true, GSVector4i::zero(), false, false, false, src);
 		if (!dst)
 			dst = CreateTarget(new_TEX0, target_size, target_size, src->m_scale, src->m_type);
 		if (!dst)

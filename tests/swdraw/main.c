@@ -821,6 +821,41 @@ static void case_depth_texture_far(void)
 	ad(GS_XYZ2, 0, XY(64, 16));
 }
 
+/* A 32-bit frame at block 0, 640 wide, drawn; an 8x8 upload into it;
+ * then a local to local copy of 64x32 from block 0 at width 640 to
+ * block 0 at width 320: the copy keeps the target it copies from while
+ * it finds one to copy to (a sanitizer build sees one freed under it). */
+static void case_move_width_change(void)
+{
+	unsigned i, k;
+	qw(8 | 0x8000u, 0x10000000u, 0xEu, 0);                 /* A+D, NLOOP 8, EOP */
+	qw(1, 0, GS_PRMODECONT, 0);
+	qw(10u << 16, 0, GS_FRAME_1, 0);                       /* FBP 0, FBW 10 */
+	qw(0, 1, GS_ZBUF_1, 0);                                /* ZMSK */
+	qw((1u << 16) | (1u << 17), 0, GS_TEST_1, 0);          /* ZTE, ZTST always */
+	qw(2047u << 16, 2047u << 16, GS_SCISSOR, 0);
+	qw(6, 0, GS_PRIM, 0);                                  /* sprite */
+	qw(0, 0, GS_XYZ2, 0);
+	qw((unsigned)XY(128, 64), 0, GS_XYZ2, 0);
+	kick(0, s_qw_count, 0);
+	i = s_qw_count;
+	qw(4 | 0x8000u, 0x10000000u, 0xEu, 0);
+	qw(0, 10u << 16, GS_BITBLTBUF, 0);                     /* DBP 0, DBW 10 */
+	qw(0, 0, GS_TRXPOS, 0);
+	qw(8, 8, GS_TRXREG, 0);
+	qw(0, 0, GS_TRXDIR, 0);                                /* host to local */
+	qw(16 | 0x8000u, 0x08000000u, 0, 0);                   /* IMAGE, NLOOP 16, EOP */
+	for (k = 0; k < 16; k++)
+		qw(0x11111111u, 0x11111111u, 0x11111111u, 0x11111111u);
+	qw(4 | 0x8000u, 0x10000000u, 0xEu, 0);
+	qw(10u << 16, 5u << 16, GS_BITBLTBUF, 0);              /* SBP 0, SBW 10 -> DBP 0, DBW 5 */
+	qw(0, 0, GS_TRXPOS, 0);
+	qw(64, 32, GS_TRXREG, 0);
+	qw(2, 0, GS_TRXDIR, 0);                                /* local to local */
+	kick(i, s_qw_count - i, 10);
+	s_run_frames = 40;
+}
+
 static const struct { const char* name; void (*build)(void); const char* scale; } s_cases[] = {
 	{ "aa1_small",       case_aa1_small,    "1" },
 	{ "aa1_triangle",    case_aa1_triangle, "1" },
@@ -852,6 +887,7 @@ static const struct { const char* name; void (*build)(void); const char* scale; 
 	{ "frame_on_depth",  case_frame_on_depth, "1" },
 	{ "dirty_whole_target", case_dirty_whole_target, "1" },
 	{ "depth_texture_far", case_depth_texture_far, "1" },
+	{ "move_width_change", case_move_width_change, "1" },
 	{ "display_large_2x", case_display_large, "2" },
 };
 
