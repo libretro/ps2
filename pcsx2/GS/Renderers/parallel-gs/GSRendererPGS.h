@@ -50,6 +50,13 @@ private:
 	uint32_t last_internal_width = 0;
 	uint32_t last_internal_height = 0;
 
+	/* The geometry last given to the frontend, this session's: a session
+	 * after it starts from the frontend's av_info, not from these. */
+	retro_game_geometry geom  = {};
+	float last_aspect         = 0.0f;
+	uint32_t last_base_width  = 0;
+	uint32_t last_base_height = 0;
+
 	static int GetSaveStateSize();
 };
 

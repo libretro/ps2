@@ -598,11 +598,7 @@ void GSRendererPGS::VSync(u32 field, bool registers_written)
 	{
 		if (vsync.image)
 		{
-			static retro_game_geometry geom  = {};
 			bool geom_changed                = false;
-			static float last_aspect         = 0.0f;
-			static uint32_t last_base_width  = 0;
-			static uint32_t last_base_height = 0;
 			uint32_t new_base_width          = vsync.image->get_width();
 			uint32_t new_base_height         = vsync.image->get_height();
 			/* What follows is the frontend's: its slot, the wait on it,
