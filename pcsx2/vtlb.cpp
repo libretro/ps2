@@ -1658,9 +1658,17 @@ void mmap_ResetBlockTracking(void)
 	mode.m_read  = true;
 	mode.m_write = true;
 	mode.m_exec  = false;
-	memset(m_PageProtectInfo, 0, sizeof(m_PageProtectInfo));
 	if (eeMem)
 		mprotect(eeMem->Main, Ps2MemSize::MainRam, host_prot(mode));
+	/* A fastmem view of a page is write-protected only while the page is
+	 * in ProtMode_Write: only mmap_MarkCountedRamPage protects one, and a
+	 * view mapped later takes its protection from the mode. So only those
+	 * pages' views need their protection taken off. */
 	if (CHECK_FASTMEM)
-		vtlb_UpdateFastmemProtection(0, Ps2MemSize::MainRam, mode);
+	{
+		for (u32 page = 0; page < (Ps2MemSize::MainRam >> __pageshift); page++)
+			if (m_PageProtectInfo[page].Mode == ProtMode_Write)
+				vtlb_UpdateFastmemProtection(page << __pageshift, __pagesize, mode);
+	}
+	memset(m_PageProtectInfo, 0, sizeof(m_PageProtectInfo));
 }
