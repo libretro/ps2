@@ -1951,6 +1951,8 @@ void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
 			config.colclip_update_area = config.drawarea;
 
 			hdr_rt = CreateRenderTarget(rtsize.x, rtsize.y, GSTexture::Format::ColorClip, false);
+			if (!hdr_rt)
+				return;
 			OMSetRenderTargets(hdr_rt, config.ds, nullptr);
 
 			g_gs_device->SetColorClipTexture(hdr_rt);

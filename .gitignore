@@ -204,3 +204,4 @@ tests/ata/*.img
 /tests/emitter/emitter_frame
 /tests/emitter/emitter_frame_sysv
 /tests/settings/settings_optioncfg
+/tests/gscolclip/gscolclip_audit
