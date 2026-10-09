@@ -95,6 +95,18 @@ for renderer in Vulkan paraLLEl-GS; do
 		exit 1
 	fi
 done
+
+# 20000 copies in one packet with nothing to end the submission: the
+# batches of copies stay within what one holds.
+"$SCRATCH/swdraw" --bios "$SCRATCH/many_copies.bin" many_copies
+for renderer in Vulkan paraLLEl-GS; do
+	if ! VN_EXPECT_RUN=78563412 VN_IDLE_BIOS=1 LRPS2_BIOS="$SCRATCH/many_copies.bin" VN_RENDERER=$renderer \
+			timeout 300 "$DIR/vknegotiate" "$CORE" "$SCRATCH" v2; then
+		rm -rf "$SCRATCH"
+		echo "  FAIL: many copies, $renderer"
+		exit 1
+	fi
+done
 rm -rf "$SCRATCH"
 
 # A driver that runs out of device memory while the renderer comes up, at

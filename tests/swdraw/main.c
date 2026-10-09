@@ -215,6 +215,10 @@ static unsigned      s_smode2   = 1;       /* interlaced */
 #define SL_MAX_KICKS 4
 static unsigned      s_qw_count;
 static unsigned      s_qw[SL_MAX_QW][4];
+/* The reset program may write the last quadword this many more times
+ * after it in RAM, for a packet longer than the ROM keeps; a kick counts
+ * the copies as quadwords of their own, from s_qw_count on. */
+static unsigned      s_qw_repeat;
 static unsigned      s_kick_count;
 static unsigned      s_kick[SL_MAX_KICKS][4]; /* first quadword, count, vsyncs to wait first, readback */
 
@@ -523,6 +527,31 @@ static void case_dest_alpha(void)
 	s_expect_run[1] = 0x0000005Aul;
 }
 
+/* 20000 local to local copies of an 8x8 block in one packet, no TEX0
+ * between them: more than a submission takes before it flushes for
+ * pressure, and more than one batch of copies holds. */
+static void case_many_copies(void)
+{
+	qw((20000 + 12) | 0x8000u, 0x10000000u, 0xEu, 0);      /* A+D, NLOOP 20012, EOP */
+	qw(1, 0, GS_PRMODECONT, 0);
+	qw(1u << 16, 0, GS_FRAME_1, 0);                        /* FBP 0, FBW 1, PSMCT32 */
+	qw(0, 1, GS_ZBUF_1, 0);                                /* ZMSK */
+	qw((1u << 16) | (1u << 17), 0, GS_TEST_1, 0);          /* ZTE, ZTST always */
+	qw(0, 0, GS_XYOFFSET, 0);
+	qw(63u << 16, 31u << 16, GS_SCISSOR, 0);
+	qw(0x78563412u, 0x3f800000u, GS_RGBAQ, 0);
+	qw(6, 0, GS_PRIM, 0);                                  /* sprite, 0,0 to 8,8 */
+	qw(0, 0, GS_XYZ2, 0);
+	qw((unsigned)XY(8, 8), 0, GS_XYZ2, 0);
+	qw(1u << 16, 32u | (1u << 16), GS_BITBLTBUF, 0);       /* SBP 0, SBW 1 -> DBP 32, DBW 1 */
+	qw(8, 8, GS_TRXREG, 0);
+	qw(2, 0, GS_TRXDIR, 0);                                /* local to local, repeated */
+	s_qw_repeat = 20000 - 1;
+	kick(0, s_qw_count + s_qw_repeat, 0);
+	s_run_frames = 60;
+	s_expect_run[0] = 0x78563412ul;
+}
+
 static const struct { const char* name; void (*build)(void); const char* scale; } s_cases[] = {
 	{ "aa1_small",       case_aa1_small,    "1" },
 	{ "aa1_triangle",    case_aa1_triangle, "1" },
@@ -541,6 +570,7 @@ static const struct { const char* name; void (*build)(void); const char* scale; 
 	{ "copy_then_upload", case_copy_then_upload, "1" },
 	{ "readback_t4hh",   case_readback_t4hh, "1" },
 	{ "dest_alpha",      case_dest_alpha,    "1" },
+	{ "many_copies",     case_many_copies,   "1" },
 	{ "display_large_2x", case_display_large, "2" },
 };
 
@@ -589,6 +619,24 @@ static int sl_write_bios(const char* path)
 	pc = sl_emit(rom, pc, SL_ADDIU(14, 14, -1));
 	pc = sl_emit(rom, pc, SL_BNE(14, 0, (loop - (pc + 4)) >> 2));
 	pc = sl_emit(rom, pc, 0);
+	if (s_qw_repeat)
+	{
+		/* t4 is past the last quadword: copy it on, t9 times. */
+		pc = sl_emit(rom, pc, SL_LW(9, -16, 12));
+		pc = sl_emit(rom, pc, SL_LW(10, -12, 12));
+		pc = sl_emit(rom, pc, SL_LW(14, -8, 12));
+		pc = sl_emit(rom, pc, SL_LW(15, -4, 12));
+		pc = sl_emit(rom, pc, SL_ORI(25, 0, s_qw_repeat));
+		loop = pc;
+		pc = sl_emit(rom, pc, SL_SW(9, 0, 12));
+		pc = sl_emit(rom, pc, SL_SW(10, 4, 12));
+		pc = sl_emit(rom, pc, SL_SW(14, 8, 12));
+		pc = sl_emit(rom, pc, SL_SW(15, 12, 12));
+		pc = sl_emit(rom, pc, SL_ADDIU(12, 12, 16));
+		pc = sl_emit(rom, pc, SL_ADDIU(25, 25, -1));
+		pc = sl_emit(rom, pc, SL_BNE(25, 0, (loop - (pc + 4)) >> 2));
+		pc = sl_emit(rom, pc, 0);
+	}
 	pc = sl_emit(rom, pc, SL_LUI(10, 0xB000));                       /* D_CTRL = DMAE           */
 	pc = sl_emit(rom, pc, SL_ORI(10, 10, 0xE000));
 	pc = sl_emit(rom, pc, SL_ORI(9, 0, 1));

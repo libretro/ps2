@@ -984,11 +984,11 @@ void GSRenderer::check_flush_stats()
 #endif
 		tracker.mark_memory_pressure();
 	}
-	else if (pending_copies.size() >= MaxPendingCopiesWithoutFlush || stats.num_copy_threads >= MaxPendingCopyThreads)
-	{
-		// Deal with soft limits. We have to flush since our algorithms need it, not because of pressure.
+
+	// The copy limits hold under pressure too: the flush pressure asks for
+	// waits for a TEX0 write, and copies keep coming until then.
+	if (pending_copies.size() >= MaxPendingCopiesWithoutFlush || stats.num_copy_threads >= MaxPendingCopyThreads)
 		flush_transfer();
-	}
 }
 
 static VkDeviceSize align_offset(VkDeviceSize offset, VkDeviceSize align)
@@ -2939,9 +2939,12 @@ void GSRenderer::emit_copy_vram(Vulkan::CommandBuffer &cmd,
 void GSRenderer::copy_vram(const CopyDescriptor &desc, const PageRect &damage_rect)
 {
 	Vulkan::BufferBlockAllocation alloc = {};
-	stats.num_copy_threads += desc.trxreg.desc.RRW * desc.trxreg.desc.RRH;
-	if (stats.num_copy_threads > MaxPendingCopyThreads)
+	// The copies already pending go first if this one would take them past
+	// the limit; its own threads count towards the next batch.
+	const uint32_t threads = desc.trxreg.desc.RRW * desc.trxreg.desc.RRH;
+	if (stats.num_copy_threads + threads > MaxPendingCopyThreads)
 		flush_transfer();
+	stats.num_copy_threads += threads;
 
 	if (desc.trxdir.desc.XDIR == HOST_TO_LOCAL)
 	{
