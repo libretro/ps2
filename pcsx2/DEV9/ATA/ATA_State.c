@@ -134,6 +134,9 @@ int ata_open(ata_state_t* ata, const char* hddPath, uint64_t size_sectors)
 	retro_atomic_int_init(&ata->ioRead, 0);
 	retro_atomic_int_init(&ata->ioWrite, 0);
 	retro_atomic_int_init(&ata->ioThreadIdle, 0);
+	retro_atomic_int_init(&ata->ioWriteFailed, 0);
+	ata->ioReadFailed  = false;
+	ata->ioErrorLogged = false;
 
 	ata->ioThread = sthread_create(ata_io_thread_entry, ata);
 	if (!ata->ioThread)
@@ -374,13 +377,23 @@ void ata_async(ata_state_t* ata, uint32_t cycles)
 		{
 			ata_cmd_fn cmd = ata->waitingCmd;
 			ata->waitingCmd = NULL;
-			cmd(ata);
+			if (ata->ioReadFailed)
+				ata_hdd_read_failed(ata);
+			else
+				cmd(ata);
 		}
 		else if (!ata_write_queue_is_empty(&ata->writeQueue)) /* Flush cache */
 			ata_io_request(ata, &ata->ioWrite);
 		else if (ata->awaitFlush) /* Fire IRQ on flush completion? */
 		{
 			ata->awaitFlush = false;
+			/* A write the host failed since the last flush is this
+			 * flush's error: the data did not reach the image. */
+			if (retro_atomic_exchange_int(&ata->ioWriteFailed, 0))
+			{
+				ata->regStatus |= (uint8_t)(ATA_STAT_ERR | ATA_STAT_WRERR);
+				ata->regError  |= (uint8_t)ATA_ERR_ABORT;
+			}
 			ata_post_cmd_no_data(ata);
 		}
 	}

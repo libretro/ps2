@@ -178,6 +178,9 @@ typedef struct ata_state
 	retro_atomic_int_t ioRead;
 	retro_atomic_int_t ioWrite;
 	retro_atomic_int_t ioThreadIdle;
+	/* The host failed a queued write since the last flush reported;
+	 * set by the IO thread, taken by the flush's completion. */
+	retro_atomic_int_t ioWriteFailed;
 
 	uint16_t curCylinders;
 	/* WriteOnly, Only to be written BSY and DRQ are cleared, DMACK is
@@ -226,6 +229,12 @@ typedef struct ata_state
 
 	bool hddSparse;
 	bool hddSparseBlockValid;
+	/* The host failed the last read; written before the read request
+	 * is cleared, read once it is. */
+	bool ioReadFailed;
+	/* The host's last access to the image failed: logged once until
+	 * one succeeds. */
+	bool ioErrorLogged;
 
 	/* LBA48 in use? */
 	bool lba48;
@@ -308,6 +317,9 @@ void ata_io_thread_entry(void* userdata); /* sthread entry; userdata is the ata_
 void ata_io_request(ata_state_t* ata, retro_atomic_int_t* request);
 void ata_hdd_read_async(ata_state_t* ata, ata_cmd_fn drqCMD);
 void ata_hdd_read_sync(ata_state_t* ata, ata_cmd_fn drqCMD);
+/* Ends a read command the host failed to read the image for: an
+ * uncorrectable-data error, and no data. */
+void ata_hdd_read_failed(ata_state_t* ata);
 bool ata_hdd_can_assess_or_set_error(ata_state_t* ata);
 void ata_hdd_set_error_at_transfer_end(ata_state_t* ata);
 
