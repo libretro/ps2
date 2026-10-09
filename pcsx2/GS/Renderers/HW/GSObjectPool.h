@@ -31,6 +31,18 @@ extern "C" {
  * what the allocations these pools replaced asked for. */
 #define GS_OBJECT_POOL_ALIGN 64
 
+/* Built with an address sanitizer: the pool hands out nothing. */
+#if defined(__SANITIZE_ADDRESS__)
+#define GS_OBJECT_POOL_SANITIZED 1
+#elif defined(__has_feature)
+#if __has_feature(address_sanitizer)
+#define GS_OBJECT_POOL_SANITIZED 1
+#endif
+#endif
+#ifndef GS_OBJECT_POOL_SANITIZED
+#define GS_OBJECT_POOL_SANITIZED 0
+#endif
+
 typedef struct gs_object_pool
 {
    unsigned char  *slots;        /* one allocation, count * stride     */

@@ -19,6 +19,12 @@ int gs_object_pool_init(gs_object_pool_t *pool, size_t size, unsigned count)
       return 1;
    if (!count)
       return 0;
+#if GS_OBJECT_POOL_SANITIZED
+   /* An address sanitizer cannot see a slot used after it went back to
+    * the pool, so a sanitizer build leaves every object to the
+    * allocator, where it can. */
+   return 0;
+#endif
 
    /* Slots keep the alignment the objects ask for, so the address of
     * every one of them is as good as the allocator's. */
