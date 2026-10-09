@@ -2373,6 +2373,8 @@ void GSInterface::update_color_feedback_state()
 	}
 }
 
+#define PGS_UV_CLAMP(v) ((v) < INT32_MIN / 2 ? INT32_MIN / 2 : (v) > INT32_MAX / 2 ? INT32_MAX / 2 : (v))
+
 template <bool quad, unsigned num_vertices, bool conservative>
 static void compute_uv_bb(const VertexAttribute *attr, const ContextState &ctx, const PRIMBits &prim, ivec4 &uv_bb,
                           ivec2 *uvs, bool *needs_perspective)
@@ -2419,7 +2421,9 @@ static void compute_uv_bb(const VertexAttribute *attr, const ContextState &ctx, 
 		}
 
 		// A usable Q still leaves S/Q free to land past what an int32
-		// holds, so the conversions saturate rather than being undefined.
+		// holds, so the conversions saturate, and then clamp to the range
+		// the widest box above uses: what is added to them and taken from
+		// them below stays inside an int32.
 		float inv_q0 = 1.0f / attr[0].q;
 		float inv_q1 = 1.0f / attr[1].q;
 		uvs[0] = ivec2{ pgs_f32_to_i32_sat(fwidth * (attr[0].st.x * inv_q0)),
@@ -2432,6 +2436,12 @@ static void compute_uv_bb(const VertexAttribute *attr, const ContextState &ctx, 
 			float inv_q2 = 1.0f / attr[2].q;
 			uvs[2] = ivec2{ pgs_f32_to_i32_sat(fwidth * (attr[2].st.x * inv_q2)),
 			                pgs_f32_to_i32_sat(fheight * (attr[2].st.y * inv_q2)) };
+		}
+
+		for (unsigned k = 0; k < (quad ? 2u : 3u); k++)
+		{
+			uvs[k].x = PGS_UV_CLAMP(uvs[k].x);
+			uvs[k].y = PGS_UV_CLAMP(uvs[k].y);
 		}
 	}
 

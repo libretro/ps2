@@ -126,7 +126,7 @@ done
 # fail on their own against a core built with SANITIZER=address,undefined.
 # present scans out frames while the frontend's sync slots grow from one
 # to three, the frontend reading the image it was last given meanwhile.
-for c in upload_short big_triangles present nine_frames fb_wrap; do
+for c in upload_short big_triangles present nine_frames fb_wrap uv_huge; do
 	"$SCRATCH/swdraw" --bios "$SCRATCH/$c.bin" $c
 	for renderer in Vulkan paraLLEl-GS; do
 		if ! VN_SYNC_GROW=1 VN_IDLE_BIOS=1 LRPS2_BIOS="$SCRATCH/$c.bin" VN_RENDERER=$renderer \

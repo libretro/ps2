@@ -657,6 +657,24 @@ static void case_fb_wrap(void)
 	ad(GS_XYZ2, 0, XY(80, 8));
 }
 
+/* A triangle textured from its own frame with S a billion texture widths
+ * out: the texel bounds of a draw that reads what it writes hold for a
+ * coordinate past what 32 bits keep (a sanitizer build sees that). */
+static void case_uv_huge(void)
+{
+	ad_common();
+	ad(GS_FRAME_1, 0, 1ul << 16);                  /* FBP 0, FBW 1 */
+	ad(GS_SCISSOR, 31ul << 16, 63ul << 16);
+	ad(GS_TEX0_1, 1, (1ul << 14) | (6ul << 26) | (2ul << 30)); /* TBP0 0, TBW 1, CT32, TW TH 6 */
+	ad(GS_TEX1_1, 0, 1ul << 5);                    /* MMAG linear */
+	ad(GS_PRIM, 0, 3 | 0x10);                      /* triangle, TME, STQ */
+	ad(GS_RGBAQ, 0x3f800000ul, 0x80808080ul);      /* Q 1.0 */
+	ad(GS_ST, 0, 0x4e6e6b28ul);                    /* S 1e9 */
+	ad(GS_XYZ2, 0, XY(0, 0));
+	ad(GS_XYZ2, 0, XY(32, 0));
+	ad(GS_XYZ2, 0, XY(0, 16));
+}
+
 static const struct { const char* name; void (*build)(void); const char* scale; } s_cases[] = {
 	{ "aa1_small",       case_aa1_small,    "1" },
 	{ "aa1_triangle",    case_aa1_triangle, "1" },
@@ -680,6 +698,7 @@ static const struct { const char* name; void (*build)(void); const char* scale; 
 	{ "big_triangles",   case_big_triangles, "1" },
 	{ "present",         case_present,       "1" },
 	{ "points",          case_points,        "1" },
+	{ "uv_huge",         case_uv_huge,       "1" },
 	{ "fb_wrap",         case_fb_wrap,       "1" },
 	{ "nine_frames",     case_nine_frames,   "1" },
 	{ "display_large_2x", case_display_large, "2" },
