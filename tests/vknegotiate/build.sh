@@ -122,6 +122,17 @@ for renderer in Vulkan paraLLEl-GS; do
 	fi
 done
 
+# A draw that a state load sends the guest back before, after an XYOFFSET
+# change the load undoes: drawn again with the offset the state holds.
+# paraLLEl-GS only, as for copy_then_upload.
+"$SCRATCH/swdraw" --bios "$SCRATCH/offset_reload.bin" offset_reload
+if ! VN_FRAMES=60 VN_EXPECT_RUN=78563412 VN_IDLE_BIOS=1 LRPS2_BIOS="$SCRATCH/offset_reload.bin" VN_RENDERER=paraLLEl-GS \
+		timeout 300 "$DIR/vknegotiate" "$CORE" "$SCRATCH" v2; then
+	rm -rf "$SCRATCH"
+	echo "  FAIL: offset after a load, paraLLEl-GS"
+	exit 1
+fi
+
 # Cases whose failure is an out-of-bounds read or an overflow: they only
 # fail on their own against a core built with SANITIZER=address,undefined.
 # present scans out frames while the frontend's sync slots grow from one

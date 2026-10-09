@@ -675,6 +675,34 @@ static void case_uv_huge(void)
 	ad(GS_XYZ2, 0, XY(0, 16));
 }
 
+/* A sprite of 0x78563412 at 8,8 to 16,16 drawn 62 vsyncs in with an
+ * XYOFFSET of 0, and three vsyncs later XYOFFSET set to 1024,1024: run
+ * with 60 frames before a state is saved and 10 before it is loaded
+ * (tests/vknegotiate), the sprite is drawn again after the load with the
+ * offset the state holds, and the block holds it at the end. */
+static void case_offset_reload(void)
+{
+	qw(8 | 0x8000u, 0x10000000u, 0xEu, 0);                 /* A+D, NLOOP 8, EOP */
+	qw(1, 0, GS_PRMODECONT, 0);
+	qw(1u << 16, 0, GS_FRAME_1, 0);                        /* FBP 0, FBW 1, PSMCT32 */
+	qw(0, 1, GS_ZBUF_1, 0);                                /* ZMSK */
+	qw((1u << 16) | (1u << 17), 0, GS_TEST_1, 0);          /* ZTE, ZTST always */
+	qw(0, 0, GS_XYOFFSET, 0);
+	qw(63u << 16, 31u << 16, GS_SCISSOR, 0);
+	qw(0x78563412u, 0x3f800000u, GS_RGBAQ, 0);
+	qw(6, 0, GS_PRIM, 0);                                  /* sprite */
+	kick(0, s_qw_count, 0);
+	qw(2 | 0x8000u, 0x10000000u, 0xEu, 0);
+	qw((unsigned)XY(8, 8), 0, GS_XYZ2, 0);
+	qw((unsigned)XY(16, 16), 0, GS_XYZ2, 0);
+	kick(9, 3, 62);
+	qw(1 | 0x8000u, 0x10000000u, 0xEu, 0);
+	qw(1024u * 16, 1024u * 16, GS_XYOFFSET, 0);
+	kick(12, 2, 3);
+	s_run_frames = 80;
+	s_expect_run[0] = 0x78563412ul;
+}
+
 static const struct { const char* name; void (*build)(void); const char* scale; } s_cases[] = {
 	{ "aa1_small",       case_aa1_small,    "1" },
 	{ "aa1_triangle",    case_aa1_triangle, "1" },
@@ -701,6 +729,7 @@ static const struct { const char* name; void (*build)(void); const char* scale; 
 	{ "uv_huge",         case_uv_huge,       "1" },
 	{ "fb_wrap",         case_fb_wrap,       "1" },
 	{ "nine_frames",     case_nine_frames,   "1" },
+	{ "offset_reload",   case_offset_reload, "1" },
 	{ "display_large_2x", case_display_large, "2" },
 };
 

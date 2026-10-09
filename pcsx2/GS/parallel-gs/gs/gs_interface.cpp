@@ -4431,6 +4431,9 @@ void GSInterface::flush()
 void GSInterface::clobber_register_state()
 {
 	state_tracker.dirty_flags = STATE_DIRTY_ALL_BITS;
+	// The vertex offset follows the context's XYOFFSET, as its writes keep it.
+	render_pass.ofx = int32_t(registers.ctx[registers.prim.desc.CTXT].xyoffset.desc.OFX);
+	render_pass.ofy = int32_t(registers.ctx[registers.prim.desc.CTXT].xyoffset.desc.OFY);
 	update_draw_handler();
 	// We don't know which path will start executing so we cannot infer anything from pending GIFTags.
 	// Defer until we receive a fresh GIFTag header.
