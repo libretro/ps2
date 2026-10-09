@@ -63,17 +63,19 @@ extern retro_video_refresh_t video_cb;
 
 static retro_hw_render_interface_vulkan *vulkan;
 
+#define VK_PRESENT_MAX_SYNC_INDICES 32
+
 /* The retro_vulkan_image the frontend was pointed at, one per frontend
  * sync index: the frontend keeps the pointer rather than copying it (a
  * cached-frame replay dereferences it again), so one shared struct
  * would be rewritten under a frontend still reading the previous
- * frame's. */
-static std::vector<retro_vulkan_image> vk_present_descs;
+ * frame's, and one that moved when more sync indices came into use
+ * would leave it reading freed memory. */
+static retro_vulkan_image vk_present_descs[VK_PRESENT_MAX_SYNC_INDICES];
 
 /* The texture each sync index was last handed, held here until the index
  * comes round again. The frontend reads it on its own schedule, so it
  * must not be the texture the next frame is merged into; see PresentRect. */
-#define VK_PRESENT_MAX_SYNC_INDICES 32
 static GSTexture* vk_present_textures[VK_PRESENT_MAX_SYNC_INDICES];
 
 static void vk_free_present_textures(void)
@@ -345,7 +347,7 @@ void vk_libretro_shutdown(void)
 	memset(&vk_init_info, 0, sizeof(vk_init_info));
 	vulkan = nullptr;
 	/* The descriptors belong to the interface that was handed them. */
-	vk_present_descs.clear();
+	memset(vk_present_descs, 0, sizeof(vk_present_descs));
 }
 
 // Tweakables
@@ -2136,8 +2138,6 @@ void GSDeviceVK::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture*
 				sync_slots = 1;
 			if (sync_index >= sync_slots)
 				sync_index = 0;
-			if (vk_present_descs.size() < sync_slots)
-				vk_present_descs.resize(sync_slots);
 			vulkan->wait_sync_index(vulkan->handle);
 			SyncIndexWaited(sync_slots);
 
