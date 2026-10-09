@@ -853,12 +853,14 @@ GSRenderer::GSRenderer(PageTracker &tracker_)
 
 		for (;;)
 		{
+			bool stop;
 			{
 				PGS::unique_lock holder{timeline_lock};
 				timeline_cond.wait(holder, [&]() { return last_waited < last_submitted_timeline; });
+				stop = last_submitted_timeline == UINT64_MAX;
 			}
 
-			if (last_submitted_timeline == UINT64_MAX)
+			if (stop)
 				break;
 
 			last_waited++;
