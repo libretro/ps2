@@ -260,6 +260,7 @@ static void ad(unsigned reg, unsigned long hi, unsigned long lo)
 #define GS_PRIM     0x00
 #define GS_RGBAQ    0x01
 #define GS_ST       0x02
+#define GS_UV       0x03
 #define GS_XYZ2     0x05
 #define GS_TEX0_1   0x06
 #define GS_TEX1_1   0x14
@@ -703,6 +704,45 @@ static void case_offset_reload(void)
 	s_expect_run[0] = 0x78563412ul;
 }
 
+/* A sprite of 0x78563412 into the last page of the GS memory and the
+ * rows below it, which wrap round to the first page, then with no
+ * TEXFLUSH a sprite into another frame textured from the first page and
+ * modulated by half: it reads what the first draw wrote, and the block
+ * read back is 64 words of 0x3C2B1A09. */
+static void case_vram_wrap_read(void)
+{
+	qw(18 | 0x8000u, 0x10000000u, 0xEu, 0);                /* A+D, NLOOP 18, EOP */
+	qw(1, 0, GS_PRMODECONT, 0);
+	qw((1u << 16) | 511u, 0, GS_FRAME_1, 0);               /* FBP 511, FBW 1 */
+	qw(0, 1, GS_ZBUF_1, 0);                                /* ZMSK */
+	qw((1u << 16) | (1u << 17), 0, GS_TEST_1, 0);          /* ZTE, ZTST always */
+	qw(0, 0, GS_XYOFFSET, 0);
+	qw(63u << 16, 63u << 16, GS_SCISSOR, 0);
+	qw(0x78563412u, 0x3f800000u, GS_RGBAQ, 0);
+	qw(6, 0, GS_PRIM, 0);                                  /* sprite, rows 32 to 40 */
+	qw((unsigned)XY(0, 32), 0, GS_XYZ2, 0);
+	qw((unsigned)XY(8, 40), 0, GS_XYZ2, 0);
+	qw((1u << 16) | 2u, 0, GS_FRAME_1, 0);                 /* FBP 2, FBW 1 */
+	/* TBP0 0, TBW 1, PSMCT32, TW 6, TH 5, TCC, TFX modulate. */
+	qw((1u << 14) | (6u << 26) | (1u << 30), 1u | (1u << 2), GS_TEX0_1, 0);
+	qw(0x40404040u, 0x3f800000u, GS_RGBAQ, 0);             /* halves the texel */
+	qw(6 | 0x10 | 0x100, 0, GS_PRIM, 0);                   /* sprite, TME, FST */
+	qw(0, 0, GS_UV, 0);
+	qw((unsigned)XY(8, 8), 0, GS_XYZ2, 0);
+	qw(128u | (128u << 16), 0, GS_UV, 0);
+	qw((unsigned)XY(16, 16), 0, GS_XYZ2, 0);
+	kick(0, s_qw_count, 0);
+	qw(4 | 0x8000u, 0x10000000u, 0xEu, 0);
+	qw((1u << 16) | 64u, 0, GS_BITBLTBUF, 0);              /* SBP 64, SBW 1, PSMCT32 */
+	qw(8u | (8u << 16), 0, GS_TRXPOS, 0);                  /* from 8,8 */
+	qw(8, 8, GS_TRXREG, 0);
+	qw(1, 0, GS_TRXDIR, 0);                                /* local to host */
+	kick(s_qw_count - 5, 5, 5);
+	readback(16);
+	s_run_frames = 60;
+	s_expect_run[0] = 0x3C2B1A09ul;
+}
+
 static const struct { const char* name; void (*build)(void); const char* scale; } s_cases[] = {
 	{ "aa1_small",       case_aa1_small,    "1" },
 	{ "aa1_triangle",    case_aa1_triangle, "1" },
@@ -730,6 +770,7 @@ static const struct { const char* name; void (*build)(void); const char* scale; 
 	{ "fb_wrap",         case_fb_wrap,       "1" },
 	{ "nine_frames",     case_nine_frames,   "1" },
 	{ "offset_reload",   case_offset_reload, "1" },
+	{ "vram_wrap_read",  case_vram_wrap_read, "1" },
 	{ "display_large_2x", case_display_large, "2" },
 };
 

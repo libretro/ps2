@@ -133,6 +133,17 @@ if ! VN_FRAMES=60 VN_EXPECT_RUN=78563412 VN_IDLE_BIOS=1 LRPS2_BIOS="$SCRATCH/off
 	exit 1
 fi
 
+# A draw into the last page of the GS memory that wraps to the first, and
+# a texture read of the first with no TEXFLUSH between: the read sees the
+# draw. paraLLEl-GS only.
+"$SCRATCH/swdraw" --bios "$SCRATCH/vram_wrap_read.bin" vram_wrap_read
+if ! VN_EXPECT_RUN=3c2b1a09 VN_IDLE_BIOS=1 LRPS2_BIOS="$SCRATCH/vram_wrap_read.bin" VN_RENDERER=paraLLEl-GS \
+		timeout 300 "$DIR/vknegotiate" "$CORE" "$SCRATCH" v2; then
+	rm -rf "$SCRATCH"
+	echo "  FAIL: texture read of a wrapped draw, paraLLEl-GS"
+	exit 1
+fi
+
 # Cases whose failure is an out-of-bounds read or an overflow: they only
 # fail on their own against a core built with SANITIZER=address,undefined.
 # present scans out frames while the frontend's sync slots grow from one

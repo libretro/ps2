@@ -335,7 +335,10 @@ void PageTracker::mark_texture_read(const PageRect &rect)
 	                    (rect.page_height - 1) * rect.page_stride +
 	                    rect.page_width - 1;
 
-	if (end_page < pending_fb_write_page_lo || start_page > pending_fb_write_page_hi)
+	// The ranges are not wrapped: one that runs past the end of the GS
+	// memory comes round to its start, and is not compared this way.
+	if (end_page <= page_state_mask && pending_fb_write_page_hi <= page_state_mask &&
+	    (end_page < pending_fb_write_page_lo || start_page > pending_fb_write_page_hi))
 		return;
 
 	// Strict interpretation of minimal caching.
