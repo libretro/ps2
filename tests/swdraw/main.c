@@ -794,6 +794,33 @@ static void case_dirty_whole_target(void)
 	s_run_frames = 40;
 }
 
+/* Depth written at page 50, then two sprites textured from it as Z32
+ * with S a long way negative at their far corners: the texel distance
+ * across each sprite, checked to see whether the draw unswizzles a
+ * page, is taken for a coordinate past what 32 bits hold (a sanitizer
+ * build sees that). */
+static void case_depth_texture_far(void)
+{
+	ad_common();
+	ad(GS_ZBUF_1, 0, 50ul);                        /* ZBP 50, PSMZ32, written */
+	ad(GS_PRIM, 0, 6);                             /* sprite */
+	ad(GS_XYZ2, 0x1234ul, XY(0, 0));
+	ad(GS_XYZ2, 0x1234ul, XY(64, 64));
+	ad(GS_ZBUF_1, 1, 0);                           /* ZMSK */
+	/* TBP0 page 50, TBW 1, PSMZ32, TW 6, TH 6. */
+	ad(GS_TEX0_1, 1, 1600ul | (1ul << 14) | (0x30ul << 20) | (6ul << 26) | (2ul << 30));
+	ad(GS_PRIM, 0, 6 | 0x10);                      /* sprite, TME, STQ */
+	ad(GS_RGBAQ, 0x3f800000ul, 0x80808080ul);      /* Q 1.0 */
+	ad(GS_ST, 0, 0);
+	ad(GS_XYZ2, 0, XY(0, 0));
+	ad(GS_ST, 0, 0xf149f2caul);                    /* S -1e30 */
+	ad(GS_XYZ2, 0, XY(32, 16));
+	ad(GS_ST, 0, 0);
+	ad(GS_XYZ2, 0, XY(32, 0));
+	ad(GS_ST, 0, 0xf149f2caul);
+	ad(GS_XYZ2, 0, XY(64, 16));
+}
+
 static const struct { const char* name; void (*build)(void); const char* scale; } s_cases[] = {
 	{ "aa1_small",       case_aa1_small,    "1" },
 	{ "aa1_triangle",    case_aa1_triangle, "1" },
@@ -824,6 +851,7 @@ static const struct { const char* name; void (*build)(void); const char* scale; 
 	{ "vram_wrap_read",  case_vram_wrap_read, "1" },
 	{ "frame_on_depth",  case_frame_on_depth, "1" },
 	{ "dirty_whole_target", case_dirty_whole_target, "1" },
+	{ "depth_texture_far", case_depth_texture_far, "1" },
 	{ "display_large_2x", case_display_large, "2" },
 };
 

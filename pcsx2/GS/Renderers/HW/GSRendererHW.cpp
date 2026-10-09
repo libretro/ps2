@@ -2056,12 +2056,11 @@ void GSRendererHW::HandleManualDeswizzle()
 			if (!q_is_usable(v[index_first].RGBAQ.Q) || !q_is_usable(v[index_last].RGBAQ.Q))
 				return;
 
-			// Saturating, because a usable Q still leaves S/Q free to land
-			// past what an s32 holds. abs() here is the C one and takes an
-			// int, so the conversion happens either way -- it is just
-			// spelled out now.
-			const u32 x = (u32)abs(f32_to_s32_sat(((v[index_last].ST.S / v[index_last].RGBAQ.Q) * (1 << m_context->TEX0.TW)) - ((v[index_first].ST.S / v[index_first].RGBAQ.Q) * (1 << m_context->TEX0.TW))));
-			const u32 y = (u32)abs(f32_to_s32_sat(((v[index_last].ST.T / v[index_last].RGBAQ.Q) * (1 << m_context->TEX0.TH)) - ((v[index_first].ST.T / v[index_first].RGBAQ.Q) * (1 << m_context->TEX0.TH))));
+			// The distance is taken in float and then saturated, because a
+			// usable Q still leaves S/Q free to land past what an s32
+			// holds, and the most negative s32 has no absolute value.
+			const u32 x = (u32)f32_to_s32_sat(std::fabs(((v[index_last].ST.S / v[index_last].RGBAQ.Q) * (1 << m_context->TEX0.TW)) - ((v[index_first].ST.S / v[index_first].RGBAQ.Q) * (1 << m_context->TEX0.TW))));
+			const u32 y = (u32)f32_to_s32_sat(std::fabs(((v[index_last].ST.T / v[index_last].RGBAQ.Q) * (1 << m_context->TEX0.TH)) - ((v[index_first].ST.T / v[index_first].RGBAQ.Q) * (1 << m_context->TEX0.TH))));
 
 			if (x != (u32)page_quadrant.x || y != (u32)page_quadrant.y)
 				return;
