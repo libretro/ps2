@@ -13,6 +13,8 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <assert.h>
+
 #include "Common.h"
 #include <fastjmp.h>
 #include <memalign.h>
@@ -626,6 +628,11 @@ alignas(16) static u8 manual_counter[Ps2MemSize::MainRam >> 12];
 
 
 ////////////////////////////////////////////////////
+/* The dispatcher every entry of the block lookup table held at the last
+ * reset; 0 when the table's contents are unknown (not yet allocated, or
+ * freed). */
+static uptr s_recLutDefault;
+
 static void recResetRaw(void)
 {
 #ifdef PCSX2_REC_PROFILE
@@ -633,11 +640,42 @@ static void recResetRaw(void)
 #endif
 	recAlloc();
 
+	/* An entry of the block lookup table other than JITCompile is only
+	 * ever written at the start of a block the block list holds, and
+	 * recClear puts every block it drops back to JITCompile. So putting
+	 * back the blocks still listed - before the dispatchers are made
+	 * again, which empties the list - leaves every entry JITCompile, and
+	 * the table needs clearing whole only when it is new or JITCompile
+	 * has moved. */
+	if (s_recLutDefault && s_recLutDefault == (uptr)JITCompile)
+	{
+		const int count = (int)BaseBlockArray_size(&recBlocks.blocks);
+		for (int i = 0; i < count; i++)
+			PC_GETBLOCK(recBlocks.blocks.blocks[i].startpc)->m_pFnptr = s_recLutDefault;
+	}
+	else
+		s_recLutDefault = 0;
+
 	/* code reserves have no reset state */
 	_DynGen_Dispatchers();
 	vtlb_DynGenDispatchers();
-	ClearRecLUT((BASEBLOCK*)recLutReserve_RAM, recLutSize / sizeof(BASEBLOCK));
-	memset(recRAMCopy, 0, Ps2MemSize::MainRam);
+	if (s_recLutDefault != (uptr)JITCompile)
+	{
+		ClearRecLUT((BASEBLOCK*)recLutReserve_RAM, recLutSize / sizeof(BASEBLOCK));
+		s_recLutDefault = (uptr)JITCompile;
+	}
+#ifndef NDEBUG
+	/* A debug build checks the whole table: an entry written anywhere
+	 * but at a listed block's start shows up here. */
+	{
+		const BASEBLOCK* lut = (const BASEBLOCK*)recLutReserve_RAM;
+		for (size_t i = 0; i < recLutSize / sizeof(BASEBLOCK); i++)
+			assert(lut[i].m_pFnptr == (uptr)JITCompile);
+	}
+#endif
+	/* recRAMCopy needs no clearing: it is read only over the range of a
+	 * listed block, which was copied in when that block was compiled, and
+	 * the list is emptied below. */
 
 	maxrecmem = 0;
 
@@ -666,6 +704,7 @@ static void recShutdown(void)
 	recRAMCopy = NULL;
 	memalign_free(recLutReserve_RAM);
 	recLutReserve_RAM = NULL;
+	s_recLutDefault   = 0;
 
 	BaseBlocks_Reset(&recBlocks);
 
