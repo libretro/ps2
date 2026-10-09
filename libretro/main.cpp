@@ -2765,8 +2765,19 @@ unsigned retro_api_version(void) { return RETRO_API_VERSION; }
 bool retro_load_game_special(unsigned game_type,
 	const struct retro_game_info* info, size_t num_info) { return false; }
 
+/* The machine as it was before a load, put back if the load fails. Kept
+ * from load to load and freed with the game: rollback loads a state every
+ * frame, and fresh pages for tens of MB each time cost more than the copy
+ * into them. */
+static u8*    s_unserialize_backup;
+static size_t s_unserialize_backup_size;
+
 void retro_unload_game(void)
 {
+	free(s_unserialize_backup);
+	s_unserialize_backup      = NULL;
+	s_unserialize_backup_size = 0;
+
 	if (MTGS::IsOpen())
 	{
 		/* The frame the EE had ready is dropped with the game. */
@@ -3156,8 +3167,16 @@ bool retro_serialize(void* data, size_t size)
 bool retro_unserialize(const void* data, size_t size)
 {
 	const size_t backup_size = retro_serialize_size();
-	u8* backup = (u8 *)malloc(backup_size);
+	u8* backup;
 	bool have_backup, ok;
+
+	if (s_unserialize_backup_size != backup_size)
+	{
+		free(s_unserialize_backup);
+		s_unserialize_backup      = (u8 *)malloc(backup_size);
+		s_unserialize_backup_size = s_unserialize_backup ? backup_size : 0;
+	}
+	backup = s_unserialize_backup;
 
 	state_quiesce();
 
@@ -3178,7 +3197,6 @@ bool retro_unserialize(const void* data, size_t size)
 			log_cb(RETRO_LOG_ERROR, "retro_unserialize: state not loaded "
 				"and the running game could not be restored\n");
 	}
-	free(backup);
 
 	if (ok)
 	{

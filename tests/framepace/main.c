@@ -18,7 +18,9 @@
  *     sample for sample, and the same savestate at the end, as running
  *     on from where it was taken - straight, with a savestate taken
  *     before every frame, with every frame run twice and rolled back
- *     between (as runahead and netplay do), and with option changes
+ *     between (as runahead and netplay do), with a state the core
+ *     rejects partway offered before every frame (cut short, so its
+ *     memory blocks are only partly there), and with option changes
  *     between frames (audio only: an option may change the picture).
  *
  * Usage: framepace <path-to-core> <scratch-dir> */
@@ -547,6 +549,23 @@ int main(int argc, char** argv)
 	fp_save(other, size);
 	fp_compare("rolled back every frame", straight, again, 1);
 	fp_compare_state("rolled back every frame", end, other, size);
+
+	/* A state cut short, rejected before every frame: the running
+	 * machine is put back each time and runs on as if it was never
+	 * offered. */
+	s_rng = 19;
+	fp_load(start, size);
+	for (i = 0; i < FP_FRAMES; i++)
+	{
+		fp_save(scratch, size);
+		fp_jitter();
+		if (s_load(scratch, size / 2))
+			fp_fail("a state cut to half its size was loaded\n");
+		fp_run(&again[i]);
+	}
+	fp_save(other, size);
+	fp_compare("a rejected state before every frame", straight, again, 1);
+	fp_compare_state("a rejected state before every frame", end, other, size);
 
 	/* An option change, applied with the EE paused, on random frames. */
 	s_rng = 17;
