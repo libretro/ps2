@@ -6,7 +6,6 @@
 #include "../Vulkan/VKLoaderPlatformDefines.h"
 #include "SaveState.h"
 #include "Config.h"
-#include "common/WindowInfo.h"
 #include "gs_interface.hpp"
 #include "device.hpp"
 #include "context.hpp"
@@ -30,8 +29,6 @@ public:
 
 	void UpdateConfig();
 
-	void GetInternalResolution(int *width, int *height);
-
 	int Freeze(freezeData *data, bool sizeonly);
 	int Defrost(freezeData *data);
 
@@ -41,14 +38,10 @@ private:
 	ParallelGS::PrivRegisterState *priv;
 	Vulkan::Device dev;
 	ParallelGS::GSInterface iface;
-	WindowInfo window_info = {};
 
 	ParallelGS::SuperSampling current_super_sampling = ParallelGS::SuperSampling::X1;
 	bool current_ordered_super_sampling     = false;
 	bool current_super_sample_textures      = false;
-	bool has_presented_in_current_swapchain = false;
-	uint32_t last_internal_width = 0;
-	uint32_t last_internal_height = 0;
 
 	/* The geometry last given to the frontend, this session's: a session
 	 * after it starts from the frontend's av_info, not from these. */

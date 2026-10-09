@@ -579,21 +579,6 @@ void GSRendererPGS::VSync(u32 field, bool registers_written)
 	info.high_res_scanout_full_field             = GSConfig.PGSHighResScanout >= 4;
 	auto vsync                                   = iface.vsync(info);
 
-	auto stats = iface.consume_flush_stats();
-	if (GSConfig.SkipDuplicateFrames && has_presented_in_current_swapchain &&
-	    !registers_written && stats.num_render_passes == 0 && stats.num_copies == 0)
-	{
-		PROFILE_SCOPE(ZONE_GS_HANDOVER);
-		video_cb(nullptr, 0, 0, 0);
-		return;
-	}
-
-	if (vsync.image)
-	{
-		last_internal_width = vsync.internal_width;
-		last_internal_height = vsync.internal_height;
-	}
-
 	if (hw_render_iface)
 	{
 		if (vsync.image)
@@ -718,12 +703,6 @@ void GSRendererPGS::Transfer(const u8* mem, u32 size)
 void GSRendererPGS::ReadFIFO(u8 *mem, u32 size)
 {
 	iface.read_transfer_fifo(mem, size);
-}
-
-void GSRendererPGS::GetInternalResolution(int *width, int *height)
-{
-	*width = int(last_internal_width);
-	*height = int(last_internal_height);
 }
 
 /* --- the table GS.cpp calls through (see gs_renderer_ops in GS.h) -------
