@@ -2801,8 +2801,13 @@ void GSRendererHW::Draw()
 	//                                |       0.5,2.25 |        1-1 |    1 |
 	//                                |        0.5,2.5 |        1-2 |    2 |
 	//                                --------------------------------------
+	// A point fills the pixel it rounds to, so the range of points ends one
+	// past the last of them, however many there are.
 	m_r = GSVector4i(m_vt.m_min.p.upld(m_vt.m_max.p) + GSVector4::cxpr(0.5f));
-	m_r = m_r.blend8(m_r + GSVector4i::cxpr(0, 0, 1, 1), (m_r.xyxy() == m_r.zwzw()));
+	if (m_vt.m_primclass == GS_POINT_CLASS)
+		m_r += GSVector4i::cxpr(0, 0, 1, 1);
+	else
+		m_r = m_r.blend8(m_r + GSVector4i::cxpr(0, 0, 1, 1), (m_r.xyxy() == m_r.zwzw()));
 	m_sprite_edges_snapped = false;
 	m_r_no_scissor = m_r;
 	m_r = m_r.rintersect(context->scissor.in);

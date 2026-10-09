@@ -212,7 +212,7 @@ static unsigned      s_smode1_hi, s_smode1_lo; /* SMODE1, written when set */
  * each a run of them sent after waiting a number of vsyncs, and then
  * optionally read a number of quadwords back from the GS (a local to host
  * transfer the kick set up) into RAM at 0x200000 + 0x1000 * the kick. */
-#define SL_MAX_QW    64
+#define SL_MAX_QW    128
 #define SL_MAX_KICKS 4
 static unsigned      s_qw_count;
 static unsigned      s_qw[SL_MAX_QW][4];
@@ -599,6 +599,35 @@ static void case_present(void)
 	frame_draw(0);
 }
 
+/* 64 points of 0x78563412, one on each pixel of the 8x8 block at 8,8 of
+ * a 64-wide frame: the block read back is 64 words of the colour. */
+static void case_points(void)
+{
+	unsigned x, y;
+	qw((9 + 64) | 0x8000u, 0x10000000u, 0xEu, 0);          /* A+D, NLOOP 73, EOP */
+	qw(1, 0, GS_PRMODECONT, 0);
+	qw(1u << 16, 0, GS_FRAME_1, 0);                        /* FBP 0, FBW 1, PSMCT32 */
+	qw(0, 1, GS_ZBUF_1, 0);                                /* ZMSK */
+	qw((1u << 16) | (1u << 17), 0, GS_TEST_1, 0);          /* ZTE, ZTST always */
+	qw(0, 0, GS_XYOFFSET, 0);
+	qw(63u << 16, 31u << 16, GS_SCISSOR, 0);
+	qw(0x78563412u, 0x3f800000u, GS_RGBAQ, 0);
+	qw(0, 0, GS_PRIM, 0);                                  /* point */
+	qw(1u << 16, 0, GS_BITBLTBUF, 0);                      /* SBP 0, SBW 1, PSMCT32 */
+	for (y = 0; y < 8; y++)
+		for (x = 0; x < 8; x++)
+			qw((unsigned)XY(8 + x, 8 + y), 0, GS_XYZ2, 0);
+	kick(0, s_qw_count, 0);
+	qw(3 | 0x8000u, 0x10000000u, 0xEu, 0);
+	qw(8u | (8u << 16), 0, GS_TRXPOS, 0);                  /* from 8,8 */
+	qw(8, 8, GS_TRXREG, 0);
+	qw(1, 0, GS_TRXDIR, 0);                                /* local to host */
+	kick(s_qw_count - 4, 4, 5);
+	readback(16);
+	s_run_frames = 60;
+	s_expect_run[0] = 0x78563412ul;
+}
+
 static const struct { const char* name; void (*build)(void); const char* scale; } s_cases[] = {
 	{ "aa1_small",       case_aa1_small,    "1" },
 	{ "aa1_triangle",    case_aa1_triangle, "1" },
@@ -621,6 +650,7 @@ static const struct { const char* name; void (*build)(void); const char* scale; 
 	{ "upload_short",    case_upload_short,  "1" },
 	{ "big_triangles",   case_big_triangles, "1" },
 	{ "present",         case_present,       "1" },
+	{ "points",          case_points,        "1" },
 	{ "display_large_2x", case_display_large, "2" },
 };
 

@@ -110,6 +110,18 @@ for renderer in Vulkan paraLLEl-GS; do
 	fi
 done
 
+# 64 points, one on each pixel of a block, read back: the block holds
+# the colour on both renderers.
+"$SCRATCH/swdraw" --bios "$SCRATCH/points.bin" points
+for renderer in Vulkan paraLLEl-GS; do
+	if ! VN_EXPECT_RUN=78563412 VN_IDLE_BIOS=1 LRPS2_BIOS="$SCRATCH/points.bin" VN_RENDERER=$renderer \
+			timeout 300 "$DIR/vknegotiate" "$CORE" "$SCRATCH" v2; then
+		rm -rf "$SCRATCH"
+		echo "  FAIL: points, $renderer"
+		exit 1
+	fi
+done
+
 # Cases whose failure is an out-of-bounds read or an overflow: they only
 # fail on their own against a core built with SANITIZER=address,undefined.
 # present scans out frames while the frontend's sync slots grow from one
