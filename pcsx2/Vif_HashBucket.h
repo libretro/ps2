@@ -18,6 +18,7 @@
 
 #include <string.h>
 #include <memalign.h>
+#include <retro_inline.h>
 
 #ifdef __cplusplus
 #include "../common/Pcsx2Defs.h"
@@ -37,7 +38,7 @@ void memalign_free(void* pmem);
 
 /* Grow an aligned buffer: the only aligned realloc in the tree, over
  * libretro-common's memalign. */
-static inline void* pcsx2_aligned_realloc(void* handle, size_t new_size, size_t align, size_t old_size)
+static INLINE void* pcsx2_aligned_realloc(void* handle, size_t new_size, size_t align, size_t old_size)
 {
 	void* newbuf = memalign_alloc(align, new_size);
 	if (newbuf && handle)
@@ -92,10 +93,14 @@ typedef union nVifBlock
 
 /* A hash container built around nVifBlock: the bucket index is simply the
  * first two bytes of the block, so the most diverse data sits first in
- * the struct. Buckets are sentinel-terminated flat chains. */
+ * the struct. Buckets are sentinel-terminated flat chains. An empty
+ * bucket points at 'empty', the one all-zero sentinel every empty bucket
+ * shares; it is never written and never freed, and a bucket gets a chain
+ * of its own on its first add. */
 typedef struct
 {
 	nVifBlock* bucket[VIF_HASH_SIZE];
+	nVifBlock empty;
 } vif_hash_bucket_t;
 
 /* The empty-cell sentinel must be tested before the key compare: it is
@@ -141,8 +146,10 @@ static void vif_hash_add(vif_hash_bucket_t* h, const nVifBlock* q)
 	u32 size = vif_hash_bucket_size(h, b);
 
 	/* +1 for the sentinel already present, +1 for the new entry.
-	 * 64B alignment keeps chain walks inside whole cache lines. */
-	nVifBlock* new_bucket = (nVifBlock*)pcsx2_aligned_realloc(h->bucket[b],
+	 * 64B alignment keeps chain walks inside whole cache lines. The
+	 * shared sentinel is not the bucket's own, so it is not carried over. */
+	nVifBlock* new_bucket = (nVifBlock*)pcsx2_aligned_realloc(
+			h->bucket[b] == &h->empty ? NULL : h->bucket[b],
 			sizeof(nVifBlock) * (size + 2), 64, sizeof(nVifBlock) * (size + 1));
 	if (!new_bucket)
 		return;
@@ -153,26 +160,28 @@ static void vif_hash_add(vif_hash_bucket_t* h, const nVifBlock* q)
 	memset(&h->bucket[b][size], 0, sizeof(nVifBlock));
 }
 
+/* Frees every chain; the buckets are left NULL, for a release. */
 static void vif_hash_clear(vif_hash_bucket_t* h)
 {
 	int i;
 	for (i = 0; i < VIF_HASH_SIZE; i++)
 	{
-		if (h->bucket[i])
+		if (h->bucket[i] && h->bucket[i] != &h->empty)
 			memalign_free(h->bucket[i]);
-			h->bucket[i] = NULL;
+		h->bucket[i] = NULL;
 	}
 }
 
+/* Every bucket empty: chains freed, all pointing at the shared sentinel. */
 static void vif_hash_reset(vif_hash_bucket_t* h)
 {
 	int i;
-	vif_hash_clear(h);
-	/* Allocate a lone sentinel for every bucket. */
+	memset(&h->empty, 0, sizeof(h->empty));
 	for (i = 0; i < VIF_HASH_SIZE; i++)
 	{
-		h->bucket[i] = (nVifBlock*)memalign_alloc(16, sizeof(nVifBlock));
-		memset(h->bucket[i], 0, sizeof(nVifBlock));
+		if (h->bucket[i] && h->bucket[i] != &h->empty)
+			memalign_free(h->bucket[i]);
+		h->bucket[i] = &h->empty;
 	}
 }
 

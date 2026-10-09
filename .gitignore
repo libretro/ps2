@@ -208,3 +208,6 @@ tests/ata/*.img
 /tests/pgsthreadidx/pgsthreadidx
 /tests/pgsthreadidx/pgsthreadidx_tsan
 /tests/pgsthreadidx/pgsthreadidx.exe
+/tests/vifhash/vifhash
+/tests/vifhash/vifhash_asan
+/tests/vifhash/vifhash.exe
