@@ -5595,10 +5595,6 @@ GSTextureCache::Source* GSTextureCache::CreateSource(const GIFRegTEX0& TEX0, con
 			g_texture_cache->InvalidateVideoMemType(GSTextureCache::DepthStencil, TEX0.TBP0, TEX0.PSM, GSRendererHW::GetInstance()->GetCachedCtx()->FRAME.FBMSK, true);
 		}
 
-		// kill source immediately after the draw if it's the RT, because that'll get invalidated immediately.
-		if (GSRendererHW::GetInstance()->IsTBPFrameOrZ(TEX0.TBP0, true) && GSRendererHW::GetInstance()->ChannelsSharedTEX0FRAME())
-			m_temporary_source = src;
-
 		// maintain the clut even when paltex is on for the replacement texture lookup
 		bool paltex = (GSConfig.GPUPaletteConversion && psm.pal > 0) || gpu_clut;
 		const u32* clut = (psm.pal > 0) ? static_cast<const u32*>(g_gs_renderer->m_mem.m_clut) : nullptr;
@@ -5652,6 +5648,11 @@ GSTextureCache::Source* GSTextureCache::CreateSource(const GIFRegTEX0& TEX0, con
 			else if (psm.pal > 0)
 				AttachPaletteToSource(src, psm.pal, false, true);
 		}
+
+		// kill source immediately after the draw if it's the RT, because that'll get invalidated immediately.
+		// Only a source that was made is kept for that; one that failed is gone.
+		if (GSRendererHW::GetInstance()->IsTBPFrameOrZ(TEX0.TBP0, true) && GSRendererHW::GetInstance()->ChannelsSharedTEX0FRAME())
+			m_temporary_source = src;
 	}
 
 	if (src != m_temporary_source)
@@ -7685,6 +7686,14 @@ void GSTextureCache::InvalidateTemporarySource()
 {
 	if (!m_temporary_source)
 		return;
+
+	/* A temporary source holds its hash cache entry as one in m_src does,
+	 * and lets it go the same way, so the entry can age out. */
+	if (m_temporary_source->m_from_hash_cache)
+	{
+		if ((--m_temporary_source->m_from_hash_cache->refcount) == 0)
+			m_temporary_source->m_from_hash_cache->age = 0;
+	}
 
 	delete m_temporary_source;
 	m_temporary_source = nullptr;
