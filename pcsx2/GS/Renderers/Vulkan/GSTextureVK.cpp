@@ -415,7 +415,10 @@ bool GSTextureVK::Map(GSMap& m, const GSVector4i* r, int layer)
 		/* While waiting for x bytes in texture upload buffer */
 		GSDeviceVK::GetInstance()->ExecuteCommandBuffer(false);
 		if (!buffer.ReserveMemory(required_size, GSDeviceVK::GetInstance()->GetBufferCopyOffsetAlignment()))
+		{
 			log_cb(RETRO_LOG_ERROR, "Failed to reserve texture upload memory\n");
+			return false;
+		}
 	}
 
 	m.bits = static_cast<u8*>(buffer.GetCurrentHostPointer());
@@ -831,7 +834,7 @@ void GSDownloadTextureVK::CopyFromTexture(
 	// do the copy
 	vkCmdCopyImageToBuffer(cmdbuf, vkTex->GetImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, m_buffer, 1, &image_copy);
 
-	// flush gpu cache
+	// flush gpu cache, over every row the copy wrote and on to the end
 	const VkBufferMemoryBarrier buffer_info = {
 		VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER, // VkStructureType    sType
 		nullptr, // const void*        pNext
@@ -840,11 +843,11 @@ void GSDownloadTextureVK::CopyFromTexture(
 		VK_QUEUE_FAMILY_IGNORED, // uint32_t           srcQueueFamilyIndex
 		VK_QUEUE_FAMILY_IGNORED, // uint32_t           dstQueueFamilyIndex
 		m_buffer, // VkBuffer           buffer
-		0, // VkDeviceSize       offset
-		copy_size // VkDeviceSize       size
+		copy_offset, // VkDeviceSize       offset
+		VK_WHOLE_SIZE // VkDeviceSize       size
 	};
 	vkCmdPipelineBarrier(
-			cmdbuf, VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_HOST_BIT, 0, 0, nullptr, 1, &buffer_info, 0, nullptr);
+			cmdbuf, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_HOST_BIT, 0, 0, nullptr, 1, &buffer_info, 0, nullptr);
 
 	if (old_layout != GSTextureVK::Layout::TransferSrc && old_layout != GSTextureVK::Layout::Undefined)
 		vkTex->TransitionSubresourcesToLayout(cmdbuf, src_level, 1, GSTextureVK::Layout::TransferSrc, old_layout);
