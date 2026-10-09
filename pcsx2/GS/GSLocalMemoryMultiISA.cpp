@@ -935,7 +935,8 @@ void GSLocalMemoryFunctions::WriteImageX(GSLocalMemory& mem, int& tx, int& ty, c
 		case PSMZ24:
 			readWriteHelper(tx, ty, len / 3, 1, sx, w, off.assertSizesMatch(GSLocalMemory::swizzle32), [&](GSOffset::PAHelper& pa, int x)
 			{
-				mem.WritePixel24(&vm32[pa.value(x)], *(u32*)pb);
+				// The pixel's three bytes, at any alignment, and none past them.
+				mem.WritePixel24(&vm32[pa.value(x)], (u32)pb[0] | ((u32)pb[1] << 8) | ((u32)pb[2] << 16));
 				pb += 3;
 			});
 			break;
