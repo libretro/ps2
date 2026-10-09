@@ -41,6 +41,8 @@ void GSCodeReserve::Reset()
 
 u8* GSCodeReserve::Reserve(size_t size)
 {
+	if (!m_baseptr || size > m_size - m_memory_used)
+		return nullptr;
 	return m_baseptr + m_memory_used;
 }
 

@@ -91,6 +91,8 @@ public:
 	void Assign(VirtualMemoryManagerPtr allocator);
 	void Reset();
 
+	/* Room for size bytes of code at the end of what is in use, or NULL
+	 * when the reserve does not have it: Reset() starts it again. */
 	u8* Reserve(size_t size);
 	void Commit(size_t size);
 
@@ -103,38 +105,51 @@ class GSCodeGeneratorFunctionMap : public GSFunctionMap<KEY, VALUE>
 {
 	std::unordered_map<u64, VALUE> m_cgmap;
 
-	enum { MAX_SIZE = 8192 };
+	/* The room a function is generated into first, and the most it is
+	 * given: a generator stops writing at the end of its room, so a
+	 * function that fills it is generated again in twice the room. */
+	enum { MIN_SIZE = 8192, MAX_SIZE = 65536 };
 
 public:
 	GSCodeGeneratorFunctionMap() { }
 
 	~GSCodeGeneratorFunctionMap() = default;
 
+	/* Forgets every function, for a reset of the code reserve: none of
+	 * them is handed out again. */
 	void Clear()
 	{
 		m_cgmap.clear();
+		for (auto& i : this->m_map_active)
+			delete i.second;
+		this->m_map_active.clear();
+		this->m_active = NULL;
 	}
 
+	/* NULL when the code reserve has no room left for the function. */
 	VALUE GetDefaultFunction(KEY key)
 	{
-		VALUE ret = nullptr;
-
 		auto i = m_cgmap.find(key);
 
 		if (i != m_cgmap.end())
-			ret = i->second;
-		else
+			return i->second;
+
+		for (size_t room = MIN_SIZE; room <= MAX_SIZE; room *= 2)
 		{
-			u8* code_ptr = GSCodeReserve::GetInstance().Reserve(MAX_SIZE);
-			CG cg(key, code_ptr, MAX_SIZE);
+			u8* code_ptr = GSCodeReserve::GetInstance().Reserve(room);
+			if (!code_ptr)
+				return nullptr;
+
+			CG cg(key, code_ptr, room);
+			if (cg.getSize() >= room)
+				continue; /* cut short at the end of its room */
 
 			GSCodeReserve::GetInstance().Commit(cg.getSize());
 
-			ret = (VALUE)cg.getCode();
-
+			VALUE ret = (VALUE)cg.getCode();
 			m_cgmap[key] = ret;
+			return ret;
 		}
-
-		return ret;
+		return nullptr;
 	}
 };

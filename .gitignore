@@ -217,3 +217,5 @@ tests/ata/*.img
 /tests/eestage/eestage.exe
 /tests/swdraw/swdraw
 /tests/swdraw/swdraw.exe
+/tests/gsjit/gsjit
+/tests/gsjit/gsjit.exe

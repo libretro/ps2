@@ -1181,10 +1181,13 @@ void GSSingleRasterizer::Queue(const GSRingHeap::SharedPtr<GSRasterizerData>& da
 
 void GSSingleRasterizer::Draw(GSRasterizerData& data)
 {
+	/* Out of room for code: start the reserve again; a draw whose
+	 * functions still cannot be made is dropped. */
 	if (!unlikely(m_ds.SetupDraw(data)))
 	{
 		m_ds.ResetCodeCache();
-		m_ds.SetupDraw(data);
+		if (!m_ds.SetupDraw(data))
+			return;
 	}
 
 	m_r.Draw(data);
@@ -1242,11 +1245,13 @@ void GSRasterizerList::Queue(const GSRingHeap::SharedPtr<GSRasterizerData>& data
 {
 	GSVector4i r = data->bbox.rintersect(data->scissor);
 
+	/* As in GSSingleRasterizer::Draw. */
 	if (unlikely(!m_ds.SetupDraw(*data.get())))
 	{
 		Sync();
 		m_ds.ResetCodeCache();
-		m_ds.SetupDraw(*data.get());
+		if (!m_ds.SetupDraw(*data.get()))
+			return;
 	}
 
 	int top = r.top >> m_thread_height;
