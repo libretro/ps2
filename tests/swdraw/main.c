@@ -552,6 +552,26 @@ static void case_many_copies(void)
 	s_expect_run[0] = 0x78563412ul;
 }
 
+/* A host to local transfer of 13x5 24-bit pixels, 1560 bits, sent as 12
+ * quadwords, which are 1536: the transfer waits for the rest, and the
+ * renderer reads no further than the data it has (a sanitizer build sees
+ * that). */
+static void case_upload_short(void)
+{
+	unsigned i;
+	qw(5 | 0x8000u, 0x10000000u, 0xEu, 0);                 /* A+D, NLOOP 5, EOP */
+	qw(1, 0, GS_PRMODECONT, 0);
+	qw(0, (1u << 16) | (1u << 24), GS_BITBLTBUF, 0);       /* DBP 0, DBW 1, PSMCT24 */
+	qw(0, 0, GS_TRXPOS, 0);
+	qw(13, 5, GS_TRXREG, 0);
+	qw(0, 0, GS_TRXDIR, 0);                                /* host to local */
+	qw(12 | 0x8000u, 0x08000000u, 0, 0);                   /* IMAGE, NLOOP 12, EOP */
+	for (i = 0; i < 12; i++)
+		qw(0x11111111u, 0x11111111u, 0x11111111u, 0x11111111u);
+	kick(0, s_qw_count, 0);
+	s_run_frames = 60;
+}
+
 static const struct { const char* name; void (*build)(void); const char* scale; } s_cases[] = {
 	{ "aa1_small",       case_aa1_small,    "1" },
 	{ "aa1_triangle",    case_aa1_triangle, "1" },
@@ -571,6 +591,7 @@ static const struct { const char* name; void (*build)(void); const char* scale; 
 	{ "readback_t4hh",   case_readback_t4hh, "1" },
 	{ "dest_alpha",      case_dest_alpha,    "1" },
 	{ "many_copies",     case_many_copies,   "1" },
+	{ "upload_short",    case_upload_short,  "1" },
 	{ "display_large_2x", case_display_large, "2" },
 };
 

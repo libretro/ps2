@@ -3326,10 +3326,12 @@ void GSInterface::init_transfer()
 	}
 	else if (XDIR == HOST_TO_LOCAL)
 	{
+		// Whole 64-bit words, the last one holding the end of the last
+		// pixel: a transfer is not complete, and is not read, before it.
 		transfer_state.required_qwords =
 				(transfer_state.copy.trxreg.desc.RRW *
 				transfer_state.copy.trxreg.desc.RRH *
-				get_bits_per_pixel(transfer_state.copy.bitbltbuf.desc.DPSM)) / 64;
+				get_bits_per_pixel(transfer_state.copy.bitbltbuf.desc.DPSM) + 63) / 64;
 
 		transfer_state.host_to_local_active = transfer_state.required_qwords != 0;
 		transfer_state.copy.needs_shadow_vram = false;

@@ -107,6 +107,20 @@ for renderer in Vulkan paraLLEl-GS; do
 		exit 1
 	fi
 done
+
+# Cases whose failure is an out-of-bounds read or an overflow: they only
+# fail on their own against a core built with SANITIZER=address,undefined.
+for c in upload_short; do
+	"$SCRATCH/swdraw" --bios "$SCRATCH/$c.bin" $c
+	for renderer in Vulkan paraLLEl-GS; do
+		if ! VN_IDLE_BIOS=1 LRPS2_BIOS="$SCRATCH/$c.bin" VN_RENDERER=$renderer \
+				timeout 300 "$DIR/vknegotiate" "$CORE" "$SCRATCH" v2; then
+			rm -rf "$SCRATCH"
+			echo "  FAIL: $c, $renderer"
+			exit 1
+		fi
+	done
+done
 rm -rf "$SCRATCH"
 
 # A driver that runs out of device memory while the renderer comes up, at
