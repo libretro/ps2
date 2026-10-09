@@ -110,7 +110,7 @@ done
 
 # Cases whose failure is an out-of-bounds read or an overflow: they only
 # fail on their own against a core built with SANITIZER=address,undefined.
-for c in upload_short; do
+for c in upload_short big_triangles; do
 	"$SCRATCH/swdraw" --bios "$SCRATCH/$c.bin" $c
 	for renderer in Vulkan paraLLEl-GS; do
 		if ! VN_IDLE_BIOS=1 LRPS2_BIOS="$SCRATCH/$c.bin" VN_RENDERER=$renderer \

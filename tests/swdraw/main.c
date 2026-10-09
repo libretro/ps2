@@ -572,6 +572,23 @@ static void case_upload_short(void)
 	s_run_frames = 60;
 }
 
+/* Two flat right triangles 4000 pixels on a side that form a square,
+ * as a pair of triangles fused into a quad would be: the renderer's
+ * tests on their sides and areas hold for coordinates that large (a
+ * sanitizer build sees that). */
+static void case_big_triangles(void)
+{
+	ad_common();
+	ad(GS_SCISSOR, (2047ul << 16), (2047ul << 16));
+	ad(GS_PRIM, 0, 3);                              /* triangle */
+	ad(GS_XYZ2, 0, XY(0, 0));
+	ad(GS_XYZ2, 0, XY(4000, 0));
+	ad(GS_XYZ2, 0, XY(0, 4000));
+	ad(GS_XYZ2, 0, XY(4000, 0));
+	ad(GS_XYZ2, 0, XY(4000, 4000));
+	ad(GS_XYZ2, 0, XY(0, 4000));
+}
+
 static const struct { const char* name; void (*build)(void); const char* scale; } s_cases[] = {
 	{ "aa1_small",       case_aa1_small,    "1" },
 	{ "aa1_triangle",    case_aa1_triangle, "1" },
@@ -592,6 +609,7 @@ static const struct { const char* name; void (*build)(void); const char* scale; 
 	{ "dest_alpha",      case_dest_alpha,    "1" },
 	{ "many_copies",     case_many_copies,   "1" },
 	{ "upload_short",    case_upload_short,  "1" },
+	{ "big_triangles",   case_big_triangles, "1" },
 	{ "display_large_2x", case_display_large, "2" },
 };
 

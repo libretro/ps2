@@ -263,9 +263,12 @@ bool triangle_is_parallelogram_candidate(const VertexPosition *pos, const Vertex
 	int32_t ac_y = pos[2].pos.y - pos[0].pos.y;
 	int32_t bc_x = pos[2].pos.x - pos[1].pos.x;
 	int32_t bc_y = pos[2].pos.y - pos[1].pos.y;
-	int area = std::abs(ab_x * ac_y - ab_y * ac_x);
+	// Products of two sides span more than 32 bits for a large triangle.
+	int64_t area = int64_t(ab_x) * ac_y - int64_t(ab_y) * ac_x;
+	if (area < 0)
+		area = -area;
 	// Only a 90-degree triangle will have an area that matches the BB area.
-	if (area != (hi[0] - lo[0]) * (hi[1] - lo[1]))
+	if (area != int64_t(hi[0] - lo[0]) * (hi[1] - lo[1]))
 		return false;
 
 	PrimOrder parallelogram_order;
@@ -277,7 +280,7 @@ bool triangle_is_parallelogram_candidate(const VertexPosition *pos, const Vertex
 
 		// Verify that the provoking corner is 90 degrees.
 		// The area check alone doesn't guarantee that.
-		int cos_angle = ac_x * bc_x + ac_y * bc_y;
+		int64_t cos_angle = int64_t(ac_x) * bc_x + int64_t(ac_y) * bc_y;
 		if (cos_angle != 0)
 			return false;
 	}
@@ -286,7 +289,7 @@ bool triangle_is_parallelogram_candidate(const VertexPosition *pos, const Vertex
 		// AC is the diagonal, B is provoking.
 		parallelogram_order.x = 1; parallelogram_order.y = 2; parallelogram_order.z = 0;
 
-		int cos_angle = ac_x * ab_x + ac_y * ab_y;
+		int64_t cos_angle = int64_t(ac_x) * ab_x + int64_t(ac_y) * ab_y;
 		if (cos_angle != 0)
 			return false;
 	}
@@ -295,7 +298,7 @@ bool triangle_is_parallelogram_candidate(const VertexPosition *pos, const Vertex
 		// We're not on the diagonal. A is provoking.
 		parallelogram_order.x = 0; parallelogram_order.y = 1; parallelogram_order.z = 2;
 
-		int cos_angle = ac_x * ab_x + ac_y * ab_y;
+		int64_t cos_angle = int64_t(ac_x) * ab_x + int64_t(ac_y) * ab_y;
 		if (cos_angle != 0)
 			return false;
 	}
