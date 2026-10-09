@@ -48,10 +48,13 @@ void RenderPass::setup_subpasses(const VkRenderPassCreateInfo2 &create_info)
 		subpass_info.num_color_attachments = subpass.colorAttachmentCount;
 		subpass_info.num_input_attachments = subpass.inputAttachmentCount;
 		subpass_info.depth_stencil_attachment = *subpass.pDepthStencilAttachment;
-		memcpy(subpass_info.color_attachments, subpass.pColorAttachments,
-		       subpass.colorAttachmentCount * sizeof(*subpass.pColorAttachments));
-		memcpy(subpass_info.input_attachments, subpass.pInputAttachments,
-		       subpass.inputAttachmentCount * sizeof(*subpass.pInputAttachments));
+		// A subpass with none of a kind may give no list for it.
+		if (subpass.colorAttachmentCount)
+			memcpy(subpass_info.color_attachments, subpass.pColorAttachments,
+			       subpass.colorAttachmentCount * sizeof(*subpass.pColorAttachments));
+		if (subpass.inputAttachmentCount)
+			memcpy(subpass_info.input_attachments, subpass.pInputAttachments,
+			       subpass.inputAttachmentCount * sizeof(*subpass.pInputAttachments));
 
 		unsigned samples = 0;
 		for (unsigned att = 0; att < subpass_info.num_color_attachments; att++)
