@@ -351,9 +351,11 @@ void GSRasterizer::DrawLineImpl(const GSVertexSW* vertex, const u16* index)
 
 	if (HasEdge())
 	{
+		/* Each edge is flushed on its own: one is at most a pixel per
+		 * scissor row or column, which is what the buffer holds. */
 		DrawEdge(v0, v1, dv, i, 0);
+		Flush(vertex, index, GSVertexSW::zero(), true);
 		DrawEdge(v0, v1, dv, i, 1);
-
 		Flush(vertex, index, GSVertexSW::zero(), true);
 
 		return;
@@ -573,10 +575,12 @@ void GSRasterizer::DrawTriangle(const GSVertexSW* vertex, const u16* index)
 		int orientation = a.mask();
 		int side = ((a | b) ^ c).mask() ^ 2; // evil
 
+		/* Each edge is flushed on its own: see DrawLineImpl. */
 		DrawEdge((GSVertexSW&)v0, (GSVertexSW&)v1, (GSVertexSW&)dv0, orientation & 1, side & 1);
+		Flush(vertex, index, GSVertexSW::zero(), true);
 		DrawEdge((GSVertexSW&)v0, (GSVertexSW&)v2, (GSVertexSW&)dv1, orientation & 2, side & 2);
+		Flush(vertex, index, GSVertexSW::zero(), true);
 		DrawEdge((GSVertexSW&)v1, (GSVertexSW&)v2, (GSVertexSW&)dv2, orientation & 4, side & 4);
-
 		Flush(vertex, index, GSVertexSW::zero(), true);
 	}
 }
@@ -744,10 +748,12 @@ void GSRasterizer::DrawTriangle(const GSVertexSW* vertex, const u16* index)
 		int orientation = a.mask();
 		int side        = ((a | b) ^ c).mask() ^ 2; // evil
 
+		/* Each edge is flushed on its own: see DrawLineImpl. */
 		DrawEdge(v0, v1, dv0, orientation & 1, side & 1);
+		Flush(vertex, index, GSVertexSW::zero(), true);
 		DrawEdge(v0, v2, dv1, orientation & 2, side & 2);
+		Flush(vertex, index, GSVertexSW::zero(), true);
 		DrawEdge(v1, v2, dv2, orientation & 4, side & 4);
-
 		Flush(vertex, index, GSVertexSW::zero(), true);
 	}
 }

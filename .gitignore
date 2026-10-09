@@ -215,3 +215,5 @@ tests/ata/*.img
 /tests/vifhash/vifhash.exe
 /tests/eestage/eestage
 /tests/eestage/eestage.exe
+/tests/swdraw/swdraw
+/tests/swdraw/swdraw.exe
