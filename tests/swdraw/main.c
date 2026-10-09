@@ -261,12 +261,51 @@ static void case_aa1_line(void)
 }
 
 /* Each case on one rasterizer, which takes every row, and again at 2x. */
+/* A mipmapped texture whose TEX0 claims 2048 texels across (TW = 11),
+ * past the 1024 the GS has; drawn with a constant LOD of 1, so the
+ * levels are read as well as the base. */
+static void mip_draw(unsigned tw)
+{
+	ad_common();
+	/* A shaded triangle first, so the texture (the frame itself) is not
+	 * all zero and the picture shows what was sampled. */
+	ad(GS_PRIM, 0, 3 | 0x08);                      /* triangle, Gouraud */
+	ad(GS_RGBAQ, 0x3f800000ul, 0x800000ffu);
+	ad(GS_XYZ2, 0, XY(0, 0));
+	ad(GS_RGBAQ, 0x3f800000ul, 0x8000ff00u);
+	ad(GS_XYZ2, 0, XY(640, 0));
+	ad(GS_RGBAQ, 0x3f800000ul, 0x80ff0000u);
+	ad(GS_XYZ2, 0, XY(0, 448));
+	ad(GS_TEX0_1, 0,                                /* TH 2 (bits 30-33), TCC 0 */
+		(0ul << 0) | (4ul << 14) | ((unsigned long)tw << 26) | (2ul << 30)); /* TBP0 0, TBW 4, PSMCT32 */
+	ad(GS_TEX1_1, 16ul,                            /* K = 1.0 */
+		1ul | (2ul << 2) | (2ul << 6));            /* LCM, MXL 2, MMIN nearest mipmap */
+	ad(GS_MIPTBP1, 0, (0x800ul << 0) | (4ul << 14) | (0x1000ul << 20)); /* TBP1, TBW1, TBP2 */
+	ad(GS_PRIM, 0, 3 | 0x10);                      /* triangle, TME, STQ */
+	ad(GS_ST, 0, 0);
+	ad(GS_RGBAQ, 0x3f800000ul, 0x80808080ul);
+	ad(GS_XYZ2, 0, XY(0, 0));
+	ad(GS_ST, 0, 0x3f800000ul);                    /* S 1.0 */
+	ad(GS_XYZ2, 0, XY(640, 0));
+	ad(GS_ST, 0x3f800000ul, 0);                    /* T 1.0 */
+	ad(GS_XYZ2, 0, XY(0, 448));
+}
+
+static void case_mip_tw11(void) { mip_draw(11); }
+
+/* The same draw with a texture the GS can hold: its picture is the same
+ * with or without the sizing that keeps the TW 11 one in bounds. */
+static void case_mip_tw8(void) { mip_draw(8); }
+
 static const struct { const char* name; void (*build)(void); const char* scale; } s_cases[] = {
 	{ "aa1_small",       case_aa1_small,    "1" },
 	{ "aa1_triangle",    case_aa1_triangle, "1" },
 	{ "aa1_triangle_2x", case_aa1_triangle, "2" },
 	{ "aa1_line",        case_aa1_line,     "1" },
 	{ "aa1_line_2x",     case_aa1_line,     "2" },
+	{ "mip_tw8",         case_mip_tw8,      "1" },
+	{ "mip_tw11",        case_mip_tw11,     "1" },
+	{ "mip_tw11_2x",     case_mip_tw11,     "2" },
 };
 
 /* A 4MB image the core's BIOS scan accepts. The reset program turns on a

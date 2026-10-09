@@ -1473,7 +1473,11 @@ bool GSRendererSW::GetScanlineGlobalData(SharedData* data)
 
 				for (int i = 1, j = pcsx2_min_i((int)context->TEX1.MXL, 6); i <= j; i++)
 				{
-					const GIFRegTEX0& MIP_TEX0 = GetTex0Layer(i);
+					/* Each level halves the base as it was sized, so no
+					 * level is wider than the rows the base was given. */
+					GIFRegTEX0 MIP_TEX0 = GetTex0Layer(i);
+					MIP_TEX0.TW = TEX0.TW > (u32)i ? TEX0.TW - i : 0;
+					MIP_TEX0.TH = TEX0.TH > (u32)i ? TEX0.TH - i : 0;
 
 					MIP_CLAMP.MINU >>= 1;
 					MIP_CLAMP.MINV >>= 1;

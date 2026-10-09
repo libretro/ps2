@@ -108,7 +108,14 @@ void GSDrawingContext::UpdateScissor()
 GIFRegTEX0 GSDrawingContext::GetSizeFixedTEX0(const GSVector4& st, bool linear, bool mipmap) const
 {
 	if (mipmap)
-		return TEX0; // no mipmaping allowed
+	{
+		/* No resizing with mipmaps; a side past 1024 texels is taken as
+		 * one texel, as below. */
+		GIFRegTEX0 res = TEX0;
+		res.TW = TEX0.TW > 10 ? 0 : TEX0.TW;
+		res.TH = TEX0.TH > 10 ? 0 : TEX0.TH;
+		return res;
+	}
 
 	// find the optimal value for TW/TH by analyzing vertex trace and clamping values, extending only for region modes where uv may be outside
 

@@ -29,6 +29,10 @@ GSTextureCacheSW::Texture* GSTextureCacheSW::Lookup(const GIFRegTEX0& TEX0, cons
 {
 	const GSLocalMemory::psm_t& psm = GSLocalMemory::m_psm[TEX0.PSM];
 
+	/* The cache lays a texture out at most 1024 texels a side. */
+	if (TEX0.TW > 10 || TEX0.TH > 10)
+		return NULL;
+
 	auto& m = m_map[TEX0.TBP0 >> 5];
 
 	for (auto i = m.begin(); i != m.end(); ++i)
@@ -218,8 +222,8 @@ bool GSTextureCacheSW::Texture::Update(const GSVector4i& rect)
 
 	if (!m_buff)
 	{
-		const u32 pitch = (1 << m_tw) << shift;
-		const size_t size = pitch * th * 4;
+		const size_t pitch = (size_t)(1 << m_tw) << shift;
+		const size_t size  = pitch * (size_t)th * 4;
 
 		m_buff = memalign_alloc(VECTOR_ALIGNMENT, size);
 		if (!m_buff)
