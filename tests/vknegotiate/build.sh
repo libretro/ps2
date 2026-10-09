@@ -8,6 +8,7 @@
 # tree, or LRPS2_CORE. Without one, or without a Vulkan device (lavapipe
 # will do), the harness is still compiled and the run is skipped. Set
 # LRPS2_BIOS to a real BIOS image to also require frames as images.
+# tests/swdraw/main.c is built here too, for a BIOS image of its own.
 set -e
 DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 ROOT=$(CDPATH= cd -- "$DIR/../.." && pwd)
@@ -40,6 +41,25 @@ for mode in v2 v2retry v1; do
 	fi
 	rm -rf "$SCRATCH"
 done
+
+# A GIF packet that is still being sent when the state is saved
+# (tests/swdraw's gif_split case, its BIOS image written by that harness):
+# the state saved straight after its load is again the one loaded, on
+# both renderers.
+SCRATCH=$(mktemp -d)
+${CC:-cc} -std=c89 -pedantic -Wall -Wno-long-long -O2 \
+	-I "$ROOT/libretro/libretro-common/include" \
+	-o "$SCRATCH/swdraw" "$ROOT/tests/swdraw/main.c" $LIBS
+"$SCRATCH/swdraw" --bios "$SCRATCH/gif_split.bin" gif_split
+for renderer in Vulkan paraLLEl-GS; do
+	if ! VN_IDLE_BIOS=1 LRPS2_BIOS="$SCRATCH/gif_split.bin" VN_RENDERER=$renderer \
+			timeout 300 "$DIR/vknegotiate" "$CORE" "$SCRATCH" v2; then
+		rm -rf "$SCRATCH"
+		echo "  FAIL: savestate mid-packet, $renderer"
+		exit 1
+	fi
+done
+rm -rf "$SCRATCH"
 
 # A driver that runs out of device memory while the renderer comes up, at
 # each allocation the renderer makes before it is up: the device is

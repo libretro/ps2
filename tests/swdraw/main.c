@@ -9,7 +9,9 @@
  * survives. Run against a core built with SANITIZER=address,undefined,
  * an out-of-bounds access in the renderer fails the run.
  *
- * Usage: swdraw <path-to-core> <scratch-dir> <case> [extra rasterizer threads] */
+ * Usage: swdraw <path-to-core> <scratch-dir> <case> [extra rasterizer threads]
+ *        swdraw --bios <image> <case>   writes the case's BIOS image, for
+ *                                       another harness to boot */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -161,6 +163,8 @@ static void sl_put32(unsigned char* p, unsigned v)
 #define SL_SW(rt, off, base)  (0xAC000000u | ((base) << 21) | ((rt) << 16) | ((off) & 0xFFFFu))
 #define SL_LW(rt, off, base)  (0x8C000000u | ((base) << 21) | ((rt) << 16) | ((off) & 0xFFFFu))
 #define SL_BNE(rs, rt, off)   (0x14000000u | ((rs) << 21) | ((rt) << 16) | ((off) & 0xFFFFu))
+#define SL_BEQ(rs, rt, off)   (0x10000000u | ((rs) << 21) | ((rt) << 16) | ((off) & 0xFFFFu))
+#define SL_ANDI(rt, rs, imm)  (0x30000000u | ((rs) << 21) | ((rt) << 16) | ((imm) & 0xFFFFu))
 #define SL_B(off)             (0x10000000u | ((off) & 0xFFFFu))
 
 static unsigned sl_emit(unsigned char* rom, unsigned pc, unsigned op)
@@ -193,6 +197,30 @@ static unsigned sl_emit_store64(unsigned char* rom, unsigned pc, unsigned base,
 static unsigned      s_disp_fbw = 10;
 static unsigned      s_disp_dh  = 447;
 static unsigned      s_smode2   = 1;       /* interlaced */
+
+/* A case may instead lay out its own quadwords and send them in kicks,
+ * each a run of them sent after waiting a number of vsyncs. */
+#define SL_MAX_QW    64
+#define SL_MAX_KICKS 4
+static unsigned      s_qw_count;
+static unsigned      s_qw[SL_MAX_QW][4];
+static unsigned      s_kick_count;
+static unsigned      s_kick[SL_MAX_KICKS][3]; /* first quadword, count, vsyncs to wait first */
+
+static void qw(unsigned a, unsigned b, unsigned c, unsigned d)
+{
+	s_qw[s_qw_count][0] = a; s_qw[s_qw_count][1] = b;
+	s_qw[s_qw_count][2] = c; s_qw[s_qw_count][3] = d;
+	s_qw_count++;
+}
+
+static void kick(unsigned first, unsigned count, unsigned vsyncs)
+{
+	s_kick[s_kick_count][0] = first;
+	s_kick[s_kick_count][1] = count;
+	s_kick[s_kick_count][2] = vsyncs;
+	s_kick_count++;
+}
 
 static unsigned      s_ad_count;
 static unsigned long s_ad[SL_MAX_AD][3]; /* data hi, data lo, register */
@@ -337,6 +365,20 @@ static void frame_draw(int after_t4)
 static void case_frame_ct32(void) { frame_draw(0); }
 static void case_frame_after_t4(void) { frame_draw(1); }
 
+/* One A+D packet of four register writes sent in two kicks: the GIFtag
+ * and two writes at once, the other two 125 vsyncs later, so a state
+ * taken in between has the path in the middle of the packet. */
+static void case_gif_split(void)
+{
+	qw(4 | 0x8000u, 0x10000000u, 0xEu, 0);          /* NLOOP 4, EOP, PACKED, NREG 1, A+D */
+	qw(0x80808080u, 0x3f800000u, GS_RGBAQ, 0);
+	qw(0, 0, GS_XYOFFSET, 0);
+	qw(10u << 16, 0, GS_FRAME_1, 0);
+	qw(0, 1, GS_ZBUF_1, 0);
+	kick(0, 3, 0);
+	kick(3, 2, 125);
+}
+
 static const struct { const char* name; void (*build)(void); const char* scale; } s_cases[] = {
 	{ "aa1_small",       case_aa1_small,    "1" },
 	{ "aa1_triangle",    case_aa1_triangle, "1" },
@@ -351,6 +393,7 @@ static const struct { const char* name; void (*build)(void); const char* scale; 
 	{ "frame_after_t4",  case_frame_after_t4, "1" },
 	{ "frame_ct32_2x",   case_frame_ct32,    "2" },
 	{ "frame_after_t4_2x", case_frame_after_t4, "2" },
+	{ "gif_split",       case_gif_split,     "1" },
 	{ "display_large_2x", case_display_large, "2" },
 };
 
@@ -363,23 +406,22 @@ static int sl_write_bios(const char* path)
 {
 	static unsigned char rom[4 * 1024 * 1024];
 	FILE* f;
-	unsigned pc, loop, wait, i, qwc = 1 + s_ad_count;
+	unsigned pc, loop, i, k;
 	unsigned char* pk = rom + SL_PACKET_ROM;
 
 	memset(rom, 0, sizeof(rom));
-	/* GIFtag: NLOOP = the A+D count, EOP, PACKED, NREG 1, REGS = A+D. */
-	sl_put32(pk + 0, s_ad_count | 0x8000u);
-	sl_put32(pk + 4, 0x10000000u);
-	sl_put32(pk + 8, 0xEu);
-	sl_put32(pk + 12, 0);
-	for (i = 0; i < s_ad_count; i++)
+	if (!s_kick_count)
 	{
-		unsigned char* q = pk + 16 + i * 16;
-		sl_put32(q + 0, (unsigned)s_ad[i][1]);
-		sl_put32(q + 4, (unsigned)s_ad[i][0]);
-		sl_put32(q + 8, (unsigned)s_ad[i][2]);
-		sl_put32(q + 12, 0);
+		/* The A+D list as one packet: GIFtag NLOOP = the count, EOP,
+		 * PACKED, NREG 1, REGS = A+D; sent at once. */
+		qw(s_ad_count | 0x8000u, 0x10000000u, 0xEu, 0);
+		for (i = 0; i < s_ad_count; i++)
+			qw((unsigned)s_ad[i][1], (unsigned)s_ad[i][0], (unsigned)s_ad[i][2], 0);
+		kick(0, s_qw_count, 0);
 	}
+	for (i = 0; i < s_qw_count; i++)
+		for (k = 0; k < 4; k++)
+			sl_put32(pk + i * 16 + k * 4, s_qw[i][k]);
 
 	pc = sl_emit(rom, 0, SL_LUI(8, 0xB200));                         /* t0 = GS privileged regs */
 	pc = sl_emit_store64(rom, pc, 8, 0x00, 0, 0xFF25u);              /* PMODE: RC1, alpha FF    */
@@ -387,11 +429,11 @@ static int sl_write_bios(const char* path)
 	pc = sl_emit_store64(rom, pc, 8, 0x70, 0, s_disp_fbw << 9);      /* DISPFB1                 */
 	pc = sl_emit_store64(rom, pc, 8, 0x80, 2559u | (s_disp_dh << 12), /* DISPLAY1                */
 		636u | (50u << 12) | (3u << 23));
-	/* Copy the packet: t3 = ROM source, t4 = RAM destination, t6 = words. */
+	/* Copy the quadwords: t3 = ROM source, t4 = RAM destination, t6 = words. */
 	pc = sl_emit(rom, pc, SL_LUI(11, 0xBFC0));
 	pc = sl_emit(rom, pc, SL_ORI(11, 11, SL_PACKET_ROM));
 	pc = sl_emit(rom, pc, SL_LUI(12, 0xA010));
-	pc = sl_emit(rom, pc, SL_ORI(14, 0, qwc * 4));
+	pc = sl_emit(rom, pc, SL_ORI(14, 0, s_qw_count * 4));
 	loop = pc;
 	pc = sl_emit(rom, pc, SL_LW(9, 0, 11));
 	pc = sl_emit(rom, pc, SL_SW(9, 0, 12));
@@ -406,16 +448,45 @@ static int sl_write_bios(const char* path)
 	pc = sl_emit(rom, pc, SL_SW(9, 0, 10));
 	pc = sl_emit(rom, pc, SL_LUI(13, 0xB000));                       /* t5 = GIF DMA channel    */
 	pc = sl_emit(rom, pc, SL_ORI(13, 13, 0xA000));
-	pc = sl_emit(rom, pc, SL_LUI(12, 0x0010));                       /* MADR 0x100000           */
-	pc = sl_emit(rom, pc, SL_SW(12, 0x10, 13));
-	pc = sl_emit(rom, pc, SL_ORI(14, 0, qwc));                       /* QWC                     */
-	pc = sl_emit(rom, pc, SL_SW(14, 0x20, 13));
-	pc = sl_emit(rom, pc, SL_ORI(15, 0, 0x101));                     /* CHCR: DIR | STR         */
-	pc = sl_emit(rom, pc, SL_SW(15, 0x00, 13));
-	wait = pc;
+	pc = sl_emit(rom, pc, SL_LUI(24, 0xB200));                       /* t8 = GS CSR at 0x1000   */
+	pc = sl_emit(rom, pc, SL_ORI(24, 24, 0x1000));
+	for (k = 0; k < s_kick_count; k++)
+	{
+		if (s_kick[k][2])
+		{
+			/* Wait for that many vsyncs: CSR.VSINT, cleared by writing it. */
+			unsigned wait;
+			pc = sl_emit(rom, pc, SL_ORI(15, 0, s_kick[k][2]));
+			pc = sl_emit(rom, pc, SL_ORI(9, 0, 8));
+			pc = sl_emit(rom, pc, SL_SW(9, 0, 24));
+			wait = pc;
+			pc = sl_emit(rom, pc, SL_LW(9, 0, 24));
+			pc = sl_emit(rom, pc, 0);
+			pc = sl_emit(rom, pc, SL_ANDI(9, 9, 8));
+			pc = sl_emit(rom, pc, SL_BEQ(9, 0, (wait - (pc + 4)) >> 2));
+			pc = sl_emit(rom, pc, 0);
+			pc = sl_emit(rom, pc, SL_ORI(9, 0, 8));
+			pc = sl_emit(rom, pc, SL_SW(9, 0, 24));
+			pc = sl_emit(rom, pc, SL_ADDIU(15, 15, -1));
+			pc = sl_emit(rom, pc, SL_BNE(15, 0, (wait - (pc + 4)) >> 2));
+			pc = sl_emit(rom, pc, 0);
+		}
+		pc = sl_emit(rom, pc, SL_LUI(12, 0x0010));                   /* MADR                    */
+		pc = sl_emit(rom, pc, SL_ORI(12, 12, s_kick[k][0] * 16));
+		pc = sl_emit(rom, pc, SL_SW(12, 0x10, 13));
+		pc = sl_emit(rom, pc, SL_ORI(14, 0, s_kick[k][1]));          /* QWC                     */
+		pc = sl_emit(rom, pc, SL_SW(14, 0x20, 13));
+		pc = sl_emit(rom, pc, SL_ORI(15, 0, 0x101));                 /* CHCR: DIR | STR         */
+		pc = sl_emit(rom, pc, SL_SW(15, 0x00, 13));
+		loop = pc;                                                   /* wait for STR to clear   */
+		pc = sl_emit(rom, pc, SL_LW(9, 0, 13));
+		pc = sl_emit(rom, pc, 0);
+		pc = sl_emit(rom, pc, SL_ANDI(9, 9, 0x100));
+		pc = sl_emit(rom, pc, SL_BNE(9, 0, (loop - (pc + 4)) >> 2));
+		pc = sl_emit(rom, pc, 0);
+	}
 	pc = sl_emit(rom, pc, SL_B(-1));                                 /* spin                    */
 	sl_emit(rom, pc, 0);
-	(void)wait;
 	memcpy(rom + 0x1000, "RESET", 5);  sl_put32(rom + 0x1000 + 12, 0x1000);
 	memcpy(rom + 0x1010, "ROMDIR", 6); sl_put32(rom + 0x1010 + 12, 0x40);
 	memcpy(rom + 0x1020, "ROMVER", 6); sl_put32(rom + 0x1020 + 12, 0x10);
@@ -450,6 +521,19 @@ int main(int argc, char** argv)
 	{
 		fprintf(stderr, "usage: swdraw <path-to-core> <scratch-dir> <case>\n");
 		return 1;
+	}
+	if (!strcmp(argv[1], "--bios"))
+	{
+		for (c = 0; c < sizeof(s_cases) / sizeof(s_cases[0]); c++)
+			if (!strcmp(argv[3], s_cases[c].name))
+				break;
+		if (c == sizeof(s_cases) / sizeof(s_cases[0]))
+		{
+			fprintf(stderr, "swdraw: no case %s\n", argv[3]);
+			return 1;
+		}
+		s_cases[c].build();
+		return sl_write_bios(argv[2]) ? 0 : 1;
 	}
 	for (c = 0; c < sizeof(s_cases) / sizeof(s_cases[0]); c++)
 		if (!strcmp(argv[3], s_cases[c].name))

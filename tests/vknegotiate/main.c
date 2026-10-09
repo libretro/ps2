@@ -19,8 +19,9 @@
  * trip - a state saved straight after its load must be the state that
  * was loaded - and tears down as RetroArch does. The BIOS is a synthetic image
  * (secondload's) unless LRPS2_BIOS names a real one; with a real one the
- * frames must also arrive as images. VN_RENDERER picks the renderer
- * (Vulkan, the default, or paraLLEl-GS).
+ * frames must also arrive as images, unless VN_IDLE_BIOS says the image
+ * draws nothing after it boots (tests/swdraw's cases). VN_RENDERER picks
+ * the renderer (Vulkan, the default, or paraLLEl-GS).
  *
  * Usage: vknegotiate <path-to-core> <scratch-dir> <v2|v2retry|v1> */
 
@@ -663,7 +664,7 @@ int main(int argc, char** argv)
 		VN_FAIL("queue lock unbalanced (%d)", s_queue_locked);
 	/* The synthetic BIOS draws nothing under the HW renderer; a real
 	 * one boots to its menu, whose frames must arrive as images. */
-	if (bios && s_images == 0)
+	if (bios && s_images == 0 && !getenv("VN_IDLE_BIOS"))
 		VN_FAIL("no frame reached the frontend as an image");
 
 	/* RetroArch's order (core_unload_game): context, content, device. */

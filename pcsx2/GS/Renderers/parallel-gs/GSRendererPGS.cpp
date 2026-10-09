@@ -525,11 +525,11 @@ int GSRendererPGS::Defrost(freezeData* data)
 	read_data(ptr, vram, GSLocalMemory::m_vmsize);
 	iface.end_vram_write(0, GSLocalMemory::m_vmsize);
 
-	// 4 GIF paths
+	// 4 GIF paths: the tag as Freeze wrote it, NLOOP counting what was
+	// left of the packet, so the path resumes with none of it done.
 	for (int i = 0; i < 4; i++)
 	{
-		auto gif_path = iface.get_gif_path(i);
-		gif_path.tag.NLOOP -= gif_path.loop;
+		auto &gif_path = iface.get_gif_path(i);
 		read_data(ptr, &gif_path.tag, sizeof(gif_path.tag));
 		gif_path.loop = 0;
 		read_reg(ptr, gif_path.reg);
