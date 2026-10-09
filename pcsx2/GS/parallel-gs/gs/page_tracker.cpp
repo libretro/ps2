@@ -287,7 +287,7 @@ bool PageTracker::mark_transfer_copy(const PageRect &dst_rect, const PageRect &s
 			if ((src_rect.block_mask & state.copy_write_block_mask) != 0)
 				has_hazard = true;
 
-			state.need_host_write_timeline_mask |= dst_rect.block_mask;
+			state.need_host_write_timeline_mask |= src_rect.block_mask;
 			state.copy_read_block_mask |= src_rect.block_mask;
 
 			TRACE("TRACKER || PAGE 0x%x, READ |= 0x%x -> 0x%x\n",

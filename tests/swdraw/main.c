@@ -6,8 +6,10 @@
  * display on, so the draws in the packet are rendered by the software
  * renderer while the frames run. Each case is one packet of A+D register
  * writes; the harness checks that frames keep coming and the process
- * survives. Run against a core built with SANITIZER=address,undefined,
- * an out-of-bounds access in the renderer fails the run.
+ * survives, and for a case that asks, that a savestate taken after the
+ * frames holds the GS memory the case filled. Run against a core built
+ * with SANITIZER=address,undefined, an out-of-bounds access in the
+ * renderer fails the run.
  *
  * Usage: swdraw <path-to-core> <scratch-dir> <case> [extra rasterizer threads]
  *        swdraw --bios <image> <case>   writes the case's BIOS image, for
@@ -45,6 +47,8 @@ typedef void retro_set_input_poll_t(retro_input_poll_t);
 typedef void retro_set_input_state_t(retro_input_state_t);
 typedef void retro_simple_t(void);
 typedef bool retro_load_game_t(const struct retro_game_info*);
+typedef size_t retro_serialize_size_t(void);
+typedef bool retro_serialize_t(void*, size_t);
 
 static char s_system_dir[1024];
 /* The case's rasterizer threads and scale. */
@@ -53,6 +57,11 @@ static const char* s_opt_scale   = "1";
 static const char* s_opt_deinterlace = "Automatic";
 static unsigned s_frames;
 static unsigned s_drawn;
+/* A case may ask for more frames, and for a savestate taken after them
+ * to hold 64 of a 32-bit word in a row, as a block of GS memory it
+ * filled does. */
+static int s_run_frames = SL_FRAMES;
+static unsigned long s_expect_run;
 
 /* GetProcAddress already returns a function pointer; POSIX dlsym returns
  * an object pointer, copied across as lrps2_smoke does. */
@@ -248,6 +257,10 @@ static void ad(unsigned reg, unsigned long hi, unsigned long lo)
 #define GS_ZBUF_1   0x4E
 #define GS_MIPTBP1  0x34
 #define GS_PRMODECONT 0x1A
+#define GS_BITBLTBUF 0x50
+#define GS_TRXPOS   0x51
+#define GS_TRXREG   0x52
+#define GS_TRXDIR   0x53
 
 #define XY(x, y) ((unsigned long)((x) * 16) | ((unsigned long)((y) * 16) << 16))
 
@@ -379,6 +392,44 @@ static void case_gif_split(void)
 	kick(3, 2, 125);
 }
 
+/* An 8x8 sprite of 0x78563412 at the top left of a 64-wide frame (page
+ * 0, block 0); 20 vsyncs later, one packet copies that block to the last
+ * block of page 1 and uploads 0x9ABCDEF0 over it: the copy reads the
+ * sprite, and the block it went to holds 64 words of 0x78563412. */
+static void case_copy_then_upload(void)
+{
+	unsigned i;
+	qw(10 | 0x8000u, 0x10000000u, 0xEu, 0);                /* A+D, NLOOP 10, EOP */
+	qw(1, 0, GS_PRMODECONT, 0);
+	qw(1u << 16, 0, GS_FRAME_1, 0);                        /* FBP 0, FBW 1, PSMCT32 */
+	qw(0, 1, GS_ZBUF_1, 0);                                /* ZMSK */
+	qw((1u << 16) | (1u << 17), 0, GS_TEST_1, 0);          /* ZTE, ZTST always */
+	qw(0, 0, GS_XYOFFSET, 0);
+	qw(63u << 16, 31u << 16, GS_SCISSOR, 0);
+	qw(0x78563412u, 0x3f800000u, GS_RGBAQ, 0);
+	qw(6, 0, GS_PRIM, 0);                                  /* sprite */
+	qw(0, 0, GS_XYZ2, 0);
+	qw((unsigned)XY(8, 8), 0, GS_XYZ2, 0);
+	kick(0, s_qw_count, 0);
+
+	i = s_qw_count;
+	qw(8, 0x10000000u, 0xEu, 0);                           /* A+D, NLOOP 8 */
+	qw(1u << 16, 32u | (1u << 16), GS_BITBLTBUF, 0);       /* SBP 0, SBW 1 -> DBP 32, DBW 1 */
+	qw(0, 56u | (24u << 16), GS_TRXPOS, 0);                /* from 0,0 to 56,24 */
+	qw(8, 8, GS_TRXREG, 0);
+	qw(2, 0, GS_TRXDIR, 0);                                /* local to local */
+	qw(0, 1u << 16, GS_BITBLTBUF, 0);                      /* DBP 0, DBW 1 */
+	qw(0, 0, GS_TRXPOS, 0);
+	qw(8, 8, GS_TRXREG, 0);
+	qw(0, 0, GS_TRXDIR, 0);                                /* host to local */
+	qw(16 | 0x8000u, 0x08000000u, 0, 0);                   /* IMAGE, NLOOP 16, EOP */
+	while (s_qw_count < i + 9 + 1 + 16)
+		qw(0x9ABCDEF0u, 0x9ABCDEF0u, 0x9ABCDEF0u, 0x9ABCDEF0u);
+	kick(i, s_qw_count - i, 20);
+	s_run_frames  = 60;
+	s_expect_run  = 0x78563412ul;
+}
+
 static const struct { const char* name; void (*build)(void); const char* scale; } s_cases[] = {
 	{ "aa1_small",       case_aa1_small,    "1" },
 	{ "aa1_triangle",    case_aa1_triangle, "1" },
@@ -394,6 +445,7 @@ static const struct { const char* name; void (*build)(void); const char* scale; 
 	{ "frame_ct32_2x",   case_frame_ct32,    "2" },
 	{ "frame_after_t4_2x", case_frame_after_t4, "2" },
 	{ "gif_split",       case_gif_split,     "1" },
+	{ "copy_then_upload", case_copy_then_upload, "1" },
 	{ "display_large_2x", case_display_large, "2" },
 };
 
@@ -502,6 +554,30 @@ static int sl_write_bios(const char* path)
 	return fclose(f) == 0;
 }
 
+/* Whether a savestate taken now holds 64 of the word in a row, at any
+ * byte alignment: the blocks before the GS's are not all whole words. */
+static int sl_state_has_run(retro_serialize_size_t* serialize_size,
+	retro_serialize_t* serialize, unsigned long want)
+{
+	const size_t size = serialize_size();
+	unsigned char* p = size ? (unsigned char*)malloc(size) : NULL;
+	size_t a, i, run = 0;
+	if (!p || !serialize(p, size))
+	{
+		free(p);
+		return 0;
+	}
+	for (a = 0; a < 4 && run < 64; a++)
+		for (i = a, run = 0; i + 4 <= size && run < 64; i += 4)
+		{
+			const unsigned long w = (unsigned long)p[i] | (unsigned long)p[i + 1] << 8
+				| (unsigned long)p[i + 2] << 16 | (unsigned long)p[i + 3] << 24;
+			run = (w == want) ? run + 1 : 0;
+		}
+	free(p);
+	return run >= 64;
+}
+
 int main(int argc, char** argv)
 {
 	char path[1100];
@@ -514,6 +590,8 @@ int main(int argc, char** argv)
 	retro_set_input_state_t* set_input;
 	retro_simple_t *init_fn, *deinit_fn, *unload_game, *run;
 	retro_load_game_t* load_game;
+	retro_serialize_size_t* serialize_size;
+	retro_serialize_t* serialize;
 	unsigned c;
 	int frame;
 
@@ -584,8 +662,11 @@ int main(int argc, char** argv)
 	unload_game     = (retro_simple_t*)sl_sym(h, "retro_unload_game");
 	run             = (retro_simple_t*)sl_sym(h, "retro_run");
 	load_game       = (retro_load_game_t*)sl_sym(h, "retro_load_game");
+	serialize_size  = (retro_serialize_size_t*)sl_sym(h, "retro_serialize_size");
+	serialize       = (retro_serialize_t*)sl_sym(h, "retro_serialize");
 	if (!set_environment || !set_video || !set_audio || !set_audio_batch || !set_poll ||
-		!set_input || !init_fn || !deinit_fn || !unload_game || !run || !load_game)
+		!set_input || !init_fn || !deinit_fn || !unload_game || !run || !load_game ||
+		!serialize_size || !serialize)
 	{
 		fprintf(stderr, "swdraw: core is missing a libretro export\n");
 		return 2;
@@ -603,8 +684,14 @@ int main(int argc, char** argv)
 		fprintf(stderr, "swdraw: retro_load_game failed\n");
 		return 3;
 	}
-	for (frame = 0; frame < SL_FRAMES; frame++)
+	for (frame = 0; frame < s_run_frames; frame++)
 		run();
+	if (s_expect_run && !sl_state_has_run(serialize_size, serialize, s_expect_run))
+	{
+		fprintf(stderr, "swdraw: %s: the state has no run of 64 words of %08lx\n",
+			s_cases[c].name, s_expect_run);
+		return 5;
+	}
 	unload_game();
 	deinit_fn();
 

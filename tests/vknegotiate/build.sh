@@ -59,6 +59,18 @@ for renderer in Vulkan paraLLEl-GS; do
 		exit 1
 	fi
 done
+
+# A copy out of a block, then an upload over that block in the same
+# packet: the copy reads what was there before the upload, and the state
+# holds the block it went to. paraLLEl-GS only: the Vulkan renderer's
+# state holds local memory, which a copy between targets does not reach.
+"$SCRATCH/swdraw" --bios "$SCRATCH/copy_then_upload.bin" copy_then_upload
+if ! VN_EXPECT_RUN=78563412 VN_IDLE_BIOS=1 LRPS2_BIOS="$SCRATCH/copy_then_upload.bin" VN_RENDERER=paraLLEl-GS \
+		timeout 300 "$DIR/vknegotiate" "$CORE" "$SCRATCH" v2; then
+	rm -rf "$SCRATCH"
+	echo "  FAIL: copy then upload, paraLLEl-GS"
+	exit 1
+fi
 rm -rf "$SCRATCH"
 
 # A driver that runs out of device memory while the renderer comes up, at
