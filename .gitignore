@@ -211,3 +211,5 @@ tests/ata/*.img
 /tests/vifhash/vifhash
 /tests/vifhash/vifhash_asan
 /tests/vifhash/vifhash.exe
+/tests/eestage/eestage
+/tests/eestage/eestage.exe

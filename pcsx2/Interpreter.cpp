@@ -490,7 +490,10 @@ static void eeExecuteLoop(void)
 	// silently dropped the EE onto the interpreter for the rest of the session.
 	// g_GameStarted means exactly "we are past the game's entry point" and is part
 	// of the save state, so it is the right thing to resume on.
-	ExecuteState state = g_GameStarted ? GAME_RUNNING : RESET;
+	/* volatile: a cancelled instruction comes back through fastjmp_set
+	 * below, which restores the registers it saved, and the stage reached
+	 * since then must survive that rather than revert to this one. */
+	volatile ExecuteState state = g_GameStarted ? GAME_RUNNING : RESET;
 
 	// This will come back as zero the first time it runs, or on instruction cancel.
 	// It will come back as nonzero when we exit execution.
