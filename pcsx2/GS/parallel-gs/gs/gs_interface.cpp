@@ -1734,7 +1734,7 @@ uint32_t GSInterface::drawing_kick_update_texture(FBFeedbackMode feedback_mode, 
 			// They will generally be invalidated when it's overwritten by a copy or FB write.
 			if (long_term_cache_texture)
 			{
-				if (desc.rect.levels == 1 &&
+				if (desc.samples == 1 && desc.rect.levels == 1 &&
 				    state_tracker.tex.page_rects[0].page_width == 1 &&
 				    state_tracker.tex.page_rects[0].page_height == 1)
 				{
@@ -1743,15 +1743,13 @@ uint32_t GSInterface::drawing_kick_update_texture(FBFeedbackMode feedback_mode, 
 				else
 					state_tracker.last_cpu_compatible_cache_TBP0 = UINT32_MAX;
 
-				// CPU upload is not possible if we hit SSAA texture path.
-				if (desc.samples == 1)
+				// Super-sampled textures also need cache invalidation and WAR tracking.
+				// The tracker only promotes single-sampled images to CPU uploads.
+				if (tracker.register_cached_texture(state_tracker.tex.page_rects, desc.rect.levels,
+				                                   csa_mask, render_pass.clut_instance,
+				                                   hasher.get(), image) == PageTracker::UploadStrategy::CPU)
 				{
-					if (tracker.register_cached_texture(state_tracker.tex.page_rects, desc.rect.levels,
-																csa_mask, render_pass.clut_instance,
-																hasher.get(), image) == PageTracker::UploadStrategy::CPU)
-					{
-						renderer.promote_cached_texture_upload_cpu(state_tracker.tex.page_rects[0]);
-					}
+					renderer.promote_cached_texture_upload_cpu(state_tracker.tex.page_rects[0]);
 				}
 			}
 			else

@@ -454,7 +454,9 @@ PageTracker::register_cached_texture(const PageRect *level_rect, uint32_t levels
 	// Only bother trying to optimize small uploads.
 	// There must be no hazards, in the sense that it's safe to just read the CPU VRAM.
 	// In this case we elide the marking of CACHED reads on the pages.
-	bool promote_to_cpu = levels == 1 &&
+	// Super-sampled images read GPU-only sample planes, so they must keep
+	// those reads tracked even when the resolved page is available on CPU.
+	bool promote_to_cpu = handle->image->get_create_info().layers == 1 && levels == 1 &&
 	                      level_rect[0].page_width == 1 &&
 	                      level_rect[0].page_height == 1 &&
 	                      (has_punchthrough_host_write(level_rect[0]) ||
