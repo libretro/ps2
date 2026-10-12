@@ -27,6 +27,7 @@
 #include <string.h>
 
 #include "Common.h"
+#include "Config.h"
 #include "Vif.h"
 #include "Vif_Unpack.h"
 

@@ -42,6 +42,7 @@
 #include <string.h>
 
 #include "Common.h"
+#include "Config.h"
 #include "Hw.h"
 #include "VUmicro.h"
 #include "MTVU.h"
@@ -63,8 +64,8 @@ void CPU_INT(EE_EventType, int) { }
 void hwDmacIrq(int) { }
 bool hwMFIFOWrite(u32, const u128*, uint) { return false; }
 void hwMFIFOResume(u32) { }
-bool hwDmacSrcChain(DMACh&, int) { return false; }
-void hwDmacSrcTadrInc(DMACh&) { }
+bool hwDmacSrcChain(DMACh*, int) { return false; }
+void hwDmacSrcTadrInc(DMACh*) { }
 void _vu0FinishMicro() { }
 void vucpu_execute_block(const VUmicroCpu*, int) { }
 void SaveState_FreezeMem(SaveStateBase*, void*, int) { }

@@ -16,10 +16,10 @@ static void reached(const char* who)
 	abort();
 }
 
-void BC2F() { reached("BC2F"); }
-void BC2FL() { reached("BC2FL"); }
-void BC2T() { reached("BC2T"); }
-void BC2TL() { reached("BC2TL"); }
+extern "C" void BC2F(void) { reached("BC2F"); }
+extern "C" void BC2FL(void) { reached("BC2FL"); }
+extern "C" void BC2T(void) { reached("BC2T"); }
+extern "C" void BC2TL(void) { reached("BC2TL"); }
 void CFC2() { reached("CFC2"); }
 void COP2_BC2() { reached("COP2_BC2"); }
 void COP2_SPECIAL() { reached("COP2_SPECIAL"); }
@@ -43,8 +43,8 @@ void VADDw() { reached("VADDw"); }
 void VADDx() { reached("VADDx"); }
 void VADDy() { reached("VADDy"); }
 void VADDz() { reached("VADDz"); }
-void VCALLMS() { reached("VCALLMS"); }
-void VCALLMSR() { reached("VCALLMSR"); }
+extern "C" void VCALLMS(void) { reached("VCALLMS"); }
+extern "C" void VCALLMSR(void) { reached("VCALLMSR"); }
 void VCLIPw() { reached("VCLIPw"); }
 void VDIV() { reached("VDIV"); }
 void VFTOI0() { reached("VFTOI0"); }

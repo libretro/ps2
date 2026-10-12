@@ -172,11 +172,15 @@ echo "== IOP recompilers: RFE raises pending interrupts =="
 echo "== IOP driven through R3000AOpcodeTables.cpp vs console =="
 EXPECTED="${PS2AUTOTESTS:-}/tests/cpu/iop"
 if [ -d "$EXPECTED" ]; then
+	${CC:-cc} -std=gnu89 -O1 -w $SANFLAGS -I "$ROOT" -I "$ROOT/pcsx2" \
+		-I "$ROOT/common" -I "$ROOT/common/include" -I "$ROOT/3rdparty/include" \
+		-I "$ROOT/libretro/libretro-common/include" \
+		-c "$ROOT/pcsx2/IopGte.c" -o "$DIR/IopGte_real.o"
 	${CXX:-c++} -std=c++17 -O1 -w $SANFLAGS -I "$ROOT" -I "$ROOT/pcsx2" \
 		-I "$ROOT/common" -I "$ROOT/common/include" -I "$ROOT/3rdparty/include" \
 		-I "$ROOT/libretro/libretro-common/include" \
 		-o "$DIR/iop_hwrealiop" "$DIR/hwrealiop.cpp" \
-		"$ROOT/pcsx2/R3000AOpcodeTables.cpp" "$ROOT/pcsx2/IopGte.cpp" \
+		"$ROOT/pcsx2/R3000AOpcodeTables.cpp" "$DIR/IopGte_real.o" \
 		"$ROOT/pcsx2/R3000AInterpreter.cpp"
 	"$DIR/iop_hwrealiop" "$EXPECTED"
 else
