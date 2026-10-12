@@ -20,6 +20,7 @@
 #include <cstring>
 #include <list>
 #include <rthreads/rthreads.h>
+#include <rthreads/retro_eventcount.h>
 
 #include <libretro.h>
 
@@ -138,6 +139,50 @@ struct mtgs_frame mtgs_pending;
 uint32_t mtgs_presented_mark;
 int mtgs_vsync_drained;
 
+/* The frame gate, MTGSOwner.h. granted counts the frames retro_run let
+ * the EE start and taken those the EE started, so a grant that lands
+ * before the EE reaches the gate is not lost; stop sends the EE out of
+ * the gate to stop there. owed is set while the EE is held behind the
+ * vsync retro_run last consumed: the frontend's thread only. */
+static retro_eventcount_t s_gate_ec;
+static int s_gate_ec_ok;
+static retro_atomic_int_t s_gate_granted = RETRO_ATOMIC_INT_INITIALIZER(0);
+static retro_atomic_int_t s_gate_stop    = RETRO_ATOMIC_INT_INITIALIZER(0);
+static int s_gate_taken;
+static int s_gate_owed;
+
+#define MTGS_GATE_OPEN() \
+	(retro_atomic_load_acquire_int(&s_gate_granted) != s_gate_taken \
+	 || retro_atomic_load_acquire_int(&s_gate_stop) \
+	 || !MTGS::IsOpen())
+
+static void mtgs_gate_notify(void)
+{
+	if (s_gate_ec_ok)
+		retro_eventcount_notify(&s_gate_ec);
+}
+
+/* The EE thread, behind a vsync retro_run consumed: wait for the next
+ * retro_run to let it start the next frame. Sent out to stop, or with
+ * the GS gone, the vsync is where it stops, as a drained one is. */
+static void mtgs_gate_wait(void)
+{
+	while (!MTGS_GATE_OPEN())
+	{
+		const int key = retro_eventcount_prepare_wait(&s_gate_ec);
+		if (MTGS_GATE_OPEN())
+		{
+			retro_eventcount_cancel_wait(&s_gate_ec);
+			break;
+		}
+		retro_eventcount_commit_wait(&s_gate_ec, key);
+	}
+	if (retro_atomic_load_acquire_int(&s_gate_granted) != s_gate_taken)
+		s_gate_taken++;
+	else
+		mtgs_vsync_drained = 1;
+}
+
 /* See GS.h. NULL unless the renderer in use installed them. */
 void (*gs_hw_context_begin)(void) = NULL;
 void (*gs_hw_context_end)(void)   = NULL;
@@ -239,9 +284,12 @@ void MTGS::PostVsyncStart()
 
 	/* This wait is the pacing between the two threads: the EE holds here
 	 * until the libretro thread has consumed this vsync packet, which is
-	 * where the GS takes its copy of the registers and lets the EE go on
-	 * to the next frame while it scans this one out and hands it over. */
+	 * where the GS takes its copy of the registers. */
 	WaitGS(false);
+	/* Consumed by retro_run: the next frame waits for the next one,
+	 * and its input. */
+	if (!mtgs_vsync_drained && s_gate_ec_ok)
+		mtgs_gate_wait();
 }
 
 void MTGS::InitAndReadFIFO(u8* mem, u32 qwc)
@@ -281,6 +329,7 @@ void MTGS::TryOpenGS(void)
 		if (!s_ec_inited)
 		{
 			work_eventcount_init(&s_sem_event);
+			s_gate_ec_ok = retro_eventcount_init(&s_gate_ec);
 			s_ec_inited = true;
 		}
 		s_RingOk = retro_spsc_init(&s_Ring,
@@ -299,6 +348,9 @@ void MTGS::TryOpenGS(void)
 	if (s_RingOk)
 		retro_spsc_clear(&s_Ring);
 	work_eventcount_reset(&s_sem_event);
+	retro_atomic_store_release_int(&s_gate_granted, 0);
+	s_gate_taken = 0;
+	s_gate_owed  = 0;
 
 	mtgs_sync_regs();
 	GS_HW_CONTEXT_BEGIN();
@@ -478,10 +530,9 @@ bool MTGS::MainLoop(bool flush_all)
 						mtgs_vsync_drained             = 1;
 						break;
 					}
-					/* retro_run's frame. The EE goes on to the next one
-					 * with the input this retro_run polled, let go before
-					 * the scanout. */
-					pad_input_latch();
+					/* retro_run's frame. The EE waits behind it at the
+					 * frame gate for the next retro_run's input. */
+					s_gate_owed         = 1;
 					mtgs_vsync_drained  = 0;
 					mtgs_presented_mark = audio_mark;
 					consumed += sizeof(PacketTagType);
@@ -542,6 +593,7 @@ bool MTGS::MainLoop(bool flush_all)
 	 * s_open_flag and exits. */
 	retro_asym_eventcount_notify(&vu1Thread.ecP1Progress);
 	work_eventcount_kill(&s_sem_event);
+	mtgs_gate_notify();
 	return true;
 }
 
@@ -551,6 +603,7 @@ void MTGS::CloseGS(void)
 	GSclose();
 	GS_HW_CONTEXT_END();
 	retro_atomic_store_release_int(&s_open_flag, false);
+	mtgs_gate_notify();
 }
 
 // Waits for the GS to empty out the entire ring buffer contents.
@@ -677,6 +730,32 @@ void MTGS::WaitForClose()
 void mtgs_claim_ring(void)
 {
 	MTGS::s_thread = sthread_get_current_thread_id();
+}
+
+/* The frontend's thread, retro_run, after polling: the EE held behind
+ * the last vsync starts the next frame, with this input. */
+int mtgs_frame_gate_open(void)
+{
+	if (!s_gate_owed)
+		return 0;
+	s_gate_owed = 0;
+	pad_input_latch();
+	retro_atomic_fetch_add_int(&s_gate_granted, 1);
+	mtgs_gate_notify();
+	return 1;
+}
+
+/* The frontend's thread: on, an EE at the gate leaves it to stop there;
+ * off before the EE is resumed. A stopped EE took no frame, so none is
+ * owed to it. */
+void mtgs_frame_gate_stop(int on)
+{
+	retro_atomic_store_release_int(&s_gate_stop, on);
+	if (on)
+	{
+		s_gate_owed = 0;
+		mtgs_gate_notify();
+	}
 }
 
 /* The frontend's thread, retro_run, with the EE paused: the registers

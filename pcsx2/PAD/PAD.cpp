@@ -187,11 +187,11 @@ struct retro_rumble_interface rumble;
 /* What the pads, and the USB keyboard and mouse, report. Input::Update,
  * on the frontend's thread, fills the staged copy; pad_input_latch makes
  * it the live one, which PADpoll and the USB HID devices read on the EE
- * thread. The latch runs only while the EE is held - at the vsync that
- * lets it go on to the next frame, and before retro_run resumes it - so a
- * frame reads the input of the retro_run that let it start, wherever the
- * EE thread happens to be when the frontend polls, and the EE never sees
- * a copy being written. Mouse motion adds up from latch to latch and is
+ * thread. The latch runs only while the EE is held - at the frame gate,
+ * as retro_run lets it through, and before retro_run resumes it - so a
+ * frame reads the input of the retro_run that let it start, which is the
+ * retro_run that presents it, and the EE never sees a copy being
+ * written. Mouse motion adds up from latch to latch and is
  * taken once, by the first read of it. */
 struct pad_input
 {

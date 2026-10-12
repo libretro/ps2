@@ -219,3 +219,5 @@ tests/ata/*.img
 /tests/swdraw/swdraw.exe
 /tests/gsjit/gsjit
 /tests/gsjit/gsjit.exe
+/tests/latency/latency
+/tests/latency/latency.exe

@@ -400,6 +400,7 @@ static void cpu_thread_pause(void)
 		!= retro_atomic_load_acquire_int(&cpu_thread_resumes))
 		MTGS::MainLoop(true);
 	VMManager::SetPaused(true);
+	mtgs_frame_gate_stop(1);
 	while((VMState)retro_atomic_load_acquire_int(&cpu_thread_state) != VMState::Paused)
 		MTGS::MainLoop(true);
 }
@@ -409,6 +410,7 @@ static void cpu_thread_pause(void)
 static void cpu_thread_resume(void)
 {
 	retro_atomic_fetch_add_int(&cpu_thread_resumes, 1);
+	mtgs_frame_gate_stop(0);
 	VMManager::SetPaused(false);
 	if (cpu_thread_resume_ec_inited)
 		retro_eventcount_notify(&cpu_thread_resume_ec);
@@ -2904,17 +2906,13 @@ void retro_run(void)
 
 	/* One frame, and that frame's audio. When something since the last
 	 * retro_run drained the ring, the frame the EE had ready is pending
-	 * and is this one (MTGSOwner.h); otherwise this waits for the EE's
-	 * next vsync. Either way the EE goes on with the input polled above:
-	 * here, if it is paused, and at the vsync otherwise. */
+	 * and is this one (MTGSOwner.h), and the EE stays where it stopped.
+	 * Otherwise the EE runs a frame on the input polled above - resumed
+	 * if it is paused, let through the frame gate if it waits there -
+	 * and this waits for the vsync that ends it. */
 	if (mtgs_present_pending())
 	{
 		audio_queue_upload(mtgs_pending.audio_mark, batch_cb);
-		if ((VMState)retro_atomic_load_acquire_int(&cpu_thread_state) == VMState::Paused)
-		{
-			pad_input_latch();
-			cpu_thread_resume();
-		}
 		return;
 	}
 
@@ -2923,6 +2921,8 @@ void retro_run(void)
 		pad_input_latch();
 		cpu_thread_resume();
 	}
+	else
+		mtgs_frame_gate_open();
 
 	if (!MTGS::MainLoop(false))
 	{

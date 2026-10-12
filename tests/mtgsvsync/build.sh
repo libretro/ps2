@@ -1,12 +1,14 @@
 #!/bin/sh
-# Where in a vsync the EE is let go, and what the scanout reads after.
+# Where in a vsync the EE is let go, what input its next frame reads,
+# and what the scanout reads.
 #
-# MTGS::MainLoop consumes the EE's vsync packet, copies the privileged
-# registers, goes idle - which releases the EE from WaitGS - and only
-# then scans the frame out and hands it to the frontend. main.c runs that
-# order on the real work eventcount with a producer thread, and the two
-# orders it replaced are built as well and must fail: one holds the EE
-# through every present, the other scans out the next frame's registers.
+# retro_run polls, latches and opens the frame gate; MTGS::MainLoop
+# consumes the EE's vsync packet, copies the privileged registers and
+# goes idle; the EE waits at the gate for the next retro_run. main.c runs
+# that order on the real work eventcount with a producer thread, and two
+# other orders are built as well and must fail: one lets the EE run on
+# from the vsync on the input of the call before, the other opens the
+# gate before polling.
 set -e
 DIR=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$DIR/../.." && pwd)
@@ -28,7 +30,7 @@ for old in 1 2; do
 		exit 1
 	fi
 done
-echo "  ok: both orders this replaced still fail (1 holds the EE through the present, 2 scans out the next frame's registers)"
+echo "  ok: both other orders fail (1 runs a frame on the call before's input, 2 latches before polling)"
 
 build 0 mtgsvsync_tsan "-fsanitize=thread -Wno-tsan"
 "$DIR/mtgsvsync_tsan"

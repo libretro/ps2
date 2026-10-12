@@ -37,10 +37,12 @@
 
 /* What happens to a vsync, and where the EE stops for a pause.
  *
- * The EE goes on to the next frame as soon as its vsync is consumed, so
- * between two retro_runs it is a frame ahead: running that frame, or
- * parked behind its vsync. retro_run consumes the vsync, scans the frame
- * out and presents it. Anything else that empties the ring - pausing the
+ * Every frame runs on the input of the retro_run that presents it.
+ * retro_run polls, latches the input and lets the EE start a frame, then
+ * consumes the vsync that ends it, scans the frame out and presents it.
+ * The EE waits behind that vsync, at the frame gate, until the next
+ * retro_run lets it start the next frame, so between two retro_runs it
+ * runs nothing. Anything else that empties the ring - pausing the
  * EE for a savestate, a reset, an option change, a disc swap, the
  * frontend taking the context away - is a drain, and a drain never
  * presents: a present is a call into the frontend's video_refresh, which
@@ -49,18 +51,17 @@
  * waiting for another, so every retro_run is one frame however many
  * drains came between.
  *
- * A pause stops the EE only at a vsync a drain consumed. Asked while the
- * EE runs the frame ahead, it finishes that frame; asked in the moment
- * after retro_run let it go and before it noticed, it runs the frame too
- * rather than stopping at the vsync retro_run already presented. Either
- * way a pause leaves the machine at the same point - one frame ahead,
- * its vsync pending - whatever the timing of the two threads, and that
- * point is what a savestate holds. Anything else that interrupts the EE
- * (stopping, a CPU change) still stops it at once.
+ * A pause stops the EE at a vsync: at the gate, behind the frame
+ * retro_run presented, or at the next vsync, which a drain consumes, when
+ * it is asked while the EE runs a frame. At the gate nothing is pending,
+ * and the next retro_run runs a frame on its own input. Anything else
+ * that interrupts the EE (stopping, a CPU change) still stops it at
+ * once.
  *
  * interrupted: VMManager asks the EE to stop
  * paused:      and what it asks for is a pause
- * drained:     the vsync the EE was let go from was a drain's */
+ * drained:     the vsync the EE was let go from was a drain's, or the
+ *              EE was sent out of the gate to stop */
 #define MTGS_EE_STOPS(interrupted, paused, drained) \
 	((interrupted) && (!(paused) || (drained)))
 
@@ -88,6 +89,11 @@ void mtgs_set_producer_thread(int on); /* EE thread, as it starts and ends   */
 /* Frontend's thread, retro_run: scan out and present the drained frame,
  * when there is one. Nonzero when it did. */
 int mtgs_present_pending(void);
+/* Frontend's thread, retro_run, after polling: latch the input and let
+ * the EE held at the gate start its frame. Nonzero when one was held. */
+int mtgs_frame_gate_open(void);
+/* Frontend's thread: on as a pause is asked for, off before a resume. */
+void mtgs_frame_gate_stop(int on);
 
 extern struct mtgs_frame mtgs_pending;
 /* The audio mark of the last vsync retro_run consumed. */
