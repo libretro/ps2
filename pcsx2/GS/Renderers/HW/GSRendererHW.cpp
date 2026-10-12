@@ -7922,7 +7922,10 @@ int GSRendererHW::IsScalingDraw(GSTextureCache::Source* src, bool no_gaps)
 		return 0;
 
 	const GSVector2i draw_size = GSVector2i(m_vt.m_max.p.x - m_vt.m_min.p.x, m_vt.m_max.p.y - m_vt.m_min.p.y);
-	const GSVector2i tex_size = GSVector2i(m_vt.m_max.t.x - m_vt.m_min.t.x, m_vt.m_max.t.y - m_vt.m_min.t.y);
+	/* A perspective texel span can pass what an int holds: saturated, so
+	 * every host takes it as the same very large size. */
+	const GSVector2i tex_size = GSVector2i(f32_to_s32_sat(m_vt.m_max.t.x - m_vt.m_min.t.x),
+		f32_to_s32_sat(m_vt.m_max.t.y - m_vt.m_min.t.y));
 
 	const bool is_target_src = src && src->m_from_target;
 

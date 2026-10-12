@@ -156,13 +156,16 @@ if ! VN_EXPECT_RUN=3c2b1a09 VN_IDLE_BIOS=1 LRPS2_BIOS="$SCRATCH/vram_wrap_read.b
 fi
 
 # Cases whose failure is an out-of-bounds read or an overflow: they only
-# fail on their own against a core built with SANITIZER=address,undefined.
+# fail on their own against a core built with
+# SANITIZER=address,undefined,float-cast-overflow (GCC's undefined leaves
+# out float to integer conversions), and a sanitizer report ends the run.
 # present scans out frames while the frontend's sync slots grow from one
 # to three, the frontend reading the image it was last given meanwhile.
 for c in upload_short big_triangles present nine_frames fb_wrap uv_huge frame_on_depth dirty_whole_target depth_texture_far move_width_change frame_on_depth32 shuffle_left_of_offset split_clear_no_display; do
 	"$SCRATCH/swdraw" --bios "$SCRATCH/$c.bin" $c
 	for renderer in Vulkan paraLLEl-GS; do
-		if ! VN_SYNC_GROW=1 VN_IDLE_BIOS=1 LRPS2_BIOS="$SCRATCH/$c.bin" VN_RENDERER=$renderer \
+		if ! UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1 \
+				VN_SYNC_GROW=1 VN_IDLE_BIOS=1 LRPS2_BIOS="$SCRATCH/$c.bin" VN_RENDERER=$renderer \
 				timeout 300 "$DIR/vknegotiate" "$CORE" "$SCRATCH" v2; then
 			rm -rf "$SCRATCH"
 			echo "  FAIL: $c, $renderer"
