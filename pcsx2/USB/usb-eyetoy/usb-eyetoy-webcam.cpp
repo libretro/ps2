@@ -409,6 +409,22 @@ namespace usb_eyetoy
 		delete s;
 	}
 
+	void eyetoy_freeze(USBDevice* dev, UsbState& st)
+	{
+		EYETOYState* s = USB_CONTAINER_OF(dev, EYETOYState, dev);
+		st.Bytes(s->regs, sizeof(s->regs));
+		st.Bytes(s->i2c_regs, sizeof(s->i2c_regs));
+		if (st.reading)
+		{
+			// The frame in flight is not kept: the camera starts afresh on the next request,
+			// with the format and size the registers now hold.
+			close_camera(s);
+			s->frame_step = 0;
+			s->mpeg_frame_size = 0;
+			s->mpeg_frame_offset = 0;
+		}
+	}
+
 	USBDevice* eyetoy_create(u32 subtype)
 	{
 		std::unique_ptr<VideoDevice> videodev(VideoDevice::CreateInstance());

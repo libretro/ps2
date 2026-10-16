@@ -834,6 +834,7 @@ set(pcsx2USBHeaders
 	USB/libretro-usb/qusb.h
 	USB/libretro-usb/queue.h
 	USB/libretro-usb/usb-hid.h
+	USB/libretro-usb/usb-state.h
 	USB/shared/ringbuffer.h
 	USB/usb-eyetoy/cam-frame.h
 	USB/usb-eyetoy/cam-jpeg.h

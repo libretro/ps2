@@ -2986,6 +2986,7 @@ size_t retro_serialize_size(void)
 	size         += fP.size;
 	GSfreeze(FREEZE_SIZE, &fP);
 	size         += fP.size;
+	size         += USBStateSize();
 	size         += state_ext_size();
 
 	return size;
@@ -2993,7 +2994,8 @@ size_t retro_serialize_size(void)
 
 /* Writes the whole machine into dst, size bytes, the size
  * retro_serialize_size() gives: the emulator's blocks from the start,
- * the extension block (state_ext.h) in the last bytes, and zeros between.
+ * the extension block (state_ext.h) in the last bytes with the USB block
+ * just before it, and zeros between.
  * The CPU thread must be paused and the VU1 and GS threads quiesced. */
 static bool state_write(void* dst, size_t size)
 {
@@ -3001,10 +3003,11 @@ static bool state_write(void* dst, size_t size)
 	SaveStateBase state;
 	SaveStateBase* saveme = &state;
 	const size_t ext = state_ext_size();
+	const size_t usb = USBStateSize();
 
-	if (size < ext)
+	if (size < ext + usb)
 		return false;
-	SaveState_Init(saveme, (u8 *)dst, 0, size - ext, true);
+	SaveState_Init(saveme, (u8 *)dst, 0, size - ext - usb, true);
 	saveme->fixed = true;
 
 	SaveState_FreezeBios(saveme);
@@ -3046,7 +3049,8 @@ static bool state_write(void* dst, size_t size)
 
 	if (!SaveState_IsOkay(saveme))
 		return false;
-	memset((u8 *)dst + saveme->idx, 0, size - ext - (size_t)saveme->idx);
+	memset((u8 *)dst + saveme->idx, 0, size - ext - usb - (size_t)saveme->idx);
+	USBStateWrite((u8 *)dst + size - ext - usb);
 	state_ext_write((u8 *)dst + size - ext);
 	return true;
 }
@@ -3059,9 +3063,12 @@ static bool state_read(const void* data, size_t size)
 {
 	freezeData fP;
 	SaveStateBase loadme;
-	/* The emulator's blocks end where the extension block starts. */
+	/* The emulator's blocks end where the USB block starts, or the
+	 * extension block where a state has no USB block. */
 	const size_t full_size = size;
 	size = state_ext_strip(data, size);
+	const size_t usb_end = size;
+	size = USBStateStrip(data, size);
 
 	/* The live size is what PrepBlock and FreezeMem bound against, so the
 	 * whole payload counts as present from the start: otherwise the first
@@ -3148,6 +3155,7 @@ static bool state_read(const void* data, size_t size)
 	if (!SaveState_IsOkay(&loadme))
 		return false;
 
+	USBStateRead(data, usb_end);
 	state_ext_read(data, full_size);
 	return true;
 }

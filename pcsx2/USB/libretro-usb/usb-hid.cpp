@@ -768,4 +768,26 @@ namespace usb_hid
 		}
 	}
 
+	void usb_hid_freeze(USBDevice* dev, UsbState& st)
+	{
+		UsbHIDState* s = USB_CONTAINER_OF(dev, UsbHIDState, dev);
+
+		if (s->hid.kind == HID_KEYBOARD)
+		{
+			st.Bytes(s->hid.kbd.keycodes, sizeof(s->hid.kbd.keycodes));
+			st.Do(&s->hid.kbd.modifiers);
+			st.Do(&s->hid.kbd.leds);
+			st.Bytes(s->hid.kbd.key, sizeof(s->hid.kbd.key));
+			st.Do(&s->hid.kbd.keys);
+		}
+		else
+		{
+			st.Bytes(s->hid.ptr.queue, sizeof(s->hid.ptr.queue));
+			st.Do(&s->hid.ptr.mouse_grabbed);
+		}
+		st.Do(&s->hid.head);
+		st.Do(&s->hid.n);
+		st.Do(&s->hid.protocol);
+		st.Do(&s->hid.idle);
+	}
 } // namespace usb_hid

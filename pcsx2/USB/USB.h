@@ -90,6 +90,13 @@ enum UsbCamera
 
 void USBSetCamera(int camera);
 
+/* The USB block of a savestate: fixed size, found at the end of the
+ * bytes given, so it can sit at the tail of a state with its own footer. */
+size_t USBStateSize(void);
+void USBStateWrite(void* dst);
+size_t USBStateStrip(const void* state, size_t size);
+void USBStateRead(const void* state, size_t size);
+
 void USBinit(void);
 void USBasync(u32 cycles);
 void USBshutdown(void);

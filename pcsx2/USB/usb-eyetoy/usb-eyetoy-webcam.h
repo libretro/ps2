@@ -4,6 +4,7 @@
 #pragma once
 
 #include "USB/libretro-usb/qusb.h"
+#include "USB/libretro-usb/usb-state.h"
 #include "USB/usb-eyetoy/videodev.h"
 
 
@@ -454,5 +455,8 @@ namespace usb_eyetoy
 	};
 
 	USBDevice* eyetoy_create(u32 subtype);
+
+	/* Saves or loads the device's own state, beyond what every USB device has. */
+	void eyetoy_freeze(USBDevice* dev, UsbState& st);
 
 } // namespace usb_eyetoy
