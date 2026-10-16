@@ -25,5 +25,10 @@ class GLContext
 		GLContext();
 		~GLContext();
 
+		/* Whether the frontend's context is OpenGL ES: GSDeviceOGL then
+		 * takes the ES road for its feature checks and shader headers. */
+		__fi bool IsGLES() const { return m_gles; }
 		static std::unique_ptr<GLContext> Create();
+	protected:
+		bool m_gles = false;
 };

@@ -9,7 +9,7 @@ CC=${CC:-cc}
 SANFLAGS=""
 [ -n "$SANITIZER" ] && SANFLAGS="-fsanitize=$SANITIZER"
 
-echo "== no OpenGL ES context, software renderer as the last resort =="
+echo "== OpenGL ES 3.1 after desktop GL, software renderer as the last resort =="
 "$CC" -O1 -g -Wall $SANFLAGS -o "$DIR/hwctx_ctxaudit" "$DIR/ctxaudit.c"
 "$DIR/hwctx_ctxaudit" "$ROOT/libretro/main.cpp" "$ROOT/pcsx2/GS/GS.cpp"
 

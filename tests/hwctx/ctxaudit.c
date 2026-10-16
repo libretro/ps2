@@ -1,17 +1,18 @@
 /*  Hardware-context request audit.
  *
- *  The GL renderer is desktop OpenGL only: its shaders are GLSL 330/430
- *  core and GSDeviceOGL requires GL_ARB_shading_language_420pack, neither
- *  of which an OpenGL ES context has. A frontend offered an ES context
- *  accepts it, the GL device then refuses to come up, and there is no
- *  picture. So the core never asks for an ES context, and when no context
- *  it can draw into is accepted it asks for none and runs the software
- *  renderer.
+ *  The GL renderer runs on desktop GL 3.3 and on OpenGL ES 3.1. The ES
+ *  version a core asks for reaches eglCreateContext as asked, and a driver
+ *  returns the newest version compatible with it, so asking for 3.2 gets
+ *  a 3.1 driver no context at all while asking for 3.1 gets a 3.2 driver
+ *  3.2. ES 2 cannot run the renderer. So the core asks for ES 3.1 through
+ *  RETRO_HW_CONTEXT_OPENGLES_VERSION, then RETRO_HW_CONTEXT_OPENGLES3, and
+ *  never for ES 2 or 3.2; it asks for ES only after desktop GL was refused;
+ *  and when no context it can draw into is accepted it asks for none and
+ *  runs the software renderer.
  *
  *  This checks that shape in the sources: libretro_set_hw_render and
  *  libretro_select_hw_render (libretro/main.cpp) and the GS context
- *  switches (pcsx2/GS/GS.cpp) name no RETRO_HW_CONTEXT_OPENGLES* type, and
- *  libretro_select_hw_render ends by asking for RETRO_HW_CONTEXT_NONE.
+ *  switches (pcsx2/GS/GS.cpp).
  *
  *  Usage: tests/hwctx/ctxaudit <libretro/main.cpp> <pcsx2/GS/GS.cpp>
  */
@@ -51,21 +52,47 @@ static int body(const char* src, const char* sig, const char** s, const char** e
 	return *s && *e;
 }
 
-static int names_es(const char* s, const char* e)
+/* First and last occurrence of needle in [s, e), or NULL. */
+static const char* first_in(const char* s, const char* e, const char* needle)
 {
-	const char* p = strstr(s, "RETRO_HW_CONTEXT_OPENGLES");
-	return p && p < e;
+	const char* p = strstr(s, needle);
+	return (p && p < e) ? p : NULL;
+}
+
+static const char* last_in(const char* s, const char* e, const char* needle)
+{
+	const char* last = NULL;
+	const char* p = s;
+	while ((p = strstr(p, needle)) && p < e)
+		last = p++;
+	return last;
+}
+
+static int count_in(const char* s, const char* e, const char* needle)
+{
+	int n = 0;
+	const char* p = s;
+	while ((p = strstr(p, needle)) && p < e)
+	{
+		n++;
+		p++;
+	}
+	return n;
 }
 
 static int verdict(const char* what, int ok)
 {
-	printf("  %-48s %s\n", what, ok ? "ok" : "WRONG");
+	printf("  %-56s %s\n", what, ok ? "ok" : "WRONG");
 	return ok ? 0 : 1;
 }
 
 int main(int argc, char** argv)
 {
 	static const char kNone[] = "return libretro_set_hw_render(RETRO_HW_CONTEXT_NONE);\n}\n";
+	static const char kAsk31[] =
+		"hw_render.context_type  = RETRO_HW_CONTEXT_OPENGLES_VERSION;\n"
+		"\t\t\thw_render.version_major = 3;\n"
+		"\t\t\thw_render.version_minor = 1;\n";
 	char* m;
 	char* g;
 	const char *s, *e;
@@ -89,19 +116,35 @@ int main(int argc, char** argv)
 	if (!body(m, "static bool libretro_set_hw_render(", &s, &e))
 		bad += verdict("libretro_set_hw_render found", 0);
 	else
-		bad += verdict("libretro_set_hw_render accepts no ES type", !names_es(s, e));
+	{
+		bad += verdict("libretro_set_hw_render accepts no ES 2 type", !first_in(s, e, "RETRO_HW_CONTEXT_OPENGLES2"));
+		bad += verdict("libretro_set_hw_render asks for ES 3.1", first_in(s, e, kAsk31) != NULL);
+		bad += verdict("libretro_set_hw_render never asks for ES 3.2", !first_in(s, e, "version_minor = 2"));
+	}
 
 	if (!body(m, "static bool libretro_select_hw_render(", &s, &e))
 		bad += verdict("libretro_select_hw_render found", 0);
 	else
 	{
-		bad += verdict("libretro_select_hw_render asks for no ES type", !names_es(s, e));
+		const char* last_gl = last_in(s, e, "libretro_set_hw_render(RETRO_HW_CONTEXT_OPENGL)");
+		const char* last_es = last_in(s, e, "libretro_set_hw_render(RETRO_HW_CONTEXT_OPENGLES");
+
+		bad += verdict("libretro_select_hw_render asks for no ES 2 type", !first_in(s, e, "RETRO_HW_CONTEXT_OPENGLES2"));
+		bad += verdict("libretro_select_hw_render falls back to ES", last_es != NULL);
+		bad += verdict("libretro_select_hw_render asks for ES after desktop GL", last_gl && last_es && last_gl < last_es);
 		/* e points at the "\n}\n" that closes it */
 		bad += verdict("libretro_select_hw_render ends on CONTEXT_NONE",
 			(size_t)(e + 3 - s) >= strlen(kNone) - 1 && !strncmp(e + 3 - (strlen(kNone) - 1), kNone + 1, strlen(kNone) - 1));
 	}
 
-	bad += verdict("GS.cpp maps no ES type to a device", !names_es(g, g + strlen(g)));
+	{
+		const char* ge = g + strlen(g);
+		bad += verdict("GS.cpp maps no ES 2 type to a device", !first_in(g, ge, "RETRO_HW_CONTEXT_OPENGLES2"));
+		/* GSsetRenderer and OpenGSDevice */
+		bad += verdict("GS.cpp maps OPENGLES3 in both switches", count_in(g, ge, "case RETRO_HW_CONTEXT_OPENGLES3:") == 2);
+		bad += verdict("GS.cpp maps OPENGLES_VERSION in both switches",
+			count_in(g, ge, "case RETRO_HW_CONTEXT_OPENGLES_VERSION:") == 2);
+	}
 
 	free(m);
 	free(g);

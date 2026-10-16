@@ -759,9 +759,12 @@ public:
 		bool clip_control         : 1; ///< Can use 0..1 depth range instead of -1..1.
 		bool stencil_buffer       : 1; ///< Supports stencil buffer, and can use for DATE.
 		bool test_and_sample_depth: 1; ///< Supports concurrently binding the depth-stencil buffer for sampling and depth testing.
+		bool dual_source_blend    : 1; ///< Supports a second fragment output (SRC1) as a hardware blend factor.
 		FeatureSupport()
 		{
 			memset(this, 0, sizeof(*this));
+			// Every backend but OpenGL ES has it.
+			dual_source_blend = true;
 		}
 	};
 

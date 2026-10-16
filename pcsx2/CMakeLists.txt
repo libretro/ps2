@@ -367,8 +367,6 @@ set(pcsx2GSSources
 	GS/Renderers/Common/GSRetireRing.h
 	GS/Renderers/HW/GSScratch.c
 	GS/Renderers/HW/GSScratch.h
-	GS/Renderers/Vulkan/GSVulkanHeap.c
-	GS/Renderers/Vulkan/GSVulkanHeap.h
 	GS/Renderers/HW/GSObjectPool.h
 	GS/Renderers/HW/GSTextureCache.cpp
 	GS/Renderers/HW/GSTextureReplacementLoaders.cpp
@@ -461,8 +459,10 @@ if(USE_VULKAN)
 		GS/Renderers/Vulkan/VKLoader.cpp
 		GS/Renderers/Vulkan/VKStreamBuffer.cpp
 		GS/Renderers/Vulkan/VKBuilders.cpp
+		GS/Renderers/Vulkan/GSVulkanHeap.c
 	)
 	list(APPEND pcsx2GSHeaders
+		GS/Renderers/Vulkan/GSVulkanHeap.h
 		GS/Renderers/Vulkan/GSDeviceVK.h
 		GS/Renderers/Vulkan/GSTextureVK.h
 		GS/Renderers/Vulkan/VKBuilders.h

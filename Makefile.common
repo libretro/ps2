@@ -110,7 +110,6 @@ SOURCES_C += \
 	$(LRPS2_DIR)/USB/libretro-usb/ohci_dma.c \
 	$(LRPS2_DIR)/memcard_ecc.c \
 	$(LRPS2_DIR)/GS/Renderers/HW/GSScratch.c \
-	$(LRPS2_DIR)/GS/Renderers/Vulkan/GSVulkanHeap.c \
 	$(LRPS2_DIR)/GS/Renderers/DX12/GSD3D12Heap.c \
 	$(LIBRETRO_COMM_DIR)/compat/compat_posix_string.c \
 	$(LIBRETRO_COMM_DIR)/compat/compat_fnmatch.c \
@@ -511,6 +510,8 @@ endif
 
 # pcsx2/GS/Renderers/Vulkan + parallel-gs
 ifeq ($(HAVE_VULKAN), 1)
+SOURCES_C += $(LRPS2_DIR)/GS/Renderers/Vulkan/GSVulkanHeap.c
+
 SOURCES_CXX += \
 	$(LRPS2_DIR)/GS/Renderers/Vulkan/GSDeviceVK.cpp \
 	$(LRPS2_DIR)/GS/Renderers/Vulkan/GSTextureVK.cpp \

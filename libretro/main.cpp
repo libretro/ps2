@@ -2021,6 +2021,13 @@ static bool libretro_set_hw_render(retro_hw_context_type type)
 	hw_render.depth              = true;
 	hw_render.cache_context      = false;
 
+	/* A GL context of the core's own, sharing objects with the frontend's:
+	 * the GL renderer caches what it binds, and the frontend draws between
+	 * its frames, so neither can work in a context the other one uses. */
+	if (type == RETRO_HW_CONTEXT_OPENGL || type == RETRO_HW_CONTEXT_OPENGL_CORE ||
+	    type == RETRO_HW_CONTEXT_OPENGLES3 || type == RETRO_HW_CONTEXT_OPENGLES_VERSION)
+		environ_cb(RETRO_ENVIRONMENT_SET_HW_SHARED_CONTEXT, NULL);
+
 	switch (type)
 	{
 #ifdef _WIN32
@@ -2049,9 +2056,24 @@ static bool libretro_set_hw_render(retro_hw_context_type type)
 			hw_render.version_minor = 0;
 			break;
 
-		/* No OpenGL ES: the GL renderer is desktop GL only (GLSL 330/430
-		 * core shaders, GL_ARB_shading_language_420pack), so an ES context
-		 * would be accepted and then produce no picture. */
+		/* OpenGL ES: GSDeviceOGL needs 3.1 (GLSL ES 3.10 takes the layout
+		 * bindings its shaders use) and checks what it was given when it
+		 * comes up. The version reaches eglCreateContext as asked, and a
+		 * driver hands back the newest version compatible with it, so 3.1
+		 * is asked for and not 3.2: 3.2 from a 3.1 driver is no context at
+		 * all. RETRO_HW_CONTEXT_OPENGLES3 is 3.0 by definition and stays the
+		 * last try, for a frontend that knows no versioned ES request. */
+		case RETRO_HW_CONTEXT_OPENGLES3:
+		case RETRO_HW_CONTEXT_OPENGLES_VERSION:
+			hw_render.context_type  = RETRO_HW_CONTEXT_OPENGLES_VERSION;
+			hw_render.version_major = 3;
+			hw_render.version_minor = 1;
+			if (environ_cb(RETRO_ENVIRONMENT_SET_HW_RENDER, &hw_render))
+				return true;
+			hw_render.context_type  = RETRO_HW_CONTEXT_OPENGLES3;
+			hw_render.version_major = 3;
+			hw_render.version_minor = 0;
+			break;
 
 		case RETRO_HW_CONTEXT_NONE:
 			return true;
@@ -2104,6 +2126,8 @@ static bool libretro_select_hw_render(void)
 			return true;
 		else if (libretro_set_hw_render(RETRO_HW_CONTEXT_OPENGL))
 			return true;
+		else if (libretro_set_hw_render(RETRO_HW_CONTEXT_OPENGLES_VERSION))
+			return true;
 	}
 
 #ifdef _WIN32
@@ -2116,11 +2140,13 @@ static bool libretro_select_hw_render(void)
 		return true;
 	if (libretro_set_hw_render(RETRO_HW_CONTEXT_OPENGL))
 		return true;
+	if (libretro_set_hw_render(RETRO_HW_CONTEXT_OPENGLES_VERSION))
+		return true;
 #ifdef ENABLE_VULKAN
 	if (libretro_set_hw_render(RETRO_HW_CONTEXT_VULKAN))
 		return true;
 #endif
-	/* No context a hardware renderer can draw into, e.g. an OpenGL ES-only
+	/* No context a hardware renderer can draw into, e.g. an OpenGL ES 2
 	 * frontend: the software renderer needs none. */
 	log_cb(RETRO_LOG_WARN, "No usable hardware context; using the software renderer.\n");
 	return libretro_set_hw_render(RETRO_HW_CONTEXT_NONE);

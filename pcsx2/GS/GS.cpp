@@ -84,6 +84,8 @@ static GSRendererType GSsetRenderer(enum retro_hw_context_type api)
 	{
 		case RETRO_HW_CONTEXT_OPENGL:
 		case RETRO_HW_CONTEXT_OPENGL_CORE:
+		case RETRO_HW_CONTEXT_OPENGLES3:
+		case RETRO_HW_CONTEXT_OPENGLES_VERSION:
 			return GSRendererType::OGL;
 		case RETRO_HW_CONTEXT_VULKAN:
 #ifdef HAVE_PARALLEL_GS
@@ -157,6 +159,8 @@ static bool OpenGSDevice(GSRendererType renderer, bool clear_state_on_fail)
 			break;
 		case RETRO_HW_CONTEXT_OPENGL:
 		case RETRO_HW_CONTEXT_OPENGL_CORE:
+		case RETRO_HW_CONTEXT_OPENGLES3:
+		case RETRO_HW_CONTEXT_OPENGLES_VERSION:
 #ifdef ENABLE_OPENGL
 			g_gs_device = new GSDeviceOGL();
 			if (!g_gs_device->Create())

@@ -92,9 +92,18 @@ GSTextureOGL::GSTextureOGL(Type type, int width, int height, int levels, Format 
 
 		// 4 channel float
 		case Format::ColorClip:
-			gl_fmt = GL_RGBA16;
-			m_int_format = GL_RGBA;
-			m_int_type = GL_UNSIGNED_SHORT;
+			if (GSDeviceOGL::GetInstance()->IsColClipHalfFloat())
+			{
+				gl_fmt = GL_RGBA16F;
+				m_int_format = GL_RGBA;
+				m_int_type = GL_HALF_FLOAT;
+			}
+			else
+			{
+				gl_fmt = GL_RGBA16;
+				m_int_format = GL_RGBA;
+				m_int_type = GL_UNSIGNED_SHORT;
+			}
 			m_int_shift = 3;
 			break;
 

@@ -442,7 +442,7 @@ static const char convert_glsl_shader_raw[] =
 "void ps_colclip_resolve()\n"
 "{\n"
 "	vec4 value = sample_c();\n"
-"	SV_Target0 = vec4(vec3(uvec3(value.rgb * 65535.0f) & 255u) / 255.0f, value.a);\n"
+"	SV_Target0 = vec4(vec3(uvec3(value.rgb * 65535.0f + COLCLIP_DECODE_BIAS) & 255u) / 255.0f, value.a);\n"
 "}\n"
 "#endif\n"
 "\n"
