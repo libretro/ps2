@@ -18,6 +18,7 @@
 #include "../pcsx2/USB/USB.h"
 #include "../pcsx2/USB/libretro-usb/USBinternal.h"
 #include "../pcsx2/USB/libretro-usb/usb-hid.h"
+#include "../pcsx2/USB/usb-eyetoy/usb-eyetoy-webcam.h"
 #include "../pcsx2/SaveState.h"
 
 #include "libretro.h"
@@ -38,6 +39,8 @@ static s64        s_usb_remaining = 0;
 
 static int        s_port_device[USB::NUM_PORTS] = { USB_DEV_NONE, USB_DEV_NONE };
 static unsigned   s_input_port[USB::NUM_PORTS]  = { 0, 1 };
+static int        s_camera      = USB_CAMERA_NONE;
+static int        s_camera_port = -1;
 static USBDevice* s_usb_device[USB::NUM_PORTS]  = { nullptr, nullptr };
 
 /* From PAD.cpp - the libretro input_state callback the frontend installed. */
@@ -62,6 +65,19 @@ static OHCIPort& GetOHCIPort(u32 port)
 	return s_qemu_ohci->rhport[rhport];
 }
 
+void USBSetCamera(int camera)
+{
+	s_camera = camera;
+}
+
+static void USBAttachDevice(u32 port, USBDevice* dev)
+{
+	GetOHCIPort(port).port.dev = dev;
+	dev->attached = true;
+	usb_attach(&GetOHCIPort(port).port);
+	s_usb_device[port] = dev;
+}
+
 static void USBCreateDevice(u32 port)
 {
 	USBDevice* dev = nullptr;
@@ -76,13 +92,31 @@ static void USBCreateDevice(u32 port)
 		default:
 			return;
 	}
+	if (dev)
+		USBAttachDevice(port, dev);
+}
+
+static void USBCreateCamera(void)
+{
+	u32 port;
+	USBDevice* dev;
+
+	s_camera_port = -1;
+	if (s_camera == USB_CAMERA_NONE)
+		return;
+	for (port = 0; port < USB::NUM_PORTS && s_usb_device[port]; port++)
+		;
+	if (port == USB::NUM_PORTS)
+	{
+		log_cb(RETRO_LOG_WARN, "USB: no free port for the camera\n");
+		return;
+	}
+	dev = usb_eyetoy::eyetoy_create(
+		s_camera == USB_CAMERA_EYETOY ? usb_eyetoy::TYPE_EYETOY : usb_eyetoy::TYPE_OV511P);
 	if (!dev)
 		return;
-
-	GetOHCIPort(port).port.dev = dev;
-	dev->attached = true;
-	usb_attach(&GetOHCIPort(port).port);
-	s_usb_device[port] = dev;
+	USBAttachDevice(port, dev);
+	s_camera_port = (int)port;
 }
 
 static void USBDestroyDevice(u32 port)
@@ -126,6 +160,7 @@ bool USBopen(void)
 
 	for (u32 port = 0; port < USB::NUM_PORTS; port++)
 		USBCreateDevice(port);
+	USBCreateCamera();
 	return true;
 }
 
@@ -159,6 +194,7 @@ void USBreset(void)
 
 	for (port = 0; port < USB::NUM_PORTS; port++)
 		USBCreateDevice(port);
+	USBCreateCamera();
 }
 
 void USBasync(u32 cycles)
@@ -173,7 +209,7 @@ void USBasync(u32 cycles)
 		u32 port;
 		for (port = 0; port < USB::NUM_PORTS; port++)
 		{
-			if (s_usb_device[port])
+			if (s_usb_device[port] && (int)port != s_camera_port)
 				usb_hid::usb_hid_update(s_usb_device[port], input_cb, s_input_port[port]);
 		}
 	}

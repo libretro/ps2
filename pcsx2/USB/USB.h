@@ -80,6 +80,16 @@ enum UsbPortDevice
 
 void USBSetPortDevice(unsigned port, int device, unsigned input_port);
 
+/* A camera on the first USB port no other device claims (core option). */
+enum UsbCamera
+{
+	USB_CAMERA_NONE = 0,
+	USB_CAMERA_EYETOY,
+	USB_CAMERA_CAPTURE_EYE,
+};
+
+void USBSetCamera(int camera);
+
 void USBinit(void);
 void USBasync(u32 cycles);
 void USBshutdown(void);

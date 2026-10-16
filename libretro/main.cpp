@@ -29,6 +29,7 @@
 #include "../pcsx2/ps2/BiosTools.h"
 #include "../pcsx2/CDVD/CDVD.h"
 #include "../pcsx2/USB/USB.h"
+#include "../pcsx2/USB/usb-eyetoy/eyetoy-frontend.h"
 #include "../pcsx2/DEV9/ATA/HddCreate.h"
 #include "../pcsx2/MTVU.h"
 #include "../pcsx2/Counters.h"
@@ -74,11 +75,12 @@ struct retro_hw_render_callback hw_render;
 
 /* The core options, as the config they set: the fields directly, with
  * Pcsx2Config's own defaults for whatever no option touches, and the
- * hardware-dependent defaults applied before the options. Three values
+ * hardware-dependent defaults applied before the options. Four values
  * no Pcsx2Config field holds ride beside it. VMManager copies this at
  * every LoadSettings, then diffs old against new as it always did. */
 static Pcsx2Config s_option_config;
 static bool        s_option_fast_boot = true;
+static int         s_option_camera    = USB_CAMERA_NONE;
 static char        s_option_memcards[PCSX2_PATH_MAX];
 const Pcsx2Config& Host::OptionConfig() { return s_option_config; }
 bool               Host::OptionFastBoot() { return s_option_fast_boot; }
@@ -500,6 +502,17 @@ static void check_variables(bool first_run)
 			bool fast_cdvd = !strcmp(var.value, "enabled");
 			s_option_config.Speedhacks.fastCDVD = fast_cdvd;
 		}
+
+		var.key = "pcsx2_usb_camera";
+		s_option_camera = USB_CAMERA_NONE;
+		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+		{
+			if (!strcmp(var.value, "eyetoy"))
+				s_option_camera = USB_CAMERA_EYETOY;
+			else if (!strcmp(var.value, "capture_eye"))
+				s_option_camera = USB_CAMERA_CAPTURE_EYE;
+		}
+		USBSetCamera(s_option_camera);
 	}
 
 	if (setting_plugin_type == PLUGIN_PGS)
@@ -2475,6 +2488,8 @@ bool retro_load_game(const struct retro_game_info* game)
 	VMManager::LoadSettings();
 
 	check_variables(true);
+	if (s_option_camera != USB_CAMERA_NONE)
+		usb_eyetoy::FrontendLoad(environ_cb);
 
 	if (setting_bios.empty())
 	{
@@ -2789,6 +2804,7 @@ void retro_unload_game(void)
 	}
 
 	VMManager::Shutdown();
+	usb_eyetoy::FrontendUnload();
 	/* Shutdown() flipped state to Stopping; if cpu_thread is sleeping
 	 * in its 'case Paused' wait (post cpu_thread_pause above), it
 	 * needs a notify to observe the new state and run through to its
@@ -2893,6 +2909,7 @@ void retro_run(void)
 		update_av_info();
 
 	Input::Update();
+	usb_eyetoy::FrontendRun();
 
 	if (hw_interface_missing)
 	{
