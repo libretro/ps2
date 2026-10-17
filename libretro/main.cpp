@@ -29,6 +29,7 @@
 #include "../pcsx2/ps2/BiosTools.h"
 #include "../pcsx2/CDVD/CDVD.h"
 #include "../pcsx2/USB/USB.h"
+#include "../pcsx2/USB/usb-eyetoy/eyetoy-frontend.h"
 #include "../pcsx2/DEV9/ATA/HddCreate.h"
 #include "../pcsx2/MTVU.h"
 #include "../pcsx2/Counters.h"
@@ -74,11 +75,12 @@ struct retro_hw_render_callback hw_render;
 
 /* The core options, as the config they set: the fields directly, with
  * Pcsx2Config's own defaults for whatever no option touches, and the
- * hardware-dependent defaults applied before the options. Three values
+ * hardware-dependent defaults applied before the options. Four values
  * no Pcsx2Config field holds ride beside it. VMManager copies this at
  * every LoadSettings, then diffs old against new as it always did. */
 static Pcsx2Config s_option_config;
 static bool        s_option_fast_boot = true;
+static int         s_option_camera    = USB_CAMERA_NONE;
 static char        s_option_memcards[PCSX2_PATH_MAX];
 const Pcsx2Config& Host::OptionConfig() { return s_option_config; }
 bool               Host::OptionFastBoot() { return s_option_fast_boot; }
@@ -500,6 +502,17 @@ static void check_variables(bool first_run)
 			bool fast_cdvd = !strcmp(var.value, "enabled");
 			s_option_config.Speedhacks.fastCDVD = fast_cdvd;
 		}
+
+		var.key = "pcsx2_usb_camera";
+		s_option_camera = USB_CAMERA_NONE;
+		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+		{
+			if (!strcmp(var.value, "eyetoy"))
+				s_option_camera = USB_CAMERA_EYETOY;
+			else if (!strcmp(var.value, "capture_eye"))
+				s_option_camera = USB_CAMERA_CAPTURE_EYE;
+		}
+		USBSetCamera(s_option_camera);
 	}
 
 	if (setting_plugin_type == PLUGIN_PGS)
@@ -2504,6 +2517,8 @@ bool retro_load_game(const struct retro_game_info* game)
 	VMManager::LoadSettings();
 
 	check_variables(true);
+	if (s_option_camera != USB_CAMERA_NONE)
+		usb_eyetoy::FrontendLoad(environ_cb);
 
 	if (setting_bios.empty())
 	{
@@ -2818,6 +2833,7 @@ void retro_unload_game(void)
 	}
 
 	VMManager::Shutdown();
+	usb_eyetoy::FrontendUnload();
 	/* Shutdown() flipped state to Stopping; if cpu_thread is sleeping
 	 * in its 'case Paused' wait (post cpu_thread_pause above), it
 	 * needs a notify to observe the new state and run through to its
@@ -2922,6 +2938,7 @@ void retro_run(void)
 		update_av_info();
 
 	Input::Update();
+	usb_eyetoy::FrontendRun();
 
 	if (hw_interface_missing)
 	{
@@ -2998,6 +3015,7 @@ size_t retro_serialize_size(void)
 	size         += fP.size;
 	GSfreeze(FREEZE_SIZE, &fP);
 	size         += fP.size;
+	size         += USBStateSize();
 	size         += state_ext_size();
 
 	return size;
@@ -3005,7 +3023,8 @@ size_t retro_serialize_size(void)
 
 /* Writes the whole machine into dst, size bytes, the size
  * retro_serialize_size() gives: the emulator's blocks from the start,
- * the extension block (state_ext.h) in the last bytes, and zeros between.
+ * the extension block (state_ext.h) in the last bytes with the USB block
+ * just before it, and zeros between.
  * The CPU thread must be paused and the VU1 and GS threads quiesced. */
 static bool state_write(void* dst, size_t size)
 {
@@ -3013,10 +3032,11 @@ static bool state_write(void* dst, size_t size)
 	SaveStateBase state;
 	SaveStateBase* saveme = &state;
 	const size_t ext = state_ext_size();
+	const size_t usb = USBStateSize();
 
-	if (size < ext)
+	if (size < ext + usb)
 		return false;
-	SaveState_Init(saveme, (u8 *)dst, 0, size - ext, true);
+	SaveState_Init(saveme, (u8 *)dst, 0, size - ext - usb, true);
 	saveme->fixed = true;
 
 	SaveState_FreezeBios(saveme);
@@ -3058,7 +3078,8 @@ static bool state_write(void* dst, size_t size)
 
 	if (!SaveState_IsOkay(saveme))
 		return false;
-	memset((u8 *)dst + saveme->idx, 0, size - ext - (size_t)saveme->idx);
+	memset((u8 *)dst + saveme->idx, 0, size - ext - usb - (size_t)saveme->idx);
+	USBStateWrite((u8 *)dst + size - ext - usb);
 	state_ext_write((u8 *)dst + size - ext);
 	return true;
 }
@@ -3071,9 +3092,12 @@ static bool state_read(const void* data, size_t size)
 {
 	freezeData fP;
 	SaveStateBase loadme;
-	/* The emulator's blocks end where the extension block starts. */
+	/* The emulator's blocks end where the USB block starts, or the
+	 * extension block where a state has no USB block. */
 	const size_t full_size = size;
 	size = state_ext_strip(data, size);
+	const size_t usb_end = size;
+	size = USBStateStrip(data, size);
 
 	/* The live size is what PrepBlock and FreezeMem bound against, so the
 	 * whole payload counts as present from the start: otherwise the first
@@ -3160,6 +3184,7 @@ static bool state_read(const void* data, size_t size)
 	if (!SaveState_IsOkay(&loadme))
 		return false;
 
+	USBStateRead(data, usb_end);
 	state_ext_read(data, full_size);
 	return true;
 }

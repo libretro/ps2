@@ -16,6 +16,7 @@
 #pragma once
 
 #include "USB/libretro-usb/hid.h"
+#include "USB/libretro-usb/usb-state.h"
 #include "libretro.h"
 
 namespace usb_hid
@@ -28,4 +29,7 @@ namespace usb_hid
 
 	/* Pump one frame of libretro keyboard/mouse input into the device. */
 	void usb_hid_update(USBDevice* dev, retro_input_state_t input_cb, unsigned port);
+
+	/* Saves or loads the device's own state, beyond what every USB device has. */
+	void usb_hid_freeze(USBDevice* dev, UsbState& st);
 } // namespace usb_hid

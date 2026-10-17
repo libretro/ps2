@@ -155,6 +155,21 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       "disabled"
    },
    {
+      "pcsx2_usb_camera",
+      "System > USB Camera (Restart)",
+      "USB Camera (Restart)",
+      "Plugs a camera into a free USB port for EyeToy games. Pictures and sound come from the frontend's camera and microphone; where the frontend has none, on Linux, from the first webcam and its microphone.",
+      NULL,
+      "system",
+      {
+         { "disabled", NULL },
+         { "eyetoy", "Sony EyeToy" },
+         { "capture_eye", "Konami Capture Eye" },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
       "pcsx2_shared_memory_cards",
       "System > Shared Memory Cards (Restart)",
       "Shared Memory Cards (Restart)",

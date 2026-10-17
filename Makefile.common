@@ -351,7 +351,7 @@ SOURCES_CXX += \
 # pcsx2/PAD
 SOURCES_CXX += $(LRPS2_DIR)/PAD/PAD.cpp
 
-# pcsx2/USB (OHCI host-controller core + HID device model)
+# pcsx2/USB (OHCI host-controller core, HID and EyeToy device models)
 SOURCES_CXX += \
 	$(LRPS2_DIR)/USB/libretro-usb/bus.cpp \
 	$(LRPS2_DIR)/USB/libretro-usb/core.cpp \
@@ -360,7 +360,13 @@ SOURCES_CXX += \
 	$(LRPS2_DIR)/USB/libretro-usb/input-keymap-qcode-to-qnum.cpp \
 	$(LRPS2_DIR)/USB/libretro-usb/usb-hid.cpp \
 	$(LRPS2_DIR)/USB/libretro-usb/usb-ohci.cpp \
-	$(LRPS2_DIR)/USB/shared/ringbuffer.cpp
+	$(LRPS2_DIR)/USB/shared/ringbuffer.cpp \
+	$(LRPS2_DIR)/USB/usb-eyetoy/cam-frame.cpp \
+	$(LRPS2_DIR)/USB/usb-eyetoy/cam-jpeg.cpp \
+	$(LRPS2_DIR)/USB/usb-eyetoy/eyetoy-frontend.cpp \
+	$(LRPS2_DIR)/USB/usb-eyetoy/eyetoy-host.cpp \
+	$(LRPS2_DIR)/USB/usb-eyetoy/jo_mpeg.cpp \
+	$(LRPS2_DIR)/USB/usb-eyetoy/usb-eyetoy-webcam.cpp
 
 # pcsx2/ps2
 SOURCES_CXX += \

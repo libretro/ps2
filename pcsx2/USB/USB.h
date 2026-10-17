@@ -80,6 +80,27 @@ enum UsbPortDevice
 
 void USBSetPortDevice(unsigned port, int device, unsigned input_port);
 
+/* A camera on the first USB port no other device claims (core option). */
+enum UsbCamera
+{
+	USB_CAMERA_NONE = 0,
+	USB_CAMERA_EYETOY,
+	USB_CAMERA_CAPTURE_EYE,
+};
+
+void USBSetCamera(int camera);
+
+/* The device on a port, or NULL; for the harnesses under tests/. */
+struct USBDevice;
+USBDevice* USBGetPortDevice(unsigned port);
+
+/* The USB block of a savestate: fixed size, found at the end of the
+ * bytes given, so it can sit at the tail of a state with its own footer. */
+size_t USBStateSize(void);
+void USBStateWrite(void* dst);
+size_t USBStateStrip(const void* state, size_t size);
+void USBStateRead(const void* state, size_t size);
+
 void USBinit(void);
 void USBasync(u32 cycles);
 void USBshutdown(void);

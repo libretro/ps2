@@ -818,6 +818,12 @@ set(pcsx2USBSources
 	USB/libretro-usb/ohci_dma.c
 	USB/libretro-usb/ohci_dma.h
 	USB/shared/ringbuffer.cpp
+	USB/usb-eyetoy/cam-frame.cpp
+	USB/usb-eyetoy/cam-jpeg.cpp
+	USB/usb-eyetoy/eyetoy-frontend.cpp
+	USB/usb-eyetoy/eyetoy-host.cpp
+	USB/usb-eyetoy/jo_mpeg.cpp
+	USB/usb-eyetoy/usb-eyetoy-webcam.cpp
 )
 set(pcsx2USBHeaders
 	USB/USB.h
@@ -828,7 +834,16 @@ set(pcsx2USBHeaders
 	USB/libretro-usb/qusb.h
 	USB/libretro-usb/queue.h
 	USB/libretro-usb/usb-hid.h
+	USB/libretro-usb/usb-state.h
 	USB/shared/ringbuffer.h
+	USB/usb-eyetoy/cam-frame.h
+	USB/usb-eyetoy/cam-jpeg.h
+	USB/usb-eyetoy/eyetoy-frontend.h
+	USB/usb-eyetoy/eyetoy-host.h
+	USB/usb-eyetoy/jo_mpeg.h
+	USB/usb-eyetoy/ov519.h
+	USB/usb-eyetoy/usb-eyetoy-webcam.h
+	USB/usb-eyetoy/videodev.h
 )
 set(pcsx2ZipToolsSources)
 set(pcsx2ZipToolsHeaders)
