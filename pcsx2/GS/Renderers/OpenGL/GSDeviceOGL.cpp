@@ -68,7 +68,27 @@ namespace ReplaceGL
 	{
 	}
 
+	// Only colour attachment 0 is ever masked.
+	void APIENTRY ColorMaski(GLuint index, GLboolean r, GLboolean g, GLboolean b, GLboolean a)
+	{
+		glColorMask(r, g, b, a);
+	}
+
 } // namespace ReplaceGL
+
+// Whether the context advertises an extension GLAD has no flag for.
+static bool HasGLExtension(const char* name)
+{
+	GLint count = 0;
+	glGetIntegerv(GL_NUM_EXTENSIONS, &count);
+	for (GLint i = 0; i < count; i++)
+	{
+		const char* ext = reinterpret_cast<const char*>(glGetStringi(GL_EXTENSIONS, i));
+		if (ext && !strcmp(ext, name))
+			return true;
+	}
+	return false;
+}
 
 namespace Emulate_DSA
 {
@@ -176,16 +196,36 @@ bool GSDeviceOGL::CheckFeatures(bool& buggy_pbo)
 	GLint minor_gl = 0;
 	glGetIntegerv(GL_MAJOR_VERSION, &major_gl);
 	glGetIntegerv(GL_MINOR_VERSION, &minor_gl);
-	if (!GLAD_GL_VERSION_3_3)
+	if (m_is_gles)
 	{
-		log_cb(RETRO_LOG_ERROR, "OpenGL is not supported. Only OpenGL %d.%d\n was found\n", major_gl, minor_gl);
-		return false;
-	}
+		// GLSL ES 3.10 is the first to take layout(binding) on samplers and
+		// uniform blocks, which every shader here relies on.
+		if (!GLAD_GL_ES_VERSION_3_1)
+		{
+			log_cb(RETRO_LOG_ERROR, "OpenGL ES 3.1 is required. Only OpenGL ES %d.%d was found\n", major_gl, minor_gl);
+			return false;
+		}
 
-	if (!GLAD_GL_ARB_shading_language_420pack)
+		// The vertex to fragment interface is a block, core from 3.2.
+		if (!GLAD_GL_ES_VERSION_3_2 && !GLAD_GL_EXT_shader_io_blocks && !GLAD_GL_OES_shader_io_blocks)
+		{
+			log_cb(RETRO_LOG_ERROR, "GL_EXT_shader_io_blocks is not supported, this is required for the OpenGL renderer on OpenGL ES 3.1.\n");
+			return false;
+		}
+	}
+	else
 	{
-		log_cb(RETRO_LOG_WARN, "GL_ARB_shading_language_420pack is not supported, this is required for the OpenGL renderer.\n");
-		return false;
+		if (!GLAD_GL_VERSION_3_3)
+		{
+			log_cb(RETRO_LOG_ERROR, "OpenGL is not supported. Only OpenGL %d.%d\n was found\n", major_gl, minor_gl);
+			return false;
+		}
+
+		if (!GLAD_GL_ARB_shading_language_420pack)
+		{
+			log_cb(RETRO_LOG_WARN, "GL_ARB_shading_language_420pack is not supported, this is required for the OpenGL renderer.\n");
+			return false;
+		}
 	}
 
 	if (!GLAD_GL_ARB_viewport_array)
@@ -195,16 +235,68 @@ bool GSDeviceOGL::CheckFeatures(bool& buggy_pbo)
 		log_cb(RETRO_LOG_WARN, "GL_ARB_viewport_array is not supported! Function pointer will be replaced.\n");
 	}
 
+	// GLAD's ES loader does not know NV_texture_barrier, though ES drivers
+	// (Mesa's among them) advertise it, so it is looked up by hand.
+	bool nv_texture_barrier = GLAD_GL_NV_texture_barrier;
+	if (m_is_gles && HasGLExtension("GL_NV_texture_barrier"))
+	{
+		glTextureBarrierNV = reinterpret_cast<PFNGLTEXTUREBARRIERNVPROC>(hw_render.get_proc_address("glTextureBarrierNV"));
+		nv_texture_barrier = (glTextureBarrierNV != nullptr);
+	}
+
 	if (!GLAD_GL_ARB_texture_barrier)
 	{
-		log_cb(RETRO_LOG_WARN, "GL_ARB_texture_barrier is not supported, blending will not be accurate.\n");
-		glTextureBarrier = ReplaceGL::TextureBarrier;
+		if (nv_texture_barrier)
+			glTextureBarrier = glTextureBarrierNV;
+		else
+		{
+			log_cb(RETRO_LOG_WARN, "GL_ARB_texture_barrier is not supported, blending will not be accurate.\n");
+			glTextureBarrier = ReplaceGL::TextureBarrier;
+		}
 	}
 
 	if (!GLAD_GL_ARB_direct_state_access)
 	{
 		log_cb(RETRO_LOG_WARN, "GL_ARB_direct_state_access is not supported, this will reduce performance.\n");
 		Emulate_DSA::Init();
+	}
+
+	if (m_is_gles)
+	{
+		// Core only from ES 3.2. On 3.1 GLAD leaves the core pointers null and
+		// loads the suffixed ones the extensions name.
+		if (!glDrawElementsBaseVertex)
+		{
+			if (GLAD_GL_OES_draw_elements_base_vertex && glDrawElementsBaseVertexOES)
+				glDrawElementsBaseVertex = glDrawElementsBaseVertexOES;
+			else if (GLAD_GL_EXT_draw_elements_base_vertex && glDrawElementsBaseVertexEXT)
+				glDrawElementsBaseVertex = glDrawElementsBaseVertexEXT;
+			else
+			{
+				log_cb(RETRO_LOG_ERROR, "OpenGL ES: glDrawElementsBaseVertex is not supported, this is required for the OpenGL renderer.\n");
+				return false;
+			}
+		}
+
+		if (!glColorMaski)
+		{
+			if (GLAD_GL_OES_draw_buffers_indexed && glColorMaskiOES)
+				glColorMaski = glColorMaskiOES;
+			else if (GLAD_GL_EXT_draw_buffers_indexed && glColorMaskiEXT)
+				glColorMaski = glColorMaskiEXT;
+			else
+				glColorMaski = ReplaceGL::ColorMaski;
+		}
+
+		// The same entry point and enums as ARB_clip_control.
+		if (GLAD_GL_EXT_clip_control)
+			glClipControl = glClipControlEXT;
+
+		if (!glDebugMessageCallback && GLAD_GL_KHR_debug)
+		{
+			glDebugMessageCallback = glDebugMessageCallbackKHR;
+			glDebugMessageControl = glDebugMessageControlKHR;
+		}
 	}
 
 	// Don't use PBOs when we don't have ARB_buffer_storage, orphaning buffers probably ends up worse than just
@@ -221,7 +313,12 @@ bool GSDeviceOGL::CheckFeatures(bool& buggy_pbo)
 
 	// optional features based on context
 	m_features.broken_point_sampler = false;
-	m_features.primitive_id = true;
+	// gl_PrimitiveID reaches a fragment shader in ES 3.2, or on 3.1 through the geometry shader extensions.
+	m_features.primitive_id = !m_is_gles || GLAD_GL_ES_VERSION_3_2 || GLAD_GL_EXT_geometry_shader || GLAD_GL_OES_geometry_shader;
+	// Desktop GL 3.3 has it in core; ES only through EXT_blend_func_extended.
+	m_features.dual_source_blend = !m_is_gles || GLAD_GL_EXT_blend_func_extended;
+	if (!m_features.dual_source_blend)
+		log_cb(RETRO_LOG_WARN, "GL_EXT_blend_func_extended is not supported, blends that need it are done in the shader.\n");
 
 	m_features.framebuffer_fetch = GLAD_GL_EXT_shader_framebuffer_fetch;
 	if (m_features.framebuffer_fetch && GSConfig.DisableFramebufferFetch)
@@ -235,15 +332,25 @@ bool GSDeviceOGL::CheckFeatures(bool& buggy_pbo)
 	else if (GSConfig.OverrideTextureBarriers == 1)
 		m_features.texture_barrier = true; // Force Enabled
 	else
-		m_features.texture_barrier = m_features.framebuffer_fetch || GLAD_GL_ARB_texture_barrier;
+		m_features.texture_barrier = m_features.framebuffer_fetch || GLAD_GL_ARB_texture_barrier || nv_texture_barrier;
 	if (!m_features.texture_barrier)
 		log_cb(RETRO_LOG_WARN, "GL_ARB_texture_barrier is not supported, blending will not be accurate.\n");
+
+	// The colour clip accumulation needs a render target that holds a 16-bit
+	// integer per channel, and its blended sums, exactly. ES renders to UNORM16
+	// only through EXT_texture_norm16; failing that, 32-bit float does the same
+	// through EXT_color_buffer_float (half float does not: 11 bits of mantissa
+	// lose the low bits past 2047). With neither the clip is done in the shader.
+	m_colclip_float       = m_is_gles && !GLAD_GL_EXT_texture_norm16 && GLAD_GL_EXT_color_buffer_float;
+	m_features.colclip_hw = !m_is_gles || GLAD_GL_EXT_texture_norm16 || GLAD_GL_EXT_color_buffer_float;
+	if (!m_features.colclip_hw)
+		log_cb(RETRO_LOG_WARN, "Neither GL_EXT_texture_norm16 nor GL_EXT_color_buffer_float is supported, colour clipping is done in the shader.\n");
 
 	m_features.provoking_vertex_last = true;
 	m_features.dxt_textures = GLAD_GL_EXT_texture_compression_s3tc;
 	m_features.bptc_textures = GLAD_GL_VERSION_4_2 || GLAD_GL_ARB_texture_compression_bptc || GLAD_GL_EXT_texture_compression_bptc;
 	m_features.prefer_new_textures = false;
-	m_features.clip_control = GLAD_GL_ARB_clip_control;
+	m_features.clip_control = GLAD_GL_ARB_clip_control || (m_is_gles && GLAD_GL_EXT_clip_control);
 	if (!m_features.clip_control)
 		log_cb(RETRO_LOG_WARN, "GL_ARB_clip_control is not supported, this will cause rendering issues.\n");
 	m_features.stencil_buffer = true;
@@ -295,6 +402,7 @@ bool GSDeviceOGL::Create()
 		log_cb(RETRO_LOG_ERROR, "Failed to create any GL context\n");
 		return false;
 	}
+	m_is_gles = m_gl_context->IsGLES();
 
 	bool buggy_pbo = false;
 	if (!CheckFeatures(buggy_pbo))
@@ -302,7 +410,7 @@ bool GSDeviceOGL::Create()
 
 	if (!GSConfig.DisableShaderCache)
 	{
-		if (!m_shader_cache.Open())
+		if (!m_shader_cache.Open(m_is_gles))
 			log_cb(RETRO_LOG_WARN, "Shader cache failed to open.\n");
 	}
 	else
@@ -316,7 +424,7 @@ bool GSDeviceOGL::Create()
 	// ****************************************************************
 	// Debug helper
 	// ****************************************************************
-	if (GSConfig.UseDebugDevice)
+	if (GSConfig.UseDebugDevice && glDebugMessageCallback)
 	{
 		glDebugMessageCallback(DebugMessageCallback, NULL);
 
@@ -533,10 +641,14 @@ bool GSDeviceOGL::Create()
 	// rasterization configuration
 	// ****************************************************************
 	{
-		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+		// ES has no polygon mode, and multisampling there follows the framebuffer.
+		if (!m_is_gles)
+		{
+			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+			glDisable(GL_MULTISAMPLE);
+		}
 		glDisable(GL_CULL_FACE);
 		glEnable(GL_SCISSOR_TEST);
-		glDisable(GL_MULTISAMPLE);
 
 		glDisable(GL_DITHER); // Honestly I don't know!
 	}
@@ -711,7 +823,7 @@ void GSDeviceOGL::EndPresent()
 
 void GSDeviceOGL::ResetAPIState()
 {
-	if (GLState::point_size)
+	if (GLState::point_size && !m_is_gles)
 		glDisable(GL_PROGRAM_POINT_SIZE);
 	if (GLState::line_width != 1.0f)
 		glLineWidth(1.0f);
@@ -773,7 +885,7 @@ void GSDeviceOGL::RestoreAPIState()
 	for (GLuint i = 0; i < sizeof(GLState::tex_unit) / sizeof(GLState::tex_unit[0]); i++)
 		glBindTextureUnit(i, GLState::tex_unit[i]);
 
-	if (GLState::point_size)
+	if (GLState::point_size && !m_is_gles)
 		glEnable(GL_PROGRAM_POINT_SIZE);
 	if (GLState::line_width != 1.0f)
 		glLineWidth(GLState::line_width);
@@ -1014,25 +1126,60 @@ std::string GSDeviceOGL::GenGlslHeader(const std::string_view& entry, GLenum typ
 {
 	std::string header;
 
-	// Intel's GL driver doesn't like the readonly qualifier with 3.3 GLSL.
-	if (m_features.vs_expand && GLAD_GL_VERSION_4_3)
+	if (m_is_gles)
 	{
-		header = "#version 430 core\n";
+		header = GLAD_GL_ES_VERSION_3_2 ? "#version 320 es\n" : "#version 310 es\n";
+
+		// What 3.20 has in core, 3.10 takes from extensions: the SHADER
+		// interface blocks, and gl_PrimitiveID in a fragment shader.
+		if (!GLAD_GL_ES_VERSION_3_2)
+		{
+			if (GLAD_GL_EXT_shader_io_blocks)
+				header += "#extension GL_EXT_shader_io_blocks : require\n";
+			else
+				header += "#extension GL_OES_shader_io_blocks : require\n";
+			if (type == GL_FRAGMENT_SHADER && m_features.primitive_id)
+				header += GLAD_GL_EXT_geometry_shader ? "#extension GL_EXT_geometry_shader : require\n" :
+				                                        "#extension GL_OES_geometry_shader : require\n";
+		}
+		if (m_features.dual_source_blend && type == GL_FRAGMENT_SHADER)
+			header += "#extension GL_EXT_blend_func_extended : require\n";
+		if (m_features.framebuffer_fetch && type == GL_FRAGMENT_SHADER)
+			header += "#extension GL_EXT_shader_framebuffer_fetch : require\n";
+
+		// ES has no default float precision in a fragment shader, and PS2
+		// depth and colour need all of it everywhere.
+		header += "precision highp float;\n";
+		header += "precision highp int;\n";
+		header += "precision highp sampler2D;\n";
 	}
 	else
 	{
-		header = "#version 330 core\n";
-		header += "#extension GL_ARB_shading_language_420pack : require\n";
-		if (GLAD_GL_ARB_gpu_shader5)
-			header += "#extension GL_ARB_gpu_shader5 : require\n";
-		if (m_features.vs_expand)
-			header += "#extension GL_ARB_shader_storage_buffer_object: require\n";
+		// Intel's GL driver doesn't like the readonly qualifier with 3.3 GLSL.
+		if (m_features.vs_expand && GLAD_GL_VERSION_4_3)
+		{
+			header = "#version 430 core\n";
+		}
+		else
+		{
+			header = "#version 330 core\n";
+			header += "#extension GL_ARB_shading_language_420pack : require\n";
+			if (GLAD_GL_ARB_gpu_shader5)
+				header += "#extension GL_ARB_gpu_shader5 : require\n";
+			if (m_features.vs_expand)
+				header += "#extension GL_ARB_shader_storage_buffer_object: require\n";
+		}
+
+		if (GLAD_GL_ARB_shader_draw_parameters)
+			header += "#extension GL_ARB_shader_draw_parameters : require\n";
+		if (m_features.framebuffer_fetch && GLAD_GL_EXT_shader_framebuffer_fetch)
+			header += "#extension GL_EXT_shader_framebuffer_fetch : require\n";
 	}
 
-	if (GLAD_GL_ARB_shader_draw_parameters)
-		header += "#extension GL_ARB_shader_draw_parameters : require\n";
-	if (m_features.framebuffer_fetch && GLAD_GL_EXT_shader_framebuffer_fetch)
-		header += "#extension GL_EXT_shader_framebuffer_fetch : require\n";
+	if (m_features.dual_source_blend)
+		header += "#define HAS_DUAL_SOURCE 1\n";
+	else
+		header += "#define HAS_DUAL_SOURCE 0\n";
 
 	if (m_features.framebuffer_fetch)
 		header += "#define HAS_FRAMEBUFFER_FETCH 1\n";
@@ -1905,6 +2052,28 @@ static constexpr std::array<GLenum, 3> s_gl_blend_ops = { {
 } };
 // clang-format on
 
+// The renderer keeps SRC1 factors off a device without dual source blending
+// (EmulateBlending); one that slips through would be GL_INVALID_ENUM and a
+// blend silently left as it was. It is logged once and takes the SRC
+// factor, which at least lands in the right range.
+GLenum GSDeviceOGL::GLBlendFactor(u8 factor) const
+{
+	if (!m_features.dual_source_blend && GSDevice::IsDualSourceBlendFactor(factor))
+	{
+		static bool s_logged = false;
+		if (!s_logged)
+		{
+			s_logged = true;
+			log_cb(RETRO_LOG_ERROR, "A dual source blend factor reached a device without dual source blending.\n");
+		}
+		factor = (factor == GSDevice::SRC1_COLOR)     ? GSDevice::SRC_COLOR :
+		         (factor == GSDevice::INV_SRC1_COLOR) ? GSDevice::INV_SRC_COLOR :
+		         (factor == GSDevice::SRC1_ALPHA)     ? GSDevice::SRC_ALPHA :
+		                                                 GSDevice::INV_SRC_ALPHA;
+	}
+	return s_gl_blend_factors[factor];
+}
+
 void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
 {
 	if (!GLState::scissor.eq(config.scissor))
@@ -2073,10 +2242,14 @@ void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
 	const bool point_size_enabled = config.vs.point_size;
 	if (GLState::point_size != point_size_enabled)
 	{
-		if (point_size_enabled)
-			glEnable(GL_PROGRAM_POINT_SIZE);
-		else
-			glDisable(GL_PROGRAM_POINT_SIZE);
+		// ES always takes the size from the vertex shader.
+		if (!m_is_gles)
+		{
+			if (point_size_enabled)
+				glEnable(GL_PROGRAM_POINT_SIZE);
+			else
+				glDisable(GL_PROGRAM_POINT_SIZE);
+		}
 		GLState::point_size = point_size_enabled;
 	}
 	if (config.topology == GSHWDrawConfig::Topology::Line)
@@ -2113,11 +2286,11 @@ void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
 	if (config.blend.IsEffective(config.colormask))
 	{
 		OMSetBlendState(config.blend.enable,
-				s_gl_blend_factors[config.blend.src_factor],
-				s_gl_blend_factors[config.blend.dst_factor],
+				GLBlendFactor(config.blend.src_factor),
+				GLBlendFactor(config.blend.dst_factor),
 				s_gl_blend_ops[config.blend.op],
-				s_gl_blend_factors[config.blend.src_factor_alpha],
-				s_gl_blend_factors[config.blend.dst_factor_alpha],
+				GLBlendFactor(config.blend.src_factor_alpha),
+				GLBlendFactor(config.blend.dst_factor_alpha),
 				config.blend.constant_enable,
 				config.blend.constant);
 
@@ -2153,9 +2326,9 @@ void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
 	{
 		if (config.blend.IsEffective(config.colormask))
 		{
-			OMSetBlendState(config.blend_multi_pass.blend.enable, s_gl_blend_factors[config.blend_multi_pass.blend.src_factor],
-				s_gl_blend_factors[config.blend_multi_pass.blend.dst_factor], s_gl_blend_ops[config.blend_multi_pass.blend.op],
-				s_gl_blend_factors[config.blend_multi_pass.blend.src_factor_alpha], s_gl_blend_factors[config.blend_multi_pass.blend.dst_factor_alpha],
+			OMSetBlendState(config.blend_multi_pass.blend.enable, GLBlendFactor(config.blend_multi_pass.blend.src_factor),
+				GLBlendFactor(config.blend_multi_pass.blend.dst_factor), s_gl_blend_ops[config.blend_multi_pass.blend.op],
+				GLBlendFactor(config.blend_multi_pass.blend.src_factor_alpha), GLBlendFactor(config.blend_multi_pass.blend.dst_factor_alpha),
 				config.blend_multi_pass.blend.constant_enable, config.blend_multi_pass.blend.constant);
 		}
 		else
@@ -2183,9 +2356,9 @@ void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
 		OMSetColorMaskState(config.alpha_second_pass.colormask);
 		if (config.blend.IsEffective(config.alpha_second_pass.colormask))
 		{
-			OMSetBlendState(config.blend.enable, s_gl_blend_factors[config.blend.src_factor],
-				s_gl_blend_factors[config.blend.dst_factor], s_gl_blend_ops[config.blend.op],
-				s_gl_blend_factors[config.blend.src_factor_alpha], s_gl_blend_factors[config.blend.dst_factor_alpha],
+			OMSetBlendState(config.blend.enable, GLBlendFactor(config.blend.src_factor),
+				GLBlendFactor(config.blend.dst_factor), s_gl_blend_ops[config.blend.op],
+				GLBlendFactor(config.blend.src_factor_alpha), GLBlendFactor(config.blend.dst_factor_alpha),
 				config.blend.constant_enable, config.blend.constant);
 		}
 		else

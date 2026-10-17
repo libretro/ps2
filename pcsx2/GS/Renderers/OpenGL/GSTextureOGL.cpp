@@ -92,10 +92,21 @@ GSTextureOGL::GSTextureOGL(Type type, int width, int height, int levels, Format 
 
 		// 4 channel float
 		case Format::ColorClip:
-			gl_fmt = GL_RGBA16;
-			m_int_format = GL_RGBA;
-			m_int_type = GL_UNSIGNED_SHORT;
-			m_int_shift = 3;
+			if (GSDeviceOGL::GetInstance()->IsColClipFloat())
+			{
+				// 24 bits of mantissa hold every 16-bit integer, and its sums, exactly.
+				gl_fmt = GL_RGBA32F;
+				m_int_format = GL_RGBA;
+				m_int_type = GL_FLOAT;
+				m_int_shift = 4;
+			}
+			else
+			{
+				gl_fmt = GL_RGBA16;
+				m_int_format = GL_RGBA;
+				m_int_type = GL_UNSIGNED_SHORT;
+				m_int_shift = 3;
+			}
 			break;
 
 		// Depth buffer

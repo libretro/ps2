@@ -4911,7 +4911,8 @@ void GSRendererHW::EmulateBlending(int rt_alpha_min, int rt_alpha_max, const boo
 	// HW blend can be done in multiple passes when there's no overlap.
 	// Blend multi pass is only useful when texture barriers aren't supported.
 	// Speed wise Texture barriers > blend multi pass > texture copies.
-	const bool blend_multi_pass_support = !features.texture_barrier && no_prim_overlap && is_basic_blend && COLCLAMP.CLAMP;
+	// Several of the passes hand the blend unit an SRC1 factor, so not without dual source.
+	const bool blend_multi_pass_support = !features.texture_barrier && no_prim_overlap && is_basic_blend && COLCLAMP.CLAMP && features.dual_source_blend;
 	const bool bmix1_multi_pass1 = blend_multi_pass_support && blend_mix1 && (alpha_c0_high_max_one || alpha_c2_high_one) && m_conf.ps.blend_d == 2;
 	const bool bmix1_multi_pass2 = blend_multi_pass_support && (blend_flag & BLEND_MIX1) && m_conf.ps.blend_b == m_conf.ps.blend_d && !m_conf.ps.dither && alpha_high_one;
 	const bool bmix3_multi_pass = blend_multi_pass_support && blend_mix3 && !m_conf.ps.dither && alpha_high_one;
@@ -5031,6 +5032,22 @@ void GSRendererHW::EmulateBlending(int rt_alpha_min, int rt_alpha_max, const boo
 		}
 	}
 
+	// Without a second fragment output (OpenGL ES lacking GL_EXT_blend_func_extended) the
+	// blend unit cannot be handed an SRC1 factor, so an equation that needs one is blended
+	// in the shader. A device with no barrier either reads the target from a copy taken
+	// before the draw, which is exact where the primitives do not overlap.
+	if (!features.dual_source_blend && !color_dest_blend &&
+		(GSDevice::IsDualSourceBlendFactor(blend.src) || GSDevice::IsDualSourceBlendFactor(blend.dst) || blend_mix || PABE))
+	{
+		sw_blending = true;
+		blend_mix = false;
+		// PABE on top of an accumulation blend takes Cd through SRC1.
+		accumulation_blend &= !PABE;
+		// These keep the hardware blend through colour clipping.
+		color_dest_blend2 = false;
+		blend_zero_to_one_range = false;
+	}
+
 	// Color clip
 	if (COLCLAMP.CLAMP == 0)
 	{
@@ -5055,6 +5072,9 @@ void GSRendererHW::EmulateBlending(int rt_alpha_min, int rt_alpha_max, const boo
 		}
 
 		const bool free_colclip = !has_colclip_texture && (features.framebuffer_fetch || no_prim_overlap || blend_non_recursive);
+		// Without a target that holds the accumulation exactly (OpenGL ES with neither
+		// EXT_texture_norm16 nor EXT_color_buffer_float) the clip is done in the shader.
+		const bool shader_colclip = !features.colclip_hw;
 
 		if (color_dest_blend || color_dest_blend2 || blend_zero_to_one_range)
 		{
@@ -5062,7 +5082,7 @@ void GSRendererHW::EmulateBlending(int rt_alpha_min, int rt_alpha_max, const boo
 			sw_blending = false;
 			m_conf.colclip_mode = (has_colclip_texture && !NextDrawColClip()) ? GSHWDrawConfig::ColClipMode::ResolveOnly : GSHWDrawConfig::ColClipMode::NoModify;
 		}
-		else if (free_colclip)
+		else if (free_colclip || shader_colclip)
 		{
 			// The fastest algo that requires a single pass
 			m_conf.ps.colclip  = 1;
@@ -6639,7 +6659,8 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 		const bool commutative_depth = (m_conf.depth.ztst == ZTST_GEQUAL && m_vt.m_eq.z) || (m_conf.depth.ztst == ZTST_ALWAYS) || !m_conf.depth.zwe;
 		const bool commutative_alpha = (m_context->ALPHA.C != 1) || !m_conf.colormask.wa; // when either Alpha Src or a constant, or not updating A
 		ate_RGBA_then_Z = (afail_type == AFAIL_FB_ONLY) && commutative_depth;
-		ate_RGB_then_Z = (afail_type == AFAIL_RGB_ONLY) && commutative_depth && commutative_alpha;	
+		// The alpha test's verdict reaches the blend unit as SRC1_ALPHA.
+		ate_RGB_then_Z = (afail_type == AFAIL_RGB_ONLY) && commutative_depth && commutative_alpha && features.dual_source_blend;
 	}
 
 	if (ate_RGBA_then_Z)

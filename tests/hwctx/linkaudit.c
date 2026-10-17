@@ -1,8 +1,9 @@
 /*  GL link audit for the unix Makefile build.
  *
  *  The core never calls into a GL library itself: GLContext.cpp hands
- *  glad the frontend's get_proc_address through gladLoadGLLoader(), and
- *  every gl* call goes through the pointers that fills in. Linking
+ *  glad the frontend's get_proc_address through gladLoadGLLoader(), or
+ *  gladLoadGLES2Loader() for an ES context, and every gl* call goes
+ *  through the pointers that fills in. Linking
  *  libGL or libGLESv2 on top of that adds nothing but a load-time
  *  dependency: on a toolchain that does not default to --as-needed the
  *  core then refuses to load on a system without that library, even when
