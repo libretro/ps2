@@ -336,9 +336,15 @@ bool GSDeviceOGL::CheckFeatures(bool& buggy_pbo)
 	if (!m_features.texture_barrier)
 		log_cb(RETRO_LOG_WARN, "GL_ARB_texture_barrier is not supported, blending will not be accurate.\n");
 
-	// ES renders to 16-bit normalised colour only through EXT_texture_norm16.
-	// Half float holds the colour clip range instead; see COLCLIP_DECODE_BIAS.
-	m_colclip_half_float = m_is_gles && !GLAD_GL_EXT_texture_norm16;
+	// The colour clip accumulation needs a render target that holds a 16-bit
+	// integer per channel, and its blended sums, exactly. ES renders to UNORM16
+	// only through EXT_texture_norm16; failing that, 32-bit float does the same
+	// through EXT_color_buffer_float (half float does not: 11 bits of mantissa
+	// lose the low bits past 2047). With neither the clip is done in the shader.
+	m_colclip_float       = m_is_gles && !GLAD_GL_EXT_texture_norm16 && GLAD_GL_EXT_color_buffer_float;
+	m_features.colclip_hw = !m_is_gles || GLAD_GL_EXT_texture_norm16 || GLAD_GL_EXT_color_buffer_float;
+	if (!m_features.colclip_hw)
+		log_cb(RETRO_LOG_WARN, "Neither GL_EXT_texture_norm16 nor GL_EXT_color_buffer_float is supported, colour clipping is done in the shader.\n");
 
 	m_features.provoking_vertex_last = true;
 	m_features.dxt_textures = GLAD_GL_EXT_texture_compression_s3tc;
@@ -1179,14 +1185,6 @@ std::string GSDeviceOGL::GenGlslHeader(const std::string_view& entry, GLenum typ
 		header += "#define HAS_FRAMEBUFFER_FETCH 1\n";
 	else
 		header += "#define HAS_FRAMEBUFFER_FETCH 0\n";
-
-	// A colour clip value is an integer over 65535. Stored as UNORM16 it reads
-	// back exactly and truncates to itself; half float lands within 0.4 of it
-	// either side, so it is rounded instead.
-	if (m_colclip_half_float)
-		header += "#define COLCLIP_DECODE_BIAS 0.5f\n";
-	else
-		header += "#define COLCLIP_DECODE_BIAS 0.0f\n";
 
 	if (m_features.clip_control)
 		header += "#define HAS_CLIP_CONTROL 1\n";
@@ -2054,6 +2052,28 @@ static constexpr std::array<GLenum, 3> s_gl_blend_ops = { {
 } };
 // clang-format on
 
+// The renderer keeps SRC1 factors off a device without dual source blending
+// (EmulateBlending); one that slips through would be GL_INVALID_ENUM and a
+// blend silently left as it was. It is logged once and takes the SRC
+// factor, which at least lands in the right range.
+GLenum GSDeviceOGL::GLBlendFactor(u8 factor) const
+{
+	if (!m_features.dual_source_blend && GSDevice::IsDualSourceBlendFactor(factor))
+	{
+		static bool s_logged = false;
+		if (!s_logged)
+		{
+			s_logged = true;
+			log_cb(RETRO_LOG_ERROR, "A dual source blend factor reached a device without dual source blending.\n");
+		}
+		factor = (factor == GSDevice::SRC1_COLOR)     ? GSDevice::SRC_COLOR :
+		         (factor == GSDevice::INV_SRC1_COLOR) ? GSDevice::INV_SRC_COLOR :
+		         (factor == GSDevice::SRC1_ALPHA)     ? GSDevice::SRC_ALPHA :
+		                                                 GSDevice::INV_SRC_ALPHA;
+	}
+	return s_gl_blend_factors[factor];
+}
+
 void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
 {
 	if (!GLState::scissor.eq(config.scissor))
@@ -2266,11 +2286,11 @@ void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
 	if (config.blend.IsEffective(config.colormask))
 	{
 		OMSetBlendState(config.blend.enable,
-				s_gl_blend_factors[config.blend.src_factor],
-				s_gl_blend_factors[config.blend.dst_factor],
+				GLBlendFactor(config.blend.src_factor),
+				GLBlendFactor(config.blend.dst_factor),
 				s_gl_blend_ops[config.blend.op],
-				s_gl_blend_factors[config.blend.src_factor_alpha],
-				s_gl_blend_factors[config.blend.dst_factor_alpha],
+				GLBlendFactor(config.blend.src_factor_alpha),
+				GLBlendFactor(config.blend.dst_factor_alpha),
 				config.blend.constant_enable,
 				config.blend.constant);
 
@@ -2306,9 +2326,9 @@ void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
 	{
 		if (config.blend.IsEffective(config.colormask))
 		{
-			OMSetBlendState(config.blend_multi_pass.blend.enable, s_gl_blend_factors[config.blend_multi_pass.blend.src_factor],
-				s_gl_blend_factors[config.blend_multi_pass.blend.dst_factor], s_gl_blend_ops[config.blend_multi_pass.blend.op],
-				s_gl_blend_factors[config.blend_multi_pass.blend.src_factor_alpha], s_gl_blend_factors[config.blend_multi_pass.blend.dst_factor_alpha],
+			OMSetBlendState(config.blend_multi_pass.blend.enable, GLBlendFactor(config.blend_multi_pass.blend.src_factor),
+				GLBlendFactor(config.blend_multi_pass.blend.dst_factor), s_gl_blend_ops[config.blend_multi_pass.blend.op],
+				GLBlendFactor(config.blend_multi_pass.blend.src_factor_alpha), GLBlendFactor(config.blend_multi_pass.blend.dst_factor_alpha),
 				config.blend_multi_pass.blend.constant_enable, config.blend_multi_pass.blend.constant);
 		}
 		else
@@ -2336,9 +2356,9 @@ void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
 		OMSetColorMaskState(config.alpha_second_pass.colormask);
 		if (config.blend.IsEffective(config.alpha_second_pass.colormask))
 		{
-			OMSetBlendState(config.blend.enable, s_gl_blend_factors[config.blend.src_factor],
-				s_gl_blend_factors[config.blend.dst_factor], s_gl_blend_ops[config.blend.op],
-				s_gl_blend_factors[config.blend.src_factor_alpha], s_gl_blend_factors[config.blend.dst_factor_alpha],
+			OMSetBlendState(config.blend.enable, GLBlendFactor(config.blend.src_factor),
+				GLBlendFactor(config.blend.dst_factor), s_gl_blend_ops[config.blend.op],
+				GLBlendFactor(config.blend.src_factor_alpha), GLBlendFactor(config.blend.dst_factor_alpha),
 				config.blend.constant_enable, config.blend.constant);
 		}
 		else

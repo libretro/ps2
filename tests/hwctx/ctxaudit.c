@@ -4,11 +4,15 @@
  *  version a core asks for reaches eglCreateContext as asked, and a driver
  *  returns the newest version compatible with it, so asking for 3.2 gets
  *  a 3.1 driver no context at all while asking for 3.1 gets a 3.2 driver
- *  3.2. ES 2 cannot run the renderer. So the core asks for ES 3.1 through
- *  RETRO_HW_CONTEXT_OPENGLES_VERSION, then RETRO_HW_CONTEXT_OPENGLES3, and
- *  never for ES 2 or 3.2; it asks for ES only after desktop GL was refused;
- *  and when no context it can draw into is accepted it asks for none and
- *  runs the software renderer.
+ *  3.2. ES 2 cannot run the renderer, and neither can ES 3.0, which is
+ *  what bare RETRO_HW_CONTEXT_OPENGLES3 means: a frontend accepts that,
+ *  the device refuses what it was given, and there is no way back to the
+ *  software renderer. So the core asks for ES 3.1 through
+ *  RETRO_HW_CONTEXT_OPENGLES_VERSION only, never for ES 2, bare ES 3 or
+ *  3.2; it asks for ES only after desktop GL was refused; it asks for a
+ *  shared GL context only once a GL context was accepted; and when no
+ *  context it can draw into is accepted it asks for none and runs the
+ *  software renderer.
  *
  *  This checks that shape in the sources: libretro_set_hw_render and
  *  libretro_select_hw_render (libretro/main.cpp) and the GS context
@@ -120,6 +124,14 @@ int main(int argc, char** argv)
 		bad += verdict("libretro_set_hw_render accepts no ES 2 type", !first_in(s, e, "RETRO_HW_CONTEXT_OPENGLES2"));
 		bad += verdict("libretro_set_hw_render asks for ES 3.1", first_in(s, e, kAsk31) != NULL);
 		bad += verdict("libretro_set_hw_render never asks for ES 3.2", !first_in(s, e, "version_minor = 2"));
+		bad += verdict("libretro_set_hw_render never falls back to bare ES 3",
+			!first_in(s, e, "context_type  = RETRO_HW_CONTEXT_OPENGLES3;"));
+		{
+			const char* accepted = first_in(s, e, "RETRO_ENVIRONMENT_SET_HW_RENDER");
+			const char* shared   = first_in(s, e, "RETRO_ENVIRONMENT_SET_HW_SHARED_CONTEXT");
+			bad += verdict("libretro_set_hw_render asks for a shared context", shared != NULL);
+			bad += verdict("libretro_set_hw_render shares only an accepted context", accepted && shared && accepted < shared);
+		}
 	}
 
 	if (!body(m, "static bool libretro_select_hw_render(", &s, &e))

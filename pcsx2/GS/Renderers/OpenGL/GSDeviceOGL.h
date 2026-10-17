@@ -166,7 +166,7 @@ private:
 	std::unique_ptr<GLContext> m_gl_context;
 
 	bool m_is_gles = false;
-	bool m_colclip_half_float = false;
+	bool m_colclip_float = false;
 	bool m_disable_download_pbo = false;
 
 	GLuint m_fbo = 0; // frame buffer container
@@ -254,7 +254,8 @@ public:
 	static void APIENTRY DebugMessageCallback(GLenum gl_source, GLenum gl_type, GLuint id, GLenum gl_severity, GLsizei gl_length, const GLchar* gl_message, const void* userParam);
 
 	__fi bool IsDownloadPBODisabled() const { return m_disable_download_pbo; }
-	__fi bool IsColClipHalfFloat() const { return m_colclip_half_float; }
+	__fi bool IsColClipFloat() const { return m_colclip_float; }
+	GLenum GLBlendFactor(u8 factor) const;
 	__fi u32 GetFBORead() const { return m_fbo_read; }
 	__fi u32 GetFBOWrite() const { return m_fbo_write; }
 	__fi GLStreamBuffer* GetTextureUploadBuffer() const { return m_texture_upload_buffer.get(); }

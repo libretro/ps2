@@ -5072,6 +5072,9 @@ void GSRendererHW::EmulateBlending(int rt_alpha_min, int rt_alpha_max, const boo
 		}
 
 		const bool free_colclip = !has_colclip_texture && (features.framebuffer_fetch || no_prim_overlap || blend_non_recursive);
+		// Without a target that holds the accumulation exactly (OpenGL ES with neither
+		// EXT_texture_norm16 nor EXT_color_buffer_float) the clip is done in the shader.
+		const bool shader_colclip = !features.colclip_hw;
 
 		if (color_dest_blend || color_dest_blend2 || blend_zero_to_one_range)
 		{
@@ -5079,7 +5082,7 @@ void GSRendererHW::EmulateBlending(int rt_alpha_min, int rt_alpha_max, const boo
 			sw_blending = false;
 			m_conf.colclip_mode = (has_colclip_texture && !NextDrawColClip()) ? GSHWDrawConfig::ColClipMode::ResolveOnly : GSHWDrawConfig::ColClipMode::NoModify;
 		}
-		else if (free_colclip)
+		else if (free_colclip || shader_colclip)
 		{
 			// The fastest algo that requires a single pass
 			m_conf.ps.colclip  = 1;
@@ -6657,8 +6660,7 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 		const bool commutative_alpha = (m_context->ALPHA.C != 1) || !m_conf.colormask.wa; // when either Alpha Src or a constant, or not updating A
 		ate_RGBA_then_Z = (afail_type == AFAIL_FB_ONLY) && commutative_depth;
 		// The alpha test's verdict reaches the blend unit as SRC1_ALPHA.
-		ate_RGB_then_Z = (afail_type == AFAIL_RGB_ONLY) && commutative_depth && commutative_alpha &&
-			g_gs_device->Features().dual_source_blend;
+		ate_RGB_then_Z = (afail_type == AFAIL_RGB_ONLY) && commutative_depth && commutative_alpha && features.dual_source_blend;
 	}
 
 	if (ate_RGBA_then_Z)

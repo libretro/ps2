@@ -2021,13 +2021,6 @@ static bool libretro_set_hw_render(retro_hw_context_type type)
 	hw_render.depth              = true;
 	hw_render.cache_context      = false;
 
-	/* A GL context of the core's own, sharing objects with the frontend's:
-	 * the GL renderer caches what it binds, and the frontend draws between
-	 * its frames, so neither can work in a context the other one uses. */
-	if (type == RETRO_HW_CONTEXT_OPENGL || type == RETRO_HW_CONTEXT_OPENGL_CORE ||
-	    type == RETRO_HW_CONTEXT_OPENGLES3 || type == RETRO_HW_CONTEXT_OPENGLES_VERSION)
-		environ_cb(RETRO_ENVIRONMENT_SET_HW_SHARED_CONTEXT, NULL);
-
 	switch (type)
 	{
 #ifdef _WIN32
@@ -2061,18 +2054,16 @@ static bool libretro_set_hw_render(retro_hw_context_type type)
 		 * comes up. The version reaches eglCreateContext as asked, and a
 		 * driver hands back the newest version compatible with it, so 3.1
 		 * is asked for and not 3.2: 3.2 from a 3.1 driver is no context at
-		 * all. RETRO_HW_CONTEXT_OPENGLES3 is 3.0 by definition and stays the
-		 * last try, for a frontend that knows no versioned ES request. */
+		 * all. Bare RETRO_HW_CONTEXT_OPENGLES3 is never asked for: it is
+		 * 3.0 by definition, a frontend accepts it, and the device then
+		 * refuses what it was given with no way back to the software
+		 * renderer. A frontend that refuses the versioned request gets
+		 * none instead. */
 		case RETRO_HW_CONTEXT_OPENGLES3:
 		case RETRO_HW_CONTEXT_OPENGLES_VERSION:
 			hw_render.context_type  = RETRO_HW_CONTEXT_OPENGLES_VERSION;
 			hw_render.version_major = 3;
 			hw_render.version_minor = 1;
-			if (environ_cb(RETRO_ENVIRONMENT_SET_HW_RENDER, &hw_render))
-				return true;
-			hw_render.context_type  = RETRO_HW_CONTEXT_OPENGLES3;
-			hw_render.version_major = 3;
-			hw_render.version_minor = 0;
 			break;
 
 		case RETRO_HW_CONTEXT_NONE:
@@ -2081,7 +2072,19 @@ static bool libretro_set_hw_render(retro_hw_context_type type)
 			return false;
 	}
 
-	return environ_cb(RETRO_ENVIRONMENT_SET_HW_RENDER, &hw_render);
+	if (!environ_cb(RETRO_ENVIRONMENT_SET_HW_RENDER, &hw_render))
+		return false;
+
+	/* A GL context of the core's own, sharing objects with the frontend's:
+	 * the GL renderer caches what it binds, and the frontend draws between
+	 * its frames, so neither can work in a context the other one uses.
+	 * Asked for only once the GL context was accepted, so a refused GL
+	 * attempt leaves nothing behind for the context tried next. */
+	if (     hw_render.context_type == RETRO_HW_CONTEXT_OPENGL
+	      || hw_render.context_type == RETRO_HW_CONTEXT_OPENGL_CORE
+	      || hw_render.context_type == RETRO_HW_CONTEXT_OPENGLES_VERSION)
+		environ_cb(RETRO_ENVIRONMENT_SET_HW_SHARED_CONTEXT, NULL);
+	return true;
 }
 
 static bool libretro_select_hw_render(void)
