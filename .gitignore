@@ -226,3 +226,6 @@ tests/ata/*.img
 /tests/gsjit/gsjit.exe
 /tests/latency/latency
 /tests/latency/latency.exe
+/tests/cam/cam_test
+/tests/cam/cam_test_tsan
+/tests/usbstate/usbstate

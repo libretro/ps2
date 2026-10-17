@@ -70,33 +70,36 @@ namespace usb_eyetoy
 		class V4L2VideoDevice final : public VideoDevice
 		{
 		public:
-			V4L2VideoDevice() { m_lock = slock_new(); }
+			V4L2VideoDevice() {}
 
 			~V4L2VideoDevice() override
 			{
 				Close();
-				slock_free(m_lock);
-				free(m_frame);
+				m_frames.Free();
 				free(m_rgb);
+				free(m_pattern);
 			}
 
 			int Open(int width, int height, FrameFormat format, int mirror) override
 			{
 				Close();
-				if (!m_frame)
-					m_frame = static_cast<u8*>(malloc(MAX_FRAME_SIZE));
+				if (!m_frames.buf[0].data && !m_frames.Init())
+					return -1;
 				if (!m_rgb)
-					m_rgb = static_cast<u8*>(malloc(MAX_FRAME_SIZE));
-				if (!m_lock || !m_frame || !m_rgb)
+					m_rgb = static_cast<u8*>(malloc(MAX_FRAME_SIZE + sizeof(FrameEncoder)));
+				if (!m_pattern)
+					m_pattern = static_cast<u8*>(malloc(MAX_FRAME_SIZE));
+				if (!m_rgb || !m_pattern)
 					return -1;
 
 				m_width = width;
 				m_height = height;
 				m_format = format;
 				retro_atomic_store_release_int(&m_mirror, mirror);
-				slock_lock(m_lock);
-				m_frame_size = EncodeTestPattern(m_frame, width, height, format);
-				slock_unlock(m_lock);
+				// No capture thread runs here, so the mailbox is the device's to clear.
+				m_frames.Reset();
+				// Until the camera delivers, the game gets one picture so it sees the device working.
+				m_pattern_size = EncodeTestPattern(m_pattern, width, height, format);
 
 				if (!StartCapture())
 				{
@@ -128,11 +131,20 @@ namespace usb_eyetoy
 
 			int GetImage(uint8_t* buf, size_t len) override
 			{
-				slock_lock(m_lock);
-				const u32 size = m_frame_size < len ? m_frame_size : static_cast<u32>(len);
-				memcpy(buf, m_frame, size);
-				m_frame_size = 0;
-				slock_unlock(m_lock);
+				const FrameMailbox::Buffer* frame = m_frames.Take();
+				u32 size = 0;
+				if (frame)
+				{
+					size = frame->size < len ? frame->size : static_cast<u32>(len);
+					memcpy(buf, frame->data, size);
+					m_pattern_size = 0;
+				}
+				else if (m_pattern_size)
+				{
+					size = m_pattern_size < len ? m_pattern_size : static_cast<u32>(len);
+					memcpy(buf, m_pattern, size);
+					m_pattern_size = 0;
+				}
 				return static_cast<int>(size);
 			}
 
@@ -203,8 +215,8 @@ namespace usb_eyetoy
 			static void CaptureThread(void* arg)
 			{
 				V4L2VideoDevice* self = static_cast<V4L2VideoDevice*>(arg);
-				u8* const encoded = static_cast<u8*>(malloc(MAX_FRAME_SIZE));
-				while (encoded && retro_atomic_load_acquire_int(&self->m_running))
+				FrameEncoder* const enc = reinterpret_cast<FrameEncoder*>(self->m_rgb + MAX_FRAME_SIZE);
+				while (retro_atomic_load_acquire_int(&self->m_running))
 				{
 					fd_set fds;
 					FD_ZERO(&fds);
@@ -231,15 +243,11 @@ namespace usb_eyetoy
 						YuyvToRgb(static_cast<const u8*>(self->m_buffers[buf.index].start), self->m_capture_width,
 							self->m_capture_height, self->m_rgb, self->m_width, self->m_height,
 							retro_atomic_load_acquire_int(&self->m_mirror));
-						const u32 size = EncodeFrame(encoded, self->m_rgb, self->m_width, self->m_height, self->m_format);
-						slock_lock(self->m_lock);
-						memcpy(self->m_frame, encoded, size);
-						self->m_frame_size = size;
-						slock_unlock(self->m_lock);
+						const u32 size = EncodeFrame(enc, self->m_frames.Work(), self->m_rgb, self->m_width, self->m_height, self->m_format);
+						self->m_frames.Publish(size, 0);
 					}
 					xioctl(self->m_fd, VIDIOC_QBUF, &buf);
 				}
-				free(encoded);
 			}
 
 			struct Buffer
@@ -248,7 +256,6 @@ namespace usb_eyetoy
 				size_t length;
 			};
 
-			slock_t* m_lock = nullptr;
 			sthread_t* m_thread = nullptr;
 			retro_atomic_int_t m_running = 0;
 			retro_atomic_int_t m_mirror = 0;
@@ -257,9 +264,11 @@ namespace usb_eyetoy
 			int m_width = 0, m_height = 0;
 			int m_capture_width = 0, m_capture_height = 0;
 			FrameFormat m_format = format_mpeg;
+			// The RGB conversion of a capture, with the encoder's scratch behind it.
 			u8* m_rgb = nullptr;
-			u8* m_frame = nullptr;
-			u32 m_frame_size = 0;
+			u8* m_pattern = nullptr;
+			u32 m_pattern_size = 0;
+			FrameMailbox m_frames = {};
 		};
 
 		// libasound is loaded when a microphone is wanted, so the core does not need it to run.
@@ -309,13 +318,24 @@ namespace usb_eyetoy
 			return loaded ? &alsa : nullptr;
 		}
 
+		// realpath allocates, so no PATH_MAX buffer sits on the stack.
+		std::string RealPath(const std::string& path)
+		{
+			char* real = realpath(path.c_str(), nullptr);
+			if (!real)
+				return {};
+			std::string s(real);
+			free(real);
+			return s;
+		}
+
 		std::string UsbDeviceOf(const std::string& sysfs_link)
 		{
-			char real[PATH_MAX];
-			if (!realpath(sysfs_link.c_str(), real))
+			std::string real = RealPath(sysfs_link);
+			if (real.empty())
 				return {};
 			// The link names a USB interface; its parent is the device.
-			return dirname(real);
+			return dirname(&real[0]);
 		}
 
 		bool Exists(const std::string& path)
@@ -351,8 +371,8 @@ namespace usb_eyetoy
 					continue;
 
 				const std::string link = sys + "/class/sound/card" + std::to_string(card) + "/device";
-				char real[PATH_MAX];
-				if (!realpath(link.c_str(), real))
+				const std::string real = RealPath(link);
+				if (real.empty())
 					continue;
 				const std::string name = "plughw:" + std::to_string(card) + "," + std::to_string(pcm);
 				const std::string usb = UsbDeviceOf(link);
@@ -361,7 +381,7 @@ namespace usb_eyetoy
 					if (camera == usb)
 						return name;
 				}
-				if (usb_microphone.empty() && strstr(real, "/usb"))
+				if (usb_microphone.empty() && real.find("/usb") != std::string::npos)
 					usb_microphone = name;
 			}
 			return usb_microphone;

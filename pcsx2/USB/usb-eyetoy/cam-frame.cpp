@@ -72,12 +72,12 @@ namespace usb_eyetoy
 		return pos;
 	}
 
-	u32 EncodeFrame(u8* out, const u8* rgb, int width, int height, FrameFormat format)
+	u32 EncodeFrame(FrameEncoder* enc, u8* out, const u8* rgb, int width, int height, FrameFormat format)
 	{
 		switch (format)
 		{
 			case format_mpeg:
-				return static_cast<u32>(jo_write_mpeg(out, rgb, width, height, JO_RGB24, JO_NONE, JO_NONE));
+				return static_cast<u32>(jo_write_mpeg(out, rgb, width, height, JO_RGB24, JO_NONE, JO_NONE, enc->mpeg_work));
 			case format_jpeg:
 				return CompressCamJPEG(out, MAX_FRAME_SIZE, rgb, width, height, 80);
 			case format_yuv400:
@@ -96,9 +96,11 @@ namespace usb_eyetoy
 			return 80 * 64;
 		}
 
-		u8* rgb = static_cast<u8*>(malloc(static_cast<size_t>(width) * height * 3));
+		// The pattern is drawn once per Open, so its scratch is borrowed for the call.
+		u8* rgb = static_cast<u8*>(malloc(static_cast<size_t>(width) * height * 3 + sizeof(FrameEncoder)));
 		if (!rgb)
 			return 0;
+		FrameEncoder* enc = reinterpret_cast<FrameEncoder*>(rgb + static_cast<size_t>(width) * height * 3);
 		for (int y = 0; y < height; y++)
 		{
 			for (int x = 0; x < width; x++)
@@ -109,8 +111,105 @@ namespace usb_eyetoy
 				p[2] = static_cast<u8>(255 * y / height);
 			}
 		}
-		const u32 size = EncodeFrame(out, rgb, width, height, format);
+		const u32 size = EncodeFrame(enc, out, rgb, width, height, format);
 		free(rgb);
 		return size;
+	}
+
+	bool FrameMailbox::Init()
+	{
+		u8* mem = static_cast<u8*>(malloc(static_cast<size_t>(MAX_FRAME_SIZE) * 3));
+		if (!mem)
+			return false;
+		for (int i = 0; i < 3; i++)
+		{
+			buf[i].data = mem + static_cast<size_t>(MAX_FRAME_SIZE) * i;
+			buf[i].size = 0;
+			buf[i].generation = 0;
+		}
+		retro_atomic_int_init(&slot, 0);
+		work = 1;
+		hold = 2;
+		return true;
+	}
+
+	void FrameMailbox::Free()
+	{
+		free(buf[0].data);
+		buf[0].data = buf[1].data = buf[2].data = nullptr;
+	}
+
+	void FrameMailbox::Reset()
+	{
+		for (int i = 0; i < 3; i++)
+			buf[i].size = 0;
+		retro_atomic_store_release_int(&slot, retro_atomic_load_acquire_int(&slot) & ~FRESH);
+	}
+
+	void FrameMailbox::Publish(u32 size, u32 generation)
+	{
+		buf[work].size = size;
+		buf[work].generation = generation;
+		// acq_rel: the frame's bytes are visible to whoever takes the slot.
+		work = retro_atomic_exchange_int(&slot, work | FRESH) & ~FRESH;
+	}
+
+	const FrameMailbox::Buffer* FrameMailbox::Take()
+	{
+		const int got = retro_atomic_exchange_int(&slot, hold);
+		hold = got & ~FRESH;
+		return (got & FRESH) ? &buf[hold] : nullptr;
+	}
+
+	void SampleRing::Reset()
+	{
+		retro_atomic_int_init(&head, 0);
+		retro_atomic_int_init(&tail, 0);
+	}
+
+	u32 SampleRing::Space()
+	{
+		const u32 h = static_cast<u32>(retro_atomic_load_acquire_int(&head));
+		const u32 t = static_cast<u32>(retro_atomic_load_relaxed_int(&tail));
+		return MASK - ((t - h) & MASK);
+	}
+
+	bool SampleRing::Push(s16 sample)
+	{
+		const u32 t = static_cast<u32>(retro_atomic_load_relaxed_int(&tail));
+		if (((t + 1) & MASK) == (static_cast<u32>(retro_atomic_load_acquire_int(&head)) & MASK))
+			return false;
+		data[t & MASK] = sample;
+		retro_atomic_store_release_int(&tail, static_cast<int>((t + 1) & MASK));
+		return true;
+	}
+
+	u32 SampleRing::Count()
+	{
+		const u32 h = static_cast<u32>(retro_atomic_load_relaxed_int(&head));
+		const u32 t = static_cast<u32>(retro_atomic_load_acquire_int(&tail));
+		return (t - h) & MASK;
+	}
+
+	void SampleRing::TrimTo(u32 keep)
+	{
+		const u32 n = Count();
+		if (n > keep)
+		{
+			const u32 h = static_cast<u32>(retro_atomic_load_relaxed_int(&head));
+			retro_atomic_store_release_int(&head, static_cast<int>((h + n - keep) & MASK));
+		}
+	}
+
+	u32 SampleRing::Pop(s16* samples, u32 max)
+	{
+		// One read of the count: the producer may add between two.
+		const u32 count = Count();
+		const u32 n = count < max ? count : max;
+		const u32 h = static_cast<u32>(retro_atomic_load_relaxed_int(&head));
+		for (u32 i = 0; i < n; i++)
+			samples[i] = data[(h + i) & MASK];
+		retro_atomic_store_release_int(&head, static_cast<int>((h + n) & MASK));
+		return n;
 	}
 } // namespace usb_eyetoy

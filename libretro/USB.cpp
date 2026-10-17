@@ -343,14 +343,21 @@ static void USBFreezeDevice(USBDevice* dev, UsbState& st)
 	st.Do(&dev->setup_index);
 	st.Do(&dev->configuration);
 	if (st.reading && !st.error)
-		usb_desc_set_config(dev, dev->configuration);
+	{
+		/* A configuration the descriptors do not have is a bad slot, not
+		 * a device left on whatever it had before. */
+		const int configuration = dev->configuration;
+		usb_desc_set_config(dev, configuration);
+		if (configuration != 0 && (!dev->config || dev->config->bConfigurationValue != configuration))
+			st.error = true;
+	}
 	memcpy(altsetting, dev->altsetting, sizeof(altsetting));
 	st.Bytes(altsetting, sizeof(altsetting));
 	if (st.reading && !st.error)
-		for (i = 0; i < USB_MAX_INTERFACES; i++)
+		for (i = 0; i < (u32)dev->ninterfaces && i < USB_MAX_INTERFACES; i++)
 		{
-			dev->altsetting[i] = altsetting[i];
-			usb_desc_set_interface(dev, i, altsetting[i]);
+			if (usb_desc_set_interface(dev, i, altsetting[i]) < 0)
+				st.error = true;
 		}
 	USBFreezeEndpoint(&dev->ep_ctl, st);
 	for (i = 0; i < USB_MAX_ENDPOINTS; i++)
@@ -457,13 +464,30 @@ void USBStateRead(const void* state, size_t size)
 		slot.Do(&kind);
 		if (kind != USBPortKind(port))
 		{
+			/* Plugged in afresh: the port cycles and the device model goes
+			 * back to its defaults, as a guest's port reset would do later. */
 			if (s_usb_device[port])
-				usb_reattach(&GetOHCIPort(port).port);
+				usb_port_reset(&GetOHCIPort(port).port);
 			continue;
 		}
 		if (kind != USB_KIND_NONE)
+		{
 			USBFreezePort(port, kind, slot);
+			/* A slot that ran short, or named a configuration or interface
+			 * the device does not have, leaves the device half loaded:
+			 * plugged in afresh instead. */
+			if (slot.error)
+			{
+				log_cb(RETRO_LOG_WARN, "USB: port %u state not loaded; device plugged in afresh\n", port);
+				usb_port_reset(&GetOHCIPort(port).port);
+			}
+		}
 	}
+}
+
+USBDevice* USBGetPortDevice(unsigned port)
+{
+	return port < USB::NUM_PORTS ? s_usb_device[port] : nullptr;
 }
 
 u8 USBread8(u32 addr) { return 0; }

@@ -79,6 +79,20 @@ namespace
 		}
 	}
 
+	// The four standard tables, built once: 3 KB that has no place on the stack.
+	struct HuffTables
+	{
+		HuffTable dc_luma, ac_luma, dc_chroma, ac_chroma;
+		HuffTables()
+		{
+			BuildHuffTable(&dc_luma, s_dc_luma_bits, s_dc_vals);
+			BuildHuffTable(&ac_luma, s_ac_luma_bits, s_ac_luma_vals);
+			BuildHuffTable(&dc_chroma, s_dc_chroma_bits, s_dc_vals);
+			BuildHuffTable(&ac_chroma, s_ac_chroma_bits, s_ac_chroma_vals);
+		}
+	};
+	const HuffTables s_huff;
+
 	struct Writer
 	{
 		u8* out;
@@ -244,12 +258,6 @@ u32 CompressCamJPEG(u8* out, u32 out_size, const u8* rgb, int width, int height,
 		chroma_fd[i] = 1.0f / (chroma_q[i] * a);
 	}
 
-	HuffTable dc_luma, ac_luma, dc_chroma, ac_chroma;
-	BuildHuffTable(&dc_luma, s_dc_luma_bits, s_dc_vals);
-	BuildHuffTable(&ac_luma, s_ac_luma_bits, s_ac_luma_vals);
-	BuildHuffTable(&dc_chroma, s_dc_chroma_bits, s_dc_vals);
-	BuildHuffTable(&ac_chroma, s_ac_chroma_bits, s_ac_chroma_vals);
-
 	Writer w = {out, out_size, 0, 0, 0, false};
 	static const u8 jfif[] = {'J', 'F', 'I', 'F', 0, 1, 1, 0, 0, 1, 0, 1, 0, 0};
 	w.Word(0xFFD8);
@@ -311,10 +319,10 @@ u32 CompressCamJPEG(u8* out, u32 out_size, const u8* rgb, int width, int height,
 					}
 				}
 			}
-			dc_y = EncodeBlock(&w, y[0], luma_fd, dc_y, dc_luma, ac_luma);
-			dc_y = EncodeBlock(&w, y[1], luma_fd, dc_y, dc_luma, ac_luma);
-			dc_cb = EncodeBlock(&w, cb, chroma_fd, dc_cb, dc_chroma, ac_chroma);
-			dc_cr = EncodeBlock(&w, cr, chroma_fd, dc_cr, dc_chroma, ac_chroma);
+			dc_y = EncodeBlock(&w, y[0], luma_fd, dc_y, s_huff.dc_luma, s_huff.ac_luma);
+			dc_y = EncodeBlock(&w, y[1], luma_fd, dc_y, s_huff.dc_luma, s_huff.ac_luma);
+			dc_cb = EncodeBlock(&w, cb, chroma_fd, dc_cb, s_huff.dc_chroma, s_huff.ac_chroma);
+			dc_cr = EncodeBlock(&w, cr, chroma_fd, dc_cr, s_huff.dc_chroma, s_huff.ac_chroma);
 		}
 	}
 	w.Flush();

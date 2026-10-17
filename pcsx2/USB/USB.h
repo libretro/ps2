@@ -90,6 +90,10 @@ enum UsbCamera
 
 void USBSetCamera(int camera);
 
+/* The device on a port, or NULL; for the harnesses under tests/. */
+struct USBDevice;
+USBDevice* USBGetPortDevice(unsigned port);
+
 /* The USB block of a savestate: fixed size, found at the end of the
  * bytes given, so it can sit at the tail of a state with its own footer. */
 size_t USBStateSize(void);

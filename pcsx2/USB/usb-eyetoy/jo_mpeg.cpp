@@ -196,7 +196,7 @@ void write_ipu_header(jo_bits_t* bits, int width, int height) {
 	jo_writeBits(bits, 0x00, 8);
 }
 
-unsigned long jo_write_mpeg(unsigned char *mpeg_buf, const unsigned char *raw, int width, int height, int format, int flipx, int flipy) {
+unsigned long jo_write_mpeg(unsigned char *mpeg_buf, const unsigned char *raw, int width, int height, int format, int flipx, int flipy, float *work) {
 	int lastDCY = 128, lastDCCR = 128, lastDCCB = 128;
 	unsigned char *head = mpeg_buf;
 	jo_bits_t bits = {mpeg_buf};
@@ -214,8 +214,8 @@ unsigned long jo_write_mpeg(unsigned char *mpeg_buf, const unsigned char *raw, i
 				jo_writeBits(&bits, 0b1, 1); // macroblock_type = intra
 			}
 
-			float Y[256], CBx[256], CRx[256];
-			float CB[64], CR[64];
+			float *Y = work, *CBx = work + 256, *CRx = work + 512;
+			float *CB = work + 768, *CR = work + 832;
 
 			if (format == JO_RGBX) {
 				for (int i=0; i<256; ++i) {

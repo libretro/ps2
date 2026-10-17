@@ -18,7 +18,11 @@ typedef enum {
 	JO_FLIP_Y,
 } jo_mpeg_flip_t;
 
-unsigned long jo_write_mpeg(unsigned char *mpeg_buf, const unsigned char *rgbx, int width, int height, int format, int flipx, int flipy);
+/* work holds JO_MPEG_WORK_FLOATS floats: the macroblock scratch, which the
+ * caller keeps off the stack. */
+#define JO_MPEG_WORK_FLOATS (256 * 3 + 64 * 2)
+
+unsigned long jo_write_mpeg(unsigned char *mpeg_buf, const unsigned char *rgbx, int width, int height, int format, int flipx, int flipy, float *work);
 
 #ifdef __cplusplus
 }
