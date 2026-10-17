@@ -49,6 +49,63 @@ public:
 private:
 	static constexpr float SSR_UV_TOLERANCE = 1.0f;
 
+	/* --- VR (GSVR.h) -----------------------------------------------------
+	 * Which depth buffer each frame buffer was last drawn with, so that the
+	 * eyes of a displayed frame find its depth. A game draws its frames
+	 * one after the other with the same depth buffer, and often starts
+	 * the next before the vsync that shows the last; the first draw that
+	 * writes a depth buffer for another frame buffer than before keeps
+	 * what it holds as a snapshot (GSDevice::VRSnapshotDepth), which the
+	 * frame buffer it was for has as its depth until the next one. */
+	static constexpr int VR_DEPTH_PAIRS = 4;
+	struct VRDepthPair
+	{
+		u32 fbp;
+		u32 zbp;
+		u32 zpsm;
+		u32 age;   /* m_vr_age at its last draw */
+		u32 frame; /* m_vr_frame at its last draw */
+		bool valid;
+	};
+	VRDepthPair m_vr_pairs[VR_DEPTH_PAIRS] = {};
+	/* The snapshot is of pair it was taken from as it was at age (its
+	 * age is when the snapshot was taken). */
+	VRDepthPair m_vr_snapshot = {};
+	float m_vr_snapshot_scale = 0.0f;
+	/* A count of the draws and one of the vsyncs, while VR is on. */
+	u32 m_vr_age = 0;
+	u32 m_vr_frame = 0;
+	/* When each frame buffer drawn to recently was last drawn to, so that
+	 * a picture can be told from the frame drawn after it. */
+	static constexpr int VR_FRAME_BUFFERS = 8;
+	struct VRFrameBuffer
+	{
+		u32 fbp;
+		u32 age;
+	};
+	VRFrameBuffer m_vr_frame_buffers[VR_FRAME_BUFFERS] = {};
+	/* What GetOutput returned for each circuit: the texture, the target's
+	 * base and its scale. Compared, never dereferenced. */
+	GSTexture* m_vr_output_tex[2] = {};
+	u32 m_vr_output_bp[2] = {};
+	float m_vr_output_scale[2] = {};
+
+	/* Where the last frame's depth came from, for the log. */
+	enum class VRDepthSource
+	{
+		None,
+		Own,
+		Latest,
+		Unknown,
+	};
+	VRDepthSource m_vr_logged_source = VRDepthSource::Unknown;
+	VRDepthSource m_vr_pending_source = VRDepthSource::Unknown;
+	u32 m_vr_pending_frames = 0;
+
+	void VRDepthDrawn(u32 fbp, u32 zbp, u32 zpsm);
+	void VRColorDrawn(u32 fbp);
+	u32 VRColorAge(u32 fbp) const;
+
 	using GSC_Ptr = bool(*)(GSRendererHW& r, int& skip);	// GSC - Get Skip Count
 	using OI_Ptr = bool(*)(GSRendererHW& r, GSTexture* rt, GSTexture* ds, GSTextureCache::Source* t); // OI - Before draw
 	using MV_Ptr = bool(*)(GSRendererHW& r); // MV - Move
@@ -364,6 +421,7 @@ public:
 
 	GSTexture* GetOutput(int i, float& scale, int& y_offset);
 	GSTexture* GetFeedbackOutput(float& scale);
+	bool GetVRDepth(GSTexture* color, GSTexture** depth, bool* encoded, float* z_scale);
 	void InvalidateVideoMem(const GIFRegBITBLTBUF& BITBLTBUF, const GSVector4i& r);
 	void InvalidateLocalMem(const GIFRegBITBLTBUF& BITBLTBUF, const GSVector4i& r, bool clut = false);
 	void Move();

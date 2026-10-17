@@ -393,6 +393,7 @@ set(pcsx2GSHeaders
 	GS/GSState.h
 	GS/GSTables.h
 	GS/GSUtil.h
+	GS/GSVR.h
 	GS/GSVector.h
 	GS/GSVector4.h
 	GS/GSVector4i.h
@@ -409,6 +410,7 @@ set(pcsx2GSHeaders
 	GS/Renderers/Common/GSVertex.h
 	GS/Renderers/Common/gs_vertex.h
 	GS/Renderers/Common/GSVertexTrace.h
+	GS/Renderers/Common/vr_glsl_body.h
 	GS/Renderers/HW/GSHwHack.h
 	GS/Renderers/HW/GSRendererHW.h
 	GS/Renderers/HW/GSTextureCache.h

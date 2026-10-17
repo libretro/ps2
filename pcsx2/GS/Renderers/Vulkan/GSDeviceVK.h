@@ -446,6 +446,7 @@ private:
 	std::array<VkPipeline, 32> m_color_copy{};
 	std::array<VkPipeline, 2> m_merge{};
 	std::array<VkPipeline, NUM_INTERLACE_SHADERS> m_interlace{};
+	std::array<VkPipeline, 2> m_vr{}; // ps_vr_range, ps_vr_eye
 	VkPipeline m_hdr_setup_pipelines[2][2] = {}; // [depth][feedback_loop]
 	VkPipeline m_hdr_finish_pipelines[2][2] = {}; // [depth][feedback_loop]
 	VkRenderPass m_date_image_setup_render_passes[2][2] = {}; // [depth][clear]
@@ -558,6 +559,8 @@ public:
 	void ConvertToIndexedTexture(GSTexture* sTex, float sScale, u32 offsetX, u32 offsetY, u32 SBW, u32 SPSM, GSTexture* dTex, u32 DBW, u32 DPSM);
 	void FilteredDownsampleTexture(GSTexture* sTex, GSTexture* dTex, u32 downsample_factor, const GSVector2i& clamp_min, const GSVector4& dRect);
 	void MoveTexels(GSTexture* sTex, GSTexture* dTex, const GSVector4& dRect, const MoveTexelsConstants& cb);
+	void VRRange(GSTexture* sTex, GSTexture* dTex, const GSVector4& dRect, const VRRangeConstants& cb);
+	void VREye(GSTexture* sTex, GSTexture* dTex, const GSVector4& dRect, const VREyeConstants& cb);
 
 	void SetupDATE(GSTexture* rt, GSTexture* ds, SetDATM datm, const GSVector4i& bbox);
 	GSTextureVK* SetupPrimitiveTrackingDATE(GSHWDrawConfig& config);

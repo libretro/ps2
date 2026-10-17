@@ -19,6 +19,7 @@
 #include <cmath>
 
 #include "GSRenderer.h"
+#include "../../GSVR.h"
 
 #include "../../../Host.h"
 #include "../../../PerformanceMetrics.h"
@@ -30,6 +31,7 @@
 #endif
 
 extern retro_video_refresh_t video_cb;
+extern retro_environment_t environ_cb;
 
 GSRenderer* g_gs_renderer = NULL;
 
@@ -210,6 +212,20 @@ bool GSState::Merge(int field)
 		dst[2] = GSVector4(scale * GSVector4(feedback_rect.rsize()));
 	}
 
+	/* The VR eyes take their depth from one circuit, the second where
+	 * it shows, which is the one a game displays its frame through. */
+	m_vr_merge_tex = nullptr;
+	for (int i = 1; i >= 0; i--)
+	{
+		if (PCRTCDisplays.PCRTCDisplays[i].enabled && tex[i])
+		{
+			m_vr_merge_tex = tex[i];
+			m_vr_merge_src = src_gs_read[i];
+			m_vr_merge_dst = dst[i];
+			break;
+		}
+	}
+
 	GSVector2i resolution = PCRTCDisplays.GetResolution();
 	fs = GSVector2i(static_cast<int>(static_cast<float>(resolution.x) * GetUpscaleMultiplier()),
 		static_cast<int>(static_cast<float>(resolution.y) * GetUpscaleMultiplier()));
@@ -306,9 +322,12 @@ void GSState::VSyncBase(u32 field, bool registers_written, bool idle_frame)
 		if (!idle_frame)
 			g_gs_device->AgePool();
 
+		/* Before the present begins: the VR eyes are drawn into targets of
+		 * their own, and OpenGL presents into whatever is bound then. */
+		GSTexture* current = VRFrame(g_gs_device->GetCurrent(), blank_frame);
+
 		if (BeginPresentFrame(false))
 		{
-			GSTexture* current = g_gs_device->GetCurrent();
 			if (current)
 			{
 				GSVector4 src_uv        = (blank_frame) ? GSVector4::zero() : GSVector4(0, 0, 1, 1);
@@ -332,6 +351,169 @@ void GSState::VSyncBase(u32 field, bool registers_written, bool idle_frame)
 	 * read inside it) when not needed. */
 	if (GSConfig.SkipDuplicateFrames)
 		PerformanceMetrics::Update(registers_written, fb_sprite_frame);
+}
+
+/* --- VR (GSVR.h) ---------------------------------------------------------
+ * The frontend says each frame whether it shows a left/right pair; the
+ * eyes are made only when it does, and the frame as it is otherwise,
+ * with any map sent before taken back. */
+
+/* The window the stereoscopic eyes look through, in units of its width:
+ * at a distance of one width, the eyes a twenty-fifth of it apart. On a
+ * window a metre and a half wide that is six centimetres, about a
+ * person's. */
+static constexpr float VR_STEREO_DISTANCE   = 1.0f;
+static constexpr float VR_STEREO_SEPARATION = 0.04f;
+/* At the default depth the nearest of the frame is a little in front of
+ * the window and the farthest at three and a third times its distance;
+ * at twice the depth the farthest is as good as infinity. A comfortable
+ * depth for a picture on a display. */
+static constexpr float VR_NEAR_PER_DEPTH    = 0.12f;
+static constexpr float VR_FAR_PER_DEPTH     = 0.7f;
+static constexpr float VR_FAR_LEAST         = 0.02f;
+/* The most march steps a pixel takes. */
+static constexpr float VR_MAX_STEPS         = 64.0f;
+/* The widest and tallest an eye is drawn. */
+static constexpr int   VR_MAX_EYE           = 4096;
+
+void GSState::VRClearViews()
+{
+	if (!m_vr_map_set)
+		return;
+
+	retro_video_views map = {};
+	map.num_views = 0;
+	map.reference_space = RETRO_VR_REFERENCE_SPACE_LOCAL;
+	environ_cb(RETRO_ENVIRONMENT_SET_VIDEO_VIEWS, &map);
+	m_vr_map_set = false;
+}
+
+GSTexture* GSState::VRFrame(GSTexture* current, bool blank_frame)
+{
+	if (gs_vr_mode == GSVR_OFF || !g_gs_device->VRSupported())
+	{
+		m_vr_active = false;
+		VRClearViews();
+		return current;
+	}
+
+	/* A blank frame is black in 3D too; the renderer goes on keeping
+	 * track of depth for the frames either side. */
+	if (!current || blank_frame)
+	{
+		VRClearViews();
+		return current;
+	}
+
+	unsigned status = 0;
+	if (!environ_cb(RETRO_ENVIRONMENT_GET_VIDEO_VIEWS_STATUS, &status))
+		status = 0;
+
+	const unsigned stereo = RETRO_VIDEO_VIEWS_STATUS_PRESENTS | RETRO_VIDEO_VIEWS_STATUS_STEREO;
+	m_vr_active = (status & stereo) == stereo;
+	if (!m_vr_active)
+	{
+		VRClearViews();
+		return current;
+	}
+
+	const int w = current->GetWidth();
+	const int h = current->GetHeight();
+	const float aspect = (gs_vr_aspect > 0.0f) ? gs_vr_aspect : static_cast<float>(w) / static_cast<float>(h);
+
+	GSVRFrame frame = {};
+
+	/* The depth under the picture: the part of the depth buffer under the
+	 * part of the circuit's texture Merge read, where Merge put it. The
+	 * buffer's texels are the frame buffer's, both at the target scale. */
+	if (m_vr_merge_tex && m_ops && m_ops->get_vr_depth && m_real_size.x > 0 && m_real_size.y > 0 &&
+		m_ops->get_vr_depth(this, m_vr_merge_tex, &frame.depth, &frame.depth_encoded, &frame.z_scale))
+	{
+		const GSVector4 tex_size(GSVector4(m_vr_merge_tex->GetSize()).xyxy());
+		const GSVector4 depth_size(GSVector4(frame.depth->GetSize()).xyxy());
+		const GSVector4 to_picture(GSVector4(static_cast<float>(w) / m_real_size.x, static_cast<float>(h) / m_real_size.y).xyxy());
+		frame.depth_rect = (m_vr_merge_src * tex_size) / depth_size;
+		frame.picture_rect = m_vr_merge_dst * to_picture;
+	}
+	else
+	{
+		frame.depth = nullptr;
+	}
+
+	const float depth = gs_vr_depth;
+	const float w_near = 1.0f + VR_NEAR_PER_DEPTH * depth;
+	const float w_far = std::max(VR_FAR_LEAST, 1.0f - VR_FAR_PER_DEPTH * depth);
+
+	frame.eye_width = w;
+	frame.eye_height = h;
+
+	/* Each eye sees exactly the window, off centre, so the window itself
+	 * is where the eyes agree. */
+	const float sw = 1.0f;
+	const float sh = sw / aspect;
+	const float dist = VR_STEREO_DISTANCE;
+	for (int eye = 0; eye < 2; eye++)
+	{
+		const float x = (eye == 0 ? -0.5f : 0.5f) * VR_STEREO_SEPARATION;
+		frame.eyes[eye].eye_pos = GSVector4(x, 0.0f, 0.0f, 0.0f);
+		frame.eyes[eye].eye_quat = GSVector4(0.0f, 0.0f, 0.0f, 1.0f);
+		frame.eyes[eye].fov_tan = GSVector4((0.5f * sw + x) / dist, (0.5f * sw - x) / dist,
+			0.5f * sh / dist, 0.5f * sh / dist);
+		frame.eyes[eye].screen = GSVector4(sw, sh, dist, VR_MAX_STEPS);
+	}
+
+	for (int eye = 0; eye < 2; eye++)
+		frame.eyes[eye].depth = GSVector4(w_near, w_far, frame.z_scale, 0.0f);
+
+	/* Both eyes side by side in one frame. OpenGL draws it into the
+	 * frontend's framebuffer, which is the size of the largest frame the
+	 * geometry allows. */
+	int max_w = 2 * VR_MAX_EYE;
+	int max_h = VR_MAX_EYE;
+	if (g_gs_device->GetRenderAPI() == RenderAPI::OpenGL)
+	{
+		max_w = g_gs_device->GetWindowWidth();
+		max_h = g_gs_device->GetWindowHeight();
+	}
+	if (2 * frame.eye_width > max_w || frame.eye_height > max_h)
+	{
+		const float fit = std::min(static_cast<float>(max_w) / (2.0f * frame.eye_width),
+			static_cast<float>(max_h) / static_cast<float>(frame.eye_height));
+		frame.eye_width = std::max(1, static_cast<int>(frame.eye_width * fit));
+		frame.eye_height = std::max(1, static_cast<int>(frame.eye_height * fit));
+	}
+
+	GSTexture* out = g_gs_device->VRCompose(current, frame);
+	if (!out)
+	{
+		VRClearViews();
+		return current;
+	}
+
+	/* Each eye is the picture, so it has the picture's aspect. */
+	const unsigned ew = static_cast<unsigned>(frame.eye_width);
+	const unsigned eh = static_cast<unsigned>(frame.eye_height);
+	const retro_video_view views[2] = {
+		{0, 0, ew, eh, 0, RETRO_VIDEO_VIEW_EYE_LEFT, aspect},
+		{ew, 0, ew, eh, 0, RETRO_VIDEO_VIEW_EYE_RIGHT, aspect},
+	};
+	retro_video_views map = {};
+	map.views = views;
+	map.num_views = 2;
+	map.reference_space = RETRO_VR_REFERENCE_SPACE_LOCAL;
+
+	if (!environ_cb(RETRO_ENVIRONMENT_SET_VIDEO_VIEWS, &map))
+	{
+		/* Refused, and the previous map stands: take it back too. */
+		VRClearViews();
+		return current;
+	}
+
+	if (!m_vr_map_set)
+		log_cb(RETRO_LOG_INFO, "VR: stereoscopic, %ux%u per eye.\n", ew, eh);
+	m_vr_map_set = true;
+
+	return out;
 }
 
 bool GSState::IsIdleFrame() const

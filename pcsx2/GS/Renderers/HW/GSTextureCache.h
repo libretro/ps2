@@ -678,6 +678,8 @@ public:
 	Target* FindPageOwner(u32 BP, u32 BW, u32 PSM, int& x, int& y, int page_in_draw);
 	bool HasTargetAt(u32 BP, u32 BW) const;
 	Target* GetTargetWithSharedBits(u32 BP, u32 PSM) const;
+	/* The depth buffer at BP, as it was drawn: the one the VR eyes see. */
+	Target* FindDepthTarget(u32 BP) const;
 	Target* FindOverlappingTarget(GSTextureCache::Target* target) const;
 	Target* FindOverlappingTarget(u32 BP, u32 end_bp) const;
 	Target* FindOverlappingTarget(u32 BP, u32 BW, u32 PSM, GSVector4i rc) const;

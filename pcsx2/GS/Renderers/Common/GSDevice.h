@@ -214,6 +214,74 @@ struct alignas(16) InterlaceConstantBuffer
 	GSVector4 ZrH; // data passed to the shader
 };
 
+/* The two passes of a VR frame (GSDevice::VRCompose), as the constants of
+ * ps_vr_range and ps_vr_eye in each backend's vr.glsl. Both read the
+ * atlas VRCompose builds: the picture in rows [0, H), the bytes of the
+ * GS's Z under it in rows [H, 2H), and the depth range in texel (0, 2H).
+ *
+ * VRRangeConstants: one level of the reduction of the depth to its range.
+ * src is the region read (x, y, width, height), params the block of it
+ * one output texel covers, the input (VR_RANGE_FROM_Z: Z bytes, else
+ * ranges), and the texel holding last frame's range when VR_RANGE_SMOOTH
+ * eases this one towards it; fparams the scale that takes Z to [0, 1]
+ * and how far towards the new range a frame moves. */
+enum
+{
+	VR_RANGE_FROM_Z = 1,
+	VR_RANGE_SMOOTH = 2,
+};
+
+struct alignas(16) VRRangeConstants
+{
+	GSVector4i src;
+	GSVector4i params;
+	GSVector4 fparams;
+};
+
+/* VREyeConstants: one eye, in the space of the window: x right, y up, the
+ * window centred on -z at screen.z, screen.x by screen.y across. The eye
+ * is at eye_pos, turned by eye_quat (x, y, z, w), and sees fov_tan (the
+ * tangents to its left, right, up and down edges). depth holds the
+ * inverse distances, in units of the window's, of the nearest and the
+ * farthest depth, then the Z scale; screen.w caps the march's steps. */
+struct alignas(16) VREyeConstants
+{
+	GSVector4 eye_pos;
+	GSVector4 eye_quat;
+	GSVector4 fov_tan;
+	GSVector4 screen;
+	GSVector4 depth;
+};
+
+class GSDevice;
+
+/* What a backend that makes VR frames answers, beside gs_device_ops: the
+ * two passes, drawn over dRect of dTex from sTex. NULL in a device that
+ * has none, which shows the plain frame. */
+struct gs_vr_ops
+{
+	void (*range)(GSDevice* dev, GSTexture* sTex, GSTexture* dTex, const GSVector4* dRect, const VRRangeConstants* cb);
+	void (*eye)(GSDevice* dev, GSTexture* sTex, GSTexture* dTex, const GSVector4* dRect, const VREyeConstants* cb);
+};
+
+/* One VR frame: where the depth of the displayed picture is, and the two
+ * eyes to draw. depth is NULL when there is none, and the eyes see a
+ * flat window. depth_rect is the part of depth under picture_rect of the
+ * picture (normalised; pixels), depth_encoded whether depth is already
+ * the bytes of Z (a snapshot) or the depth buffer itself, and z_scale
+ * what takes those bytes to [0, 1] for the Z format. */
+struct GSVRFrame
+{
+	GSTexture* depth;
+	GSVector4 depth_rect;
+	GSVector4 picture_rect;
+	bool depth_encoded;
+	float z_scale;
+	int eye_width;
+	int eye_height;
+	VREyeConstants eyes[2];
+};
+
 enum HWBlendFlags
 {
 	// Flags to determine blending behavior
@@ -883,6 +951,18 @@ protected:
 	GSTexture* m_current = nullptr;
 	GSTexture* m_colclip_rt = nullptr; ///< Temp hw colclip texture
 
+	/* VR (VRCompose). The output is handed to the frontend like the merge
+	 * target, and retired like it; the rest is the device's own. The
+	 * snapshot keeps a depth buffer's Z, as bytes, for the frame buffer
+	 * it was drawn with once the game draws another with it. */
+	GSTexture* m_vr_out = nullptr;
+	GSTexture* m_vr_atlas = nullptr;
+	GSTexture* m_vr_reduce[2] = {};
+	GSTexture* m_vr_range[2] = {};
+	u32 m_vr_range_cur = 0;
+	u32 m_vr_depth_missing = 0; ///< Frames in a row VRCompose had no depth for
+	GSTexture* m_vr_snapshot = nullptr;
+
 	struct
 	{
 		u32 start, count;
@@ -910,6 +990,8 @@ public:
 	/* The table this device answers through, and how one is disposed of
 	 * now that the destructor is not virtual (gs_device_ops, below). */
 	const struct gs_device_ops* m_ops = nullptr;
+	/* Set by a device that makes VR frames, NULL otherwise. */
+	const struct gs_vr_ops* m_vr_ops = nullptr;
 	void Free();
 
 	/// Generates a fixed index buffer for expanding points and sprites. Buffer is assumed to be at least EXPAND_BUFFER_SIZE in size.
@@ -1010,6 +1092,17 @@ public:
 	void PrewarmPool();
 
 	void ClearCurrent();
+
+	/* VR (GSVR.h). VRCompose draws both eyes of frame from the picture,
+	 * side by side, left first, and returns the texture they are in, or
+	 * NULL when it could not. VRSnapshotDepth keeps the Z of a depth
+	 * buffer as bytes in m_vr_snapshot, which VRSnapshot returns. */
+	__fi bool VRSupported() const { return m_vr_ops != nullptr; }
+	GSTexture* VRCompose(GSTexture* picture, const GSVRFrame& frame);
+	bool VRSnapshotDepth(GSTexture* depth);
+	__fi GSTexture* VRSnapshot() const { return m_vr_snapshot; }
+	void VRRelease();
+
 	void Merge(GSTexture* sTex[3], GSVector4* sRect, GSVector4* dRect, const GSVector2i& fs, const GSRegPMODE& PMODE, const GSRegEXTBUF& EXTBUF, u32 c);
 	void Interlace(const GSVector2i& ds, int field, int mode, float yoffset, float block, bool half_fields);
 

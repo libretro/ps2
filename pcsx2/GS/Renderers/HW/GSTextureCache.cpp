@@ -4869,6 +4869,19 @@ GSTextureCache::Target* GSTextureCache::GetTargetWithSharedBits(u32 BP, u32 PSM)
 	return nullptr;
 }
 
+GSTextureCache::Target* GSTextureCache::FindDepthTarget(u32 BP) const
+{
+	const auto& dss = m_dst[DepthStencil];
+	for (auto it = dss.begin(); it != dss.end(); ++it)
+	{
+		Target* t = *it;
+		if (t->m_TEX0.TBP0 == BP)
+			return t;
+	}
+
+	return nullptr;
+}
+
 GSTextureCache::Target* GSTextureCache::FindOverlappingTarget(GSTextureCache::Target* target) const
 {
 	for (int i = 0; i < 2; i++)

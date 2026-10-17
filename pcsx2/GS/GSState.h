@@ -54,6 +54,11 @@ struct gs_state_ops
 	GSTexture* (*lookup_palette_source)(GSState* gs, u32 CBP, u32 CPSM, u32 CBW, GSVector2i* offset, float* scale, const GSVector2i* size);
 	GSTexture* (*get_output)(GSState* gs, int i, float* scale, int* y_offset);
 	GSTexture* (*get_feedback_output)(GSState* gs, float* scale);
+	/* The depth the picture in color, a texture get_output returned, was
+	 * drawn with, for the VR eyes (GSVR.h): the depth buffer itself, or
+	 * the bytes of its Z when *encoded, and the scale that takes those to
+	 * [0, 1]. NULL, or false, where there is none. */
+	bool       (*get_vr_depth)(GSState* gs, GSTexture* color, GSTexture** depth, bool* encoded, float* z_scale);
 };
 
 class GSState : public GSAlignedClass<32>
@@ -513,6 +518,10 @@ public:
 
 protected:
 	GSVector2i m_real_size{0, 0};
+	/* The last vsync made VR eyes, or would have: the frontend shows a
+	 * stereo pair and the option asks for one. The renderer keeps track
+	 * of depth buffers only while it does. */
+	bool m_vr_active = false;
 	bool m_process_texture = false;
 	bool m_downscale_source = false;
 
@@ -528,6 +537,17 @@ protected:
 private:
 	bool Merge(int field);
 	bool BeginPresentFrame(bool frame_skip);
+	GSTexture* VRFrame(GSTexture* current, bool blank_frame);
+	void VRClearViews();
+
+	/* The circuit Merge took the picture from, for the VR eyes: its
+	 * texture, the part read (normalised) and where that went in the
+	 * merge (pixels of m_real_size). */
+	GSTexture* m_vr_merge_tex = nullptr;
+	GSVector4 m_vr_merge_src = GSVector4::zero();
+	GSVector4 m_vr_merge_dst = GSVector4::zero();
+	/* A view map was sent and stands until one with no views is. */
+	bool m_vr_map_set = false;
 
 	u32 m_skipped_duplicate_frames = 0;
 
