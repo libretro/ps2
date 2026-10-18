@@ -24,6 +24,7 @@
 #include "GSSpriteSnap.h"
 #include "GSTextureReplacements.h"
 #include "../../GSUtil.h"
+#include "../../GSVR.h"
 
 /* --- the table GSState calls this renderer through (gs_state_ops) -------
  * Every one of these was a virtual function. The renderer is the first
@@ -47,6 +48,7 @@ static float      hw_get_texture_scale_factor(GSState* gs) { return HW(gs)->GetT
 static GSTexture* hw_lookup_palette_source(GSState* gs, u32 CBP, u32 CPSM, u32 CBW, GSVector2i* offset, float* scale, const GSVector2i* size) { return HW(gs)->LookupPaletteSource(CBP, CPSM, CBW, *offset, scale, *size); }
 static GSTexture* hw_get_output(GSState* gs, int i, float* scale, int* y_offset) { return HW(gs)->GetOutput(i, *scale, *y_offset); }
 static GSTexture* hw_get_feedback_output(GSState* gs, float* scale) { return HW(gs)->GetFeedbackOutput(*scale); }
+static bool       hw_get_vr_depth(GSState* gs, GSTexture* color, GSTexture** depth, bool* encoded, float* z_scale) { return HW(gs)->GetVRDepth(color, depth, encoded, z_scale); }
 #undef HW
 
 static const struct gs_state_ops s_hw_ops = {
@@ -67,7 +69,8 @@ static const struct gs_state_ops s_hw_ops = {
 	hw_get_texture_scale_factor,
 	hw_lookup_palette_source,
 	hw_get_output,
-	hw_get_feedback_output
+	hw_get_feedback_output,
+	hw_get_vr_depth
 };
 
 GSRendererHW::GSRendererHW()
@@ -75,6 +78,19 @@ GSRendererHW::GSRendererHW()
 {
 	m_ops = &s_hw_ops;
 	MULTI_ISA_SELECT(GSRendererHWPopulateFunctions)(*this);
+
+	memset(m_vr_pairs, 0, sizeof(m_vr_pairs));
+	memset(&m_vr_snapshot, 0, sizeof(m_vr_snapshot));
+	memset(m_vr_frame_buffers, 0, sizeof(m_vr_frame_buffers));
+	m_vr_output_tex[0]   = NULL;
+	m_vr_output_tex[1]   = NULL;
+	m_vr_output_scale[0] = 0.0f;
+	m_vr_output_scale[1] = 0.0f;
+	m_vr_output_bp[0]    = 0;
+	m_vr_output_bp[1]    = 0;
+	m_vr_snapshot_scale  = 0.0f;
+	m_vr_age             = 0;
+	m_vr_frame           = 0;
 	m_mipmap = (GSConfig.HWMipmapMode >= GSHWMipmapMode::Enabled);
 	SetTCOffset();
 
@@ -208,12 +224,18 @@ GSTexture* GSRendererHW::GetOutput(int i, float& scale, int& y_offset)
 	TEX0.TBW = curFramebuffer.FBW;
 	TEX0.PSM = curFramebuffer.PSM;
 
+	m_vr_output_tex[index] = NULL;
+
 	if (GSTextureCache::Target* rt = g_texture_cache->LookupDisplayTarget(TEX0, framebufferSize, GetTextureScaleFactor(), false))
 	{
 		rt->Update();
 		g_texture_cache->SyncSubTargetsForDisplay(rt);
 		t = rt->m_texture;
 		scale = rt->m_scale;
+
+		m_vr_output_tex[index] = t;
+		m_vr_output_bp[index] = rt->m_TEX0.TBP0;
+		m_vr_output_scale[index] = rt->m_scale;
 
 		const int delta = TEX0.TBP0 - rt->m_TEX0.TBP0;
 		if (delta > 0 && curFramebuffer.FBW != 0)
@@ -225,6 +247,161 @@ GSTexture* GSRendererHW::GetOutput(int i, float& scale, int& y_offset)
 	}
 
 	return t;
+}
+
+/* The Z of a depth format, as a fraction of what it holds. */
+static float vr_z_scale(u32 zpsm)
+{
+	switch (GSLocalMemory::m_psm[zpsm].trbpp)
+	{
+		case 16: return 1.0f / 65536.0f;
+		case 24: return 1.0f / 16777216.0f;
+		default: break;
+	}
+	return 1.0f / 4294967296.0f;
+}
+
+void GSRendererHW::VRColorDrawn(u32 fbp)
+{
+	VRFrameBuffer* slot = &m_vr_frame_buffers[0];
+	int i;
+	for (i = 0; i < VR_FRAME_BUFFERS; i++)
+	{
+		VRFrameBuffer* f = &m_vr_frame_buffers[i];
+		if (f->age && f->fbp == fbp)
+		{
+			slot = f;
+			break;
+		}
+		if (f->age < slot->age)
+			slot = f;
+	}
+	slot->fbp = fbp;
+	slot->age = ++m_vr_age;
+}
+
+u32 GSRendererHW::VRColorAge(u32 fbp) const
+{
+	int i;
+	for (i = 0; i < VR_FRAME_BUFFERS; i++)
+	{
+		if (m_vr_frame_buffers[i].age && m_vr_frame_buffers[i].fbp == fbp)
+			return m_vr_frame_buffers[i].age;
+	}
+	return 0;
+}
+
+void GSRendererHW::VRDepthDrawn(u32 fbp, u32 zbp, u32 zpsm)
+{
+	VRDepthPair* pair   = NULL;
+	VRDepthPair* oldest = &m_vr_pairs[0];
+	int i;
+	for (i = 0; i < VR_DEPTH_PAIRS; i++)
+	{
+		VRDepthPair* p = &m_vr_pairs[i];
+		if (p->valid && p->zbp == zbp)
+		{
+			pair = p;
+			break;
+		}
+		if (!p->valid || (oldest->valid && p->age < oldest->age))
+			oldest = p;
+	}
+
+	m_vr_age++;
+
+	/* The first draw of a frame, or the first for another frame buffer,
+	 * is about to clear or overwrite a complete drawing: keep it. A game
+	 * at thirty frames a second shows the last frame for another vsync
+	 * while it draws the next, from the clear on. */
+	if (pair && (pair->fbp != fbp || pair->frame != m_vr_frame))
+	{
+		GSTextureCache::Target* ds = g_texture_cache->FindDepthTarget(zbp);
+		if (ds && g_gs_device->VRSnapshotDepth(ds->m_texture))
+		{
+			m_vr_snapshot       = *pair;
+			m_vr_snapshot.age   = m_vr_age;
+			m_vr_snapshot_scale = ds->m_scale;
+		}
+	}
+	if (!pair)
+		pair = oldest;
+
+	pair->fbp   = fbp;
+	pair->zbp   = zbp;
+	pair->zpsm  = zpsm;
+	pair->age   = m_vr_age;
+	pair->frame = m_vr_frame;
+	pair->valid = true;
+}
+
+bool GSRendererHW::GetVRDepth(GSTexture* color, GSTexture** depth, bool* encoded, float* z_scale)
+{
+	const VRDepthPair* pair   = NULL;
+	const VRDepthPair* latest = NULL;
+	GSTextureCache::Target* ds;
+	bool have_snapshot, picture_older, live;
+	float scale;
+	u32 fbp;
+	int i, c;
+
+	/* One call a vsync: what is drawn from here is the next frame's. */
+	m_vr_frame++;
+
+	c = (color == m_vr_output_tex[1]) ? 1 : (color == m_vr_output_tex[0]) ? 0 : -1;
+	if (c < 0 || !color)
+		return false;
+
+	fbp   = m_vr_output_bp[c];
+	scale = m_vr_output_scale[c];
+
+	/* The depth buffer the frame buffer was last drawn with; failing
+	 * that, the one drawn with last of all. A frame buffer no depth was
+	 * drawn with is most often the scene copied there to be shown,
+	 * through a blur, a filter or a trail pass, and its depth is that of
+	 * the scene, in its own buffer, at the same place. */
+	for (i = 0; i < VR_DEPTH_PAIRS; i++)
+	{
+		const VRDepthPair* p = &m_vr_pairs[i];
+		if (!p->valid)
+			continue;
+		if (p->fbp == fbp)
+			pair = p;
+		if (!latest || p->age > latest->age)
+			latest = p;
+	}
+	if (!pair)
+		pair = latest;
+	if (!pair)
+		return false;
+
+	/* The snapshot is the drawing the buffer held before it was begun
+	 * again. Where the picture shown was last drawn before that, the
+	 * picture is of the frame the snapshot is of; where after, of the
+	 * frame the buffer holds now. */
+	have_snapshot = m_vr_snapshot.valid && m_vr_snapshot.zbp == pair->zbp &&
+	                m_vr_snapshot_scale == scale && g_gs_device->m_vr_snapshot;
+	picture_older = have_snapshot && VRColorAge(fbp) < m_vr_snapshot.age;
+
+	ds   = g_texture_cache->FindDepthTarget(pair->zbp);
+	live = ds && ds->m_scale == scale && ds->m_texture &&
+	       ds->m_texture->GetState() == GSTexture::State::Dirty;
+
+	if (live && !picture_older)
+	{
+		*depth   = ds->m_texture;
+		*encoded = false;
+		*z_scale = vr_z_scale(pair->zpsm);
+		return true;
+	}
+	if (have_snapshot)
+	{
+		*depth   = g_gs_device->m_vr_snapshot;
+		*encoded = true;
+		*z_scale = vr_z_scale(m_vr_snapshot.zpsm);
+		return true;
+	}
+	return false;
 }
 
 GSTexture* GSRendererHW::GetFeedbackOutput(float& scale)
@@ -2742,6 +2919,16 @@ void GSRendererHW::Draw()
 
 	m_cached_ctx.FRAME.FBMSK = fm;
 	m_cached_ctx.ZBUF.ZMSK = zm != 0;
+
+	/* Before anything this draw does to its depth buffer, the clears on
+	 * the CPU included: which frame buffer it now holds the depth of. */
+	if (m_vr_active)
+	{
+		if (zm == 0)
+			VRDepthDrawn(m_cached_ctx.FRAME.Block(), m_cached_ctx.ZBUF.Block(), m_cached_ctx.ZBUF.PSM);
+		if ((fm & fm_mask) != fm_mask)
+			VRColorDrawn(m_cached_ctx.FRAME.Block());
+	}
 
 	// It is allowed to use the depth and rt at the same location. However at least 1 must
 	// be disabled. Or the written value must be the same on both channels.

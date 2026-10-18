@@ -116,6 +116,13 @@ GSState::GSState()
 	s_n = 0;
 	s_transfer_n = 0;
 
+	m_vr_merge_src = GSVector4::zero();
+	m_vr_merge_dst = GSVector4::zero();
+	m_vr_merge_tex = NULL;
+	m_vr_eye_size  = GSVector2i(0, 0);
+	m_vr_map_set   = false;
+	m_vr_active    = false;
+
 	memset(&m_v, 0, sizeof(m_v));
 	memset(&m_vertex, 0, sizeof(m_vertex));
 	memset(&m_index, 0, sizeof(m_index));

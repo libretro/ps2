@@ -32,6 +32,7 @@
 #include "ShaderCacheVersion.h"
 
 #include "convert.glsl"
+#include "vr.glsl"
 #include "interlace.glsl"
 #include "present.glsl"
 #include "merge.glsl"
@@ -166,9 +167,21 @@ namespace Emulate_DSA
  * name, and each was a virtual function. */
 GS_DEVICE_OPS_DEFINE(GSDeviceOGL, opengl);
 
+/* The VR passes (gs_vr_ops), set once they have linked. */
+static void gl_vr_range(GSDevice* d, GSTexture* sTex, GSTexture* dTex, const GSVector4* dRect, const VRRangeConstants* cb)
+{
+	((GSDeviceOGL*)d)->VRRange(sTex, dTex, *dRect, *cb);
+}
+static void gl_vr_eye(GSDevice* d, GSTexture* sTex, GSTexture* dTex, const GSVector4* dRect, const VREyeConstants* cb)
+{
+	((GSDeviceOGL*)d)->VREye(sTex, dTex, *dRect, *cb);
+}
+static const struct gs_vr_ops s_opengl_vr_ops = {gl_vr_range, gl_vr_eye};
+
 GSDeviceOGL::GSDeviceOGL()
 {
-	m_ops = &s_opengl_device_ops;
+	m_ops          = &s_opengl_device_ops;
+	m_present_size = GSVector2i(0, 0);
 }
 
 GSDeviceOGL::~GSDeviceOGL()
@@ -583,6 +596,31 @@ bool GSDeviceOGL::Create()
 	}
 
 	// ****************************************************************
+	// VR. A device without the passes shows the plain frame, so them
+	// failing is no reason to fail the device.
+	// ****************************************************************
+	{
+		const std::string range(GetShaderSource("ps_vr_range", GL_FRAGMENT_SHADER, vr_glsl_shader_raw));
+		const std::string eye(GetShaderSource("ps_vr_eye", GL_FRAGMENT_SHADER, vr_glsl_shader_raw));
+		m_vr_ops = NULL;
+		if (m_shader_cache.GetProgram(&m_vr[0], m_convert.vs, range) &&
+			m_shader_cache.GetProgram(&m_vr[1], m_convert.vs, eye))
+		{
+			m_vr[0].RegisterUniform("SrcRect");
+			m_vr[0].RegisterUniform("Params");
+			m_vr[0].RegisterUniform("FParams");
+			m_vr[1].RegisterUniform("EyePos");
+			m_vr[1].RegisterUniform("EyeQuat");
+			m_vr[1].RegisterUniform("FovTan");
+			m_vr[1].RegisterUniform("Screen");
+			m_vr[1].RegisterUniform("DepthMap");
+			m_vr_ops = &s_opengl_vr_ops;
+		}
+		else
+			log_cb(RETRO_LOG_WARN, "OpenGL: the VR passes did not link, VR is off.\n");
+	}
+
+	// ****************************************************************
 	// present
 	// ****************************************************************
 	{
@@ -767,6 +805,10 @@ void GSDeviceOGL::DestroyResources()
 	for (GLProgram& prog : m_interlace.ps)
 		prog.Destroy();
 
+	m_vr[0].Destroy();
+	m_vr[1].Destroy();
+	m_vr_ops = NULL;
+
 	for (GLProgram& prog : m_merge_obj.ps)
 		prog.Destroy();
 
@@ -815,10 +857,14 @@ GSDevice::PresentResult GSDeviceOGL::BeginPresent(bool frame_skip)
 
 void GSDeviceOGL::EndPresent()
 {
-	if(m_current)
-		video_cb(RETRO_HW_FRAME_BUFFER_VALID, m_current->GetWidth(), m_current->GetHeight(), 0);
+	if (m_current)
+	{
+		const GSVector2i size = (m_present_size.x > 0) ? m_present_size : m_current->GetSize();
+		video_cb(RETRO_HW_FRAME_BUFFER_VALID, size.x, size.y, 0);
+	}
 	else
 		video_cb(NULL, 0, 0, 0);
+	m_present_size = GSVector2i(0, 0);
 }
 
 void GSDeviceOGL::ResetAPIState()
@@ -1458,6 +1504,9 @@ void GSDeviceOGL::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture
 	// Only flipping the backbuffer is transparent (I hope)...
 	const GSVector4 flip_sr(sRect.xwzy());
 	DrawStretchRect(flip_sr, dRect, ds);
+
+	if (!dTex)
+		m_present_size = GSVector2i((int)(dRect.z - dRect.x), (int)(dRect.w - dRect.y));
 }
 
 void GSDeviceOGL::UpdateCLUTTexture(GSTexture* sTex, float sScale, u32 offsetX, u32 offsetY, GSTexture* dTex, u32 dOffset, u32 dSize, u32 samples)
@@ -1548,6 +1597,50 @@ void GSDeviceOGL::MoveTexels(GSTexture* sTex, GSTexture* dTex, const GSVector4& 
 	PSSetSamplerState(m_convert.pt);
 
 	DrawStretchRect(GSVector4::zero(), dRect, dTex->GetSize());
+}
+
+void GSDeviceOGL::VRRange(GSTexture* sTex, GSTexture* dTex, const GSVector4& dRect, const VRRangeConstants& cb)
+{
+	CommitClear(sTex, false);
+
+	GLProgram& prog = m_vr[0];
+	prog.Bind();
+	prog.Uniform4iv(0, cb.src.v);
+	prog.Uniform4iv(1, cb.params.v);
+	prog.Uniform4fv(2, cb.fparams.v);
+
+	OMSetDepthStencilState(m_convert.dss);
+	OMSetBlendState(false);
+	OMSetColorMaskState();
+	OMSetRenderTargets(dTex, NULL);
+
+	PSSetShaderResource(0, sTex);
+	PSSetSamplerState(m_convert.pt);
+
+	DrawStretchRect(GSVector4::zero(), dRect, dTex->GetSize());
+}
+
+void GSDeviceOGL::VREye(GSTexture* sTex, GSTexture* dTex, const GSVector4& dRect, const VREyeConstants& cb)
+{
+	CommitClear(sTex, false);
+
+	GLProgram& prog = m_vr[1];
+	prog.Bind();
+	prog.Uniform4fv(0, cb.eye_pos.v);
+	prog.Uniform4fv(1, cb.eye_quat.v);
+	prog.Uniform4fv(2, cb.fov_tan.v);
+	prog.Uniform4fv(3, cb.screen.v);
+	prog.Uniform4fv(4, cb.depth.v);
+
+	OMSetDepthStencilState(m_convert.dss);
+	OMSetBlendState(false);
+	OMSetColorMaskState();
+	OMSetRenderTargets(dTex, NULL);
+
+	PSSetShaderResource(0, sTex);
+	PSSetSamplerState(m_convert.ln);
+
+	DrawStretchRect(GSVector4(0.0f, 0.0f, 1.0f, 1.0f), dRect, dTex->GetSize());
 }
 
 void GSDeviceOGL::DrawStretchRect(const GSVector4& sRect, const GSVector4& dRect, const GSVector2i& ds)

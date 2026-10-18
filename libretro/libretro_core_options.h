@@ -548,6 +548,39 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       "disabled"
    },
    {
+      "pcsx2_vr_mode",
+      "Video > VR",
+      "VR",
+      "Show the game in 3D, from the depth each frame was drawn with. 'Stereoscopic' sends a left and right eye for the frontend's 3D display, or for a screen in a VR headset. Needs a frontend that presents stereo views, and a hardware renderer on Vulkan or OpenGL; otherwise the picture is shown as it is.",
+      NULL,
+      "video",
+      {
+         { "disabled", "Off" },
+         { "stereoscopic", "Stereoscopic" },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
+      "pcsx2_vr_depth",
+      "Video > VR Depth",
+      "VR Depth",
+      "How deep the 3D picture is. Lower is easier on the eyes; higher pushes the far scenery further back.",
+      NULL,
+      "video",
+      {
+         { "25%", NULL },
+         { "50%", NULL },
+         { "75%", NULL },
+         { "100%", NULL },
+         { "125%", NULL },
+         { "150%", NULL },
+         { "200%", NULL },
+         { NULL, NULL },
+      },
+      "100%"
+   },
+   {
       "pcsx2_pcrtc_antiblur",
       "Video > PCRTC Anti-Blur",
       "PCRTC Anti-Blur",

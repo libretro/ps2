@@ -38,6 +38,7 @@
 #include "HostFS.h"
 
 #include "../pcsx2/GS/Renderers/Common/GSRenderer.h"
+#include "../pcsx2/GS/GSVR.h"
 #ifdef ENABLE_VULKAN
 #ifdef HAVE_PARALLEL_GS
 #include "../pcsx2/GS/Renderers/parallel-gs/GSRendererPGS.h"
@@ -188,6 +189,10 @@ static bool setting_vu_accurate_addsub         = false;
 static bool setting_ee_accurate_fpu            = true;
 static s8 setting_hint_language_unlock         = 0;
 s8 setting_hint_widescreen                     = 0;
+/* The VR option (pcsx2/GS/GSVR.h), which the GS reads at each vsync. */
+int   gs_vr_mode                               = GSVR_OFF;
+float gs_vr_depth                              = 1.0f;
+float gs_vr_aspect                             = 4.0f / 3.0f;
 static s8 setting_hint_game_enhancements       = 0;
 static s8 setting_hint_uncapped_framerate      = 0;
 static s8 internal_setting_region              = RETRO_REGION_NTSC;
@@ -308,6 +313,10 @@ static bool update_option_visibility(void)
 		option_display.key     = "pcsx2_dithering";
 		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
 		option_display.key     = "pcsx2_blending_accuracy";
+		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+		option_display.key     = "pcsx2_vr_mode";
+		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+		option_display.key     = "pcsx2_vr_depth";
 		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
 		option_display.key     = "pcsx2_enable_hw_hacks";
 		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
@@ -1464,6 +1473,30 @@ static void check_variables(bool first_run)
 		}
 	}
 
+	/* VR needs the hardware renderer's depth buffers; the software and
+	 * paraLLEl renderers show the frame as it is. The eyes are side by
+	 * side in one frame, which the geometry has to allow. */
+	{
+		const int vr_mode_prev = gs_vr_mode;
+		gs_vr_mode = GSVR_OFF;
+		var.key = "pcsx2_vr_mode";
+		if (setting_plugin_type == PLUGIN_GSDX_HW && environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+		{
+			if (!strcmp(var.value, "stereoscopic"))
+				gs_vr_mode = GSVR_STEREOSCOPIC;
+		}
+
+		var.key = "pcsx2_vr_depth";
+		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+		{
+			const int percent = atoi(var.value);
+			gs_vr_depth = (percent > 0) ? percent / 100.0f : 1.0f;
+		}
+
+		if (!first_run && gs_vr_mode != vr_mode_prev)
+			pending_update_av_info = true;
+	}
+
 	var.key = "pcsx2_uncapped_framerate_hint";
 	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 	{
@@ -1876,6 +1909,15 @@ void retro_get_system_av_info(retro_system_av_info* info)
 	info->geometry.max_width  = info->geometry.base_width;
 	info->geometry.max_height = 512 * upscale_mul;
 
+	/* The VR eyes side by side (GSVR.h): two frames across, on the
+	 * contexts whose devices make them. */
+	if (gs_vr_mode == GSVR_STEREOSCOPIC
+	      && (   hw_render.context_type == RETRO_HW_CONTEXT_VULKAN
+	          || hw_render.context_type == RETRO_HW_CONTEXT_OPENGL
+	          || hw_render.context_type == RETRO_HW_CONTEXT_OPENGL_CORE
+	          || hw_render.context_type == RETRO_HW_CONTEXT_OPENGLES_VERSION))
+		info->geometry.max_width *= 2;
+
 	switch (setting_hint_widescreen)
 	{
 		case 1:
@@ -1895,6 +1937,8 @@ void retro_get_system_av_info(retro_system_av_info* info)
 			info->geometry.aspect_ratio = 4.0f / 3.0f;
 			break;
 	}
+
+	gs_vr_aspect = info->geometry.aspect_ratio;
 
 	info->timing.fps         = (retro_get_region() == RETRO_REGION_NTSC) ? (60.0f / 1.001f) : 50.0f;
 	info->timing.sample_rate = 48000;
@@ -2892,6 +2936,8 @@ static void update_av_info(void)
 	static double last_sample_rate = 0.0;
 	static unsigned last_width     = 0;
 	static unsigned last_height    = 0;
+	static unsigned last_max_width  = 0;
+	static unsigned last_max_height = 0;
 	static float last_aspect       = 0.0f;
 
 	const bool hw_vulkan = (hw_render.context_type == RETRO_HW_CONTEXT_VULKAN);
@@ -2902,15 +2948,21 @@ static void update_av_info(void)
 		|| av_info.geometry.base_width != last_width
 		|| av_info.geometry.base_height != last_height
 		|| std::fabs(av_info.geometry.aspect_ratio - last_aspect) > 0.001f;
+	/* A larger frame than the frontend's framebuffer holds needs the
+	 * framebuffer made again, which only a new av info does. */
+	const bool max_changed = have_last
+		&& (av_info.geometry.max_width != last_max_width || av_info.geometry.max_height != last_max_height);
 
 	have_last        = true;
 	last_fps         = av_info.timing.fps;
 	last_sample_rate = av_info.timing.sample_rate;
 	last_width       = av_info.geometry.base_width;
 	last_height      = av_info.geometry.base_height;
+	last_max_width   = av_info.geometry.max_width;
+	last_max_height  = av_info.geometry.max_height;
 	last_aspect      = av_info.geometry.aspect_ratio;
 
-	if (!timing_changed && (hw_vulkan || !geometry_changed))
+	if (!timing_changed && (hw_vulkan || (!geometry_changed && !max_changed)))
 	{
 		if (geometry_changed)
 			environ_cb(RETRO_ENVIRONMENT_SET_GEOMETRY, &av_info.geometry);

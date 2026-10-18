@@ -1,0 +1,35 @@
+#include "../Common/vr_glsl_body.h"
+
+/* The VR passes (vr_glsl_body.h), behind convert.glsl's vertex shader,
+ * with its inputs and its one sampler. */
+static const char vr_glsl_shader_raw[] =
+"#ifdef FRAGMENT_SHADER\n"
+"\n"
+"in vec4 PSin_p;\n"
+"in vec2 PSin_t;\n"
+"in vec4 PSin_c;\n"
+"\n"
+"layout(binding = 0) uniform sampler2D TextureSampler;\n"
+"layout(location = 0) out vec4 SV_Target0;\n"
+"\n"
+"#define samp0 TextureSampler\n"
+"#define v_tex PSin_t\n"
+"#define o_col0 SV_Target0\n"
+"\n"
+"#ifdef ps_vr_range\n"
+"uniform ivec4 SrcRect;\n"
+"uniform ivec4 Params;\n"
+"uniform vec4 FParams;\n"
+"#endif\n"
+"\n"
+"#ifdef ps_vr_eye\n"
+"uniform vec4 EyePos;\n"
+"uniform vec4 EyeQuat;\n"
+"uniform vec4 FovTan;\n"
+"uniform vec4 Screen;\n"
+"uniform vec4 DepthMap;\n"
+"#endif\n"
+"\n"
+VR_GLSL_BODY
+"\n"
+"#endif\n";

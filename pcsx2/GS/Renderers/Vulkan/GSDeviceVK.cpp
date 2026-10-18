@@ -57,6 +57,7 @@ extern retro_video_refresh_t video_cb;
 #include <libretro_vulkan.h>
 
 #include "convert.glsl"
+#include "vr.glsl"
 #include "interlace.glsl"
 #include "merge.glsl"
 #include "tfx.glsl"
@@ -1585,9 +1586,22 @@ static VkAttachmentLoadOp GetLoadOpForTexture(GSTextureVK* tex)
  * name, and each was a virtual function. */
 GS_DEVICE_OPS_DEFINE(GSDeviceVK, vulkan);
 
+/* The VR passes (gs_vr_ops), set once they have compiled. */
+static void vk_vr_range(GSDevice* d, GSTexture* sTex, GSTexture* dTex, const GSVector4* dRect, const VRRangeConstants* cb)
+{
+	((GSDeviceVK*)d)->VRRange(sTex, dTex, *dRect, *cb);
+}
+static void vk_vr_eye(GSDevice* d, GSTexture* sTex, GSTexture* dTex, const GSVector4* dRect, const VREyeConstants* cb)
+{
+	((GSDeviceVK*)d)->VREye(sTex, dTex, *dRect, *cb);
+}
+static const struct gs_vr_ops s_vulkan_vr_ops = {vk_vr_range, vk_vr_eye};
+
 GSDeviceVK::GSDeviceVK()
 {
 	m_ops = &s_vulkan_device_ops;
+	m_vr[0] = VK_NULL_HANDLE;
+	m_vr[1] = VK_NULL_HANDLE;
 	memset(&m_pipeline_selector, 0, sizeof(m_pipeline_selector));
 }
 
@@ -2141,6 +2155,14 @@ void GSDeviceVK::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture*
 			vulkan->wait_sync_index(vulkan->handle);
 			SyncIndexWaited(sync_slots);
 
+			/* The merge and interlace targets are left ready to sample;
+			 * the VR eyes are drawn last, and are not. */
+			if (tex->GetLayout() != GSTextureVK::Layout::ShaderReadOnly)
+			{
+				EndRenderPass();
+				tex->TransitionToLayout(GSTextureVK::Layout::ShaderReadOnly);
+			}
+
 			retro_vulkan_image &vkimage = vk_present_descs[sync_index];
 			vkimage = {};
 			vkimage.image_view   = tex->GetView();
@@ -2176,6 +2198,13 @@ void GSDeviceVK::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture*
 			{
 				GSDevice::m_merge               = vk_present_textures[sync_index];
 				m_current                       = GSDevice::m_merge;
+				vk_present_textures[sync_index] = sTex;
+			}
+			/* The VR eyes the same way: VRCompose draws them over in full,
+			 * and resizes whatever comes back. */
+			else if (sTex == m_vr_out && sync_index < VK_PRESENT_MAX_SYNC_INDICES)
+			{
+				m_vr_out                        = vk_present_textures[sync_index];
 				vk_present_textures[sync_index] = sTex;
 			}
 		}
@@ -2470,6 +2499,20 @@ void GSDeviceVK::MoveTexels(GSTexture* sTex, GSTexture* dTex, const GSVector4& d
 	const ShaderConvert shader = ShaderConvert::MOVE_TEXELS;
 	DoStretchRect(static_cast<GSTextureVK*>(sTex), GSVector4::zero(), static_cast<GSTextureVK*>(dTex), dRect,
 		m_convert[static_cast<int>(shader)], false, true);
+}
+
+void GSDeviceVK::VRRange(GSTexture* sTex, GSTexture* dTex, const GSVector4& dRect, const VRRangeConstants& cb)
+{
+	SetUtilityPushConstants(&cb, sizeof(cb));
+	DoStretchRect((GSTextureVK*)sTex, GSVector4::zero(), (GSTextureVK*)dTex, dRect,
+		m_vr[0], false, false);
+}
+
+void GSDeviceVK::VREye(GSTexture* sTex, GSTexture* dTex, const GSVector4& dRect, const VREyeConstants& cb)
+{
+	SetUtilityPushConstants(&cb, sizeof(cb));
+	DoStretchRect((GSTextureVK*)sTex, GSVector4(0.0f, 0.0f, 1.0f, 1.0f), (GSTextureVK*)dTex,
+		dRect, m_vr[1], true, false);
 }
 
 void GSDeviceVK::DoMerge(GSTexture* sTex[3], GSVector4* sRect, GSTexture* dTex, GSVector4* dRect,
@@ -3324,6 +3367,40 @@ bool GSDeviceVK::CompileConvertPipelines()
 		SafeDestroyShaderModule(m_device, ps);
 	}
 
+	// VR passes. A device without them shows the plain frame, so they
+	// failing is no reason to fail the device.
+	{
+		static const char* const vr_entries[2] = {"ps_vr_range", "ps_vr_eye"};
+		bool vr_ok = true;
+		u32 i;
+
+		gpb.SetRenderPass(GetRenderPass(LookupNativeFormat(GSTexture::Format::Color), VK_FORMAT_UNDEFINED,
+							  VK_ATTACHMENT_LOAD_OP_DONT_CARE),
+			0);
+		gpb.SetNoBlendingState();
+		gpb.SetColorWriteMask(0, 0xf);
+		gpb.SetDepthState(false, false, VK_COMPARE_OP_ALWAYS);
+		gpb.SetNoStencilState();
+
+		for (i = 0; i < 2 && vr_ok; i++)
+		{
+			VkShaderModule ps = GetUtilityFragmentShader(vr_glsl_shader_raw, vr_entries[i]);
+			if (ps == VK_NULL_HANDLE)
+			{
+				vr_ok = false;
+				break;
+			}
+			gpb.SetFragmentShader(ps);
+			m_vr[i] = gpb.Create(m_device, g_vulkan_shader_cache->GetPipelineCache(true), false);
+			SafeDestroyShaderModule(m_device, ps);
+			vr_ok = (m_vr[i] != VK_NULL_HANDLE);
+		}
+
+		m_vr_ops = vr_ok ? &s_vulkan_vr_ops : NULL;
+		if (!vr_ok)
+			log_cb(RETRO_LOG_WARN, "Vulkan: the VR passes did not compile, VR is off.\n");
+	}
+
 	// date image setup
 	for (u32 ds = 0; ds < 2; ds++)
 	{
@@ -3536,6 +3613,18 @@ void GSDeviceVK::DestroyResources()
 			p = VK_NULL_HANDLE;
 		}
 	}
+	{
+		u32 i;
+		for (i = 0; i < 2; i++)
+		{
+			if (m_vr[i] != VK_NULL_HANDLE)
+			{
+				vkDestroyPipeline(m_device, m_vr[i], NULL);
+				m_vr[i] = VK_NULL_HANDLE;
+			}
+		}
+	}
+	m_vr_ops = NULL;
 	for (u32 ds = 0; ds < 2; ds++)
 	{
 		for (u32 fbl = 0; fbl < 2; fbl++)

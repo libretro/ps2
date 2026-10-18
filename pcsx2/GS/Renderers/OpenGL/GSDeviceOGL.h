@@ -207,6 +207,10 @@ private:
 	} m_convert;
 
 	GLProgram m_present[static_cast<int>(PresentShader::Count)];
+	GLProgram m_vr[2]; /* ps_vr_range, ps_vr_eye */
+	/* What PresentRect drew into the frontend's framebuffer, which is
+	 * not the merge target's size when it is the VR eyes. */
+	GSVector2i m_present_size;
 
 	struct
 	{
@@ -291,6 +295,8 @@ public:
 	void ConvertToIndexedTexture(GSTexture* sTex, float sScale, u32 offsetX, u32 offsetY, u32 SBW, u32 SPSM, GSTexture* dTex, u32 DBW, u32 DPSM);
 	void FilteredDownsampleTexture(GSTexture* sTex, GSTexture* dTex, u32 downsample_factor, const GSVector2i& clamp_min, const GSVector4 &dRect);
 	void MoveTexels(GSTexture* sTex, GSTexture* dTex, const GSVector4& dRect, const MoveTexelsConstants& cb);
+	void VRRange(GSTexture* sTex, GSTexture* dTex, const GSVector4& dRect, const VRRangeConstants& cb);
+	void VREye(GSTexture* sTex, GSTexture* dTex, const GSVector4& dRect, const VREyeConstants& cb);
 
 	void DrawMultiStretchRects(const MultiStretchRect* rects, u32 num_rects, GSTexture* dTex, ShaderConvert shader);
 	void DoMultiStretchRects(const MultiStretchRect* rects, u32 num_rects, const GSVector2& ds);
