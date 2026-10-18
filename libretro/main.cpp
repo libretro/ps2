@@ -19,7 +19,6 @@
 #include <vector>
 #include <type_traits>
 #include <chrono>
-#include <algorithm>
 
 #include "libretro_core_options.h"
 
@@ -1910,8 +1909,13 @@ void retro_get_system_av_info(retro_system_av_info* info)
 	info->geometry.max_width  = info->geometry.base_width;
 	info->geometry.max_height = 512 * upscale_mul;
 
-	/* The VR eyes side by side (GSVR.h): two frames across. */
-	if (gs_vr_mode == GSVR_STEREOSCOPIC)
+	/* The VR eyes side by side (GSVR.h): two frames across, on the
+	 * contexts whose devices make them. */
+	if (gs_vr_mode == GSVR_STEREOSCOPIC
+	      && (   hw_render.context_type == RETRO_HW_CONTEXT_VULKAN
+	          || hw_render.context_type == RETRO_HW_CONTEXT_OPENGL
+	          || hw_render.context_type == RETRO_HW_CONTEXT_OPENGL_CORE
+	          || hw_render.context_type == RETRO_HW_CONTEXT_OPENGLES_VERSION))
 		info->geometry.max_width *= 2;
 
 	switch (setting_hint_widescreen)
