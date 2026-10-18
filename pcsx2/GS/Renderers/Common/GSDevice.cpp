@@ -92,7 +92,19 @@ const char* shaderName(ShaderConvert value)
 
 GSDevice* g_gs_device = NULL;
 
-GSDevice::GSDevice() = default;
+GSDevice::GSDevice()
+{
+	m_vr_out          = NULL;
+	m_vr_atlas        = NULL;
+	m_vr_reduce[0]    = NULL;
+	m_vr_reduce[1]    = NULL;
+	m_vr_range[0]     = NULL;
+	m_vr_range[1]     = NULL;
+	m_vr_range_cur    = 0;
+	m_vr_depth_missing = 0;
+	m_vr_ops          = NULL;
+	m_vr_snapshot     = NULL;
+}
 
 GSDevice::~GSDevice()
 {
@@ -559,16 +571,16 @@ void GSDevice::ClearCurrent()
  * were. It is reduced on the GPU, the atlas's depth to one texel in
  * three passes, and eased from frame to frame so that a muzzle flash
  * or an object passing the camera does not make the scene breathe. */
-static constexpr int VR_REDUCE_BLOCK = 16;
-static constexpr float VR_RANGE_EASE = 0.2f;
+#define VR_REDUCE_BLOCK 16
+#define VR_RANGE_EASE   0.2f
 /* How many frames in a row without depth keep the last frame's. */
-static constexpr u32 VR_DEPTH_HOLD = 8;
+#define VR_DEPTH_HOLD   8
 
 void GSDevice::VRRelease()
 {
 	/* The frontend may still be showing it. */
 	RetirePresentTexture(m_vr_out);
-	m_vr_out = nullptr;
+	m_vr_out = NULL;
 
 	gs_texture_free(m_vr_atlas);
 	gs_texture_free(m_vr_reduce[0]);
@@ -576,11 +588,13 @@ void GSDevice::VRRelease()
 	gs_texture_free(m_vr_range[0]);
 	gs_texture_free(m_vr_range[1]);
 	gs_texture_free(m_vr_snapshot);
-	m_vr_atlas = nullptr;
-	m_vr_reduce[0] = m_vr_reduce[1] = nullptr;
-	m_vr_range[0] = m_vr_range[1] = nullptr;
-	m_vr_range_cur = 0;
-	m_vr_snapshot = nullptr;
+	m_vr_atlas         = NULL;
+	m_vr_reduce[0]     = NULL;
+	m_vr_reduce[1]     = NULL;
+	m_vr_range[0]      = NULL;
+	m_vr_range[1]      = NULL;
+	m_vr_range_cur     = 0;
+	m_vr_snapshot      = NULL;
 	m_vr_depth_missing = VR_DEPTH_HOLD;
 }
 
@@ -599,23 +613,36 @@ bool GSDevice::VRSnapshotDepth(GSTexture* depth)
 	return true;
 }
 
+GSTexture* GSDevice::VRBlank(const GSVector2i& eye_size)
+{
+	if (eye_size.x <= 0 || eye_size.y <= 0)
+		return NULL;
+	if (!ResizeRenderTarget(&m_vr_out, 2 * eye_size.x, eye_size.y, false, false, true))
+		return NULL;
+	ClearRenderTarget(m_vr_out, 0xFF000000u);
+	return m_vr_out;
+}
+
 GSTexture* GSDevice::VRCompose(GSTexture* picture, const GSVRFrame& frame)
 {
-	if (!m_vr_ops || !picture || frame.eye_width <= 0 || frame.eye_height <= 0)
-		return nullptr;
+	int w, h, eye;
+	bool hold;
 
-	const int w = picture->GetWidth();
-	const int h = picture->GetHeight();
+	if (!m_vr_ops || !picture || frame.eye_size.x <= 0 || frame.eye_size.y <= 0)
+		return NULL;
+
+	w = picture->GetWidth();
+	h = picture->GetHeight();
 
 	/* A frame now and then whose depth cannot be found keeps the last
 	 * one's, rather than the picture going flat for a frame: depth that
 	 * comes and goes is worse than depth a frame old. */
-	const bool hold = !frame.depth && m_vr_atlas && m_vr_atlas->GetWidth() == w &&
-	                  m_vr_atlas->GetHeight() == 2 * h + 1 && m_vr_depth_missing < VR_DEPTH_HOLD;
+	hold = !frame.depth && m_vr_atlas && m_vr_atlas->GetWidth() == w &&
+	       m_vr_atlas->GetHeight() == 2 * h + 1 && m_vr_depth_missing < VR_DEPTH_HOLD;
 	m_vr_depth_missing = frame.depth ? 0 : m_vr_depth_missing + 1;
 
 	if (!ResizeRenderTarget(&m_vr_atlas, w, 2 * h + 1, hold, true))
-		return nullptr;
+		return NULL;
 
 	/* Zero under the picture is the far plane wherever the game's frame
 	 * buffer does not reach, and zero in the range texel an empty range,
@@ -626,50 +653,52 @@ GSTexture* GSDevice::VRCompose(GSTexture* picture, const GSVRFrame& frame)
 
 	if (frame.depth)
 	{
-		const GSVector4 dst = frame.picture_rect + GSVector4(0.0f, static_cast<float>(h), 0.0f, static_cast<float>(h));
-		StretchRect(frame.depth, frame.depth_rect, m_vr_atlas, dst,
-			frame.depth_encoded ? ShaderConvert::COPY : ShaderConvert::FLOAT32_TO_RGBA8, false);
-
+		const GSVector4 dst = frame.picture_rect + GSVector4(0.0f, (float)h, 0.0f, (float)h);
 		const int w1 = (w + VR_REDUCE_BLOCK - 1) / VR_REDUCE_BLOCK;
 		const int h1 = (h + VR_REDUCE_BLOCK - 1) / VR_REDUCE_BLOCK;
 		const int w2 = (w1 + VR_REDUCE_BLOCK - 1) / VR_REDUCE_BLOCK;
 		const int h2 = (h1 + VR_REDUCE_BLOCK - 1) / VR_REDUCE_BLOCK;
+		bool ok;
+		int i;
+
+		StretchRect(frame.depth, frame.depth_rect, m_vr_atlas, dst,
+			frame.depth_encoded ? ShaderConvert::COPY : ShaderConvert::FLOAT32_TO_RGBA8, false);
 
 		/* The last level has a column more, for last frame's range: the
 		 * pass that eases towards it reads both through its one texture. */
-		bool ok = ResizeRenderTarget(&m_vr_reduce[0], w1, h1, false, true) &&
-		          ResizeRenderTarget(&m_vr_reduce[1], w2 + 1, h2, false, true);
-		for (int i = 0; ok && i < 2; i++)
+		ok = ResizeRenderTarget(&m_vr_reduce[0], w1, h1, false, true) &&
+		     ResizeRenderTarget(&m_vr_reduce[1], w2 + 1, h2, false, true);
+		for (i = 0; ok && i < 2; i++)
 		{
 			/* Made once and kept: each holds a frame's range for the
 			 * next. Cleared to zero, which is no range. */
 			if (!m_vr_range[i])
 				m_vr_range[i] = CreateRenderTarget(1, 1, GSTexture::Format::Color, true);
-			ok = (m_vr_range[i] != nullptr);
+			ok = (m_vr_range[i] != NULL);
 		}
 
 		if (ok)
 		{
 			const u32 prev = m_vr_range_cur;
 			const u32 next = prev ^ 1;
+			const GSVector4 r1(0.0f, 0.0f, (float)w1, (float)h1);
+			const GSVector4 r2(0.0f, 0.0f, (float)w2, (float)h2);
+			const GSVector4 r3(0.0f, 0.0f, 1.0f, 1.0f);
 			VRRangeConstants cb;
 
-			cb.src = GSVector4i(0, h, w, h);
+			cb.src    = GSVector4i(0, h, w, h);
 			cb.params = GSVector4i(VR_REDUCE_BLOCK, VR_RANGE_FROM_Z, 0, 0);
 			cb.fparams = GSVector4(frame.z_scale, 0.0f, 0.0f, 0.0f);
-			const GSVector4 r1(0.0f, 0.0f, static_cast<float>(w1), static_cast<float>(h1));
 			m_vr_ops->range(this, m_vr_atlas, m_vr_reduce[0], &r1, &cb);
 
 			CopyRect(m_vr_range[prev], m_vr_reduce[1], GSVector4i(0, 0, 1, 1), w2, 0);
-			cb.src = GSVector4i(0, 0, w1, h1);
+			cb.src    = GSVector4i(0, 0, w1, h1);
 			cb.params = GSVector4i(VR_REDUCE_BLOCK, 0, 0, 0);
-			const GSVector4 r2(0.0f, 0.0f, static_cast<float>(w2), static_cast<float>(h2));
 			m_vr_ops->range(this, m_vr_reduce[0], m_vr_reduce[1], &r2, &cb);
 
-			cb.src = GSVector4i(0, 0, w2, h2);
-			cb.params = GSVector4i(pcsx2_max_i(w2, h2), VR_RANGE_SMOOTH, w2, 0);
+			cb.src     = GSVector4i(0, 0, w2, h2);
+			cb.params  = GSVector4i(pcsx2_max_i(w2, h2), VR_RANGE_SMOOTH, w2, 0);
 			cb.fparams = GSVector4(frame.z_scale, VR_RANGE_EASE, 0.0f, 0.0f);
-			const GSVector4 r3(0.0f, 0.0f, 1.0f, 1.0f);
 			m_vr_ops->range(this, m_vr_reduce[1], m_vr_range[next], &r3, &cb);
 
 			m_vr_range_cur = next;
@@ -677,13 +706,13 @@ GSTexture* GSDevice::VRCompose(GSTexture* picture, const GSVRFrame& frame)
 		}
 	}
 
-	if (!ResizeRenderTarget(&m_vr_out, 2 * frame.eye_width, frame.eye_height, false, false, true))
-		return nullptr;
+	if (!ResizeRenderTarget(&m_vr_out, 2 * frame.eye_size.x, frame.eye_size.y, false, false, true))
+		return NULL;
 
-	for (int eye = 0; eye < 2; eye++)
+	for (eye = 0; eye < 2; eye++)
 	{
-		const GSVector4 r(static_cast<float>(eye * frame.eye_width), 0.0f,
-			static_cast<float>((eye + 1) * frame.eye_width), static_cast<float>(frame.eye_height));
+		const GSVector4 r((float)(eye * frame.eye_size.x), 0.0f,
+			(float)((eye + 1) * frame.eye_size.x), (float)frame.eye_size.y);
 		m_vr_ops->eye(this, m_vr_atlas, m_vr_out, &r, &frame.eyes[eye]);
 	}
 

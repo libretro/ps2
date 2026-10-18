@@ -23,8 +23,8 @@
  *                 left/right pair the frontend shows in 3D, on a 3D
  *                 display or as a screen in a headset
  *
- * Only the Vulkan and OpenGL/GLES devices make the eyes (GSDevice::
- * VRSupported); everything else shows the frame as it is. */
+ * Only the Vulkan and OpenGL/GLES devices make the eyes (they set
+ * GSDevice::m_vr_ops); everything else shows the frame as it is. */
 
 enum GSVRMode
 {

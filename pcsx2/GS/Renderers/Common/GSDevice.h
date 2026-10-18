@@ -225,11 +225,8 @@ struct alignas(16) InterlaceConstantBuffer
  * ranges), and the texel holding last frame's range when VR_RANGE_SMOOTH
  * eases this one towards it; fparams the scale that takes Z to [0, 1]
  * and how far towards the new range a frame moves. */
-enum
-{
-	VR_RANGE_FROM_Z = 1,
-	VR_RANGE_SMOOTH = 2,
-};
+#define VR_RANGE_FROM_Z 1
+#define VR_RANGE_SMOOTH 2
 
 struct alignas(16) VRRangeConstants
 {
@@ -268,18 +265,18 @@ struct gs_vr_ops
  * eyes to draw. depth is NULL when there is none, and the eyes see a
  * flat window. depth_rect is the part of depth under picture_rect of the
  * picture (normalised; pixels), depth_encoded whether depth is already
- * the bytes of Z (a snapshot) or the depth buffer itself, and z_scale
- * what takes those bytes to [0, 1] for the Z format. */
+ * the bytes of Z (a snapshot) or the depth buffer itself, z_scale what
+ * takes those bytes to [0, 1] for the Z format, and eye_size the size of
+ * one eye. */
 struct GSVRFrame
 {
-	GSTexture* depth;
+	VREyeConstants eyes[2];
 	GSVector4 depth_rect;
 	GSVector4 picture_rect;
-	bool depth_encoded;
+	GSTexture* depth;
+	GSVector2i eye_size;
 	float z_scale;
-	int eye_width;
-	int eye_height;
-	VREyeConstants eyes[2];
+	bool depth_encoded;
 };
 
 enum HWBlendFlags
@@ -952,16 +949,13 @@ protected:
 	GSTexture* m_colclip_rt = nullptr; ///< Temp hw colclip texture
 
 	/* VR (VRCompose). The output is handed to the frontend like the merge
-	 * target, and retired like it; the rest is the device's own. The
-	 * snapshot keeps a depth buffer's Z, as bytes, for the frame buffer
-	 * it was drawn with once the game draws another with it. */
-	GSTexture* m_vr_out = nullptr;
-	GSTexture* m_vr_atlas = nullptr;
-	GSTexture* m_vr_reduce[2] = {};
-	GSTexture* m_vr_range[2] = {};
-	u32 m_vr_range_cur = 0;
-	u32 m_vr_depth_missing = 0; ///< Frames in a row VRCompose had no depth for
-	GSTexture* m_vr_snapshot = nullptr;
+	 * target, and retired like it; the rest is the device's own. */
+	GSTexture* m_vr_out;
+	GSTexture* m_vr_atlas;
+	GSTexture* m_vr_reduce[2];
+	GSTexture* m_vr_range[2];
+	u32 m_vr_range_cur;
+	u32 m_vr_depth_missing; /* Frames in a row VRCompose had no depth for */
 
 	struct
 	{
@@ -991,7 +985,11 @@ public:
 	 * now that the destructor is not virtual (gs_device_ops, below). */
 	const struct gs_device_ops* m_ops = nullptr;
 	/* Set by a device that makes VR frames, NULL otherwise. */
-	const struct gs_vr_ops* m_vr_ops = nullptr;
+	const struct gs_vr_ops* m_vr_ops;
+	/* The Z of a depth buffer as bytes (VRSnapshotDepth), kept for the
+	 * frame buffer it was drawn with once the game draws another with it;
+	 * NULL until one is taken. */
+	GSTexture* m_vr_snapshot;
 	void Free();
 
 	/// Generates a fixed index buffer for expanding points and sprites. Buffer is assumed to be at least EXPAND_BUFFER_SIZE in size.
@@ -1095,12 +1093,12 @@ public:
 
 	/* VR (GSVR.h). VRCompose draws both eyes of frame from the picture,
 	 * side by side, left first, and returns the texture they are in, or
-	 * NULL when it could not. VRSnapshotDepth keeps the Z of a depth
-	 * buffer as bytes in m_vr_snapshot, which VRSnapshot returns. */
-	__fi bool VRSupported() const { return m_vr_ops != nullptr; }
+	 * NULL when it could not. VRBlank returns that texture black at size
+	 * (both eyes), for a blank frame. VRSnapshotDepth keeps the Z of a
+	 * depth buffer as bytes in m_vr_snapshot. */
 	GSTexture* VRCompose(GSTexture* picture, const GSVRFrame& frame);
+	GSTexture* VRBlank(const GSVector2i& eye_size);
 	bool VRSnapshotDepth(GSTexture* depth);
-	__fi GSTexture* VRSnapshot() const { return m_vr_snapshot; }
 	void VRRelease();
 
 	void Merge(GSTexture* sTex[3], GSVector4* sRect, GSVector4* dRect, const GSVector2i& fs, const GSRegPMODE& PMODE, const GSRegEXTBUF& EXTBUF, u32 c);

@@ -521,7 +521,7 @@ protected:
 	/* The last vsync made VR eyes, or would have: the frontend shows a
 	 * stereo pair and the option asks for one. The renderer keeps track
 	 * of depth buffers only while it does. */
-	bool m_vr_active = false;
+	bool m_vr_active;
 	bool m_process_texture = false;
 	bool m_downscale_source = false;
 
@@ -540,14 +540,16 @@ private:
 	GSTexture* VRFrame(GSTexture* current, bool blank_frame);
 	void VRClearViews();
 
-	/* The circuit Merge took the picture from, for the VR eyes: its
-	 * texture, the part read (normalised) and where that went in the
-	 * merge (pixels of m_real_size). */
-	GSTexture* m_vr_merge_tex = nullptr;
-	GSVector4 m_vr_merge_src = GSVector4::zero();
-	GSVector4 m_vr_merge_dst = GSVector4::zero();
+	/* The circuit Merge took the picture from, for the VR eyes: the part
+	 * read (normalised), where that went in the merge (pixels of
+	 * m_real_size) and its texture. */
+	GSVector4 m_vr_merge_src;
+	GSVector4 m_vr_merge_dst;
+	GSTexture* m_vr_merge_tex;
+	/* The size of one eye in the map that stands. */
+	GSVector2i m_vr_eye_size;
 	/* A view map was sent and stands until one with no views is. */
-	bool m_vr_map_set = false;
+	bool m_vr_map_set;
 
 	u32 m_skipped_duplicate_frames = 0;
 

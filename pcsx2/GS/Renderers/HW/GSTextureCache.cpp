@@ -4879,7 +4879,7 @@ GSTextureCache::Target* GSTextureCache::FindDepthTarget(u32 BP) const
 			return t;
 	}
 
-	return nullptr;
+	return NULL;
 }
 
 GSTextureCache::Target* GSTextureCache::FindOverlappingTarget(GSTextureCache::Target* target) const

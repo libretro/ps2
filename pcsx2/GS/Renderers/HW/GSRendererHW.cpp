@@ -78,6 +78,19 @@ GSRendererHW::GSRendererHW()
 {
 	m_ops = &s_hw_ops;
 	MULTI_ISA_SELECT(GSRendererHWPopulateFunctions)(*this);
+
+	memset(m_vr_pairs, 0, sizeof(m_vr_pairs));
+	memset(&m_vr_snapshot, 0, sizeof(m_vr_snapshot));
+	memset(m_vr_frame_buffers, 0, sizeof(m_vr_frame_buffers));
+	m_vr_output_tex[0]   = NULL;
+	m_vr_output_tex[1]   = NULL;
+	m_vr_output_scale[0] = 0.0f;
+	m_vr_output_scale[1] = 0.0f;
+	m_vr_output_bp[0]    = 0;
+	m_vr_output_bp[1]    = 0;
+	m_vr_snapshot_scale  = 0.0f;
+	m_vr_age             = 0;
+	m_vr_frame           = 0;
 	m_mipmap = (GSConfig.HWMipmapMode >= GSHWMipmapMode::Enabled);
 	SetTCOffset();
 
@@ -211,7 +224,7 @@ GSTexture* GSRendererHW::GetOutput(int i, float& scale, int& y_offset)
 	TEX0.TBW = curFramebuffer.FBW;
 	TEX0.PSM = curFramebuffer.PSM;
 
-	m_vr_output_tex[index] = nullptr;
+	m_vr_output_tex[index] = NULL;
 
 	if (GSTextureCache::Target* rt = g_texture_cache->LookupDisplayTarget(TEX0, framebufferSize, GetTextureScaleFactor(), false))
 	{
@@ -241,24 +254,27 @@ static float vr_z_scale(u32 zpsm)
 {
 	switch (GSLocalMemory::m_psm[zpsm].trbpp)
 	{
-		case 16: return 0x1p-16f;
-		case 24: return 0x1p-24f;
-		default: return 0x1p-32f;
+		case 16: return 1.0f / 65536.0f;
+		case 24: return 1.0f / 16777216.0f;
+		default: break;
 	}
+	return 1.0f / 4294967296.0f;
 }
 
 void GSRendererHW::VRColorDrawn(u32 fbp)
 {
 	VRFrameBuffer* slot = &m_vr_frame_buffers[0];
-	for (VRFrameBuffer& f : m_vr_frame_buffers)
+	int i;
+	for (i = 0; i < VR_FRAME_BUFFERS; i++)
 	{
-		if (f.age && f.fbp == fbp)
+		VRFrameBuffer* f = &m_vr_frame_buffers[i];
+		if (f->age && f->fbp == fbp)
 		{
-			slot = &f;
+			slot = f;
 			break;
 		}
-		if (f.age < slot->age)
-			slot = &f;
+		if (f->age < slot->age)
+			slot = f;
 	}
 	slot->fbp = fbp;
 	slot->age = ++m_vr_age;
@@ -266,27 +282,30 @@ void GSRendererHW::VRColorDrawn(u32 fbp)
 
 u32 GSRendererHW::VRColorAge(u32 fbp) const
 {
-	for (const VRFrameBuffer& f : m_vr_frame_buffers)
+	int i;
+	for (i = 0; i < VR_FRAME_BUFFERS; i++)
 	{
-		if (f.age && f.fbp == fbp)
-			return f.age;
+		if (m_vr_frame_buffers[i].age && m_vr_frame_buffers[i].fbp == fbp)
+			return m_vr_frame_buffers[i].age;
 	}
 	return 0;
 }
 
 void GSRendererHW::VRDepthDrawn(u32 fbp, u32 zbp, u32 zpsm)
 {
-	VRDepthPair* pair = nullptr;
+	VRDepthPair* pair   = NULL;
 	VRDepthPair* oldest = &m_vr_pairs[0];
-	for (VRDepthPair& p : m_vr_pairs)
+	int i;
+	for (i = 0; i < VR_DEPTH_PAIRS; i++)
 	{
-		if (p.valid && p.zbp == zbp)
+		VRDepthPair* p = &m_vr_pairs[i];
+		if (p->valid && p->zbp == zbp)
 		{
-			pair = &p;
+			pair = p;
 			break;
 		}
-		if (!p.valid || (oldest->valid && p.age < oldest->age))
-			oldest = &p;
+		if (!p->valid || (oldest->valid && p->age < oldest->age))
+			oldest = p;
 	}
 
 	m_vr_age++;
@@ -300,109 +319,89 @@ void GSRendererHW::VRDepthDrawn(u32 fbp, u32 zbp, u32 zpsm)
 		GSTextureCache::Target* ds = g_texture_cache->FindDepthTarget(zbp);
 		if (ds && g_gs_device->VRSnapshotDepth(ds->m_texture))
 		{
-			m_vr_snapshot = *pair;
-			m_vr_snapshot.age = m_vr_age;
+			m_vr_snapshot       = *pair;
+			m_vr_snapshot.age   = m_vr_age;
 			m_vr_snapshot_scale = ds->m_scale;
 		}
 	}
 	if (!pair)
 		pair = oldest;
 
-	pair->fbp = fbp;
-	pair->zbp = zbp;
-	pair->zpsm = zpsm;
-	pair->age = m_vr_age;
+	pair->fbp   = fbp;
+	pair->zbp   = zbp;
+	pair->zpsm  = zpsm;
+	pair->age   = m_vr_age;
 	pair->frame = m_vr_frame;
 	pair->valid = true;
 }
 
 bool GSRendererHW::GetVRDepth(GSTexture* color, GSTexture** depth, bool* encoded, float* z_scale)
 {
+	const VRDepthPair* pair   = NULL;
+	const VRDepthPair* latest = NULL;
+	GSTextureCache::Target* ds;
+	bool have_snapshot, picture_older, live;
+	float scale;
+	u32 fbp;
+	int i, c;
+
 	/* One call a vsync: what is drawn from here is the next frame's. */
 	m_vr_frame++;
 
-	const int i = (color == m_vr_output_tex[1]) ? 1 : (color == m_vr_output_tex[0]) ? 0 : -1;
-	if (i < 0 || !color)
+	c = (color == m_vr_output_tex[1]) ? 1 : (color == m_vr_output_tex[0]) ? 0 : -1;
+	if (c < 0 || !color)
 		return false;
 
-	const u32 fbp = m_vr_output_bp[i];
-	const float scale = m_vr_output_scale[i];
+	fbp   = m_vr_output_bp[c];
+	scale = m_vr_output_scale[c];
 
 	/* The depth buffer the frame buffer was last drawn with; failing
 	 * that, the one drawn with last of all. A frame buffer no depth was
 	 * drawn with is most often the scene copied there to be shown,
-	 * through a blur or a filter or a trail (GTA San Andreas), and its
-	 * depth is that of the scene, in its own buffer, at the same place. */
-	const VRDepthPair* pair = nullptr;
-	const VRDepthPair* latest = nullptr;
-	for (const VRDepthPair& p : m_vr_pairs)
+	 * through a blur, a filter or a trail pass, and its depth is that of
+	 * the scene, in its own buffer, at the same place. */
+	for (i = 0; i < VR_DEPTH_PAIRS; i++)
 	{
-		if (!p.valid)
+		const VRDepthPair* p = &m_vr_pairs[i];
+		if (!p->valid)
 			continue;
-		if (p.fbp == fbp)
-			pair = &p;
-		if (!latest || p.age > latest->age)
-			latest = &p;
+		if (p->fbp == fbp)
+			pair = p;
+		if (!latest || p->age > latest->age)
+			latest = p;
 	}
 	if (!pair)
 		pair = latest;
+	if (!pair)
+		return false;
 
-	/* For the log: whether the depth used was drawn for this frame
-	 * buffer, or is another's standing in for a copy. */
-	VRDepthSource source = VRDepthSource::None;
-	bool found = false;
-	if (pair)
+	/* The snapshot is the drawing the buffer held before it was begun
+	 * again. Where the picture shown was last drawn before that, the
+	 * picture is of the frame the snapshot is of; where after, of the
+	 * frame the buffer holds now. */
+	have_snapshot = m_vr_snapshot.valid && m_vr_snapshot.zbp == pair->zbp &&
+	                m_vr_snapshot_scale == scale && g_gs_device->m_vr_snapshot;
+	picture_older = have_snapshot && VRColorAge(fbp) < m_vr_snapshot.age;
+
+	ds   = g_texture_cache->FindDepthTarget(pair->zbp);
+	live = ds && ds->m_scale == scale && ds->m_texture &&
+	       ds->m_texture->GetState() == GSTexture::State::Dirty;
+
+	if (live && !picture_older)
 	{
-		/* The snapshot is the drawing the buffer held before it was
-		 * begun again. Where the picture shown was last drawn before
-		 * that, the picture is of the frame the snapshot is of; where
-		 * after, of the frame the buffer holds now. */
-		const bool have_snapshot = m_vr_snapshot.valid && m_vr_snapshot.zbp == pair->zbp &&
-		                           m_vr_snapshot_scale == scale && g_gs_device->VRSnapshot();
-		const bool picture_older = have_snapshot && VRColorAge(fbp) < m_vr_snapshot.age;
-
-		GSTextureCache::Target* ds = g_texture_cache->FindDepthTarget(pair->zbp);
-		const bool live = ds && ds->m_scale == scale && ds->m_texture &&
-		                  ds->m_texture->GetState() == GSTexture::State::Dirty;
-
-		if (live && !picture_older)
-		{
-			*depth = ds->m_texture;
-			*encoded = false;
-			*z_scale = vr_z_scale(pair->zpsm);
-			source = (pair->fbp == fbp) ? VRDepthSource::Own : VRDepthSource::Latest;
-			found = true;
-		}
-		else if (have_snapshot)
-		{
-			*depth = g_gs_device->VRSnapshot();
-			*encoded = true;
-			*z_scale = vr_z_scale(m_vr_snapshot.zpsm);
-			source = (m_vr_snapshot.fbp == fbp) ? VRDepthSource::Own : VRDepthSource::Latest;
-			found = true;
-		}
+		*depth   = ds->m_texture;
+		*encoded = false;
+		*z_scale = vr_z_scale(pair->zpsm);
+		return true;
 	}
-
-	/* Logged once it has held for a second: menus come and go a frame
-	 * at a time. */
-	if (source != m_vr_pending_source)
+	if (have_snapshot)
 	{
-		m_vr_pending_source = source;
-		m_vr_pending_frames = 0;
+		*depth   = g_gs_device->m_vr_snapshot;
+		*encoded = true;
+		*z_scale = vr_z_scale(m_vr_snapshot.zpsm);
+		return true;
 	}
-	const VRDepthSource logged = source;
-	if (logged != m_vr_logged_source && ++m_vr_pending_frames >= 60)
-	{
-		static const char* const what[] = {
-			"none, the picture is flat",
-			"the depth buffer the frame was drawn with",
-			"the depth buffer drawn last (the frame shown is a copy)",
-		};
-		log_cb(RETRO_LOG_INFO, "VR: depth from %s.\n", what[static_cast<int>(logged)]);
-		m_vr_logged_source = logged;
-	}
-
-	return found;
+	return false;
 }
 
 GSTexture* GSRendererHW::GetFeedbackOutput(float& scale)

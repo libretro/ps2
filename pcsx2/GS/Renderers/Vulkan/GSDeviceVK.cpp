@@ -1589,17 +1589,19 @@ GS_DEVICE_OPS_DEFINE(GSDeviceVK, vulkan);
 /* The VR passes (gs_vr_ops), set once they have compiled. */
 static void vk_vr_range(GSDevice* d, GSTexture* sTex, GSTexture* dTex, const GSVector4* dRect, const VRRangeConstants* cb)
 {
-	static_cast<GSDeviceVK*>(d)->VRRange(sTex, dTex, *dRect, *cb);
+	((GSDeviceVK*)d)->VRRange(sTex, dTex, *dRect, *cb);
 }
 static void vk_vr_eye(GSDevice* d, GSTexture* sTex, GSTexture* dTex, const GSVector4* dRect, const VREyeConstants* cb)
 {
-	static_cast<GSDeviceVK*>(d)->VREye(sTex, dTex, *dRect, *cb);
+	((GSDeviceVK*)d)->VREye(sTex, dTex, *dRect, *cb);
 }
 static const struct gs_vr_ops s_vulkan_vr_ops = {vk_vr_range, vk_vr_eye};
 
 GSDeviceVK::GSDeviceVK()
 {
 	m_ops = &s_vulkan_device_ops;
+	m_vr[0] = VK_NULL_HANDLE;
+	m_vr[1] = VK_NULL_HANDLE;
 	memset(&m_pipeline_selector, 0, sizeof(m_pipeline_selector));
 }
 
@@ -2502,14 +2504,14 @@ void GSDeviceVK::MoveTexels(GSTexture* sTex, GSTexture* dTex, const GSVector4& d
 void GSDeviceVK::VRRange(GSTexture* sTex, GSTexture* dTex, const GSVector4& dRect, const VRRangeConstants& cb)
 {
 	SetUtilityPushConstants(&cb, sizeof(cb));
-	DoStretchRect(static_cast<GSTextureVK*>(sTex), GSVector4::zero(), static_cast<GSTextureVK*>(dTex), dRect,
+	DoStretchRect((GSTextureVK*)sTex, GSVector4::zero(), (GSTextureVK*)dTex, dRect,
 		m_vr[0], false, false);
 }
 
 void GSDeviceVK::VREye(GSTexture* sTex, GSTexture* dTex, const GSVector4& dRect, const VREyeConstants& cb)
 {
 	SetUtilityPushConstants(&cb, sizeof(cb));
-	DoStretchRect(static_cast<GSTextureVK*>(sTex), GSVector4(0.0f, 0.0f, 1.0f, 1.0f), static_cast<GSTextureVK*>(dTex),
+	DoStretchRect((GSTextureVK*)sTex, GSVector4(0.0f, 0.0f, 1.0f, 1.0f), (GSTextureVK*)dTex,
 		dRect, m_vr[1], true, false);
 }
 
@@ -3370,6 +3372,7 @@ bool GSDeviceVK::CompileConvertPipelines()
 	{
 		static const char* const vr_entries[2] = {"ps_vr_range", "ps_vr_eye"};
 		bool vr_ok = true;
+		u32 i;
 
 		gpb.SetRenderPass(GetRenderPass(LookupNativeFormat(GSTexture::Format::Color), VK_FORMAT_UNDEFINED,
 							  VK_ATTACHMENT_LOAD_OP_DONT_CARE),
@@ -3379,7 +3382,7 @@ bool GSDeviceVK::CompileConvertPipelines()
 		gpb.SetDepthState(false, false, VK_COMPARE_OP_ALWAYS);
 		gpb.SetNoStencilState();
 
-		for (u32 i = 0; i < 2 && vr_ok; i++)
+		for (i = 0; i < 2 && vr_ok; i++)
 		{
 			VkShaderModule ps = GetUtilityFragmentShader(vr_glsl_shader_raw, vr_entries[i]);
 			if (ps == VK_NULL_HANDLE)
@@ -3393,7 +3396,7 @@ bool GSDeviceVK::CompileConvertPipelines()
 			vr_ok = (m_vr[i] != VK_NULL_HANDLE);
 		}
 
-		m_vr_ops = vr_ok ? &s_vulkan_vr_ops : nullptr;
+		m_vr_ops = vr_ok ? &s_vulkan_vr_ops : NULL;
 		if (!vr_ok)
 			log_cb(RETRO_LOG_WARN, "Vulkan: the VR passes did not compile, VR is off.\n");
 	}
@@ -3610,15 +3613,18 @@ void GSDeviceVK::DestroyResources()
 			p = VK_NULL_HANDLE;
 		}
 	}
-	for (VkPipeline& p : m_vr)
 	{
-		if (p != VK_NULL_HANDLE)
+		u32 i;
+		for (i = 0; i < 2; i++)
 		{
-			vkDestroyPipeline(m_device, p, nullptr);
-			p = VK_NULL_HANDLE;
+			if (m_vr[i] != VK_NULL_HANDLE)
+			{
+				vkDestroyPipeline(m_device, m_vr[i], NULL);
+				m_vr[i] = VK_NULL_HANDLE;
+			}
 		}
 	}
-	m_vr_ops = nullptr;
+	m_vr_ops = NULL;
 	for (u32 ds = 0; ds < 2; ds++)
 	{
 		for (u32 fbl = 0; fbl < 2; fbl++)

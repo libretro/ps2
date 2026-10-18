@@ -446,7 +446,7 @@ private:
 	std::array<VkPipeline, 32> m_color_copy{};
 	std::array<VkPipeline, 2> m_merge{};
 	std::array<VkPipeline, NUM_INTERLACE_SHADERS> m_interlace{};
-	std::array<VkPipeline, 2> m_vr{}; // ps_vr_range, ps_vr_eye
+	VkPipeline m_vr[2]; /* ps_vr_range, ps_vr_eye */
 	VkPipeline m_hdr_setup_pipelines[2][2] = {}; // [depth][feedback_loop]
 	VkPipeline m_hdr_finish_pipelines[2][2] = {}; // [depth][feedback_loop]
 	VkRenderPass m_date_image_setup_render_passes[2][2] = {}; // [depth][clear]

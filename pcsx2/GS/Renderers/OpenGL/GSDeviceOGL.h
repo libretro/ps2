@@ -207,10 +207,10 @@ private:
 	} m_convert;
 
 	GLProgram m_present[static_cast<int>(PresentShader::Count)];
-	GLProgram m_vr[2]; // ps_vr_range, ps_vr_eye
+	GLProgram m_vr[2]; /* ps_vr_range, ps_vr_eye */
 	/* What PresentRect drew into the frontend's framebuffer, which is
 	 * not the merge target's size when it is the VR eyes. */
-	GSVector2i m_present_size{0, 0};
+	GSVector2i m_present_size;
 
 	struct
 	{

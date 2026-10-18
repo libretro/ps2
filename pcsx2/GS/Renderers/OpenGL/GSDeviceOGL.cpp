@@ -170,17 +170,18 @@ GS_DEVICE_OPS_DEFINE(GSDeviceOGL, opengl);
 /* The VR passes (gs_vr_ops), set once they have linked. */
 static void gl_vr_range(GSDevice* d, GSTexture* sTex, GSTexture* dTex, const GSVector4* dRect, const VRRangeConstants* cb)
 {
-	static_cast<GSDeviceOGL*>(d)->VRRange(sTex, dTex, *dRect, *cb);
+	((GSDeviceOGL*)d)->VRRange(sTex, dTex, *dRect, *cb);
 }
 static void gl_vr_eye(GSDevice* d, GSTexture* sTex, GSTexture* dTex, const GSVector4* dRect, const VREyeConstants* cb)
 {
-	static_cast<GSDeviceOGL*>(d)->VREye(sTex, dTex, *dRect, *cb);
+	((GSDeviceOGL*)d)->VREye(sTex, dTex, *dRect, *cb);
 }
 static const struct gs_vr_ops s_opengl_vr_ops = {gl_vr_range, gl_vr_eye};
 
 GSDeviceOGL::GSDeviceOGL()
 {
-	m_ops = &s_opengl_device_ops;
+	m_ops          = &s_opengl_device_ops;
+	m_present_size = GSVector2i(0, 0);
 }
 
 GSDeviceOGL::~GSDeviceOGL()
@@ -601,7 +602,7 @@ bool GSDeviceOGL::Create()
 	{
 		const std::string range(GetShaderSource("ps_vr_range", GL_FRAGMENT_SHADER, vr_glsl_shader_raw));
 		const std::string eye(GetShaderSource("ps_vr_eye", GL_FRAGMENT_SHADER, vr_glsl_shader_raw));
-		m_vr_ops = nullptr;
+		m_vr_ops = NULL;
 		if (m_shader_cache.GetProgram(&m_vr[0], m_convert.vs, range) &&
 			m_shader_cache.GetProgram(&m_vr[1], m_convert.vs, eye))
 		{
@@ -804,9 +805,9 @@ void GSDeviceOGL::DestroyResources()
 	for (GLProgram& prog : m_interlace.ps)
 		prog.Destroy();
 
-	for (GLProgram& prog : m_vr)
-		prog.Destroy();
-	m_vr_ops = nullptr;
+	m_vr[0].Destroy();
+	m_vr[1].Destroy();
+	m_vr_ops = NULL;
 
 	for (GLProgram& prog : m_merge_obj.ps)
 		prog.Destroy();
@@ -1505,7 +1506,7 @@ void GSDeviceOGL::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture
 	DrawStretchRect(flip_sr, dRect, ds);
 
 	if (!dTex)
-		m_present_size = GSVector2i(static_cast<int>(dRect.z - dRect.x), static_cast<int>(dRect.w - dRect.y));
+		m_present_size = GSVector2i((int)(dRect.z - dRect.x), (int)(dRect.w - dRect.y));
 }
 
 void GSDeviceOGL::UpdateCLUTTexture(GSTexture* sTex, float sScale, u32 offsetX, u32 offsetY, GSTexture* dTex, u32 dOffset, u32 dSize, u32 samples)
@@ -1611,7 +1612,7 @@ void GSDeviceOGL::VRRange(GSTexture* sTex, GSTexture* dTex, const GSVector4& dRe
 	OMSetDepthStencilState(m_convert.dss);
 	OMSetBlendState(false);
 	OMSetColorMaskState();
-	OMSetRenderTargets(dTex, nullptr);
+	OMSetRenderTargets(dTex, NULL);
 
 	PSSetShaderResource(0, sTex);
 	PSSetSamplerState(m_convert.pt);
@@ -1634,7 +1635,7 @@ void GSDeviceOGL::VREye(GSTexture* sTex, GSTexture* dTex, const GSVector4& dRect
 	OMSetDepthStencilState(m_convert.dss);
 	OMSetBlendState(false);
 	OMSetColorMaskState();
-	OMSetRenderTargets(dTex, nullptr);
+	OMSetRenderTargets(dTex, NULL);
 
 	PSSetShaderResource(0, sTex);
 	PSSetSamplerState(m_convert.ln);
