@@ -806,6 +806,20 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       "enabled"
    },
    {
+      "pcsx2_disable_shader_cache",
+      "Video > Disable Shader Cache (Restart)",
+      "Disable Shader Cache (Restart)",
+      "Compiles every shader at runtime instead of loading and saving compiled shaders in system/pcsx2/cache. Slower to start and can stutter while new shaders are compiled. Useful when a stale or broken cache is suspected, without deleting the folder by hand.",
+      NULL,
+      "video",
+      {
+         { "disabled", NULL },
+         { "enabled", NULL },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
       "pcsx2_mtvu",
       "Emulation > MTVU (Multi-Threaded VU1) (Restart)",
       "MTVU (Multi-Threaded VU1) (Restart)",
