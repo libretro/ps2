@@ -661,6 +661,20 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       "2"
    },
    {
+      "pcsx2_disable_shader_cache",
+      "Video > Disable Shader Cache (Restart)",
+      "Disable Shader Cache (Restart)",
+      "Compiles shaders at runtime instead of loading and saving them in system/pcsx2/cache. Slower to start and can stutter while new shaders compile. Rules out a stale or broken cache without deleting the folder by hand. Applies to the OpenGL, Vulkan, D3D11 and D3D12 renderers; paraLLEl-GS and the software renderers keep no shader cache. The GPU driver's own shader cache is not affected.",
+      NULL,
+      "video",
+      {
+         { "disabled", NULL },
+         { "enabled", NULL },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
       "pcsx2_vu_accurate_addsub",
       "Emulation > VU Accurate Add/Sub",
       "VU Accurate Add/Sub",
@@ -804,20 +818,6 @@ struct retro_core_option_v2_definition option_defs_us[] = {
          { NULL, NULL },
       },
       "enabled"
-   },
-   {
-      "pcsx2_disable_shader_cache",
-      "Video > Disable Shader Cache (Restart)",
-      "Disable Shader Cache (Restart)",
-      "Compiles every shader at runtime instead of loading and saving compiled shaders in system/pcsx2/cache. Slower to start and can stutter while new shaders are compiled. Useful when a stale or broken cache is suspected, without deleting the folder by hand.",
-      NULL,
-      "video",
-      {
-         { "disabled", NULL },
-         { "enabled", NULL },
-         { NULL, NULL },
-      },
-      "disabled"
    },
    {
       "pcsx2_mtvu",

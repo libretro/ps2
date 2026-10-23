@@ -1430,9 +1430,7 @@ static void check_variables(bool first_run)
 			VMManager::g_FastmemMenuDefault = fastmem_on;
 		}
 
-		/* Shader cache. Without a toggle, ruling out a stale or broken
-		 * cache meant deleting system/pcsx2/cache by hand. Restart-scoped:
-		 * the cache is opened when the GS device is created. */
+		/* Restart-scoped: read when the GS device is created. */
 		var.key = "pcsx2_disable_shader_cache";
 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 			s_option_config.GS.DisableShaderCache = !strcmp(var.value, "enabled");
