@@ -1860,7 +1860,7 @@ void retro_get_system_info(retro_system_info* info)
 	memset(info, 0, sizeof(*info));
 	/* the version is checked by retroachievements, it should be semver */
 	info->library_version  = "v2.0.0-" GIT_VERSION;
-	info->library_name     = "LRPS2";
+	info->library_name     = "ParaLLEl PS2";
 	info->valid_extensions = "elf|iso|ciso|cue|gz|chd|cso|zso|m3u";
 	info->need_fullpath    = true;
 	info->block_extract    = true;
